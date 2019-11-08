@@ -42,3 +42,6 @@ buildNumber.properties
 # File Explorer/Finder Files
 .DS_Store
 Thumbs.db
+
+# Local JDK Ignore
+jdk/
