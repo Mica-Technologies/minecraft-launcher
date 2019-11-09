@@ -1,5 +1,6 @@
 import com.google.gson.Gson;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
+import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackProgressProvider;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -73,7 +74,7 @@ public class LauncherCore {
         String url1 = config.modpacks.get( 0 );
         try {
             MCForgeModpack test = MCForgeModpack.downloadFromURL( new URL( url1 ), Paths
-                                                                      .get( System.getProperty( "user.home" ) + "/Desktop/poop" ),
+                                                                      .get( System.getProperty( "user.home" ) + "/Desktop/LAUNCHER-TEST" ),
                                                                   LauncherConstants.LAUNCHER_CLIENT_MODE );
             String javaPath = "java";
             if ( true ) {
@@ -82,6 +83,12 @@ public class LauncherCore {
                     javaPath = jvms.toString() + "/" + "adoptopenjdk-8.jdk/Contents/Home/bin/java";
                 }
             }
+            test.setProgressProvider( new MCForgeModpackProgressProvider() {
+                @Override
+                public void updateProgressHandler( final double v, final String s ) {
+                    System.out.println( ( ( int ) v ) + "% - " + s );
+                }
+            } );
             test.startGame( javaPath, "test", "test", "test", config.minRAM, config.maxRAM );
         }
         catch ( Exception e ) {
@@ -90,7 +97,7 @@ public class LauncherCore {
     }
 
     /**
-     * Handle the running of the launcher for server enviornments.
+     * Handle the running of the launcher for server environments.
      */
     public static void runServerLauncher() {
 
