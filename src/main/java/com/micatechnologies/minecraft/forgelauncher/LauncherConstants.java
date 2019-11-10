@@ -1,3 +1,5 @@
+package com.micatechnologies.minecraft.forgelauncher;
+
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackConsts;
 import java.io.File;
 
@@ -20,6 +22,6 @@ public class LauncherConstants {
         "{  " + System.lineSeparator() + "   \"minRAM\":256," + System.lineSeparator()
             + "   \"maxRAM\":2048," + System.lineSeparator() + "   \"modpacks\":[  " + System
             .lineSeparator()
-            + "      \"https://filebin.net/9r7nt2pxerdmti09/pack.manifest?t=rvw2e5c0\"" + System
-            .lineSeparator() + "   ]" + System.lineSeparator() + "}";
+            + "      \"https://github.com/Mica-Technologies/Minecraft-Forge-Modpack-Lib/raw/master/full_modpack_json_example.json\""
+            + System.lineSeparator() + "   ]" + System.lineSeparator() + "}";
 }

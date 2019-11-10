@@ -1,3 +1,5 @@
+package com.micatechnologies.minecraft.forgelauncher;
+
 /**
  * A custom exception that provides for a specified message in an exception backtrace.
  *

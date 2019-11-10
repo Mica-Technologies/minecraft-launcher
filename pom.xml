@@ -36,7 +36,7 @@
           <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
           <provider>BELLSOFT</provider>
           <providerConfig>
-            <version>1.8.0</version>
+            <version>8u232+10</version>
             <arch>amd64</arch>
             <type>jdk</type>
           </providerConfig>
@@ -52,21 +52,21 @@
             </goals>
           </execution>
           <execution>
-            <id>cache-jdk-8</id>
+            <id>cache-jdk-8-compile</id>
             <phase>compile</phase>
             <goals>
               <goal>cache-jdk</goal>
             </goals>
           </execution>
           <execution>
-            <id>cache-jdk-8</id>
+            <id>cache-jdk-8-test</id>
             <phase>test</phase>
             <goals>
               <goal>cache-jdk</goal>
             </goals>
           </execution>
           <execution>
-            <id>cache-jdk-8</id>
+            <id>cache-jdk-8-package</id>
             <phase>package</phase>
             <goals>
               <goal>cache-jdk</goal>
@@ -76,6 +76,14 @@
       </plugin>
     </plugins>
   </build>
+
+  <repositories>
+    <repository>
+      <id>repo1</id>
+      <name>gluonhq</name>
+      <url>http://nexus.gluonhq.com/nexus/content/repositories/releases/</url>
+    </repository>
+  </repositories>
 
   <dependencies>
     <dependency>
@@ -93,6 +101,21 @@
       <artifactId>junit-jupiter</artifactId>
       <version>5.5.2</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.gluonhq</groupId>
+      <artifactId>charm-down-common</artifactId>
+      <version>2.0.1</version>
+    </dependency>
+    <dependency>
+      <groupId>com.gluonhq</groupId>
+      <artifactId>charm-down-core</artifactId>
+      <version>3.8.6</version>
+    </dependency>
+    <dependency>
+      <groupId>com.gluonhq</groupId>
+      <artifactId>charm-glisten</artifactId>
+      <version>5.0.2</version>
     </dependency>
   </dependencies>
 

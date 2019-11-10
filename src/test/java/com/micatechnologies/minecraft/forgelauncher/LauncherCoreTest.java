@@ -1,4 +1,7 @@
-import static org.junit.jupiter.api.Assertions.*;
+package com.micatechnologies.minecraft.forgelauncher;
+
+import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
+import com.micatechnologies.minecraft.forgelauncher.LauncherCore;
 
 class LauncherCoreTest {
 
