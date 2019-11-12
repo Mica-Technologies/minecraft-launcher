@@ -4,82 +4,64 @@ import com.gluonhq.charm.glisten.control.Avatar;
 import com.gluonhq.charm.glisten.control.ProgressBar;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.concurrent.CountDownLatch;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
+import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
-public class LauncherProgressGUI extends Application implements Runnable, Initializable {
-
-    @FXML
-    public Label       upperText;
+public class LauncherProgressGUI extends Application implements Initializable {
 
     @FXML
-    public Label       lowerText;
+    public  Label          upperText;
 
     @FXML
-    public ProgressBar progressBar;
+    public  Label          lowerText;
 
     @FXML
-    public Avatar      userIcon;
+    public  ProgressBar    progressBar;
 
-    public void setUpperText( String text ) {
-        Platform.runLater( () -> upperText.setText( text ) );
-    }
+    @FXML
+    public  Avatar         userIcon;
 
-    public void setLowerText( String text ) {
-        Platform.runLater( () -> lowerText.setText( text ) );
-    }
+    private Stage          currStage  = null;
 
-    public void setProgressBarProgress( double progress ) {
-        Platform.runLater( () -> progressBar.setProgress( progress ) );
-    }
-
-    public void setUserIcon( Image icon ) {
-        Platform.runLater( () -> userIcon.setImage( icon ) );
-    }
-
-    public synchronized boolean isLoaded() {
-        return loaded;
-    }
+    public  CountDownLatch readyLatch = new CountDownLatch( 1 );
 
     public static void main( String[] args ) {
         launch( args );
     }
 
+    public Stage getCurrStage() {
+        return currStage;
+    }
+
     @Override
     public void start( Stage primaryStage ) throws IOException {
         // Get FXML File
-        Parent root = FXMLLoader.load( Objects.requireNonNull(
-            getClass().getClassLoader().getResource( "LauncherProgressGUI.fxml" ) ) );
+        FXMLLoader fxmlLoader = new FXMLLoader();
+        fxmlLoader.setLocation(
+            getClass().getClassLoader().getResource( "LauncherProgressGUI.fxml" ) );
+        fxmlLoader.setController( this );
+        AnchorPane pane = fxmlLoader.load();
 
         // Configure Window
         primaryStage.setTitle( "Loading - " + LauncherConstants.LAUNCHER_TITLE );
-        primaryStage.setScene( new Scene( root, 645, 424 ) );
+        primaryStage.setScene( new Scene( pane, 645, 424 ) );
+        primaryStage.initStyle( StageStyle.UNIFIED );
 
         // Show Window
+        currStage = primaryStage;
         primaryStage.show();
-
-        // Set done loading flag
-        synchronized ( this ) {
-            loaded = true;
-        }
-    }
-
-    private boolean loaded = false;
-
-    @Override
-    public void run() {
-        Application.launch();
-        initialize( null, null );
+        readyLatch.countDown();
     }
 
     @Override
@@ -89,7 +71,5 @@ public class LauncherProgressGUI extends Application implements Runnable, Initia
         lowerText.setText( "--" );
         progressBar.setProgress( ProgressBar.INDETERMINATE_PROGRESS );
         userIcon.setImage( new Image( "no_user.png" ) );
-
-        // Run start
     }
 }

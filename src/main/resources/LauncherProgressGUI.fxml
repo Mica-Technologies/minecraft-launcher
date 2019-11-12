@@ -10,8 +10,7 @@
 
 <AnchorPane minHeight="285.0" minWidth="360.0" prefHeight="424.0" prefWidth="645.0"
   style="-fx-background-image: url(&quot;https://storage.needpix.com/rsynced_images/minecraft-636747_1280.jpg&quot;); -fx-background-size: cover;"
-  xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1"
-  fx:controller="com.micatechnologies.minecraft.forgelauncher.LauncherProgressGUI">
+  xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1">
   <opaqueInsets>
     <Insets/>
   </opaqueInsets>

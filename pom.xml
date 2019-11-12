@@ -22,58 +22,19 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
+          <source>9</source>
+          <target>9</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-maven-plugin</artifactId>
+        <version>0.0.3</version>
+        <configuration>
+          <mainClass>com.micatechnologies.minecraft.forgelauncher.LauncherCore</mainClass>
         </configuration>
       </plugin>
 
-      <!-- Download JDK for Platform with cache-jdk -->
-      <plugin>
-        <groupId>com.igormaznitsa</groupId>
-        <artifactId>mvn-jlink-wrapper</artifactId>
-        <version>1.0.4</version>
-        <configuration>
-          <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
-          <provider>BELLSOFT</provider>
-          <providerConfig>
-            <version>8u232+10</version>
-            <arch>amd64</arch>
-            <type>jdk</type>
-          </providerConfig>
-          <output/>
-          <tool/>
-        </configuration>
-        <executions>
-          <execution>
-            <id>cache-jdk-8</id>
-            <phase>install</phase>
-            <goals>
-              <goal>cache-jdk</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>cache-jdk-8-compile</id>
-            <phase>compile</phase>
-            <goals>
-              <goal>cache-jdk</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>cache-jdk-8-test</id>
-            <phase>test</phase>
-            <goals>
-              <goal>cache-jdk</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>cache-jdk-8-package</id>
-            <phase>package</phase>
-            <goals>
-              <goal>cache-jdk</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
 
@@ -89,7 +50,7 @@
     <dependency>
       <groupId>com.micatechnologies.minecraft</groupId>
       <artifactId>forgemodpacklib</artifactId>
-      <version>1.0.1</version>
+      <version>1.1.6</version>
     </dependency>
     <dependency>
       <groupId>com.micatechnologies.minecraft</groupId>
@@ -110,13 +71,62 @@
     <dependency>
       <groupId>com.gluonhq</groupId>
       <artifactId>charm-down-core</artifactId>
-      <version>3.8.6</version>
+      <version>3.8.4</version>
     </dependency>
     <dependency>
       <groupId>com.gluonhq</groupId>
       <artifactId>charm-glisten</artifactId>
-      <version>5.0.2</version>
+      <version>6.0.1</version>
     </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>11.0.2</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-fxml</artifactId>
+      <version>11.0.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>20.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.rauschig</groupId>
+      <artifactId>jarchivelib</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.gluonhq</groupId>
+      <artifactId>charm-down-core</artifactId>
+      <version>3.8.6</version>
+    </dependency>
+    <dependency>
+      <groupId>com.gluonhq</groupId>
+      <artifactId>charm</artifactId>
+      <version>2.2.0</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/com.gluonhq/charm-down-core-android -->
+    <dependency>
+      <groupId>com.gluonhq</groupId>
+      <artifactId>charm-down-core-android</artifactId>
+      <version>3.8.6</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/com.gluonhq.attach/display -->
+    <dependency>
+      <groupId>com.gluonhq.attach</groupId>
+      <artifactId>display</artifactId>
+      <version>4.0.2</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/com.gluonhq.attach/util -->
+    <dependency>
+      <groupId>com.gluonhq.attach</groupId>
+      <artifactId>util</artifactId>
+      <version>4.0.2</version>
+    </dependency>
+
   </dependencies>
 
 </project>
