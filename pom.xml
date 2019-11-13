@@ -55,7 +55,7 @@
     <dependency>
       <groupId>com.micatechnologies.minecraft</groupId>
       <artifactId>authlib</artifactId>
-      <version>0.1.2</version>
+      <version>0.0.999</version>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -64,29 +64,24 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.gluonhq</groupId>
-      <artifactId>charm-down-common</artifactId>
-      <version>2.0.1</version>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx</artifactId>
+      <version>11</version>
     </dependency>
     <dependency>
-      <groupId>com.gluonhq</groupId>
-      <artifactId>charm-down-core</artifactId>
-      <version>3.8.4</version>
-    </dependency>
-    <dependency>
-      <groupId>com.gluonhq</groupId>
-      <artifactId>charm-glisten</artifactId>
-      <version>6.0.1</version>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-base</artifactId>
+      <version>11</version>
     </dependency>
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-controls</artifactId>
-      <version>11.0.2</version>
+      <version>11</version>
     </dependency>
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-fxml</artifactId>
-      <version>11.0.2</version>
+      <version>11</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -98,33 +93,11 @@
       <artifactId>jarchivelib</artifactId>
       <version>1.0.0</version>
     </dependency>
+
     <dependency>
-      <groupId>com.gluonhq</groupId>
-      <artifactId>charm-down-core</artifactId>
-      <version>3.8.6</version>
-    </dependency>
-    <dependency>
-      <groupId>com.gluonhq</groupId>
-      <artifactId>charm</artifactId>
-      <version>2.2.0</version>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/com.gluonhq/charm-down-core-android -->
-    <dependency>
-      <groupId>com.gluonhq</groupId>
-      <artifactId>charm-down-core-android</artifactId>
-      <version>3.8.6</version>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/com.gluonhq.attach/display -->
-    <dependency>
-      <groupId>com.gluonhq.attach</groupId>
-      <artifactId>display</artifactId>
-      <version>4.0.2</version>
-    </dependency>
-    <!-- https://mvnrepository.com/artifact/com.gluonhq.attach/util -->
-    <dependency>
-      <groupId>com.gluonhq.attach</groupId>
-      <artifactId>util</artifactId>
-      <version>4.0.2</version>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.9</version>
     </dependency>
 
   </dependencies>

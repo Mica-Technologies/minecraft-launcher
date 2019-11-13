@@ -1,19 +1,18 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
-import com.gluonhq.charm.glisten.control.Avatar;
-import com.gluonhq.charm.glisten.control.ProgressBar;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -30,7 +29,7 @@ public class LauncherProgressGUI extends Application implements Initializable {
     public  ProgressBar    progressBar;
 
     @FXML
-    public  Avatar         userIcon;
+    public  ImageView      userIcon;
 
     private Stage          currStage  = null;
 
@@ -38,10 +37,6 @@ public class LauncherProgressGUI extends Application implements Initializable {
 
     public static void main( String[] args ) {
         launch( args );
-    }
-
-    public Stage getCurrStage() {
-        return currStage;
     }
 
     @Override
@@ -54,7 +49,7 @@ public class LauncherProgressGUI extends Application implements Initializable {
         AnchorPane pane = fxmlLoader.load();
 
         // Configure Window
-        primaryStage.setTitle( "Loading - " + LauncherConstants.LAUNCHER_TITLE );
+        primaryStage.setTitle( "Login - " + LauncherConstants.LAUNCHER_SHORT_NAME );
         primaryStage.setScene( new Scene( pane, 645, 424 ) );
         primaryStage.initStyle( StageStyle.UNIFIED );
 
@@ -62,6 +57,10 @@ public class LauncherProgressGUI extends Application implements Initializable {
         currStage = primaryStage;
         primaryStage.show();
         readyLatch.countDown();
+    }
+
+    public Stage getCurrStage() {
+        return currStage;
     }
 
     @Override

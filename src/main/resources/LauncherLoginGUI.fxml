@@ -1,84 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.gluonhq.charm.glisten.control.Avatar?>
-<?import com.gluonhq.charm.glisten.control.BottomNavigation?>
-<?import com.gluonhq.charm.glisten.control.BottomNavigationButton?>
-<?import com.gluonhq.charm.glisten.control.Icon?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<AnchorPane prefHeight="424.0" prefWidth="645.0"
-  style="-fx-background-image: url(&quot;https://storage.needpix.com/rsynced_images/minecraft-636747_1280.jpg&quot;);"
-  xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane prefHeight="424.0" prefWidth="645.0" style="-fx-background-image: url(&quot;https://storage.needpix.com/rsynced_images/minecraft-636747_1280.jpg&quot;);" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1">
   <children>
-    <BottomNavigation layoutY="354.0" prefHeight="70.0" prefWidth="645.0">
-      <actionItems>
-        <BottomNavigationButton fx:id="loginButton" defaultButton="true" text="Login">
-          <graphic>
-            <Icon content="DONE"/>
-          </graphic>
-        </BottomNavigationButton>
-      </actionItems>
-    </BottomNavigation>
-    <BorderPane layoutX="162.0" layoutY="49.0" prefHeight="266.0" prefWidth="320.0"
-      style="-fx-background-color: rgba(255,255,255,50); -fx-background-radius: 10px;">
-      <top>
-        <Avatar radius="32.0" BorderPane.alignment="CENTER">
-          <image>
-            <Image url="./no_user.png"/>
-          </image>
-        </Avatar>
-      </top>
-      <bottom>
-        <CheckBox fx:id="rememberCheckBox" mnemonicParsing="false" prefHeight="27.0"
-          prefWidth="97.0" text="Remember" BorderPane.alignment="CENTER">
-          <BorderPane.margin>
-            <Insets top="20.0"/>
-          </BorderPane.margin>
-        </CheckBox>
-      </bottom>
+    <BorderPane layoutX="162.0" layoutY="49.0" prefHeight="266.0" prefWidth="320.0" style="-fx-background-color: rgba(255,255,255,50); -fx-background-radius: 10px;">
       <center>
-        <GridPane prefHeight="92.0" prefWidth="263.0"
-          style="-fx-background-color: rgba(255,255,255,50);" BorderPane.alignment="CENTER">
+        <GridPane prefHeight="92.0" prefWidth="263.0" style="-fx-background-color: rgba(255,255,255,50);" BorderPane.alignment="CENTER">
           <columnConstraints>
-            <ColumnConstraints hgrow="SOMETIMES" maxWidth="120.0" minWidth="10.0" prefWidth="73.0"/>
-            <ColumnConstraints hgrow="SOMETIMES" maxWidth="254.0" minWidth="10.0"
-              prefWidth="207.0"/>
+            <ColumnConstraints hgrow="SOMETIMES" maxWidth="120.0" minWidth="10.0" prefWidth="73.0" />
+            <ColumnConstraints hgrow="SOMETIMES" maxWidth="254.0" minWidth="10.0" prefWidth="207.0" />
           </columnConstraints>
           <rowConstraints>
-            <RowConstraints maxHeight="155.0" minHeight="10.0" prefHeight="102.0"
-              vgrow="SOMETIMES"/>
-            <RowConstraints maxHeight="111.0" minHeight="10.0" prefHeight="100.0"
-              vgrow="SOMETIMES"/>
+            <RowConstraints maxHeight="155.0" minHeight="10.0" prefHeight="102.0" vgrow="SOMETIMES" />
+            <RowConstraints maxHeight="111.0" minHeight="10.0" prefHeight="100.0" vgrow="SOMETIMES" />
           </rowConstraints>
           <children>
-            <Label text="Email"/>
-            <Label text="Password" GridPane.rowIndex="1"/>
-            <TextField fx:id="emailField" promptText="Mojang Account Email"
-              GridPane.columnIndex="1"/>
-            <PasswordField fx:id="passwordField" promptText="Mojang Account Password"
-              GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            <Label text="Email" />
+            <Label text="Password" GridPane.rowIndex="1" />
+            <TextField fx:id="emailField" promptText="Mojang Account Email" GridPane.columnIndex="1" />
+            <PasswordField fx:id="passwordField" promptText="Mojang Account Password" GridPane.columnIndex="1" GridPane.rowIndex="1" />
           </children>
           <opaqueInsets>
-            <Insets top="20.0"/>
+            <Insets top="20.0" />
           </opaqueInsets>
         </GridPane>
       </center>
       <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
       </padding>
+         <top>
+            <ImageView fitHeight="70.0" fitWidth="70.0" pickOnBounds="true" preserveRatio="true" translateY="-10.0" BorderPane.alignment="CENTER">
+               <image>
+                  <Image url="@no_user.png" />
+               </image>
+            </ImageView>
+         </top>
+         <bottom>
+            <BorderPane prefHeight="47.0" prefWidth="315.0" BorderPane.alignment="CENTER">
+               <left>
+              <CheckBox fx:id="rememberCheckBox" mnemonicParsing="false" prefHeight="27.0" prefWidth="97.0" text="Remember" BorderPane.alignment="CENTER" />
+               </left>
+               <right>
+                  <Button fx:id="loginButton" mnemonicParsing="false" prefHeight="27.0" prefWidth="99.0" text="Login" BorderPane.alignment="CENTER" />
+               </right>
+            </BorderPane>
+         </bottom>
     </BorderPane>
   </children>
   <opaqueInsets>
-    <Insets/>
+    <Insets />
   </opaqueInsets>
 </AnchorPane>

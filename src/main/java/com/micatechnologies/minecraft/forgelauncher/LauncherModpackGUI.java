@@ -1,22 +1,80 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
+import java.io.IOException;
+import java.net.URL;
+import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
 import javafx.application.Application;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.fxml.Initializable;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Label;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
-public class LauncherModpackGUI extends Application {
+public class LauncherModpackGUI extends Application implements Initializable {
 
+    @FXML
+    public  ChoiceBox< String > packList;
 
-    private Stage          currStage  = null;
+    @FXML
+    public  Label               userMsg;
 
-    public  CountDownLatch readyLatch = new CountDownLatch( 1 );
+    @FXML
+    public  Button              playBtn;
+
+    @FXML
+    public  Button              exitBtn;
+
+    @FXML
+    public  Button              settingsBtn;
+
+    @FXML
+    public  ImageView           userIcon;
+
+    @FXML
+    public  Button              logoutBtn;
+
+    @FXML
+    private Stage               currStage  = null;
+
+    public  CountDownLatch      readyLatch = new CountDownLatch( 1 );
 
     public static void main( String[] args ) {
         launch( args );
     }
 
     @Override
-    public void start( Stage primaryStage ) {
+    public void start( Stage primaryStage ) throws IOException {
+        // Get FXML File
+        FXMLLoader fxmlLoader = new FXMLLoader();
+        fxmlLoader.setLocation(
+            getClass().getClassLoader().getResource( "LauncherModpackGUI.fxml" ) );
+        fxmlLoader.setController( this );
+        AnchorPane pane = fxmlLoader.load();
+
+        // Configure Window
+        primaryStage.setTitle( LauncherConstants.LAUNCHER_SHORT_NAME );
+        primaryStage.setScene( new Scene( pane, 645, 424 ) );
+        primaryStage.initStyle( StageStyle.UNIFIED );
+
+        // Show Window
+        currStage = primaryStage;
+        primaryStage.show();
+        readyLatch.countDown();
+    }
+
+    public Stage getCurrStage() {
+        return currStage;
+    }
+
+    @Override
+    public void initialize( final URL url, final ResourceBundle resourceBundle ) {
 
     }
 }

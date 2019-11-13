@@ -1,7 +1,5 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
-import com.gluonhq.charm.glisten.control.Avatar;
-import com.gluonhq.charm.glisten.control.BottomNavigationButton;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -11,10 +9,11 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -22,23 +21,23 @@ import javafx.stage.StageStyle;
 public class LauncherLoginGUI extends Application implements Initializable {
 
     @FXML
-    public  Avatar                 userIcon;
+    public  ImageView      userIcon;
 
     @FXML
-    public  TextField              emailField;
+    public  TextField      emailField;
 
     @FXML
-    public  PasswordField          passwordField;
+    public  PasswordField  passwordField;
 
     @FXML
-    public  CheckBox               rememberCheckBox;
+    public  CheckBox       rememberCheckBox;
 
     @FXML
-    public  BottomNavigationButton loginButton;
+    public  Button         loginButton;
 
-    private Stage                  currStage  = null;
+    private Stage          currStage  = null;
 
-    public  CountDownLatch         readyLatch = new CountDownLatch( 1 );
+    public  CountDownLatch readyLatch = new CountDownLatch( 1 );
 
     public static void main( String[] args ) {
         launch( args );
@@ -54,7 +53,7 @@ public class LauncherLoginGUI extends Application implements Initializable {
         AnchorPane pane = fxmlLoader.load();
 
         // Configure Window
-        primaryStage.setTitle( "Login - " + LauncherConstants.LAUNCHER_TITLE );
+        primaryStage.setTitle( "Login - " + LauncherConstants.LAUNCHER_SHORT_NAME );
         primaryStage.setScene( new Scene( pane, 645, 424 ) );
         primaryStage.initStyle( StageStyle.UNIFIED );
 
