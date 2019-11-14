@@ -14,22 +14,20 @@ public class LauncherException extends Exception {
      *
      * @param exceptionMsg   exception message
      * @param exceptionTrace exception backtrace
-     *
      * @see java.lang.Throwable
      * @since 1.0
      */
-    LauncherException( String exceptionMsg, Throwable exceptionTrace ) {
-        super( exceptionMsg, exceptionTrace );
+    LauncherException(String exceptionMsg, Throwable exceptionTrace) {
+        super(exceptionMsg, exceptionTrace);
     }
 
     /**
      * Create a LauncherException with specified message.
      *
      * @param exceptionMsg exception message
-     *
      * @since 1.0
      */
-    LauncherException( String exceptionMsg ) {
-        super( exceptionMsg );
+    LauncherException(String exceptionMsg) {
+        super(exceptionMsg);
     }
 }

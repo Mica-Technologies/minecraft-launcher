@@ -12,13 +12,12 @@ import javafx.fxml.Initializable;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-public class LauncherProgressGUI extends Application implements Initializable {
+public class LauncherSettingsGUI extends Application implements Initializable {
 
     @FXML
     public Label upperText;
@@ -66,10 +65,5 @@ public class LauncherProgressGUI extends Application implements Initializable {
 
     @Override
     public void initialize(final URL url, final ResourceBundle resourceBundle) {
-        // Set default GUI options
-        upperText.setText("Loading, please wait...");
-        lowerText.setText("--");
-        progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
-        userIcon.setImage(new Image("no_user.png"));
     }
 }

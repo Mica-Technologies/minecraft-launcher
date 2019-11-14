@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
+
 import javafx.application.Application;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -21,41 +22,41 @@ import javafx.stage.StageStyle;
 public class LauncherLoginGUI extends Application implements Initializable {
 
     @FXML
-    public  ImageView      userIcon;
+    public ImageView userIcon;
 
     @FXML
-    public  TextField      emailField;
+    public TextField emailField;
 
     @FXML
-    public  PasswordField  passwordField;
+    public PasswordField passwordField;
 
     @FXML
-    public  CheckBox       rememberCheckBox;
+    public CheckBox rememberCheckBox;
 
     @FXML
-    public  Button         loginButton;
+    public Button loginButton;
 
-    private Stage          currStage  = null;
+    private Stage currStage = null;
 
-    public  CountDownLatch readyLatch = new CountDownLatch( 1 );
+    public CountDownLatch readyLatch = new CountDownLatch(1);
 
-    public static void main( String[] args ) {
-        launch( args );
+    public static void main(String[] args) {
+        launch(args);
     }
 
     @Override
-    public void start( Stage primaryStage ) throws IOException {
+    public void start(Stage primaryStage) throws IOException {
         // Get FXML File
         FXMLLoader fxmlLoader = new FXMLLoader();
         fxmlLoader.setLocation(
-            getClass().getClassLoader().getResource( "LauncherLoginGUI.fxml" ) );
-        fxmlLoader.setController( this );
+                getClass().getClassLoader().getResource("LauncherLoginGUI.fxml"));
+        fxmlLoader.setController(this);
         AnchorPane pane = fxmlLoader.load();
 
         // Configure Window
-        primaryStage.setTitle( "Login - " + LauncherConstants.LAUNCHER_SHORT_NAME );
-        primaryStage.setScene( new Scene( pane, 645, 424 ) );
-        primaryStage.initStyle( StageStyle.UNIFIED );
+        primaryStage.setTitle("Login - " + LauncherConstants.LAUNCHER_SHORT_NAME);
+        primaryStage.setScene(new Scene(pane, 645, 424));
+        primaryStage.initStyle(StageStyle.UNIFIED);
 
         // Show Window
         currStage = primaryStage;
@@ -68,6 +69,6 @@ public class LauncherLoginGUI extends Application implements Initializable {
     }
 
     @Override
-    public void initialize( final URL url, final ResourceBundle resourceBundle ) {
+    public void initialize(final URL url, final ResourceBundle resourceBundle) {
     }
 }
