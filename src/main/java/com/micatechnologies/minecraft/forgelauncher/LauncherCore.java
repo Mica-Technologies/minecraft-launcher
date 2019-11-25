@@ -68,7 +68,7 @@ public class LauncherCore {
      * Current Logged In User
      * DEFAULT: null
      */
-    private static MCAuthAccount currentUser = null;
+    static MCAuthAccount currentUser = null;
 
     /**
      * Current Launcher Config

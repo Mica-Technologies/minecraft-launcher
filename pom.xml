@@ -14,6 +14,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+        <scala.version>2.13.1</scala.version>
     </properties>
 
     <build>
@@ -22,23 +23,23 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
-                <configuration>
+                <MCFLConfiguration>
                     <source>11</source>
                     <target>11</target>
-                </configuration>
+                </MCFLConfiguration>
             </plugin>
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.3</version>
-                <configuration>
+                <MCFLConfiguration>
                     <mainClass>com.micatechnologies.minecraft.forgelauncher.LauncherCore</mainClass>
-                </configuration>
+                </MCFLConfiguration>
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>3.2.0</version>
-                <configuration>
+                <MCFLConfiguration>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
@@ -47,7 +48,7 @@
                             <mainClass>com.micatechnologies.minecraft.forgelauncher.LauncherCore</mainClass>
                         </manifest>
                     </archive>
-                </configuration>
+                </MCFLConfiguration>
                 <executions>
                     <execution>
                         <id>make-assembly</id> <!-- this is used for inheritance merges -->
@@ -58,6 +59,22 @@
                     </execution>
                 </executions>
             </plugin>
+            <!--<plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <version>4.3.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <MCFLConfiguration>
+                    <scalaVersion>${scala.version}</scalaVersion>
+                </MCFLConfiguration>
+            </plugin>-->
         </plugins>
     </build>
     <repositories>
