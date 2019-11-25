@@ -695,7 +695,7 @@ public class LauncherCore {
 
         // Launch server
         if (LauncherCore.mode == LauncherConstants.LAUNCHER_SERVER_MODE) {
-            doLaunchModpack(0);
+            doLaunchModpack(serverModpackSelection);
         }
     }
 
