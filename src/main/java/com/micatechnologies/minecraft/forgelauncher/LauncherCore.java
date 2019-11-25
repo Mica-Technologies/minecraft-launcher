@@ -24,12 +24,11 @@ import java.util.concurrent.CountDownLatch;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.scene.control.Alert;
 import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.SingleSelectionModel;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
-import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 
 import org.apache.commons.io.FileUtils;
@@ -39,19 +38,172 @@ import org.rauschig.jarchivelib.Archiver;
 import org.rauschig.jarchivelib.ArchiverFactory;
 import org.rauschig.jarchivelib.CompressionType;
 
+/**
+ * Main class for the Mica Technologies Minecraft Forge launcher. Launcher can be run by calling main() method with 0 arguments, 1 argument (-s or -server, -c or -client) or 2 arguments (-s or -server, and index of modpack). If no arguments are specified, launcher will attempt to automatically detect if running server or client (client if GUI can open).
+ *
+ * @author Mica Technologies/hawka97
+ * @version 1.0
+ */
 public class LauncherCore {
+    //region: Variables & Constants
+    /**
+     * Current Launcher Mode
+     * DEFAULT: LauncherConstants.LAUNCHER_CLIENT_MODE
+     */
+    private static int mode = LauncherConstants.LAUNCHER_CLIENT_MODE;
 
-    static int launcherMode;
+    /**
+     * Current Java Path
+     * DEFAULT: "java"
+     */
+    private static String javaPath = "java";
 
-    private static String gameJavePath = "java";
-
+    /**
+     * Current Client Token
+     * DEFAULT: ""
+     */
     private static String clientToken = "";
 
+    /**
+     * Current Logged In User
+     * DEFAULT: null
+     */
     private static MCAuthAccount currentUser = null;
 
-    static LauncherConfig launcherConfig = null;
+    /**
+     * Current Launcher Config
+     * DEFAULT: null
+     */
+    private static LauncherConfig launcherConfig = null;
 
+    /**
+     * Current Launcher Modpacks
+     * DEFAULT: new ArrayList<>()
+     */
     private static List<MCForgeModpack> modpacks = new ArrayList<>();
+    //endregion
+
+    //region: Getters/Setters
+
+    /**
+     * Get the current launcher mode.
+     *
+     * @return launcher mode
+     */
+    static int getMode() {
+        return mode;
+    }
+
+    /**
+     * Set the current launcher mode
+     *
+     * @param mode launcher mode
+     */
+    static void setMode(int mode) {
+        if (mode != LauncherConstants.LAUNCHER_CLIENT_MODE && mode != LauncherConstants.LAUNCHER_SERVER_MODE) {
+            throw new IllegalArgumentException("Specified launcher mode is not a constant defined mode.");
+        }
+        LauncherCore.mode = mode;
+    }
+
+    /**
+     * Get the current Java path
+     *
+     * @return current Java path
+     */
+    static String getJavaPath() {
+        return javaPath;
+    }
+
+    /**
+     * Set the current Java path
+     *
+     * @param javaPath new Java path
+     */
+    static void setJavaPath(String javaPath) {
+        if (!javaPath.contains("java")) {
+            throw new IllegalArgumentException("Specified Java path does not reference a Java executable in a JRE/JDK home.");
+        }
+        LauncherCore.javaPath = javaPath;
+    }
+
+    /**
+     * Get the current client token
+     *
+     * @return client token
+     */
+    static String getClientToken() {
+        return clientToken;
+    }
+
+    /**
+     * Reads the client token to memory from saved file location. If file does not exist, a new
+     * client token will be generated, written to file, then read to memory.
+     * <p>
+     * Applies: Client
+     *
+     * @throws IOException if unable to read/write to file
+     */
+    private static void readClientToken() throws IOException {
+        File clientTokenFile = new File(LauncherConstants.PATH_LAUNCHER_CLIENT_TOKEN);
+        if (clientTokenFile.exists()) {
+            clientToken = FileUtils.readFileToString(clientTokenFile, Charset.defaultCharset());
+        } else {
+            clientToken = UUID.randomUUID().toString();
+            FileUtils.writeStringToFile(clientTokenFile, clientToken, Charset.defaultCharset());
+        }
+    }
+
+    /**
+     * Get the current launcher config
+     *
+     * @return launcher config
+     */
+    static LauncherConfig getLauncherConfig() {
+        return launcherConfig;
+    }
+    //endregion
+
+    public static void showErrorMessage(String title, String headerText, String contentText, int errorID) {
+        // Create an error code
+        // 0x100234
+        // 1 = Error ID
+        // 2 = "D" for default Java path, "C" for changed Java path
+        // 3 = "N" for no client token, "V" for valid client token
+        // 4 = "N" for no loaded user, "V" for valid loaded user
+        String generatedErrorCode = "0x" + errorID + "00" + (javaPath.equals("java") ? "D" : "C") + (clientToken.equals("") ? "N" : "V") + (currentUser == null ? "N" : "V");
+
+        // Create an error with the specified and created information/messages
+        CountDownLatch waitForError = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+            errorAlert.setTitle(title);
+            errorAlert.setHeaderText(headerText);
+            errorAlert.setContentText(contentText + "\nError Code: " + generatedErrorCode + "\n" + "Client Token: " + clientToken);
+
+            // Show the created error
+            errorAlert.showAndWait();
+
+            // Release code from waiting
+            waitForError.countDown();
+        });
+
+        // Wait for error to be acknowledged
+        try {
+            waitForError.await();
+        } catch (InterruptedException e) {
+            // Show error for unable to wait for error acknowledge
+            Platform.runLater(() -> {
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Something's Wrong");
+                errorAlert.setHeaderText("Application Error");
+                errorAlert.setContentText("An error message latch was interrupted before handling completed." + "\n" + "Client Token: " + clientToken);
+
+                // Show the created error
+                errorAlert.showAndWait();
+            });
+        }
+    }
 
     public static int inferLauncherMode() {
         try {
@@ -64,29 +216,30 @@ public class LauncherCore {
         }
     }
 
-    public static String getGameJavaPath() {
-        return gameJavePath;
-    }
 
     private static void buildModpackCatalog()
             throws MalformedURLException, MCForgeModpackException {
         // Loop through all modpacks in config
         for (String modpackURL : launcherConfig.modpacks) {
-            // Download manifest into sandbox to read name
-            MCForgeModpack sandbox = MCForgeModpack.downloadFromURL(new URL(modpackURL), Paths
-                    .get(LauncherConstants.PATH_MODPACKS_SANDBOX_FOLDER), launcherMode);
+            try {
+                // Download manifest into sandbox to read name
+                MCForgeModpack sandbox = MCForgeModpack.downloadFromURL(new URL(modpackURL), Paths
+                        .get(LauncherConstants.PATH_MODPACKS_SANDBOX_FOLDER), mode);
 
-            // Download actual modpack manifest into folder with modpack name
-            MCForgeModpack modpackObj = MCForgeModpack.downloadFromURL(new URL(modpackURL), Paths
-                            .get(
-                                    LauncherConstants.PATH_MODPACKS_FOLDER + File.separator + sandbox.getPackName()
-                                            .replaceAll(
-                                                    " ",
-                                                    "")),
-                    launcherMode);
+                // Download actual modpack manifest into folder with modpack name
+                MCForgeModpack modpackObj = MCForgeModpack.downloadFromURL(new URL(modpackURL), Paths
+                                .get(
+                                        LauncherConstants.PATH_MODPACKS_FOLDER + File.separator + sandbox.getPackName()
+                                                .replaceAll(
+                                                        " ",
+                                                        "")),
+                        mode);
 
-            // Add manifest to launcher catalog
-            modpacks.add(modpackObj);
+                // Add manifest to launcher catalog
+                modpacks.add(modpackObj);
+            } catch (Exception e) {
+                showErrorMessage("Something's Wrong", "An error has occurred!", "The configured modpack URL, " + modpackURL + ", is not valid and will not be used.", 1);
+            }
         }
     }
 
@@ -119,7 +272,15 @@ public class LauncherCore {
                 () -> launcherModpackGUI.exitBtn.setOnAction(actionEvent -> System.exit(-1)));
 
         // Setup settings button
-        // TODO: make the settings button work
+        launcherModpackGUI.settingsBtn.setOnAction(actionEvent -> {
+            Platform.runLater(() -> {
+                try {
+                    launcherModpackGUI.showSettingsWindow();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        });
 
         // Setup play button
         launcherModpackGUI.playBtn.setOnAction(actionEvent -> {
@@ -146,7 +307,7 @@ public class LauncherCore {
             new File(LauncherConstants.PATH_SAVED_USER_FILE).delete();
             Platform.runLater(() -> launcherModpackGUI.getCurrStage().close());
             try {
-                runWithMode(launcherMode, 0);
+                runWithMode(mode, 0);
             } catch (IOException | InterruptedException | IllegalAccessException | InstantiationException | MCForgeModpackException e) {
                 e.printStackTrace();
                 System.exit(-1);
@@ -185,7 +346,7 @@ public class LauncherCore {
 
         // Create progress GUI if in client mode
         final LauncherProgressGUI launcherProgressGUI =
-                launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE ? launchGUI(
+                mode == LauncherConstants.LAUNCHER_CLIENT_MODE ? launchGUI(
                         LauncherProgressGUI.class) : null;
 
         // Create progress handler
@@ -220,13 +381,15 @@ public class LauncherCore {
         });
 
         // Start the game
-        if (currentUser != null && launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE) {
-            modpack.startGame(getGameJavaPath(), currentUser.getFriendlyName(),
+        int minRAMMB = (int) (launcherConfig.minRAM * 1024);
+        int maxRAMMB = (int) (launcherConfig.maxRAM * 1024);
+        if (currentUser != null && mode == LauncherConstants.LAUNCHER_CLIENT_MODE) {
+            modpack.startGame(getJavaPath(), currentUser.getFriendlyName(),
                     currentUser.getUserIdentifier(), currentUser.getLastAccessToken(),
-                    launcherConfig.minRAM, launcherConfig.maxRAM);
-        } else if (launcherMode == LauncherConstants.LAUNCHER_SERVER_MODE) {
-            modpack.startGame(getGameJavaPath(), "", "", "", launcherConfig.minRAM,
-                    launcherConfig.maxRAM);
+                    minRAMMB, maxRAMMB);
+        } else if (mode == LauncherConstants.LAUNCHER_SERVER_MODE) {
+            modpack.startGame(getJavaPath(), "", "", "", minRAMMB,
+                    maxRAMMB);
         } else {
             throw new IllegalStateException(
                     "Authenticated user is null or corrupt in a reliant launcher mode.");
@@ -262,19 +425,19 @@ public class LauncherCore {
                 jreHashDownloadURL = LauncherConstants.URL_JRE_WIN_HASH;
                 jreArchiveFormat = ArchiveFormat.ZIP;
                 jreArchiveCompressionType = null;
-                gameJavePath = LauncherConstants.PATH_JRE_WIN_EXEC;
+                javaPath = LauncherConstants.PATH_JRE_WIN_EXEC;
             } else if (MCModpackOSUtils.isUnix()) {
                 jreDownloadURL = LauncherConstants.URL_JRE_UNX;
                 jreHashDownloadURL = LauncherConstants.URL_JRE_UNX_HASH;
                 jreArchiveFormat = ArchiveFormat.TAR;
                 jreArchiveCompressionType = CompressionType.GZIP;
-                gameJavePath = LauncherConstants.PATH_JRE_UNX_EXEC;
+                javaPath = LauncherConstants.PATH_JRE_UNX_EXEC;
             } else if (MCModpackOSUtils.isMac()) {
                 jreDownloadURL = LauncherConstants.URL_JRE_MAC;
                 jreHashDownloadURL = LauncherConstants.URL_JRE_MAC_HASH;
                 jreArchiveFormat = ArchiveFormat.TAR;
                 jreArchiveCompressionType = CompressionType.GZIP;
-                gameJavePath = LauncherConstants.PATH_JRE_MAC_EXEC;
+                javaPath = LauncherConstants.PATH_JRE_MAC_EXEC;
             } else {
                 System.err.println(
                         "Unable to identify the current operating system. Supported: Windows, macOS, Unix/Linux. Current OS: "
@@ -288,9 +451,12 @@ public class LauncherCore {
             // Check if archive either 1. doesn't exist or 2. has a non-matching hash.
             if (!jreArchiveFile.exists() || !Files.hash(jreArchiveFile, Hashing.sha256())
                     .toString().equalsIgnoreCase(
-                            FileUtils.readFileToString(jreHashFile, Charset.defaultCharset()))) {
+                            FileUtils.readFileToString(jreHashFile, Charset.defaultCharset()).split(" ")[0])) {
                 // Archive is either missing or invalid. Download from URL
                 FileUtils.copyURLToFile(new URL(jreDownloadURL), jreArchiveFile);
+
+                // Output redownload
+                LauncherLogger.doStandardLog("Downloading runtime again...");
 
                 // Delete old extracted JRE (if it exists)
                 File extractedJreFolder = new File(LauncherConstants.PATH_JRE_EXTRACTED_FOLDER);
@@ -324,7 +490,7 @@ public class LauncherCore {
      * @throws IllegalAccessException if invalid gui class specified
      * @throws InstantiationException if unable to create gui
      */
-    private static <T> T launchGUI(Class<T> type)
+    static <T> T launchGUI(Class<T> type)
             throws IllegalAccessException, InstantiationException, InterruptedException {
         // Do not allow classes that aren't subclasses of Application
         if (!Application.class.isAssignableFrom(type)) {
@@ -402,6 +568,7 @@ public class LauncherCore {
                     return;
                 } catch (MCAuthException e) {
                     e.printStackTrace();
+                    showErrorMessage("Something's Wrong", "Authentication Error", "The authentication service encountered an error while renewing authentication for user " + currentUser.getAccountName() + ".\nFriendly Name: " + currentUser.getFriendlyName(), 2);
                     LauncherLogger.doErrorLog(
                             "An error occurred while refreshing the account access token.");
                 }
@@ -443,9 +610,7 @@ public class LauncherCore {
             }
             // Handle authentication failure
             catch (MCAuthException e) {
-                // Clear password field and show 'Try Again'
-                Platform.runLater(() -> launcherLoginGUI.passwordField.clear());
-                Platform.runLater(() -> launcherLoginGUI.loginButton.setText("Try Again"));
+                launcherLoginGUI.handleIncorrectLogin();
             }
         });
 
@@ -453,23 +618,6 @@ public class LauncherCore {
         latch.await();
     }
 
-    /**
-     * Reads the client token to memory from saved file location. If file does not exist, a new
-     * client token will be generated, written to file, then read to memory.
-     * <p>
-     * Applies: Client
-     *
-     * @throws IOException if unable to read/write to file
-     */
-    private static void doReadClientToken() throws IOException {
-        File clientTokenFile = new File(LauncherConstants.PATH_LAUNCHER_CLIENT_TOKEN);
-        if (clientTokenFile.exists()) {
-            clientToken = FileUtils.readFileToString(clientTokenFile, Charset.defaultCharset());
-        } else {
-            clientToken = UUID.randomUUID().toString();
-            FileUtils.writeStringToFile(clientTokenFile, clientToken, Charset.defaultCharset());
-        }
-    }
 
     /**
      * Setup, initialize and run the launcher with the specified launcher mode.
@@ -483,18 +631,18 @@ public class LauncherCore {
      */
     static void runWithMode(int mode, int serverModpackSelection)
             throws IOException, InterruptedException, IllegalAccessException, InstantiationException, MCForgeModpackException {
-        if (launcherMode != LauncherConstants.LAUNCHER_CLIENT_MODE
-                && launcherMode != LauncherConstants.LAUNCHER_SERVER_MODE) {
+        if (LauncherCore.mode != LauncherConstants.LAUNCHER_CLIENT_MODE
+                && LauncherCore.mode != LauncherConstants.LAUNCHER_SERVER_MODE) {
             throw new IllegalArgumentException(
                     "Specified launcher mode does not correspond to a valid launcher mode.");
         }
 
         // Store desired launcher mode in memory
-        launcherMode = mode;
+        LauncherCore.mode = mode;
 
         // Read launcher configuration to memory
         LauncherProgressGUI initProgressGUI = null;
-        if (launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE) {
+        if (LauncherCore.mode == LauncherConstants.LAUNCHER_CLIENT_MODE) {
             initProgressGUI = launchGUI(LauncherProgressGUI.class);
             final LauncherProgressGUI finalProgressGUI = initProgressGUI;
             Platform.runLater(() -> {
@@ -506,29 +654,29 @@ public class LauncherCore {
         }
         final LauncherProgressGUI finalProgressGUI = initProgressGUI;
         launcherConfig = LauncherConfig.open();
-        if (launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
+        if (LauncherCore.mode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
             Platform.runLater(() -> finalProgressGUI.lowerText
                     .setText("Loading launcher configuration...DONE"));
         }
 
         // Build catalog of modpacks
-        if (launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
+        if (LauncherCore.mode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
             Platform.runLater(
                     () -> finalProgressGUI.lowerText.setText("Building local modpack catalog..."));
         }
         buildModpackCatalog();
-        if (launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
+        if (LauncherCore.mode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
             Platform.runLater(() -> finalProgressGUI.lowerText
                     .setText("Building local modpack catalog...DONE"));
         }
 
         // Get JRE
-        if (launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
+        if (LauncherCore.mode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
             Platform.runLater(
                     () -> finalProgressGUI.lowerText.setText("Fetching platform JRE..."));
         }
         downloadPlatformJDK();
-        if (launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
+        if (LauncherCore.mode == LauncherConstants.LAUNCHER_CLIENT_MODE && finalProgressGUI != null) {
             Platform.runLater(
                     () -> finalProgressGUI.lowerText.setText("Fetching platform JRE...DONE"));
             Platform.runLater(
@@ -536,8 +684,8 @@ public class LauncherCore {
         }
 
         // Read client token, handle login, then show modpacks GUI (if client)
-        if (launcherMode == LauncherConstants.LAUNCHER_CLIENT_MODE) {
-            doReadClientToken();
+        if (LauncherCore.mode == LauncherConstants.LAUNCHER_CLIENT_MODE) {
+            readClientToken();
             if (finalProgressGUI != null) {
                 Platform.runLater(() -> finalProgressGUI.getCurrStage().close());
             }
@@ -546,7 +694,7 @@ public class LauncherCore {
         }
 
         // Launch server
-        if (launcherMode == LauncherConstants.LAUNCHER_SERVER_MODE) {
+        if (LauncherCore.mode == LauncherConstants.LAUNCHER_SERVER_MODE) {
             doLaunchModpack(0);
         }
     }
@@ -560,6 +708,9 @@ public class LauncherCore {
      */
     public static void main(String[] args)
             throws IOException, InterruptedException, InstantiationException, IllegalAccessException, MCForgeModpackException {
+        // Before the weird font glitches make people crazy, fix them
+        System.setProperty("prism.lcdtext", "false");
+
         // Mode not specified. Run with inferred launcher mode.
         if (args.length == 0) {
             runWithMode(inferLauncherMode(), 0);

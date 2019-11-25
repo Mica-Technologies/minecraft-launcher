@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXCheckBox?>
+<?import com.jfoenix.controls.JFXPasswordField?>
+<?import com.jfoenix.controls.JFXSnackbar?>
+<?import com.jfoenix.controls.JFXTextField?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.PasswordField?>
-<?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
@@ -13,8 +14,10 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.paint.LinearGradient?>
+<?import javafx.scene.paint.Stop?>
 
-<AnchorPane prefHeight="424.0" prefWidth="645.0" style="-fx-background-image: url(&quot;https://storage.needpix.com/rsynced_images/minecraft-636747_1280.jpg&quot;);" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane prefHeight="424.0" prefWidth="645.0" style="-fx-background-image: url(&quot;https://storage.needpix.com/rsynced_images/minecraft-636747_1280.jpg&quot;);" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
   <children>
     <BorderPane layoutX="162.0" layoutY="49.0" prefHeight="266.0" prefWidth="320.0" style="-fx-background-color: rgba(255,255,255,50); -fx-background-radius: 10px;">
       <center>
@@ -30,8 +33,17 @@
           <children>
             <Label text="Email" />
             <Label text="Password" GridPane.rowIndex="1" />
-            <TextField fx:id="emailField" promptText="Mojang Account Email" GridPane.columnIndex="1" />
-            <PasswordField fx:id="passwordField" promptText="Mojang Account Password" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                  <JFXTextField fx:id="emailField" GridPane.columnIndex="1" />
+                  <JFXPasswordField fx:id="passwordField" viewOrder="1.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                     <focusColor>
+                        <LinearGradient endX="1.0" endY="1.0">
+                           <stops>
+                              <Stop color="#0087e7" />
+                              <Stop color="#005e9d" offset="1.0" />
+                           </stops>
+                        </LinearGradient>
+                     </focusColor>
+                  </JFXPasswordField>
           </children>
           <opaqueInsets>
             <Insets top="20.0" />
@@ -44,21 +56,32 @@
          <top>
             <ImageView fitHeight="70.0" fitWidth="70.0" pickOnBounds="true" preserveRatio="true" translateY="-10.0" BorderPane.alignment="CENTER">
                <image>
-                  <Image url="@no_user.png" />
+                  <Image url="@mica_logo.PNG" />
                </image>
             </ImageView>
          </top>
          <bottom>
             <BorderPane prefHeight="47.0" prefWidth="315.0" BorderPane.alignment="CENTER">
                <left>
-              <CheckBox fx:id="rememberCheckBox" mnemonicParsing="false" prefHeight="27.0" prefWidth="97.0" text="Remember" BorderPane.alignment="CENTER" />
+                  <JFXCheckBox fx:id="rememberCheckBox" checkedColor="#0087e7" text="Remember Me" viewOrder="2.0" BorderPane.alignment="CENTER" />
                </left>
                <right>
-                  <Button fx:id="loginButton" mnemonicParsing="false" prefHeight="27.0" prefWidth="99.0" text="Login" BorderPane.alignment="CENTER" />
+                  <JFXButton fx:id="loginButton" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #0087e7;" text="Login" textFill="WHITE" viewOrder="3.0" BorderPane.alignment="CENTER">
+                     <ripplerFill>
+                        <LinearGradient endX="1.0" endY="1.0">
+                           <stops>
+                              <Stop color="#0087e7" />
+                              <Stop color="#0087e7" offset="0.007518796992481203" />
+                              <Stop color="#005e9d" offset="1.0" />
+                           </stops>
+                        </LinearGradient>
+                     </ripplerFill>
+                  </JFXButton>
                </right>
             </BorderPane>
          </bottom>
     </BorderPane>
+      <JFXSnackbar layoutX="587.0" layoutY="137.0" />
   </children>
   <opaqueInsets>
     <Insets />

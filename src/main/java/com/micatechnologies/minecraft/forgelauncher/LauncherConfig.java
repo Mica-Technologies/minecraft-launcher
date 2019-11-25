@@ -24,14 +24,14 @@ class LauncherConfig {
      * <p>
      * Applies: Client, Server
      */
-    int minRAM;
+    double minRAM;
 
     /**
      * (Serialized) Maximum amount of RAM allocated to launcher games.
      * <p>
      * Applies: Client, Server
      */
-    int maxRAM;
+    double maxRAM;
 
     /**
      * (Serialized) List of configured modpacks in launcher.
@@ -67,6 +67,10 @@ class LauncherConfig {
      * (NOT Serialized) Default value for {@link LauncherConfig#debug}
      */
     final static transient boolean defaultDebug = false;
+
+    void save() throws IOException {
+        LauncherConfig.save(this);
+    }
 
     /**
      * Save the specified launcher configuration object to file

@@ -5,6 +5,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
 
+import com.jfoenix.controls.JFXProgressBar;
 import javafx.application.Application;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -27,7 +28,7 @@ public class LauncherProgressGUI extends Application implements Initializable {
     public Label lowerText;
 
     @FXML
-    public ProgressBar progressBar;
+    public JFXProgressBar progressBar;
 
     @FXML
     public ImageView userIcon;

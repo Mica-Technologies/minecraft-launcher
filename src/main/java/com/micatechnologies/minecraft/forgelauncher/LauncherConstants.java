@@ -85,4 +85,7 @@ class LauncherConstants {
     //region: File Contents
     static final String FILE_CONTENTS_DEFAULT_MODPACK_URL = "https://cityofmcla.com/mcla_modpack_manifest.json";
     //endregion
+
+    static final double[] MINIMUM_RAM_OPTIONS = {0.25,0.5,1.0};
+    static final double[] MAXIMUM_RAM_OPTIONS = {2.0,4.0,6.0,8.0,10.0,12.0,16.0,18.0,20.0,24.0,28.0,32.0,36.0,40.0};
 }

@@ -35,7 +35,7 @@ class LauncherLogger {
      * @since 1.0
      */
     static void doDebugLog(String msg) {
-        if (LauncherCore.launcherConfig.debug) {
+        if (LauncherCore.getLauncherConfig().debug) {
             System.out.println("[" + LauncherConstants.LAUNCHER_SHORT_NAME + "/DBG] " + msg);
         }
     }

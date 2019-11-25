@@ -1,11 +1,17 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
+import java.awt.*;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
 
+import com.jfoenix.controls.JFXButton;
+import com.jfoenix.controls.JFXCheckBox;
+import com.jfoenix.controls.JFXPasswordField;
+import com.jfoenix.controls.JFXTextField;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -16,25 +22,25 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
 public class LauncherLoginGUI extends Application implements Initializable {
+    private static final String BAD_LOGIN_TEXT = "Try Again";
+    private static final String REG_LOGIN_TEXT = "Login";
 
     @FXML
-    public ImageView userIcon;
+    public JFXTextField emailField;
 
     @FXML
-    public TextField emailField;
+    public JFXPasswordField passwordField;
 
     @FXML
-    public PasswordField passwordField;
+    public JFXCheckBox rememberCheckBox;
 
     @FXML
-    public CheckBox rememberCheckBox;
-
-    @FXML
-    public Button loginButton;
+    public JFXButton loginButton;
 
     private Stage currStage = null;
 
@@ -58,10 +64,32 @@ public class LauncherLoginGUI extends Application implements Initializable {
         primaryStage.setScene(new Scene(pane, 645, 424));
         primaryStage.initStyle(StageStyle.UNIFIED);
 
+        // Configure enter button on text fields
+        emailField.setOnAction(event -> loginButton.fire());
+        passwordField.setOnAction(event -> loginButton.fire());
+
         // Show Window
         currStage = primaryStage;
         primaryStage.show();
         readyLatch.countDown();
+    }
+
+    public void handleIncorrectLogin() {
+        // Clear password field and show try again text
+        Platform.runLater(() -> {
+            passwordField.clear();
+            loginButton.setText(BAD_LOGIN_TEXT);
+        });
+
+        // Schedule login button text to return to normal after 5 minutes
+        new Thread(() -> {
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException ignored) {
+            }
+            Platform.runLater(() -> loginButton.setText(REG_LOGIN_TEXT));
+
+        }).start();
     }
 
     public Stage getCurrStage() {

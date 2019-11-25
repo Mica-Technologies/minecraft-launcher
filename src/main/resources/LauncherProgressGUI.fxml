@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.jfoenix.controls.JFXProgressBar?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 
-<AnchorPane minHeight="285.0" minWidth="360.0" prefHeight="424.0" prefWidth="645.0" style="-fx-background-image: url(&quot;https://storage.needpix.com/rsynced_images/minecraft-636747_1280.jpg&quot;); -fx-background-size: cover;" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane minHeight="285.0" minWidth="360.0" prefHeight="424.0" prefWidth="645.0" style="-fx-background-image: url(&quot;https://storage.needpix.com/rsynced_images/minecraft-636747_1280.jpg&quot;); -fx-background-size: cover;" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
   <opaqueInsets>
     <Insets />
   </opaqueInsets>
@@ -36,15 +36,15 @@
             </bottom>
           </BorderPane>
         </center>
-            <bottom>
-               <ProgressBar fx:id="progressBar" prefWidth="200.0" progress="0.0" BorderPane.alignment="CENTER" />
-            </bottom>
             <top>
                <ImageView fx:id="userIcon" fitHeight="70.0" fitWidth="70.0" pickOnBounds="true" preserveRatio="true" BorderPane.alignment="CENTER">
                   <image>
-                     <Image url="@no_user.png" />
+                     <Image url="@mica_logo.PNG" />
                   </image></ImageView>
             </top>
+            <bottom>
+               <JFXProgressBar fx:id="progressBar" BorderPane.alignment="CENTER" />
+            </bottom>
       </BorderPane>
     </center>
   </BorderPane>
