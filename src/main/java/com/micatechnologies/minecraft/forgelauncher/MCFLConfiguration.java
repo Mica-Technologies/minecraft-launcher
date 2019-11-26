@@ -143,6 +143,17 @@ public class MCFLConfiguration {
     void setDebug( boolean debug ) {
         this.debug = debug;
     }
+
+    /**
+     * Get the list of launcher modpacks
+     *
+     * @return launcher modpacks
+     *
+     * @since 1.1
+     */
+    List< String > getModpacks() {
+        return modpacks;
+    }
     //endregion
 
     //region: Functional Methods

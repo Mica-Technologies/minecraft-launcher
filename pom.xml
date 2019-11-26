@@ -23,32 +23,32 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
-                <MCFLConfiguration>
+                <configuration>
                     <source>11</source>
                     <target>11</target>
-                </MCFLConfiguration>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.3</version>
-                <MCFLConfiguration>
-                    <mainClass>com.micatechnologies.minecraft.forgelauncher.LauncherCore</mainClass>
-                </MCFLConfiguration>
+                <configuration>
+                    <mainClass>com.micatechnologies.minecraft.forgelauncher.OLDLauncherCore</mainClass>
+                </configuration>
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>3.2.0</version>
-                <MCFLConfiguration>
+                <configuration>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>com.micatechnologies.minecraft.forgelauncher.LauncherCore</mainClass>
+                            <mainClass>com.micatechnologies.minecraft.forgelauncher.OLDLauncherCore</mainClass>
                         </manifest>
                     </archive>
-                </MCFLConfiguration>
+                </configuration>
                 <executions>
                     <execution>
                         <id>make-assembly</id> <!-- this is used for inheritance merges -->
@@ -71,9 +71,9 @@
                         </goals>
                     </execution>
                 </executions>
-                <MCFLConfiguration>
+                <configuration>
                     <scalaVersion>${scala.version}</scalaVersion>
-                </MCFLConfiguration>
+                </configuration>
             </plugin>-->
         </plugins>
     </build>

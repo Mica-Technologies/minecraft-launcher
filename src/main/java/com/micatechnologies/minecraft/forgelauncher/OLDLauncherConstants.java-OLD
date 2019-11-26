@@ -4,7 +4,7 @@ import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackConsts;
 
 import java.io.File;
 
-class LauncherConstants {
+class OLDLauncherConstants {
 
     //region: Launcher Modes
     static final int LAUNCHER_CLIENT_MODE = MCForgeModpackConsts.MINECRAFT_CLIENT_MODE;

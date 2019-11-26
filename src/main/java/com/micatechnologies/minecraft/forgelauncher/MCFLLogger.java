@@ -23,14 +23,22 @@ public class MCFLLogger {
      * @since 1.0
      */
     static void error( String msg, int errorID ) {
+        // Create an error code
+        // 0x100234
+        // 1 = Error ID
+        // 2 = "D" for default Java path, "C" for changed Java path
+        // 3 = "N" for no client token, "V" for valid client token
+        // 4 = "N" for no loaded user, "V" for valid loaded user
+        String generatedErrorCode = "0x" + errorID + "00" + ( MCFLApp.getJavaPath().equals( "java" ) ? "D" : "C" ) + ( MCFLApp.getClientToken().equals( "" ) ? "N" : "V" ) + ( MCFLApp.getCurrentUser() == null ? "N" : "V" );
+
         // Output to System.err and show JFX Dialog for client mode
-        if ( App.getMode() == App.MODE_CLIENT ) {
-            System.err.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/ERR-" + errorID + "] " + msg );
-            GUIController.showErrorMessage( "Oops", "Error", msg, errorID );
+        if ( MCFLApp.getMode() == MCFLApp.MODE_CLIENT ) {
+            System.err.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/ERR-" + generatedErrorCode + "] " + msg );
+            MCFLGUIController.showErrorMessage( msg, generatedErrorCode );
         }
         // Output to System.err for server mode
-        else if ( App.getMode() == App.MODE_SERVER ) {
-            System.err.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/ERR-" + errorID + "] " + msg );
+        else if ( MCFLApp.getMode() == MCFLApp.MODE_SERVER ) {
+            System.err.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/ERR-" + generatedErrorCode + "] " + msg );
         }
         // Handle invalid mode
         else {
@@ -50,11 +58,11 @@ public class MCFLLogger {
      */
     static void log( String msg ) {
         // Output to System.out for client mode
-        if ( App.getMode() == App.MODE_CLIENT ) {
+        if ( MCFLApp.getMode() == MCFLApp.MODE_CLIENT ) {
             System.out.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/LOG] " + msg );
         }
         // Output to System.out for server mode
-        else if ( App.getMode() == App.MODE_SERVER ) {
+        else if ( MCFLApp.getMode() == MCFLApp.MODE_SERVER ) {
             System.out.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/LOG] " + msg );
         }
         // Handle invalid mode
@@ -75,14 +83,14 @@ public class MCFLLogger {
      */
     static void debug( String msg ) {
         // Return if debug mode not enabled.
-        if ( !App.getLauncherConfig().getDebug() ) return;
+        if ( !MCFLApp.getLauncherConfig().getDebug() ) return;
 
         // Output to System.out for client mode
-        if ( App.getMode() == App.MODE_CLIENT ) {
+        if ( MCFLApp.getMode() == MCFLApp.MODE_CLIENT ) {
             System.out.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/DBG] " + msg );
         }
         // Output to System.out for server mode
-        else if ( App.getMode() == App.MODE_SERVER ) {
+        else if ( MCFLApp.getMode() == MCFLApp.MODE_SERVER ) {
             System.out.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/DBG] " + msg );
         }
         // Handle invalid mode

@@ -78,6 +78,19 @@
                      </ripplerFill>
                   </JFXButton>
                </right>
+               <center>
+                  <JFXButton fx:id="exitButton" buttonType="RAISED" defaultButton="true" prefWidth="56.0" style="-fx-background-color: #0087e7;" text="Exit" textFill="WHITE" viewOrder="3.0" BorderPane.alignment="CENTER">
+                     <ripplerFill>
+                        <LinearGradient endX="1.0" endY="1.0">
+                           <stops>
+                              <Stop color="#0087e7" />
+                              <Stop color="#0087e7" offset="0.007518796992481203" />
+                              <Stop color="#005e9d" offset="1.0" />
+                           </stops>
+                        </LinearGradient>
+                     </ripplerFill>
+                  </JFXButton>
+               </center>
             </BorderPane>
          </bottom>
     </BorderPane>
