@@ -5,6 +5,8 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.Region;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -30,7 +32,7 @@ public class MCFLGUIController {
      *
      * @since 1.0
      */
-    static int showQuestionMessage( String title, String headerText, String contentText, String button1, String button2 ) {
+    static int showQuestionMessage( String title, String headerText, String contentText, String button1, String button2, Stage owner ) {
         // Create a question dialog with the specified and created information/messages
         CountDownLatch waitForResponse = new CountDownLatch( 1 );
         AtomicInteger index = new AtomicInteger( 0 );
@@ -39,6 +41,8 @@ public class MCFLGUIController {
             questionAlert.setTitle( title );
             questionAlert.setHeaderText( headerText );
             questionAlert.setContentText( contentText );
+            questionAlert.initOwner( owner );
+            questionAlert.initModality( Modality.WINDOW_MODAL );
 
             ButtonType btn1 = new ButtonType( button1 );
             ButtonType btn2 = new ButtonType( button2 );
@@ -66,6 +70,8 @@ public class MCFLGUIController {
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
                 errorAlert.setContentText( "A question message latch was interrupted before handling completed." + "\n" + "Client Token: " + MCFLApp.getClientToken() );
+                errorAlert.initOwner( owner );
+                errorAlert.initModality( Modality.WINDOW_MODAL );
 
                 // Show the created error
                 errorAlert.showAndWait();
@@ -83,7 +89,7 @@ public class MCFLGUIController {
      *
      * @since 1.0
      */
-    static void showErrorMessage( String contentText, String errorID ) {
+    static void showErrorMessage( String contentText, String errorID, Stage owner ) {
         // Create an error with the specified and created information/messages
         CountDownLatch waitForError = new CountDownLatch( 1 );
         try {
@@ -92,6 +98,8 @@ public class MCFLGUIController {
                 errorAlert.setTitle( "Oops" );
                 errorAlert.setHeaderText( "Error" );
                 errorAlert.setContentText( contentText + "\nError Code: " + errorID + "\n" + "Client Token: " + MCFLApp.getClientToken() );
+                errorAlert.initOwner( owner );
+                errorAlert.initModality( Modality.WINDOW_MODAL );
 
                 // Show the created error
                 errorAlert.showAndWait();
@@ -106,7 +114,8 @@ public class MCFLGUIController {
                 errorAlert.setTitle( "Oops" );
                 errorAlert.setHeaderText( "Error" );
                 errorAlert.setContentText( contentText + "\nError Code: " + errorID + "\n" + "Client Token: " + MCFLApp.getClientToken() );
-                errorAlert.getDialogPane().setMinHeight( Region.USE_PREF_SIZE );
+                errorAlert.initOwner( owner );
+                errorAlert.initModality( Modality.WINDOW_MODAL );
 
                 // Show the created error
                 errorAlert.showAndWait();
@@ -127,6 +136,8 @@ public class MCFLGUIController {
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
                 errorAlert.setContentText( "An error message latch was interrupted before handling completed." + "\n" + "Client Token: " + MCFLApp.getClientToken() );
+                errorAlert.initOwner( owner );
+                errorAlert.initModality( Modality.WINDOW_MODAL );
 
                 // Show the created error
                 errorAlert.showAndWait();

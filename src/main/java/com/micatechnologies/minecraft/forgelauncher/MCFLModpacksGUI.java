@@ -1,6 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.JFXComboBox;
+import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -8,6 +9,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.stage.Modality;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * GUI for logged in users. Allows settings button, modpack selection, play button, etc.
@@ -84,16 +88,16 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         logoutBtn.setOnAction( event -> new Thread( MCFLApp::logoutCurrentUser ).start() );
 
         // Populate modpacks dropdown
-        String[] modpacksList = new String[ MCFLApp.getModpacks().size() ];
-        for ( int i = 0; i < modpacksList.length; i++ ) {
-            modpacksList[ i ] = MCFLApp.getModpacks().get( i ).getPackName();
+        List< String > modpacksList = new ArrayList<>();
+        for ( MCForgeModpack modpack : MCFLApp.getModpacks() ) {
+            modpacksList.add( modpack.getPackName() );
         }
         packList.getItems().addAll( modpacksList );
         // TODO: Add listener to decorate window/change image based on modpack
 
         // Configure play button
         playBtn.setOnAction( event -> {
-            MCFLApp.play( packList.getSelectionModel().getSelectedIndex() );
+            MCFLApp.play( packList.getSelectionModel().getSelectedIndex(), this );
         } );
 
         // Configure user image
@@ -101,6 +105,15 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
 
         // Configure user label
         userMsg.setText( "Hello, " + MCFLApp.getCurrentUser().getFriendlyName() );
+    }
+
+    /**
+     * Set the selected modpack index
+     *
+     * @param packIndex modpack index
+     */
+    public void setSelectedModpackIndex( int packIndex ) {
+        Platform.runLater( () -> packList.getSelectionModel().select( packIndex ) );
     }
 
     /**

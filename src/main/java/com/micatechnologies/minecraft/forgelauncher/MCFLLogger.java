@@ -1,5 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
+import javafx.stage.Stage;
+
 /**
  * Class for handling logging processes. Error messages are logged to System.err,
  * and an error dialog is shown in client mode. Log and debug messages are logged
@@ -22,7 +24,7 @@ public class MCFLLogger {
      *
      * @since 1.0
      */
-    static void error( String msg, int errorID ) {
+    static void error( String msg, int errorID, Stage owner ) {
         // Create an error code
         // 0x100234
         // 1 = Error ID
@@ -34,7 +36,7 @@ public class MCFLLogger {
         // Output to System.err and show JFX Dialog for client mode
         if ( MCFLApp.getMode() == MCFLApp.MODE_CLIENT ) {
             System.err.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/ERR-" + generatedErrorCode + "] " + msg );
-            MCFLGUIController.showErrorMessage( msg, generatedErrorCode );
+            if ( owner != null ) MCFLGUIController.showErrorMessage( msg, generatedErrorCode, owner );
         }
         // Output to System.err for server mode
         else if ( MCFLApp.getMode() == MCFLApp.MODE_SERVER ) {

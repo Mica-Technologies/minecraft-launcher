@@ -193,7 +193,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
                 catch ( Exception e ) {
                     // Show error and allow JavaFX to close
-                    MCFLLogger.error( "Unable to create application user interface.", 100 );
+                    MCFLLogger.error( "Unable to create application user interface.", 100, getCurrentStage());
                     Platform.setImplicitExit( true );
                 }
             } );
@@ -206,7 +206,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
                 catch ( Exception e ) {
                     // Show error and allow JavaFX to close
-                    MCFLLogger.error( "Unable to create application user interface.", 101 );
+                    MCFLLogger.error( "Unable to create application user interface.", 101,getCurrentStage() );
                     Platform.setImplicitExit( true );
                 }
             } );

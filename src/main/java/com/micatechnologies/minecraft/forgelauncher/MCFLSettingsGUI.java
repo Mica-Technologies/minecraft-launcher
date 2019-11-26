@@ -1,8 +1,10 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
+import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXChipView;
 import com.jfoenix.controls.JFXComboBox;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 
@@ -74,6 +76,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             minRAMOptions[ i ] = MCFLConfiguration.MIN_RAM_OPTIONS[ i ] + " GB";
         }
         minRAM.getItems().addAll( minRAMOptions );
+        minRAM.getSelectionModel().select( Doubles.asList( MCFLConfiguration.MIN_RAM_OPTIONS ).indexOf( MCFLApp.getLauncherConfig().getMinRAM() ) );
         minRAM.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> dirty = true );
 
         // Populate and configure maximum RAM dropdown
@@ -82,6 +85,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             maxRAMOptions[ i ] = MCFLConfiguration.MAX_RAM_OPTIONS[ i ] + " GB";
         }
         maxRAM.getItems().addAll( maxRAMOptions );
+        maxRAM.getSelectionModel().select( Doubles.asList( MCFLConfiguration.MAX_RAM_OPTIONS ).indexOf( MCFLApp.getLauncherConfig().getMaxRAM() ) );
         maxRAM.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> dirty = true );
 
         // Populate and configure modpacks chip view
@@ -117,25 +121,27 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
                 }
                 catch ( InterruptedException ignored ) {
                 }
-                saveBtn.setText( SAVE_BUTTON_TEXT );
+                Platform.runLater( () -> saveBtn.setText( SAVE_BUTTON_TEXT ) );
             } ).start();
         } );
 
         // Configure return button
         returnBtn.setOnAction( event -> {
-            if ( dirty ) {
-                int response = MCFLGUIController.showQuestionMessage( "Save?", "Unsaved Changes", "Are you sure you want to exit without saving changes?", "Save", "Exit" );
-                if ( response == 1 ) {
-                    saveBtn.fire();
+            new Thread( () -> {
+                if ( dirty ) {
+                    int response = MCFLGUIController.showQuestionMessage( "Save?", "Unsaved Changes", "Are you sure you want to exit without saving changes?", "Save", "Exit", getCurrentStage() );
+                    if ( response == 1 ) {
+                        Platform.runLater( () -> saveBtn.fire() );
+                        close();
+                    }
+                    else if ( response == 2 ) {
+                        close();
+                    }
+                }
+                else {
                     close();
                 }
-                else if ( response == 2 ) {
-                    close();
-                }
-            }
-            else {
-                close();
-            }
+            } ).start();
         } );
     }
 

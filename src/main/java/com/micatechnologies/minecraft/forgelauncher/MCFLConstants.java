@@ -28,24 +28,26 @@ public class MCFLConstants {
     /**
      * Launcher client saved user location
      */
+    // TODO: Move saved user file constant to method in App
     final static transient String LAUNCHER_CLIENT_SAVED_USER_FILE = LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "launcher" + File.separator + "user.cache";
 
     /**
      * Launcher client saved token location
      */
+    // TODO: Move saved client token file constant to method in App
     final static transient String LAUNCHER_CLIENT_TOKEN_FILE = LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "launcher" + File.separator + "token.cache";
 
-    final static String URL_JRE_WIN = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_windows_hotspot_8u232b09.zip";
+    final static transient String URL_JRE_WIN = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_windows_hotspot_8u232b09.zip";
 
-    final static String URL_JRE_MAC = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_mac_hotspot_8u232b09.tar.gz";
+    final static transient String URL_JRE_MAC = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_mac_hotspot_8u232b09.tar.gz";
 
-    final static String URL_JRE_UNX = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_linux_hotspot_8u232b09.tar.gz";
+    final static transient String URL_JRE_UNX = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_linux_hotspot_8u232b09.tar.gz";
 
-    final static String URL_JRE_WIN_HASH = URL_JRE_WIN + ".sha256.txt";
+    final static transient String URL_JRE_WIN_HASH = URL_JRE_WIN + ".sha256.txt";
 
-    final static String URL_JRE_MAC_HASH = URL_JRE_MAC + ".sha256.txt";
+    final static transient String URL_JRE_MAC_HASH = URL_JRE_MAC + ".sha256.txt";
 
-    final static String URL_JRE_UNX_HASH = URL_JRE_UNX + ".sha256.txt";
+    final static transient String URL_JRE_UNX_HASH = URL_JRE_UNX + ".sha256.txt";
 
-    final static String JRE_EXTRACTED_FOLDER_NAME = "jdk8u232-b09-jre";
+    final static transient String JRE_EXTRACTED_FOLDER_NAME = "jdk8u232-b09-jre";
 }

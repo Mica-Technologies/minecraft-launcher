@@ -7,6 +7,7 @@ import com.micatechnologies.minecraft.authlib.MCAuthException;
 import com.micatechnologies.minecraft.authlib.MCAuthService;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackConsts;
+import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackException;
 import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import org.apache.commons.io.FileUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
@@ -16,8 +17,11 @@ import org.rauschig.jarchivelib.CompressionType;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -68,7 +72,7 @@ public class MCFLApp {
                     }
                     catch ( IOException ee ) {
                         // Output error if attemp to write new client token fails
-                        MCFLLogger.error( "The client token could not be written to persistent storage. Remember me login functionality will not work.", 305 );
+                        MCFLLogger.error( "The client token could not be written to persistent storage. Remember me login functionality will not work.", 305, null );
                     }
                 }
 
@@ -82,7 +86,7 @@ public class MCFLApp {
                 }
                 catch ( IOException ee ) {
                     // Output error if attemp to write new client token fails
-                    MCFLLogger.error( "The client token could not be written to persistent storage. Remember me login functionality will not work.", 304 );
+                    MCFLLogger.error( "The client token could not be written to persistent storage. Remember me login functionality will not work.", 304, null );
                 }
             }
         }
@@ -100,7 +104,7 @@ public class MCFLApp {
                 launcherConfig = MCFLConfiguration.open();
             }
             catch ( IOException e ) {
-                MCFLLogger.error( "Unable to load launcher configuration from persistent storage. Configuration may be reset.", 306 );
+                MCFLLogger.error( "Unable to load launcher configuration from persistent storage. Configuration may be reset.", 306, null );
             }
         }
         return launcherConfig;
@@ -118,7 +122,7 @@ public class MCFLApp {
             getLauncherConfig().save();
         }
         catch ( IOException e ) {
-            MCFLLogger.error( "Unable to save launcher configuration to disk. Configuration may be lost!", 302 );
+            MCFLLogger.error( "Unable to save launcher configuration to disk. Configuration may be lost!", 302, null );
         }
     }
 
@@ -135,41 +139,81 @@ public class MCFLApp {
         return getInstallPath() + File.separator + "runtime";
     }
 
+    public static String getModpacksInstallPath() {
+        return getInstallPath() + File.separator + "installs";
+    }
+
     public static void errorIllegalLauncherMode() {
         String msg = "An illegal launcher mode is in use. This should not happen!";
-        MCFLLogger.error( msg, 307 );
+        MCFLLogger.error( msg, 307, null );
+    }
+
+    public static void buildMemoryModpackList() {
+        for ( String s : getLauncherConfig().getModpacks() ) {
+            Path modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + "sandbox" );
+            try {
+                MCForgeModpack tempPack = MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode );
+                try {
+                    modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + tempPack.getPackName().replaceAll( "[^a-zA-Z0-9]", "" ) );
+                    modpacks.add( MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode ) );
+                }
+                catch ( MCForgeModpackException | MalformedURLException e ) {
+                    MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, null );
+                }
+            }
+            catch ( MCForgeModpackException | MalformedURLException e ) {
+                MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, null );
+            }
+        }
     }
     //endregion
 
     //region: Function Methods
-    public static void play( int modpack ) {
-        if ( mode == MODE_CLIENT ) playClient( modpack );
+    public static void play( int modpack, MCFLGenericGUI gui ) {
+        if ( mode == MODE_CLIENT ) playClient( modpack, gui );
         else if ( mode == MODE_SERVER ) playServer( modpack );
     }
 
-    private static void playClient( int modpack ) {
-        // TODO: Verify a user is logged in
+    private static void playClient( int modpack, MCFLGenericGUI gui ) {
+        // Verify user logged in and mode is client
+        if ( currentUser == null ) return;
+        if ( mode != MODE_CLIENT ) return;
 
-        // TODO: Verify mode is client mode
-
-        // TODO: Launch selected modpack with current user for client
-
+        // Launch selected modpack
+        int minRAMMB = ( int ) ( getLauncherConfig().getMinRAM() * 1024 );
+        int maxRAMMB = ( int ) ( getLauncherConfig().getMaxRAM() * 1024 );
+        try {
+            MCForgeModpack mp = modpacks.get( modpack );
+            mp.startGame( getJavaPath(), currentUser.getFriendlyName(), currentUser.getUserIdentifier(), currentUser.getLastAccessToken(), minRAMMB, maxRAMMB );
+        }
+        catch ( MCForgeModpackException e ) {
+            MCFLLogger.error( "Unable to start game.", 312, gui.getCurrentStage() );
+        }
     }
 
     private static void playServer( int modpack ) {
-        // TODO: Verify mode is server mode
+        if ( mode != MODE_CLIENT ) return;
 
-        // TODO: Launch selected modpack for server
+        int minRAMMB = ( int ) ( getLauncherConfig().getMinRAM() * 1024 );
+        int maxRAMMB = ( int ) ( getLauncherConfig().getMaxRAM() * 1024 );
+        try {
+            modpacks.get( modpack ).startGame( getJavaPath(), currentUser.getFriendlyName(), currentUser.getUserIdentifier(), currentUser.getLastAccessToken(), minRAMMB, maxRAMMB );
+        }
+        catch ( MCForgeModpackException e ) {
+            MCFLLogger.error( "Unable to start game.", 313, null );
+        }
     }
 
-    private static void doModpackSelection(int initPackIndex) {
-        if (mode == MODE_CLIENT) {
+    private static void doModpackSelection( int initPackIndex ) {
+        if ( mode == MODE_CLIENT ) {
             MCFLModpacksGUI modpacksGUI = new MCFLModpacksGUI();
             modpacksGUI.open();
-            // TODO: Show modpack selection GUI
-        } else if ( mode == MODE_SERVER) {
+            modpacksGUI.setSelectedModpackIndex( initPackIndex );
+        }
+        else if ( mode == MODE_SERVER ) {
             playServer( initPackIndex );
-        } else {
+        }
+        else {
             errorIllegalLauncherMode();
         }
     }
@@ -231,7 +275,11 @@ public class MCFLApp {
             javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java";
         }
         else {
-            MCFLLogger.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308 );
+            if ( progressGUI != null )
+                MCFLLogger.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, progressGUI.getCurrentStage() );
+            else
+                MCFLLogger.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, null );
+
             return;
         }
 
@@ -244,7 +292,10 @@ public class MCFLApp {
             FileUtils.copyURLToFile( new URL( jreHashDownloadURL ), jreHashFile );
         }
         catch ( IOException e ) {
-            MCFLLogger.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309 );
+            if ( progressGUI != null )
+                MCFLLogger.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, progressGUI.getCurrentStage() );
+            else
+                MCFLLogger.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, null );
             javaPath = "java";
             return;
         }
@@ -286,7 +337,9 @@ public class MCFLApp {
             }
         }
         catch ( IOException e ) {
-            MCFLLogger.error( "Unable to create local runtime. Using system Java.", 309 );
+            if ( progressGUI != null )
+                MCFLLogger.error( "Unable to create local runtime. Using system Java.", 309, progressGUI.getCurrentStage() );
+            else MCFLLogger.error( "Unable to create local runtime. Using system Java.", 309, null );
             javaPath = "java";
             return;
         }
@@ -313,7 +366,7 @@ public class MCFLApp {
                 savedUserFile.delete();
             }
             catch ( MCAuthException e ) {
-                MCFLLogger.error( "Unable to invalidate cached token prior to logout. Local account information will still be destroyed.", 303 );
+                MCFLLogger.error( "Unable to invalidate cached token prior to logout. Local account information will still be destroyed.", 303, null );
             }
         }
 
@@ -332,7 +385,7 @@ public class MCFLApp {
                     return;
                 }
                 catch ( MCAuthException e ) {
-                    MCFLLogger.error( "Unable to load remembered user account.", 301 );
+                    MCFLLogger.error( "Unable to load remembered user account.", 301, null );
                 }
             }
 
@@ -345,7 +398,7 @@ public class MCFLApp {
                 loginGUI.loginSuccessLatch.await();
             }
             catch ( InterruptedException e ) {
-                MCFLLogger.error( "Unable to wait for pending login task.", 300 );
+                MCFLLogger.error( "Unable to wait for pending login task.", 300, null );
             }
 
             // Close login screen once complete
@@ -359,7 +412,9 @@ public class MCFLApp {
         // NOTE: Saved users DISABLED right now to due bug.
         doLogin();
         doLocalJDK();
-        doModpackSelection( 0 );
+        buildMemoryModpackList();
+        doModpackSelection( 1 );
+        // TODO: Download modpack files and assets
     }
     //endregion
 }
