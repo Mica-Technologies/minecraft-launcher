@@ -2,6 +2,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import javafx.application.Application;
+import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -34,6 +35,11 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     CountDownLatch readyLatch = new CountDownLatch( 1 );
 
     /**
+     * Finsihed latch for GUI. Counts down to 0 when GUI is closed.
+     */
+    public CountDownLatch closedLatch = new CountDownLatch( 1 );
+
+    /**
      * Get the current JavaFX stage. Returns null if no JavaFX stage.
      *
      * @return current JavaFX stage
@@ -54,7 +60,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
      *
      * @since 1.0
      */
-    abstract void create();
+    abstract void create( Stage stage );
 
     /**
      * Create and return an FXMLLoader with the controller configured to {@link this}
@@ -89,7 +95,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     void createUIStyleListenThread() {
         new Thread( () -> {
             //1 for light, 2 for dark
-            int lastMode = 1;
+            int lastMode = 0;
             while ( styleThreadRun ) {
                 if ( MCModpackOSUtils.isWindows() ) {
                     // TODO: Figure out how to detect windows (10) dark mode
@@ -107,23 +113,32 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                     try {
                         Process process = Runtime.getRuntime().exec( "defaults read -g AppleInterfaceStyle" );
                         BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
-                        if ( bufferedReader.readLine().toLowerCase().contains( "dark" ) ) {
-                            if ( lastMode == 1 ) enableDarkMode();
-                            lastMode = 2;
+                        String read = bufferedReader.readLine().toLowerCase();
+                        if ( read.contains( "dark" ) ) {
+                            if ( lastMode != 2 ) {
+                                enableDarkMode();
+                                lastMode = 2;
+                            }
                         }
                         else {
-                            if ( lastMode == 2 ) enableLightMode();
-                            lastMode = 1;
+                            if ( lastMode != 1 ) {
+                                enableLightMode();
+                                lastMode = 1;
+                            }
                         }
                     }
-                    // Ignore because mode not changing is harmless. Likely will work next time
+                    // Light mode causes an exception
                     catch ( Exception ignored ) {
+                        if ( lastMode != 1 ) {
+                            enableLightMode();
+                            lastMode = 1;
+                        }
                     }
                 }
 
                 // Check for light/dark mode again in 6s
                 try {
-                    Thread.sleep( 6000 );
+                    Thread.sleep( 3000 );
                 }
                 catch ( InterruptedException ignored ) {
 
@@ -201,6 +216,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 styleThreadRun = false;
 
                 // Close stage/GUI
+                closedLatch.countDown();
                 currentStage.close();
             }
         } );
@@ -217,13 +233,18 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     @Override
     public void start( Stage primaryStage ) throws Exception {
         // Configure scene and window
-        primaryStage.setTitle( MCFLConstants.LAUNCHER_APPLICATION_NAME );
+        primaryStage.setTitle( "" );
         primaryStage.setScene( new Scene( getFXMLLoader().load(), getSize()[ 0 ], getSize()[ 1 ] ) );
         primaryStage.initStyle( StageStyle.UNIFIED );
+        primaryStage.setOnShown( event -> primaryStage.requestFocus() );
+        primaryStage.setMinWidth( getSize()[ 0 ] );
+        primaryStage.setMinHeight( getSize()[ 1 ] );
+        primaryStage.setWidth( getSize()[ 0 ] );
+        primaryStage.setHeight( getSize()[ 1 ] );
         currentStage = primaryStage;
 
         // Run specific window creation code
-        create();
+        create( currentStage );
         createUIStyleListenThread();
 
         // Mark window as ready

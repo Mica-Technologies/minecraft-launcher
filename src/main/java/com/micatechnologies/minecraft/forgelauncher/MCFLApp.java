@@ -6,6 +6,7 @@ import com.micatechnologies.minecraft.authlib.MCAuthAccount;
 import com.micatechnologies.minecraft.authlib.MCAuthException;
 import com.micatechnologies.minecraft.authlib.MCAuthService;
 import com.micatechnologies.minecraft.forgemodpacklib.*;
+import javafx.application.Platform;
 import org.apache.commons.io.FileUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
 import org.rauschig.jarchivelib.Archiver;
@@ -31,7 +32,8 @@ public class MCFLApp {
     //endregion
 
     //region: App Configuration & Information
-    private static final boolean ALLOW_SAVED_USERS = false;
+    private static final boolean ALLOW_SAVED_USERS = true;
+    private static boolean loopLogin = true;
     private static int mode = MODE_CLIENT;
     private static String javaPath = "java";
     private static String clientToken = "";
@@ -69,7 +71,7 @@ public class MCFLApp {
                         FileUtils.writeStringToFile( tokenFile, clientToken, Charset.defaultCharset() );
                     }
                     catch ( IOException ee ) {
-                        // Output error if attemp to write new client token fails
+                        // Output error if attempt to write new client token fails
                         MCFLLogger.error( "The client token could not be written to persistent storage. Remember me login functionality will not work.", 305, null );
                     }
                 }
@@ -147,6 +149,7 @@ public class MCFLApp {
     }
 
     public static void buildMemoryModpackList() {
+        modpacks.clear();
         for ( String s : getLauncherConfig().getModpacks() ) {
             Path modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + "sandbox" );
             try {
@@ -195,16 +198,14 @@ public class MCFLApp {
             MCForgeModpack mp = modpacks.get( modpack );
             MCFLProgressGUI progressGUI = new MCFLProgressGUI();
             progressGUI.open();
-            new Thread( ()->{
+            new Thread( () -> {
                 try {
                     progressGUI.readyLatch.await();
                 }
                 catch ( InterruptedException e ) {
 
                 }
-                progressGUI.setIcon( new javafx.scene.image.Image(
-                        MCFLConstants.URL_MINECRAFT_USER_ICONS
-                                .replace("user", currentUser.getUserIdentifier()))  );
+                progressGUI.setIcon( new javafx.scene.image.Image( mp.getPackLogoURL() ) );
             } ).start();
             mp.setProgressProvider( new MCForgeModpackProgressProvider() {
                 @Override
@@ -216,7 +217,7 @@ public class MCFLApp {
                         new Thread( () -> {
                             progressGUI.setLowerText( "Passing to Minecraft" );
                             try {
-                                Thread.sleep( 6000 );
+                                Thread.sleep( 3000 );
                             }
                             catch ( InterruptedException e ) {
                             }
@@ -245,7 +246,7 @@ public class MCFLApp {
                     MCFLLogger.log( "Play: " + percent + "% - " + text );
                 }
             } );
-            mp.startGame( getJavaPath(), "","","", minRAMMB, maxRAMMB );
+            mp.startGame( getJavaPath(), "", "", "", minRAMMB, maxRAMMB );
         }
         catch ( MCForgeModpackException e ) {
             MCFLLogger.error( "Unable to start game.", 313, null );
@@ -256,6 +257,12 @@ public class MCFLApp {
         if ( mode == MODE_CLIENT ) {
             MCFLModpacksGUI modpacksGUI = new MCFLModpacksGUI();
             modpacksGUI.open( initPackIndex );
+            try {
+                modpacksGUI.closedLatch.await();
+            }
+            catch ( InterruptedException ignored ) {
+                MCFLLogger.error( "An error is preventing GUI completion handling. The login screen may not appear after logout.", 316, modpacksGUI.getCurrentStage() );
+            }
         }
         else if ( mode == MODE_SERVER ) {
             playServer( initPackIndex );
@@ -317,8 +324,8 @@ public class MCFLApp {
         else if ( MCModpackOSUtils.isUnix() ) {
             jreArchiveFormat = ArchiveFormat.TAR;
             jreArchiveCompressionType = CompressionType.GZIP;
-            jreArchiveDownloadURL = MCFLConstants.URL_JRE_WIN;
-            jreHashDownloadURL = MCFLConstants.URL_JRE_WIN_HASH;
+            jreArchiveDownloadURL = MCFLConstants.URL_JRE_UNX;
+            jreHashDownloadURL = MCFLConstants.URL_JRE_UNX_HASH;
             javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java";
         }
         else {
@@ -393,15 +400,8 @@ public class MCFLApp {
         if ( progressGUI != null ) {
             progressGUI.setLowerText( "Finished JRE Preparation" );
             progressGUI.setProgress( 100.0 );
-            MCFLProgressGUI finalProgressGUI = progressGUI;
-            new Thread( () -> {
-                try {
-                    Thread.sleep( 5000 );
-                }
-                catch ( InterruptedException ignored ) {
-                }
-                finalProgressGUI.close();
-            } ).start();
+            Platform.setImplicitExit( false );
+            new Thread( progressGUI::close ).start();
         }
     }
 
@@ -426,7 +426,8 @@ public class MCFLApp {
             }
         }
 
-        // TODO: Close existing GUIs and return to login screen
+        // Set login to display instead of application close
+        loopLogin = true;
     }
 
     public static void doLogin() {
@@ -465,6 +466,9 @@ public class MCFLApp {
 
     //region: Core Methods
     public static void main( String[] args ) {
+        // Before the weird font glitches make people crazy, fix them
+        System.setProperty( "prism.lcdtext", "false" );
+
         // NOTE: Saved users DISABLED right now to due bug.
         int initPackIndex = 0;
 
@@ -486,11 +490,17 @@ public class MCFLApp {
         }
 
 
-        // Run main functions of launcher
-        doLogin();
-        doLocalJDK();
-        buildMemoryModpackList();
-        doModpackSelection( initPackIndex );
+        // Run main functions of launcher (and loop if login re-required)
+        while ( loopLogin ) {
+            loopLogin = false;
+            doLogin();
+            doLocalJDK();
+            buildMemoryModpackList();
+            doModpackSelection( initPackIndex );
+        }
+
+        // Force call to exit
+        System.exit( 0 );
     }
     //endregion
 }

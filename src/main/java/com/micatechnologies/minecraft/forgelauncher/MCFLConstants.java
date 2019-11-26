@@ -18,7 +18,7 @@ public class MCFLConstants {
     /**
      * Launcher client installation directory
      */
-    final static transient String LAUNCHER_CLIENT_INSTALLATION_DIRECTORY = System.getProperty( "user.home" ) + File.separator + LAUNCHER_APPLICATION_NAME.replaceAll( " ", "" );
+    final static transient String LAUNCHER_CLIENT_INSTALLATION_DIRECTORY = System.getProperty( "user.home" ) + File.separator + "." + LAUNCHER_APPLICATION_NAME.replaceAll( " ", "" );
 
     /**
      * Launcher server installation directory
@@ -28,13 +28,11 @@ public class MCFLConstants {
     /**
      * Launcher client saved user location
      */
-    // TODO: Move saved user file constant to method in App
     final static transient String LAUNCHER_CLIENT_SAVED_USER_FILE = LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "launcher" + File.separator + "user.cache";
 
     /**
      * Launcher client saved token location
      */
-    // TODO: Move saved client token file constant to method in App
     final static transient String LAUNCHER_CLIENT_TOKEN_FILE = LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "launcher" + File.separator + "token.cache";
 
     final static transient String URL_JRE_WIN = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_windows_hotspot_8u232b09.zip";
@@ -54,6 +52,6 @@ public class MCFLConstants {
     final static String URL_MINECRAFT_USER_ICONS = "https://minotar.net/armor/body/user/100.png";
 
     final static String GUI_ACCENT_COLOR = "#002952";
-    final static String GUI_LIGHT_COLOR = "#e8e8e8";
-    final static String GUI_DARK_COLOR = "#2b2b2b";
+    final static String GUI_LIGHT_COLOR = "#d3d3d3";
+    final static String GUI_DARK_COLOR = "#3d3f41";
 }

@@ -1,12 +1,16 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.google.common.primitives.Doubles;
-import com.jfoenix.controls.JFXButton;
-import com.jfoenix.controls.JFXChipView;
-import com.jfoenix.controls.JFXComboBox;
+import com.jfoenix.controls.*;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
+import javafx.scene.control.Label;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.stage.Stage;
 
 /**
  * GUI for launcher settings. Allows launcher configuration.
@@ -15,6 +19,12 @@ import javafx.fxml.FXMLLoader;
  * @version 1.0
  */
 public class MCFLSettingsGUI extends MCFLGenericGUI {
+
+    /**
+     * Root window pane
+     */
+    @FXML
+    public AnchorPane rootPane;
 
     /**
      * Button text for save button.
@@ -69,7 +79,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
      * @since 1.0
      */
     @Override
-    void create() {
+    void create( Stage stage ) {
         // Populate and configure minimum RAM dropdown
         String[] minRAMOptions = new String[ MCFLConfiguration.MIN_RAM_OPTIONS.length ];
         for ( int i = 0; i < minRAMOptions.length; i++ ) {
@@ -89,10 +99,14 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         maxRAM.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> dirty = true );
 
         // Populate and configure modpacks chip view
+        modpackList.setChipFactory( ( stringJFXChipView, s ) -> {
+            JFXChip< String > newChip = new JFXDefaultChip<>( stringJFXChipView, s );
+            // Very scary, but it works
+            ( ( Label ) ( ( HBox ) newChip.getChildrenUnmodifiable().get( 0 ) ).getChildren().get( 0 ) ).setMaxWidth( 500.0 );
+            return newChip;
+        } );
         modpackList.getChips().addAll( MCFLApp.getLauncherConfig().getModpacks() );
-        modpackList.setOnKeyPressed( event -> dirty = true );
-        // TODO: Fix key press not marking dirty flag
-        // TODO: Configure chips view chip size to fit length of string
+        modpackList.getChips().addListener( ( ListChangeListener< String > ) c -> dirty = true );
 
         // Configure save button
         saveBtn.setOnAction( event -> {
@@ -144,6 +158,10 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
                 }
             } ).start();
         } );
+        stage.setOnCloseRequest( event -> {
+            event.consume();
+            returnBtn.fire();
+        } );
     }
 
     /**
@@ -170,16 +188,20 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
      */
     @Override
     int[] getSize() {
-        return new int[]{ 650, 425 };
+        return new int[]{ 800, 425 };
     }
 
     @Override
     void enableLightMode() {
-
+        Platform.runLater( () -> {
+            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        } );
     }
 
     @Override
     void enableDarkMode() {
-
+        Platform.runLater( () -> {
+            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        } );
     }
 }

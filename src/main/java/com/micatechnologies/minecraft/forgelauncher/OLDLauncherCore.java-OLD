@@ -708,8 +708,7 @@ public class OLDLauncherCore {
      */
     public static void main(String[] args)
             throws IOException, InterruptedException, InstantiationException, IllegalAccessException, MCForgeModpackException {
-        // Before the weird font glitches make people crazy, fix them
-        System.setProperty("prism.lcdtext", "false");
+
 
         // Mode not specified. Run with inferred launcher mode.
         if (args.length == 0) {

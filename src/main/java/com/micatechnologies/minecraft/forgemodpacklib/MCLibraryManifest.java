@@ -379,7 +379,6 @@ class MCLibraryManifest extends MCRemoteFile {
     MCAssetManifest getAssetManifest() throws MCForgeModpackException {
         String remote = readToJsonObject().get( "assetIndex" ).getAsJsonObject().get( "url" )
                                           .getAsString();
-        ;
         return new MCAssetManifest( remote, modpackRootFolder, getAssetIndexVersion() );
     }
 

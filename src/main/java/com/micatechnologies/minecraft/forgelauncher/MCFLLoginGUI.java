@@ -9,11 +9,15 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
+import javafx.scene.control.Skin;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.paint.Color;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 import java.util.concurrent.CountDownLatch;
 
@@ -76,7 +80,6 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
 
     /**
      * Exit button
-     * TODO: Implement this exit button in GUI or bad things will happen
      */
     @FXML
     public JFXButton exitButton;
@@ -92,62 +95,86 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
      * @since 1.0
      */
     @Override
-    void create() {
+    void create( Stage stage ) {
         // Configure login button
         loginButton.setOnAction( event -> {
-            // Create temp copy of email and password
-            String u = emailField.getText();
-            String p = passwordField.getText();
+            new Thread( () -> {
+                // Create temp copy of email and password
 
-            // Create account to authorize with
-            MCAuthAccount loggingIn = new MCAuthAccount( u );
-            try {
-                // Attempt login with username and password
-                boolean auth = MCAuthService.usernamePasswordAuth( loggingIn, p, MCFLApp.getClientToken() );
+                String u = emailField.getText();
+                String p = passwordField.getText();
 
-                // If successful, register login with app, save account if
-                // remember me checkbox selected, then continue.
-                if ( auth ) {
-                    if ( rememberCheckBox.isSelected() ) {
-                        MCAuthAccount.writeToFile( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE, loggingIn );
+                // Create account to authorize with
+                MCAuthAccount loggingIn = new MCAuthAccount( u );
+                try {
+                    // Attempt login with username and password
+                    boolean auth = MCAuthService.usernamePasswordAuth( loggingIn, p, MCFLApp.getClientToken() );
+
+                    // If successful, register login with app, save account if
+                    // remember me checkbox selected, then continue.
+                    if ( auth ) {
+                        if ( rememberCheckBox.isSelected() ) {
+                            MCAuthAccount.writeToFile( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE, loggingIn );
+                        }
+                        MCFLApp.loginUser( loggingIn );
+                        loginSuccessLatch.countDown();
                     }
-                    MCFLApp.loginUser( loggingIn );
-                    loginSuccessLatch.countDown();
+                    // If authentication failed, show try again on button
+                    else {
+                        Platform.runLater( () -> {
+                            loginButton.setText( BAD_LOGIN_BUTTON_TEXT );
+                        } );
+                        new Thread( () -> {
+                            try {
+                                Thread.sleep( 5000 );
+                            }
+                            catch ( InterruptedException ignored ) {
+                            }
+                            Platform.runLater( () -> {
+                                loginButton.setText( LOGIN_BUTTON_TEXT );
+                            } );
+                        } ).start();
+                    }
                 }
-                // If authentication failed, show try again on button
-                else {
-                    loginButton.setText( BAD_LOGIN_BUTTON_TEXT );
+                // If authentication caused exception, show try again on button
+                catch ( MCAuthException e ) {
+                    Platform.runLater( () -> {
+                        loginButton.setText( BAD_LOGIN_BUTTON_TEXT );
+                    } );
+                    e.printStackTrace();
                     new Thread( () -> {
                         try {
                             Thread.sleep( 5000 );
                         }
                         catch ( InterruptedException ignored ) {
                         }
-                        loginButton.setText( LOGIN_BUTTON_TEXT );
-                    } );
+                        Platform.runLater( () -> {
+                            loginButton.setText( LOGIN_BUTTON_TEXT );
+                        } );
+                    } ).start();
                 }
-            }
-            // If authentication caused exception, show try again on button
-            catch ( MCAuthException e ) {
-                loginButton.setText( BAD_LOGIN_BUTTON_TEXT );
-                new Thread( () -> {
-                    try {
-                        Thread.sleep( 5000 );
-                    }
-                    catch ( InterruptedException ignored ) {
-                    }
-                    loginButton.setText( LOGIN_BUTTON_TEXT );
-                } );
-            }
+            } ).start();
         } );
 
         // Configure exit button
-        exitButton.setOnAction( event -> {
+        stage.setOnCloseRequest( event -> {
             new Thread( () -> {
                 Platform.setImplicitExit( true );
                 System.exit( 0 );
             } ).start();
         } );
+        exitButton.setOnAction( event -> getCurrentStage().fireEvent( new WindowEvent( getCurrentStage(), WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
+
+        // Configure ENTER key to press login
+        rootPane.setOnKeyPressed( event -> {
+            if ( event.getCode() == KeyCode.ENTER ) {
+                event.consume();
+                loginButton.fire();
+            }
+        } );
+
+        // CONFIGURE TEMPORARY MESSAGE FOR REMEMBER ME CHECK BOX
+        rememberCheckBox.setOnAction( event -> new Thread( () -> MCFLLogger.error( "Unfortunately, this functionality is not responding. Please try again soon!", 800, getCurrentStage() ) ).start() );
     }
 
     /**
@@ -179,26 +206,26 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
 
     @Override
     void enableLightMode() {
-        rememberCheckBox.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
-        exitButton.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_ACCENT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-        loginButton.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_ACCENT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-        rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-        loginButton.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
-        exitButton.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
-        emailLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
-        passwordLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+        Platform.runLater( () -> {
+            rememberCheckBox.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+            emailLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            passwordLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            emailField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
+            passwordField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
+        } );
 
     }
 
     @Override
     void enableDarkMode() {
-        rememberCheckBox.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
-        loginButton.setTextFill( Color.web( MCFLConstants.GUI_ACCENT_COLOR ) );
-        exitButton.setTextFill( Color.web( MCFLConstants.GUI_ACCENT_COLOR ) );
-        exitButton.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-        loginButton.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-        rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-        emailLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
-        passwordLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+        Platform.runLater( () -> {
+            rememberCheckBox.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+            emailLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            passwordLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            emailField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
+            passwordField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
+        } );
     }
 }

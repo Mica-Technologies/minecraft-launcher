@@ -4,9 +4,16 @@ import com.jfoenix.controls.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.paint.Color;
+import javafx.stage.Stage;
 
 /**
  * GUI for launcher progress tracking. Shows progress bar and image
@@ -15,6 +22,12 @@ import javafx.scene.image.ImageView;
  * @version 1.0
  */
 public class MCFLProgressGUI extends MCFLGenericGUI {
+
+    /**
+     * Root window pane
+     */
+    @FXML
+    public AnchorPane rootPane;
 
     /**
      * Upper line of text on GUI
@@ -47,10 +60,18 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
      * @since 1.0
      */
     @Override
-    void create() {
+    void create( Stage stage ) {
         setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
         setLowerText( "Awaiting progress information..." );
         setUpperText( "Loading!" );
+
+        // Configure exit button
+        stage.setOnCloseRequest( event -> {
+            new Thread( () -> {
+                Platform.setImplicitExit( true );
+                System.exit( 0 );
+            } ).start();
+        } );
     }
 
     /**
@@ -126,12 +147,16 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
 
     @Override
     void enableLightMode() {
-
+        Platform.runLater( () -> {
+            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        } );
     }
 
     @Override
     void enableDarkMode() {
-
+        Platform.runLater( () -> {
+            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        } );
     }
 
     public static void main( String[] args ) {

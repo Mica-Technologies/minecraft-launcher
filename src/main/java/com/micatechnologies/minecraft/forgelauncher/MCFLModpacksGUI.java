@@ -6,10 +6,20 @@ import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +31,12 @@ import java.util.List;
  * @version 1.0
  */
 public class MCFLModpacksGUI extends MCFLGenericGUI {
+
+    /**
+     * Root window pane
+     */
+    @FXML
+    public AnchorPane rootPane;
 
     /**
      * Combo box for choosing modpack
@@ -65,17 +81,26 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     public ImageView userIcon;
 
     /**
+     * Current modpack logo
+     */
+    @FXML
+    public ImageView packLogo;
+
+    /**
      * Handle the creation and initial configuration of GUI controls/elements.
      *
      * @since 1.0
      */
     @Override
-    void create() {
+    void create( Stage stage ) {
         // Configure exit button
-        exitButton.setOnAction( event -> new Thread( () -> {
-            Platform.setImplicitExit( true );
-            System.exit( 0 );
-        } ).start() );
+        stage.setOnCloseRequest( event -> {
+            new Thread( () -> {
+                Platform.setImplicitExit( true );
+                System.exit( 0 );
+            } ).start();
+        } );
+        exitButton.setOnAction( event -> getCurrentStage().fireEvent( new WindowEvent( getCurrentStage(), WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Configure settings button
         settingsButton.setOnAction( event -> new Thread( () -> {
@@ -83,10 +108,15 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
             MCFLSettingsGUI.open();
             MCFLSettingsGUI.getCurrentStage().initModality( Modality.APPLICATION_MODAL );
             MCFLSettingsGUI.getCurrentStage().initOwner( this.getCurrentStage() );
+            MCFLSettingsGUI.getCurrentStage().setAlwaysOnTop( true );
         } ).start() );
 
         // Configure logout button
-        logoutBtn.setOnAction( event -> new Thread( MCFLApp::logoutCurrentUser ).start() );
+        logoutBtn.setOnAction( event -> new Thread( () -> {
+            MCFLApp.logoutCurrentUser();
+            Platform.setImplicitExit( true );
+            close();
+        } ).start() );
 
         // Populate modpacks dropdown
         List< String > modpacksList = new ArrayList<>();
@@ -94,7 +124,9 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
             modpacksList.add( modpack.getPackName() );
         }
         packList.getItems().addAll( modpacksList );
-        // TODO: Add listener to decorate window/change image based on modpack
+        packList.getSelectionModel().selectedIndexProperty().addListener( ( observable, oldValue, newValue ) -> {
+            packLogo.setImage( new Image( MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() ).getPackLogoURL() ) );
+        } );
 
         // Configure play button
         playBtn.setOnAction( event -> new Thread( () -> {
@@ -105,19 +137,18 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         } ).start() );
 
         // Configure user image
-        // TODO: Configure userIcon with image for current logged in user
+        userIcon.setImage( new Image( MCFLConstants.URL_MINECRAFT_USER_ICONS.replace( "user", MCFLApp.getCurrentUser().getUserIdentifier() ) ) );
 
         // Configure user label
         userMsg.setText( "Hello, " + MCFLApp.getCurrentUser().getFriendlyName() );
-    }
 
-    /**
-     * Set the selected modpack index
-     *
-     * @param packIndex modpack index
-     */
-    public void setSelectedModpackIndex( int packIndex ) {
-        Platform.runLater( () -> packList.getSelectionModel().select( packIndex ) );
+        // Configure ENTER key to press login
+        rootPane.setOnKeyPressed( event -> {
+            if ( event.getCode() == KeyCode.ENTER ) {
+                event.consume();
+                playBtn.fire();
+            }
+        } );
     }
 
     /**
@@ -149,12 +180,16 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
 
     @Override
     void enableLightMode() {
-
+        Platform.runLater( () -> {
+            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        } );
     }
 
     @Override
     void enableDarkMode() {
-
+        Platform.runLater( () -> {
+            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        } );
     }
 
     /**

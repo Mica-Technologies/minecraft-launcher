@@ -39,7 +39,7 @@
             <Font size="19.0" />
           </font>
         </Label>
-        <ImageView fx:id="userIcon" fitHeight="70.0" fitWidth="70.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+        <ImageView fx:id="userIcon" fitHeight="350.0" fitWidth="100.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
           <image>
             <Image url="@no_user.png" />
           </image>
@@ -72,7 +72,7 @@
                <RowConstraints maxHeight="234.0" minHeight="10.0" prefHeight="58.0" vgrow="SOMETIMES" />
             </rowConstraints>
             <children>
-               <JFXComboBox fx:id="packList" prefHeight="28.0" prefWidth="244.0" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+               <JFXComboBox fx:id="packList" prefHeight="28.0" prefWidth="244.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
                   <GridPane.margin>
                      <Insets />
                   </GridPane.margin></JFXComboBox>
@@ -80,12 +80,12 @@
                   <GridPane.margin>
                      <Insets />
                   </GridPane.margin></Label>
-               <ImageView fitHeight="111.0" fitWidth="111.0" pickOnBounds="true" preserveRatio="true" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+               <ImageView fx:id="packLogo" fitHeight="111.0" fitWidth="111.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
                   <image>
                      <Image url="@mica_logo.PNG" />
                   </image>
                </ImageView>
-               <GridPane GridPane.rowIndex="4">
+               <GridPane GridPane.columnSpan="2" GridPane.rowIndex="4">
                  <columnConstraints>
                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
@@ -125,7 +125,7 @@
                      <RowConstraints />
                   </rowConstraints>
                </GridPane>
-               <JFXButton fx:id="playBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952#002952;" text="Play" textFill="WHITE" viewOrder="3.0" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="TOP">
+               <JFXButton fx:id="playBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952#002952;" text="Play" textFill="WHITE" viewOrder="3.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="TOP">
                   <ripplerFill>
                      <LinearGradient endX="1.0" endY="1.0">
                         <stops>

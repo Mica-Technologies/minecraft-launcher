@@ -86,7 +86,7 @@
                            </LinearGradient>
                         </ripplerFill>
                      </JFXButton>
-                     <JFXButton fx:id="returnBtn" defaultButton="true" style="-fx-background-color: #002952 #002952;" text="Return" textFill="WHITE" viewOrder="4.0">
+                     <JFXButton fx:id="returnBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952 #002952;" text="Return" textFill="WHITE" viewOrder="4.0">
                         <ripplerFill>
                            <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
                               <stops>

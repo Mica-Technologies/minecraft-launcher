@@ -1,6 +1,7 @@
 package com.micatechnologies.minecraft.forgemodpacklib;
 
 import com.google.gson.Gson;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -10,6 +11,7 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.commons.io.FileUtils;
 
 /**
@@ -26,91 +28,91 @@ public class MCForgeModpack {
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 String                         packName;
+    private String packName;
 
     /**
      * Modpack version
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 String                         packVersion;
+    private String packVersion;
 
     /**
      * Modpack website URL
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 String                         packURL;
+    private String packURL;
 
     /**
      * Modpack logo URL
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 String                         packLogoURL;
+    private String packLogoURL;
 
     /**
      * Modpack minimum RAM (GB)
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 String                         packMinRAMGB;
+    private String packMinRAMGB;
 
     /**
      * Modpack Forge download URL
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 String                         packForgeURL;
+    private String packForgeURL;
 
     /**
      * Modpack Forge download SHA-1 hash
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 String                         packForgeHash;
+    private String packForgeHash;
 
     /**
      * List of modpack Forge mods
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 List< MCForgeMod >             packMods;
+    private List< MCForgeMod > packMods;
 
     /**
      * List of modpack Forge configs
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 List< MCForgeAsset >           packConfigs;
+    private List< MCForgeAsset > packConfigs;
 
     /**
      * List of modpack resource packs
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 List< MCRemoteFile >           packResourcePacks;
+    private List< MCRemoteFile > packResourcePacks;
 
     /**
      * List of modpack shaders packs
      * <p>
      * Read via Modpack Manifest JSON
      */
-    private                 List< MCRemoteFile >           packShaderPacks;
+    private List< MCRemoteFile > packShaderPacks;
 
     /**
      * Modpack installation folder
      */
-    private transient       Path                           packRootFolder;
+    private transient Path packRootFolder;
 
     /**
      * Modpack game mode (Client/Server)
      */
-    private transient       int                            appGameMode;
+    private transient int appGameMode;
 
-    private transient       MCForgeModpackProgressProvider progressProvider               = null;
+    private transient MCForgeModpackProgressProvider progressProvider = null;
 
-    private final transient String                         APP_GARBAGE_COLLECTOR_SETTINGS = "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:MaxGCPauseMillis=100 -XX:+DisableExplicitGC -XX:TargetSurvivorRatio=90 -XX:G1NewSizePercent=50 -XX:G1MaxNewSizePercent=80 -XX:G1MixedGCLiveThresholdPercent=35 -XX:+AlwaysPreTouch -XX:+ParallelRefProcEnabled ";
+    private final transient String APP_GARBAGE_COLLECTOR_SETTINGS = "-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:MaxGCPauseMillis=100 -XX:+DisableExplicitGC -XX:TargetSurvivorRatio=90 -XX:G1NewSizePercent=50 -XX:G1MaxNewSizePercent=80 -XX:G1MixedGCLiveThresholdPercent=35 -XX:+AlwaysPreTouch -XX:+ParallelRefProcEnabled ";
 
     /**
      * Get the installation folder of this modpack.
@@ -143,6 +145,15 @@ public class MCForgeModpack {
     @SuppressWarnings( "WeakerAccess" )
     public String getMinecraftVersion() throws MCForgeModpackException {
         return getForgeApp().getMinecraftVersion();
+    }
+
+    /**
+     * Get the URL to the modpack logo
+     *
+     * @return modpack logo URL
+     */
+    public String getPackLogoURL() {
+        return packLogoURL;
     }
 
     /**
@@ -241,21 +252,21 @@ public class MCForgeModpack {
         // Verify local Minecraft assets and get classpath
         if ( progressProvider != null ) {
             progressProvider.startProgressSection(
-                "Fetching Minecraft assets, libraries and classpath", 40.0 );
+                    "Fetching Minecraft assets, libraries and classpath", 40.0 );
         }
         MCVersionManifest versionManifest = new MCVersionManifest( getPackRootFolder().toString() );
         MCLibraryManifest libraryManifest = versionManifest.getMinecraftLibraryManifest(
-            getMinecraftVersion() );
+                getMinecraftVersion() );
         String minecraftAssetClasspath = libraryManifest.buildMinecraftClasspath( appGameMode,
                                                                                   progressProvider );
         if ( progressProvider != null ) {
             progressProvider.endProgressSection(
-                "Done fetching Minecraft assets, libraries and classpath" );
+                    "Done fetching Minecraft assets, libraries and classpath" );
         }
 
         // Add classpath separator between Forge and Minecraft only if Forge classpath not empty (it shouldn't be)
         if ( !forgeAssetClasspath.isEmpty() && !forgeAssetClasspath.endsWith(
-            MCModpackOSUtils.getClasspathSeparator() ) ) {
+                MCModpackOSUtils.getClasspathSeparator() ) ) {
             forgeAssetClasspath += MCModpackOSUtils.getClasspathSeparator();
         }
 
@@ -264,15 +275,15 @@ public class MCForgeModpack {
 
     public void startGame( String javaPath, String accountFriendlyName, String accountIdentifier,
                            String accountAccessToken, int minRAMMB, int maxRAMMB )
-        throws MCForgeModpackException {
+    throws MCForgeModpackException {
         // Get classpath, main class and Minecraft args
         String cp = buildModpackClasspath();
         String minecraftArgs =
-            appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ? getForgeApp()
-                .getMinecraftArguments() : "";
+                appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ? getForgeApp()
+                        .getMinecraftArguments() : "";
         String minecraftMainClass =
-            appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ? getForgeApp()
-                .getMinecraftMainClass() : "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
+                appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ? getForgeApp()
+                        .getMinecraftMainClass() : "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
 
         // Add main class to arguments
         minecraftArgs = minecraftMainClass + " " + minecraftArgs;
@@ -289,8 +300,8 @@ public class MCForgeModpack {
 
         // Add natives path to arguments
         minecraftArgs =
-            "-Djava.library.path=" + getPackRootFolder() + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + " " + minecraftArgs;
+                "-Djava.library.path=" + getPackRootFolder() + MCModpackOSUtils.getFileSeparator()
+                        + MCForgeModpackConsts.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + " " + minecraftArgs;
 
         // Replace fillers with data
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) {
@@ -300,11 +311,11 @@ public class MCForgeModpack {
                                                    getPackRootFolder().toString() );
             minecraftArgs = minecraftArgs.replace( "${assets_root}",
                                                    getPackRootFolder().toString() + MCModpackOSUtils
-                                                       .getFileSeparator()
-                                                       + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
+                                                           .getFileSeparator()
+                                                           + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
             minecraftArgs = minecraftArgs.replace( "${assets_index_name}",
                                                    getMinecraftLibraryManifest()
-                                                       .getAssetIndexVersion() );
+                                                           .getAssetIndexVersion() );
             minecraftArgs = minecraftArgs.replace( "${auth_uuid}", accountIdentifier );
             minecraftArgs = minecraftArgs.replace( "${auth_access_token}", accountAccessToken );
             minecraftArgs = minecraftArgs.replace( "${user_type}", "mojang" );
@@ -334,8 +345,8 @@ public class MCForgeModpack {
     private void clearFloatingMods() {
         // Get full path to modpack mods folder
         String modLocalPathPrefix =
-            getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_FORGE_MODS_LOCAL_FOLDER;
+                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                        + MCForgeModpackConsts.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
         // Build list of valid mods
         ArrayList< String > validModPaths = new ArrayList<>();
@@ -371,8 +382,8 @@ public class MCForgeModpack {
 
         // Get full path to mods folder
         String modLocalPathPrefix =
-            getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_FORGE_MODS_LOCAL_FOLDER;
+                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                        + MCForgeModpackConsts.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
         // Update each mod if not already fully downloaded
         for ( MCForgeMod mod : packMods ) {
@@ -395,8 +406,8 @@ public class MCForgeModpack {
     private void fetchLatestConfigs() throws MCForgeModpackException {
         // Get full path to configs folder
         String configLocalPathPrefix =
-            getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_FORGE_CONFIGS_LOCAL_FOLDER;
+                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                        + MCForgeModpackConsts.MODPACK_FORGE_CONFIGS_LOCAL_FOLDER;
 
         // Update each config if necessary
         for ( MCForgeAsset config : packConfigs ) {
@@ -424,8 +435,8 @@ public class MCForgeModpack {
 
         // Get full path to resource pack folder
         String resPackLocalPathPrefix =
-            getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_FORGE_RESOURCEPACKS_LOCAL_FOLDER;
+                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                        + MCForgeModpackConsts.MODPACK_FORGE_RESOURCEPACKS_LOCAL_FOLDER;
 
         // Update each resource pack if necessary
         for ( MCRemoteFile resourcePack : packResourcePacks ) {
@@ -452,8 +463,8 @@ public class MCForgeModpack {
 
         // Get full path to shader pack folder
         String shaderPackLocalPathPrefix =
-            getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_FORGE_SHADERPACKS_LOCAL_FOLDER;
+                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                        + MCForgeModpackConsts.MODPACK_FORGE_SHADERPACKS_LOCAL_FOLDER;
 
         // Update each shader pack if necessary
         for ( MCRemoteFile shaderPack : packResourcePacks ) {
@@ -468,7 +479,7 @@ public class MCForgeModpack {
 
     String getPackLogoFilepath() {
         return getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
-            + MCForgeModpackConsts.MODPACK_LOGO_LOCAL_FILE;
+                + MCForgeModpackConsts.MODPACK_LOGO_LOCAL_FILE;
     }
 
     public void setProgressProvider( MCForgeModpackProgressProvider progressProvider ) {
@@ -523,22 +534,22 @@ public class MCForgeModpack {
                                                   int appGameMode ) throws MCForgeModpackException {
         // Create file for downloading manifest
         File modpackManifestFile = new File(
-            modpackRootFolder.toString() + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_MANIFEST_LOCAL_PATH );
+                modpackRootFolder.toString() + MCModpackOSUtils.getFileSeparator()
+                        + MCForgeModpackConsts.MODPACK_MANIFEST_LOCAL_PATH );
 
         // Ensure local paths exist
         File binPath = new File( modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "bin" );
         File modsPath = new File(
-            modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "mods" );
+                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "mods" );
         File configPath = new File(
-            modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "config" );
+                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "config" );
         File nativePath = new File(
-            modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "bin" + MCModpackOSUtils
-                .getFileSeparator() + "natives" );
+                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "bin" + MCModpackOSUtils
+                        .getFileSeparator() + "natives" );
         File resPackPath = new File(
-            modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "resourcepacks" );
+                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "resourcepacks" );
         File shaderPackPath = new File(
-            modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "shaderpacks" );
+                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "shaderpacks" );
 
         binPath.getParentFile().mkdirs();
 
@@ -558,7 +569,7 @@ public class MCForgeModpack {
             resPackPath.mkdir();
         }
         if ( !shaderPackPath.exists()
-            && appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) {
+                && appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) {
             shaderPackPath.mkdir();
         }
 
