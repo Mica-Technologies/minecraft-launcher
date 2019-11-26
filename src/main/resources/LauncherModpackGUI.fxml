@@ -1,79 +1,149 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import com.jfoenix.controls.JFXButton?>
 <?import com.jfoenix.controls.JFXComboBox?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.paint.LinearGradient?>
+<?import javafx.scene.paint.Stop?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane minHeight="285.0" minWidth="360.0" prefHeight="424.0" prefWidth="645.0" style="-fx-background-image: url(&quot;https://storage.needpix.com/rsynced_images/minecraft-636747_1280.jpg&quot;); -fx-background-size: cover;" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane fx:id="rootPane" minHeight="285.0" minWidth="360.0" prefHeight="424.0" prefWidth="645.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
   <opaqueInsets>
     <Insets />
   </opaqueInsets>
-  <BorderPane layoutX="162.0" layoutY="79.0" minHeight="285.0" minWidth="360.0" prefHeight="306.0" prefWidth="539.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+   <BorderPane layoutX="-210.0" layoutY="-57.0" prefHeight="425.0" prefWidth="650.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+      <left>
+         <GridPane prefHeight="424.0" prefWidth="233.0" style="-fx-background-color: #002952;" BorderPane.alignment="CENTER">
+            <columnConstraints>
+               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            </columnConstraints>
+            <rowConstraints>
+               <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="173.0" minHeight="10.0" prefHeight="74.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="248.0" minHeight="8.0" prefHeight="237.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="120.0" minHeight="10.0" prefHeight="66.0" vgrow="SOMETIMES" />
+            </rowConstraints>
+            <children>
+        <Label fx:id="userMsg" text="Hello, ${user}" textFill="#f5f5f5" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+          <font>
+            <Font size="19.0" />
+          </font>
+        </Label>
+        <ImageView fx:id="userIcon" fitHeight="70.0" fitWidth="70.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+          <image>
+            <Image url="@no_user.png" />
+          </image>
+        </ImageView>
+               <JFXButton fx:id="logoutBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #EEE;" text="Log Out" textFill="#002952" viewOrder="3.0" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER">
+                  <ripplerFill>
+                     <LinearGradient endX="1.0" endY="1.0">
+                        <stops>
+                           <Stop color="#0087e7" />
+                           <Stop color="#0087e7" offset="0.007518796992481203" />
+                           <Stop color="#002952" offset="1.0" />
+                        </stops>
+                     </LinearGradient>
+                  </ripplerFill>
+               </JFXButton>
+            </children>
+         </GridPane>
+      </left>
       <center>
-      <BorderPane maxHeight="275.0" maxWidth="350.0" minHeight="275.0" minWidth="350.0" prefHeight="275.0" prefWidth="350.0" style="-fx-background-color: rgba(255,255,255,50); -fx-background-radius: 10px;" BorderPane.alignment="CENTER">
-        <padding>
-          <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-        </padding>
-        <center>
-          <BorderPane prefHeight="121.0" prefWidth="280.0" BorderPane.alignment="CENTER">
-            <center>
-              <BorderPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-                <top>
-                  <Label fx:id="upperText" alignment="BOTTOM_CENTER" contentDisplay="CENTER" prefHeight="18.0" prefWidth="207.0" text="Please choose a modpack" BorderPane.alignment="CENTER">
-                    <BorderPane.margin>
-                      <Insets top="15.0" />
-                    </BorderPane.margin>
-                  </Label>
-                </top>
-                <right>
-                  <Button fx:id="playBtn" mnemonicParsing="false" prefHeight="27.0" prefWidth="84.0" text="Play" BorderPane.alignment="CENTER">
-                    <BorderPane.margin>
-                      <Insets />
-                    </BorderPane.margin>
-                  </Button>
-                </right>
-                        <left>
-                           <JFXComboBox fx:id="packList" prefHeight="28.0" prefWidth="210.0" BorderPane.alignment="CENTER" />
-                        </left>
-              </BorderPane>
-            </center>
-          </BorderPane>
-        </center>
-        <bottom>
-          <ButtonBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-            <buttons>
-              <Button fx:id="logoutBtn" mnemonicParsing="false" prefHeight="27.0" prefWidth="85.0" text="Log Out" ButtonBar.buttonData="LEFT" />
-              <Button fx:id="settingsBtn" mnemonicParsing="false" text="Settings" ButtonBar.buttonData="RIGHT" />
-              <Button fx:id="exitBtn" minWidth="59.0" mnemonicParsing="false" prefHeight="28.0" text="Exit" ButtonBar.buttonData="RIGHT" />
-            </buttons>
-          </ButtonBar>
-        </bottom>
-        <top>
-          <BorderPane prefHeight="78.0" prefWidth="292.0" BorderPane.alignment="CENTER">
-            <left>
-              <ImageView fx:id="userIcon" fitHeight="70.0" fitWidth="70.0" pickOnBounds="true" preserveRatio="true" BorderPane.alignment="CENTER">
-                <image>
-                  <Image url="@no_user.png" />
-                </image>
-              </ImageView>
-            </left>
-            <center>
-              <Label fx:id="userMsg" text="Hello, ${user}" BorderPane.alignment="CENTER">
-                <font>
-                  <Font size="19.0" />
-                </font>
-              </Label>
-            </center>
-          </BorderPane>
-        </top>
-      </BorderPane>
+         <GridPane prefHeight="431.0" prefWidth="366.0" BorderPane.alignment="CENTER">
+            <columnConstraints>
+               <ColumnConstraints hgrow="SOMETIMES" maxWidth="372.0" minWidth="10.0" prefWidth="372.0" />
+               <ColumnConstraints hgrow="SOMETIMES" maxWidth="262.0" minWidth="0.0" prefWidth="0.0" />
+            </columnConstraints>
+            <rowConstraints>
+               <RowConstraints maxHeight="177.0" minHeight="10.0" prefHeight="131.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="177.0" minHeight="1.0" prefHeight="26.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="156.0" minHeight="0.0" prefHeight="51.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="234.0" minHeight="10.0" prefHeight="118.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="234.0" minHeight="10.0" prefHeight="58.0" vgrow="SOMETIMES" />
+            </rowConstraints>
+            <children>
+               <JFXComboBox fx:id="packList" prefHeight="28.0" prefWidth="244.0" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+                  <GridPane.margin>
+                     <Insets />
+                  </GridPane.margin></JFXComboBox>
+      <Label fx:id="upperText" alignment="BOTTOM_CENTER" contentDisplay="CENTER" prefHeight="18.0" prefWidth="207.0" text="Please choose a modpack" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="BOTTOM">
+                  <GridPane.margin>
+                     <Insets />
+                  </GridPane.margin></Label>
+               <ImageView fitHeight="111.0" fitWidth="111.0" pickOnBounds="true" preserveRatio="true" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                  <image>
+                     <Image url="@mica_logo.PNG" />
+                  </image>
+               </ImageView>
+               <GridPane GridPane.rowIndex="4">
+                 <columnConstraints>
+                   <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                   <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                 </columnConstraints>
+                  <children>
+                     <JFXButton fx:id="exitButton" buttonType="RAISED" defaultButton="true" prefWidth="56.0" style="-fx-background-color: #002952 #002952 #002952 #002952;" text="Exit" textFill="WHITE" viewOrder="4.0" GridPane.columnIndex="1" GridPane.halignment="LEFT" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+                        <ripplerFill>
+                           <LinearGradient endX="1.0" endY="1.0">
+                              <stops>
+                                 <Stop color="#0087e7" />
+                                 <Stop color="#0087e7" offset="0.007518796992481203" />
+                                 <Stop color="#002952" offset="1.0" />
+                              </stops>
+                           </LinearGradient>
+                        </ripplerFill>
+                        <GridPane.margin>
+                           <Insets left="10.0" />
+                        </GridPane.margin>
+                     </JFXButton>
+                     <JFXButton fx:id="settingsButton" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952#002952;" text="Settings" textFill="WHITE" viewOrder="3.0" GridPane.halignment="RIGHT" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+                        <ripplerFill>
+                           <LinearGradient endX="1.0" endY="1.0">
+                              <stops>
+                                 <Stop color="#0087e7" />
+                                 <Stop color="#0087e7" offset="0.007518796992481203" />
+                                 <Stop color="#002952" offset="1.0" />
+                              </stops>
+                           </LinearGradient>
+                        </ripplerFill>
+                        <GridPane.margin>
+                           <Insets right="10.0" />
+                        </GridPane.margin>
+                     </JFXButton>
+                  </children>
+                  <rowConstraints>
+                     <RowConstraints />
+                     <RowConstraints />
+                  </rowConstraints>
+               </GridPane>
+               <JFXButton fx:id="playBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952#002952;" text="Play" textFill="WHITE" viewOrder="3.0" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="TOP">
+                  <ripplerFill>
+                     <LinearGradient endX="1.0" endY="1.0">
+                        <stops>
+                           <Stop color="#0087e7" />
+                           <Stop color="#0087e7" offset="0.007518796992481203" />
+                           <Stop color="#002952" offset="1.0" />
+                        </stops>
+                     </LinearGradient>
+                  </ripplerFill>
+                  <GridPane.margin>
+                     <Insets top="15.0" />
+                  </GridPane.margin>
+               </JFXButton>
+            </children>
+            <padding>
+               <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+            </padding>
+         </GridPane>
       </center>
-  </BorderPane>
+   </BorderPane>
 </AnchorPane>

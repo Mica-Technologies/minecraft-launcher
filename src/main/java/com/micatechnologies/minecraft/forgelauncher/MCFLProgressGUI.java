@@ -121,7 +121,17 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
      */
     @Override
     int[] getSize() {
-        return new int[]{ 500, 500 };
+        return new int[]{ 650, 425 };
+    }
+
+    @Override
+    void enableLightMode() {
+
+    }
+
+    @Override
+    void enableDarkMode() {
+
     }
 
     public static void main( String[] args ) {

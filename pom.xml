@@ -33,7 +33,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.3</version>
                 <configuration>
-                    <mainClass>com.micatechnologies.minecraft.forgelauncher.OLDLauncherCore</mainClass>
+                    <mainClass>com.micatechnologies.minecraft.forgelauncher.MCFLApp</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -45,7 +45,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>com.micatechnologies.minecraft.forgelauncher.OLDLauncherCore</mainClass>
+                            <mainClass>com.micatechnologies.minecraft.forgelauncher.MCFLApp</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

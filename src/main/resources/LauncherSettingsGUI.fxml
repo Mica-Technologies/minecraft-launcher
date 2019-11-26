@@ -6,58 +6,104 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.paint.LinearGradient?>
 <?import javafx.scene.paint.Stop?>
+<?import javafx.scene.text.Font?>
 
-<AnchorPane minHeight="178.0" minWidth="360.0" prefHeight="388.0" prefWidth="465.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane fx:id="rootPane" minHeight="178.0" minWidth="360.0" prefHeight="425.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
   <opaqueInsets>
     <Insets />
   </opaqueInsets>
-   <GridPane hgap="10.0" layoutX="16.0" layoutY="14.0" prefHeight="305.0" prefWidth="402.0" vgap="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0">
-     <columnConstraints>
-       <ColumnConstraints hgrow="SOMETIMES" maxWidth="351.0" minWidth="10.0" prefWidth="112.0" />
-       <ColumnConstraints hgrow="SOMETIMES" maxWidth="459.0" minWidth="0.0" prefWidth="323.0" />
-     </columnConstraints>
-     <rowConstraints>
-       <RowConstraints maxHeight="62.0" minHeight="10.0" prefHeight="62.0" vgrow="SOMETIMES" />
-       <RowConstraints maxHeight="103.0" minHeight="10.0" prefHeight="95.0" vgrow="SOMETIMES" />
-       <RowConstraints maxHeight="128.0" minHeight="10.0" prefHeight="110.0" vgrow="SOMETIMES" />
-     </rowConstraints>
-      <children>
-         <Label text="Minimum RAM" />
-         <Label text="Maximum RAM" GridPane.rowIndex="1" />
-         <Label text="Modpacks" GridPane.rowIndex="2" />
-         <JFXChipView fx:id="modpackList" promptText="Enter a modpack URL" viewOrder="2.0" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS" />
-         <JFXComboBox fx:id="minRAM" focusColor="#0087e7" prefHeight="28.0" prefWidth="300.0" GridPane.columnIndex="1" />
-         <JFXComboBox fx:id="maxRAM" focusColor="#0087e7" prefHeight="28.0" prefWidth="300.0" viewOrder="1.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-      </children>
-   </GridPane>
-<ButtonBar layoutX="14.0" layoutY="325.0" prefHeight="39.0" prefWidth="409.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0">
-<buttons>
-         <JFXButton fx:id="saveBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #0087e7;" text="Save" textFill="WHITE" viewOrder="3.0">
-            <ripplerFill>
-               <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
-                  <stops>
-                     <Stop color="#0087e8" />
-                     <Stop color="#015f9e" offset="1.0" />
-                  </stops>
-               </LinearGradient>
-            </ripplerFill>
-         </JFXButton>
-         <JFXButton fx:id="returnBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #0087e7;" text="Return" textFill="WHITE" viewOrder="4.0">
-            <ripplerFill>
-               <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
-                  <stops>
-                     <Stop color="#0087e8" />
-                     <Stop color="#015f9e" offset="1.0" />
-                  </stops>
-               </LinearGradient>
-            </ripplerFill>
-         </JFXButton>
-</buttons>
-</ButtonBar>
+   <BorderPane layoutX="3.0" layoutY="-3.0" prefHeight="431.0" prefWidth="645.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+      <left>
+         <GridPane prefHeight="424.0" prefWidth="233.0" style="-fx-background-color: #002952;" BorderPane.alignment="CENTER">
+            <columnConstraints>
+               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            </columnConstraints>
+            <rowConstraints>
+               <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="173.0" minHeight="10.0" prefHeight="173.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="147.0" minHeight="10.0" prefHeight="34.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="81.0" minHeight="8.0" prefHeight="8.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="120.0" minHeight="10.0" prefHeight="120.0" vgrow="SOMETIMES" />
+            </rowConstraints>
+            <children>
+               <ImageView fx:id="userIcon" fitHeight="111.0" fitWidth="111.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+                  <image>
+                     <Image url="@mica_logo.PNG" />
+                  </image>
+               </ImageView>
+               <Label alignment="CENTER" prefHeight="17.0" prefWidth="186.0" text="Mica Forge Launcher" textFill="#eeeeee" wrapText="true" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+                  <font>
+                     <Font size="18.0" />
+                  </font>
+               </Label>
+               <Label alignment="CENTER" prefHeight="23.0" prefWidth="172.0" text="SETTINGS" textFill="#eeeeee" wrapText="true" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER">
+                  <font>
+                     <Font size="18.0" />
+                  </font>
+               </Label>
+            </children>
+         </GridPane>
+      </left>
+      <center>
+         <GridPane BorderPane.alignment="CENTER">
+            <columnConstraints>
+               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            </columnConstraints>
+            <rowConstraints>
+               <RowConstraints maxHeight="177.0" minHeight="10.0" prefHeight="69.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="137.0" minHeight="10.0" prefHeight="72.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="192.0" minHeight="10.0" prefHeight="192.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="191.0" minHeight="10.0" prefHeight="60.0" vgrow="SOMETIMES" />
+            </rowConstraints>
+            <children>
+               <Label text="Minimum RAM" />
+               <JFXComboBox fx:id="minRAM" focusColor="#0087e7" prefHeight="28.0" prefWidth="300.0" GridPane.columnIndex="1" />
+               <Label text="Maximum RAM" GridPane.rowIndex="1" />
+               <JFXComboBox fx:id="maxRAM" focusColor="#0087e7" prefHeight="28.0" prefWidth="300.0" viewOrder="1.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+               <Label text="Modpacks" GridPane.rowIndex="2" />
+               <JFXChipView fx:id="modpackList" promptText="Enter a modpack URL" viewOrder="2.0" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS" />
+            <ButtonBar prefHeight="50.0" prefWidth="417.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+            <buttons>
+                     <JFXButton fx:id="saveBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952 #002952;" text="Save" textFill="WHITE" viewOrder="3.0">
+                        <ripplerFill>
+                           <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
+                              <stops>
+                                 <Stop color="#002952" />
+                                 <Stop color="#014d9a" offset="1.0" />
+                              </stops>
+                           </LinearGradient>
+                        </ripplerFill>
+                     </JFXButton>
+                     <JFXButton fx:id="returnBtn" defaultButton="true" style="-fx-background-color: #002952 #002952;" text="Return" textFill="WHITE" viewOrder="4.0">
+                        <ripplerFill>
+                           <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
+                              <stops>
+                                 <Stop color="#024d99" />
+                                 <Stop color="#002954" offset="0.007518796992481203" />
+                                 <Stop color="#014d9a" offset="1.0" />
+                              </stops>
+                           </LinearGradient>
+                        </ripplerFill>
+                     </JFXButton>
+            </buttons>
+            </ButtonBar>
+            </children>
+            <padding>
+               <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+            </padding>
+         </GridPane>
+      </center>
+   </BorderPane>
 </AnchorPane>

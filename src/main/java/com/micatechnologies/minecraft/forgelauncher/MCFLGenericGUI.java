@@ -1,5 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
+import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -8,6 +9,8 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
@@ -72,6 +75,64 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     abstract int[] getSize();
 
     /**
+     * Perform the functions necessary to enable light mode
+     */
+    abstract void enableLightMode();
+
+    /**
+     * Perform the functions necessary to enable dark mode
+     */
+    abstract void enableDarkMode();
+
+    boolean styleThreadRun = true;
+
+    void createUIStyleListenThread() {
+        new Thread( () -> {
+            //1 for light, 2 for dark
+            int lastMode = 1;
+            while ( styleThreadRun ) {
+                if ( MCModpackOSUtils.isWindows() ) {
+                    // TODO: Figure out how to detect windows (10) dark mode
+                    /*if ( dark ) {
+                        if ( lastMode == 1 ) enableDarkMode();
+                        lastMode = 2;
+                    }
+                    else {
+                        if ( lastMode == 2 ) enableLightMode();
+                        lastMode = 1;
+                    }*/
+                    return;
+                }
+                else if ( MCModpackOSUtils.isMac() ) {
+                    try {
+                        Process process = Runtime.getRuntime().exec( "defaults read -g AppleInterfaceStyle" );
+                        BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
+                        if ( bufferedReader.readLine().toLowerCase().contains( "dark" ) ) {
+                            if ( lastMode == 1 ) enableDarkMode();
+                            lastMode = 2;
+                        }
+                        else {
+                            if ( lastMode == 2 ) enableLightMode();
+                            lastMode = 1;
+                        }
+                    }
+                    // Ignore because mode not changing is harmless. Likely will work next time
+                    catch ( Exception ignored ) {
+                    }
+                }
+
+                // Check for light/dark mode again in 6s
+                try {
+                    Thread.sleep( 6000 );
+                }
+                catch ( InterruptedException ignored ) {
+
+                }
+            }
+        } ).start();
+    }
+
+    /**
      * Show the GUI if stage is set/ready
      *
      * @since 1.0
@@ -90,6 +151,8 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
                 // Show stage/GUI
                 currentStage.show();
+                currentStage.toFront();
+                currentStage.requestFocus();
             }
         } );
     }
@@ -134,6 +197,9 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 catch ( InterruptedException ignored ) {
                 }
 
+                // Close style thread if running
+                styleThreadRun = false;
+
                 // Close stage/GUI
                 currentStage.close();
             }
@@ -158,6 +224,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
         // Run specific window creation code
         create();
+        createUIStyleListenThread();
 
         // Mark window as ready
         readyLatch.countDown();
@@ -193,7 +260,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
                 catch ( Exception e ) {
                     // Show error and allow JavaFX to close
-                    MCFLLogger.error( "Unable to create application user interface.", 100, getCurrentStage());
+                    MCFLLogger.error( "Unable to create application user interface.", 100, getCurrentStage() );
                     Platform.setImplicitExit( true );
                 }
             } );
@@ -206,7 +273,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
                 catch ( Exception e ) {
                     // Show error and allow JavaFX to close
-                    MCFLLogger.error( "Unable to create application user interface.", 101,getCurrentStage() );
+                    MCFLLogger.error( "Unable to create application user interface.", 101, getCurrentStage() );
                     Platform.setImplicitExit( true );
                 }
             } );

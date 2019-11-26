@@ -50,4 +50,10 @@ public class MCFLConstants {
     final static transient String URL_JRE_UNX_HASH = URL_JRE_UNX + ".sha256.txt";
 
     final static transient String JRE_EXTRACTED_FOLDER_NAME = "jdk8u232-b09-jre";
+
+    final static String URL_MINECRAFT_USER_ICONS = "https://minotar.net/armor/body/user/100.png";
+
+    final static String GUI_ACCENT_COLOR = "#002952";
+    final static String GUI_LIGHT_COLOR = "#e8e8e8";
+    final static String GUI_DARK_COLOR = "#2b2b2b";
 }

@@ -91,6 +91,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         // Populate and configure modpacks chip view
         modpackList.getChips().addAll( MCFLApp.getLauncherConfig().getModpacks() );
         modpackList.setOnKeyPressed( event -> dirty = true );
+        // TODO: Fix key press not marking dirty flag
         // TODO: Configure chips view chip size to fit length of string
 
         // Configure save button
@@ -169,6 +170,16 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
      */
     @Override
     int[] getSize() {
-        return new int[]{ 500, 500 };
+        return new int[]{ 650, 425 };
+    }
+
+    @Override
+    void enableLightMode() {
+
+    }
+
+    @Override
+    void enableDarkMode() {
+
     }
 }

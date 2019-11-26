@@ -1,5 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
+import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import javafx.application.Platform;
@@ -43,13 +44,13 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
      * Exit button
      */
     @FXML
-    public Button exitBtn;
+    public JFXButton exitButton;
 
     /**
      * Settings button
      */
     @FXML
-    public Button settingsBtn;
+    public JFXButton settingsButton;
 
     /**
      * Logout button
@@ -71,13 +72,13 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     @Override
     void create() {
         // Configure exit button
-        exitBtn.setOnAction( event -> {
+        exitButton.setOnAction( event -> new Thread( () -> {
             Platform.setImplicitExit( true );
             System.exit( 0 );
-        } );
+        } ).start() );
 
         // Configure settings button
-        settingsBtn.setOnAction( event -> new Thread( () -> {
+        settingsButton.setOnAction( event -> new Thread( () -> {
             MCFLSettingsGUI MCFLSettingsGUI = new MCFLSettingsGUI();
             MCFLSettingsGUI.open();
             MCFLSettingsGUI.getCurrentStage().initModality( Modality.APPLICATION_MODAL );
@@ -96,9 +97,12 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         // TODO: Add listener to decorate window/change image based on modpack
 
         // Configure play button
-        playBtn.setOnAction( event -> {
+        playBtn.setOnAction( event -> new Thread( () -> {
+            Platform.setImplicitExit( false );
+            hide();
             MCFLApp.play( packList.getSelectionModel().getSelectedIndex(), this );
-        } );
+            show();
+        } ).start() );
 
         // Configure user image
         // TODO: Configure userIcon with image for current logged in user
@@ -140,6 +144,39 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
      */
     @Override
     int[] getSize() {
-        return new int[]{ 500, 500 };
+        return new int[]{ 650, 425 };
+    }
+
+    @Override
+    void enableLightMode() {
+
+    }
+
+    @Override
+    void enableDarkMode() {
+
+    }
+
+    /**
+     * Open the GUI and automatically select the modpack index supplied
+     *
+     * @param modpackIndex modpack index
+     */
+    public void open( int modpackIndex ) {
+        // Open GUI
+        super.open();
+
+        // Wait for GUI to be ready
+        if ( readyLatch.getCount() > 0 ) {
+            try {
+                readyLatch.await();
+            }
+            catch ( InterruptedException ignored ) {
+            }
+        }
+
+        // Select first (as backup), then select supplied index
+        packList.getSelectionModel().selectFirst();
+        packList.getSelectionModel().select( modpackIndex );
     }
 }

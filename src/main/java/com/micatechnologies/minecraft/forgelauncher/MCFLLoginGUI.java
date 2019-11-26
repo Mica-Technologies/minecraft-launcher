@@ -7,6 +7,13 @@ import com.micatechnologies.minecraft.authlib.MCAuthService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
+import javafx.scene.control.Label;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.paint.Color;
 
 import java.util.concurrent.CountDownLatch;
 
@@ -28,6 +35,21 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
      */
     private final static String BAD_LOGIN_BUTTON_TEXT = "Try Again";
 
+    /**
+     * Root window pane
+     */
+    @FXML
+    public AnchorPane rootPane;
+    /**
+     * Label text for email
+     */
+    @FXML
+    public Label emailLabel;
+    /**
+     * Label text for password
+     */
+    @FXML
+    public Label passwordLabel;
     /**
      * Email address (or username) field for login
      */
@@ -121,8 +143,10 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
 
         // Configure exit button
         exitButton.setOnAction( event -> {
-            Platform.setImplicitExit( true );
-            System.exit( 0 );
+            new Thread( () -> {
+                Platform.setImplicitExit( true );
+                System.exit( 0 );
+            } ).start();
         } );
     }
 
@@ -150,6 +174,31 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
      */
     @Override
     int[] getSize() {
-        return new int[]{ 500, 500 };
+        return new int[]{ 650, 425 };
+    }
+
+    @Override
+    void enableLightMode() {
+        rememberCheckBox.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+        exitButton.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_ACCENT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        loginButton.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_ACCENT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        loginButton.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+        exitButton.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+        emailLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+        passwordLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+
+    }
+
+    @Override
+    void enableDarkMode() {
+        rememberCheckBox.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+        loginButton.setTextFill( Color.web( MCFLConstants.GUI_ACCENT_COLOR ) );
+        exitButton.setTextFill( Color.web( MCFLConstants.GUI_ACCENT_COLOR ) );
+        exitButton.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        loginButton.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+        emailLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+        passwordLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
     }
 }

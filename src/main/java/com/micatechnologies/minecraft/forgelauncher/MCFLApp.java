@@ -5,16 +5,14 @@ import com.google.common.io.Files;
 import com.micatechnologies.minecraft.authlib.MCAuthAccount;
 import com.micatechnologies.minecraft.authlib.MCAuthException;
 import com.micatechnologies.minecraft.authlib.MCAuthService;
-import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
-import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackConsts;
-import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackException;
-import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
+import com.micatechnologies.minecraft.forgemodpacklib.*;
 import org.apache.commons.io.FileUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
 import org.rauschig.jarchivelib.Archiver;
 import org.rauschig.jarchivelib.ArchiverFactory;
 import org.rauschig.jarchivelib.CompressionType;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -166,6 +164,17 @@ public class MCFLApp {
             }
         }
     }
+
+    public static int inferMode() {
+        if ( !GraphicsEnvironment.isHeadless() ) {
+            MCFLLogger.log( "Inferred client mode" );
+            return MODE_CLIENT;
+        }
+        else {
+            MCFLLogger.log( "Inferred server mode" );
+            return MODE_SERVER;
+        }
+    }
     //endregion
 
     //region: Function Methods
@@ -184,6 +193,38 @@ public class MCFLApp {
         int maxRAMMB = ( int ) ( getLauncherConfig().getMaxRAM() * 1024 );
         try {
             MCForgeModpack mp = modpacks.get( modpack );
+            MCFLProgressGUI progressGUI = new MCFLProgressGUI();
+            progressGUI.open();
+            new Thread( ()->{
+                try {
+                    progressGUI.readyLatch.await();
+                }
+                catch ( InterruptedException e ) {
+
+                }
+                progressGUI.setIcon( new javafx.scene.image.Image(
+                        MCFLConstants.URL_MINECRAFT_USER_ICONS
+                                .replace("user", currentUser.getUserIdentifier()))  );
+            } ).start();
+            mp.setProgressProvider( new MCForgeModpackProgressProvider() {
+                @Override
+                public void updateProgressHandler( double percent, String text ) {
+                    progressGUI.setUpperText( "Loading " + mp.getPackName() );
+                    progressGUI.setLowerText( text );
+                    progressGUI.setProgress( percent );
+                    if ( percent == 100.0 ) {
+                        new Thread( () -> {
+                            progressGUI.setLowerText( "Passing to Minecraft" );
+                            try {
+                                Thread.sleep( 6000 );
+                            }
+                            catch ( InterruptedException e ) {
+                            }
+                            progressGUI.close();
+                        } ).start();
+                    }
+                }
+            } );
             mp.startGame( getJavaPath(), currentUser.getFriendlyName(), currentUser.getUserIdentifier(), currentUser.getLastAccessToken(), minRAMMB, maxRAMMB );
         }
         catch ( MCForgeModpackException e ) {
@@ -192,12 +233,19 @@ public class MCFLApp {
     }
 
     private static void playServer( int modpack ) {
-        if ( mode != MODE_CLIENT ) return;
+        if ( mode != MODE_SERVER ) return;
 
         int minRAMMB = ( int ) ( getLauncherConfig().getMinRAM() * 1024 );
         int maxRAMMB = ( int ) ( getLauncherConfig().getMaxRAM() * 1024 );
         try {
-            modpacks.get( modpack ).startGame( getJavaPath(), currentUser.getFriendlyName(), currentUser.getUserIdentifier(), currentUser.getLastAccessToken(), minRAMMB, maxRAMMB );
+            MCForgeModpack mp = modpacks.get( modpack );
+            mp.setProgressProvider( new MCForgeModpackProgressProvider() {
+                @Override
+                public void updateProgressHandler( double percent, String text ) {
+                    MCFLLogger.log( "Play: " + percent + "% - " + text );
+                }
+            } );
+            mp.startGame( getJavaPath(), "","","", minRAMMB, maxRAMMB );
         }
         catch ( MCForgeModpackException e ) {
             MCFLLogger.error( "Unable to start game.", 313, null );
@@ -207,8 +255,7 @@ public class MCFLApp {
     private static void doModpackSelection( int initPackIndex ) {
         if ( mode == MODE_CLIENT ) {
             MCFLModpacksGUI modpacksGUI = new MCFLModpacksGUI();
-            modpacksGUI.open();
-            modpacksGUI.setSelectedModpackIndex( initPackIndex );
+            modpacksGUI.open( initPackIndex );
         }
         else if ( mode == MODE_SERVER ) {
             playServer( initPackIndex );
@@ -346,6 +393,15 @@ public class MCFLApp {
         if ( progressGUI != null ) {
             progressGUI.setLowerText( "Finished JRE Preparation" );
             progressGUI.setProgress( 100.0 );
+            MCFLProgressGUI finalProgressGUI = progressGUI;
+            new Thread( () -> {
+                try {
+                    Thread.sleep( 5000 );
+                }
+                catch ( InterruptedException ignored ) {
+                }
+                finalProgressGUI.close();
+            } ).start();
         }
     }
 
@@ -410,11 +466,31 @@ public class MCFLApp {
     //region: Core Methods
     public static void main( String[] args ) {
         // NOTE: Saved users DISABLED right now to due bug.
+        int initPackIndex = 0;
+
+        if ( args.length == 0 ) mode = inferMode();
+        else if ( args.length == 1 && args[ 0 ].equals( "-c" ) ) mode = MODE_CLIENT;
+        else if ( args.length == 1 && args[ 0 ].equals( "-s" ) ) mode = MODE_SERVER;
+        else if ( args.length == 1 && args[ 0 ].matches( "^\\d+$" ) ) initPackIndex = Integer.parseInt( args[ 0 ] );
+        else if ( args.length == 2 && args[ 0 ].equals( "-c" ) && args[ 1 ].matches( "^\\d+$" ) ) {
+            mode = MODE_CLIENT;
+            initPackIndex = Integer.parseInt( args[ 1 ] );
+        }
+        else if ( args.length == 2 && args[ 0 ].equals( "-s" ) && args[ 1 ].matches( "^\\d+$" ) ) {
+            mode = MODE_SERVER;
+            initPackIndex = Integer.parseInt( args[ 1 ] );
+        }
+        else {
+            System.out.println( "ERROR: Your argument(s) are invalid.\nUsage: launcher.jar [ -s [modpack] | -c [modpack] | modpack ]" );
+            return;
+        }
+
+
+        // Run main functions of launcher
         doLogin();
         doLocalJDK();
         buildMemoryModpackList();
-        doModpackSelection( 1 );
-        // TODO: Download modpack files and assets
+        doModpackSelection( initPackIndex );
     }
     //endregion
 }
