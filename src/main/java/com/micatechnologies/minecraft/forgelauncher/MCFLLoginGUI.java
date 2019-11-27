@@ -141,7 +141,6 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
                     Platform.runLater( () -> {
                         loginButton.setText( BAD_LOGIN_BUTTON_TEXT );
                     } );
-                    e.printStackTrace();
                     new Thread( () -> {
                         try {
                             Thread.sleep( 5000 );
@@ -174,7 +173,7 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
         } );
 
         // CONFIGURE TEMPORARY MESSAGE FOR REMEMBER ME CHECK BOX
-        rememberCheckBox.setOnAction( event -> new Thread( () -> MCFLLogger.error( "Unfortunately, this functionality is not responding. Please try again soon!", 800, getCurrentStage() ) ).start() );
+        //rememberCheckBox.setOnAction( event -> new Thread( () -> MCFLLogger.error( "Unfortunately, this functionality is not responding. Please try again soon!", 800, getCurrentStage() ) ).start() );
     }
 
     /**

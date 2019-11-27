@@ -52,12 +52,12 @@ public class MCAuthService {
 
         // Process response only if error or error message not present
         if ( !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_KEY ) && !responseObject
-            .has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_MSG_KEY ) ) {
+                .has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_MSG_KEY ) ) {
             // Read and save acquired access token
             if ( responseObject.has( MCAuthConstants.MC_AUTH_ENDPOINT_ACCESS_TOKEN_KEY ) ) {
                 account.setLastAccessToken(
-                    responseObject.get( MCAuthConstants.MC_AUTH_ENDPOINT_ACCESS_TOKEN_KEY )
-                                  .getAsString() );
+                        responseObject.get( MCAuthConstants.MC_AUTH_ENDPOINT_ACCESS_TOKEN_KEY )
+                                      .getAsString() );
             }
             else {
                 throw new MCAuthException( "Unable to process token from Mojang response." );
@@ -67,19 +67,19 @@ public class MCAuthService {
             // If not present, method will continue
             if ( responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ) ) {
                 if ( responseObject.getAsJsonObject(
-                    MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).has(
-                    MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_NAME_KEY ) ) {
+                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).has(
+                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_NAME_KEY ) ) {
                     account.setFriendlyName( responseObject.getAsJsonObject(
-                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).get(
-                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_NAME_KEY )
+                            MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).get(
+                            MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_NAME_KEY )
                                                            .getAsString() );
                 }
                 if ( responseObject.getAsJsonObject(
-                    MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).has(
-                    MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_ID_KEY ) ) {
+                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).has(
+                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_ID_KEY ) ) {
                     account.setUserIdentifier( responseObject.getAsJsonObject(
-                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).get(
-                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_ID_KEY ).getAsString() );
+                            MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).get(
+                            MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_ID_KEY ).getAsString() );
                 }
             }
         }
@@ -104,7 +104,7 @@ public class MCAuthService {
      * @since 1.0
      */
     public static boolean refreshAuth( MCAuthAccount account, String clientToken )
-        throws MCAuthException {
+    throws MCAuthException {
         // Check for presence of existing access token
         // If none, return immediately
         if ( account.getLastAccessToken() == null ) {
@@ -126,12 +126,12 @@ public class MCAuthService {
 
         // Process response only if error or error message not present
         if ( !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_KEY ) && !responseObject
-            .has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_MSG_KEY ) ) {
+                .has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_MSG_KEY ) ) {
             // Read and save acquired access token
             if ( responseObject.has( MCAuthConstants.MC_AUTH_ENDPOINT_ACCESS_TOKEN_KEY ) ) {
                 account.setLastAccessToken(
-                    responseObject.get( MCAuthConstants.MC_AUTH_ENDPOINT_ACCESS_TOKEN_KEY )
-                                  .getAsString() );
+                        responseObject.get( MCAuthConstants.MC_AUTH_ENDPOINT_ACCESS_TOKEN_KEY )
+                                      .getAsString() );
             }
             else {
                 throw new MCAuthException( "Unable to process token from Mojang response." );
@@ -141,19 +141,19 @@ public class MCAuthService {
             // If not present, method will continue
             if ( responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ) ) {
                 if ( responseObject.getAsJsonObject(
-                    MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).has(
-                    MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_NAME_KEY ) ) {
+                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).has(
+                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_NAME_KEY ) ) {
                     account.setFriendlyName( responseObject.getAsJsonObject(
-                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).get(
-                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_NAME_KEY )
+                            MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).get(
+                            MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_NAME_KEY )
                                                            .getAsString() );
                 }
                 if ( responseObject.getAsJsonObject(
-                    MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).has(
-                    MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_ID_KEY ) ) {
+                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).has(
+                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_ID_KEY ) ) {
                     account.setUserIdentifier( responseObject.getAsJsonObject(
-                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).get(
-                        MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_ID_KEY ).getAsString() );
+                            MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_KEY ).get(
+                            MCAuthConstants.MC_AUTH_RESPONSE_SELECTED_PROFILE_ID_KEY ).getAsString() );
                 }
             }
         }
@@ -177,7 +177,7 @@ public class MCAuthService {
      * @since 1.0
      */
     public static boolean validateLogin( MCAuthAccount account, String clientToken )
-        throws MCAuthException {
+    throws MCAuthException {
         // Check for presence of existing access token
         // If none, return immediately
         if ( account.getLastAccessToken() == null ) {
@@ -199,7 +199,7 @@ public class MCAuthService {
 
         // Return true if no error in response
         return !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_KEY ) && !responseObject
-            .has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_MSG_KEY );
+                .has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_MSG_KEY );
     }
 
     /**
@@ -214,7 +214,7 @@ public class MCAuthService {
      * @since 1.0
      */
     public static boolean invalidateLogin( MCAuthAccount account, String clientToken )
-        throws MCAuthException {
+    throws MCAuthException {
         // Check for presence of existing access token
         // If none, return immediately
         if ( account.getLastAccessToken() == null ) {
@@ -236,7 +236,7 @@ public class MCAuthService {
 
         // Return true if no error in response
         boolean isSuccess = !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_KEY )
-            && !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_MSG_KEY );
+                && !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_MSG_KEY );
         if ( isSuccess ) {
             account.setLastAccessToken( null );
         }

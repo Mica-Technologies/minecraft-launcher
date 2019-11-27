@@ -2,6 +2,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.google.common.hash.Hashing;
 import com.google.common.io.Files;
+import com.jfoenix.controls.JFXProgressBar;
 import com.micatechnologies.minecraft.authlib.MCAuthAccount;
 import com.micatechnologies.minecraft.authlib.MCAuthException;
 import com.micatechnologies.minecraft.authlib.MCAuthService;
@@ -13,7 +14,6 @@ import org.rauschig.jarchivelib.Archiver;
 import org.rauschig.jarchivelib.ArchiverFactory;
 import org.rauschig.jarchivelib.CompressionType;
 
-import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
@@ -150,22 +150,56 @@ public class MCFLApp {
     }
 
     public static void buildMemoryModpackList() {
+        MCFLProgressGUI progressGUI = null;
+        if ( mode == MODE_CLIENT ) {
+            progressGUI = new MCFLProgressGUI();
+            progressGUI.open();
+            progressGUI.setUpperText( "Parsing Modpack List" );
+            progressGUI.setLowerText( "Setting Up" );
+            progressGUI.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
+        }
+
         modpacks.clear();
         for ( String s : getLauncherConfig().getModpacks() ) {
             Path modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + "sandbox" );
+            if ( progressGUI != null ) {
+                progressGUI.setLowerText( "Checking " + s );
+            }
             try {
                 MCForgeModpack tempPack = MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode );
                 try {
+                    try {
+                        FileUtils.deleteDirectory( modpackRootFolder.toFile() );
+                    }
+                    catch ( IOException e ) {
+                        MCFLLogger.debug( "Failed to cleanup sandbox install folder." );
+                    }
+                    if ( progressGUI != null ) {
+                        progressGUI.setLowerText( "Configuring " + tempPack.getPackName() );
+                    }
                     modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + tempPack.getPackName().replaceAll( "[^a-zA-Z0-9]", "" ) );
                     modpacks.add( MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode ) );
                 }
                 catch ( MCForgeModpackException | MalformedURLException e ) {
-                    MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, null );
+                    if ( progressGUI != null ) {
+                        MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, progressGUI.getCurrentStage() );
+                    }
+                    else {
+                        MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, null );
+                    }
                 }
             }
             catch ( MCForgeModpackException | MalformedURLException e ) {
-                MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, null );
+                if ( progressGUI != null ) {
+                    MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, progressGUI.getCurrentStage() );
+                }
+                else {
+                    MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, null );
+                }
             }
+        }
+        if ( progressGUI != null ) {
+            progressGUI.close();
         }
     }
 
@@ -203,8 +237,7 @@ public class MCFLApp {
                 try {
                     progressGUI.readyLatch.await();
                 }
-                catch ( InterruptedException e ) {
-
+                catch ( InterruptedException ignored ) {
                 }
                 progressGUI.setIcon( new javafx.scene.image.Image( mp.getPackLogoURL() ) );
             } ).start();
@@ -220,7 +253,7 @@ public class MCFLApp {
                             try {
                                 Thread.sleep( 3000 );
                             }
-                            catch ( InterruptedException e ) {
+                            catch ( InterruptedException ignored ) {
                             }
                             progressGUI.close();
                         } ).start();
@@ -435,21 +468,28 @@ public class MCFLApp {
         // Login should only be handled in client mode
         if ( mode == MODE_CLIENT ) {
             // Check for saved user on disk. Load and return if found
+            boolean dirtyLogin = false;
             File savedUserFile = new File( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
             if ( ALLOW_SAVED_USERS && savedUserFile.isFile() ) {
                 try {
                     currentUser = MCAuthAccount.readFromFile( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
                     MCAuthService.refreshAuth( getCurrentUser(), getClientToken() );
+                    MCAuthAccount.writeToFile( savedUserFile.getPath(), getCurrentUser() );
                     return;
                 }
                 catch ( MCAuthException e ) {
-                    MCFLLogger.error( "Unable to load remembered user account.", 301, null );
+                    dirtyLogin = true;
                 }
             }
 
             // Show login screen
             MCFLLoginGUI loginGUI = new MCFLLoginGUI();
             loginGUI.open();
+
+            // Show error if exception encountered above (need to wait for GUI)
+            if ( dirtyLogin ) {
+                MCFLLogger.error( "Unable to load remembered user account.", 301, loginGUI.getCurrentStage() );
+            }
 
             // Wait for login screen to complete
             try {
@@ -476,6 +516,19 @@ public class MCFLApp {
         if ( args.length == 0 ) mode = inferMode();
         else if ( args.length == 1 && args[ 0 ].equals( "-c" ) ) mode = MODE_CLIENT;
         else if ( args.length == 1 && args[ 0 ].equals( "-s" ) ) mode = MODE_SERVER;
+        else if ( args.length == 1 && args[ 0 ].equals( "-a" ) ) {
+            // Show admin UI and stop normal processes
+            loopLogin = false;
+
+            MCFLAdminGUI adminGUI = new MCFLAdminGUI();
+            adminGUI.open();
+            try {
+                adminGUI.closedLatch.await();
+            }
+            catch ( InterruptedException e ) {
+                System.err.println( "Unable to wait completion of GUI." );
+            }
+        }
         else if ( args.length == 1 && args[ 0 ].matches( "^\\d+$" ) ) initPackIndex = Integer.parseInt( args[ 0 ] );
         else if ( args.length == 2 && args[ 0 ].equals( "-c" ) && args[ 1 ].matches( "^\\d+$" ) ) {
             mode = MODE_CLIENT;
@@ -486,7 +539,7 @@ public class MCFLApp {
             initPackIndex = Integer.parseInt( args[ 1 ] );
         }
         else {
-            System.out.println( "ERROR: Your argument(s) are invalid.\nUsage: launcher.jar [ -s [modpack] | -c [modpack] | modpack ]" );
+            System.out.println( "ERROR: Your argument(s) are invalid.\nUsage: launcher.jar [ -s [modpack] | -c [modpack] | modpack | -a ]" );
             return;
         }
 

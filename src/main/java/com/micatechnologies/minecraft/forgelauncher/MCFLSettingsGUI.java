@@ -2,6 +2,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.*;
+import com.micatechnologies.minecraft.forgemodpacklib.MCForgeMod;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
@@ -112,11 +113,20 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         modpackList.setChipFactory( ( stringJFXChipView, s ) -> {
             JFXChip< String > newChip = new JFXDefaultChip<>( stringJFXChipView, s );
             // Very scary, but it works
-            ( ( Label ) ( ( HBox ) newChip.getChildrenUnmodifiable().get( 0 ) ).getChildren().get( 0 ) ).setMaxWidth( 500.0 );
+            ( ( Label ) ( ( HBox ) newChip.getChildrenUnmodifiable().get( 0 ) ).getChildren().get( 0 ) ).setMaxWidth( 1000.0 );
             return newChip;
         } );
         modpackList.getChips().addAll( MCFLApp.getLauncherConfig().getModpacks() );
-        modpackList.getChips().addListener( ( ListChangeListener< String > ) c -> dirty = true );
+        modpackList.getChips().addListener( ( ListChangeListener< String > ) c -> {
+            dirty = true;
+
+            // Triger reindex of modpacks
+            new Thread( () -> {
+                Platform.runLater( () -> getCurrentStage().setAlwaysOnTop( false ) );
+                MCFLApp.buildMemoryModpackList();
+                Platform.runLater( () -> getCurrentStage().setAlwaysOnTop( true ) );
+            } ).start();
+        } );
 
         // Configure save button
         saveBtn.setOnAction( event -> {
