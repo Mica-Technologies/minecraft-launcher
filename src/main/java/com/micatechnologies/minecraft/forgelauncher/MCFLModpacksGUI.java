@@ -2,6 +2,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
+import com.jfoenix.skins.JFXComboBoxListViewSkin;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -85,6 +86,11 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
      */
     @FXML
     public ImageView packLogo;
+
+    /**
+     * Text for selecting modpack
+     */
+    public Label upperText;
 
     /**
      * Handle the creation and initial configuration of GUI controls/elements.
@@ -181,6 +187,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     @Override
     void enableLightMode() {
         Platform.runLater( () -> {
+            upperText.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
         } );
     }
@@ -188,6 +195,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     @Override
     void enableDarkMode() {
         Platform.runLater( () -> {
+            upperText.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
         } );
     }

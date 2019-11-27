@@ -36,6 +36,16 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
      */
     public static final String SAVED_BUTTON_TEXT = "Saved!";
 
+    @FXML
+    public Label minRAMLabel;
+
+    @FXML
+    public Label maxRAMLabel;
+
+    @FXML
+    public Label modpacksLabel;
+
+
     /**
      * Button to close settings/return
      */
@@ -195,6 +205,9 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
     void enableLightMode() {
         Platform.runLater( () -> {
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+            minRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            maxRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            modpacksLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
         } );
     }
 
@@ -202,6 +215,9 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
     void enableDarkMode() {
         Platform.runLater( () -> {
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+            minRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            maxRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            modpacksLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
         } );
     }
 }

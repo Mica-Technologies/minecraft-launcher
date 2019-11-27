@@ -10,6 +10,7 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
+import javax.swing.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -90,6 +91,18 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
      */
     abstract void enableDarkMode();
 
+    void doLightMode() {
+        getCurrentStage().getScene().getStylesheets().add( getClass().getClassLoader().getResource( "LauncherLight.css" ).toExternalForm() );
+        getCurrentStage().getScene().getStylesheets().remove( getClass().getClassLoader().getResource( "LauncherDark.css" ).toExternalForm() );
+        enableLightMode();
+    }
+
+    void doDarkMode() {
+        getCurrentStage().getScene().getStylesheets().remove( getClass().getClassLoader().getResource( "LauncherLight.css" ).toExternalForm() );
+        getCurrentStage().getScene().getStylesheets().add( getClass().getClassLoader().getResource( "LauncherDark.css" ).toExternalForm() );
+        enableDarkMode();
+    }
+
     boolean styleThreadRun = true;
 
     void createUIStyleListenThread() {
@@ -104,7 +117,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                         lastMode = 2;
                     }
                     else {
-                        if ( lastMode == 2 ) enableLightMode();
+                        if ( lastMode == 2 ) doLightMode();
                         lastMode = 1;
                     }*/
                     return;
@@ -116,13 +129,13 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                         String read = bufferedReader.readLine().toLowerCase();
                         if ( read.contains( "dark" ) ) {
                             if ( lastMode != 2 ) {
-                                enableDarkMode();
+                                doDarkMode();
                                 lastMode = 2;
                             }
                         }
                         else {
                             if ( lastMode != 1 ) {
-                                enableLightMode();
+                                doLightMode();
                                 lastMode = 1;
                             }
                         }
@@ -130,7 +143,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                     // Light mode causes an exception
                     catch ( Exception ignored ) {
                         if ( lastMode != 1 ) {
-                            enableLightMode();
+                            doLightMode();
                             lastMode = 1;
                         }
                     }

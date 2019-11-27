@@ -68,11 +68,11 @@
                <RowConstraints maxHeight="191.0" minHeight="10.0" prefHeight="60.0" vgrow="SOMETIMES" />
             </rowConstraints>
             <children>
-               <Label text="Minimum RAM" />
+               <Label fx:id="minRAMLabel" text="Minimum RAM" />
                <JFXComboBox fx:id="minRAM" focusColor="#0087e7" prefHeight="28.0" prefWidth="300.0" GridPane.columnIndex="1" />
-               <Label text="Maximum RAM" GridPane.rowIndex="1" />
+               <Label fx:id="maxRAMLabel" text="Maximum RAM" GridPane.rowIndex="1" />
                <JFXComboBox fx:id="maxRAM" focusColor="#0087e7" prefHeight="28.0" prefWidth="300.0" viewOrder="1.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-               <Label text="Modpacks" GridPane.rowIndex="2" />
+               <Label fx:id="modpacksLabel" text="Modpacks" GridPane.rowIndex="2" />
                <JFXChipView fx:id="modpackList" promptText="Enter a modpack URL" viewOrder="2.0" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS" />
             <ButtonBar prefHeight="50.0" prefWidth="417.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
             <buttons>

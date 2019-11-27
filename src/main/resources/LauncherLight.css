@@ -1,0 +1,5 @@
+.jfx-combo-box > .list-cell > .text,
+.jfx-combo-box > .list-cell > .label{
+	-fx-text-fill: #3d3f41;
+	-fx-fill: #3d3f41;
+}

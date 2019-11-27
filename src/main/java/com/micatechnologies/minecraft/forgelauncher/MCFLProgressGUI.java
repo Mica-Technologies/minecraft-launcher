@@ -148,6 +148,8 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
     @Override
     void enableLightMode() {
         Platform.runLater( () -> {
+            upperText.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            lowerText.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
         } );
     }
@@ -155,6 +157,8 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
     @Override
     void enableDarkMode() {
         Platform.runLater( () -> {
+            upperText.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            lowerText.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
         } );
     }
