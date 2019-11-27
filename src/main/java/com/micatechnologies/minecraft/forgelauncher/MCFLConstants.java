@@ -52,6 +52,6 @@ public class MCFLConstants {
     final static String URL_MINECRAFT_USER_ICONS = "https://minotar.net/armor/body/user/100.png";
 
     final static String GUI_ACCENT_COLOR = "#002952";
-    final static String GUI_LIGHT_COLOR = "#d3d3d3";
-    final static String GUI_DARK_COLOR = "#3d3f41";
+    final static String GUI_LIGHT_COLOR = "#cccccc";
+    final static String GUI_DARK_COLOR = "#5b5b5b";
 }
