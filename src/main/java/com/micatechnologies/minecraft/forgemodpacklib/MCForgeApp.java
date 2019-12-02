@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,10 +48,10 @@ class MCForgeApp extends MCRemoteFile {
     private final String modpackRootFolder;
 
     MCForgeApp( String remoteURL, String sha1Hash, String modpackRootFolder )
-        throws MCForgeModpackException {
+    throws MCForgeModpackException {
         // Populate remote file information/configuration
         super( remoteURL, modpackRootFolder + MCModpackOSUtils.getFileSeparator()
-            + MCForgeModpackConsts.MODPACK_FORGE_JAR_LOCAL_PATH, sha1Hash );
+                + MCForgeModpackConsts.MODPACK_FORGE_JAR_LOCAL_PATH, sha1Hash );
 
         // Store modpack root folder
         this.modpackRootFolder = modpackRootFolder;
@@ -107,7 +108,7 @@ class MCForgeApp extends MCRemoteFile {
 
             // Build Repo Path from URL
             String forgeAssetRepoPath = forgeAssetName.substring(
-                forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "-" );
+                    forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "-" );
 
             // Get Repo URL
             String repoURL = "https://repo1.maven.org/maven2/";
@@ -121,9 +122,9 @@ class MCForgeApp extends MCRemoteFile {
 
             // Build Full Repo URL and Path
             String forgeAssetURL = repoURL + forgeAssetName.substring( 0, forgeAssetName
-                .indexOf( ":" ) ).replace( ".", "/" ) + "/" + forgeAssetName.substring(
-                forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "/" ) + "/" + forgeAssetRepoPath
-                + ".jar";
+                    .indexOf( ":" ) ).replace( ".", "/" ) + "/" + forgeAssetName.substring(
+                    forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "/" ) + "/" + forgeAssetRepoPath
+                    + ".jar";
 
             // Override special libraries
             if ( forgeAssetURL.contains( "scala-parser-combinators" ) ) {
@@ -144,8 +145,8 @@ class MCForgeApp extends MCRemoteFile {
 
             // Build Local File Path
             String localForgeAssetFilePath = forgeAssetName.substring( 0, forgeAssetName
-                .indexOf( ":" ) ).replace( ".", MCModpackOSUtils.getFileSeparator() )
-                + MCModpackOSUtils.getFileSeparator() + forgeAssetRepoPath + ".jar";
+                    .indexOf( ":" ) ).replace( ".", MCModpackOSUtils.getFileSeparator() )
+                    + MCModpackOSUtils.getFileSeparator() + forgeAssetRepoPath + ".jar";
 
             // Get Forge Asset Requirements
             boolean clientReq = true;
@@ -160,7 +161,7 @@ class MCForgeApp extends MCRemoteFile {
             // Build Forge Asset Object and Add to List of Assets
             // Note: hash checking not supported on forge assets yet
             forgeAssets.add(
-                new MCForgeAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
+                    new MCForgeAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
         }
 
         // Return resulting list of Forge Assets
@@ -169,27 +170,27 @@ class MCForgeApp extends MCRemoteFile {
 
     private void downloadForgeAssets( int gameAppMode,
                                       MCForgeModpackProgressProvider progressProvider )
-        throws MCForgeModpackException {
+    throws MCForgeModpackException {
         // Get list of Forge Assets
         ArrayList< MCForgeAsset > forgeAssetsList = getForgeAssetList();
 
         // For each asset, verify and download as necessary
         for ( MCForgeAsset forgeAsset : forgeAssetsList ) {
             String localPathPrefix = modpackRootFolder + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
+                    + MCForgeModpackConsts.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
             forgeAsset.setLocalPathPrefix( localPathPrefix );
             forgeAsset.updateLocalFile( gameAppMode );
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified asset " + forgeAsset.getLocalFilePath(),
+                progressProvider.submitProgress( "Verified asset " + new File( forgeAsset.getFullLocalFilePath() ).getName(),
                                                  ( 60.0 / ( double ) forgeAssetsList.size() ) );
             }
         }
     }
 
     String buildForgeClasspath( int gameAppMode, MCForgeModpackProgressProvider progressProvider )
-        throws MCForgeModpackException {
+    throws MCForgeModpackException {
         // Get list of Forge Assets
         ArrayList< MCForgeAsset > forgeAssetsList = getForgeAssetList();
         // Update progress provider if present
@@ -205,21 +206,21 @@ class MCForgeApp extends MCRemoteFile {
         for ( MCForgeAsset forgeAsset : forgeAssetsList ) {
             // Add separator to string if necessary
             if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith(
-                MCModpackOSUtils.getClasspathSeparator() ) ) {
+                    MCModpackOSUtils.getClasspathSeparator() ) ) {
                 classpath.append( MCModpackOSUtils.getClasspathSeparator() );
             }
 
             // Add asset to classpath
             String localPathPrefix = modpackRootFolder + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
+                    + MCForgeModpackConsts.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
             forgeAsset.setLocalPathPrefix( localPathPrefix );
             classpath.append( forgeAsset.getFullLocalFilePath() );
 
             // Update progress provider if present
             if ( progressProvider != null ) {
                 progressProvider.submitProgress(
-                    "Added to classpath: " + forgeAsset.getLocalFilePath(),
-                    ( 20.0 / ( double ) forgeAssetsList.size() ) );
+                        "Added to classpath: " + forgeAsset.getLocalFilePath(),
+                        ( 20.0 / ( double ) forgeAssetsList.size() ) );
             }
         }
 
@@ -243,7 +244,7 @@ class MCForgeApp extends MCRemoteFile {
                 }
                 catch ( IOException e ) {
                     throw new MCForgeModpackException(
-                        "Unable to open Forge version manifest for parsing.", e );
+                            "Unable to open Forge version manifest for parsing.", e );
                 }
                 InputStreamReader inputStreamReader = new InputStreamReader( inputStream );
                 JsonObject jsonObject = new Gson().fromJson( inputStreamReader, JsonObject.class );

@@ -1,6 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.JFXButton;
+import com.jfoenix.controls.JFXTextArea;
 import com.jfoenix.controls.JFXTextField;
 import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import javafx.application.Platform;
@@ -15,12 +16,20 @@ import javafx.scene.layout.CornerRadii;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.io.FileUtils;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Formatter;
 
@@ -45,10 +54,10 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
     public JFXButton exitButton;
 
     @FXML
-    public Label sha1;
+    public JFXTextArea sha1;
 
     @FXML
-    public Label url;
+    public JFXTextArea url;
 
     @FXML
     public JFXButton downHashBtn;
@@ -79,14 +88,48 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
                 String starting = startURL.getText();
                 try {
                     HttpURLConnection connection = null;
+                    // Create a new trust manager that trust all certificates
+                    TrustManager[] trustAllCerts = new TrustManager[]{
+                            new X509TrustManager() {
+                                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                                    return null;
+                                }
+
+                                public void checkClientTrusted(
+                                        java.security.cert.X509Certificate[] certs, String authType ) {
+                                }
+
+                                public void checkServerTrusted(
+                                        java.security.cert.X509Certificate[] certs, String authType ) {
+                                }
+                            }
+                    };
+
+                    // Activate the new trust manager
+                    try {
+                        SSLContext sc = SSLContext.getInstance( "SSL" );
+                        sc.init( null, trustAllCerts, new java.security.SecureRandom() );
+                        HttpsURLConnection.setDefaultSSLSocketFactory( sc.getSocketFactory() );
+                    }
+                    catch ( Exception e ) {
+                    }
+
                     for ( ; ; ) {
+                        starting = starting.replaceAll( "files/", "download/" ) + "/file";
                         URL url = new URL( starting );
                         connection = ( HttpURLConnection ) url.openConnection();
+                        connection.addRequestProperty( "authority", "www.curseforge.com" );
+                        connection.addRequestProperty( "user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36" );
+                        connection.addRequestProperty( "referer", starting.replaceAll( "/file", "" ) );
+                        connection.addRequestProperty( "accept-language", "en-US,en;q=0.9" );
+                        connection.addRequestProperty( "cookie", "__cfduid=db772e0b75914f1e55d317a6241049b631575325937; Unique_ID_v2=71f7681abb414685951fda9eb6411240; __cf_bm=8df85ad833fba27a60680041547320c3deb1a686-1575325937-1800-AaZlRFlIT5MZNte5AjnTuM5xJb6gGmkI8EcVD+8wKVtevNzgoHaPKIZ0r/NobfDciFOru57Lz1al+CJgE9hbPJ4=; ResponsiveSwitch.DesktopMode=1; __utma=94490894.1223710242.1575325938.1575325938.1575325938.1; __utmc=94490894; __utmz=94490894.1575325938.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmt=1; __utmt_b=1; _ga=GA1.2.1223710242.1575325938; _gid=GA1.2.1892128923.1575325938; cdmgeo=us; __gads=ID=71afbed91813359b:T=1575325940:S=ALNI_MY7d5PqYNAFG9YP5cuuKcdlQV0W6A; AWSALB=L+Sr3ink7iGLfve+Kt8YSnBgdS366kIzfiSmug7rxAJED2A/GT0Svsdl/YXCFcbS04lEf3mVXrGbv+LYRd4hPkZmADDrcYoENmZAChQXupwud4oomA87pSdYUI6x; __utmb=94490894.4.10.1575325938" );
+                        connection.setRequestMethod( "GET" );
                         connection.setInstanceFollowRedirects( false );
                         String redirectLocation = connection.getHeaderField( "Location" );
                         if ( redirectLocation == null ) break;
                         starting = redirectLocation;
                     }
+                    starting = starting.replace( "/file", "" ).replaceAll( " ", "+" ).replaceFirst( "edge","media" ).replaceFirst( "download","files" );
                     String finalStarting = starting;
                     Platform.runLater( () -> url.setText( finalStarting ) );
                 }
@@ -111,7 +154,7 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
                         formatter.format( "%02x", b );
                     }
 
-                    sha1.setText( formatter.toString() );
+                    Platform.runLater( () -> sha1.setText( formatter.toString() ) );
                 }
                 catch ( Exception e ) {
                     e.printStackTrace();
@@ -152,8 +195,8 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
     void enableLightMode() {
         Platform.runLater( () -> {
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-            url.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
-            sha1.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            url.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
+            sha1.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
         } );
 
     }
@@ -162,8 +205,8 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
     void enableDarkMode() {
         Platform.runLater( () -> {
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-            url.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
-            sha1.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            url.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
+            sha1.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
         } );
     }
 }

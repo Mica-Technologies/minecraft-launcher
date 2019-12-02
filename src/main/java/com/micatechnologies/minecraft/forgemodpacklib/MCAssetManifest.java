@@ -3,20 +3,21 @@ package com.micatechnologies.minecraft.forgemodpacklib;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class MCAssetManifest extends MCRemoteFile {
 
     private static final String MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER =
-        "assets" + MCModpackOSUtils.getFileSeparator() + "indexes";
+            "assets" + MCModpackOSUtils.getFileSeparator() + "indexes";
 
-    private final        String modpackRootFolder;
+    private final String modpackRootFolder;
 
     MCAssetManifest( String remote, String modpackRootFolder, String version ) {
         super( remote, modpackRootFolder + MCModpackOSUtils.getFileSeparator()
-            + MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER + MCModpackOSUtils.getFileSeparator()
-            + version + ".json" );
+                + MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER + MCModpackOSUtils.getFileSeparator()
+                + version + ".json" );
         this.modpackRootFolder = modpackRootFolder;
     }
 
@@ -33,11 +34,11 @@ public class MCAssetManifest extends MCRemoteFile {
             String assetHash = asset.get( "hash" ).getAsString();
             String assetFolder = assetHash.substring( 0, 2 );
             String assetPath = modpackRootFolder + MCModpackOSUtils.getFileSeparator()
-                + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER + MCModpackOSUtils
-                .getFileSeparator() + "objects" + MCModpackOSUtils.getFileSeparator() + assetFolder
-                + MCModpackOSUtils.getFileSeparator() + assetHash;
+                    + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER + MCModpackOSUtils
+                    .getFileSeparator() + "objects" + MCModpackOSUtils.getFileSeparator() + assetFolder
+                    + MCModpackOSUtils.getFileSeparator() + assetHash;
             String assetURL =
-                "http://resources.download.minecraft.net/" + assetFolder + "/" + assetHash;
+                    "http://resources.download.minecraft.net/" + assetFolder + "/" + assetHash;
             assets.add( new MCRemoteFile( assetURL, assetPath, assetHash ) );
         }
 
@@ -46,7 +47,7 @@ public class MCAssetManifest extends MCRemoteFile {
     }
 
     void downloadAssets( final MCForgeModpackProgressProvider progressProvider )
-        throws MCForgeModpackException {
+    throws MCForgeModpackException {
         // Update asset manifest first
         updateLocalFile();
 

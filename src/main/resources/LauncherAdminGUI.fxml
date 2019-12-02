@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXTextArea?>
 <?import com.jfoenix.controls.JFXTextField?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ButtonBar?>
@@ -56,7 +57,7 @@
             <GridPane BorderPane.alignment="CENTER">
                <columnConstraints>
                   <ColumnConstraints hgrow="SOMETIMES" maxWidth="184.0" minWidth="10.0" prefWidth="124.0" />
-                  <ColumnConstraints hgrow="SOMETIMES" maxWidth="262.0" minWidth="10.0" prefWidth="253.0" />
+                  <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="10.0" prefWidth="253.0" />
                </columnConstraints>
                <rowConstraints>
                   <RowConstraints maxHeight="177.0" minHeight="10.0" prefHeight="43.0" vgrow="SOMETIMES" />
@@ -87,8 +88,6 @@
             <Label fx:id="emailLabel" text="Download and Hash" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
             <Label fx:id="passwordLabel" text="Direct URL" GridPane.halignment="LEFT" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
                   <Label fx:id="passwordLabel1" text="URL" GridPane.halignment="LEFT" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
-                  <Label fx:id="url" text="--" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
-                  <Label fx:id="sha1" text="--" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
                   <Label fx:id="passwordLabel211" text="SHA-1 SUM" GridPane.halignment="LEFT" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
                   <JFXButton fx:id="downHashBtn" buttonType="RAISED" defaultButton="true" prefWidth="56.0" style="-fx-background-color: #002952 #002952 #002952 #002952;" text="Go" textFill="WHITE" viewOrder="4.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
                      <ripplerFill>
@@ -101,6 +100,8 @@
                         </LinearGradient>
                      </ripplerFill>
                   </JFXButton>
+                  <JFXTextArea fx:id="url" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                  <JFXTextArea fx:id="sha1" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="3" />
                </children>
                <padding>
                   <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />

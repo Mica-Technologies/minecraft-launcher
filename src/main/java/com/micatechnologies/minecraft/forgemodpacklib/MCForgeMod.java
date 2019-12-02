@@ -12,7 +12,7 @@ public class MCForgeMod extends MCRemoteFile {
     /**
      * Name of this mod
      */
-    final String  name;
+    final String name;
 
     /**
      * Boolean if mod required on client
@@ -56,7 +56,7 @@ public class MCForgeMod extends MCRemoteFile {
      */
     void updateLocalFile( int gameAppMode ) throws MCForgeModpackException {
         if ( ( gameAppMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE && clientReq ) || (
-            gameAppMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE && serverReq ) ) {
+                gameAppMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE && serverReq ) ) {
             super.updateLocalFile();
         }
     }

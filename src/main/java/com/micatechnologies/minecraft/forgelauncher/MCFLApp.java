@@ -263,6 +263,7 @@ public class MCFLApp {
             mp.startGame( getJavaPath(), currentUser.getFriendlyName(), currentUser.getUserIdentifier(), currentUser.getLastAccessToken(), minRAMMB, maxRAMMB );
         }
         catch ( MCForgeModpackException e ) {
+            e.printStackTrace();
             MCFLLogger.error( "Unable to start game.", 312, gui.getCurrentStage() );
         }
     }
@@ -380,6 +381,7 @@ public class MCFLApp {
             FileUtils.copyURLToFile( new URL( jreHashDownloadURL ), jreHashFile );
         }
         catch ( IOException e ) {
+            e.printStackTrace();
             if ( progressGUI != null )
                 MCFLLogger.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, progressGUI.getCurrentStage() );
             else
@@ -425,6 +427,7 @@ public class MCFLApp {
             }
         }
         catch ( IOException e ) {
+            e.printStackTrace();
             if ( progressGUI != null )
                 MCFLLogger.error( "Unable to create local runtime. Using system Java.", 309, progressGUI.getCurrentStage() );
             else MCFLLogger.error( "Unable to create local runtime. Using system Java.", 309, null );

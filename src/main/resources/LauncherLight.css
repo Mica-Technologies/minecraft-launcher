@@ -3,3 +3,11 @@
 	-fx-text-fill: #3d3f41;
 	-fx-fill: #3d3f41;
 }
+
+.jfx-chip-view {
+    -fx-text-fill:#3d3f41!important;
+}
+
+* {
+    -fx-font-family: "SansSerif" !important;
+}

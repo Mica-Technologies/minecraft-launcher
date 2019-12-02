@@ -41,7 +41,7 @@ class MCForgeAsset extends MCRemoteFile {
      */
     void updateLocalFile( int gameAppMode ) throws MCForgeModpackException {
         if ( ( gameAppMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE && clientReq ) || (
-            gameAppMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE && serverReq ) ) {
+                gameAppMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE && serverReq ) ) {
             super.updateLocalFile();
         }
     }

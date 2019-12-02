@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 
 /**
  * Class representation of a Forge modpack with functionality to update mods, game libraries and
@@ -380,6 +381,14 @@ public class MCForgeModpack {
             progressProvider.submitProgress( "Removed floating mods", 30.0 );
         }
 
+        // Check if mods supplied
+        if ( packMods == null ) {
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "No mods to handle", 100 );
+            }
+            return;
+        }
+
         // Get full path to mods folder
         String modLocalPathPrefix =
                 getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
@@ -409,13 +418,21 @@ public class MCForgeModpack {
                 getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_FORGE_CONFIGS_LOCAL_FOLDER;
 
+        // Check if configs supplied
+        if ( packConfigs == null ) {
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "No configs to handle", 100 );
+            }
+            return;
+        }
+
         // Update each config if necessary
         for ( MCForgeAsset config : packConfigs ) {
             config.setLocalPathPrefix( configLocalPathPrefix );
             config.updateLocalFile( appGameMode );
 
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + config.getLocalFilePath(),
+                progressProvider.submitProgress( "Verified " + FilenameUtils.getName( config.getFullLocalFilePath() ),
                                                  ( 100.0 / ( double ) packConfigs.size() ) );
             }
         }
@@ -433,6 +450,14 @@ public class MCForgeModpack {
             return;
         }
 
+        // Check if resource packs supplied
+        if ( packResourcePacks == null ) {
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "No resource packs to handle", 100 );
+            }
+            return;
+        }
+
         // Get full path to resource pack folder
         String resPackLocalPathPrefix =
                 getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
@@ -443,7 +468,7 @@ public class MCForgeModpack {
             resourcePack.setLocalPathPrefix( resPackLocalPathPrefix );
             resourcePack.updateLocalFile();
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + resourcePack.getLocalFilePath(),
+                progressProvider.submitProgress( "Verified " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ),
                                                  ( 100.0 / ( double ) packResourcePacks.size() ) );
             }
         }
@@ -461,17 +486,25 @@ public class MCForgeModpack {
             return;
         }
 
+        // Check if shader packs supplied
+        if ( packShaderPacks == null ) {
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "No shader packs to handle", 100 );
+            }
+            return;
+        }
+
         // Get full path to shader pack folder
         String shaderPackLocalPathPrefix =
                 getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_FORGE_SHADERPACKS_LOCAL_FOLDER;
 
         // Update each shader pack if necessary
-        for ( MCRemoteFile shaderPack : packResourcePacks ) {
+        for ( MCRemoteFile shaderPack : packShaderPacks ) {
             shaderPack.setLocalPathPrefix( shaderPackLocalPathPrefix );
             shaderPack.updateLocalFile();
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + shaderPack.getLocalFilePath(),
+                progressProvider.submitProgress( "Verified " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ),
                                                  ( 100.0 / ( double ) packShaderPacks.size() ) );
             }
         }

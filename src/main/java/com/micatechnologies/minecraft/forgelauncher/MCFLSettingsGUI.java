@@ -11,6 +11,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 /**
@@ -45,6 +46,9 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
 
     @FXML
     public Label modpacksLabel;
+
+    @FXML
+    public Pane clickPane;
 
 
     /**
@@ -125,6 +129,23 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
                 Platform.runLater( () -> getCurrentStage().setAlwaysOnTop( false ) );
                 MCFLApp.buildMemoryModpackList();
                 Platform.runLater( () -> getCurrentStage().setAlwaysOnTop( true ) );
+            } ).start();
+        } );
+
+        // Configure click pane
+        clickPane.setOnMouseDragged( event -> {
+            new Thread( () -> {
+                MCFLAdminGUI adminGUI = new MCFLAdminGUI();
+                adminGUI.open();
+                adminGUI.getCurrentStage().initModality( Modality.APPLICATION_MODAL );
+                adminGUI.getCurrentStage().initOwner( this.getCurrentStage() );
+                adminGUI.getCurrentStage().setAlwaysOnTop( true );
+                try {
+                    adminGUI.closedLatch.await();
+                }
+                catch ( InterruptedException e ) {
+                    System.err.println( "Unable to wait completion of GUI." );
+                }
             } ).start();
         } );
 
