@@ -39,6 +39,12 @@
         "remote": "https://file-examples.com/wp-content/uploads/2017/02/zip_10MB.zip",
         "local": "example-shaders.zip",
         "sha1": "0a81e8ce46a60629114ae9a55d6427b2150d14bf"
+    }],
+    "packInitialFiles": [{
+        "remote": "",
+        "local": "",
+        "sha1": "",
+        "clientReq": true,
+        "serverReq": false
     }]
-
 }

@@ -2,6 +2,7 @@ package com.micatechnologies.minecraft.forgemodpacklib;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -9,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.security.NoSuchAlgorithmException;
+
 import org.apache.commons.io.FileUtils;
 
 /**
@@ -22,17 +24,17 @@ class MCRemoteFile {
     /**
      * The URL of the remote file
      */
-    private final     String remote;
+    private final String remote;
 
     /**
      * The path of the local file
      */
-    private final     String local;
+    private final String local;
 
     /**
      * The SHA-1 hash of the file
      */
-    private final     String sha1;
+    private final String sha1;
 
     /**
      * The prefix added to the local file path in {@link #local}. Configured using {@link }
@@ -50,7 +52,7 @@ class MCRemoteFile {
      */
     MCRemoteFile( String remote, String local ) {
         this.remote = remote;
-        this.local = local;
+        this.local = local.replaceAll( "/", File.separator );
         this.sha1 = "-1";
     }
 
@@ -66,7 +68,7 @@ class MCRemoteFile {
      */
     MCRemoteFile( String remote, String local, String sha1 ) {
         this.remote = remote;
-        this.local = local;
+        this.local = local.replaceAll( "/", File.separator );
         this.sha1 = sha1;
     }
 
@@ -124,7 +126,7 @@ class MCRemoteFile {
         }
         catch ( IOException e ) {
             throw new MCForgeModpackException(
-                "Unable to download file locally to " + getFullLocalFilePath(), e );
+                    "Unable to download file locally to " + getFullLocalFilePath(), e );
         }
     }
 
@@ -192,7 +194,7 @@ class MCRemoteFile {
         BufferedReader bufferedReader;
         try {
             bufferedReader = new BufferedReader( new InputStreamReader(
-                new FileInputStream( new File( getFullLocalFilePath() ) ) ) );
+                    new FileInputStream( new File( getFullLocalFilePath() ) ) ) );
         }
         catch ( IOException e ) {
             throw new MCForgeModpackException( "Unable to create buffer for file reading.", e );

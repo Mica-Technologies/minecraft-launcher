@@ -102,6 +102,13 @@ public class MCForgeModpack {
     private List< MCRemoteFile > packShaderPacks;
 
     /**
+     * List of initial files for modpack
+     * <p>
+     * Read via Modpack Manifest JSON
+     */
+    private List< MCForgeAsset > packInitialFiles;
+
+    /**
      * Modpack installation folder
      */
     private transient Path packRootFolder;
@@ -169,6 +176,10 @@ public class MCForgeModpack {
         return getForgeApp().getForgeVersion();
     }
 
+    public String getPackMinRAMGB() {
+        return packMinRAMGB;
+    }
+
     /**
      * Get the Minecraft library manifest for this modpack.
      *
@@ -224,11 +235,20 @@ public class MCForgeModpack {
 
         // Verify local shader packs
         if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching shader packs", 7.0 );
+            progressProvider.startProgressSection( "Fetching shader packs", 5.0 );
         }
         fetchLatestShaderPacks();
         if ( progressProvider != null ) {
             progressProvider.endProgressSection( "Done fetching shader packs" );
+        }
+
+        // Verify local initial files
+        if ( progressProvider != null ) {
+            progressProvider.startProgressSection( "Fetching initial files", 2.0 );
+        }
+        fetchLatestInitialFiles();
+        if ( progressProvider != null ) {
+            progressProvider.endProgressSection( "Done fetching initial files" );
         }
 
         // Verify modpack logo
@@ -510,6 +530,37 @@ public class MCForgeModpack {
         }
     }
 
+    /**
+     * Verifies the integrity of local copies of this modpack's initial files
+     * and repair/download/updated as necessary.
+     *
+     * @throws MCForgeModpackException if unable to fetch latest initial files
+     */
+    private void fetchLatestInitialFiles() throws MCForgeModpackException {
+        // Get full path to configs folder
+        String initFilesLocalPathPrefix =
+                getPackRootFolder().toString();
+
+        // Check if initial files supplied
+        if ( packInitialFiles == null ) {
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "No configs to handle", 100 );
+            }
+            return;
+        }
+
+        // Update each initial file if necessary
+        for ( MCForgeAsset initFile : packInitialFiles ) {
+            initFile.setLocalPathPrefix( initFilesLocalPathPrefix );
+            initFile.updateLocalFile( appGameMode );
+
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "Verified " + FilenameUtils.getName( initFile.getFullLocalFilePath() ),
+                                                 ( 100.0 / ( double ) packInitialFiles.size() ) );
+            }
+        }
+    }
+
     String getPackLogoFilepath() {
         return getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
                 + MCForgeModpackConsts.MODPACK_LOGO_LOCAL_FILE;
@@ -608,6 +659,7 @@ public class MCForgeModpack {
 
         // Download manifest from supplied URL
         try {
+            modpackManifestFile.delete();
             FileUtils.copyURLToFile( downloadURL, modpackManifestFile );
         }
         catch ( IOException e ) {

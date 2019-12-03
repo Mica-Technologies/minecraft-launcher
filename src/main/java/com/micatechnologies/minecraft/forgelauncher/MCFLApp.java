@@ -241,6 +241,20 @@ public class MCFLApp {
                 }
                 progressGUI.setIcon( new javafx.scene.image.Image( mp.getPackLogoURL() ) );
             } ).start();
+
+            // Verify configured RAM
+            if ( Integer.parseInt( mp.getPackMinRAMGB() ) > getLauncherConfig().getMaxRAM() ) {
+                try {
+                    progressGUI.readyLatch.await();
+                }
+                catch ( InterruptedException ignored ) {
+                }
+                MCFLLogger.error( "Modpack requires a minimum of " + mp.getPackMinRAMGB() + "GB of RAM. Please change your RAM settings in the settings menu.", 50, progressGUI.getCurrentStage() );
+                progressGUI.close();
+                return;
+            }
+
+
             mp.setProgressProvider( new MCForgeModpackProgressProvider() {
                 @Override
                 public void updateProgressHandler( double percent, String text ) {

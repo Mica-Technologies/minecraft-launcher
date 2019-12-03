@@ -46,7 +46,7 @@ public class MCFLConfiguration {
     /**
      * Default modpack list
      */
-    static final transient List< String > MODPACKS_DEFAULT = List.of( "https://cityofmcla.com/mcla_modpack_manifest.json" );
+    static final transient List< String > MODPACKS_DEFAULT = List.of( "https://cityofmcla.com/modpack/pack-manifest.json" );
 
     /**
      * Default debug mode value
