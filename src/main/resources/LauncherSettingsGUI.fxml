@@ -101,7 +101,7 @@
                      </BorderPane>
                      <JFXCheckBox fx:id="debugModeCheck" checkedColor="#002952" text="Debug Mode" />
                      <JFXCheckBox fx:id="resizableWindowCheck" checkedColor="#002952" text="Window Resizing" />
-                     <JFXButton fx:id="resetRuntimeBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952 #002952;" text="Reset Runtime" textFill="WHITE" viewOrder="3.0">
+                     <JFXButton fx:id="resetRuntimeBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #CD0030 #CD0030;" text="Reset Runtime" textFill="WHITE" viewOrder="3.0">
                         <ripplerFill>
                            <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
                               <stops>
