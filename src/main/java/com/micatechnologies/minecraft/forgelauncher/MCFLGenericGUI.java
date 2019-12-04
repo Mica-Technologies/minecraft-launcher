@@ -1,35 +1,26 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
-import ch.cyberduck.binding.application.*;
-import ch.cyberduck.binding.foundation.FoundationKitFunctions;
-import ch.cyberduck.binding.foundation.NSObject;
+import com.micatechnologies.jadapt.NSWindow;
 import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import com.sun.glass.ui.Window;
-import com.sun.jna.Native;
-import com.sun.jna.Pointer;
-import com.sun.jna.platform.WindowUtils;
-import com.sun.jna.platform.win32.WinDef;
-import com.sun.jna.platform.win32.WinUser;
 import javafx.application.Application;
-import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
-import javafx.embed.swing.JFXPanel;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import org.rococoa.Foundation;
+import org.apache.commons.io.FileUtils;
+import org.eclipse.swt.internal.cocoa.NSString;
+import org.eclipse.swt.internal.cocoa.NSView;
 import org.rococoa.ID;
 import org.rococoa.Rococoa;
-import org.rococoa.cocoa.CGFloat;
 import org.rococoa.cocoa.foundation.NSUInteger;
-import org.rococoa.internal.FoundationLibrary;
-import org.rococoa.internal.RococoaLibrary;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
@@ -207,12 +198,11 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 if ( MCModpackOSUtils.isMac() ) {
                     try {
                         NSWindow nsWindow = getNativeMacWindow();
+
+                        nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskResizable | NSWindow.StyleMaskFullSizeContentView ) );
+                        nsWindow.setTitlebarAppearsTransparent( true );
+                        nsWindow.setMovable( true );
                         nsWindow.setMovableByWindowBackground( true );
-                        NSView nsView = nsWindow.contentView();
-                        nsView.setWantsLayer( true );
-                        nsWindow.setCanBeVisibleOnAllSpaces( true );
-                        // Don't enable until titlebarAppearsTransparent works
-                        //nsWindow.setStyleMask( new NSUInteger( nsWindow.styleMask().intValue() | 32768 ) );
                     }
                     catch ( Exception e ) {
                         e.printStackTrace();
@@ -225,7 +215,6 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     public NSWindow getNativeMacWindow() {
         if ( !MCModpackOSUtils.isMac() ) return null;
         Window window = Window.getWindows().get( 0 );
-        Native.load( RococoaLibrary.class );
         return Rococoa.wrap( ID.fromLong( window.getNativeWindow() ), NSWindow.class );
     }
 

@@ -91,7 +91,6 @@ public class MCFLApp {
                 }
             }
         }
-
         return clientToken;
     }
 
@@ -108,6 +107,7 @@ public class MCFLApp {
                 MCFLLogger.error( "Unable to load launcher configuration from persistent storage. Configuration may be reset.", 306, null );
             }
         }
+
         return launcherConfig;
     }
 
@@ -531,9 +531,6 @@ public class MCFLApp {
         // Before the weird font glitches make people crazy, fix them
         System.setProperty( "prism.lcdtext", "false" );
 
-        // Configure Mac Specific
-
-        // NOTE: Saved users DISABLED right now to due bug.
         int initPackIndex = 0;
 
         if ( args.length == 0 ) mode = inferMode();
@@ -565,7 +562,6 @@ public class MCFLApp {
             System.out.println( "ERROR: Your argument(s) are invalid.\nUsage: launcher.jar [ -s [modpack] | -c [modpack] | modpack | -a ]" );
             return;
         }
-
 
         // Run main functions of launcher (and loop if login re-required)
         while ( loopLogin ) {

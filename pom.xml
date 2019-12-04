@@ -4,12 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>forgelauncher</artifactId>
     <version>0.1.0</version>
     <name>forgelauncher</name>
     <packaging>jar</packaging>
 
+    <!-- PROJECT AND CUSTOM PROPERTIES -->
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
@@ -20,7 +22,9 @@
         <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
     </properties>
 
+    <!-- SPECIFIED REPOSITORIES FOR PLUGINS -->
     <pluginRepositories>
+        <!-- for appbundle-maven-plugin -->
         <pluginRepository>
             <id>mica-appbundle-maven-plugin</id>
             <url>https://github.com/Mica-Technologies/appbundle-maven-plugin/raw/master/mvn-repo</url>
@@ -28,18 +32,33 @@
                 <enabled>true</enabled>
             </releases>
         </pluginRepository>
-        <pluginRepository>
-            <id>javapackager-repo</id>
-            <url>https://github.com/fvarrui/JavaPackager/raw/master/releases</url>
+    </pluginRepositories>
+
+    <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
+    <repositories>
+        <!-- CyberDuck MAVEN REPOSITORY -->
+        <repository>
+            <id>maven.cyberduck.io-release</id>
+            <url>http://repo.maven.cyberduck.io.s3.amazonaws.com/releases/</url>
+            <layout>default</layout>
             <releases>
                 <enabled>true</enabled>
             </releases>
-        </pluginRepository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
 
-    </pluginRepositories>
+        <!-- GitHub BASED MAVEN REPOS -->
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <build>
         <plugins>
-            <plugin>
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
                 <executions>
@@ -52,19 +71,14 @@
                         <configuration>
                             <filesets>
                                 <fileset>
-                                    <directory>
-                                        ${project.build.directory}${file.separator}${app.name}
-                                    </directory>
-                                    <includes>
-                                        <include>*.dmg</include>
-                                    </includes>
+                                    <directory>${project.build.directory}${file.separator}${app.name}</directory>
                                 </fileset>
                             </filesets>
                             <verbose>true</verbose>
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -91,6 +105,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
+                            <addClasspath>true</addClasspath>
                             <mainClass>${main.class}</mainClass>
                         </manifest>
                     </archive>
@@ -111,7 +126,7 @@
                 <version>1.0.3</version>
                 <executions>
                     <execution>
-                        <id>cache-jdk-11</id>
+                        <id>cache-jdk-11-mac</id>
                         <goals>
                             <goal>cache-jdk</goal>
                         </goals>
@@ -121,20 +136,39 @@
                                 <type>jdk</type>
                                 <version>11.0.5</version>
                                 <arch>amd64</arch>
+                                <os>macos</os>
                             </providerConfig>
                             <disableSSLcheck>true</disableSSLcheck>
-                            <jdkCachePath>${project.build.directory}${file.separator}jlinkCache</jdkCachePath>
-                            <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
+                            <jdkCachePath>${project.build.directory}${file.separator}jlinkCacheMac</jdkCachePath>
+                            <jdkPathProperty>jlink.mac.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
                     <execution>
-                        <id>call-jdeps</id>
+                        <id>cache-jdk-11-win</id>
+                        <goals>
+                            <goal>cache-jdk</goal>
+                        </goals>
+                        <configuration>
+                            <provider>BELLSOFT</provider>
+                            <providerConfig>
+                                <type>jdk</type>
+                                <version>11.0.5</version>
+                                <arch>amd64</arch>
+                                <os>windows</os>
+                            </providerConfig>
+                            <disableSSLcheck>true</disableSSLcheck>
+                            <jdkCachePath>${project.build.directory}${file.separator}jlinkCacheWin</jdkCachePath>
+                            <jdkPathProperty>jlink.win.jdk.path</jdkPathProperty>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>call-jdeps-mac</id>
                         <goals>
                             <goal>jdeps</goal>
                         </goals>
                         <configuration>
-                            <output>${project.build.directory}${file.separator}jdeps.out</output>
-                            <toolJdk>${jlink.jdk.path}</toolJdk>
+                            <output>${project.build.directory}${file.separator}jdeps-mac.out</output>
+                            <toolJdk>${jlink.mac.jdk.path}</toolJdk>
                             <options>
                                 <option>${project.build.directory}${file.separator}${project.build.finalName}.jar
                                 </option>
@@ -142,15 +176,51 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <id>call-jlink</id>
+                        <id>call-jdep-wins</id>
+                        <goals>
+                            <goal>jdeps</goal>
+                        </goals>
+                        <configuration>
+                            <output>${project.build.directory}${file.separator}jdeps-win.out</output>
+                            <toolJdk>${jlink.win.jdk.path}</toolJdk>
+                            <options>
+                                <option>${project.build.directory}${file.separator}${project.build.finalName}.jar
+                                </option>
+                            </options>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>call-jlink-mac</id>
                         <goals>
                             <goal>jlink</goal>
                         </goals>
                         <configuration>
-                            <jdepsReportPath>${project.build.directory}${file.separator}jdeps.out</jdepsReportPath>
-                            <output>${project.build.directory}${file.separator}preparedJDK</output>
+                            <jdepsReportPath>${project.build.directory}${file.separator}jdeps-mac.out</jdepsReportPath>
+                            <output>${project.build.directory}${file.separator}preparedJDKMac</output>
                             <disableSSLcheck>true</disableSSLcheck>
-                            <toolJdk>${jlink.jdk.path}</toolJdk>
+                            <toolJdk>${jlink.mac.jdk.path}</toolJdk>
+                            <addModules>
+                                <module>java.compiler</module>
+                                <module>java.sql</module>
+                                <module>jdk.crypto.ec</module>
+                            </addModules>
+                            <options>
+                                <option>--compress=2</option>
+                                <option>--no-header-files</option>
+                                <option>--no-man-pages</option>
+                            </options>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>call-jlink-win</id>
+                        <goals>
+                            <goal>jlink</goal>
+                        </goals>
+                        <configuration>
+                            <jdepsReportPath>${project.build.directory}${file.separator}jdeps-win.out</jdepsReportPath>
+                            <output>${project.build.directory}${file.separator}preparedJDKWin</output>
+                            <disableSSLcheck>true</disableSSLcheck>
+                            <toolJdk>${jlink.win.jdk.path}</toolJdk>
                             <addModules>
                                 <module>java.compiler</module>
                                 <module>java.sql</module>
@@ -180,7 +250,8 @@
                             <rules>
                                 <requireFilesExist>
                                     <files>
-                                        <file>${project.build.directory}${file.separator}preparedJDK</file>
+                                        <file>${project.build.directory}${file.separator}preparedJDKMac</file>
+                                        <file>${project.build.directory}${file.separator}preparedJDKWin</file>
                                     </files>
                                 </requireFilesExist>
                             </rules>
@@ -190,22 +261,69 @@
                 </executions>
             </plugin>
             <plugin>
+                <groupId>com.akathist.maven.plugins.launch4j</groupId>
+                <artifactId>launch4j-maven-plugin</artifactId>
+                <version>1.7.25</version>
+                <executions>
+                    <execution>
+                        <id>l4j-gui</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>launch4j</goal>
+                        </goals>
+                        <configuration>
+                            <headerType>gui</headerType>
+                            <jar>
+                                ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
+                            </jar>
+                            <outfile>
+                                ${project.build.directory}${file.separator}${project.artifactId}-${project.version}.exe
+                            </outfile>
+                            <downloadUrl>https://bell-sw.com/pages/java-11.0.5/</downloadUrl>
+                            <classPath>
+                                <mainClass>${main.class}</mainClass>
+                            </classPath>
+                            <singleInstance>
+                                <mutexName>${project.artifactId}</mutexName>
+                                <windowTitle>${app.name}</windowTitle>
+                            </singleInstance>
+                            <jre>
+                                <path>${project.build.directory}${file.separator}preparedJDKWin</path>
+                                <minVersion>11</minVersion>
+                                <jdkPreference>preferJre</jdkPreference>
+                                <runtimeBits>64</runtimeBits>
+                            </jre>
+                            <versionInfo>
+                                <fileVersion>1.0.0.0</fileVersion>
+                                <txtFileVersion>${project.version}</txtFileVersion>
+                                <fileDescription>${app.name}</fileDescription>
+                                <copyright>C</copyright>
+                                <productVersion>1.0.0.0</productVersion>
+                                <txtProductVersion>1.0.0.0</txtProductVersion>
+                                <productName>${app.name}</productName>
+                                <internalName>${project.artifactId}</internalName>
+                                <originalFilename>${project.artifactId}-${project.version}.exe</originalFilename>
+                            </versionInfo>
+                            <messages>
+                                <bundledJreErr>There is a problem with the bundled JRE.</bundledJreErr>
+                                <startupErr>There is a problem with starting up.</startupErr>
+                                <jreVersionErr>There is a problem with your Java version. Is it Java 11+?</jreVersionErr>
+                                <launcherErr>There is a problem with the launcher.</launcherErr>
+                            </messages>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>com.micatechnologies</groupId>
                 <artifactId>appbundle-maven-plugin</artifactId>
-                <version>2019.1.1202004-SNAPSHOT</version>
+                <version>2019.1</version>
                 <configuration>
                     <version>${version}</version>
                     <includeApplicationsSymlink>true</includeApplicationsSymlink>
-                    <jrePath>${project.build.directory}${file.separator}preparedJDK</jrePath>
+                    <jrePath>${project.build.directory}${file.separator}preparedJDKMac</jrePath>
                     <mainClass>${main.class}</mainClass>
                     <iconFile>forgelauncher.icns</iconFile>
-                    <additionalBundledClasspathResources>
-                        <fileSet>
-                            <directory>
-                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}mac-classpath
-                            </directory>
-                        </fileSet>
-                    </additionalBundledClasspathResources>
                     <additionalResources>
                         <fileSet>
                             <directory>
@@ -213,7 +331,13 @@
                             </directory>
                         </fileSet>
                     </additionalResources>
-                    <diskImageFile>${app.name} v${project.version}.dmg</diskImageFile>
+                    <additionalBundledClasspathResources>
+                        <fileSet>
+                            <directory>
+                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
+                            </directory>
+                        </fileSet>
+                    </additionalBundledClasspathResources>
                     <bundleName>${app.name}</bundleName>
                     <generateDiskImageFile>true</generateDiskImageFile>
                     <diskImageInternetEnable>true</diskImageInternetEnable>
@@ -233,33 +357,7 @@
             </plugin>
         </plugins>
     </build>
-    <repositories>
-        <repository>
-            <id>maven.cyberduck.io-release</id>
-            <url>http://repo.maven.cyberduck.io.s3.amazonaws.com/releases/</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-        <repository>
-            <id>central</id>
-            <url>https://repo1.maven.org/maven2</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
+
 
     <dependencies>
         <dependency>
@@ -344,20 +442,18 @@
             <version>0.5</version>
         </dependency>
         <dependency>
-            <groupId>ch.cyberduck</groupId>
-            <artifactId>binding</artifactId>
-            <version>7.1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>ch.cyberduck</groupId>
-            <artifactId>core</artifactId>
-            <version>7.1.0</version>
-        </dependency>
-        <dependency>
             <groupId>org.eclipse.swt</groupId>
             <artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>
             <version>4.3</version>
         </dependency>
+        <dependency>
+            <groupId>org.rococoa</groupId>
+            <artifactId>librococoa</artifactId>
+            <version>0.5</version>
+            <scope>system</scope>
+            <systemPath>
+                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}darwin${file.separator}librococoa.dylib
+            </systemPath>
+        </dependency>
     </dependencies>
-
 </project>
