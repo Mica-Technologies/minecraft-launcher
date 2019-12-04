@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import com.jfoenix.controls.JFXButton?>
+<?import com.jfoenix.controls.JFXCheckBox?>
 <?import com.jfoenix.controls.JFXChipView?>
 <?import com.jfoenix.controls.JFXComboBox?>
+<?import com.jfoenix.controls.JFXMasonryPane?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.Label?>
@@ -24,18 +26,18 @@
   </opaqueInsets>
    <BorderPane layoutX="3.0" layoutY="-3.0" prefHeight="431.0" prefWidth="645.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <left>
-         <GridPane prefHeight="424.0" prefWidth="233.0" style="-fx-background-color: #002952;" BorderPane.alignment="CENTER">
+         <GridPane prefWidth="233.0" style="-fx-background-color: #002952;" BorderPane.alignment="CENTER">
             <columnConstraints>
                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
             </columnConstraints>
             <rowConstraints>
-               <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                <RowConstraints maxHeight="173.0" minHeight="10.0" prefHeight="173.0" vgrow="SOMETIMES" />
                <RowConstraints maxHeight="147.0" minHeight="10.0" prefHeight="34.0" vgrow="SOMETIMES" />
                <RowConstraints maxHeight="81.0" minHeight="8.0" prefHeight="8.0" vgrow="SOMETIMES" />
-               <RowConstraints maxHeight="120.0" minHeight="10.0" prefHeight="120.0" vgrow="SOMETIMES" />
+               <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="120.0" vgrow="SOMETIMES" />
             </rowConstraints>
             <children>
                <ImageView fx:id="userIcon" fitHeight="111.0" fitWidth="111.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
@@ -59,24 +61,59 @@
       </left>
       <center>
          <GridPane BorderPane.alignment="CENTER">
-            <columnConstraints>
-               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-            </columnConstraints>
-            <rowConstraints>
-               <RowConstraints maxHeight="177.0" minHeight="10.0" prefHeight="69.0" vgrow="SOMETIMES" />
-               <RowConstraints maxHeight="137.0" minHeight="10.0" prefHeight="72.0" vgrow="SOMETIMES" />
-               <RowConstraints maxHeight="192.0" minHeight="10.0" prefHeight="192.0" vgrow="SOMETIMES" />
-               <RowConstraints maxHeight="191.0" minHeight="10.0" prefHeight="60.0" vgrow="SOMETIMES" />
-            </rowConstraints>
+           <columnConstraints>
+             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+           </columnConstraints>
+           <rowConstraints>
+             <RowConstraints vgrow="SOMETIMES" />
+             <RowConstraints maxHeight="1.7976931348623157E308" minHeight="100.0" prefHeight="100.0" vgrow="ALWAYS" />
+               <RowConstraints maxHeight="40.0" minHeight="40.0" prefHeight="40.0" />
+           </rowConstraints>
             <children>
-               <Label fx:id="minRAMLabel" text="Minimum RAM" />
-               <JFXComboBox fx:id="minRAM" focusColor="#0087e7" prefHeight="28.0" prefWidth="300.0" GridPane.columnIndex="1" />
-               <Label fx:id="maxRAMLabel" text="Maximum RAM" GridPane.rowIndex="1" />
-               <JFXComboBox fx:id="maxRAM" focusColor="#0087e7" prefHeight="28.0" prefWidth="300.0" viewOrder="1.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-               <Label fx:id="modpacksLabel" text="Modpacks" GridPane.rowIndex="2" />
-               <JFXChipView fx:id="modpackList" promptText="Enter a modpack URL" viewOrder="2.0" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="2" GridPane.vgrow="ALWAYS" />
-            <ButtonBar prefHeight="50.0" prefWidth="417.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+               <BorderPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="200.0" prefWidth="314.0" GridPane.rowIndex="1">
+                  <top>
+                     <Label fx:id="modpacksLabel" text="Modpacks" BorderPane.alignment="CENTER_LEFT" />
+                  </top>
+                  <center>
+                     <JFXChipView fx:id="modpackList" promptText="Enter a modpack URL" viewOrder="2.0" BorderPane.alignment="CENTER_LEFT" />
+                  </center>
+                  <GridPane.margin>
+                     <Insets top="20.0" />
+                  </GridPane.margin>
+               </BorderPane>
+               <JFXMasonryPane>
+                  <children>
+                     <BorderPane maxHeight="70.0" maxWidth="220.0" minHeight="70.0" minWidth="220.0" prefHeight="70.0" prefWidth="220.0">
+                        <center>
+                           <JFXComboBox fx:id="minRAM" focusColor="#0087e7" maxHeight="30.0" maxWidth="180.0" minHeight="30.0" minWidth="180.0" prefHeight="30.0" prefWidth="180.0" BorderPane.alignment="CENTER_LEFT" />
+                        </center>
+                        <top>
+                           <Label fx:id="minRAMLabel" alignment="CENTER" text="Minimum RAM" BorderPane.alignment="CENTER_LEFT" />
+                        </top>
+                     </BorderPane>
+                     <BorderPane maxHeight="70.0" maxWidth="220.0" minHeight="70.0" minWidth="220.0" prefHeight="70.0" prefWidth="220.0">
+                        <center>
+                           <JFXComboBox fx:id="maxRAM" focusColor="#0087e7" maxHeight="30.0" maxWidth="180.0" minHeight="30.0" minWidth="180.0" prefHeight="30.0" prefWidth="180.0" viewOrder="1.0" BorderPane.alignment="CENTER_LEFT" />
+                        </center>
+                        <top>
+                           <Label fx:id="maxRAMLabel" text="Maximum RAM" BorderPane.alignment="CENTER_LEFT" />
+                        </top>
+                     </BorderPane>
+                     <JFXCheckBox fx:id="debugModeCheck" checkedColor="#002952" text="Debug Mode" />
+                     <JFXCheckBox fx:id="resizableWindowCheck" checkedColor="#002952" text="Window Resizing" />
+                     <JFXButton fx:id="resetRuntimeBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952 #002952;" text="Reset Runtime" textFill="WHITE" viewOrder="3.0">
+                        <ripplerFill>
+                           <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
+                              <stops>
+                                 <Stop color="#002952" />
+                                 <Stop color="#014d9a" offset="1.0" />
+                              </stops>
+                           </LinearGradient>
+                        </ripplerFill>
+                     </JFXButton>
+                  </children>
+               </JFXMasonryPane>
+            <ButtonBar prefHeight="50.0" prefWidth="417.0" GridPane.rowIndex="2">
             <buttons>
                      <JFXButton fx:id="saveBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #002952 #002952;" text="Save" textFill="WHITE" viewOrder="3.0">
                         <ripplerFill>
@@ -103,7 +140,7 @@
             </ButtonBar>
             </children>
             <padding>
-               <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+               <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
             </padding>
          </GridPane>
       </center>

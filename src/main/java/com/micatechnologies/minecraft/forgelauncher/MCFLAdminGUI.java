@@ -72,11 +72,12 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
      */
     @Override
     void create( Stage stage ) {
+
         // Configure exit button
         stage.setOnCloseRequest( event -> {
             new Thread( () -> {
-                Platform.setImplicitExit( true );
-                System.exit( 0 );
+                event.consume();
+                close();
             } ).start();
         } );
         exitButton.setOnAction( event -> getCurrentStage().fireEvent( new WindowEvent( getCurrentStage(), WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
@@ -129,7 +130,7 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
                         if ( redirectLocation == null ) break;
                         starting = redirectLocation;
                     }
-                    starting = starting.replace( "/file", "" ).replaceAll( " ", "+" ).replaceFirst( "edge","media" ).replaceFirst( "download","files" );
+                    starting = starting.replace( "/file", "" ).replaceAll( " ", "+" ).replaceFirst( "edge", "media" ).replaceFirst( "download", "files" );
                     String finalStarting = starting;
                     Platform.runLater( () -> url.setText( finalStarting ) );
                 }

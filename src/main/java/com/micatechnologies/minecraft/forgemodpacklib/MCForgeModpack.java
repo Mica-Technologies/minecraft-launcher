@@ -344,6 +344,13 @@ public class MCForgeModpack {
             // Add title and icon to arguments
             minecraftArgs += " --title " + packName;
             minecraftArgs += " --icon " + getPackLogoFilepath();
+
+            // Set dock name and icon for macOS
+            if ( MCModpackOSUtils.isMac() ) {
+                minecraftArgs += " -Xdock:icon=\"" + getPackLogoFilepath() + "\"";
+                minecraftArgs += " -Xdock:name=\"" + getPackName() + "\" ";
+                minecraftArgs += "-Dapple.laf.useScreenMenuBar=true ";
+            }
         }
 
         // Add java call to front of args

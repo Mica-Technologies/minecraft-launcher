@@ -3,6 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.*;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeMod;
+import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
@@ -13,6 +14,8 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+
+import java.io.IOException;
 
 /**
  * GUI for launcher settings. Allows launcher configuration.
@@ -49,6 +52,15 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
 
     @FXML
     public Pane clickPane;
+
+    @FXML
+    public JFXCheckBox debugModeCheck;
+
+    @FXML
+    public JFXCheckBox resizableWindowCheck;
+
+    @FXML
+    public JFXButton resetRuntimeBtn;
 
 
     /**
@@ -102,7 +114,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         }
         minRAM.getItems().addAll( minRAMOptions );
         minRAM.getSelectionModel().select( Doubles.asList( MCFLConfiguration.MIN_RAM_OPTIONS ).indexOf( MCFLApp.getLauncherConfig().getMinRAM() ) );
-        minRAM.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> dirty = true );
+        minRAM.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> setEdited( true ) );
 
         // Populate and configure maximum RAM dropdown
         String[] maxRAMOptions = new String[ MCFLConfiguration.MAX_RAM_OPTIONS.length ];
@@ -111,7 +123,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         }
         maxRAM.getItems().addAll( maxRAMOptions );
         maxRAM.getSelectionModel().select( Doubles.asList( MCFLConfiguration.MAX_RAM_OPTIONS ).indexOf( MCFLApp.getLauncherConfig().getMaxRAM() ) );
-        maxRAM.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> dirty = true );
+        maxRAM.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> setEdited( true ) );
 
         // Populate and configure modpacks chip view
         modpackList.setChipFactory( ( stringJFXChipView, s ) -> {
@@ -122,7 +134,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         } );
         modpackList.getChips().addAll( MCFLApp.getLauncherConfig().getModpacks() );
         modpackList.getChips().addListener( ( ListChangeListener< String > ) c -> {
-            dirty = true;
+            setEdited( true );
 
             // Triger reindex of modpacks
             new Thread( () -> {
@@ -132,22 +144,53 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             } ).start();
         } );
 
+        // Set and configure debug mode checkbox
+        debugModeCheck.setSelected( MCFLApp.getLauncherConfig().getDebug() );
+        debugModeCheck.setOnAction( event -> {
+            setEdited( true );
+        } );
+
+        // Set and configure resizable windows checkbox
+        resizableWindowCheck.setSelected( MCFLApp.getLauncherConfig().getResizableguis() );
+        resizableWindowCheck.setOnAction( event -> {
+            setEdited( true );
+        } );
+
         // Configure click pane
         clickPane.setOnMouseDragged( event -> {
+            hide();
             new Thread( () -> {
-                MCFLAdminGUI adminGUI = new MCFLAdminGUI();
-                adminGUI.open();
-                adminGUI.getCurrentStage().initModality( Modality.APPLICATION_MODAL );
-                adminGUI.getCurrentStage().initOwner( this.getCurrentStage() );
-                adminGUI.getCurrentStage().setAlwaysOnTop( true );
-                try {
-                    adminGUI.closedLatch.await();
-                }
-                catch ( InterruptedException e ) {
-                    System.err.println( "Unable to wait completion of GUI." );
-                }
+                // Open admin GUI and disable main window
+                MCFLAdminGUI MCFLAdminGUI = new MCFLAdminGUI();
+                MCFLAdminGUI.open();
+
+                // Configure admin window stage
+                MCFLAdminGUI.getCurrentStage().setAlwaysOnTop( true );
+
+                // Wait for settings to close, then enable main window again
+                new Thread( () -> {
+                    try {
+                        MCFLAdminGUI.closedLatch.await();
+                    }
+                    catch ( InterruptedException e ) {
+                    }
+                    show();
+                } ).start();
             } ).start();
         } );
+
+        // Configure reset runtime button
+        resetRuntimeBtn.setOnAction( event -> new Thread( () -> {
+            hide();
+            try {
+                MCFLApp.clearLocalJDK();
+            }
+            catch ( IOException e ) {
+                MCFLLogger.error( "Unable to clear previous runtime from disk. Will continue to attempt reset!", 700, getCurrentStage() );
+            }
+            MCFLApp.doLocalJDK();
+            show();
+        } ).start() );
 
         // Configure save button
         saveBtn.setOnAction( event -> {
@@ -161,11 +204,17 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             MCFLApp.getLauncherConfig().getModpacks().clear();
             MCFLApp.getLauncherConfig().getModpacks().addAll( modpackList.getChips() );
 
+            // Store debug mode to config
+            MCFLApp.getLauncherConfig().setDebug( debugModeCheck.isSelected() );
+
+            // Store resizable windows to config
+            MCFLApp.getLauncherConfig().setResizableguis( resizableWindowCheck.isSelected() );
+
             // Save config to disk
             MCFLApp.saveConfig();
 
             // Reset dirty flag (changes have been saved)
-            dirty = false;
+            setEdited( false );
 
             // Change save button text to indicate successful save
             saveBtn.setText( SAVED_BUTTON_TEXT );
@@ -203,6 +252,9 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             event.consume();
             returnBtn.fire();
         } );
+
+        // Configure non-resizable if configured
+        stage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
     }
 
     /**
@@ -218,6 +270,11 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         fxmll.setLocation( getClass().getClassLoader().getResource( "LauncherSettingsGUI.fxml" ) );
         fxmll.setController( this );
         return fxmll;
+    }
+
+    private void setEdited( boolean edited ) {
+        if ( MCModpackOSUtils.isMac() ) getNativeMacWindow().setDocumentEdited( edited );
+        dirty = edited;
     }
 
     /**
@@ -239,6 +296,10 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             minRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             maxRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             modpacksLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            resizableWindowCheck.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            debugModeCheck.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            resizableWindowCheck.setUnCheckedColor( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            debugModeCheck.setUnCheckedColor( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
         } );
     }
 
@@ -249,6 +310,10 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             minRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             maxRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             modpacksLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            resizableWindowCheck.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            debugModeCheck.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            resizableWindowCheck.setUnCheckedColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            debugModeCheck.setUnCheckedColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
         } );
     }
 }

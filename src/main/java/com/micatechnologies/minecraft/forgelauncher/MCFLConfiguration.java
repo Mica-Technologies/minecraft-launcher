@@ -52,6 +52,11 @@ public class MCFLConfiguration {
      * Default debug mode value
      */
     static final transient boolean DEBUG_DEFAULT = false;
+
+    /**
+     * Default resizable guis value
+     */
+    static final transient boolean RESIZABLEGUIS_DEFAULT = false;
     //endregion
 
     //region: Instance Fields
@@ -74,6 +79,11 @@ public class MCFLConfiguration {
      * Configured debug mode boolean (true/false)
      */
     private boolean debug;
+
+    /**
+     * Configured resizable guis boolean (true/false)
+     */
+    private boolean resizableguis;
     //endregion
 
     //region: Get/Set Methods
@@ -145,6 +155,24 @@ public class MCFLConfiguration {
     }
 
     /**
+     * Get if the launcher allows resizable guis
+     *
+     * @return resizable guis boolean
+     */
+    boolean getResizableguis() {
+        return resizableguis;
+    }
+
+    /**
+     * Set launcher resizable guis selection
+     *
+     * @param resizableguis resizable guis boolean
+     */
+    void setResizableguis( boolean resizableguis ) {
+        this.resizableguis = resizableguis;
+    }
+
+    /**
      * Get the list of launcher modpacks
      *
      * @return launcher modpacks
@@ -206,6 +234,7 @@ public class MCFLConfiguration {
             newConfig.minRAM = MIN_RAM_DEFAULT;
             newConfig.maxRAM = MAX_RAM_DEFAULT;
             newConfig.modpacks = MODPACKS_DEFAULT;
+            newConfig.resizableguis = RESIZABLEGUIS_DEFAULT;
 
             save( newConfig );
             return new Gson().fromJson( new FileReader( DISK_FILE ), MCFLConfiguration.class );

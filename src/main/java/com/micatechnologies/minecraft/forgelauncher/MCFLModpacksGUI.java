@@ -2,14 +2,12 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
-import com.jfoenix.skins.JFXComboBoxListViewSkin;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -18,7 +16,6 @@ import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.paint.Color;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
@@ -109,13 +106,28 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         exitButton.setOnAction( event -> getCurrentStage().fireEvent( new WindowEvent( getCurrentStage(), WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Configure settings button
-        settingsButton.setOnAction( event -> new Thread( () -> {
-            MCFLSettingsGUI MCFLSettingsGUI = new MCFLSettingsGUI();
-            MCFLSettingsGUI.open();
-            MCFLSettingsGUI.getCurrentStage().initModality( Modality.APPLICATION_MODAL );
-            MCFLSettingsGUI.getCurrentStage().initOwner( this.getCurrentStage() );
-            MCFLSettingsGUI.getCurrentStage().setAlwaysOnTop( true );
-        } ).start() );
+        settingsButton.setOnAction( event -> {
+            hide();
+            new Thread( () -> {
+                // Open settings GUI and disable main window
+                MCFLSettingsGUI MCFLSettingsGUI = new MCFLSettingsGUI();
+                MCFLSettingsGUI.open();
+
+                // Configure settings window stage
+                MCFLSettingsGUI.getCurrentStage().setAlwaysOnTop( true );
+
+                // Wait for settings to close, then enable main window again
+                new Thread( () -> {
+                    try {
+                        MCFLSettingsGUI.closedLatch.await();
+                    }
+                    catch ( InterruptedException e ) {
+                    }
+                    show();
+                } ).start();
+
+            } ).start();
+        } );
 
         // Configure logout button
         logoutBtn.setOnAction( event -> new Thread( () -> {

@@ -1,19 +1,36 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
+import ch.cyberduck.binding.application.*;
+import ch.cyberduck.binding.foundation.FoundationKitFunctions;
+import ch.cyberduck.binding.foundation.NSObject;
 import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
+import com.sun.glass.ui.Window;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.WindowUtils;
+import com.sun.jna.platform.win32.WinDef;
+import com.sun.jna.platform.win32.WinUser;
 import javafx.application.Application;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
+import javafx.embed.swing.JFXPanel;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import org.rococoa.Foundation;
+import org.rococoa.ID;
+import org.rococoa.Rococoa;
+import org.rococoa.cocoa.CGFloat;
+import org.rococoa.cocoa.foundation.NSUInteger;
+import org.rococoa.internal.FoundationLibrary;
+import org.rococoa.internal.RococoaLibrary;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.lang.reflect.Method;
 import java.net.URL;
-import java.sql.Date;
 import java.util.ResourceBundle;
 import java.util.concurrent.CountDownLatch;
 
@@ -149,6 +166,10 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                     }
                 }
 
+                // Check for window sizable config option
+                Platform.runLater( () -> getCurrentStage().setResizable( MCFLApp.getLauncherConfig().getResizableguis() ) );
+
+
                 // Check for light/dark mode again in 6s
                 try {
                     Thread.sleep( 3000 );
@@ -181,8 +202,31 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 currentStage.show();
                 currentStage.toFront();
                 currentStage.requestFocus();
+
+                // Mac specific and client mode only
+                if ( MCModpackOSUtils.isMac() ) {
+                    try {
+                        NSWindow nsWindow = getNativeMacWindow();
+                        nsWindow.setMovableByWindowBackground( true );
+                        NSView nsView = nsWindow.contentView();
+                        nsView.setWantsLayer( true );
+                        nsWindow.setCanBeVisibleOnAllSpaces( true );
+                        // Don't enable until titlebarAppearsTransparent works
+                        //nsWindow.setStyleMask( new NSUInteger( nsWindow.styleMask().intValue() | 32768 ) );
+                    }
+                    catch ( Exception e ) {
+                        e.printStackTrace();
+                    }
+                }
             }
         } );
+    }
+
+    public NSWindow getNativeMacWindow() {
+        if ( !MCModpackOSUtils.isMac() ) return null;
+        Window window = Window.getWindows().get( 0 );
+        Native.load( RococoaLibrary.class );
+        return Rococoa.wrap( ID.fromLong( window.getNativeWindow() ), NSWindow.class );
     }
 
     /**
@@ -254,6 +298,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         primaryStage.setMinHeight( getSize()[ 1 ] );
         primaryStage.setWidth( getSize()[ 0 ] );
         primaryStage.setHeight( getSize()[ 1 ] );
+        primaryStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
         currentStage = primaryStage;
 
         // Run specific window creation code

@@ -68,9 +68,13 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
 
         // Configure exit button
         stage.setOnCloseRequest( event -> {
+            event.consume();
             new Thread( () -> {
-                Platform.setImplicitExit( true );
-                System.exit( 0 );
+                int response = MCFLGUIController.showQuestionMessage( "Close?", "Launcher is Busy", "Are you sure you want to close "+MCFLConstants.LAUNCHER_APPLICATION_NAME+" while a task is running?", "Yes", "No", getCurrentStage() );
+                if ( response == 1 ) {
+                    Platform.setImplicitExit( true );
+                    System.exit( 0 );
+                }
             } ).start();
         } );
     }

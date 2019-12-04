@@ -50,17 +50,27 @@
                             <goal>clean</goal>
                         </goals>
                         <configuration>
-                            <directory>${project.basedir}${file.separator}app</directory>
-                            <directory>${project.build.directory}${file.separator}classes</directory>
-                            <directory>${project.build.directory}${file.separator}generated-sources</directory>
-                            <directory>${project.build.directory}${file.separator}maven-status</directory>
-                            <directory>${project.build.directory}${file.separator}generated-test-sources</directory>
-                            <directory>${project.build.directory}${file.separator}test-classes</directory>
-                            <directory>${project.build.directory}${file.separator}maven-archiver</directory>
-                            <directory>${project.build.directory}${file.separator}archive-tmp</directory>
-                            <directory>
-                                ${project.build.directory}${file.separator}${project.artifactId}-${project.version}
-                            </directory>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.basedir}${file.separator}app</directory>
+                                    <directory>${project.build.directory}${file.separator}classes</directory>
+                                    <directory>${project.build.directory}${file.separator}generated-sources</directory>
+                                    <directory>${project.build.directory}${file.separator}maven-status</directory>
+                                    <directory>${project.build.directory}${file.separator}generated-test-sources
+                                    </directory>
+                                    <directory>${project.build.directory}${file.separator}test-classes</directory>
+                                    <directory>${project.build.directory}${file.separator}maven-archiver</directory>
+                                    <directory>${project.build.directory}${file.separator}archive-tmp</directory>
+                                    <directory>
+                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}
+                                    </directory>
+                                    <includes>
+                                        <include>*.java</include>
+                                        <include>*.dmg</include>
+                                    </includes>
+                                </fileset>
+                            </filesets>
+                            <verbose>true</verbose>
                         </configuration>
                     </execution>
                 </executions>
@@ -219,6 +229,17 @@
     </build>
     <repositories>
         <repository>
+            <id>maven.cyberduck.io-release</id>
+            <url>http://repo.maven.cyberduck.io.s3.amazonaws.com/releases/</url>
+            <layout>default</layout>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
@@ -244,6 +265,11 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-base</artifactId>
+            <version>11.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
             <version>11.0.2</version>
         </dependency>
         <dependency>
@@ -290,6 +316,41 @@
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
             <version>3.1</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>5.5.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+            <version>5.3.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.rococoa</groupId>
+            <artifactId>rococoa-cocoa</artifactId>
+            <version>0.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.rococoa</groupId>
+            <artifactId>rococoa-core</artifactId>
+            <version>0.5</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.cyberduck</groupId>
+            <artifactId>binding</artifactId>
+            <version>7.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.cyberduck</groupId>
+            <artifactId>core</artifactId>
+            <version>7.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.swt</groupId>
+            <artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>
+            <version>4.3</version>
         </dependency>
     </dependencies>
 

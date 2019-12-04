@@ -86,7 +86,7 @@ public class MCFLApp {
                     FileUtils.writeStringToFile( tokenFile, clientToken, Charset.defaultCharset() );
                 }
                 catch ( IOException ee ) {
-                    // Output error if attemp to write new client token fails
+                    // Output error if attempt to write new client token fails
                     MCFLLogger.error( "The client token could not be written to persistent storage. Remember me login functionality will not work.", 304, null );
                 }
             }
@@ -321,7 +321,11 @@ public class MCFLApp {
         }
     }
 
-    private static void doLocalJDK() {
+    static void clearLocalJDK() throws IOException {
+        FileUtils.deleteDirectory( new File( getJREFolderPath() ) );
+    }
+
+    static void doLocalJDK() {
         // Create a progress GUI if in client mod
         MCFLProgressGUI progressGUI = null;
         if ( mode == MODE_CLIENT ) {
@@ -526,6 +530,8 @@ public class MCFLApp {
     public static void main( String[] args ) {
         // Before the weird font glitches make people crazy, fix them
         System.setProperty( "prism.lcdtext", "false" );
+
+        // Configure Mac Specific
 
         // NOTE: Saved users DISABLED right now to due bug.
         int initPackIndex = 0;
