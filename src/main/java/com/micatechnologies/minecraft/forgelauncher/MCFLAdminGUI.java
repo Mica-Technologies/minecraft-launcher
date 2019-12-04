@@ -65,6 +65,18 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
     @FXML
     public JFXTextField startURL;
 
+    @FXML
+    public Label label1;
+
+    @FXML
+    public Label label2;
+
+    @FXML
+    public Label label3;
+
+    @FXML
+    public Label label4;
+
     /**
      * Handle the creation and initial configuration of GUI controls/elements.
      *
@@ -198,6 +210,12 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
             url.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
             sha1.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
+            startURL.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
+            label1.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            label2.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            label3.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            label4.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+
         } );
 
     }
@@ -208,6 +226,11 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
             url.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
             sha1.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
+            startURL.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
+            label1.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            label2.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            label3.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            label4.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
         } );
     }
 }
