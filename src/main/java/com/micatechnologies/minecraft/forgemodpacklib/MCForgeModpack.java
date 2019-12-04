@@ -7,6 +7,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -310,8 +312,28 @@ public class MCForgeModpack {
         minecraftArgs = minecraftMainClass + " " + minecraftArgs;
 
         // Add min and max RAM to arguments
-        minecraftArgs = "-Xms" + minRAMMB + "m " + minecraftArgs;
-        minecraftArgs = "-Xmx" + maxRAMMB + "m " + minecraftArgs;
+        int SminRAMMB = minRAMMB;
+        int SmaxRAMMB = maxRAMMB;
+        if ( appGameMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE ) {
+            // Get min and max RAM from existing JVM args
+            RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+            List< String > aList = bean.getInputArguments();
+
+            for ( int i = 0; i < aList.size(); i++ ) {
+                System.out.println( aList.get( i ) );
+                if ( aList.get( i ).contains( "Xms" ) ) {
+                    SminRAMMB = Integer.parseInt( aList.get( i ).replaceAll( "\\D+", "" ) );
+                    System.out.println( "Configuring min RAM from provided " + aList.get( i ) );
+                }
+                if ( aList.get( i ).contains( "Xmx" ) ) {
+                    SmaxRAMMB = Integer.parseInt( aList.get( i ).replaceAll( "\\D+", "" ) );
+                    System.out.println( "Configuring max RAM from provided " + aList.get( i ) );
+                }
+            }
+
+        }
+        minecraftArgs = "-Xms" + SminRAMMB + "m " + minecraftArgs;
+        minecraftArgs = "-Xmx" + SmaxRAMMB + "m " + minecraftArgs;
 
         // Add garbage collection config to arguments
         minecraftArgs = APP_GARBAGE_COLLECTOR_SETTINGS + minecraftArgs;

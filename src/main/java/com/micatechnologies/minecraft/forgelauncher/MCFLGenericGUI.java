@@ -191,6 +191,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
                 // Show stage/GUI
                 currentStage.show();
+                currentStage.setOpacity( 1.0 );
                 currentStage.toFront();
                 currentStage.requestFocus();
 
@@ -281,12 +282,13 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         // Configure scene and window
         primaryStage.setTitle( "" );
         primaryStage.setScene( new Scene( getFXMLLoader().load(), getSize()[ 0 ], getSize()[ 1 ] ) );
-        primaryStage.initStyle( StageStyle.UNIFIED );
+        if (MCModpackOSUtils.isMac()) primaryStage.initStyle( StageStyle.UNIFIED );
         primaryStage.setOnShown( event -> primaryStage.requestFocus() );
         primaryStage.setMinWidth( getSize()[ 0 ] );
         primaryStage.setMinHeight( getSize()[ 1 ] );
         primaryStage.setWidth( getSize()[ 0 ] );
         primaryStage.setHeight( getSize()[ 1 ] );
+        primaryStage.setOpacity( 0.0 );
         primaryStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
         currentStage = primaryStage;
 

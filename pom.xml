@@ -6,9 +6,9 @@
 
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
-    <artifactId>forgelauncher</artifactId>
-    <version>0.1.0</version>
-    <name>forgelauncher</name>
+    <artifactId>micaforgelauncher</artifactId>
+    <version>2019.1.B6</version>
+    <name>micaforgelauncher</name>
     <packaging>jar</packaging>
 
     <!-- PROJECT AND CUSTOM PROPERTIES -->
@@ -85,6 +85,7 @@
                 <version>3.8.1</version>
                 <configuration>
                     <source>11</source>
+                    <!-- target needs to be 8 for a build that will work on Java 8 servers-->
                     <target>11</target>
                 </configuration>
             </plugin>
@@ -175,7 +176,7 @@
                             </options>
                         </configuration>
                     </execution>
-                    <execution>
+                    <!--NOT WORKING<execution>
                         <id>call-jdep-wins</id>
                         <goals>
                             <goal>jdeps</goal>
@@ -183,12 +184,13 @@
                         <configuration>
                             <output>${project.build.directory}${file.separator}jdeps-win.out</output>
                             <toolJdk>${jlink.win.jdk.path}</toolJdk>
+                            <
                             <options>
                                 <option>${project.build.directory}${file.separator}${project.build.finalName}.jar
                                 </option>
                             </options>
                         </configuration>
-                    </execution>
+                    </execution>-->
                     <execution>
                         <id>call-jlink-mac</id>
                         <goals>
@@ -211,6 +213,7 @@
                             </options>
                         </configuration>
                     </execution>
+                    <!--NOT WORKING
                     <execution>
                         <id>call-jlink-win</id>
                         <goals>
@@ -226,13 +229,10 @@
                                 <module>java.sql</module>
                                 <module>jdk.crypto.ec</module>
                             </addModules>
-                            <options>
-                                <option>--compress=2</option>
-                                <option>--no-header-files</option>
-                                <option>--no-man-pages</option>
-                            </options>
+                            NOTE: Copy options above from Mac jlink
                         </configuration>
                     </execution>
+                    -->
                 </executions>
             </plugin>
             <plugin>
@@ -251,7 +251,7 @@
                                 <requireFilesExist>
                                     <files>
                                         <file>${project.build.directory}${file.separator}preparedJDKMac</file>
-                                        <file>${project.build.directory}${file.separator}preparedJDKWin</file>
+                                        <!--NOT WORKING<file>${project.build.directory}${file.separator}preparedJDKWin</file>-->
                                     </files>
                                 </requireFilesExist>
                             </rules>
@@ -272,6 +272,7 @@
                             <goal>launch4j</goal>
                         </goals>
                         <configuration>
+                            <outputDir>${project.build.directory}</outputDir>
                             <headerType>gui</headerType>
                             <jar>
                                 ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
@@ -283,12 +284,10 @@
                             <classPath>
                                 <mainClass>${main.class}</mainClass>
                             </classPath>
-                            <singleInstance>
-                                <mutexName>${project.artifactId}</mutexName>
-                                <windowTitle>${app.name}</windowTitle>
-                            </singleInstance>
                             <jre>
-                                <path>${project.build.directory}${file.separator}preparedJDKWin</path>
+                                <!--NOT WORKING<path>${project.build.directory}${file.separator}preparedJDKWin</path>-->
+                                <path>${jlink.win.jdk.path}</path>
+                                <bundledJre64Bit>true</bundledJre64Bit>
                                 <minVersion>11</minVersion>
                                 <jdkPreference>preferJre</jdkPreference>
                                 <runtimeBits>64</runtimeBits>
