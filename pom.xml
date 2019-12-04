@@ -52,20 +52,10 @@
                         <configuration>
                             <filesets>
                                 <fileset>
-                                    <directory>${project.basedir}${file.separator}app</directory>
-                                    <directory>${project.build.directory}${file.separator}classes</directory>
-                                    <directory>${project.build.directory}${file.separator}generated-sources</directory>
-                                    <directory>${project.build.directory}${file.separator}maven-status</directory>
-                                    <directory>${project.build.directory}${file.separator}generated-test-sources
-                                    </directory>
-                                    <directory>${project.build.directory}${file.separator}test-classes</directory>
-                                    <directory>${project.build.directory}${file.separator}maven-archiver</directory>
-                                    <directory>${project.build.directory}${file.separator}archive-tmp</directory>
                                     <directory>
-                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}
+                                        ${project.build.directory}${file.separator}${app.name}
                                     </directory>
                                     <includes>
-                                        <include>*.java</include>
                                         <include>*.dmg</include>
                                     </includes>
                                 </fileset>
@@ -209,9 +199,25 @@
                     <jrePath>${project.build.directory}${file.separator}preparedJDK</jrePath>
                     <mainClass>${main.class}</mainClass>
                     <iconFile>forgelauncher.icns</iconFile>
+                    <additionalBundledClasspathResources>
+                        <fileSet>
+                            <directory>
+                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}mac-classpath
+                            </directory>
+                        </fileSet>
+                    </additionalBundledClasspathResources>
+                    <additionalResources>
+                        <fileSet>
+                            <directory>
+                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}mac-dmg-include
+                            </directory>
+                        </fileSet>
+                    </additionalResources>
+                    <diskImageFile>${app.name} v${project.version}.dmg</diskImageFile>
                     <bundleName>${app.name}</bundleName>
                     <generateDiskImageFile>true</generateDiskImageFile>
                     <diskImageInternetEnable>true</diskImageInternetEnable>
+                    <buildDirectory>${project.build.directory}${file.separator}${app.name}</buildDirectory>
                     <jvmOptions>
                         <jvmOption>-Dfile.encoding=UTF-8</jvmOption>
                     </jvmOptions>
