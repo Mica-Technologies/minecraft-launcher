@@ -42,4 +42,6 @@ public abstract class NSWindow implements ObjCObject {
 
     abstract public void setMovableByWindowBackground( boolean movableByWindowBackground );
     abstract public void setMovable( boolean movable );
+    abstract public void toggleFullScreen();
+    abstract public boolean isFullScreen();
 }

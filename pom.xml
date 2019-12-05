@@ -7,7 +7,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>micaforgelauncher</artifactId>
-    <version>2019.1.B6</version>
+    <version>2019.1.A1</version>
     <name>micaforgelauncher</name>
     <packaging>jar</packaging>
 

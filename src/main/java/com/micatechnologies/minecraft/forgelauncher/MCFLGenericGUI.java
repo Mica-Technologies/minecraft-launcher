@@ -158,7 +158,15 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
 
                 // Check for window sizable config option
-                Platform.runLater( () -> getCurrentStage().setResizable( MCFLApp.getLauncherConfig().getResizableguis() ) );
+                Platform.runLater( () -> {
+                    if ( getNativeMacWindow() != null ) {
+                        int styleMask = getNativeMacWindow().styleMask().intValue();
+                        if ( MCFLApp.getLauncherConfig().getResizableguis() ) styleMask |= NSWindow.StyleMaskResizable;
+                        else styleMask &= ~NSWindow.StyleMaskResizable;
+                        getNativeMacWindow().setStyleMask( new NSUInteger( styleMask ) );
+                    }
+                    getCurrentStage().setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
+                } );
 
 
                 // Check for light/dark mode again in 6s
@@ -196,10 +204,9 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 currentStage.requestFocus();
 
                 // Mac specific and client mode only
-                if ( MCModpackOSUtils.isMac() ) {
+                if ( getNativeMacWindow() != null ) {
                     try {
                         NSWindow nsWindow = getNativeMacWindow();
-
                         nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskResizable | NSWindow.StyleMaskFullSizeContentView ) );
                         nsWindow.setTitlebarAppearsTransparent( true );
                         nsWindow.setMovable( true );
@@ -215,8 +222,14 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
     public NSWindow getNativeMacWindow() {
         if ( !MCModpackOSUtils.isMac() ) return null;
-        Window window = Window.getWindows().get( 0 );
-        return Rococoa.wrap( ID.fromLong( window.getNativeWindow() ), NSWindow.class );
+        try {
+            Window window = Window.getWindows().get( 0 );
+            return Rococoa.wrap( ID.fromLong( window.getNativeWindow() ), NSWindow.class );
+        }
+        catch ( Exception e ) {
+            MCFLLogger.error( "Mac NSWindow class access error.", -100, null );
+            return null;
+        }
     }
 
     /**
@@ -237,6 +250,12 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
 
                 // Hide stage/GUI
+                currentStage.setFullScreen( false );
+                if ( getNativeMacWindow() != null ) {
+                    if ( ( getNativeMacWindow().styleMask().intValue() & NSWindow.StyleMaskFullScreen ) != 0 ) {
+                        getNativeMacWindow().toggleFullScreen();
+                    }
+                }
                 currentStage.hide();
             }
         } );
@@ -262,6 +281,14 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 // Close style thread if running
                 styleThreadRun = false;
 
+                // Cleanup fullscreen
+                currentStage.setFullScreen( false );
+                if ( getNativeMacWindow() != null ) {
+                    if ( ( getNativeMacWindow().styleMask().intValue() & NSWindow.StyleMaskFullScreen ) != 0 ) {
+                        getNativeMacWindow().toggleFullScreen();
+                    }
+                }
+
                 // Close stage/GUI
                 closedLatch.countDown();
                 currentStage.close();
@@ -282,7 +309,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         // Configure scene and window
         primaryStage.setTitle( "" );
         primaryStage.setScene( new Scene( getFXMLLoader().load(), getSize()[ 0 ], getSize()[ 1 ] ) );
-        if (MCModpackOSUtils.isMac()) primaryStage.initStyle( StageStyle.UNIFIED );
+        if ( MCModpackOSUtils.isMac() ) primaryStage.initStyle( StageStyle.UNIFIED );
         primaryStage.setOnShown( event -> primaryStage.requestFocus() );
         primaryStage.setMinWidth( getSize()[ 0 ] );
         primaryStage.setMinHeight( getSize()[ 1 ] );

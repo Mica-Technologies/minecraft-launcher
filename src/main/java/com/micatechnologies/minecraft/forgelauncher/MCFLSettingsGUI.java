@@ -181,6 +181,11 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
 
         // Configure reset runtime button
         resetRuntimeBtn.setOnAction( event -> new Thread( () -> {
+            int response = MCFLGUIController.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the runtime? This may take a few minutes!", "Reset", "Back to Safety", getCurrentStage() );
+            if ( response != 1 ) {
+                return;
+            }
+
             hide();
             try {
                 MCFLApp.clearLocalJDK();

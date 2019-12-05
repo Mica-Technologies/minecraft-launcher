@@ -81,7 +81,7 @@
                      <Insets top="20.0" />
                   </GridPane.margin>
                </BorderPane>
-               <JFXMasonryPane>
+               <JFXMasonryPane VSpacing="10.0" cellHeight="30.0" cellWidth="60.0">
                   <children>
                      <BorderPane maxHeight="70.0" maxWidth="220.0" minHeight="70.0" minWidth="220.0" prefHeight="70.0" prefWidth="220.0">
                         <center>
@@ -101,7 +101,7 @@
                      </BorderPane>
                      <JFXCheckBox fx:id="debugModeCheck" checkedColor="#002952" text="Debug Mode" />
                      <JFXCheckBox fx:id="resizableWindowCheck" checkedColor="#002952" text="Window Resizing" />
-                     <JFXButton fx:id="resetRuntimeBtn" buttonType="RAISED" defaultButton="true" style="-fx-background-color: #CD0030 #CD0030;" text="Reset Runtime" textFill="WHITE" viewOrder="3.0">
+                     <JFXButton fx:id="resetRuntimeBtn" buttonType="RAISED" defaultButton="true" maxHeight="30.0" maxWidth="80.0" minHeight="30.0" minWidth="80.0" prefHeight="30.0" prefWidth="80.0" style="-fx-background-color: #CD0030 #CD0030;" text="Reset Runtime" textFill="WHITE" viewOrder="3.0">
                         <ripplerFill>
                            <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
                               <stops>
