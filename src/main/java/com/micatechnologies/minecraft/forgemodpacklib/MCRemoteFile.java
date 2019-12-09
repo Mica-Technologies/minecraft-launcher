@@ -67,9 +67,16 @@ class MCRemoteFile {
      * @since 1.0
      */
     MCRemoteFile( String remote, String local, String sha1 ) {
-        this.remote = remote;
-        this.local = local.replaceAll( "/", File.separator );
+        String localTemp;
+        try {
+            localTemp = local.replaceAll( "/", File.separator );
+        } catch (Exception e) {
+            localTemp = local;
+        }
+
+        this.local = localTemp;
         this.sha1 = sha1;
+        this.remote = remote;
     }
 
     /**
