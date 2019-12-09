@@ -213,6 +213,8 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
             emailField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
             passwordField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
             rememberCheckBox.setUnCheckedColor( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            emailField.setUnFocusColor( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            passwordField.setUnFocusColor( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
         } );
 
     }
@@ -227,6 +229,8 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
             emailField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
             passwordField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
             rememberCheckBox.setUnCheckedColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            emailField.setUnFocusColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            passwordField.setUnFocusColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
         } );
     }
 }

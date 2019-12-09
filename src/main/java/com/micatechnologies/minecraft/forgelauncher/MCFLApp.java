@@ -15,13 +15,14 @@ import org.rauschig.jarchivelib.ArchiverFactory;
 import org.rauschig.jarchivelib.CompressionType;
 
 import java.awt.*;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -50,6 +51,10 @@ public class MCFLApp {
 
     public static String getJavaPath() {
         return javaPath;
+    }
+
+    public static boolean getLoopLogin() {
+        return loopLogin;
     }
 
     public static String getClientToken() {
@@ -140,6 +145,10 @@ public class MCFLApp {
         return getInstallPath() + File.separator + "runtime";
     }
 
+    public static String getLogFolderPath() {
+        return getInstallPath() + File.separator + "logs";
+    }
+
     public static String getModpacksInstallPath() {
         return getInstallPath() + File.separator + "installs";
     }
@@ -178,7 +187,8 @@ public class MCFLApp {
                         progressGUI.setLowerText( "Configuring " + tempPack.getPackName() );
                     }
                     modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + tempPack.getPackName().replaceAll( "[^a-zA-Z0-9]", "" ) );
-                    modpacks.add( MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode ) );
+                    MCForgeModpack pack = MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode );
+                    modpacks.add( pack );
                 }
                 catch ( MCForgeModpackException | MalformedURLException e ) {
                     if ( progressGUI != null ) {
@@ -386,7 +396,10 @@ public class MCFLApp {
                 MCFLLogger.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, progressGUI.getCurrentStage() );
             else
                 MCFLLogger.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, null );
-
+            if ( progressGUI != null ) {
+                Platform.setImplicitExit( false );
+                new Thread( progressGUI::close ).start();
+            }
             return;
         }
 
@@ -399,12 +412,15 @@ public class MCFLApp {
             FileUtils.copyURLToFile( new URL( jreHashDownloadURL ), jreHashFile );
         }
         catch ( IOException e ) {
-            e.printStackTrace();
             if ( progressGUI != null )
                 MCFLLogger.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, progressGUI.getCurrentStage() );
             else
                 MCFLLogger.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, null );
             javaPath = "java";
+            if ( progressGUI != null ) {
+                Platform.setImplicitExit( false );
+                new Thread( progressGUI::close ).start();
+            }
             return;
         }
 
@@ -418,7 +434,7 @@ public class MCFLApp {
                     FileUtils.readFileToString( jreHashFile, Charset.defaultCharset() ).split( " " )[ 0 ] ) ) {
                 if ( progressGUI != null ) {
                     progressGUI.setLowerText( "Downloading Configured JRE" );
-                    progressGUI.setProgress( 45.0 );
+                    progressGUI.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
                 }
                 // Download archive from URL
                 FileUtils.copyURLToFile( new URL( jreArchiveDownloadURL ), jreArchiveFile );
@@ -445,11 +461,14 @@ public class MCFLApp {
             }
         }
         catch ( IOException e ) {
-            e.printStackTrace();
             if ( progressGUI != null )
                 MCFLLogger.error( "Unable to create local runtime. Using system Java.", 309, progressGUI.getCurrentStage() );
             else MCFLLogger.error( "Unable to create local runtime. Using system Java.", 309, null );
             javaPath = "java";
+            if ( progressGUI != null ) {
+                Platform.setImplicitExit( false );
+                new Thread( progressGUI::close ).start();
+            }
             return;
         }
         if ( progressGUI != null ) {
@@ -530,7 +549,6 @@ public class MCFLApp {
     public static void main( String[] args ) {
         // Before the weird font glitches make people crazy, fix them
         System.setProperty( "prism.lcdtext", "false" );
-
         int initPackIndex = 0;
 
         if ( args.length == 0 ) mode = inferMode();
@@ -563,14 +581,39 @@ public class MCFLApp {
             return;
         }
 
+        // Configure logging to file in launcher directory
+        Timestamp logTimeStamp = new Timestamp( System.currentTimeMillis() );
+        SimpleDateFormat logFileNameTimeStampFormat = new SimpleDateFormat( "yyyy-MM-dd--HH-mm-ss" );
+        String modeStr = mode == MODE_SERVER ? "SRV" : "CLIENT";
+        File logFile = new File( getLogFolderPath() + File.separator + "Log_" + modeStr + "_" + logFileNameTimeStampFormat.format( logTimeStamp ) + ".log" );
+        PrintStream toLog = null;
+        try {
+            if ( !logFile.isFile() ) {
+                logFile.getParentFile().mkdirs();
+                logFile.createNewFile();
+            }
+            toLog = new PrintStream( new FileOutputStream( logFile ) );
+            System.setOut( toLog );
+            System.setErr( toLog );
+            System.out.println( "Configured err and out to file" );
+        }
+        catch ( Exception e ) {
+            System.err.println( "Unable to configure logging for launcher." );
+        }
+
+
         // Run main functions of launcher (and loop if login re-required)
         while ( loopLogin ) {
             loopLogin = false;
+            launcherConfig = null;
             doLogin();
             doLocalJDK();
             buildMemoryModpackList();
             doModpackSelection( initPackIndex );
         }
+
+        // Close log output
+        if ( toLog != null ) toLog.close();
 
         // Force call to exit
         System.exit( 0 );

@@ -3,6 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.*;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeMod;
+import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -14,7 +15,9 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.apache.commons.io.FileUtils;
 
+import java.io.File;
 import java.io.IOException;
 
 /**
@@ -61,6 +64,9 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
 
     @FXML
     public JFXButton resetRuntimeBtn;
+
+    @FXML
+    public JFXButton resetLauncherBtn;
 
 
     /**
@@ -135,13 +141,6 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         modpackList.getChips().addAll( MCFLApp.getLauncherConfig().getModpacks() );
         modpackList.getChips().addListener( ( ListChangeListener< String > ) c -> {
             setEdited( true );
-
-            // Triger reindex of modpacks
-            new Thread( () -> {
-                Platform.runLater( () -> getCurrentStage().setAlwaysOnTop( false ) );
-                MCFLApp.buildMemoryModpackList();
-                Platform.runLater( () -> getCurrentStage().setAlwaysOnTop( true ) );
-            } ).start();
         } );
 
         // Set and configure debug mode checkbox
@@ -195,6 +194,24 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             }
             MCFLApp.doLocalJDK();
             show();
+        } ).start() );
+
+        // Configure reset launcher button
+        resetLauncherBtn.setOnAction( event -> new Thread( () -> {
+            int response = MCFLGUIController.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the launcher? This may take a few minutes!", "Reset", "Back to Safety", getCurrentStage() );
+            if ( response != 1 ) {
+                return;
+            }
+
+            hide();
+            try {
+                MCFLApp.logoutCurrentUser();
+                FileUtils.deleteDirectory( new File( MCFLApp.getInstallPath() ) );
+                close();
+            }
+            catch ( IOException e ) {
+                MCFLLogger.error( "An error occurred while resetting the launcher. Will continue to attempt!", 700, getCurrentStage() );
+            }
         } ).start() );
 
         // Configure save button

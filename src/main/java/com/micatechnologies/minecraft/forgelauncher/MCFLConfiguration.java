@@ -207,6 +207,7 @@ public class MCFLConfiguration {
     static void save( MCFLConfiguration MCFLConfiguration ) throws IOException {
         // Verify local file exists
         if ( !DISK_FILE.exists() ) {
+            DISK_FILE.getParentFile().mkdirs();
             DISK_FILE.createNewFile();
         }
 

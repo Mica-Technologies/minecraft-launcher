@@ -20,17 +20,19 @@
 <?import javafx.scene.paint.Stop?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane fx:id="rootPane" minHeight="178.0" minWidth="360.0" prefHeight="425.0" prefWidth="650.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
-  <opaqueInsets>
-    <Insets />
-  </opaqueInsets>
-   <BorderPane layoutX="3.0" layoutY="-3.0" prefHeight="431.0" prefWidth="645.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-      <left>
-         <GridPane prefWidth="233.0" style="-fx-background-color: #002952;" BorderPane.alignment="CENTER">
-            <columnConstraints>
-               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-               <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+<AnchorPane fx:id="rootPane" minHeight="178.0" minWidth="360.0" prefHeight="425.0" prefWidth="800.0"
+            xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
+    <opaqueInsets>
+        <Insets/>
+    </opaqueInsets>
+    <BorderPane layoutX="3.0" layoutY="-3.0" prefHeight="431.0" prefWidth="645.0" AnchorPane.bottomAnchor="0.0"
+                AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <left>
+            <GridPane prefWidth="233.0" style="-fx-background-color: #002952;" BorderPane.alignment="CENTER">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
             </columnConstraints>
             <rowConstraints>
                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
@@ -83,34 +85,57 @@
                </BorderPane>
                <JFXMasonryPane VSpacing="10.0" cellHeight="30.0" cellWidth="60.0">
                   <children>
-                     <BorderPane maxHeight="70.0" maxWidth="220.0" minHeight="70.0" minWidth="220.0" prefHeight="70.0" prefWidth="220.0">
-                        <center>
-                           <JFXComboBox fx:id="minRAM" focusColor="#0087e7" maxHeight="30.0" maxWidth="180.0" minHeight="30.0" minWidth="180.0" prefHeight="30.0" prefWidth="180.0" BorderPane.alignment="CENTER_LEFT" />
-                        </center>
-                        <top>
-                           <Label fx:id="minRAMLabel" alignment="CENTER" text="Minimum RAM" BorderPane.alignment="CENTER_LEFT" />
-                        </top>
-                     </BorderPane>
-                     <BorderPane maxHeight="70.0" maxWidth="220.0" minHeight="70.0" minWidth="220.0" prefHeight="70.0" prefWidth="220.0">
-                        <center>
-                           <JFXComboBox fx:id="maxRAM" focusColor="#0087e7" maxHeight="30.0" maxWidth="180.0" minHeight="30.0" minWidth="180.0" prefHeight="30.0" prefWidth="180.0" viewOrder="1.0" BorderPane.alignment="CENTER_LEFT" />
-                        </center>
-                        <top>
-                           <Label fx:id="maxRAMLabel" text="Maximum RAM" BorderPane.alignment="CENTER_LEFT" />
-                        </top>
-                     </BorderPane>
-                     <JFXCheckBox fx:id="debugModeCheck" checkedColor="#002952" text="Debug Mode" />
-                     <JFXCheckBox fx:id="resizableWindowCheck" checkedColor="#002952" text="Window Resizing" />
-                     <JFXButton fx:id="resetRuntimeBtn" buttonType="RAISED" defaultButton="true" maxHeight="30.0" maxWidth="80.0" minHeight="30.0" minWidth="80.0" prefHeight="30.0" prefWidth="80.0" style="-fx-background-color: #CD0030 #CD0030;" text="Reset Runtime" textFill="WHITE" viewOrder="3.0">
-                        <ripplerFill>
-                           <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
-                              <stops>
-                                 <Stop color="#002952" />
-                                 <Stop color="#014d9a" offset="1.0" />
-                              </stops>
-                           </LinearGradient>
-                        </ripplerFill>
-                     </JFXButton>
+                      <BorderPane maxHeight="70.0" maxWidth="190.0" minHeight="70.0" minWidth="190.0" prefHeight="70.0"
+                                  prefWidth="190.0">
+                          <center>
+                              <JFXComboBox fx:id="minRAM" focusColor="#0087e7" maxHeight="30.0" maxWidth="180.0"
+                                           minHeight="30.0" minWidth="180.0" prefHeight="30.0" prefWidth="180.0"
+                                           BorderPane.alignment="CENTER_LEFT"/>
+                          </center>
+                          <top>
+                              <Label fx:id="minRAMLabel" alignment="CENTER" text="Minimum RAM"
+                                     BorderPane.alignment="CENTER_LEFT"/>
+                          </top>
+                      </BorderPane>
+                      <BorderPane maxHeight="70.0" maxWidth="190.0" minHeight="70.0" minWidth="190.0" prefHeight="70.0"
+                                  prefWidth="190.0">
+                          <center>
+                              <JFXComboBox fx:id="maxRAM" focusColor="#0087e7" maxHeight="30.0" maxWidth="180.0"
+                                           minHeight="30.0" minWidth="180.0" prefHeight="30.0" prefWidth="180.0"
+                                           viewOrder="1.0" BorderPane.alignment="CENTER_LEFT"/>
+                          </center>
+                          <top>
+                              <Label fx:id="maxRAMLabel" text="Maximum RAM" BorderPane.alignment="CENTER_LEFT"/>
+                          </top>
+                      </BorderPane>
+                      <JFXCheckBox fx:id="debugModeCheck" checkedColor="#002952" text="Debug Mode"/>
+                      <JFXCheckBox fx:id="resizableWindowCheck" checkedColor="#002952" text="Window Resizing"/>
+                      <JFXButton fx:id="resetRuntimeBtn" buttonType="RAISED" defaultButton="true" maxHeight="30.0"
+                                 maxWidth="80.0" minHeight="30.0" minWidth="80.0" prefHeight="30.0" prefWidth="80.0"
+                                 style="-fx-background-color: #CD0030 #CD0030;" text="Reset Runtime" textFill="WHITE"
+                                 viewOrder="3.0">
+                          <ripplerFill>
+                              <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
+                                  <stops>
+                                      <Stop color="#002952"/>
+                                      <Stop color="#014d9a" offset="1.0"/>
+                                  </stops>
+                              </LinearGradient>
+                          </ripplerFill>
+                      </JFXButton>
+                      <JFXButton fx:id="resetLauncherBtn" buttonType="RAISED" defaultButton="true" maxHeight="30.0"
+                                 maxWidth="80.0" minHeight="30.0" minWidth="80.0" prefHeight="30.0" prefWidth="80.0"
+                                 style="-fx-background-color: #CD0030 #CD0030;" text="Reset Launcher" textFill="WHITE"
+                                 viewOrder="3.0">
+                          <ripplerFill>
+                              <LinearGradient cycleMethod="REFLECT" endX="1.0" endY="1.0">
+                                  <stops>
+                                      <Stop color="#002952"/>
+                                      <Stop color="#014d9a" offset="1.0"/>
+                                  </stops>
+                              </LinearGradient>
+                          </ripplerFill>
+                      </JFXButton>
                   </children>
                </JFXMasonryPane>
             <ButtonBar prefHeight="50.0" prefWidth="417.0" GridPane.rowIndex="2">

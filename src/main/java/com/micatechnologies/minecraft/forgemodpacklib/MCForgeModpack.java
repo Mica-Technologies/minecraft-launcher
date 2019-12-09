@@ -339,10 +339,14 @@ public class MCForgeModpack {
         minecraftArgs = APP_GARBAGE_COLLECTOR_SETTINGS + minecraftArgs;
 
         // Add classpath to arguments
-        minecraftArgs = "-cp " + cp + " " + minecraftArgs;
+        if ( MCModpackOSUtils.isWindows() ) minecraftArgs = "-cp \"" + cp + "\" " + minecraftArgs;
+        else minecraftArgs = "-cp " + cp + " " + minecraftArgs;
 
         // Add natives path to arguments
-        minecraftArgs =
+        if ( MCModpackOSUtils.isWindows() ) minecraftArgs =
+                "-Djava.library.path=\"" + getPackRootFolder() + MCModpackOSUtils.getFileSeparator()
+                        + MCForgeModpackConsts.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + "\" " + minecraftArgs;
+        else minecraftArgs =
                 "-Djava.library.path=" + getPackRootFolder() + MCModpackOSUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + " " + minecraftArgs;
 
@@ -350,12 +354,23 @@ public class MCForgeModpack {
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) {
             minecraftArgs = minecraftArgs.replace( "${auth_player_name}", accountFriendlyName );
             minecraftArgs = minecraftArgs.replace( "${version_name}", getForgeVersion() );
-            minecraftArgs = minecraftArgs.replace( "${game_directory}",
-                                                   getPackRootFolder().toString() );
-            minecraftArgs = minecraftArgs.replace( "${assets_root}",
-                                                   getPackRootFolder().toString() + MCModpackOSUtils
-                                                           .getFileSeparator()
-                                                           + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
+            if ( MCModpackOSUtils.isWindows() ) {
+                minecraftArgs = minecraftArgs.replace( "${game_directory}",
+                                                       "\"" + getPackRootFolder().toString() + "\"" );
+                minecraftArgs = minecraftArgs.replace( "${assets_root}",
+                                                       "\"" + getPackRootFolder().toString() + MCModpackOSUtils
+                                                               .getFileSeparator()
+                                                               + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER + "\"" );
+            }
+            else {
+                minecraftArgs = minecraftArgs.replace( "${game_directory}",
+                                                       getPackRootFolder().toString() );
+                minecraftArgs = minecraftArgs.replace( "${assets_root}",
+                                                       getPackRootFolder().toString() + MCModpackOSUtils
+                                                               .getFileSeparator()
+                                                               + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
+            }
+
             minecraftArgs = minecraftArgs.replace( "${assets_index_name}",
                                                    getMinecraftLibraryManifest()
                                                            .getAssetIndexVersion() );
@@ -705,7 +720,8 @@ public class MCForgeModpack {
             createdModpackManifest.appGameMode = appGameMode;
             return createdModpackManifest;
         }
-        catch ( FileNotFoundException e ) {
+        catch ( Exception e ) {
+            e.printStackTrace();
             throw new MCForgeModpackException( "Unable to parse downloaded manifest.", e );
         }
     }

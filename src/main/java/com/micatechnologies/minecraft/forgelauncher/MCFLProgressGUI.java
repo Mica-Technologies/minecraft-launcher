@@ -1,6 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.*;
+import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackProgressProvider;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -70,7 +71,7 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
         stage.setOnCloseRequest( event -> {
             event.consume();
             new Thread( () -> {
-                int response = MCFLGUIController.showQuestionMessage( "Close?", "Launcher is Busy", "Are you sure you want to close "+MCFLConstants.LAUNCHER_APPLICATION_NAME+" while a task is running?", "Yes", "No", getCurrentStage() );
+                int response = MCFLGUIController.showQuestionMessage( "Close?", "Launcher is Busy", "Are you sure you want to close " + MCFLConstants.LAUNCHER_APPLICATION_NAME + " while a task is running?", "Yes", "No", getCurrentStage() );
                 if ( response == 1 ) {
                     Platform.setImplicitExit( true );
                     System.exit( 0 );
@@ -109,7 +110,11 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
      * @since 1.0
      */
     void setProgress( double progress ) {
-        Platform.runLater( () -> progressBar.setProgress( progress ) );
+        Platform.runLater( () -> progressBar.setProgress( progress / MCForgeModpackProgressProvider.PROGRESS_PERCENT_BASE ) );
+        new Thread( () -> {
+            if ( upperText != null && lowerText != null )
+                MCFLLogger.debug( upperText.getText() + ", " + lowerText.getText() + ": " + progress + "%" );
+        } ).start();
     }
 
     /**

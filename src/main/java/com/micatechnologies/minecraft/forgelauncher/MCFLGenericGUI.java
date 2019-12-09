@@ -100,15 +100,23 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     abstract void enableDarkMode();
 
     void doLightMode() {
-        getCurrentStage().getScene().getStylesheets().add( getClass().getClassLoader().getResource( "LauncherLight.css" ).toExternalForm() );
-        getCurrentStage().getScene().getStylesheets().remove( getClass().getClassLoader().getResource( "LauncherDark.css" ).toExternalForm() );
-        enableLightMode();
+        Platform.runLater( () -> {
+            if ( currentStage != null ) {
+                getCurrentStage().getScene().getStylesheets().add( getClass().getClassLoader().getResource( "LauncherLight.css" ).toExternalForm() );
+                getCurrentStage().getScene().getStylesheets().remove( getClass().getClassLoader().getResource( "LauncherDark.css" ).toExternalForm() );
+                enableLightMode();
+            }
+        } );
     }
 
     void doDarkMode() {
-        getCurrentStage().getScene().getStylesheets().remove( getClass().getClassLoader().getResource( "LauncherLight.css" ).toExternalForm() );
-        getCurrentStage().getScene().getStylesheets().add( getClass().getClassLoader().getResource( "LauncherDark.css" ).toExternalForm() );
-        enableDarkMode();
+        Platform.runLater( () -> {
+            if ( currentStage != null ) {
+                currentStage.getScene().getStylesheets().remove( getClass().getClassLoader().getResource( "LauncherLight.css" ).toExternalForm() );
+                currentStage.getScene().getStylesheets().add( getClass().getClassLoader().getResource( "LauncherDark.css" ).toExternalForm() );
+                enableDarkMode();
+            }
+        } );
     }
 
     boolean styleThreadRun = true;
@@ -159,17 +167,23 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
                 // Check for window sizable config option
                 Platform.runLater( () -> {
-                    if ( getNativeMacWindow() != null ) {
-                        int styleMask = getNativeMacWindow().styleMask().intValue();
-                        if ( MCFLApp.getLauncherConfig().getResizableguis() ) styleMask |= NSWindow.StyleMaskResizable;
-                        else styleMask &= ~NSWindow.StyleMaskResizable;
-                        getNativeMacWindow().setStyleMask( new NSUInteger( styleMask ) );
+                    Stage currStage = getCurrentStage();
+                    if ( currStage != null ) {
+                        NSWindow nativeWindow = getNativeMacWindow();
+                        if ( currStage.isShowing() && nativeWindow != null ) {
+                            int styleMask = nativeWindow.styleMask().intValue();
+                            if ( MCFLApp.getLauncherConfig().getResizableguis() )
+                                styleMask |= NSWindow.StyleMaskResizable;
+                            else styleMask &= ~NSWindow.StyleMaskResizable;
+                            nativeWindow.setStyleMask( new NSUInteger( styleMask ) );
+                        }
+                        currStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
                     }
-                    getCurrentStage().setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
                 } );
 
+                doMacUnifiedTitleBar();
 
-                // Check for light/dark mode again in 6s
+                // Check for light/dark mode again in 3s
                 try {
                     Thread.sleep( 3000 );
                 }
@@ -178,6 +192,29 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
             }
         } ).start();
+    }
+
+    private boolean isMacUnifiedWindowSet = false;
+
+    private void doMacUnifiedTitleBar() {
+        if ( MCModpackOSUtils.isMac() && !isMacUnifiedWindowSet ) {
+            Platform.runLater( () -> {
+                // Mac specific and client mode only
+                if ( getNativeMacWindow() != null ) {
+                    try {
+                        NSWindow nsWindow = getNativeMacWindow();
+                        nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskResizable | NSWindow.StyleMaskFullSizeContentView ) );
+                        nsWindow.setTitlebarAppearsTransparent( true );
+                        nsWindow.setMovable( true );
+                        nsWindow.setMovableByWindowBackground( true );
+                    }
+                    catch ( Exception e ) {
+                        e.printStackTrace();
+                    }
+                    isMacUnifiedWindowSet = true;
+                }
+            } );
+        }
     }
 
     /**
@@ -198,35 +235,24 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
 
                 // Show stage/GUI
+                isMacUnifiedWindowSet = false;
                 currentStage.show();
                 currentStage.setOpacity( 1.0 );
                 currentStage.toFront();
                 currentStage.requestFocus();
-
-                // Mac specific and client mode only
-                if ( getNativeMacWindow() != null ) {
-                    try {
-                        NSWindow nsWindow = getNativeMacWindow();
-                        nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskResizable | NSWindow.StyleMaskFullSizeContentView ) );
-                        nsWindow.setTitlebarAppearsTransparent( true );
-                        nsWindow.setMovable( true );
-                        nsWindow.setMovableByWindowBackground( true );
-                    }
-                    catch ( Exception e ) {
-                        e.printStackTrace();
-                    }
-                }
+                doMacUnifiedTitleBar();
             }
         } );
     }
 
     public NSWindow getNativeMacWindow() {
-        if ( !MCModpackOSUtils.isMac() ) return null;
+        if ( !MCModpackOSUtils.isMac() || !getCurrentStage().isShowing() ) return null;
         try {
             Window window = Window.getWindows().get( 0 );
             return Rococoa.wrap( ID.fromLong( window.getNativeWindow() ), NSWindow.class );
         }
         catch ( Exception e ) {
+            e.printStackTrace();
             MCFLLogger.error( "Mac NSWindow class access error.", -100, null );
             return null;
         }
@@ -292,6 +318,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 // Close stage/GUI
                 closedLatch.countDown();
                 currentStage.close();
+                currentStage = null;
             }
         } );
     }

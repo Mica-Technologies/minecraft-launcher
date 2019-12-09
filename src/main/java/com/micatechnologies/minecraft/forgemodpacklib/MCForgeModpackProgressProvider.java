@@ -2,7 +2,7 @@ package com.micatechnologies.minecraft.forgemodpacklib;
 
 public abstract class MCForgeModpackProgressProvider {
 
-    private static final double PROGRESS_PERCENT_BASE = 100.0;
+    public static final double PROGRESS_PERCENT_BASE = 100.0;
 
     private              double currPercent           = 0.0;
 

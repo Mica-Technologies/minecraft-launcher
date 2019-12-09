@@ -4,6 +4,8 @@ import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
@@ -123,7 +125,18 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
                     }
                     catch ( InterruptedException e ) {
                     }
+
+                    // If loop login is true, launcher reset, need to go to login screen
+                    if ( MCFLApp.getLoopLogin() ) {
+                        new Thread( () -> {
+                            Platform.setImplicitExit( true );
+                            close();
+                        } ).start();
+                    }
+
+                    MCFLApp.buildMemoryModpackList();
                     show();
+                    populateModpacksDropdown();
                 } ).start();
 
             } ).start();
@@ -137,14 +150,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         } ).start() );
 
         // Populate modpacks dropdown
-        List< String > modpacksList = new ArrayList<>();
-        for ( MCForgeModpack modpack : MCFLApp.getModpacks() ) {
-            modpacksList.add( modpack.getPackName() );
-        }
-        packList.getItems().addAll( modpacksList );
-        packList.getSelectionModel().selectedIndexProperty().addListener( ( observable, oldValue, newValue ) -> {
-            packLogo.setImage( new Image( MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() ).getPackLogoURL() ) );
-        } );
+        populateModpacksDropdown();
 
         // Configure play button
         playBtn.setOnAction( event -> new Thread( () -> {
@@ -168,6 +174,45 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
             }
         } );
     }
+
+    private ChangeListener< Number > packSelectChangeListener = new ChangeListener< Number >() {
+        @Override
+        public void changed( ObservableValue< ? extends Number > observable, Number oldValue, Number newValue ) {
+            packLogo.setImage( new Image( MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() == -1 ? 0 : packList.getSelectionModel().getSelectedIndex() ).getPackLogoURL() ) );
+        }
+    };
+
+    private void populateModpacksDropdown() {
+        // Create list of modpack names
+        List< String > modpacksList = new ArrayList<>();
+        for ( MCForgeModpack modpack : MCFLApp.getModpacks() ) {
+            modpacksList.add( modpack.getPackName() );
+        }
+
+        // Reset modpack selector
+        packList.getSelectionModel().selectedIndexProperty().removeListener( packSelectChangeListener );
+        packList.getItems().clear();
+
+        // If modpacks list not empty, add to modpack selector
+        if ( modpacksList.size() > 0 ) {
+            Platform.runLater( () -> {
+                packList.setDisable( false );
+                packList.getItems().addAll( modpacksList );
+                packList.getSelectionModel().selectedIndexProperty().addListener( packSelectChangeListener );
+                packList.getSelectionModel().selectFirst();
+            } );
+        }
+        // If no modpacks, show message
+        else {
+            Platform.runLater( () -> {
+                packList.getItems().add( "No configured modpacks!" );
+                packList.getSelectionModel().selectFirst();
+                packList.setDisable( true );
+                packLogo.setImage( new Image( MCFLConstants.URL_MINECRAFT_NO_MODPACK_IMAGE ) );
+            } );
+        }
+    }
+
 
     /**
      * Create the FXMLLoader for showing the JavaFX stage
@@ -201,6 +246,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         Platform.runLater( () -> {
             upperText.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+            packList.setUnFocusColor( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
         } );
     }
 
@@ -209,6 +255,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         Platform.runLater( () -> {
             upperText.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
+            packList.setUnFocusColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
         } );
     }
 
