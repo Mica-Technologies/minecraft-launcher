@@ -26,7 +26,7 @@ public class MCFLConfiguration {
     /**
      * Array of options for minimum RAM configuration
      */
-    static final transient double[] MIN_RAM_OPTIONS = { 0.25, 0.5, 0.75, 1.0 };
+    static final transient double[] MIN_RAM_OPTIONS = { 0.25, 0.5, 0.75, 1.0, 2.0 };
 
     /**
      * Array of options for maxmimum RAM configuration
