@@ -11,10 +11,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.Skin;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -232,5 +229,10 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
             emailField.setUnFocusColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             passwordField.setUnFocusColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
         } );
+    }
+
+    @Override
+    Pane getRootPane() {
+        return rootPane;
     }
 }

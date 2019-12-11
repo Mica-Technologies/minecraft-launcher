@@ -9,10 +9,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
@@ -176,5 +173,10 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
     public static void main( String[] args ) {
         MCFLProgressGUI mpg = new MCFLProgressGUI();
         mpg.open();
+    }
+
+    @Override
+    Pane getRootPane() {
+        return rootPane;
     }
 }

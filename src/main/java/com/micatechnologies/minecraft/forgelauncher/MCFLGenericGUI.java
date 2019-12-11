@@ -5,18 +5,21 @@ import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import com.sun.glass.ui.Window;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.swt.internal.cocoa.NSString;
-import org.eclipse.swt.internal.cocoa.NSView;
 import org.rococoa.ID;
 import org.rococoa.Rococoa;
 import org.rococoa.cocoa.foundation.NSUInteger;
 
+import javax.swing.text.View;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -119,6 +122,8 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         } );
     }
 
+    abstract Pane getRootPane();
+
     boolean styleThreadRun = true;
 
     void createUIStyleListenThread() {
@@ -196,6 +201,9 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
     private boolean isMacUnifiedWindowSet = false;
 
+    private double xOffset;
+    private double yOffset;
+
     private void doMacUnifiedTitleBar() {
         if ( MCModpackOSUtils.isMac() && !isMacUnifiedWindowSet ) {
             Platform.runLater( () -> {
@@ -207,6 +215,16 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                         nsWindow.setTitlebarAppearsTransparent( true );
                         nsWindow.setMovable( true );
                         nsWindow.setMovableByWindowBackground( true );
+
+                        getRootPane().setOnMousePressed( event -> {
+                            xOffset = event.getSceneX();
+                            yOffset = event.getSceneY();
+                        } );
+
+                        getRootPane().setOnMouseDragged( event -> {
+                            getCurrentStage().setX( event.getScreenX() - xOffset );
+                            getCurrentStage().setY( event.getScreenY() - yOffset );
+                        } );
                     }
                     catch ( Exception e ) {
                         e.printStackTrace();
@@ -248,6 +266,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     public NSWindow getNativeMacWindow() {
         if ( !MCModpackOSUtils.isMac() || !getCurrentStage().isShowing() ) return null;
         try {
+
             Window window = Window.getWindows().get( 0 );
             return Rococoa.wrap( ID.fromLong( window.getNativeWindow() ), NSWindow.class );
         }

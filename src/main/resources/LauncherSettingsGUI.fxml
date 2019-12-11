@@ -33,10 +33,11 @@
                     <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
                     <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
                     <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
-            </columnConstraints>
-            <rowConstraints>
-               <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-               <RowConstraints maxHeight="173.0" minHeight="10.0" prefHeight="173.0" vgrow="SOMETIMES" />
+                </columnConstraints>
+                <rowConstraints>
+                    <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="30.0"
+                                    vgrow="SOMETIMES"/>
+                    <RowConstraints maxHeight="173.0" minHeight="10.0" prefHeight="173.0" vgrow="SOMETIMES"/>
                <RowConstraints maxHeight="147.0" minHeight="10.0" prefHeight="34.0" vgrow="SOMETIMES" />
                <RowConstraints maxHeight="81.0" minHeight="8.0" prefHeight="8.0" vgrow="SOMETIMES" />
                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" prefHeight="120.0" vgrow="SOMETIMES" />
@@ -88,7 +89,7 @@
                       <BorderPane maxHeight="70.0" maxWidth="190.0" minHeight="70.0" minWidth="190.0" prefHeight="70.0"
                                   prefWidth="190.0">
                           <center>
-                              <JFXComboBox fx:id="minRAM" focusColor="#0087e7" maxHeight="30.0" maxWidth="180.0"
+                              <JFXComboBox fx:id="minRAM" focusColor="#002952" maxHeight="30.0" maxWidth="180.0"
                                            minHeight="30.0" minWidth="180.0" prefHeight="30.0" prefWidth="180.0"
                                            BorderPane.alignment="CENTER_LEFT"/>
                           </center>
@@ -100,7 +101,7 @@
                       <BorderPane maxHeight="70.0" maxWidth="190.0" minHeight="70.0" minWidth="190.0" prefHeight="70.0"
                                   prefWidth="190.0">
                           <center>
-                              <JFXComboBox fx:id="maxRAM" focusColor="#0087e7" maxHeight="30.0" maxWidth="180.0"
+                              <JFXComboBox fx:id="maxRAM" focusColor="#002952" maxHeight="30.0" maxWidth="180.0"
                                            minHeight="30.0" minWidth="180.0" prefHeight="30.0" prefWidth="180.0"
                                            viewOrder="1.0" BorderPane.alignment="CENTER_LEFT"/>
                           </center>

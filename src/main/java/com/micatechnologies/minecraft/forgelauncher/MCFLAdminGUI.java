@@ -9,10 +9,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -232,5 +229,10 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
             label3.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             label4.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
         } );
+    }
+
+    @Override
+    Pane getRootPane() {
+        return rootPane;
     }
 }

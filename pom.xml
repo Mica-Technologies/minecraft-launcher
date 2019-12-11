@@ -58,45 +58,22 @@
 
     <build>
         <plugins>
-            <!--<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-clean-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>force-clean-target</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                        <configuration>
-                            <filesets>
-                                <fileset>
-                                    <directory>${project.build.directory}${file.separator}${app.name}</directory>
-                                </fileset>
-                            </filesets>
-                            <verbose>true</verbose>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>-->
+            <!-- COMPILE CODE -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
                     <source>11</source>
-                    <!-- target needs to be 8 for a build that will work on Java 8 servers-->
                     <target>11</target>
+                    <compilerArgs>
+                        <arg>--add-exports</arg>
+                        <arg>javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-maven-plugin</artifactId>
-                <version>0.0.3</version>
-                <configuration>
-                    <mainClass>${main.class}</mainClass>
-                </configuration>
-            </plugin>
+
+            <!-- ASSEMBLE JAR WITH DEPENDENCIES -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>3.2.0</version>
@@ -121,11 +98,14 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- DOWNLOAD JAVA RUNTIMES -->
             <plugin>
                 <groupId>com.igormaznitsa</groupId>
                 <artifactId>mvn-jlink-wrapper</artifactId>
                 <version>1.0.3</version>
                 <executions>
+                    <!-- CACHE MAC JDK 11 -->
                     <execution>
                         <id>cache-jdk-11-mac</id>
                         <goals>
@@ -139,11 +119,11 @@
                                 <arch>amd64</arch>
                                 <os>macos</os>
                             </providerConfig>
-                            <disableSSLcheck>true</disableSSLcheck>
-                            <jdkCachePath>${project.build.directory}${file.separator}jlinkCacheMac</jdkCachePath>
+                            <jdkCachePath>${project.build.directory}${file.separator}jdk-mac</jdkCachePath>
                             <jdkPathProperty>jlink.mac.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
+                    <!-- CACHE WIN JDK 11 -->
                     <execution>
                         <id>cache-jdk-11-win</id>
                         <goals>
@@ -157,84 +137,32 @@
                                 <arch>amd64</arch>
                                 <os>windows</os>
                             </providerConfig>
-                            <disableSSLcheck>true</disableSSLcheck>
-                            <jdkCachePath>${project.build.directory}${file.separator}jlinkCacheWin</jdkCachePath>
+                            <jdkCachePath>${project.build.directory}${file.separator}jdk-win</jdkCachePath>
                             <jdkPathProperty>jlink.win.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
+                    <!-- CACHE LINUX JDK 11 -->
                     <execution>
-                        <id>call-jdeps-mac</id>
+                        <id>cache-jdk-11-lin</id>
                         <goals>
-                            <goal>jdeps</goal>
+                            <goal>cache-jdk</goal>
                         </goals>
                         <configuration>
-                            <output>${project.build.directory}${file.separator}jdeps-mac.out</output>
-                            <toolJdk>${jlink.mac.jdk.path}</toolJdk>
-                            <options>
-                                <option>${project.build.directory}${file.separator}${project.build.finalName}.jar
-                                </option>
-                            </options>
+                            <provider>BELLSOFT</provider>
+                            <providerConfig>
+                                <type>jdk</type>
+                                <version>11.0.5</version>
+                                <arch>amd64</arch>
+                                <os>linux</os>
+                            </providerConfig>
+                            <jdkCachePath>${project.build.directory}${file.separator}jdk-lin</jdkCachePath>
+                            <jdkPathProperty>jlink.lin.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
-                    <!--NOT WORKING<execution>
-                        <id>call-jdep-wins</id>
-                        <goals>
-                            <goal>jdeps</goal>
-                        </goals>
-                        <configuration>
-                            <output>${project.build.directory}${file.separator}jdeps-win.out</output>
-                            <toolJdk>${jlink.win.jdk.path}</toolJdk>
-                            <
-                            <options>
-                                <option>${project.build.directory}${file.separator}${project.build.finalName}.jar
-                                </option>
-                            </options>
-                        </configuration>
-                    </execution>-->
-                    <execution>
-                        <id>call-jlink-mac</id>
-                        <goals>
-                            <goal>jlink</goal>
-                        </goals>
-                        <configuration>
-                            <jdepsReportPath>${project.build.directory}${file.separator}jdeps-mac.out</jdepsReportPath>
-                            <output>${project.build.directory}${file.separator}preparedJDKMac</output>
-                            <disableSSLcheck>true</disableSSLcheck>
-                            <toolJdk>${jlink.mac.jdk.path}</toolJdk>
-                            <addModules>
-                                <module>java.compiler</module>
-                                <module>java.sql</module>
-                                <module>jdk.crypto.ec</module>
-                            </addModules>
-                            <options>
-                                <option>--compress=2</option>
-                                <option>--no-header-files</option>
-                                <option>--no-man-pages</option>
-                            </options>
-                        </configuration>
-                    </execution>
-                    <!--NOT WORKING
-                    <execution>
-                        <id>call-jlink-win</id>
-                        <goals>
-                            <goal>jlink</goal>
-                        </goals>
-                        <configuration>
-                            <jdepsReportPath>${project.build.directory}${file.separator}jdeps-win.out</jdepsReportPath>
-                            <output>${project.build.directory}${file.separator}preparedJDKWin</output>
-                            <disableSSLcheck>true</disableSSLcheck>
-                            <toolJdk>${jlink.win.jdk.path}</toolJdk>
-                            <addModules>
-                                <module>java.compiler</module>
-                                <module>java.sql</module>
-                                <module>jdk.crypto.ec</module>
-                            </addModules>
-                            NOTE: Copy options above from Mac jlink
-                        </configuration>
-                    </execution>
-                    -->
                 </executions>
             </plugin>
+
+            <!-- VERIFY JDK DOWNLOADS -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
@@ -250,8 +178,9 @@
                             <rules>
                                 <requireFilesExist>
                                     <files>
-                                        <file>${project.build.directory}${file.separator}preparedJDKMac</file>
-                                        <!--NOT WORKING<file>${project.build.directory}${file.separator}preparedJDKWin</file>-->
+                                        <file>${project.build.directory}${file.separator}jdk-mac</file>
+                                        <file>${project.build.directory}${file.separator}jdk-win</file>
+                                        <file>${project.build.directory}${file.separator}jdk-lin</file>
                                     </files>
                                 </requireFilesExist>
                             </rules>
@@ -260,6 +189,8 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- CREATE WINDOWS EXE -->
             <plugin>
                 <groupId>com.akathist.maven.plugins.launch4j</groupId>
                 <artifactId>launch4j-maven-plugin</artifactId>
@@ -272,20 +203,19 @@
                             <goal>launch4j</goal>
                         </goals>
                         <configuration>
-                            <outputDir>${project.build.directory}</outputDir>
                             <headerType>gui</headerType>
                             <jar>
                                 ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
                             </jar>
                             <outfile>
-                                ${project.build.directory}${file.separator}${project.artifactId}-${project.version}.exe
+                                ${project.build.directory}${file.separator}${project.artifactId}.exe
                             </outfile>
                             <downloadUrl>https://bell-sw.com/pages/java-11.0.5/</downloadUrl>
                             <classPath>
                                 <mainClass>${main.class}</mainClass>
                             </classPath>
                             <jre>
-                                <!--NOT WORKING<path>${project.build.directory}${file.separator}preparedJDKWin</path>-->
+                                <!--suppress UnresolvedMavenProperty -->
                                 <path>${jlink.win.jdk.path}</path>
                                 <bundledJre64Bit>true</bundledJre64Bit>
                                 <minVersion>11</minVersion>
@@ -301,55 +231,122 @@
                                 <txtProductVersion>1.0.0.0</txtProductVersion>
                                 <productName>${app.name}</productName>
                                 <internalName>${project.artifactId}</internalName>
-                                <originalFilename>${project.artifactId}-${project.version}.exe</originalFilename>
+                                <originalFilename>${project.artifactId}.exe</originalFilename>
                             </versionInfo>
                             <messages>
                                 <bundledJreErr>There is a problem with the bundled JRE.</bundledJreErr>
                                 <startupErr>There is a problem with starting up.</startupErr>
-                                <jreVersionErr>There is a problem with your Java version. Is it Java 11+?</jreVersionErr>
+                                <jreVersionErr>There is a problem with your Java version. Is it Java 11+?
+                                </jreVersionErr>
                                 <launcherErr>There is a problem with the launcher.</launcherErr>
                             </messages>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- CREATE MAC APP -->
             <plugin>
-                <groupId>com.micatechnologies</groupId>
-                <artifactId>appbundle-maven-plugin</artifactId>
-                <version>2019.1</version>
+                <groupId>de.perdian.maven.plugins</groupId>
+                <artifactId>macosappbundler-maven-plugin</artifactId>
+                <version>1.5.0</version>
                 <configuration>
-                    <version>${version}</version>
-                    <includeApplicationsSymlink>true</includeApplicationsSymlink>
-                    <jrePath>${project.build.directory}${file.separator}preparedJDKMac</jrePath>
-                    <mainClass>${main.class}</mainClass>
-                    <iconFile>forgelauncher.icns</iconFile>
-                    <additionalResources>
-                        <fileSet>
-                            <directory>
-                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}mac-dmg-include
-                            </directory>
-                        </fileSet>
-                    </additionalResources>
-                    <additionalBundledClasspathResources>
-                        <fileSet>
-                            <directory>
-                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
-                            </directory>
-                        </fileSet>
-                    </additionalBundledClasspathResources>
-                    <bundleName>${app.name}</bundleName>
-                    <generateDiskImageFile>true</generateDiskImageFile>
-                    <diskImageInternetEnable>true</diskImageInternetEnable>
-                    <buildDirectory>${project.build.directory}${file.separator}${app.name}</buildDirectory>
-                    <jvmOptions>
-                        <jvmOption>-Dfile.encoding=UTF-8</jvmOption>
-                    </jvmOptions>
+                    <plist>
+                        <CFBundleIconFile>
+                            src${file.separator}main${file.separator}resources${file.separator}${project.artifactId}.icns
+                        </CFBundleIconFile>
+                        <CFBundleIdentifier>${project.groupId}.${project.artifactId}</CFBundleIdentifier>
+                        <CFBundleDisplayName>${app.name}</CFBundleDisplayName>
+                        <CFBundleName>${app.name}</CFBundleName>
+                        <CFBundleShortVersionString>${project.version}</CFBundleShortVersionString>
+                        <CFBundleExecutable>${project.artifactId}</CFBundleExecutable>
+                        <JVMMainClassName>${main.class}</JVMMainClassName>
+                        <JVMVersion>11+</JVMVersion>
+                        <JVMOptions>
+                            <string>-Dfile.encoding=UTF-8</string>
+                        </JVMOptions>
+                        <JVMLogLevel>INFO</JVMLogLevel>
+                    </plist>
+                    <dmg>
+                        <generate>true</generate>
+                        <additionalResources>
+                            <additionalResource>
+                                <directory>
+                                    src${file.separator}main${file.separator}resources${file.separator}mac-dmg-include
+                                </directory>
+                            </additionalResource>
+                        </additionalResources>
+                        <createApplicationsSymlink>true</createApplicationsSymlink>
+                        <useGenIsoImage>false</useGenIsoImage>
+                        <autoFallback>true</autoFallback>
+                        <appendVersion>false</appendVersion>
+                        <dmgFileName>${project.artifactId}</dmgFileName>
+                    </dmg>
+                    <jdk>
+                        <include>true</include>
+                        <!--suppress UnresolvedMavenProperty -->
+                        <location>${jlink.mac.jdk.path}</location>
+                    </jdk>
                 </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>
                         <goals>
                             <goal>bundle</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- MOVE JAR WITH DEPENDENCIES TO FINAL LOCATION -->
+            <plugin>
+                <groupId>com.coderplus.maven.plugins</groupId>
+                <artifactId>copy-rename-maven-plugin</artifactId>
+                <version>1.0.1</version>
+                <executions>
+                    <execution>
+                        <id>rename-final-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>rename</goal>
+                        </goals>
+                        <configuration>
+                            <sourceFile>
+                                ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
+                            </sourceFile>
+                            <destinationFile>${project.build.directory}${file.separator}${project.artifactId}.jar
+                            </destinationFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+
+            <!-- CLEANUP UNWANTED FILES AND BINARIES -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>2.5</version>
+                <configuration>
+                    <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                    <filesets>
+                        <fileset>
+                            <directory>${project.build.directory}</directory>
+                            <followSymlinks>false</followSymlinks>
+                            <useDefaultExcludes>true</useDefaultExcludes>
+                            <includes>
+                                <include>
+                                    **/${project.artifactId}-${project.version}.jar
+                                </include>
+                            </includes>
+                        </fileset>
+                    </filesets>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>clean</goal>
                         </goals>
                     </execution>
                 </executions>

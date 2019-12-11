@@ -13,10 +13,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -280,5 +277,10 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         // Select first (as backup), then select supplied index
         packList.getSelectionModel().selectFirst();
         packList.getSelectionModel().select( modpackIndex );
+    }
+
+    @Override
+    Pane getRootPane() {
+        return rootPane;
     }
 }

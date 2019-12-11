@@ -338,4 +338,9 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             debugModeCheck.setUnCheckedColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
         } );
     }
+
+    @Override
+    Pane getRootPane() {
+        return rootPane;
+    }
 }
