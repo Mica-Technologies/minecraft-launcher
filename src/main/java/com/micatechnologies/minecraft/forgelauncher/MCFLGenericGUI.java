@@ -211,7 +211,11 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 if ( getNativeMacWindow() != null ) {
                     try {
                         NSWindow nsWindow = getNativeMacWindow();
-                        nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskResizable | NSWindow.StyleMaskFullSizeContentView ) );
+                        if ( MCFLApp.getLauncherConfig().getResizableguis() )
+                            nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskResizable | NSWindow.StyleMaskFullSizeContentView ) );
+                        else
+                            nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskFullSizeContentView ) );
+
                         nsWindow.setTitlebarAppearsTransparent( true );
                         nsWindow.setMovable( true );
                         nsWindow.setMovableByWindowBackground( true );
@@ -258,6 +262,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 currentStage.setOpacity( 1.0 );
                 currentStage.toFront();
                 currentStage.requestFocus();
+                currentStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
                 doMacUnifiedTitleBar();
             }
         } );
@@ -362,7 +367,6 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         primaryStage.setWidth( getSize()[ 0 ] );
         primaryStage.setHeight( getSize()[ 1 ] );
         primaryStage.setOpacity( 0.0 );
-        primaryStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
         currentStage = primaryStage;
 
         // Run specific window creation code
