@@ -58,6 +58,29 @@
 
     <build>
         <plugins>
+            <!-- CLEANUP UNWANTED FILES AND BINARIES -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>target</directory>
+                            <followSymlinks>false</followSymlinks>
+                        </fileset>
+                    </filesets>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- COMPILE CODE -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -119,7 +142,7 @@
                                 <arch>amd64</arch>
                                 <os>macos</os>
                             </providerConfig>
-                            <jdkCachePath>${project.build.directory}${file.separator}jdk-mac</jdkCachePath>
+                            <jdkCachePath>${project.basedir}${file.separator}jdk${file.separator}mac</jdkCachePath>
                             <jdkPathProperty>jlink.mac.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
@@ -137,7 +160,7 @@
                                 <arch>amd64</arch>
                                 <os>windows</os>
                             </providerConfig>
-                            <jdkCachePath>${project.build.directory}${file.separator}jdk-win</jdkCachePath>
+                            <jdkCachePath>${project.basedir}${file.separator}jdk${file.separator}win</jdkCachePath>
                             <jdkPathProperty>jlink.win.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
@@ -155,7 +178,7 @@
                                 <arch>amd64</arch>
                                 <os>linux</os>
                             </providerConfig>
-                            <jdkCachePath>${project.build.directory}${file.separator}jdk-lin</jdkCachePath>
+                            <jdkCachePath>${project.basedir}${file.separator}jdk${file.separator}lin</jdkCachePath>
                             <jdkPathProperty>jlink.lin.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
@@ -178,9 +201,9 @@
                             <rules>
                                 <requireFilesExist>
                                     <files>
-                                        <file>${project.build.directory}${file.separator}jdk-mac</file>
-                                        <file>${project.build.directory}${file.separator}jdk-win</file>
-                                        <file>${project.build.directory}${file.separator}jdk-lin</file>
+                                        <file>${project.basedir}${file.separator}jdk${file.separator}mac</file>
+                                        <file>${project.basedir}${file.separator}jdk${file.separator}win</file>
+                                        <file>${project.basedir}${file.separator}jdk${file.separator}lin</file>
                                     </files>
                                 </requireFilesExist>
                             </rules>
@@ -317,37 +340,6 @@
                             <destinationFile>${project.build.directory}${file.separator}${project.artifactId}.jar
                             </destinationFile>
                         </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-
-            <!-- CLEANUP UNWANTED FILES AND BINARIES -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-clean-plugin</artifactId>
-                <version>2.5</version>
-                <configuration>
-                    <excludeDefaultDirectories>true</excludeDefaultDirectories>
-                    <filesets>
-                        <fileset>
-                            <directory>${project.build.directory}</directory>
-                            <followSymlinks>false</followSymlinks>
-                            <useDefaultExcludes>true</useDefaultExcludes>
-                            <includes>
-                                <include>
-                                    **/${project.artifactId}-${project.version}.jar
-                                </include>
-                            </includes>
-                        </fileset>
-                    </filesets>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
                     </execution>
                 </executions>
             </plugin>
