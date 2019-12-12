@@ -290,7 +290,7 @@
                             </classPath>
                             <jre>
                                 <!--suppress UnresolvedMavenProperty -->
-                                <path>${jlink.win.jdk.path}</path>
+                                <path>%PROGRAMFILES%\Mica Forge Launcher\</path>
                                 <bundledJre64Bit>true</bundledJre64Bit>
                                 <minVersion>11</minVersion>
                                 <jdkPreference>preferJre</jdkPreference>
@@ -339,6 +339,9 @@
                     </additionalBundledClasspathResources>
                     <bundleName>${app.name}</bundleName>
                     <buildDirectory>${project.build.directory}</buildDirectory>
+                    <diskImageFile>target${file.separator}${project.artifactId}</diskImageFile>
+                    <generateDiskImageFile>true</generateDiskImageFile>
+                    <diskImageInternetEnable>true</diskImageInternetEnable>
                     <jvmOptions>
                         <jvmOption>-Dfile.encoding=UTF-8</jvmOption>
                     </jvmOptions>
