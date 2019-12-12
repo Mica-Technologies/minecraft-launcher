@@ -592,7 +592,7 @@ public class MCFLApp {
                 logFile.getParentFile().mkdirs();
                 logFile.createNewFile();
             }
-            toLog = new PrintStream( new FileOutputStream( logFile ) );
+            toLog = new PrintStream( logFile );
             System.setOut( toLog );
             System.setErr( toLog );
             System.out.println( "Configured err and out to file" );
