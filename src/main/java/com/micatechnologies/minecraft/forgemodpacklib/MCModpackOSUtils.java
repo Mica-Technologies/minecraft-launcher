@@ -7,6 +7,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -15,6 +17,8 @@ import java.util.Enumeration;
 import java.util.Formatter;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -166,6 +170,12 @@ public class MCModpackOSUtils {
         return getSystemOS().toLowerCase().contains( "nix" ) || getSystemOS().toLowerCase()
                                                                              .contains( "nux" )
             || getSystemOS().toLowerCase().contains( "aix" );
+    }
+
+    public static void downloadFileFromURL( URL source, File destination) throws IOException {
+        URLConnection connection = source.openConnection();
+        connection.setUseCaches( false );
+        FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
     }
 
     /**

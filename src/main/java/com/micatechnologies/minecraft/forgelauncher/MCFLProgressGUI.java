@@ -62,16 +62,13 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
         setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
         setLowerText( "Awaiting progress information..." );
         setUpperText( "Loading!" );
-        stage.setAlwaysOnTop( true );
 
         // Configure exit button
         stage.setOnCloseRequest( event -> {
-            event.consume();
             new Thread( () -> {
-                int response = MCFLGUIController.showQuestionMessage( "Close?", "Launcher is Busy", "Are you sure you want to close " + MCFLConstants.LAUNCHER_APPLICATION_NAME + " while a task is running?", "Yes", "No", getCurrentStage() );
+                int response = MCFLGUIController.showQuestionMessage( "Close?", "Launcher is Busy", "Are you sure you want to cancel while a task is running?", "Yes", "No", getCurrentStage() );
                 if ( response == 1 ) {
                     Platform.setImplicitExit( true );
-                    System.exit( 0 );
                 }
             } ).start();
         } );

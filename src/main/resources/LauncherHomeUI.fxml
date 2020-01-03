@@ -21,7 +21,7 @@
   </opaqueInsets>
    <BorderPane layoutX="-210.0" layoutY="-57.0" prefHeight="425.0" prefWidth="650.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <left>
-         <GridPane prefHeight="424.0" prefWidth="233.0" style="-fx-background-color: #002952;" BorderPane.alignment="CENTER">
+         <GridPane prefHeight="427.0" prefWidth="236.0" style="-fx-background-color: #333;" BorderPane.alignment="CENTER">
             <columnConstraints>
                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
@@ -59,8 +59,8 @@
             </children>
          </GridPane>
       </left>
-      <center>
-         <GridPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="431.0" prefWidth="366.0" BorderPane.alignment="CENTER">
+      <right>
+         <GridPane maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="372.0" prefWidth="211.0" BorderPane.alignment="CENTER">
             <columnConstraints>
                <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="10.0" prefWidth="372.0" />
                <ColumnConstraints hgrow="SOMETIMES" maxWidth="262.0" minWidth="0.0" prefWidth="0.0" />
@@ -147,6 +147,6 @@
                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
             </padding>
          </GridPane>
-      </center>
+      </right>
    </BorderPane>
 </AnchorPane>

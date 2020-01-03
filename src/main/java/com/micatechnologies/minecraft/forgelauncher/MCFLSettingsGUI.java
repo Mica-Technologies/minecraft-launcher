@@ -163,9 +163,6 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
                 MCFLAdminGUI MCFLAdminGUI = new MCFLAdminGUI();
                 MCFLAdminGUI.open();
 
-                // Configure admin window stage
-                MCFLAdminGUI.getCurrentStage().setAlwaysOnTop( true );
-
                 // Wait for settings to close, then enable main window again
                 new Thread( () -> {
                     try {
@@ -241,6 +238,9 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             // Change save button text to indicate successful save
             saveBtn.setText( SAVED_BUTTON_TEXT );
 
+            // Force window changes apply
+            doWindowConfigUpdates();
+
             // Schedule save button text to revert to normal after 5s
             new Thread( () -> {
                 try {
@@ -274,9 +274,6 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             event.consume();
             returnBtn.fire();
         } );
-
-        // Configure non-resizable if configured
-        stage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
     }
 
     /**

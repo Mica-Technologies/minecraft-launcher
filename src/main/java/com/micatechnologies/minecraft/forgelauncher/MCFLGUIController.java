@@ -7,6 +7,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.layout.Region;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -41,8 +42,9 @@ public class MCFLGUIController {
             questionAlert.setTitle( title );
             questionAlert.setHeaderText( headerText );
             questionAlert.setContentText( contentText );
-            questionAlert.initOwner( owner );
+            questionAlert.initStyle( StageStyle.UTILITY );
             questionAlert.initModality( Modality.WINDOW_MODAL );
+            questionAlert.initOwner( owner );
 
             ButtonType btn1 = new ButtonType( button1 );
             ButtonType btn2 = new ButtonType( button2 );
@@ -70,8 +72,9 @@ public class MCFLGUIController {
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
                 errorAlert.setContentText( "A question message latch was interrupted before handling completed." + "\n" + "Client Token: " + MCFLApp.getClientToken() );
-                errorAlert.initOwner( owner );
+                errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
+                errorAlert.initOwner( owner );
 
                 // Show the created error
                 errorAlert.showAndWait();
@@ -98,8 +101,9 @@ public class MCFLGUIController {
                 errorAlert.setTitle( "Oops" );
                 errorAlert.setHeaderText( "Error" );
                 errorAlert.setContentText( contentText + "\nError Code: " + errorID + "\n" + "Client Token: " + MCFLApp.getClientToken() );
-                errorAlert.initOwner( owner );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
+                errorAlert.initStyle( StageStyle.UTILITY );
+                errorAlert.initOwner( owner );
 
                 // Show the created error
                 errorAlert.showAndWait();
@@ -114,8 +118,9 @@ public class MCFLGUIController {
                 errorAlert.setTitle( "Oops" );
                 errorAlert.setHeaderText( "Error" );
                 errorAlert.setContentText( contentText + "\nError Code: " + errorID + "\n" + "Client Token: " + MCFLApp.getClientToken() );
-                errorAlert.initOwner( owner );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
+                errorAlert.initStyle( StageStyle.UTILITY );
+                errorAlert.initOwner( owner );
 
                 // Show the created error
                 errorAlert.showAndWait();
@@ -136,8 +141,9 @@ public class MCFLGUIController {
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
                 errorAlert.setContentText( "An error message latch was interrupted before handling completed." + "\n" + "Client Token: " + MCFLApp.getClientToken() );
-                errorAlert.initOwner( owner );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
+                errorAlert.initStyle( StageStyle.UTILITY );
+                errorAlert.initOwner( owner );
 
                 // Show the created error
                 errorAlert.showAndWait();

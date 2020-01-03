@@ -150,7 +150,7 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
                 // Download file and get sha1
                 try {
                     File temp = new File( System.getProperty( "user.home" ) + File.separator + ".tempHashFile" );
-                    FileUtils.copyURLToFile( new URL( starting ), temp );
+                    MCModpackOSUtils.downloadFileFromURL( new URL( starting ), temp );
 
                     final MessageDigest messageDigest = MessageDigest.getInstance( "SHA1" );
                     InputStream is = new BufferedInputStream( new FileInputStream( temp ) );

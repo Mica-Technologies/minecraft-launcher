@@ -5,24 +5,17 @@ import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import com.sun.glass.ui.Window;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import org.apache.commons.io.FileUtils;
-import org.eclipse.swt.internal.cocoa.NSString;
 import org.rococoa.ID;
 import org.rococoa.Rococoa;
 import org.rococoa.cocoa.foundation.NSUInteger;
 
-import javax.swing.text.View;
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -127,66 +120,58 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     boolean styleThreadRun = true;
 
     void createUIStyleListenThread() {
+        // Style window on thread create
+        doWindowConfigUpdates();
+
+        // Create running style thread
         new Thread( () -> {
             //1 for light, 2 for dark
             int lastMode = 0;
             while ( styleThreadRun ) {
-                if ( MCModpackOSUtils.isWindows() ) {
-                    // TODO: Figure out how to detect windows (10) dark mode
-                    /*if ( dark ) {
-                        if ( lastMode == 1 ) enableDarkMode();
-                        lastMode = 2;
-                    }
-                    else {
-                        if ( lastMode == 2 ) doLightMode();
-                        lastMode = 1;
-                    }*/
-                    return;
-                }
-                else if ( MCModpackOSUtils.isMac() ) {
-                    try {
-                        Process process = Runtime.getRuntime().exec( "defaults read -g AppleInterfaceStyle" );
-                        BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
-                        String read = bufferedReader.readLine().toLowerCase();
-                        if ( read.contains( "dark" ) ) {
-                            if ( lastMode != 2 ) {
-                                doDarkMode();
-                                lastMode = 2;
-                            }
+                // Only run if window is showing
+                if ( currentStage != null && currentStage.isShowing() ) {
+                    if ( MCModpackOSUtils.isWindows() ) {
+                        // TODO: Figure out how to detect windows (10) dark mode
+                        /*if ( dark ) {
+                            if ( lastMode == 1 ) enableDarkMode();
+                            lastMode = 2;
                         }
                         else {
+                            if ( lastMode == 2 ) doLightMode();
+                            lastMode = 1;
+                        }*/
+                        return;
+                    }
+                    else if ( MCModpackOSUtils.isMac() ) {
+                        try {
+                            Process process = Runtime.getRuntime().exec( "defaults read -g AppleInterfaceStyle" );
+                            BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
+                            String read = bufferedReader.readLine().toLowerCase();
+                            if ( read.contains( "dark" ) ) {
+                                if ( lastMode != 2 ) {
+                                    doDarkMode();
+                                    lastMode = 2;
+                                }
+                            }
+                            else {
+                                if ( lastMode != 1 ) {
+                                    doLightMode();
+                                    lastMode = 1;
+                                }
+                            }
+                        }
+                        // Light mode causes an exception
+                        catch ( Exception ignored ) {
                             if ( lastMode != 1 ) {
                                 doLightMode();
                                 lastMode = 1;
                             }
                         }
                     }
-                    // Light mode causes an exception
-                    catch ( Exception ignored ) {
-                        if ( lastMode != 1 ) {
-                            doLightMode();
-                            lastMode = 1;
-                        }
-                    }
+
+                    doWindowConfigUpdates();
                 }
 
-                // Check for window sizable config option
-                Platform.runLater( () -> {
-                    Stage currStage = getCurrentStage();
-                    if ( currStage != null ) {
-                        NSWindow nativeWindow = getNativeMacWindow();
-                        if ( currStage.isShowing() && nativeWindow != null ) {
-                            int styleMask = nativeWindow.styleMask().intValue();
-                            if ( MCFLApp.getLauncherConfig().getResizableguis() )
-                                styleMask |= NSWindow.StyleMaskResizable;
-                            else styleMask &= ~NSWindow.StyleMaskResizable;
-                            nativeWindow.setStyleMask( new NSUInteger( styleMask ) );
-                        }
-                        currStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
-                    }
-                } );
-
-                doMacUnifiedTitleBar();
 
                 // Check for light/dark mode again in 3s
                 try {
@@ -199,42 +184,46 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         } ).start();
     }
 
-    private boolean isMacUnifiedWindowSet = false;
-
     private double xOffset;
     private double yOffset;
 
-    private void doMacUnifiedTitleBar() {
-        if ( MCModpackOSUtils.isMac() && !isMacUnifiedWindowSet ) {
+    void doWindowConfigUpdates() {
+        // Set window resizable configuration
+        Platform.runLater( () -> currentStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() ) );
+
+        // Perform macOS specific window configuration
+        NSWindow macOSWindow = getNativeMacWindow();
+        if ( MCModpackOSUtils.isMac() && macOSWindow != null ) {
+            // Get current style mask
+            int currStyleMask = macOSWindow.styleMask().intValue();
+
+            // Remove resizable style mask if window resize off
+            // Add resizable style mask if window resize on
+            if ( !MCFLApp.getLauncherConfig().getResizableguis() )
+                currStyleMask = currStyleMask & ~NSWindow.StyleMaskResizable;
+            else
+                currStyleMask = currStyleMask | NSWindow.StyleMaskResizable;
+
+            // Ensure macOS unified window style is enabled
+            macOSWindow.setTitlebarAppearsTransparent( true );
+            currStyleMask = currStyleMask | NSWindow.StyleMaskFullSizeContentView;
+            // Run on JavaFX Application Thread
+            int finalCurrStyleMask = currStyleMask;
+            Platform.runLater( () -> macOSWindow.setStyleMask( new NSUInteger( finalCurrStyleMask ) ) );
+
+            // Fix window cannot be moved issue
+            macOSWindow.setMovable( true );
+            macOSWindow.setMovableByWindowBackground( true );
             Platform.runLater( () -> {
-                // Mac specific and client mode only
-                if ( getNativeMacWindow() != null ) {
-                    try {
-                        NSWindow nsWindow = getNativeMacWindow();
-                        if ( MCFLApp.getLauncherConfig().getResizableguis() )
-                            nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskResizable | NSWindow.StyleMaskFullSizeContentView ) );
-                        else
-                            nsWindow.setStyleMask( new NSUInteger( NSWindow.StyleMaskClosable | NSWindow.StyleMaskTitled | NSWindow.StyleMaskFullSizeContentView ) );
+                getRootPane().setOnMousePressed( event -> {
+                    xOffset = event.getSceneX();
+                    yOffset = event.getSceneY();
+                } );
 
-                        nsWindow.setTitlebarAppearsTransparent( true );
-                        nsWindow.setMovable( true );
-                        nsWindow.setMovableByWindowBackground( true );
-
-                        getRootPane().setOnMousePressed( event -> {
-                            xOffset = event.getSceneX();
-                            yOffset = event.getSceneY();
-                        } );
-
-                        getRootPane().setOnMouseDragged( event -> {
-                            getCurrentStage().setX( event.getScreenX() - xOffset );
-                            getCurrentStage().setY( event.getScreenY() - yOffset );
-                        } );
-                    }
-                    catch ( Exception e ) {
-                        e.printStackTrace();
-                    }
-                    isMacUnifiedWindowSet = true;
-                }
+                getRootPane().setOnMouseDragged( event -> {
+                    getCurrentStage().setX( event.getScreenX() - xOffset );
+                    getCurrentStage().setY( event.getScreenY() - yOffset );
+                } );
             } );
         }
     }
@@ -257,13 +246,13 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
 
                 // Show stage/GUI
-                isMacUnifiedWindowSet = false;
                 currentStage.show();
                 currentStage.setOpacity( 1.0 );
                 currentStage.toFront();
                 currentStage.requestFocus();
                 currentStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
-                doMacUnifiedTitleBar();
+                styleThreadRun = true;
+                createUIStyleListenThread();
             }
         } );
     }
@@ -298,6 +287,9 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
                 catch ( InterruptedException ignored ) {
                 }
+
+                // Close style thread if running
+                styleThreadRun = false;
 
                 // Hide stage/GUI
                 currentStage.setFullScreen( false );
@@ -371,7 +363,6 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
         // Run specific window creation code
         create( currentStage );
-        createUIStyleListenThread();
 
         // Mark window as ready
         readyLatch.countDown();

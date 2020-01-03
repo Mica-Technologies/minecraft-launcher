@@ -112,9 +112,6 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
                 MCFLSettingsGUI MCFLSettingsGUI = new MCFLSettingsGUI();
                 MCFLSettingsGUI.open();
 
-                // Configure settings window stage
-                MCFLSettingsGUI.getCurrentStage().setAlwaysOnTop( true );
-
                 // Wait for settings to close, then enable main window again
                 new Thread( () -> {
                     try {
@@ -163,7 +160,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         // Configure user label
         userMsg.setText( "Hello, " + MCFLApp.getCurrentUser().getFriendlyName() );
 
-        // Configure ENTER key to press login
+        // Configure ENTER key to press play
         rootPane.setOnKeyPressed( event -> {
             if ( event.getCode() == KeyCode.ENTER ) {
                 event.consume();

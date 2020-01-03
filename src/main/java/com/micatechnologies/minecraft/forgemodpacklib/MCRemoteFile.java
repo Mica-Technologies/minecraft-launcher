@@ -129,7 +129,7 @@ class MCRemoteFile {
 
         // Download file and return validation result
         try {
-            FileUtils.copyURLToFile( new URL( remote ), localFile );
+            MCModpackOSUtils.downloadFileFromURL( new URL( remote ), localFile );
         }
         catch ( IOException e ) {
             throw new MCForgeModpackException(

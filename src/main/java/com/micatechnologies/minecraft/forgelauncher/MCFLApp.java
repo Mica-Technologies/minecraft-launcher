@@ -239,17 +239,26 @@ public class MCFLApp {
         // Launch selected modpack
         int minRAMMB = ( int ) ( getLauncherConfig().getMinRAM() * 1024 );
         int maxRAMMB = ( int ) ( getLauncherConfig().getMaxRAM() * 1024 );
+        MCFLProgressGUI progressGUI = null;
         try {
             MCForgeModpack mp = modpacks.get( modpack );
-            MCFLProgressGUI progressGUI = new MCFLProgressGUI();
-            progressGUI.open();
+            MCFLProgressGUI internalProgressGUI = new MCFLProgressGUI();
+            progressGUI = internalProgressGUI;
+            internalProgressGUI.open();
+            try {
+                internalProgressGUI.readyLatch.await();
+            }
+            catch ( InterruptedException ignored ) {
+            }
+
+
             new Thread( () -> {
                 try {
-                    progressGUI.readyLatch.await();
+                    internalProgressGUI.readyLatch.await();
                 }
                 catch ( InterruptedException ignored ) {
                 }
-                progressGUI.setIcon( new javafx.scene.image.Image( mp.getPackLogoURL() ) );
+                internalProgressGUI.setIcon( new javafx.scene.image.Image( mp.getPackLogoURL() ) );
             } ).start();
 
             // Verify configured RAM
@@ -268,18 +277,18 @@ public class MCFLApp {
             mp.setProgressProvider( new MCForgeModpackProgressProvider() {
                 @Override
                 public void updateProgressHandler( double percent, String text ) {
-                    progressGUI.setUpperText( "Loading " + mp.getPackName() );
-                    progressGUI.setLowerText( text );
-                    progressGUI.setProgress( percent );
+                    internalProgressGUI.setUpperText( "Loading " + mp.getPackName() );
+                    internalProgressGUI.setLowerText( text );
+                    internalProgressGUI.setProgress( percent );
                     if ( percent == 100.0 ) {
                         new Thread( () -> {
-                            progressGUI.setLowerText( "Passing to Minecraft" );
+                            internalProgressGUI.setLowerText( "Passing to Minecraft" );
                             try {
                                 Thread.sleep( 3000 );
                             }
                             catch ( InterruptedException ignored ) {
                             }
-                            progressGUI.close();
+                            internalProgressGUI.close();
                         } ).start();
                     }
                 }
@@ -289,6 +298,7 @@ public class MCFLApp {
         catch ( MCForgeModpackException e ) {
             e.printStackTrace();
             MCFLLogger.error( "Unable to start game.", 312, gui.getCurrentStage() );
+            if (progressGUI != null) progressGUI.close();
         }
     }
 
@@ -409,7 +419,7 @@ public class MCFLApp {
             progressGUI.setProgress( 25.0 );
         }
         try {
-            FileUtils.copyURLToFile( new URL( jreHashDownloadURL ), jreHashFile );
+            MCModpackOSUtils.downloadFileFromURL( new URL( jreHashDownloadURL ), jreHashFile );
         }
         catch ( IOException e ) {
             if ( progressGUI != null )
@@ -437,7 +447,7 @@ public class MCFLApp {
                     progressGUI.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
                 }
                 // Download archive from URL
-                FileUtils.copyURLToFile( new URL( jreArchiveDownloadURL ), jreArchiveFile );
+                MCModpackOSUtils.downloadFileFromURL( new URL( jreArchiveDownloadURL ), jreArchiveFile );
 
                 // Delete previous extracted JRE
                 File extractedJREFolder = new File( getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME );

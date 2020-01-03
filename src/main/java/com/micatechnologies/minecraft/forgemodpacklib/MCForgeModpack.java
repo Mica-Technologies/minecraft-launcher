@@ -335,8 +335,8 @@ public class MCForgeModpack {
         minecraftArgs = "-Xms" + SminRAMMB + "m " + minecraftArgs;
         minecraftArgs = "-Xmx" + SmaxRAMMB + "m " + minecraftArgs;
 
-        // Add garbage collection config to arguments
-        minecraftArgs = APP_GARBAGE_COLLECTOR_SETTINGS + minecraftArgs;
+        // Add garbage collection config to arguments for client
+        if ( appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) minecraftArgs = APP_GARBAGE_COLLECTOR_SETTINGS + minecraftArgs;
 
         // Add classpath to arguments
         if ( MCModpackOSUtils.isWindows() ) minecraftArgs = "-cp \"" + cp + "\" " + minecraftArgs;
@@ -627,7 +627,7 @@ public class MCForgeModpack {
 
         // Download latest logo
         try {
-            FileUtils.copyURLToFile( new URL( packLogoURL ), new File( getPackLogoFilepath() ) );
+            MCModpackOSUtils.downloadFileFromURL( new URL( packLogoURL ), new File( getPackLogoFilepath() ) );
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "Verified modpack logo", 100.0 );
             }
@@ -704,7 +704,7 @@ public class MCForgeModpack {
         // Download manifest from supplied URL
         try {
             modpackManifestFile.delete();
-            FileUtils.copyURLToFile( downloadURL, modpackManifestFile );
+            MCModpackOSUtils.downloadFileFromURL( downloadURL, modpackManifestFile );
         }
         catch ( IOException e ) {
             throw new MCForgeModpackException( "Unable to download manifest from URL.", e );
