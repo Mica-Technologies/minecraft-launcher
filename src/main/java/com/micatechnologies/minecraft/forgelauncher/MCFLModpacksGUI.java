@@ -3,21 +3,25 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
+import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelReader;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,13 +55,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
      * Play button
      */
     @FXML
-    public Button playBtn;
-
-    /**
-     * Exit button
-     */
-    @FXML
-    public JFXButton exitButton;
+    public JFXButton playBtn;
 
     /**
      * Settings button
@@ -84,9 +82,28 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     public ImageView packLogo;
 
     /**
-     * Text for selecting modpack
+     * Pane containing modpack selection dropdown
      */
-    public Label upperText;
+    @FXML
+    public GridPane modpackSelPane;
+
+    /**
+     * Pane in the center for displaying modpack
+     */
+    @FXML
+    public GridPane centerPane;
+
+    /**
+     * Pane in the top
+     */
+    @FXML
+    public GridPane topPane;
+
+    /**
+     * Pane in the bottom
+     */
+    @FXML
+    public GridPane bottomPane;
 
     /**
      * Handle the creation and initial configuration of GUI controls/elements.
@@ -102,7 +119,6 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
                 System.exit( 0 );
             } ).start();
         } );
-        exitButton.setOnAction( event -> getCurrentStage().fireEvent( new WindowEvent( getCurrentStage(), WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Configure settings button
         settingsButton.setOnAction( event -> {
@@ -158,7 +174,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         userIcon.setImage( new Image( MCFLConstants.URL_MINECRAFT_USER_ICONS.replace( "user", MCFLApp.getCurrentUser().getUserIdentifier() ) ) );
 
         // Configure user label
-        userMsg.setText( "Hello, " + MCFLApp.getCurrentUser().getFriendlyName() );
+        userMsg.setText( MCFLApp.getCurrentUser().getFriendlyName() );
 
         // Configure ENTER key to press play
         rootPane.setOnKeyPressed( event -> {
@@ -169,10 +185,52 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         } );
     }
 
-    private ChangeListener< Number > packSelectChangeListener = new ChangeListener< Number >() {
+    public static Color averageColor( Image bi, int x0, int y0, int w,
+                                      int h ) {
+        PixelReader pixelReader = bi.getPixelReader();
+        int x1 = x0 + w;
+        int y1 = y0 + h;
+        double sumr = 0, sumg = 0, sumb = 0;
+        double pixCount = 0;
+        for ( int x = x0; x < x1; x+=5 ) {
+            for ( int y = y0; y < y1; y+=5 ) {
+
+                Color pixel = pixelReader.getColor( x, y );
+                if ( pixel.getOpacity() == 1.0 ) {
+                    sumr += pixel.getRed();
+                    sumg += pixel.getGreen();
+                    sumb += pixel.getBlue();
+                    pixCount++;
+                }
+            }
+        }
+        return new Color( sumr / pixCount, sumg / pixCount, sumb / pixCount, 1.0 );
+    }
+
+    private ChangeListener< Number > packSelectChangeListener = new ChangeListener<>() {
         @Override
         public void changed( ObservableValue< ? extends Number > observable, Number oldValue, Number newValue ) {
-            packLogo.setImage( new Image( MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() == -1 ? 0 : packList.getSelectionModel().getSelectedIndex() ).getPackLogoURL() ) );
+            // Get pack logo and set in GUI
+            Image packLogoImg = new Image( MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() == -1 ? 0 : packList.getSelectionModel().getSelectedIndex() ).getPackLogoURL() );
+            packLogo.setImage( packLogoImg );
+
+            // Force kill style thread - no dark/light mode here
+            styleThreadRun = false;
+
+            // Get theme color from pack logo
+            Color themeColor = averageColor( packLogoImg, 0, 0, ( int ) packLogoImg.getWidth(), ( int ) packLogoImg.getHeight() );
+
+            // Set GUI light/dark depending on theme color
+            if ( themeColor.getBrightness() > 0.87 ) doLightMode();
+            else doDarkMode();
+
+            // Set theme color to top and bottom panes
+            topPane.setBackground( new Background( new BackgroundFill( themeColor, CornerRadii.EMPTY, Insets.EMPTY ) ) );
+            bottomPane.setBackground( new Background( new BackgroundFill( themeColor, CornerRadii.EMPTY, Insets.EMPTY ) ) );
+
+            // Set pack background image to center pane
+            Image modpackBG = new Image( MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() == -1 ? 0 : packList.getSelectionModel().getSelectedIndex() ).getPackBackgroundURL() );
+            centerPane.setBackground( new Background( new BackgroundImage( modpackBG, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, new BackgroundSize( BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true ) ) ) );
         }
     };
 
@@ -218,7 +276,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     @Override
     FXMLLoader getFXMLLoader() {
         FXMLLoader fxmll = new FXMLLoader();
-        fxmll.setLocation( getClass().getClassLoader().getResource( "LauncherModpackGUI.fxml" ) );
+        fxmll.setLocation( getClass().getClassLoader().getResource( "MFLMainUI.fxml" ) );
         fxmll.setController( this );
         return fxmll;
     }
@@ -232,25 +290,19 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
      */
     @Override
     int[] getSize() {
-        return new int[]{ 650, 425 };
+        return new int[]{ 600, 400 };
     }
 
     @Override
     void enableLightMode() {
-        Platform.runLater( () -> {
-            upperText.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
-            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-            packList.setUnFocusColor( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
-        } );
+        playBtn.setTextFill( Color.BLACK );
+        logoutBtn.setTextFill( Color.BLACK );
     }
 
     @Override
     void enableDarkMode() {
-        Platform.runLater( () -> {
-            upperText.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
-            rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-            packList.setUnFocusColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
-        } );
+        playBtn.setTextFill( Color.BLACK );
+        logoutBtn.setTextFill( Color.BLACK );
     }
 
     /**
@@ -279,5 +331,11 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     @Override
     Pane getRootPane() {
         return rootPane;
+    }
+
+    @Override
+    void onShow() {
+        // Do not allow style thread
+        styleThreadRun = false;
     }
 }

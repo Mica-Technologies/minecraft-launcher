@@ -235,4 +235,9 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
     Pane getRootPane() {
         return rootPane;
     }
+
+    @Override
+    void onShow() {
+
+    }
 }

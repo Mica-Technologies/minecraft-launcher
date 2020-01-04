@@ -176,4 +176,9 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
     Pane getRootPane() {
         return rootPane;
     }
+
+    @Override
+    void onShow() {
+
+    }
 }

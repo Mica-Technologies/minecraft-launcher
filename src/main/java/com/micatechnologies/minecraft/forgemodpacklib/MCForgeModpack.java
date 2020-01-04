@@ -55,6 +55,13 @@ public class MCForgeModpack {
     private String packLogoURL;
 
     /**
+     * Modpack background URL
+     * <p>
+     * Read via Modpack Manifest JSON
+     */
+    private String packBackgroundURL;
+
+    /**
      * Modpack minimum RAM (GB)
      * <p>
      * Read via Modpack Manifest JSON
@@ -164,6 +171,16 @@ public class MCForgeModpack {
      */
     public String getPackLogoURL() {
         return packLogoURL;
+    }
+
+    /**
+     * Get the URL to the modpack background
+     *
+     * @return modpack background URL
+     */
+    public String getPackBackgroundURL() {
+        if ( !packBackgroundURL.equals( "" ) ) return packBackgroundURL;
+        else return MCForgeModpackConsts.MODPACK_DEFAULT_BG_URL;
     }
 
     /**

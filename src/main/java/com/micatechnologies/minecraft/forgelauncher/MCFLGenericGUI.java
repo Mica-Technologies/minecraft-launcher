@@ -245,17 +245,24 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 catch ( InterruptedException ignored ) {
                 }
 
-                // Show stage/GUI
+                // Show stage/GUI setup
                 currentStage.show();
                 currentStage.setOpacity( 1.0 );
                 currentStage.toFront();
                 currentStage.requestFocus();
                 currentStage.setResizable( MCFLApp.getLauncherConfig().getResizableguis() );
                 styleThreadRun = true;
+
+                // Call abstract onShow handler
+                onShow();
+
+                // Start style thread
                 createUIStyleListenThread();
             }
         } );
     }
+
+    abstract void onShow();
 
     public NSWindow getNativeMacWindow() {
         if ( !MCModpackOSUtils.isMac() || !getCurrentStage().isShowing() ) return null;

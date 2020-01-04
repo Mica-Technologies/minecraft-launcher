@@ -100,4 +100,6 @@ public class MCForgeModpackConsts {
      * Constant for Minecraft Server modpack mode
      */
     public static final int                    MINECRAFT_SERVER_MODE                    = 1;
+
+    public static final String MODPACK_DEFAULT_BG_URL = "http://wallpaperstock.net/minecraft-wallpapers_27410_1600x1200.jpg";
 }
