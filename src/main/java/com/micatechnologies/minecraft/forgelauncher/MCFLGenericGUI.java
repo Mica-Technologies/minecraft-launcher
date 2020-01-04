@@ -3,6 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.micatechnologies.jadapt.NSWindow;
 import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import com.sun.glass.ui.Window;
+import com.sun.jna.platform.win32.User32;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -19,6 +20,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ResourceBundle;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -265,10 +267,13 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     abstract void onShow();
 
     public NSWindow getNativeMacWindow() {
-        if ( !MCModpackOSUtils.isMac() || !getCurrentStage().isShowing() ) return null;
+        if ( !MCModpackOSUtils.isMac() ) return null;
         try {
-
             Window window = Window.getWindows().get( 0 );
+            for ( Window w : Window.getWindows() ) {
+                if ( w.getX() == getCurrentStage().getX() && w.getY() == getCurrentStage().getY() )
+                    window = w;
+            }
             return Rococoa.wrap( ID.fromLong( window.getNativeWindow() ), NSWindow.class );
         }
         catch ( Exception e ) {

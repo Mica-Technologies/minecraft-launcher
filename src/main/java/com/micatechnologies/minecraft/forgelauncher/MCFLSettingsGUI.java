@@ -68,6 +68,8 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
     @FXML
     public JFXButton resetLauncherBtn;
 
+    @FXML
+    public Label versionLabel;
 
     /**
      * Button to close settings/return
@@ -154,6 +156,11 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         resizableWindowCheck.setOnAction( event -> {
             setEdited( true );
         } );
+
+        // Load version info
+        Package p = getClass().getPackage();
+        String version = p.getImplementationVersion();
+        versionLabel.setText( "Version: " + version );
 
         // Configure click pane
         clickPane.setOnMouseDragged( event -> {
@@ -314,6 +321,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
             minRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             maxRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
+            versionLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             modpacksLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             resizableWindowCheck.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             debugModeCheck.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
@@ -328,6 +336,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
             minRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             maxRAMLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
+            versionLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             modpacksLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             resizableWindowCheck.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             debugModeCheck.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );

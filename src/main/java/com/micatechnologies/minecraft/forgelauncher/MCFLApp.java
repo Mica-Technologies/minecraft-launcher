@@ -298,7 +298,7 @@ public class MCFLApp {
         catch ( MCForgeModpackException e ) {
             e.printStackTrace();
             MCFLLogger.error( "Unable to start game.", 312, gui.getCurrentStage() );
-            if (progressGUI != null) progressGUI.close();
+            if ( progressGUI != null ) progressGUI.close();
         }
     }
 
@@ -559,6 +559,7 @@ public class MCFLApp {
     public static void main( String[] args ) {
         // Before the weird font glitches make people crazy, fix them
         System.setProperty( "prism.lcdtext", "false" );
+        System.setProperty( "prism.text", "t2k" );
         int initPackIndex = 0;
 
         if ( args.length == 0 ) mode = inferMode();

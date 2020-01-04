@@ -179,7 +179,7 @@ public class MCForgeModpack {
      * @return modpack background URL
      */
     public String getPackBackgroundURL() {
-        if ( !packBackgroundURL.equals( "" ) ) return packBackgroundURL;
+        if ( packBackgroundURL != null && !packBackgroundURL.equals( "" ) ) return packBackgroundURL;
         else return MCForgeModpackConsts.MODPACK_DEFAULT_BG_URL;
     }
 

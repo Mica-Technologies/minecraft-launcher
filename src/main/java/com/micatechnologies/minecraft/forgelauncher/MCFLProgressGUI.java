@@ -62,6 +62,7 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
         setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
         setLowerText( "Awaiting progress information..." );
         setUpperText( "Loading!" );
+        stage.setAlwaysOnTop( true );
 
         // Configure exit button
         stage.setOnCloseRequest( event -> {

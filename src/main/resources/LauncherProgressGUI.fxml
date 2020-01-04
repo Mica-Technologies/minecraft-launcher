@@ -38,7 +38,7 @@
                </ImageView>
                <Label alignment="CENTER" prefHeight="17.0" prefWidth="186.0" text="Mica Forge Launcher" textFill="#eeeeee" wrapText="true" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
                   <font>
-                     <Font size="18.0" />
+                     <Font size="16.0" />
                   </font>
                </Label>
             </children>

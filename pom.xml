@@ -7,7 +7,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>micaforgelauncher</artifactId>
-    <version>2020.1</version>
+    <version>2020.1.1</version>
     <name>micaforgelauncher</name>
     <packaging>jar</packaging>
 
@@ -141,6 +141,8 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <mainClass>${main.class}</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
                         </manifest>
                     </archive>
                 </configuration>

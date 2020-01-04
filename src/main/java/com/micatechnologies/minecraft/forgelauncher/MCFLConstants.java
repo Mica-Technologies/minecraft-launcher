@@ -55,4 +55,6 @@ public class MCFLConstants {
     final static String GUI_ACCENT_COLOR = "#002952";
     final static String GUI_LIGHT_COLOR = "#cccccc";
     final static String GUI_DARK_COLOR = "#5b5b5b";
+
+    final static String UPDATE_CHECK_REDIRECT_URL = "https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/releases/latest";
 }

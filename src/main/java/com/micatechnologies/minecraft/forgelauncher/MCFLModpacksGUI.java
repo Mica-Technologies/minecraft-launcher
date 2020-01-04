@@ -2,7 +2,9 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
+import com.jfoenix.controls.JFXSnackbar;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
+import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackConsts;
 import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -13,6 +15,8 @@ import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
@@ -21,7 +25,13 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,6 +86,12 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     public ImageView userIcon;
 
     /**
+     * image for launcher update available
+     */
+    @FXML
+    public ImageView updateImgView;
+
+    /**
      * Current modpack logo
      */
     @FXML
@@ -105,6 +121,37 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     @FXML
     public GridPane bottomPane;
 
+    public int compareVersion( String version1, String version2 ) {
+        String[] arr1 = version1.split( "\\." );
+        String[] arr2 = version2.split( "\\." );
+
+        int i = 0;
+        while ( i < arr1.length || i < arr2.length ) {
+            if ( i < arr1.length && i < arr2.length ) {
+                if ( Integer.parseInt( arr1[ i ] ) < Integer.parseInt( arr2[ i ] ) ) {
+                    return -1;
+                }
+                else if ( Integer.parseInt( arr1[ i ] ) > Integer.parseInt( arr2[ i ] ) ) {
+                    return 1;
+                }
+            }
+            else if ( i < arr1.length ) {
+                if ( Integer.parseInt( arr1[ i ] ) != 0 ) {
+                    return 1;
+                }
+            }
+            else {
+                if ( Integer.parseInt( arr2[ i ] ) != 0 ) {
+                    return -1;
+                }
+            }
+
+            i++;
+        }
+
+        return 0;
+    }
+
     /**
      * Handle the creation and initial configuration of GUI controls/elements.
      *
@@ -120,10 +167,52 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
             } ).start();
         } );
 
+        // Check for launcher update and show image if there is one
+        updateImgView.setVisible( false );
+        new Thread( () -> {
+            try {
+                // Get current version
+                Package p = getClass().getPackage();
+                String version = p.getImplementationVersion();
+
+                // Get latest version
+                URLConnection con = new URL( MCFLConstants.UPDATE_CHECK_REDIRECT_URL ).openConnection();
+                con.connect();
+                InputStream is = con.getInputStream();
+                String latestVersionURL = con.getURL().toExternalForm();
+                String[] latestVersionURLParts = latestVersionURL.split( "/" );
+                String latestVersion = latestVersionURLParts[ latestVersionURLParts.length - 1 ];
+                is.close();
+
+                // Check if current version is less than latest
+                if ( compareVersion( version, latestVersion ) == -1 ) {
+                    updateImgView.setVisible( true );
+                    updateImgView.setOnMouseClicked( mouseEvent -> {
+                        new Thread( () -> {
+                            int response = MCFLGUIController.showQuestionMessage( "Update Available", "Update Ready to Download", "An update has been found and is ready to be downloaded and installed.", "Update Now", "Update Later", getCurrentStage() );
+                            if ( response == 1 ) {
+                                try {
+                                    Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
+                                }
+                                catch ( IOException e ) {
+                                    MCFLLogger.error( "Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", -80, stage );
+                                }
+                            }
+                        } ).start();
+                    } );
+                }
+            }
+            catch ( Exception e ) {
+
+            }
+        } ).start();
+
         // Configure settings button
         settingsButton.setOnAction( event -> {
-            hide();
             new Thread( () -> {
+                Platform.setImplicitExit( false );
+                hide();
+
                 // Open settings GUI and disable main window
                 MCFLSettingsGUI MCFLSettingsGUI = new MCFLSettingsGUI();
                 MCFLSettingsGUI.open();
@@ -192,8 +281,8 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
         int y1 = y0 + h;
         double sumr = 0, sumg = 0, sumb = 0;
         double pixCount = 0;
-        for ( int x = x0; x < x1; x+=5 ) {
-            for ( int y = y0; y < y1; y+=5 ) {
+        for ( int x = x0; x < x1; x += 5 ) {
+            for ( int y = y0; y < y1; y += 5 ) {
 
                 Color pixel = pixelReader.getColor( x, y );
                 if ( pixel.getOpacity() == 1.0 ) {
@@ -214,9 +303,6 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
             Image packLogoImg = new Image( MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() == -1 ? 0 : packList.getSelectionModel().getSelectedIndex() ).getPackLogoURL() );
             packLogo.setImage( packLogoImg );
 
-            // Force kill style thread - no dark/light mode here
-            styleThreadRun = false;
-
             // Get theme color from pack logo
             Color themeColor = averageColor( packLogoImg, 0, 0, ( int ) packLogoImg.getWidth(), ( int ) packLogoImg.getHeight() );
 
@@ -229,8 +315,8 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
             bottomPane.setBackground( new Background( new BackgroundFill( themeColor, CornerRadii.EMPTY, Insets.EMPTY ) ) );
 
             // Set pack background image to center pane
-            Image modpackBG = new Image( MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() == -1 ? 0 : packList.getSelectionModel().getSelectedIndex() ).getPackBackgroundURL() );
-            centerPane.setBackground( new Background( new BackgroundImage( modpackBG, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, new BackgroundSize( BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true ) ) ) );
+            centerPane.setStyle( centerPane.getStyle() + "-fx-background-image: url('" + MCFLApp.getModpacks().get( packList.getSelectionModel().getSelectedIndex() == -1 ? 0 : packList.getSelectionModel().getSelectedIndex() ).getPackBackgroundURL() + "');" );
+            centerPane.setStyle( centerPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
         }
     };
 
@@ -261,6 +347,8 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
                 packList.getSelectionModel().selectFirst();
                 packList.setDisable( true );
                 packLogo.setImage( new Image( MCFLConstants.URL_MINECRAFT_NO_MODPACK_IMAGE ) );
+                centerPane.setStyle( centerPane.getStyle() + "-fx-background-image: url('" + MCForgeModpackConsts.MODPACK_DEFAULT_BG_URL + "');" );
+                centerPane.setStyle( centerPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
             } );
         }
     }
@@ -295,14 +383,10 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
 
     @Override
     void enableLightMode() {
-        playBtn.setTextFill( Color.BLACK );
-        logoutBtn.setTextFill( Color.BLACK );
     }
 
     @Override
     void enableDarkMode() {
-        playBtn.setTextFill( Color.BLACK );
-        logoutBtn.setTextFill( Color.BLACK );
     }
 
     /**
@@ -337,5 +421,9 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
     void onShow() {
         // Do not allow style thread
         styleThreadRun = false;
+
+        // Refresh buttons
+        playBtn.requestLayout();
+        settingsButton.requestLayout();
     }
 }

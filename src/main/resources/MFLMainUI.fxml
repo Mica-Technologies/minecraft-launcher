@@ -2,6 +2,7 @@
 
 <?import com.jfoenix.controls.JFXButton?>
 <?import com.jfoenix.controls.JFXComboBox?>
+<?import com.jfoenix.controls.JFXSnackbar?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.Image?>
@@ -46,7 +47,7 @@
                         <Insets left="6.0" />
                      </GridPane.margin>
                   </ImageView>
-                  <JFXButton fx:id="logoutBtn" buttonType="RAISED" prefHeight="27.0" prefWidth="77.0" style="-fx-background-color: #fff;" text="Log Out" GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="1" GridPane.rowSpan="2" GridPane.valignment="CENTER">
+                  <JFXButton fx:id="logoutBtn" buttonType="RAISED" prefHeight="27.0" prefWidth="77.0" style="-fx-background-color: #fff;" text="Log Out" viewOrder="3.0" GridPane.columnIndex="2" GridPane.halignment="RIGHT" GridPane.rowIndex="1" GridPane.rowSpan="2" GridPane.valignment="CENTER">
                      <GridPane.margin>
                         <Insets right="10.0" />
                      </GridPane.margin>
@@ -84,7 +85,7 @@
             </GridPane>
          </bottom>
          <center>
-            <GridPane fx:id="centerPane" prefHeight="277.0" prefWidth="600.0" style="-fx-background-image: url('https://www.howtobuildsoftware.com/images/30.jpghttps://www.howtobuildsoftware.com/images/30.jpg');" BorderPane.alignment="CENTER">
+            <GridPane fx:id="centerPane" prefHeight="277.0" prefWidth="600.0" BorderPane.alignment="CENTER">
               <columnConstraints>
                 <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="10.0" prefWidth="178.0" />
                 <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="10.0" prefWidth="422.0" />
@@ -111,12 +112,12 @@
                       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                     </rowConstraints>
                      <children>
-                        <JFXButton fx:id="playBtn" buttonType="RAISED" maxHeight="30.0" maxWidth="85.0" minHeight="30.0" minWidth="85.0" prefHeight="30.0" prefWidth="85.0" style="-fx-background-color: #fefefe;" text="PLAY " GridPane.halignment="RIGHT" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+                        <JFXButton fx:id="playBtn" buttonType="RAISED" maxHeight="30.0" maxWidth="85.0" minHeight="30.0" minWidth="85.0" prefHeight="30.0" prefWidth="85.0" ripplerFill="WHITE" style="-fx-background-color: #fefefe;" text="Play" viewOrder="1.0" GridPane.halignment="RIGHT" GridPane.rowIndex="1" GridPane.valignment="CENTER">
                            <GridPane.margin>
                               <Insets right="15.0" />
                            </GridPane.margin>
                         </JFXButton>
-                        <JFXButton fx:id="settingsButton" buttonType="RAISED" maxHeight="30.0" maxWidth="85.0" minHeight="30.0" minWidth="85.0" prefHeight="30.0" prefWidth="85.0" style="-fx-background-color: #fefefe;" text="SETTINGS" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                        <JFXButton fx:id="settingsButton" buttonType="RAISED" maxHeight="30.0" maxWidth="85.0" minHeight="30.0" minWidth="85.0" prefHeight="30.0" prefWidth="85.0" ripplerFill="WHITE" style="-fx-background-color: #fefefe;" text="Settings" viewOrder="2.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
                            <GridPane.margin>
                               <Insets left="15.0" />
                            </GridPane.margin>
@@ -129,16 +130,18 @@
          <top>
             <GridPane fx:id="topPane" prefHeight="42.0" BorderPane.alignment="CENTER">
               <columnConstraints>
+                  <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="40.0" prefWidth="40.0" />
                 <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="10.0" prefWidth="99999.0" />
+                  <ColumnConstraints hgrow="SOMETIMES" maxWidth="40.0" minWidth="40.0" prefWidth="40.0" />
               </columnConstraints>
               <rowConstraints>
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
               </rowConstraints>
                <children>
-                  <GridPane fx:id="modpackSelPane" alignment="CENTER" maxWidth="450.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                  <GridPane fx:id="modpackSelPane" alignment="CENTER" maxWidth="400.0" prefHeight="42.0" prefWidth="400.0" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
                     <columnConstraints>
                       <ColumnConstraints fillWidth="false" hgrow="SOMETIMES" maxWidth="75.0" minWidth="75.0" prefWidth="75.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="500.0" prefWidth="500.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="325.0" prefWidth="325.0" />
                     </columnConstraints>
                     <rowConstraints>
                       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
@@ -156,9 +159,15 @@
                         </JFXComboBox>
                      </children>
                   </GridPane>
+                  <ImageView fx:id="updateImgView" fitHeight="20.0" fitWidth="20.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                     <image>
+                        <Image url="@update.png" />
+                     </image>
+                  </ImageView>
                </children>
             </GridPane>
          </top>
       </BorderPane>
+      <JFXSnackbar fx:id="snackbar" viewOrder="10.0" />
    </children>
 </AnchorPane>
