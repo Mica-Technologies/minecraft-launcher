@@ -372,10 +372,16 @@
                             </directory>
                         </fileSet>
                     </additionalBundledClasspathResources>
+                    <additionalResources>
+                        <fileset>
+                            <directory>
+                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}mac-dmg-include
+                            </directory>
+                        </fileset>
+                    </additionalResources>
                     <bundleName>${app.name}</bundleName>
                     <diskImageFile>target${file.separator}${project.artifactId}</diskImageFile>
                     <generateDiskImageFile>true</generateDiskImageFile>
-                    <diskImageInternetEnable>true</diskImageInternetEnable>
                     <jvmOptions>
                         <jvmOption>-Dfile.encoding=UTF-8</jvmOption>
                     </jvmOptions>
@@ -513,6 +519,11 @@
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
             <version>${scala.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.alchim31.maven</groupId>
+            <artifactId>scala-maven-plugin</artifactId>
+            <version>4.3.0</version>
         </dependency>
         <dependency>
             <groupId>org.rococoa</groupId>

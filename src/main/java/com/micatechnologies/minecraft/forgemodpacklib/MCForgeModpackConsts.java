@@ -101,5 +101,5 @@ public class MCForgeModpackConsts {
      */
     public static final int                    MINECRAFT_SERVER_MODE                    = 1;
 
-    public static final String MODPACK_DEFAULT_BG_URL = "https://wallpaperstock.net/minecraft-wallpapers_27410_1600x1200.jpg";
+    public static final String MODPACK_DEFAULT_BG_URL = "https://i.ytimg.com/vi/oi3A9Wkn8XA/maxresdefault.jpg";
 }
