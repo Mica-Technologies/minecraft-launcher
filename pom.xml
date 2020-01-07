@@ -317,7 +317,7 @@
                                 ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
                             </jar>
                             <outfile>
-                                ${project.build.directory}${file.separator}${project.artifactId}.exe
+                                ${project.build.directory}${file.separator}${project.artifactId}-unsigned.exe
                             </outfile>
                             <downloadUrl>https://bell-sw.com/pages/java-11.0.5/</downloadUrl>
                             <classPath>
@@ -372,16 +372,7 @@
                             </directory>
                         </fileSet>
                     </additionalBundledClasspathResources>
-                    <additionalResources>
-                        <fileset>
-                            <directory>
-                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}mac-dmg-include
-                            </directory>
-                        </fileset>
-                    </additionalResources>
                     <bundleName>${app.name}</bundleName>
-                    <diskImageFile>target${file.separator}${project.artifactId}</diskImageFile>
-                    <generateDiskImageFile>true</generateDiskImageFile>
                     <jvmOptions>
                         <jvmOption>-Dfile.encoding=UTF-8</jvmOption>
                     </jvmOptions>
@@ -396,7 +387,7 @@
                 </executions>
             </plugin>
 
-            <!-- MOVE JAR WITH DEPENDENCIES TO FINAL LOCATION -->
+            <!-- MOVE JAR WITH DEPENDENCIES AND MAC APP TO FINAL LOCATION -->
             <plugin>
                 <groupId>com.coderplus.maven.plugins</groupId>
                 <artifactId>copy-rename-maven-plugin</artifactId>
@@ -409,11 +400,51 @@
                             <goal>rename</goal>
                         </goals>
                         <configuration>
-                            <sourceFile>
-                                ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
-                            </sourceFile>
-                            <destinationFile>${project.build.directory}${file.separator}${project.artifactId}.jar
-                            </destinationFile>
+                            <fileSets>
+                                <fileSet>
+                                    <sourceFile>
+                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
+                                    </sourceFile>
+                                    <destinationFile>
+                                        ${project.build.directory}${file.separator}${project.artifactId}.jar
+                                    </destinationFile>
+                                </fileSet>
+                                <fileSet>
+                                    <sourceFile>
+                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}${file.separator}${app.name}.app
+                                    </sourceFile>
+                                    <destinationFile>${project.build.directory}${file.separator}${project.artifactId}-unsigned.app
+                                    </destinationFile>
+                                </fileSet>
+                                <fileSet>
+                                    <sourceFile>
+                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}.jar
+                                    </sourceFile>
+                                    <destinationFile>
+                                        ${project.build.directory}${file.separator}${project.artifactId}-no-deps.jar
+                                    </destinationFile>
+                                </fileSet>
+                            </fileSets>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <groupId>org.codehaus.mojo</groupId>
+                <executions>
+                    <execution>
+                        <id>Run macOS app signing</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>bash</executable>
+                            <commandlineArgs>${project.basedir}${file.separator}deploy${file.separator}macos.sh</commandlineArgs>
+                            <workingDirectory>${project.build.directory}</workingDirectory>
                         </configuration>
                     </execution>
                 </executions>
