@@ -26,6 +26,7 @@ printf "Preparing signed .app file for processing: DONE\n"
 # Rename Java legal folder to bypass codesign error with incompatible names
 printf "\nPatching Java legal file incompatible names\n"
 find -E "micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre/legal/" -type d -regex ".+\..+" -exec bash -c "echo {} | sed 's/\.\///g' | sed 's/\./_/g' | sed 's/ /\ /g' | sed 's/micaforgelauncher-signed_app/micaforgelauncher-signed.app/g'  | xargs mv {} " \;
+find -E "micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre/man/" -type d -regex ".+\..+" -exec bash -c "echo {} | sed 's/\.\///g' | sed 's/\./_/g' | sed 's/ /\ /g' | sed 's/micaforgelauncher-signed_app/micaforgelauncher-signed.app/g'  | xargs mv {} " \;
 printf "Patching Java legal file incompatible names: DONE\n"
 
 # Code sign the application (.app)

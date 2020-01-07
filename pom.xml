@@ -7,7 +7,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>micaforgelauncher</artifactId>
-    <version>2020.1.1</version>
+    <version>2020.1.2</version>
     <name>micaforgelauncher</name>
     <packaging>jar</packaging>
 
@@ -20,6 +20,7 @@
         <main.class>com.micatechnologies.minecraft.forgelauncher.MCFLApp</main.class>
         <app.name>Mica Forge Launcher</app.name>
         <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
+        <izpack.staging>${project.build.directory}${file.separator}windows-installer</izpack.staging>
     </properties>
 
     <!-- SPECIFIED REPOSITORIES FOR PLUGINS -->
@@ -172,59 +173,13 @@
                         <configuration>
                             <provider>BELLSOFT</provider>
                             <providerConfig>
-                                <type>jdk</type>
+                                <type>jre</type>
                                 <version>11.0.5</version>
                                 <arch>amd64</arch>
                                 <os>macos</os>
                             </providerConfig>
-                            <jdkCachePath>
-                                ${project.basedir}${file.separator}jdk${file.separator}mac${file.separator}raw
-                            </jdkCachePath>
+                            <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}mac</jdkCachePath>
                             <jdkPathProperty>jlink.mac.jdk.path</jdkPathProperty>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>call-jdeps-mac</id>
-                        <goals>
-                            <goal>jdeps</goal>
-                        </goals>
-                        <configuration>
-                            <output>
-                                ${project.basedir}${file.separator}jdk${file.separator}mac${file.separator}jdeps.out
-                            </output>
-                            <!--suppress UnresolvedMavenProperty -->
-                            <toolJdk>${jlink.mac.jdk.path}</toolJdk>
-                            <options>
-                                <option>
-                                    ${project.build.directory}${file.separator}${project.artifactId}-${project.version}.jar
-                                </option>
-                            </options>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>call-jlink</id>
-                        <goals>
-                            <goal>jlink</goal>
-                        </goals>
-                        <configuration>
-                            <jdepsReportPath>
-                                ${project.basedir}${file.separator}jdk${file.separator}mac${file.separator}jdeps.out
-                            </jdepsReportPath>
-                            <output>${project.basedir}${file.separator}jdk${file.separator}mac${file.separator}slim
-                            </output>
-                            <disableSSLcheck>true</disableSSLcheck>
-                            <!--suppress UnresolvedMavenProperty -->
-                            <toolJdk>${jlink.mac.jdk.path}</toolJdk>
-                            <addModules>
-                                <module>java.compiler</module>
-                                <module>java.sql</module>
-                                <module>jdk.crypto.ec</module>
-                            </addModules>
-                            <options>
-                                <option>--compress=2</option>
-                                <option>--no-header-files</option>
-                                <option>--no-man-pages</option>
-                            </options>
                         </configuration>
                     </execution>
                     <!-- CACHE WIN JDK 11 -->
@@ -236,12 +191,12 @@
                         <configuration>
                             <provider>BELLSOFT</provider>
                             <providerConfig>
-                                <type>jdk</type>
+                                <type>jre</type>
                                 <version>11.0.5</version>
                                 <arch>amd64</arch>
                                 <os>windows</os>
                             </providerConfig>
-                            <jdkCachePath>${project.basedir}${file.separator}jdk${file.separator}win</jdkCachePath>
+                            <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}win</jdkCachePath>
                             <jdkPathProperty>jlink.win.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
@@ -254,12 +209,12 @@
                         <configuration>
                             <provider>BELLSOFT</provider>
                             <providerConfig>
-                                <type>jdk</type>
+                                <type>jre</type>
                                 <version>11.0.5</version>
                                 <arch>amd64</arch>
                                 <os>linux</os>
                             </providerConfig>
-                            <jdkCachePath>${project.basedir}${file.separator}jdk${file.separator}lin</jdkCachePath>
+                            <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}lin</jdkCachePath>
                             <jdkPathProperty>jlink.lin.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
@@ -282,12 +237,7 @@
                             <rules>
                                 <requireFilesExist>
                                     <files>
-                                        <file>
-                                            ${project.basedir}${file.separator}jdk${file.separator}mac${file.separator}slim
-                                        </file>
-                                        <file>
-                                            ${project.basedir}${file.separator}jdk${file.separator}mac${file.separator}raw
-                                        </file>
+                                        <file>${project.basedir}${file.separator}jdk${file.separator}mac</file>
                                         <file>${project.basedir}${file.separator}jdk${file.separator}win</file>
                                         <file>${project.basedir}${file.separator}jdk${file.separator}lin</file>
                                     </files>
@@ -317,15 +267,16 @@
                                 ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
                             </jar>
                             <outfile>
-                                ${project.build.directory}${file.separator}${project.artifactId}-unsigned.exe
+                                ${project.build.directory}${file.separator}${project.artifactId}.exe
                             </outfile>
                             <downloadUrl>https://bell-sw.com/pages/java-11.0.5/</downloadUrl>
                             <classPath>
                                 <mainClass>${main.class}</mainClass>
                             </classPath>
+                            <icon>${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}micaforgelauncher.ico</icon>
                             <jre>
                                 <!--suppress UnresolvedMavenProperty -->
-                                <path>%PROGRAMFILES%\Mica Forge Launcher\</path>
+                                <path>%PROGRAMFILES%\Mica Forge Launcher\LIBERICA_jre11.0.5_windows_amd64</path>
                                 <bundledJre64Bit>true</bundledJre64Bit>
                                 <minVersion>11</minVersion>
                                 <jdkPreference>preferJre</jdkPreference>
@@ -345,9 +296,9 @@
                             <messages>
                                 <bundledJreErr>There is a problem with the bundled JRE.</bundledJreErr>
                                 <startupErr>There is a problem with starting up.</startupErr>
-                                <jreVersionErr>There is a problem with your Java version. Is it Java 11+?
+                                <jreVersionErr>There is a problem with your Java version. Java 11 or newer is required. This should not happen on a proper installation!
                                 </jreVersionErr>
-                                <launcherErr>There is a problem with the launcher.</launcherErr>
+                                <launcherErr>There is a problem with the application launcher.</launcherErr>
                             </messages>
                         </configuration>
                     </execution>
@@ -362,7 +313,8 @@
                 <configuration>
                     <version>${version}</version>
                     <includeApplicationsSymlink>true</includeApplicationsSymlink>
-                    <jrePath>${project.basedir}${file.separator}jdk${file.separator}mac${file.separator}slim</jrePath>
+                    <!--suppress UnresolvedMavenProperty -->
+                    <jrePath>${jlink.mac.jdk.path}</jrePath>
                     <mainClass>${main.class}</mainClass>
                     <iconFile>micaforgelauncher.icns</iconFile>
                     <additionalBundledClasspathResources>
@@ -413,7 +365,8 @@
                                     <sourceFile>
                                         ${project.build.directory}${file.separator}${project.artifactId}-${project.version}${file.separator}${app.name}.app
                                     </sourceFile>
-                                    <destinationFile>${project.build.directory}${file.separator}${project.artifactId}-unsigned.app
+                                    <destinationFile>
+                                        ${project.build.directory}${file.separator}${project.artifactId}-unsigned.app
                                     </destinationFile>
                                 </fileSet>
                                 <fileSet>
@@ -430,6 +383,7 @@
                 </executions>
             </plugin>
 
+            <!-- RUN CODESIGN FOR macOS APP -->
             <plugin>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>1.6.0</version>
@@ -443,7 +397,8 @@
                         </goals>
                         <configuration>
                             <executable>bash</executable>
-                            <commandlineArgs>${project.basedir}${file.separator}deploy${file.separator}macos.sh</commandlineArgs>
+                            <commandlineArgs>${project.basedir}${file.separator}deploy${file.separator}macos.sh
+                            </commandlineArgs>
                             <workingDirectory>${project.build.directory}</workingDirectory>
                         </configuration>
                     </execution>
