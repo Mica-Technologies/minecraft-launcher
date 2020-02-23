@@ -7,7 +7,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>micaforgelauncher</artifactId>
-    <version>2020.1.2</version>
+    <version>2020.1.3</version>
     <name>micaforgelauncher</name>
     <packaging>jar</packaging>
 
@@ -16,7 +16,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <scala.version>2.13.1</scala.version>
         <main.class>com.micatechnologies.minecraft.forgelauncher.MCFLApp</main.class>
         <app.name>Mica Forge Launcher</app.name>
         <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
@@ -276,7 +275,7 @@
                             <icon>${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}micaforgelauncher.ico</icon>
                             <jre>
                                 <!--suppress UnresolvedMavenProperty -->
-                                <path>%PROGRAMFILES%\Mica Forge Launcher\LIBERICA_jre11.0.5_windows_amd64</path>
+                                <path>.\LIBERICA_jre11.0.5_windows_amd64</path>
                                 <bundledJre64Bit>true</bundledJre64Bit>
                                 <minVersion>11</minVersion>
                                 <jdkPreference>preferJre</jdkPreference>
@@ -494,22 +493,6 @@
             <groupId>org.eclipse.swt</groupId>
             <artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>
             <version>4.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-compiler</artifactId>
-            <version>${scala.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>${scala.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>net.alchim31.maven</groupId>
-            <artifactId>scala-maven-plugin</artifactId>
-            <version>4.3.0</version>
         </dependency>
         <dependency>
             <groupId>org.rococoa</groupId>

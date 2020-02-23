@@ -58,7 +58,7 @@ public class MCAssetManifest extends MCRemoteFile {
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified asset " + asset.getLocalFilePath(),
+                progressProvider.submitProgress( "Verified asset " + asset.getFileName(),
                                                  ( 50.0 / ( double ) assets.size() ) );
             }
         }

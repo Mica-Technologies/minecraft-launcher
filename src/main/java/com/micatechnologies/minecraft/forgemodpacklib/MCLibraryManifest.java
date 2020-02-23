@@ -293,7 +293,7 @@ class MCLibraryManifest extends MCRemoteFile {
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified library " + lib.getLocalFilePath(),
+                progressProvider.submitProgress( "Verified library " + lib.getFileName(),
                                                  ( 25.0 / ( double ) libraries.size() ) );
             }
         }

@@ -25,13 +25,20 @@ printf "Preparing signed .app file for processing: DONE\n"
 
 # Rename Java legal folder to bypass codesign error with incompatible names
 printf "\nPatching Java legal file incompatible names\n"
-find -E "micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre/legal/" -type d -regex ".+\..+" -exec bash -c "echo {} | sed 's/\.\///g' | sed 's/\./_/g' | sed 's/ /\ /g' | sed 's/micaforgelauncher-signed_app/micaforgelauncher-signed.app/g'  | xargs mv {} " \;
-find -E "micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre/man/" -type d -regex ".+\..+" -exec bash -c "echo {} | sed 's/\.\///g' | sed 's/\./_/g' | sed 's/ /\ /g' | sed 's/micaforgelauncher-signed_app/micaforgelauncher-signed.app/g'  | xargs mv {} " \;
+#find -E "micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre/legal/" -type d -regex ".+\..+" -exec bash -c "echo {} | sed 's/\.\///g' | sed 's/\./_/g' | sed 's/ /\ /g' | sed 's/micaforgelauncher-signed_app/micaforgelauncher-signed.app/g'  | xargs mv {} " \;
+#find -E "micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre/man/" -type d -regex ".+\..+" -exec bash -c "echo {} | sed 's/\.\///g' | sed 's/\./_/g' | sed 's/ /\ /g' | sed 's/micaforgelauncher-signed_app/micaforgelauncher-signed.app/g'  | xargs mv {} " \;
 printf "Patching Java legal file incompatible names: DONE\n"
 
 # Code sign the application (.app)
 printf "\nPerforming code signing of application (.app)\n"
-codesign --force --deep --sign "Developer ID Application" "micaforgelauncher-signed.app"
+#find "micaforgelauncher-signed.app/Contents/PlugIns" -type f \( -name "*.jar" -or -name "*.dylib" \) -exec codesign --timestamp --force --deep --entitlements ../src/main/resources/darwin/entitlements.plist --sign 'Developer ID Application' {} \;
+#codesign -vvv --deep --force --timestamp --strict --entitlements ../src/main/resources/darwin/entitlements.plist --options runtime --sign "Developer ID Application" "micaforgelauncher-signed.app"
+
+find "micaforgelauncher-signed.app" -type f -not -path "*/Contents/PlugIns/*" -not -path "*/Contents/MacOS/JavaAppLauncher" -not -path "*libapplauncher.dylib" -exec codesign --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/entitlements.plist -s "Developer ID Application" --options runtime -v {} \;
+find "micaforgelauncher-signed.app/Contents/PlugIns/JRE" -type f -not -path "*/legal/*" -not -path "*/man/*" -exec codesign -f --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/entitlements.plist -s "Developer ID Application" --options runtime -v {} \;
+#codesign -f --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/entitlements.plist -s "Developer ID Application" --options runtime -v micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre
+codesign -f --deep --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/entitlements.plist -s "Developer ID Application" --options runtime -v "micaforgelauncher-signed.app"
+
 printf "Performing code signing of application (.app): DONE\n"
 printf "NOTE: APPLICATION .APP FILE MUST BE NOTARIZED BY APPLE\n"
 

@@ -140,7 +140,7 @@ class MCForgeApp extends MCRemoteFile {
                 forgeAssetURL = "https://repo.spongepowered.org/maven/lzma/lzma/0.0.1/lzma-0.0.1.jar";
             }
             if ( forgeAssetURL.contains( "vecmath" ) ) {
-                forgeAssetURL = "http://central.maven.org/maven2/javax/vecmath/vecmath/1.5.2/vecmath-1.5.2.jar";
+                forgeAssetURL = "https://repo1.maven.org/maven2/javax/vecmath/vecmath/1.5.2/vecmath-1.5.2.jar";
             }
 
             // Build Local File Path

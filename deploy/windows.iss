@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Mica Forge Launcher"
-#define MyAppVersion "2020.1.2"
+#define MyAppVersion "2020.1.3"
 #define MyAppPublisher "Mica Technologies"
 #define MyAppURL "www.github.com/Mica-Technologies/Minecraft-Forge-Launcher"
 #define MyAppExeName "micaforgelauncher.exe"
@@ -19,7 +19,7 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName=%PROGRAMFILES%\{#MyAppName}
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 ; The [Icons] "quicklaunchicon" entry uses {userappdata} but its [Tasks] entry has a proper IsAdminInstallMode Check.
@@ -39,7 +39,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
+Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; Check: not IsAdminInstallMode
 
 [Files]
 Source: "{#MyScriptWD}\..\target\micaforgelauncher.exe"; DestDir: "{app}"; Flags: ignoreversion

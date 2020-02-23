@@ -17,7 +17,7 @@ import org.apache.commons.io.FileUtils;
  * A Java class representation of a remote file that should be kept locally in sync.
  *
  * @author Mica Technologies/hawka97
- * @version 1.0
+ * @version 1.1
  */
 class MCRemoteFile {
 
@@ -70,7 +70,8 @@ class MCRemoteFile {
         String localTemp;
         try {
             localTemp = local.replaceAll( "/", File.separator );
-        } catch (Exception e) {
+        }
+        catch ( Exception e ) {
             localTemp = local;
         }
 
@@ -162,6 +163,17 @@ class MCRemoteFile {
      */
     String getLocalFilePath() {
         return local;
+    }
+
+    /**
+     * Get the file name of this file.
+     *
+     * @return file name
+     *
+     * @since 1.1
+     */
+    String getFileName() {
+        return new File( getFullLocalFilePath() ).getName();
     }
 
     /**
