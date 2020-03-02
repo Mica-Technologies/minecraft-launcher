@@ -20,6 +20,8 @@
         <app.name>Mica Forge Launcher</app.name>
         <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
         <izpack.staging>${project.build.directory}${file.separator}windows-installer</izpack.staging>
+        <timestamp>${maven.build.timestamp}</timestamp>
+        <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
     </properties>
 
     <!-- SPECIFIED REPOSITORIES FOR PLUGINS -->
@@ -57,40 +59,13 @@
     </repositories>
 
     <build>
+            <resources>
+                <resource>
+                    <directory>src/main/resources</directory>
+                    <filtering>true</filtering>
+                </resource>
+            </resources>
         <plugins>
-            <!-- SCALA -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.0.0</version>
-                <executions>
-                    <execution>
-                        <id>add-source</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>src/main/scala</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>add-test-source</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-test-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>src/test/scala</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
             <!-- CLEANUP UNWANTED FILES AND BINARIES -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -122,9 +97,10 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
+                    <parameters>true</parameters>
                     <compilerArgs>
                         <arg>--add-exports</arg>
-                        <arg>javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</arg>
+                        <arg>javafx.graphics/com.sun.glass.ui=ALL-UNNAMED</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>

@@ -19,8 +19,8 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName=%PROGRAMFILES%\{#MyAppName}
-DisableDirPage=yes
+DefaultDirName={commonpf}\{#MyAppName}
+DisableDirPage=no
 DisableProgramGroupPage=yes
 ; The [Icons] "quicklaunchicon" entry uses {userappdata} but its [Tasks] entry has a proper IsAdminInstallMode Check.
 UsedUserAreasWarning=no
