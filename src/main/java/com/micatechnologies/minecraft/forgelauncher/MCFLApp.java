@@ -8,6 +8,8 @@ import com.micatechnologies.minecraft.authlib.MCAuthException;
 import com.micatechnologies.minecraft.authlib.MCAuthService;
 import com.micatechnologies.minecraft.forgemodpacklib.*;
 import javafx.application.Platform;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import org.apache.commons.io.FileUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
 import org.rauschig.jarchivelib.Archiver;
@@ -26,6 +28,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MCFLApp {
     //region: Statics/Constants
@@ -517,14 +521,41 @@ public class MCFLApp {
     public static void doLogin() {
         // Login should only be handled in client mode
         if ( mode == MODE_CLIENT ) {
+            // Check for active internet connection
+            boolean offlineMode = false;
+            if ( !FLNetworkUtils.isMojangAuthReachable() ) {
+                CountDownLatch waitForDialog = new CountDownLatch( 1 );
+                AtomicReference< Alert > alert = new AtomicReference<>();
+                FLGUIController.JFXPlatformRun( () -> {
+                    // Show alert and prompt user for offline mode
+                    alert.set( new Alert( Alert.AlertType.ERROR ) );
+                    alert.get().setTitle( "Offline Mode" );
+                    alert.get().setHeaderText( "Can't Connect to Mojang!" );
+                    alert.get().setContentText( "Check your internet connection and/or try again later." );
+                    alert.get().showAndWait();
+                    waitForDialog.countDown();
+                } );
+                try {
+                    waitForDialog.await();
+                    System.exit( 0 );
+                }
+                catch ( InterruptedException e ) {
+                    e.printStackTrace();
+                }
+            }
+
             // Check for saved user on disk. Load and return if found
             boolean dirtyLogin = false;
             File savedUserFile = new File( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
             if ( ALLOW_SAVED_USERS && savedUserFile.isFile() ) {
                 try {
                     currentUser = MCAuthAccount.readFromFile( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
-                    MCAuthService.refreshAuth( getCurrentUser(), getClientToken() );
-                    MCAuthAccount.writeToFile( savedUserFile.getPath(), getCurrentUser() );
+
+                    // Refresh auth only if not in offline mode
+                    if ( !offlineMode ) {
+                        MCAuthService.refreshAuth( getCurrentUser(), getClientToken() );
+                        MCAuthAccount.writeToFile( savedUserFile.getPath(), getCurrentUser() );
+                    }
                     return;
                 }
                 catch ( MCAuthException e ) {

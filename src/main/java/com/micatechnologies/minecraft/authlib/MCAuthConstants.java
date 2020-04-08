@@ -8,12 +8,12 @@ import java.util.AbstractMap.SimpleEntry;
  * @author Mica Technologies/hawka97
  * @version 1.1
  */
-class MCAuthConstants {
+public class MCAuthConstants {
 
     //
     // Address of Authentication Server
     //
-    static final String                        MC_AUTH_SERVER_URL                         = "https://authserver.mojang.com";
+    public static final String                        MC_AUTH_SERVER_URL                         = "https://authserver.mojang.com";
 
     //
     // Authentication Endpoints
