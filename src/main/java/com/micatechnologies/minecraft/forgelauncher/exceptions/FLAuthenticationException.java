@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.authlib;
+package com.micatechnologies.minecraft.forgelauncher.exceptions;
 
 /**
  * A custom exception that provides for a specified message in an exception backtrace.
@@ -7,7 +7,7 @@ package com.micatechnologies.minecraft.authlib;
  * @version 1.0
  * @see java.lang.Exception
  */
-public class MCAuthException extends Exception {
+public class FLAuthenticationException extends Exception {
 
     /**
      * Create an MCAuthException with specified message and backtrace.
@@ -18,7 +18,7 @@ public class MCAuthException extends Exception {
      * @see java.lang.Throwable
      * @since 1.0
      */
-    MCAuthException( String exceptionMsg, Throwable exceptionTrace ) {
+    public FLAuthenticationException( String exceptionMsg, Throwable exceptionTrace ) {
         super( exceptionMsg, exceptionTrace );
     }
 
@@ -29,7 +29,7 @@ public class MCAuthException extends Exception {
      *
      * @since 1.0
      */
-    MCAuthException( String exceptionMsg ) {
+    public FLAuthenticationException( String exceptionMsg ) {
         super( exceptionMsg );
     }
 }

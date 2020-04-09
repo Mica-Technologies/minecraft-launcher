@@ -3,7 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXTextArea;
 import com.jfoenix.controls.JFXTextField;
-import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -13,8 +13,6 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import org.apache.commons.httpclient.util.URIUtil;
-import org.apache.commons.io.FileUtils;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -22,11 +20,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Formatter;
 
@@ -150,7 +144,7 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
                 // Download file and get sha1
                 try {
                     File temp = new File( System.getProperty( "user.home" ) + File.separator + ".tempHashFile" );
-                    MCModpackOSUtils.downloadFileFromURL( new URL( starting ), temp );
+                    FLSystemUtils.downloadFileFromURL( new URL( starting ), temp );
 
                     final MessageDigest messageDigest = MessageDigest.getInstance( "SHA1" );
                     InputStream is = new BufferedInputStream( new FileInputStream( temp ) );

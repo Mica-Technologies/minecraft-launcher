@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.forgelauncher;
+package com.micatechnologies.minecraft.forgelauncher.exceptions;
 
 /**
  * Exception wrapper class for handling and reporting errors and exceptions with user-friendly wording/explanation.
@@ -7,7 +7,7 @@ package com.micatechnologies.minecraft.forgelauncher;
  * @version 1.1
  * @see java.lang.Exception
  */
-public class MCFLException extends Exception {
+public class FLLauncherException extends Exception {
 
     //region: Functional Methods
 
@@ -20,7 +20,7 @@ public class MCFLException extends Exception {
      * @see java.lang.Throwable
      * @since 1.0
      */
-    MCFLException( String exceptionMsg, Throwable exceptionTrace ) {
+    public FLLauncherException( String exceptionMsg, Throwable exceptionTrace ) {
         super( exceptionMsg, exceptionTrace );
     }
 
@@ -31,7 +31,7 @@ public class MCFLException extends Exception {
      *
      * @since 1.0
      */
-    MCFLException( String exceptionMsg ) {
+    public FLLauncherException( String exceptionMsg ) {
         super( exceptionMsg );
     }
     //endregion

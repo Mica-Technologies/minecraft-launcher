@@ -4,12 +4,14 @@ import com.google.common.hash.Hashing;
 import com.google.common.io.Files;
 import com.jfoenix.controls.JFXProgressBar;
 import com.micatechnologies.minecraft.authlib.MCAuthAccount;
-import com.micatechnologies.minecraft.authlib.MCAuthException;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
 import com.micatechnologies.minecraft.authlib.MCAuthService;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLNetworkUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import com.micatechnologies.minecraft.forgemodpacklib.*;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import org.apache.commons.io.FileUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
 import org.rauschig.jarchivelib.Archiver;
@@ -194,7 +196,7 @@ public class MCFLApp {
                     MCForgeModpack pack = MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode );
                     modpacks.add( pack );
                 }
-                catch ( MCForgeModpackException | MalformedURLException e ) {
+                catch ( FLModpackException | MalformedURLException e ) {
                     if ( progressGUI != null ) {
                         MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, progressGUI.getCurrentStage() );
                     }
@@ -203,7 +205,7 @@ public class MCFLApp {
                     }
                 }
             }
-            catch ( MCForgeModpackException | MalformedURLException e ) {
+            catch ( FLModpackException | MalformedURLException e ) {
                 if ( progressGUI != null ) {
                     MCFLLogger.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, progressGUI.getCurrentStage() );
                 }
@@ -299,7 +301,7 @@ public class MCFLApp {
             } );
             mp.startGame( getJavaPath(), currentUser.getFriendlyName(), currentUser.getUserIdentifier(), currentUser.getLastAccessToken(), minRAMMB, maxRAMMB );
         }
-        catch ( MCForgeModpackException e ) {
+        catch ( FLModpackException e ) {
             e.printStackTrace();
             MCFLLogger.error( "Unable to start game.", 312, gui.getCurrentStage() );
             if ( progressGUI != null ) progressGUI.close();
@@ -321,7 +323,7 @@ public class MCFLApp {
             } );
             mp.startGame( getJavaPath(), "", "", "", minRAMMB, maxRAMMB );
         }
-        catch ( MCForgeModpackException e ) {
+        catch ( FLModpackException e ) {
             MCFLLogger.error( "Unable to start game.", 313, null );
         }
     }
@@ -384,21 +386,21 @@ public class MCFLApp {
         String jreHashDownloadURL;
         ArchiveFormat jreArchiveFormat;
         CompressionType jreArchiveCompressionType;
-        if ( MCModpackOSUtils.isWindows() ) {
+        if ( FLSystemUtils.isWindows() ) {
             jreArchiveFormat = ArchiveFormat.ZIP;
             jreArchiveCompressionType = null;
             jreArchiveDownloadURL = MCFLConstants.URL_JRE_WIN;
             jreHashDownloadURL = MCFLConstants.URL_JRE_WIN_HASH;
             javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java.exe";
         }
-        else if ( MCModpackOSUtils.isMac() ) {
+        else if ( FLSystemUtils.isMac() ) {
             jreArchiveFormat = ArchiveFormat.TAR;
             jreArchiveCompressionType = CompressionType.GZIP;
             jreArchiveDownloadURL = MCFLConstants.URL_JRE_MAC;
             jreHashDownloadURL = MCFLConstants.URL_JRE_MAC_HASH;
             javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "Contents" + File.separator + "Home" + File.separator + "bin" + File.separator + "java";
         }
-        else if ( MCModpackOSUtils.isUnix() ) {
+        else if ( FLSystemUtils.isUnix() ) {
             jreArchiveFormat = ArchiveFormat.TAR;
             jreArchiveCompressionType = CompressionType.GZIP;
             jreArchiveDownloadURL = MCFLConstants.URL_JRE_UNX;
@@ -423,7 +425,7 @@ public class MCFLApp {
             progressGUI.setProgress( 25.0 );
         }
         try {
-            MCModpackOSUtils.downloadFileFromURL( new URL( jreHashDownloadURL ), jreHashFile );
+            FLSystemUtils.downloadFileFromURL( new URL( jreHashDownloadURL ), jreHashFile );
         }
         catch ( IOException e ) {
             if ( progressGUI != null )
@@ -451,7 +453,7 @@ public class MCFLApp {
                     progressGUI.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
                 }
                 // Download archive from URL
-                MCModpackOSUtils.downloadFileFromURL( new URL( jreArchiveDownloadURL ), jreArchiveFile );
+                FLSystemUtils.downloadFileFromURL( new URL( jreArchiveDownloadURL ), jreArchiveFile );
 
                 // Delete previous extracted JRE
                 File extractedJREFolder = new File( getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME );
@@ -509,7 +511,7 @@ public class MCFLApp {
                 File savedUserFile = new File( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
                 savedUserFile.delete();
             }
-            catch ( MCAuthException e ) {
+            catch ( FLAuthenticationException e ) {
                 MCFLLogger.error( "Unable to invalidate cached token prior to logout. Local account information will still be destroyed.", 303, null );
             }
         }
@@ -558,7 +560,7 @@ public class MCFLApp {
                     }
                     return;
                 }
-                catch ( MCAuthException e ) {
+                catch ( FLAuthenticationException e ) {
                     dirtyLogin = true;
                 }
             }

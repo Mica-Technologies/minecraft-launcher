@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -14,7 +13,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.io.FileUtils;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import org.apache.commons.io.FilenameUtils;
 
 /**
@@ -146,9 +146,9 @@ public class MCForgeModpack {
      *
      * @return modpack MCForgeApp
      *
-     * @throws MCForgeModpackException if unable to get Forge app object
+     * @throws FLModpackException if unable to get Forge app object
      */
-    private MCForgeApp getForgeApp() throws MCForgeModpackException {
+    private MCForgeApp getForgeApp() throws FLModpackException {
         return new MCForgeApp( packForgeURL, packForgeHash, getPackRootFolder().toString() );
     }
 
@@ -157,10 +157,10 @@ public class MCForgeModpack {
      *
      * @return modpack Minecraft version
      *
-     * @throws MCForgeModpackException if unable to get Minecraft version
+     * @throws FLModpackException if unable to get Minecraft version
      */
     @SuppressWarnings( "WeakerAccess" )
-    public String getMinecraftVersion() throws MCForgeModpackException {
+    public String getMinecraftVersion() throws FLModpackException {
         return getForgeApp().getMinecraftVersion();
     }
 
@@ -188,10 +188,10 @@ public class MCForgeModpack {
      *
      * @return modpack Forge version
      *
-     * @throws MCForgeModpackException if unable to get Forge version
+     * @throws FLModpackException if unable to get Forge version
      */
     @SuppressWarnings( "WeakerAccess" )
-    public String getForgeVersion() throws MCForgeModpackException {
+    public String getForgeVersion() throws FLModpackException {
         return getForgeApp().getForgeVersion();
     }
 
@@ -204,9 +204,9 @@ public class MCForgeModpack {
      *
      * @return Minecraft library manifest
      *
-     * @throws MCForgeModpackException if unable to get manifest
+     * @throws FLModpackException if unable to get manifest
      */
-    public MCLibraryManifest getMinecraftLibraryManifest() throws MCForgeModpackException {
+    public MCLibraryManifest getMinecraftLibraryManifest() throws FLModpackException {
         MCVersionManifest versionManifest = new MCVersionManifest( getPackRootFolder().toString() );
         return versionManifest.getMinecraftLibraryManifest( getMinecraftVersion() );
     }
@@ -217,10 +217,10 @@ public class MCForgeModpack {
      *
      * @return modpack classpath String
      *
-     * @throws MCForgeModpackException if unable to update modpack or build classpath
+     * @throws FLModpackException if unable to update modpack or build classpath
      * @since 1.0
      */
-    public String buildModpackClasspath() throws MCForgeModpackException {
+    public String buildModpackClasspath() throws FLModpackException {
         if ( progressProvider != null ) {
             progressProvider.setCurrText( "Building modpack classpath enviornment" );
         }
@@ -306,8 +306,8 @@ public class MCForgeModpack {
 
         // Add classpath separator between Forge and Minecraft only if Forge classpath not empty (it shouldn't be)
         if ( !forgeAssetClasspath.isEmpty() && !forgeAssetClasspath.endsWith(
-                MCModpackOSUtils.getClasspathSeparator() ) ) {
-            forgeAssetClasspath += MCModpackOSUtils.getClasspathSeparator();
+                FLSystemUtils.getClasspathSeparator() ) ) {
+            forgeAssetClasspath += FLSystemUtils.getClasspathSeparator();
         }
 
         return forgeAssetClasspath + minecraftAssetClasspath;
@@ -315,7 +315,7 @@ public class MCForgeModpack {
 
     public void startGame( String javaPath, String accountFriendlyName, String accountIdentifier,
                            String accountAccessToken, int minRAMMB, int maxRAMMB )
-    throws MCForgeModpackException {
+    throws FLModpackException {
         // Get classpath, main class and Minecraft args
         String cp = buildModpackClasspath();
         String minecraftArgs =
@@ -356,26 +356,26 @@ public class MCForgeModpack {
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) minecraftArgs = APP_GARBAGE_COLLECTOR_SETTINGS + minecraftArgs;
 
         // Add classpath to arguments
-        if ( MCModpackOSUtils.isWindows() ) minecraftArgs = "-cp \"" + cp + "\" " + minecraftArgs;
+        if ( FLSystemUtils.isWindows() ) minecraftArgs = "-cp \"" + cp + "\" " + minecraftArgs;
         else minecraftArgs = "-cp " + cp + " " + minecraftArgs;
 
         // Add natives path to arguments
-        if ( MCModpackOSUtils.isWindows() ) minecraftArgs =
-                "-Djava.library.path=\"" + getPackRootFolder() + MCModpackOSUtils.getFileSeparator()
+        if ( FLSystemUtils.isWindows() ) minecraftArgs =
+                "-Djava.library.path=\"" + getPackRootFolder() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + "\" " + minecraftArgs;
         else minecraftArgs =
-                "-Djava.library.path=" + getPackRootFolder() + MCModpackOSUtils.getFileSeparator()
+                "-Djava.library.path=" + getPackRootFolder() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + " " + minecraftArgs;
 
         // Replace fillers with data
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) {
             minecraftArgs = minecraftArgs.replace( "${auth_player_name}", accountFriendlyName );
             minecraftArgs = minecraftArgs.replace( "${version_name}", getForgeVersion() );
-            if ( MCModpackOSUtils.isWindows() ) {
+            if ( FLSystemUtils.isWindows() ) {
                 minecraftArgs = minecraftArgs.replace( "${game_directory}",
                                                        "\"" + getPackRootFolder().toString() + "\"" );
                 minecraftArgs = minecraftArgs.replace( "${assets_root}",
-                                                       "\"" + getPackRootFolder().toString() + MCModpackOSUtils
+                                                       "\"" + getPackRootFolder().toString() + FLSystemUtils
                                                                .getFileSeparator()
                                                                + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER + "\"" );
             }
@@ -383,7 +383,7 @@ public class MCForgeModpack {
                 minecraftArgs = minecraftArgs.replace( "${game_directory}",
                                                        getPackRootFolder().toString() );
                 minecraftArgs = minecraftArgs.replace( "${assets_root}",
-                                                       getPackRootFolder().toString() + MCModpackOSUtils
+                                                       getPackRootFolder().toString() + FLSystemUtils
                                                                .getFileSeparator()
                                                                + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
             }
@@ -400,7 +400,7 @@ public class MCForgeModpack {
             minecraftArgs += " --icon " + getPackLogoFilepath();
 
             // Set dock name and icon for macOS
-            if ( MCModpackOSUtils.isMac() ) {
+            if ( FLSystemUtils.isMac() ) {
                 minecraftArgs += " -Xdock:icon=\"" + getPackLogoFilepath() + "\"";
                 minecraftArgs += " -Xdock:name=\"" + getPackName() + "\" ";
                 minecraftArgs += "-Dapple.laf.useScreenMenuBar=true ";
@@ -412,10 +412,10 @@ public class MCForgeModpack {
 
         // Start game
         try {
-            MCModpackOSUtils.executeStringCommand( minecraftArgs, getPackRootFolder().toString() );
+            FLSystemUtils.executeStringCommand( minecraftArgs, getPackRootFolder().toString() );
         }
         catch ( IOException | InterruptedException e ) {
-            throw new MCForgeModpackException( "Unable to execute modpack game.", e );
+            throw new FLModpackException( "Unable to execute modpack game.", e );
         }
     }
 
@@ -427,7 +427,7 @@ public class MCForgeModpack {
     private void clearFloatingMods() {
         // Get full path to modpack mods folder
         String modLocalPathPrefix =
-                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                getPackRootFolder().toString() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
         // Build list of valid mods
@@ -453,9 +453,9 @@ public class MCForgeModpack {
      * Verifies the integrity of local copies of this modpack's mods and repair/download/update as
      * necessary.
      *
-     * @throws MCForgeModpackException if unable to fetch latest mods
+     * @throws FLModpackException if unable to fetch latest mods
      */
-    private void fetchLatestMods() throws MCForgeModpackException {
+    private void fetchLatestMods() throws FLModpackException {
         // Cleanup mods that don't belong
         clearFloatingMods();
         if ( progressProvider != null ) {
@@ -472,7 +472,7 @@ public class MCForgeModpack {
 
         // Get full path to mods folder
         String modLocalPathPrefix =
-                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                getPackRootFolder().toString() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
         // Update each mod if not already fully downloaded
@@ -491,12 +491,12 @@ public class MCForgeModpack {
      * Verifies the integrity of local copies of this modpack's configs and repair/download/update
      * as necessary.
      *
-     * @throws MCForgeModpackException if unable to fetch latest configs
+     * @throws FLModpackException if unable to fetch latest configs
      */
-    private void fetchLatestConfigs() throws MCForgeModpackException {
+    private void fetchLatestConfigs() throws FLModpackException {
         // Get full path to configs folder
         String configLocalPathPrefix =
-                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                getPackRootFolder().toString() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_FORGE_CONFIGS_LOCAL_FOLDER;
 
         // Check if configs supplied
@@ -523,9 +523,9 @@ public class MCForgeModpack {
      * Verifies the integrity of local copies of this modpack's resource packs and
      * repair/download/update as necessary.
      *
-     * @throws MCForgeModpackException if unable to fetch latest resource packs
+     * @throws FLModpackException if unable to fetch latest resource packs
      */
-    private void fetchLatestResourcePacks() throws MCForgeModpackException {
+    private void fetchLatestResourcePacks() throws FLModpackException {
         // Only download resource packs on client (not server)
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE ) {
             return;
@@ -541,7 +541,7 @@ public class MCForgeModpack {
 
         // Get full path to resource pack folder
         String resPackLocalPathPrefix =
-                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                getPackRootFolder().toString() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_FORGE_RESOURCEPACKS_LOCAL_FOLDER;
 
         // Update each resource pack if necessary
@@ -559,9 +559,9 @@ public class MCForgeModpack {
      * Verifies the integrity of local copies of this modpack's shader packs and
      * repair/download/update as necessary.
      *
-     * @throws MCForgeModpackException if unable to fetch latest shader packs
+     * @throws FLModpackException if unable to fetch latest shader packs
      */
-    private void fetchLatestShaderPacks() throws MCForgeModpackException {
+    private void fetchLatestShaderPacks() throws FLModpackException {
         // Only download shader packs on client (not server)
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE ) {
             return;
@@ -577,7 +577,7 @@ public class MCForgeModpack {
 
         // Get full path to shader pack folder
         String shaderPackLocalPathPrefix =
-                getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+                getPackRootFolder().toString() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_FORGE_SHADERPACKS_LOCAL_FOLDER;
 
         // Update each shader pack if necessary
@@ -595,9 +595,9 @@ public class MCForgeModpack {
      * Verifies the integrity of local copies of this modpack's initial files
      * and repair/download/updated as necessary.
      *
-     * @throws MCForgeModpackException if unable to fetch latest initial files
+     * @throws FLModpackException if unable to fetch latest initial files
      */
-    private void fetchLatestInitialFiles() throws MCForgeModpackException {
+    private void fetchLatestInitialFiles() throws FLModpackException {
         // Get full path to configs folder
         String initFilesLocalPathPrefix =
                 getPackRootFolder().toString();
@@ -623,7 +623,7 @@ public class MCForgeModpack {
     }
 
     String getPackLogoFilepath() {
-        return getPackRootFolder().toString() + MCModpackOSUtils.getFileSeparator()
+        return getPackRootFolder().toString() + FLSystemUtils.getFileSeparator()
                 + MCForgeModpackConsts.MODPACK_LOGO_LOCAL_FILE;
     }
 
@@ -634,9 +634,9 @@ public class MCForgeModpack {
     /**
      * Download the modpack's logo from the URL specified in the manifest
      *
-     * @throws MCForgeModpackException if unable to download/fetch logo
+     * @throws FLModpackException if unable to download/fetch logo
      */
-    private void fetchLatestModpackLogo() throws MCForgeModpackException {
+    private void fetchLatestModpackLogo() throws FLModpackException {
         // Only download logo on client (not server)
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE ) {
             return;
@@ -644,13 +644,13 @@ public class MCForgeModpack {
 
         // Download latest logo
         try {
-            MCModpackOSUtils.downloadFileFromURL( new URL( packLogoURL ), new File( getPackLogoFilepath() ) );
+            FLSystemUtils.downloadFileFromURL( new URL( packLogoURL ), new File( getPackLogoFilepath() ) );
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "Verified modpack logo", 100.0 );
             }
         }
         catch ( IOException e ) {
-            throw new MCForgeModpackException( "Unable to download/fetch modpack logo.", e );
+            throw new FLModpackException( "Unable to download/fetch modpack logo.", e );
         }
     }
 
@@ -673,28 +673,28 @@ public class MCForgeModpack {
      *
      * @return downloaded modpack manifest
      *
-     * @throws MCForgeModpackException if unable to download
+     * @throws FLModpackException if unable to download
      */
     public static MCForgeModpack downloadFromURL( URL downloadURL, Path modpackRootFolder,
-                                                  int appGameMode ) throws MCForgeModpackException {
+                                                  int appGameMode ) throws FLModpackException {
         // Create file for downloading manifest
         File modpackManifestFile = new File(
-                modpackRootFolder.toString() + MCModpackOSUtils.getFileSeparator()
+                modpackRootFolder.toString() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_MANIFEST_LOCAL_PATH );
 
         // Ensure local paths exist
-        File binPath = new File( modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "bin" );
+        File binPath = new File( modpackRootFolder + FLSystemUtils.getFileSeparator() + "bin" );
         File modsPath = new File(
-                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "mods" );
+                modpackRootFolder + FLSystemUtils.getFileSeparator() + "mods" );
         File configPath = new File(
-                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "config" );
+                modpackRootFolder + FLSystemUtils.getFileSeparator() + "config" );
         File nativePath = new File(
-                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "bin" + MCModpackOSUtils
+                modpackRootFolder + FLSystemUtils.getFileSeparator() + "bin" + FLSystemUtils
                         .getFileSeparator() + "natives" );
         File resPackPath = new File(
-                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "resourcepacks" );
+                modpackRootFolder + FLSystemUtils.getFileSeparator() + "resourcepacks" );
         File shaderPackPath = new File(
-                modpackRootFolder + MCModpackOSUtils.getFileSeparator() + "shaderpacks" );
+                modpackRootFolder + FLSystemUtils.getFileSeparator() + "shaderpacks" );
 
         binPath.getParentFile().mkdirs();
 
@@ -721,10 +721,10 @@ public class MCForgeModpack {
         // Download manifest from supplied URL
         try {
             modpackManifestFile.delete();
-            MCModpackOSUtils.downloadFileFromURL( downloadURL, modpackManifestFile );
+            FLSystemUtils.downloadFileFromURL( downloadURL, modpackManifestFile );
         }
         catch ( IOException e ) {
-            throw new MCForgeModpackException( "Unable to download manifest from URL.", e );
+            throw new FLModpackException( "Unable to download manifest from URL.", e );
         }
 
         // Read downloaded manifest into object and return
@@ -739,7 +739,7 @@ public class MCForgeModpack {
         }
         catch ( Exception e ) {
             e.printStackTrace();
-            throw new MCForgeModpackException( "Unable to parse downloaded manifest.", e );
+            throw new FLModpackException( "Unable to parse downloaded manifest.", e );
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.micatechnologies.minecraft.authlib;
 
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -76,7 +78,7 @@ public class MCAuthAccount implements Serializable {
      * @since 1.1
      */
     public MCAuthAccount( final String accountName, final String accountPassword,
-                          final String clientToken ) throws MCAuthException {
+                          final String clientToken ) throws FLAuthenticationException {
         this.accountName = accountName;
         MCAuthService.usernamePasswordAuth( this, accountPassword, clientToken );
     }
@@ -166,10 +168,10 @@ public class MCAuthAccount implements Serializable {
      *
      * @return opened MCAuthAccount file
      *
-     * @throws MCAuthException if read fails
+     * @throws FLAuthenticationException if read fails
      * @since 1.0
      */
-    public static MCAuthAccount readFromFile( String fileURL ) throws MCAuthException {
+    public static MCAuthAccount readFromFile( String fileURL ) throws FLAuthenticationException {
         // Create file input stream and read
         InputStream inputStream;
         InputStream buffer;
@@ -182,7 +184,7 @@ public class MCAuthAccount implements Serializable {
             read = ( MCAuthAccount ) objectInput.readObject();
         }
         catch ( IOException | ClassNotFoundException e ) {
-            throw new MCAuthException( "Unable to read input stream from specified file.", e );
+            throw new FLAuthenticationException( "Unable to read input stream from specified file.", e );
         }
 
         // Close streams and return
@@ -204,11 +206,11 @@ public class MCAuthAccount implements Serializable {
      * @param fileURL       file location
      * @param mcAuthAccount account to write
      *
-     * @throws MCAuthException if write fails
+     * @throws FLAuthenticationException if write fails
      * @since 1.0
      */
     public static void writeToFile( String fileURL, MCAuthAccount mcAuthAccount )
-        throws MCAuthException {
+        throws FLAuthenticationException {
         // Verify file exists before writing
         File diskFile = new File( fileURL );
         if ( !diskFile.exists() ) {
@@ -216,7 +218,7 @@ public class MCAuthAccount implements Serializable {
                 diskFile.createNewFile();
             }
             catch ( IOException e ) {
-                throw new MCAuthException( "writeToFile: Error creating file to write.", e );
+                throw new FLAuthenticationException( "writeToFile: Error creating file to write.", e );
             }
         }
 
@@ -231,7 +233,7 @@ public class MCAuthAccount implements Serializable {
             objectOutput.writeObject( mcAuthAccount );
         }
         catch ( IOException e ) {
-            throw new MCAuthException( "writeToFile: Unable to write to file via stream.", e );
+            throw new FLAuthenticationException( "writeToFile: Unable to write to file via stream.", e );
         }
 
         // Close streams and return

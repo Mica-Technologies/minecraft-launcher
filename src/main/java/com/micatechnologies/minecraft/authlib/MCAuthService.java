@@ -1,6 +1,7 @@
 package com.micatechnologies.minecraft.authlib;
 
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
 
 /**
  * Class for interacting with Mojang/Minecraft authentication server endpoints using MCAuthAccount
@@ -22,11 +23,11 @@ public class MCAuthService {
      *
      * @return true for success, false for failure
      *
-     * @throws MCAuthException if an error occurs
+     * @throws FLAuthenticationException if an error occurs
      * @since 1.0
      */
     public static boolean usernamePasswordAuth( MCAuthAccount account, String password,
-                                                String clientToken ) throws MCAuthException {
+                                                String clientToken ) throws FLAuthenticationException {
         // Build JSON Objects for Request
         JsonObject root = new JsonObject();
         JsonObject agent = new JsonObject();
@@ -60,7 +61,7 @@ public class MCAuthService {
                                       .getAsString() );
             }
             else {
-                throw new MCAuthException( "Unable to process token from Mojang response." );
+                throw new FLAuthenticationException( "Unable to process token from Mojang response." );
             }
 
             // Read and save profile name and id, if present
@@ -100,11 +101,11 @@ public class MCAuthService {
      *
      * @return true for success, false for failure
      *
-     * @throws MCAuthException if an error occurs
+     * @throws FLAuthenticationException if an error occurs
      * @since 1.0
      */
     public static boolean refreshAuth( MCAuthAccount account, String clientToken )
-    throws MCAuthException {
+    throws FLAuthenticationException {
         // Check for presence of existing access token
         // If none, return immediately
         if ( account.getLastAccessToken() == null ) {
@@ -134,7 +135,7 @@ public class MCAuthService {
                                       .getAsString() );
             }
             else {
-                throw new MCAuthException( "Unable to process token from Mojang response." );
+                throw new FLAuthenticationException( "Unable to process token from Mojang response." );
             }
 
             // Read and save profile name and id, if present
@@ -173,11 +174,11 @@ public class MCAuthService {
      *
      * @return true for success, false for failure
      *
-     * @throws MCAuthException if an error occurs
+     * @throws FLAuthenticationException if an error occurs
      * @since 1.0
      */
     public static boolean validateLogin( MCAuthAccount account, String clientToken )
-    throws MCAuthException {
+    throws FLAuthenticationException {
         // Check for presence of existing access token
         // If none, return immediately
         if ( account.getLastAccessToken() == null ) {
@@ -210,11 +211,11 @@ public class MCAuthService {
      *
      * @return true for success, false for failure
      *
-     * @throws MCAuthException if an error occurs
+     * @throws FLAuthenticationException if an error occurs
      * @since 1.0
      */
     public static boolean invalidateLogin( MCAuthAccount account, String clientToken )
-    throws MCAuthException {
+    throws FLAuthenticationException {
         // Check for presence of existing access token
         // If none, return immediately
         if ( account.getLastAccessToken() == null ) {

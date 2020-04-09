@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.forgemodpacklib;
+package com.micatechnologies.minecraft.forgelauncher.exceptions;
 
 /**
  * Class for exceptions thrown in {@link com.micatechnologies.minecraft.forgemodpacklib}
@@ -7,7 +7,7 @@ package com.micatechnologies.minecraft.forgemodpacklib;
  * @version 1.0
  * @see java.lang.Exception
  */
-public class MCForgeModpackException extends Exception {
+public class FLModpackException extends Exception {
 
     /**
      * Create an MCForgeModpackException with error message and backtrace.
@@ -17,7 +17,7 @@ public class MCForgeModpackException extends Exception {
      *
      * @since 1.0
      */
-    MCForgeModpackException( String exceptionMsg, Throwable exceptionTrace ) {
+    public FLModpackException( String exceptionMsg, Throwable exceptionTrace ) {
         super( exceptionMsg, exceptionTrace );
     }
 
@@ -28,7 +28,7 @@ public class MCForgeModpackException extends Exception {
      *
      * @since 1.0
      */
-    MCForgeModpackException( String exceptionMsg ) {
+    public FLModpackException( String exceptionMsg ) {
         super( exceptionMsg );
     }
 }

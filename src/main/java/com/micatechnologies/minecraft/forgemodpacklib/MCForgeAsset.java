@@ -1,5 +1,7 @@
 package com.micatechnologies.minecraft.forgemodpacklib;
 
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+
 /**
  * Class representing a Minecraft Forge Library/Asset
  *
@@ -37,9 +39,9 @@ class MCForgeAsset extends MCRemoteFile {
      *
      * @param gameAppMode client/server
      *
-     * @throws MCForgeModpackException if update fails
+     * @throws FLModpackException if update fails
      */
-    void updateLocalFile( int gameAppMode ) throws MCForgeModpackException {
+    void updateLocalFile( int gameAppMode ) throws FLModpackException {
         if ( ( gameAppMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE && clientReq ) || (
                 gameAppMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE && serverReq ) ) {
             super.updateLocalFile();

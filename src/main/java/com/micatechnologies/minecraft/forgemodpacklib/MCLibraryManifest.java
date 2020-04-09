@@ -3,6 +3,9 @@ package com.micatechnologies.minecraft.forgemodpacklib;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,7 +24,7 @@ class MCLibraryManifest extends MCRemoteFile {
      * Local path of Minecraft library manifest, relative to modpack root folder
      */
     private static final String MINECRAFT_LIBRARY_MANIFEST_LOCAL_MODPACK_PATH =
-        "bin" + MCModpackOSUtils.getFileSeparator() + "minecraft-libraries.manifest";
+        "bin" + FLSystemUtils.getFileSeparator() + "minecraft-libraries.manifest";
 
     private final        String modpackRootFolder;
 
@@ -35,7 +38,7 @@ class MCLibraryManifest extends MCRemoteFile {
      * @since 1.0
      */
     MCLibraryManifest( String remote, String modpackRootFolder ) {
-        super( remote, modpackRootFolder + MCModpackOSUtils.getFileSeparator()
+        super( remote, modpackRootFolder + FLSystemUtils.getFileSeparator()
             + MINECRAFT_LIBRARY_MANIFEST_LOCAL_MODPACK_PATH );
 
         // stor emodpack install directory
@@ -48,10 +51,10 @@ class MCLibraryManifest extends MCRemoteFile {
      *
      * @return list of {@link MCLibrary} objects
      *
-     * @throws MCForgeModpackException if download or processing fails
+     * @throws FLModpackException if download or processing fails
      * @since 1.0
      */
-    private ArrayList< MCLibrary > getLibraries() throws MCForgeModpackException {
+    private ArrayList< MCLibrary > getLibraries() throws FLModpackException {
         // Create list to return
         ArrayList< MCLibrary > libraries = new ArrayList<>();
 
@@ -137,7 +140,7 @@ class MCLibraryManifest extends MCRemoteFile {
                     MCLibrary nativeLib;
 
                     // Check for and process windows native libraries
-                    if ( MCModpackOSUtils.isWindows() && libManifestLibObj.getAsJsonObject(
+                    if ( FLSystemUtils.isWindows() && libManifestLibObj.getAsJsonObject(
                         "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-windows" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
@@ -168,7 +171,7 @@ class MCLibraryManifest extends MCRemoteFile {
                     }
 
                     // Check for and process macOS native libraries
-                    if ( MCModpackOSUtils.isMac() && libManifestLibObj.getAsJsonObject(
+                    if ( FLSystemUtils.isMac() && libManifestLibObj.getAsJsonObject(
                         "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-osx" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
@@ -202,7 +205,7 @@ class MCLibraryManifest extends MCRemoteFile {
                     }
 
                     // Check for and process Linux native libraries if on Linux
-                    if ( MCModpackOSUtils.isUnix() && libManifestLibObj.getAsJsonObject(
+                    if ( FLSystemUtils.isUnix() && libManifestLibObj.getAsJsonObject(
                         "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-linux" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
@@ -238,10 +241,10 @@ class MCLibraryManifest extends MCRemoteFile {
                     MCLibrary thisLib = new MCLibrary( url, path.toString(), sha1, useStrictRules,
                                                        rulesOS, false );
 
-                    if ( ( MCModpackOSUtils.isWindows() && thisLib.getApplicableOSes().contains(
-                        MCForgeModpackConsts.PLATFORM_WINDOWS ) ) || ( MCModpackOSUtils.isMac()
+                    if ( ( FLSystemUtils.isWindows() && thisLib.getApplicableOSes().contains(
+                        MCForgeModpackConsts.PLATFORM_WINDOWS ) ) || ( FLSystemUtils.isMac()
                         && thisLib.getApplicableOSes().contains(
-                        MCForgeModpackConsts.PLATFORM_MACOS ) ) || ( MCModpackOSUtils.isUnix()
+                        MCForgeModpackConsts.PLATFORM_MACOS ) ) || ( FLSystemUtils.isUnix()
                         && thisLib.getApplicableOSes().contains(
                         MCForgeModpackConsts.PLATFORM_UNIX ) ) ) {
 
@@ -263,15 +266,15 @@ class MCLibraryManifest extends MCRemoteFile {
      *
      * @param progressProvider
      *
-     * @throws MCForgeModpackException if update or download fails
+     * @throws FLModpackException if update or download fails
      * @since 1.0
      */
     private void downloadVerifyLibraries( MCForgeModpackProgressProvider progressProvider )
-        throws MCForgeModpackException {
+        throws FLModpackException {
         // Build full path to libraries and natives folders
-        String localLibPath = modpackRootFolder + MCModpackOSUtils.getFileSeparator()
+        String localLibPath = modpackRootFolder + FLSystemUtils.getFileSeparator()
             + MCForgeModpackConsts.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
-        String localNativePath = modpackRootFolder + MCModpackOSUtils.getFileSeparator()
+        String localNativePath = modpackRootFolder + FLSystemUtils.getFileSeparator()
             + MCForgeModpackConsts.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
 
         // Get list of libraries
@@ -283,11 +286,11 @@ class MCLibraryManifest extends MCRemoteFile {
             boolean didChange = lib.updateLocalFile();
             if ( lib.isNativeLib() && didChange ) {
                 try {
-                    MCModpackOSUtils.extractJarFile( new JarFile( lib.getFullLocalFilePath() ),
-                                                     localNativePath );
+                    FLSystemUtils.extractJarFile( new JarFile( lib.getFullLocalFilePath() ),
+                                                  localNativePath );
                 }
                 catch ( IOException e ) {
-                    throw new MCForgeModpackException( "Unable to extract native library.", e );
+                    throw new FLModpackException( "Unable to extract native library.", e );
                 }
             }
 
@@ -305,11 +308,11 @@ class MCLibraryManifest extends MCRemoteFile {
      *
      * @return Minecraft libraries classpath
      *
-     * @throws MCForgeModpackException if update or download fails
+     * @throws FLModpackException if update or download fails
      */
     String buildMinecraftClasspath( int appGameMode,
                                     MCForgeModpackProgressProvider progressProvider )
-        throws MCForgeModpackException {
+        throws FLModpackException {
         // Get list of libraries
         ArrayList< MCLibrary > minecraftLibsList = getLibraries();
         if ( progressProvider != null ) {
@@ -330,12 +333,12 @@ class MCLibraryManifest extends MCRemoteFile {
         for ( MCLibrary library : minecraftLibsList ) {
             // Add separator to string if necessary
             if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith(
-                MCModpackOSUtils.getClasspathSeparator() ) ) {
-                classpath.append( MCModpackOSUtils.getClasspathSeparator() );
+                    FLSystemUtils.getClasspathSeparator() ) ) {
+                classpath.append( FLSystemUtils.getClasspathSeparator() );
             }
 
             // Add library to classpath
-            String localLibPath = modpackRootFolder + MCModpackOSUtils.getFileSeparator()
+            String localLibPath = modpackRootFolder + FLSystemUtils.getFileSeparator()
                 + MCForgeModpackConsts.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
             library.setLocalPathPrefix( localLibPath );
             classpath.append( library.getFullLocalFilePath() );
@@ -350,8 +353,8 @@ class MCLibraryManifest extends MCRemoteFile {
 
         // Add separator to string if necessary
         if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith(
-            MCModpackOSUtils.getClasspathSeparator() ) ) {
-            classpath.append( MCModpackOSUtils.getClasspathSeparator() );
+                FLSystemUtils.getClasspathSeparator() ) ) {
+            classpath.append( FLSystemUtils.getClasspathSeparator() );
         }
 
         // Add Minecraft jar to classpath
@@ -361,7 +364,7 @@ class MCLibraryManifest extends MCRemoteFile {
     }
 
     void downloadMinecraftAssets( final MCForgeModpackProgressProvider progressProvider )
-        throws MCForgeModpackException {
+        throws FLModpackException {
         getAssetManifest().downloadAssets(progressProvider);
     }
 
@@ -370,13 +373,13 @@ class MCLibraryManifest extends MCRemoteFile {
      *
      * @return asset index version
      *
-     * @throws MCForgeModpackException if unable to read manifest
+     * @throws FLModpackException if unable to read manifest
      */
-    String getAssetIndexVersion() throws MCForgeModpackException {
+    String getAssetIndexVersion() throws FLModpackException {
         return readToJsonObject().get( "assetIndex" ).getAsJsonObject().get( "id" ).getAsString();
     }
 
-    MCAssetManifest getAssetManifest() throws MCForgeModpackException {
+    MCAssetManifest getAssetManifest() throws FLModpackException {
         String remote = readToJsonObject().get( "assetIndex" ).getAsJsonObject().get( "url" )
                                           .getAsString();
         return new MCAssetManifest( remote, modpackRootFolder, getAssetIndexVersion() );
@@ -390,10 +393,10 @@ class MCLibraryManifest extends MCRemoteFile {
      *
      * @return Minecraft game app as remote file object
      *
-     * @throws MCForgeModpackException if unable to get Minecraft app information
+     * @throws FLModpackException if unable to get Minecraft app information
      * @since 1.0
      */
-    private MCRemoteFile getMinecraftApp( int gameAppMode ) throws MCForgeModpackException {
+    private MCRemoteFile getMinecraftApp( int gameAppMode ) throws FLModpackException {
         // Get download information for client or server Minecraft app
         JsonObject appObj;
         if ( gameAppMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) {
@@ -403,11 +406,11 @@ class MCLibraryManifest extends MCRemoteFile {
             appObj = readToJsonObject().getAsJsonObject( "downloads" ).getAsJsonObject( "server" );
         }
         else {
-            throw new MCForgeModpackException( "An invalid game app mode was specified." );
+            throw new FLModpackException( "An invalid game app mode was specified." );
         }
 
         // Build RemoteFile with download information and return
-        String localMinecraftAppPath = modpackRootFolder + MCModpackOSUtils.getFileSeparator()
+        String localMinecraftAppPath = modpackRootFolder + FLSystemUtils.getFileSeparator()
             + MCForgeModpackConsts.MODPACK_MINECRAFT_JAR_LOCAL_PATH;
         return new MCRemoteFile( appObj.get( "url" ).getAsString(), localMinecraftAppPath,
                                  appObj.get( "sha1" ).getAsString() );
@@ -420,11 +423,11 @@ class MCLibraryManifest extends MCRemoteFile {
      * @param gameAppMode      client/server selection
      * @param progressProvider
      *
-     * @throws MCForgeModpackException if download fails
+     * @throws FLModpackException if download fails
      * @since 1.0
      */
     void downloadMinecraftApp( int gameAppMode, MCForgeModpackProgressProvider progressProvider )
-        throws MCForgeModpackException {
+        throws FLModpackException {
         // Get access to Minecraft app as remote file
         MCRemoteFile mcAppRemoteFile = getMinecraftApp( gameAppMode );
 

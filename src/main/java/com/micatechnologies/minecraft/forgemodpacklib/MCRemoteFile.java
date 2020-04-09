@@ -11,7 +11,8 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 
-import org.apache.commons.io.FileUtils;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 
 /**
  * A Java class representation of a remote file that should be kept locally in sync.
@@ -96,10 +97,10 @@ class MCRemoteFile {
      *
      * @return true if local copy is valid
      *
-     * @throws MCForgeModpackException if unable to verify file
+     * @throws FLModpackException if unable to verify file
      * @since 1.0
      */
-    private boolean verifyLocalFile() throws MCForgeModpackException {
+    private boolean verifyLocalFile() throws FLModpackException {
         // Create File instance
         File localFile = new File( getFullLocalFilePath() );
 
@@ -110,10 +111,10 @@ class MCRemoteFile {
         // Hash Checking Enabled: Return true if file exists, is not a folder, and hashes match
         else {
             try {
-                return MCModpackOSUtils.verifySHA( localFile.toPath(), sha1 );
+                return FLSystemUtils.verifySHA( localFile.toPath(), sha1 );
             }
             catch ( NoSuchAlgorithmException | IOException e ) {
-                throw new MCForgeModpackException( "Unable to verify local file hash.", e );
+                throw new FLModpackException( "Unable to verify local file hash.", e );
             }
         }
     }
@@ -121,19 +122,19 @@ class MCRemoteFile {
     /**
      * Download a copy of the remote file to the configured local file path
      *
-     * @throws MCForgeModpackException if unable to download file
+     * @throws FLModpackException if unable to download file
      * @since 1.0
      */
-    private void downloadLocalFile() throws MCForgeModpackException {
+    private void downloadLocalFile() throws FLModpackException {
         // Create File instance
         File localFile = new File( getFullLocalFilePath() );
 
         // Download file and return validation result
         try {
-            MCModpackOSUtils.downloadFileFromURL( new URL( remote ), localFile );
+            FLSystemUtils.downloadFileFromURL( new URL( remote ), localFile );
         }
         catch ( IOException e ) {
-            throw new MCForgeModpackException(
+            throw new FLModpackException(
                     "Unable to download file locally to " + getFullLocalFilePath(), e );
         }
     }
@@ -143,10 +144,10 @@ class MCRemoteFile {
      *
      * @return true if changed
      *
-     * @throws MCForgeModpackException if file cannot verify or download
+     * @throws FLModpackException if file cannot verify or download
      * @since 1.0
      */
-    boolean updateLocalFile() throws MCForgeModpackException {
+    boolean updateLocalFile() throws FLModpackException {
         if ( !verifyLocalFile() ) {
             downloadLocalFile();
             return true;
@@ -185,11 +186,11 @@ class MCRemoteFile {
      */
     String getFullLocalFilePath() {
         if ( !localPathPrefix.isEmpty() ) {
-            if ( localPathPrefix.endsWith( MCModpackOSUtils.getFileSeparator() ) ) {
+            if ( localPathPrefix.endsWith( FLSystemUtils.getFileSeparator() ) ) {
                 return localPathPrefix + local;
             }
             else {
-                return localPathPrefix + MCModpackOSUtils.getFileSeparator() + local;
+                return localPathPrefix + FLSystemUtils.getFileSeparator() + local;
             }
         }
         else {
@@ -202,10 +203,10 @@ class MCRemoteFile {
      *
      * @return JsonObject of this file
      *
-     * @throws MCForgeModpackException if reading fails
+     * @throws FLModpackException if reading fails
      * @since 1.0
      */
-    JsonObject readToJsonObject() throws MCForgeModpackException {
+    JsonObject readToJsonObject() throws FLModpackException {
         // Verify file is locally downloaded
         updateLocalFile();
 
@@ -216,7 +217,7 @@ class MCRemoteFile {
                     new FileInputStream( new File( getFullLocalFilePath() ) ) ) );
         }
         catch ( IOException e ) {
-            throw new MCForgeModpackException( "Unable to create buffer for file reading.", e );
+            throw new FLModpackException( "Unable to create buffer for file reading.", e );
         }
         StringBuilder jsonStr = new StringBuilder();
         String tempLine;
@@ -226,7 +227,7 @@ class MCRemoteFile {
             }
         }
         catch ( IOException e ) {
-            throw new MCForgeModpackException( "An error occurred while reading file.", e );
+            throw new FLModpackException( "An error occurred while reading file.", e );
         }
 
         // Return read Json Object

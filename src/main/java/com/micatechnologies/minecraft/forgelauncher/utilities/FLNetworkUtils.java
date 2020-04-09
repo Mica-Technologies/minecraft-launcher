@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.forgelauncher;
+package com.micatechnologies.minecraft.forgelauncher.utilities;
 
 import com.micatechnologies.minecraft.authlib.MCAuthConstants;
 

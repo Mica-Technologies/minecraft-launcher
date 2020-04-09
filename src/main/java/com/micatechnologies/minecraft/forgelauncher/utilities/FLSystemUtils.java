@@ -1,15 +1,13 @@
-package com.micatechnologies.minecraft.forgemodpacklib;
+package com.micatechnologies.minecraft.forgelauncher.utilities;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -18,8 +16,9 @@ import java.util.Formatter;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 /**
  * Class of utility methods to facilitate classes in the {@link com.micatechnologies.minecraft.forgemodpacklib}
@@ -28,7 +27,7 @@ import org.apache.commons.io.IOUtils;
  * @author Mica Technologies/hawka97
  * @version 1.0
  */
-public class MCModpackOSUtils {
+public class FLSystemUtils {
 
     /**
      * Get the classpath separator that is specific to the calling operating system.
@@ -38,7 +37,7 @@ public class MCModpackOSUtils {
      * @since 1.0
      */
     static String getClasspathSeparator() {
-        if ( isWindows() ) {
+        if ( SystemUtils.IS_OS_WINDOWS ) {
             return ";";
         }
         return ":";
@@ -128,50 +127,6 @@ public class MCModpackOSUtils {
         return formatter.toString().equals( sha1 );
     }
 
-    /**
-     * Get the system operating system name
-     *
-     * @return system OS name
-     */
-    private static String getSystemOS() {
-        return System.getProperty( "os.name" );
-    }
-
-    /**
-     * Check if the current operating system is Windows
-     *
-     * @return true if OS is Windows
-     *
-     * @since 1.0
-     */
-    public static boolean isWindows() {
-        return getSystemOS().toLowerCase().contains( "win" );
-    }
-
-    /**
-     * Check if the current operating system is macOS
-     *
-     * @return true if OS is macOS
-     *
-     * @since 1.0
-     */
-    public static boolean isMac() {
-        return getSystemOS().toLowerCase().contains( "mac" );
-    }
-
-    /**
-     * Check if the current operating system is Unix/Linux
-     *
-     * @return true if OS is Unix/Linux
-     *
-     * @since 1.0
-     */
-    public static boolean isUnix() {
-        return getSystemOS().toLowerCase().contains( "nix" ) || getSystemOS().toLowerCase()
-                                                                             .contains( "nux" )
-            || getSystemOS().toLowerCase().contains( "aix" );
-    }
-
     public static void downloadFileFromURL( URL source, File destination) throws IOException {
         URLConnection connection = source.openConnection();
         connection.setUseCaches( false );
@@ -185,7 +140,7 @@ public class MCModpackOSUtils {
      * @param destination extract to
      */
     static void extractJarFile( JarFile source, String destination )
-        throws MCForgeModpackException {
+        throws FLModpackException {
         // Create an enumeration over JarFile entries
         Enumeration< JarEntry > jarFileFiles = source.entries();
 
@@ -218,7 +173,7 @@ public class MCModpackOSUtils {
                     extractedJarFileFile.createNewFile();
                 }
                 catch ( IOException e ) {
-                    throw new MCForgeModpackException(
+                    throw new FLModpackException(
                         "Unable to create file for extraction. " + extractedJarFileFile.getPath(),
                         e );
                 }
@@ -235,7 +190,7 @@ public class MCModpackOSUtils {
                 }
             }
             catch ( IOException e ) {
-                throw new MCForgeModpackException(
+                throw new FLModpackException(
                     "Unable to read file from jar during extraction.", e );
             }
 

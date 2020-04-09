@@ -1,8 +1,8 @@
 package com.micatechnologies.minecraft.forgemodpacklib;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,18 +10,18 @@ import java.util.List;
 public class MCAssetManifest extends MCRemoteFile {
 
     private static final String MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER =
-            "assets" + MCModpackOSUtils.getFileSeparator() + "indexes";
+            "assets" + FLSystemUtils.getFileSeparator() + "indexes";
 
     private final String modpackRootFolder;
 
     MCAssetManifest( String remote, String modpackRootFolder, String version ) {
-        super( remote, modpackRootFolder + MCModpackOSUtils.getFileSeparator()
-                + MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER + MCModpackOSUtils.getFileSeparator()
+        super( remote, modpackRootFolder + FLSystemUtils.getFileSeparator()
+                + MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER + FLSystemUtils.getFileSeparator()
                 + version + ".json" );
         this.modpackRootFolder = modpackRootFolder;
     }
 
-    private ArrayList< MCRemoteFile > getAssets() throws MCForgeModpackException {
+    private ArrayList< MCRemoteFile > getAssets() throws FLModpackException {
         // Create list for assets
         ArrayList< MCRemoteFile > assets = new ArrayList<>();
 
@@ -33,10 +33,10 @@ public class MCAssetManifest extends MCRemoteFile {
             JsonObject asset = objects.getAsJsonObject( assetName );
             String assetHash = asset.get( "hash" ).getAsString();
             String assetFolder = assetHash.substring( 0, 2 );
-            String assetPath = modpackRootFolder + MCModpackOSUtils.getFileSeparator()
-                    + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER + MCModpackOSUtils
-                    .getFileSeparator() + "objects" + MCModpackOSUtils.getFileSeparator() + assetFolder
-                    + MCModpackOSUtils.getFileSeparator() + assetHash;
+            String assetPath = modpackRootFolder + FLSystemUtils.getFileSeparator()
+                    + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER + FLSystemUtils
+                    .getFileSeparator() + "objects" + FLSystemUtils.getFileSeparator() + assetFolder
+                    + FLSystemUtils.getFileSeparator() + assetHash;
             String assetURL =
                     "http://resources.download.minecraft.net/" + assetFolder + "/" + assetHash;
             assets.add( new MCRemoteFile( assetURL, assetPath, assetHash ) );
@@ -47,7 +47,7 @@ public class MCAssetManifest extends MCRemoteFile {
     }
 
     void downloadAssets( final MCForgeModpackProgressProvider progressProvider )
-    throws MCForgeModpackException {
+    throws FLModpackException {
         // Update asset manifest first
         updateLocalFile();
 

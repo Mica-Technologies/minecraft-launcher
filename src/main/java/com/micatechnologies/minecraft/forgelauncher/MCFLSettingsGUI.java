@@ -2,9 +2,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.*;
-import com.micatechnologies.minecraft.forgemodpacklib.MCForgeMod;
-import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
-import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
@@ -13,7 +11,6 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.apache.commons.io.FileUtils;
 
@@ -299,7 +296,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
     }
 
     private void setEdited( boolean edited ) {
-        if ( MCModpackOSUtils.isMac() ) getNativeMacWindow().setDocumentEdited( edited );
+        if ( FLSystemUtils.isMac() ) getNativeMacWindow().setDocumentEdited( edited );
         dirty = edited;
     }
 

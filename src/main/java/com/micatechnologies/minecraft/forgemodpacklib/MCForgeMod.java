@@ -1,5 +1,7 @@
 package com.micatechnologies.minecraft.forgemodpacklib;
 
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+
 /**
  * A class representation of a Minecraft Forge mod that can be downloaded locally and verified using
  * the specified hash.
@@ -52,9 +54,9 @@ public class MCForgeMod extends MCRemoteFile {
      *
      * @param gameAppMode client/server
      *
-     * @throws MCForgeModpackException if update fails
+     * @throws FLModpackException if update fails
      */
-    void updateLocalFile( int gameAppMode ) throws MCForgeModpackException {
+    void updateLocalFile( int gameAppMode ) throws FLModpackException {
         if ( ( gameAppMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE && clientReq ) || (
                 gameAppMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE && serverReq ) ) {
             super.updateLocalFile();

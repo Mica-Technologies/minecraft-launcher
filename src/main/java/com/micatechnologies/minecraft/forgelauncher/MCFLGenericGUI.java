@@ -1,9 +1,8 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.micatechnologies.jadapt.NSWindow;
-import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import com.sun.glass.ui.Window;
-import com.sun.jna.platform.win32.User32;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -20,7 +19,6 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ResourceBundle;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -132,7 +130,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
             while ( styleThreadRun ) {
                 // Only run if window is showing
                 if ( currentStage != null && currentStage.isShowing() ) {
-                    if ( MCModpackOSUtils.isWindows() ) {
+                    if ( FLSystemUtils.isWindows() ) {
                         // TODO: Figure out how to detect windows (10) dark mode
                         /*if ( dark ) {
                             if ( lastMode == 1 ) enableDarkMode();
@@ -144,7 +142,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                         }*/
                         return;
                     }
-                    else if ( MCModpackOSUtils.isMac() ) {
+                    else if ( FLSystemUtils.isMac() ) {
                         try {
                             Process process = Runtime.getRuntime().exec( "defaults read -g AppleInterfaceStyle" );
                             BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
@@ -195,7 +193,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
         // Perform macOS specific window configuration
         NSWindow macOSWindow = getNativeMacWindow();
-        if ( MCModpackOSUtils.isMac() && macOSWindow != null ) {
+        if ( FLSystemUtils.isMac() && macOSWindow != null ) {
             // Get current style mask
             int currStyleMask = macOSWindow.styleMask().intValue();
 
@@ -267,7 +265,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     abstract void onShow();
 
     public NSWindow getNativeMacWindow() {
-        if ( !MCModpackOSUtils.isMac() ) return null;
+        if ( !FLSystemUtils.isMac() ) return null;
         try {
             Window window = Window.getWindows().get( 0 );
             for ( Window w : Window.getWindows() ) {
@@ -364,7 +362,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         // Configure scene and window
         primaryStage.setTitle( "" );
         primaryStage.setScene( new Scene( getFXMLLoader().load(), getSize()[ 0 ], getSize()[ 1 ] ) );
-        if ( MCModpackOSUtils.isMac() ) primaryStage.initStyle( StageStyle.UNIFIED );
+        if ( FLSystemUtils.isMac() ) primaryStage.initStyle( StageStyle.UNIFIED );
         primaryStage.setOnShown( event -> primaryStage.requestFocus() );
         primaryStage.setMinWidth( getSize()[ 0 ] );
         primaryStage.setMinHeight( getSize()[ 1 ] );

@@ -2,14 +2,13 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.*;
 import com.micatechnologies.minecraft.authlib.MCAuthAccount;
-import com.micatechnologies.minecraft.authlib.MCAuthException;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
 import com.micatechnologies.minecraft.authlib.MCAuthService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
-import javafx.scene.control.Skin;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -134,7 +133,7 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
                     }
                 }
                 // If authentication caused exception, show try again on button
-                catch ( MCAuthException e ) {
+                catch ( FLAuthenticationException e ) {
                     Platform.runLater( () -> {
                         loginButton.setText( BAD_LOGIN_BUTTON_TEXT );
                     } );

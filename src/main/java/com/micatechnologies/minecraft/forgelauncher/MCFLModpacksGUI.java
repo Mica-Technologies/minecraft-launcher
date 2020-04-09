@@ -2,19 +2,14 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
-import com.jfoenix.controls.JFXSnackbar;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
 import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackConsts;
-import com.micatechnologies.minecraft.forgemodpacklib.MCModpackOSUtils;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -26,7 +21,6 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
