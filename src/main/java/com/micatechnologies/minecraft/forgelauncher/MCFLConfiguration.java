@@ -226,7 +226,17 @@ public class MCFLConfiguration {
     static MCFLConfiguration open() throws IOException {
         // Attempt to read from file
         try {
-            return new Gson().fromJson( new FileReader( DISK_FILE ), MCFLConfiguration.class );
+            MCFLConfiguration mcflConfiguration = new Gson().fromJson( new FileReader( DISK_FILE ), MCFLConfiguration.class );
+
+            // Change Alto modpack URL to new if present
+            final String oldMCLAURL = "https://cityofmcla.com/modpack/pack-manifest.json";
+            final String newAltoURL = "https://micatechnologies.com/alto-modpack/pack-manifest.json";
+            if (mcflConfiguration.modpacks.contains( oldMCLAURL )) {
+                mcflConfiguration.modpacks.remove( oldMCLAURL );
+                mcflConfiguration.modpacks.add( newAltoURL );
+            }
+
+            return mcflConfiguration;
         }
         // Write default configuration and load if unable to read
         catch ( Exception e ) {
