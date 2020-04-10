@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.forgemodpacklib;
+package com.micatechnologies.minecraft.forgelauncher.utilities;
 
 public class Pair< T, T1 > {
 
@@ -6,7 +6,7 @@ public class Pair< T, T1 > {
 
     public final T1 snd;
 
-    Pair( T fst, T1 snd ) {
+    public Pair( T fst, T1 snd ) {
         this.fst = fst;
         this.snd = snd;
     }

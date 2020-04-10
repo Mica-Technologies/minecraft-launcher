@@ -2,6 +2,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.*;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -13,6 +14,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -181,7 +183,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
 
         // Configure reset runtime button
         resetRuntimeBtn.setOnAction( event -> new Thread( () -> {
-            int response = MCFLGUIController.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the runtime? This may take a few minutes!", "Reset", "Back to Safety", getCurrentStage() );
+            int response = FLGUIUtils.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the runtime? This may take a few minutes!", "Reset", "Back to Safety", getCurrentStage() );
             if ( response != 1 ) {
                 return;
             }
@@ -199,7 +201,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
 
         // Configure reset launcher button
         resetLauncherBtn.setOnAction( event -> new Thread( () -> {
-            int response = MCFLGUIController.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the launcher? This may take a few minutes!", "Reset", "Back to Safety", getCurrentStage() );
+            int response = FLGUIUtils.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the launcher? This may take a few minutes!", "Reset", "Back to Safety", getCurrentStage() );
             if ( response != 1 ) {
                 return;
             }
@@ -260,7 +262,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
         returnBtn.setOnAction( event -> {
             new Thread( () -> {
                 if ( dirty ) {
-                    int response = MCFLGUIController.showQuestionMessage( "Save?", "Unsaved Changes", "Are you sure you want to exit without saving changes?", "Save", "Exit", getCurrentStage() );
+                    int response = FLGUIUtils.showQuestionMessage( "Save?", "Unsaved Changes", "Are you sure you want to exit without saving changes?", "Save", "Exit", getCurrentStage() );
                     if ( response == 1 ) {
                         Platform.runLater( () -> saveBtn.fire() );
                         close();
@@ -296,7 +298,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
     }
 
     private void setEdited( boolean edited ) {
-        if ( FLSystemUtils.isMac() ) getNativeMacWindow().setDocumentEdited( edited );
+        if ( SystemUtils.IS_OS_MAC ) getNativeMacWindow().setDocumentEdited( edited );
         dirty = edited;
     }
 

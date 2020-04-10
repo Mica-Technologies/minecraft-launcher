@@ -1,10 +1,10 @@
-package com.micatechnologies.minecraft.forgelauncher;
+package com.micatechnologies.minecraft.forgelauncher.utilities;
 
+import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
-import javafx.scene.layout.Region;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -13,13 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Class for managing and controlling GUI components and related functionality.
- *
- * @author Mica Technologies/hawka97
- * @version 1.0
- */
-public class MCFLGUIController {
+public class FLGUIUtils {
     /**
      * Show a question message prompt to user as a dialog using specified information.
      *
@@ -33,11 +27,11 @@ public class MCFLGUIController {
      *
      * @since 1.0
      */
-    static int showQuestionMessage( String title, String headerText, String contentText, String button1, String button2, Stage owner ) {
+    public static int showQuestionMessage( String title, String headerText, String contentText, String button1, String button2, Stage owner ) {
         // Create a question dialog with the specified and created information/messages
         CountDownLatch waitForResponse = new CountDownLatch( 1 );
         AtomicInteger index = new AtomicInteger( 0 );
-        Platform.runLater( () -> {
+        JFXPlatformRun( () -> {
             Alert questionAlert = new Alert( Alert.AlertType.CONFIRMATION );
             questionAlert.setTitle( title );
             questionAlert.setHeaderText( headerText );
@@ -67,7 +61,7 @@ public class MCFLGUIController {
         }
         catch ( InterruptedException e ) {
             // Show error for unable to wait for error acknowledge
-            Platform.runLater( () -> {
+            JFXPlatformRun( () -> {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
@@ -92,43 +86,24 @@ public class MCFLGUIController {
      *
      * @since 1.0
      */
-    static void showErrorMessage( String contentText, String errorID, Stage owner ) {
+    public static void showErrorMessage( String contentText, String errorID, Stage owner ) {
         // Create an error with the specified and created information/messages
         CountDownLatch waitForError = new CountDownLatch( 1 );
-        try {
-            Platform.runLater( () -> {
-                Alert errorAlert = new Alert( Alert.AlertType.ERROR );
-                errorAlert.setTitle( "Oops" );
-                errorAlert.setHeaderText( "Error" );
-                errorAlert.setContentText( contentText + "\nError Code: " + errorID + "\n" + "Client Token: " + MCFLApp.getClientToken() );
-                errorAlert.initModality( Modality.WINDOW_MODAL );
-                errorAlert.initStyle( StageStyle.UTILITY );
-                errorAlert.initOwner( owner );
+        JFXPlatformRun( () -> {
+            Alert errorAlert = new Alert( Alert.AlertType.ERROR );
+            errorAlert.setTitle( "Oops" );
+            errorAlert.setHeaderText( "Error" );
+            errorAlert.setContentText( contentText + "\nError Code: " + errorID + "\n" + "Client Token: " + MCFLApp.getClientToken() );
+            errorAlert.initModality( Modality.WINDOW_MODAL );
+            errorAlert.initStyle( StageStyle.UTILITY );
+            errorAlert.initOwner( owner );
 
-                // Show the created error
-                errorAlert.showAndWait();
+            // Show the created error
+            errorAlert.showAndWait();
 
-                // Release code from waiting
-                waitForError.countDown();
-            } );
-        }
-        catch ( IllegalStateException e ) {
-            Platform.startup( () -> {
-                Alert errorAlert = new Alert( Alert.AlertType.ERROR );
-                errorAlert.setTitle( "Oops" );
-                errorAlert.setHeaderText( "Error" );
-                errorAlert.setContentText( contentText + "\nError Code: " + errorID + "\n" + "Client Token: " + MCFLApp.getClientToken() );
-                errorAlert.initModality( Modality.WINDOW_MODAL );
-                errorAlert.initStyle( StageStyle.UTILITY );
-                errorAlert.initOwner( owner );
-
-                // Show the created error
-                errorAlert.showAndWait();
-
-                // Release code from waiting
-                waitForError.countDown();
-            } );
-        }
+            // Release code from waiting
+            waitForError.countDown();
+        } );
 
         // Wait for error to be acknowledged
         try {
@@ -136,7 +111,7 @@ public class MCFLGUIController {
         }
         catch ( InterruptedException e ) {
             // Show error for unable to wait for error acknowledge
-            Platform.runLater( () -> {
+            JFXPlatformRun( () -> {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
@@ -148,6 +123,15 @@ public class MCFLGUIController {
                 // Show the created error
                 errorAlert.showAndWait();
             } );
+        }
+    }
+
+    public static void JFXPlatformRun( Runnable r ) {
+        try {
+            Platform.runLater( r );
+        }
+        catch ( Exception e ) {
+            Platform.startup( r );
         }
     }
 }

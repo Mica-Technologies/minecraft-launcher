@@ -1,7 +1,8 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.*;
-import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackProgressProvider;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
+import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -67,7 +68,7 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
         // Configure exit button
         stage.setOnCloseRequest( event -> {
             new Thread( () -> {
-                int response = MCFLGUIController.showQuestionMessage( "Close?", "Launcher is Busy", "Are you sure you want to cancel while a task is running?", "Yes", "No", getCurrentStage() );
+                int response = FLGUIUtils.showQuestionMessage( "Close?", "Launcher is Busy", "Are you sure you want to cancel while a task is running?", "Yes", "No", getCurrentStage() );
                 if ( response == 1 ) {
                     Platform.setImplicitExit( true );
                 }

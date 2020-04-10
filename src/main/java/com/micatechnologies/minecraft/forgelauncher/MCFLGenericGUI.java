@@ -11,6 +11,7 @@ import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import org.apache.commons.lang3.SystemUtils;
 import org.rococoa.ID;
 import org.rococoa.Rococoa;
 import org.rococoa.cocoa.foundation.NSUInteger;
@@ -130,7 +131,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
             while ( styleThreadRun ) {
                 // Only run if window is showing
                 if ( currentStage != null && currentStage.isShowing() ) {
-                    if ( FLSystemUtils.isWindows() ) {
+                    if ( SystemUtils.IS_OS_WINDOWS ) {
                         // TODO: Figure out how to detect windows (10) dark mode
                         /*if ( dark ) {
                             if ( lastMode == 1 ) enableDarkMode();
@@ -142,7 +143,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                         }*/
                         return;
                     }
-                    else if ( FLSystemUtils.isMac() ) {
+                    else if ( SystemUtils.IS_OS_MAC ) {
                         try {
                             Process process = Runtime.getRuntime().exec( "defaults read -g AppleInterfaceStyle" );
                             BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
@@ -193,7 +194,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
 
         // Perform macOS specific window configuration
         NSWindow macOSWindow = getNativeMacWindow();
-        if ( FLSystemUtils.isMac() && macOSWindow != null ) {
+        if ( SystemUtils.IS_OS_MAC && macOSWindow != null ) {
             // Get current style mask
             int currStyleMask = macOSWindow.styleMask().intValue();
 
@@ -265,7 +266,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
     abstract void onShow();
 
     public NSWindow getNativeMacWindow() {
-        if ( !FLSystemUtils.isMac() ) return null;
+        if ( !SystemUtils.IS_OS_MAC ) return null;
         try {
             Window window = Window.getWindows().get( 0 );
             for ( Window w : Window.getWindows() ) {
@@ -362,7 +363,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         // Configure scene and window
         primaryStage.setTitle( "" );
         primaryStage.setScene( new Scene( getFXMLLoader().load(), getSize()[ 0 ], getSize()[ 1 ] ) );
-        if ( FLSystemUtils.isMac() ) primaryStage.initStyle( StageStyle.UNIFIED );
+        if ( SystemUtils.IS_OS_MAC ) primaryStage.initStyle( StageStyle.UNIFIED );
         primaryStage.setOnShown( event -> primaryStage.requestFocus() );
         primaryStage.setMinWidth( getSize()[ 0 ] );
         primaryStage.setMinHeight( getSize()[ 1 ] );

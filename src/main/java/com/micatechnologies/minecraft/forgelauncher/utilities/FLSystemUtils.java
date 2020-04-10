@@ -21,7 +21,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 
 /**
- * Class of utility methods to facilitate classes in the {@link com.micatechnologies.minecraft.forgemodpacklib}
+ * Class of utility methods to facilitate classes in the {@link com.micatechnologies.minecraft.forgelauncher}
  * package.
  *
  * @author Mica Technologies/hawka97
@@ -36,7 +36,7 @@ public class FLSystemUtils {
      *
      * @since 1.0
      */
-    static String getClasspathSeparator() {
+    public static String getClasspathSeparator() {
         if ( SystemUtils.IS_OS_WINDOWS ) {
             return ";";
         }
@@ -50,7 +50,7 @@ public class FLSystemUtils {
      *
      * @since 1.0
      */
-    static String getFileSeparator() {
+    public static String getFileSeparator() {
         return File.separator;
     }
 
@@ -80,7 +80,7 @@ public class FLSystemUtils {
         return filePath.toFile().exists() && filePath.toFile().isDirectory();
     }
 
-    static void executeStringCommand( String command, String workingDirectory )
+    public static void executeStringCommand( String command, String workingDirectory )
         throws IOException, InterruptedException {
         // Output
         System.out.println( "Running command: " + command );
@@ -106,7 +106,7 @@ public class FLSystemUtils {
      * @throws IOException              if unable to find or hash file
      * @since 1.0
      */
-    static boolean verifySHA( Path toCheck, String sha1 )
+    public static boolean verifySHA( Path toCheck, String sha1 )
         throws NoSuchAlgorithmException, IOException {
         if ( !doesFileExist( toCheck ) ) {
             return false;
@@ -139,7 +139,7 @@ public class FLSystemUtils {
      * @param source      extract from
      * @param destination extract to
      */
-    static void extractJarFile( JarFile source, String destination )
+    public static void extractJarFile( JarFile source, String destination )
         throws FLModpackException {
         // Create an enumeration over JarFile entries
         Enumeration< JarEntry > jarFileFiles = source.entries();

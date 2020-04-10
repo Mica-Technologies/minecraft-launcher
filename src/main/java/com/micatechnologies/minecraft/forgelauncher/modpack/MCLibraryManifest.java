@@ -1,10 +1,11 @@
-package com.micatechnologies.minecraft.forgemodpacklib;
+package com.micatechnologies.minecraft.forgelauncher.modpack;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -140,7 +141,7 @@ class MCLibraryManifest extends MCRemoteFile {
                     MCLibrary nativeLib;
 
                     // Check for and process windows native libraries
-                    if ( FLSystemUtils.isWindows() && libManifestLibObj.getAsJsonObject(
+                    if ( SystemUtils.IS_OS_WINDOWS && libManifestLibObj.getAsJsonObject(
                         "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-windows" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
@@ -171,7 +172,7 @@ class MCLibraryManifest extends MCRemoteFile {
                     }
 
                     // Check for and process macOS native libraries
-                    if ( FLSystemUtils.isMac() && libManifestLibObj.getAsJsonObject(
+                    if ( SystemUtils.IS_OS_MAC && libManifestLibObj.getAsJsonObject(
                         "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-osx" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
@@ -205,7 +206,7 @@ class MCLibraryManifest extends MCRemoteFile {
                     }
 
                     // Check for and process Linux native libraries if on Linux
-                    if ( FLSystemUtils.isUnix() && libManifestLibObj.getAsJsonObject(
+                    if ( SystemUtils.IS_OS_LINUX && libManifestLibObj.getAsJsonObject(
                         "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-linux" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
@@ -241,10 +242,10 @@ class MCLibraryManifest extends MCRemoteFile {
                     MCLibrary thisLib = new MCLibrary( url, path.toString(), sha1, useStrictRules,
                                                        rulesOS, false );
 
-                    if ( ( FLSystemUtils.isWindows() && thisLib.getApplicableOSes().contains(
-                        MCForgeModpackConsts.PLATFORM_WINDOWS ) ) || ( FLSystemUtils.isMac()
+                    if ( ( SystemUtils.IS_OS_WINDOWS && thisLib.getApplicableOSes().contains(
+                        MCForgeModpackConsts.PLATFORM_WINDOWS ) ) || ( SystemUtils.IS_OS_MAC
                         && thisLib.getApplicableOSes().contains(
-                        MCForgeModpackConsts.PLATFORM_MACOS ) ) || ( FLSystemUtils.isUnix()
+                        MCForgeModpackConsts.PLATFORM_MACOS ) ) || ( SystemUtils.IS_OS_LINUX
                         && thisLib.getApplicableOSes().contains(
                         MCForgeModpackConsts.PLATFORM_UNIX ) ) ) {
 

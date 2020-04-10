@@ -1,6 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
-import com.micatechnologies.minecraft.authlib.MCAuthConstants;
+import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthConstants;
 
 import java.net.URL;
 import java.net.URLConnection;

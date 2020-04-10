@@ -3,16 +3,20 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.google.common.hash.Hashing;
 import com.google.common.io.Files;
 import com.jfoenix.controls.JFXProgressBar;
-import com.micatechnologies.minecraft.authlib.MCAuthAccount;
+import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthAccount;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
-import com.micatechnologies.minecraft.authlib.MCAuthService;
+import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthService;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
+import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
+import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLNetworkUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
-import com.micatechnologies.minecraft.forgemodpacklib.*;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
 import org.rauschig.jarchivelib.Archiver;
 import org.rauschig.jarchivelib.ArchiverFactory;
@@ -386,21 +390,21 @@ public class MCFLApp {
         String jreHashDownloadURL;
         ArchiveFormat jreArchiveFormat;
         CompressionType jreArchiveCompressionType;
-        if ( FLSystemUtils.isWindows() ) {
+        if ( SystemUtils.IS_OS_WINDOWS ) {
             jreArchiveFormat = ArchiveFormat.ZIP;
             jreArchiveCompressionType = null;
             jreArchiveDownloadURL = MCFLConstants.URL_JRE_WIN;
             jreHashDownloadURL = MCFLConstants.URL_JRE_WIN_HASH;
             javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java.exe";
         }
-        else if ( FLSystemUtils.isMac() ) {
+        else if ( SystemUtils.IS_OS_MAC ) {
             jreArchiveFormat = ArchiveFormat.TAR;
             jreArchiveCompressionType = CompressionType.GZIP;
             jreArchiveDownloadURL = MCFLConstants.URL_JRE_MAC;
             jreHashDownloadURL = MCFLConstants.URL_JRE_MAC_HASH;
             javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "Contents" + File.separator + "Home" + File.separator + "bin" + File.separator + "java";
         }
-        else if ( FLSystemUtils.isUnix() ) {
+        else if ( SystemUtils.IS_OS_LINUX ) {
             jreArchiveFormat = ArchiveFormat.TAR;
             jreArchiveCompressionType = CompressionType.GZIP;
             jreArchiveDownloadURL = MCFLConstants.URL_JRE_UNX;
@@ -528,7 +532,7 @@ public class MCFLApp {
             if ( !FLNetworkUtils.isMojangAuthReachable() ) {
                 CountDownLatch waitForDialog = new CountDownLatch( 1 );
                 AtomicReference< Alert > alert = new AtomicReference<>();
-                FLGUIController.JFXPlatformRun( () -> {
+                FLGUIUtils.JFXPlatformRun( () -> {
                     // Show alert and prompt user for offline mode
                     alert.set( new Alert( Alert.AlertType.ERROR ) );
                     alert.get().setTitle( "Offline Mode" );

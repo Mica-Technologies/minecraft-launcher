@@ -1,9 +1,9 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.*;
-import com.micatechnologies.minecraft.authlib.MCAuthAccount;
+import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthAccount;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
-import com.micatechnologies.minecraft.authlib.MCAuthService;
+import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -40,16 +40,6 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
      */
     @FXML
     public AnchorPane rootPane;
-    /**
-     * Label text for email
-     */
-    @FXML
-    public Label emailLabel;
-    /**
-     * Label text for password
-     */
-    @FXML
-    public Label passwordLabel;
     /**
      * Email address (or username) field for login
      */
@@ -204,8 +194,6 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
         Platform.runLater( () -> {
             rememberCheckBox.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-            emailLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
-            passwordLabel.setTextFill( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
             emailField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
             passwordField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_DARK_COLOR );
             rememberCheckBox.setUnCheckedColor( Color.web( MCFLConstants.GUI_DARK_COLOR ) );
@@ -220,8 +208,6 @@ public class MCFLLoginGUI extends MCFLGenericGUI {
         Platform.runLater( () -> {
             rememberCheckBox.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             rootPane.setBackground( new Background( new BackgroundFill( Color.web( MCFLConstants.GUI_DARK_COLOR ), CornerRadii.EMPTY, Insets.EMPTY ) ) );
-            emailLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
-            passwordLabel.setTextFill( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );
             emailField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
             passwordField.setStyle( "-fx-text-inner-color: " + MCFLConstants.GUI_LIGHT_COLOR );
             rememberCheckBox.setUnCheckedColor( Color.web( MCFLConstants.GUI_LIGHT_COLOR ) );

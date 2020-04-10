@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.authlib;
+package com.micatechnologies.minecraft.forgelauncher.auth;
 
 import java.util.AbstractMap.SimpleEntry;
 

@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.authlib;
+package com.micatechnologies.minecraft.forgelauncher.auth;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;

@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.forgemodpacklib;
+package com.micatechnologies.minecraft.forgelauncher.modpack;
 
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
 

@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.authlib;
+package com.micatechnologies.minecraft.forgelauncher.auth;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;

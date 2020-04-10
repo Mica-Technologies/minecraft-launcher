@@ -1,4 +1,4 @@
-package com.micatechnologies.minecraft.forgemodpacklib;
+package com.micatechnologies.minecraft.forgelauncher.modpack;
 
 import com.google.gson.Gson;
 
@@ -16,6 +16,7 @@ import java.util.List;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 /**
  * Class representation of a Forge modpack with functionality to update mods, game libraries and
@@ -356,11 +357,11 @@ public class MCForgeModpack {
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) minecraftArgs = APP_GARBAGE_COLLECTOR_SETTINGS + minecraftArgs;
 
         // Add classpath to arguments
-        if ( FLSystemUtils.isWindows() ) minecraftArgs = "-cp \"" + cp + "\" " + minecraftArgs;
+        if ( SystemUtils.IS_OS_WINDOWS ) minecraftArgs = "-cp \"" + cp + "\" " + minecraftArgs;
         else minecraftArgs = "-cp " + cp + " " + minecraftArgs;
 
         // Add natives path to arguments
-        if ( FLSystemUtils.isWindows() ) minecraftArgs =
+        if ( SystemUtils.IS_OS_WINDOWS ) minecraftArgs =
                 "-Djava.library.path=\"" + getPackRootFolder() + FLSystemUtils.getFileSeparator()
                         + MCForgeModpackConsts.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + "\" " + minecraftArgs;
         else minecraftArgs =
@@ -371,7 +372,7 @@ public class MCForgeModpack {
         if ( appGameMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE ) {
             minecraftArgs = minecraftArgs.replace( "${auth_player_name}", accountFriendlyName );
             minecraftArgs = minecraftArgs.replace( "${version_name}", getForgeVersion() );
-            if ( FLSystemUtils.isWindows() ) {
+            if ( SystemUtils.IS_OS_WINDOWS ) {
                 minecraftArgs = minecraftArgs.replace( "${game_directory}",
                                                        "\"" + getPackRootFolder().toString() + "\"" );
                 minecraftArgs = minecraftArgs.replace( "${assets_root}",
@@ -400,7 +401,7 @@ public class MCForgeModpack {
             minecraftArgs += " --icon " + getPackLogoFilepath();
 
             // Set dock name and icon for macOS
-            if ( FLSystemUtils.isMac() ) {
+            if ( SystemUtils.IS_OS_MAC ) {
                 minecraftArgs += " -Xdock:icon=\"" + getPackLogoFilepath() + "\"";
                 minecraftArgs += " -Xdock:name=\"" + getPackName() + "\" ";
                 minecraftArgs += "-Dapple.laf.useScreenMenuBar=true ";

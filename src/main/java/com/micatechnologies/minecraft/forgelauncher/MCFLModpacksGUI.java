@@ -2,8 +2,9 @@ package com.micatechnologies.minecraft.forgelauncher;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
-import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpack;
-import com.micatechnologies.minecraft.forgemodpacklib.MCForgeModpackConsts;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
+import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
+import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -183,7 +184,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
                     updateImgView.setVisible( true );
                     updateImgView.setOnMouseClicked( mouseEvent -> {
                         new Thread( () -> {
-                            int response = MCFLGUIController.showQuestionMessage( "Update Available", "Update Ready to Download", "An update has been found and is ready to be downloaded and installed.", "Update Now", "Update Later", getCurrentStage() );
+                            int response = FLGUIUtils.showQuestionMessage( "Update Available", "Update Ready to Download", "An update has been found and is ready to be downloaded and installed.", "Update Now", "Update Later", getCurrentStage() );
                             if ( response == 1 ) {
                                 try {
                                     Desktop.getDesktop().browse( URI.create( latestVersionURL ) );

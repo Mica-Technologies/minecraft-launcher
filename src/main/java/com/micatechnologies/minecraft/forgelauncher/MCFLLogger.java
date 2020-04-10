@@ -1,5 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import javafx.stage.Stage;
 
 /**
@@ -36,7 +37,7 @@ public class MCFLLogger {
         // Output to System.err and show JFX Dialog for client mode
         if ( MCFLApp.getMode() == MCFLApp.MODE_CLIENT ) {
             System.err.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/ERR-" + generatedErrorCode + "] " + msg );
-            if ( owner != null ) MCFLGUIController.showErrorMessage( msg, generatedErrorCode, owner );
+            if ( owner != null ) FLGUIUtils.showErrorMessage( msg, generatedErrorCode, owner );
         }
         // Output to System.err for server mode
         else if ( MCFLApp.getMode() == MCFLApp.MODE_SERVER ) {
