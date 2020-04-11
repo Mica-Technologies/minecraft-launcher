@@ -22,21 +22,21 @@ import java.util.function.Consumer;
  * @version 1.0
  */
 public class FLGUIController {
-    private ArrayList< FLGenericGUI > windowList = new ArrayList<>();
+    private static ArrayList< FLGenericGUI > windowList = new ArrayList<>();
 
-    public synchronized void registerWindow( FLGenericGUI window ) {
+    public synchronized static void registerWindow( FLGenericGUI window ) {
         windowList.add( window );
     }
 
-    public synchronized void unregisterWindow( FLGenericGUI window ) {
+    public synchronized static void unregisterWindow( FLGenericGUI window ) {
         windowList.remove( window );
     }
 
-    public synchronized int getWindowCount() {
+    public synchronized static int getWindowCount() {
         return windowList.size();
     }
 
-    public synchronized void doForAllWindows( Consumer< FLGenericGUI > task ) {
+    public synchronized static void doForAllWindows( Consumer< FLGenericGUI > task ) {
         windowList.forEach( task );
     }
 }

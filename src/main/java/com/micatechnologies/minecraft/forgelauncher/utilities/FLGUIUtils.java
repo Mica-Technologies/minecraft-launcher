@@ -1,7 +1,9 @@
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
 import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
+import com.micatechnologies.minecraft.forgelauncher.gui.FLGenericGUI;
 import javafx.application.Platform;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -133,5 +135,12 @@ public class FLGUIUtils {
         catch ( Exception e ) {
             Platform.startup( r );
         }
+    }
+
+    public static FXMLLoader buildFXMLLoader( String fxmlFileName, FLGenericGUI owner ) {
+        FXMLLoader fxmlLoader = new FXMLLoader();
+        fxmlLoader.setLocation( FLGUIUtils.class.getClassLoader().getResource( fxmlFileName ) );
+        fxmlLoader.setController( owner );
+        return fxmlLoader;
     }
 }
