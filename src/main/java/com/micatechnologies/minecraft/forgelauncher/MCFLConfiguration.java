@@ -139,7 +139,7 @@ public class MCFLConfiguration {
      *
      * @since 1.1
      */
-    boolean getDebug() {
+    public boolean getDebug() {
         return debug;
     }
 

@@ -5,6 +5,7 @@ import com.jfoenix.controls.JFXComboBox;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -190,7 +191,7 @@ public class MCFLModpacksGUI extends MCFLGenericGUI {
                                     Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
                                 }
                                 catch ( IOException e ) {
-                                    MCFLLogger.error( "Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", -80, stage );
+                                    FLLogUtil.error( "Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", -80, stage );
                                 }
                             }
                         } ).start();

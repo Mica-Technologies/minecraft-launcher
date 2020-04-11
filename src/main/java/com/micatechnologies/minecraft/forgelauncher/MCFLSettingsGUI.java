@@ -3,7 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.*;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
@@ -193,7 +193,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
                 MCFLApp.clearLocalJDK();
             }
             catch ( IOException e ) {
-                MCFLLogger.error( "Unable to clear previous runtime from disk. Will continue to attempt reset!", 700, getCurrentStage() );
+                FLLogUtil.error( "Unable to clear previous runtime from disk. Will continue to attempt reset!", 700, getCurrentStage() );
             }
             MCFLApp.doLocalJDK();
             show();
@@ -213,7 +213,7 @@ public class MCFLSettingsGUI extends MCFLGenericGUI {
                 close();
             }
             catch ( IOException e ) {
-                MCFLLogger.error( "An error occurred while resetting the launcher. Will continue to attempt!", 700, getCurrentStage() );
+                FLLogUtil.error( "An error occurred while resetting the launcher. Will continue to attempt!", 700, getCurrentStage() );
             }
         } ).start() );
 

@@ -3,6 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.jfoenix.controls.*;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -109,7 +110,7 @@ public class MCFLProgressGUI extends MCFLGenericGUI {
         Platform.runLater( () -> progressBar.setProgress( progress / MCForgeModpackProgressProvider.PROGRESS_PERCENT_BASE ) );
         new Thread( () -> {
             if ( upperText != null && lowerText != null )
-                MCFLLogger.debug( upperText.getText() + ", " + lowerText.getText() + ": " + progress + "%" );
+                FLLogUtil.debug( upperText.getText() + ", " + lowerText.getText() + ": " + progress + "%" );
         } ).start();
     }
 

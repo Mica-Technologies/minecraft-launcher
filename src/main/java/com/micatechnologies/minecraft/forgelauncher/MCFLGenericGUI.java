@@ -1,7 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.micatechnologies.jadapt.NSWindow;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import com.sun.glass.ui.Window;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -277,7 +277,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
         }
         catch ( Exception e ) {
             e.printStackTrace();
-            MCFLLogger.error( "Mac NSWindow class access error.", -100, null );
+            FLLogUtil.error( "Mac NSWindow class access error.", -100, null );
             return null;
         }
     }
@@ -409,7 +409,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
                 catch ( Exception e ) {
                     // Show error and allow JavaFX to close
-                    MCFLLogger.error( "Unable to create application user interface.", 100, getCurrentStage() );
+                    FLLogUtil.error( "Unable to create application user interface.", 100, getCurrentStage() );
                     Platform.setImplicitExit( true );
                 }
             } );
@@ -422,7 +422,7 @@ public abstract class MCFLGenericGUI extends Application implements Initializabl
                 }
                 catch ( Exception e ) {
                     // Show error and allow JavaFX to close
-                    MCFLLogger.error( "Unable to create application user interface.", 101, getCurrentStage() );
+                    FLLogUtil.error( "Unable to create application user interface.", 101, getCurrentStage() );
                     Platform.setImplicitExit( true );
                 }
             } );

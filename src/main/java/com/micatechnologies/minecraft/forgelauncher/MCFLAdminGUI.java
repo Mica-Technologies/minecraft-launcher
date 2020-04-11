@@ -4,6 +4,7 @@ import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXTextArea;
 import com.jfoenix.controls.JFXTextField;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -138,7 +139,7 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
                     Platform.runLater( () -> url.setText( finalStarting ) );
                 }
                 catch ( Exception e ) {
-                    MCFLLogger.error( "Unable to process your request for final URL!", -1, getCurrentStage() );
+                    FLLogUtil.error( "Unable to process your request for final URL!", -1, getCurrentStage() );
                 }
 
                 // Download file and get sha1
@@ -162,7 +163,7 @@ public class MCFLAdminGUI extends MCFLGenericGUI {
                 }
                 catch ( Exception e ) {
                     e.printStackTrace();
-                    MCFLLogger.error( "Unable to process your request for hash!", -1, getCurrentStage() );
+                    FLLogUtil.error( "Unable to process your request for hash!", -1, getCurrentStage() );
                 }
             } ).start();
         } );

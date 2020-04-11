@@ -1,5 +1,7 @@
-package com.micatechnologies.minecraft.forgelauncher;
+package com.micatechnologies.minecraft.forgelauncher.utilities;
 
+import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
+import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import javafx.stage.Stage;
 
@@ -11,7 +13,7 @@ import javafx.stage.Stage;
  * @author Mica Technologies/hawka97
  * @version 1.1
  */
-public class MCFLLogger {
+public class FLLogUtil {
     //region: Functional Methods
 
     /**
@@ -25,7 +27,7 @@ public class MCFLLogger {
      *
      * @since 1.0
      */
-    static void error( String msg, int errorID, Stage owner ) {
+    public static void error( String msg, int errorID, Stage owner ) {
         // Create an error code
         // 0x100234
         // 1 = Error ID
@@ -59,7 +61,7 @@ public class MCFLLogger {
      *
      * @since 1.0
      */
-    static void log( String msg ) {
+    public static void log( String msg ) {
         // Output to System.out for client mode
         if ( MCFLApp.getMode() == MCFLApp.MODE_CLIENT ) {
             System.out.println( "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/LOG] " + msg );
@@ -84,7 +86,7 @@ public class MCFLLogger {
      *
      * @since 1.0
      */
-    static void debug( String msg ) {
+    public static void debug( String msg ) {
         // Return if debug mode not enabled.
         if ( !MCFLApp.getLauncherConfig().getDebug() ) return;
 

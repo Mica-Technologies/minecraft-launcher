@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
  * Class for managing and controlling GUI components and related functionality.
@@ -33,5 +34,9 @@ public class FLGUIController {
 
     public synchronized int getWindowCount() {
         return windowList.size();
+    }
+
+    public synchronized void doForAllWindows( Consumer< FLGenericGUI > task ) {
+        windowList.forEach( task );
     }
 }

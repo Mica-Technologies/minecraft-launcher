@@ -13,7 +13,7 @@ public class MCFLConstants {
     /**
      * Launcher application name
      */
-    final static transient String LAUNCHER_APPLICATION_NAME = "Mica Forge Launcher";
+    public final static transient String LAUNCHER_APPLICATION_NAME = "Mica Forge Launcher";
 
     /**
      * Launcher client installation directory
