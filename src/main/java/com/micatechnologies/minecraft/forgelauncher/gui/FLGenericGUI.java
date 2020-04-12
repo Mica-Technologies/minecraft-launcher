@@ -9,6 +9,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.effect.GaussianBlur;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -23,11 +24,14 @@ import java.util.concurrent.CountDownLatch;
 
 public abstract class FLGenericGUI extends Application {
     Stage currentJFXStage = null;
-    private final CountDownLatch closedLatch = new CountDownLatch( 1 );
+    public final CountDownLatch closedLatch = new CountDownLatch( 1 );
     private final CountDownLatch readyLatch = new CountDownLatch( 1 );
 
     @FXML
     Pane rootPane;
+
+    @FXML
+    Pane centerPane;
 
     @Override
     public void start( Stage stage ) throws Exception {
@@ -46,6 +50,8 @@ public abstract class FLGenericGUI extends Application {
 
         // Set window closing handler
         stage.setOnCloseRequest( windowEvent -> close() );
+
+        // Apply frost effect to center pane
 
         // Store stage
         currentJFXStage = stage;

@@ -7,9 +7,7 @@ import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthAccount;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
 import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthService;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
-import com.micatechnologies.minecraft.forgelauncher.gui.FLGUIController;
-import com.micatechnologies.minecraft.forgelauncher.gui.FLLoginGUI;
-import com.micatechnologies.minecraft.forgelauncher.gui.FLProgressGUI;
+import com.micatechnologies.minecraft.forgelauncher.gui.*;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
@@ -241,12 +239,12 @@ public class MCFLApp {
     //endregion
 
     //region: Function Methods
-    public static void play( int modpack, MCFLGenericGUI gui ) {
+    public static void play( int modpack, FLGenericGUI gui ) {
         if ( mode == MODE_CLIENT ) playClient( modpack, gui );
         else if ( mode == MODE_SERVER ) playServer( modpack );
     }
 
-    private static void playClient( int modpack, MCFLGenericGUI gui ) {
+    private static void playClient( int modpack, FLGenericGUI gui ) {
         // Verify user logged in and mode is client
         if ( currentUser == null ) return;
         if ( mode != MODE_CLIENT ) return;
@@ -292,7 +290,7 @@ public class MCFLApp {
         }
         catch ( FLModpackException e ) {
             e.printStackTrace();
-            FLLogUtil.error( "Unable to start game.", 312, gui.getCurrentStage() );
+            FLLogUtil.error( "Unable to start game.", 312, gui.getCurrentJFXStage() );
             if ( progressGUI != null ) progressGUI.close();
         }
     }
@@ -319,13 +317,13 @@ public class MCFLApp {
 
     private static void doModpackSelection( int initPackIndex ) {
         if ( mode == MODE_CLIENT ) {
-            MCFLModpacksGUI modpacksGUI = new MCFLModpacksGUI();
-            modpacksGUI.open( initPackIndex );
+            FLMainGUI mainGUI = new FLMainGUI();
+            mainGUI.show( initPackIndex );
             try {
-                modpacksGUI.closedLatch.await();
+                mainGUI.closedLatch.await();
             }
             catch ( InterruptedException ignored ) {
-                FLLogUtil.error( "An error is preventing GUI completion handling. The login screen may not appear after logout.", 316, modpacksGUI.getCurrentStage() );
+                FLLogUtil.error( "An error is preventing GUI completion handling. The login screen may not appear after logout.", 316, mainGUI.getCurrentJFXStage() );
             }
         }
         else if ( mode == MODE_SERVER ) {

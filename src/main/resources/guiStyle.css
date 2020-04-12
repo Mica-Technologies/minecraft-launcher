@@ -22,6 +22,6 @@
 }
 
 .cpanel {
-    -fx-background-color: rgba(170,170,170,0.3) !important;
-    -fx-background-radius: 6px !important;
+    -fx-background-color: rgba(70,70,70,0.95) !important;
+    -fx-background-radius: 10px !important;
 }

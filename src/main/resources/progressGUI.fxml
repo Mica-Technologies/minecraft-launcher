@@ -18,7 +18,7 @@
     <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
   </rowConstraints>
    <children>
-      <GridPane fx:id="loginPane" maxHeight="325.0" maxWidth="325.0" minHeight="325.0" minWidth="325.0" prefHeight="325.0" prefWidth="325.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+      <GridPane fx:id="centerPane" maxHeight="325.0" maxWidth="325.0" minHeight="325.0" minWidth="325.0" prefHeight="325.0" prefWidth="325.0" styleClass="cpanel" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
         <columnConstraints>
           <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />

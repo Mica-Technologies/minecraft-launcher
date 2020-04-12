@@ -208,4 +208,35 @@ public class FLSystemUtils {
     public static void spawnNewTask( Runnable runnable ) {
         new Thread( runnable ).start();
     }
+
+    public static int compareVersionNumbers( String version1, String version2 ) {
+        String[] arr1 = version1.split( "\\." );
+        String[] arr2 = version2.split( "\\." );
+
+        int i = 0;
+        while ( i < arr1.length || i < arr2.length ) {
+            if ( i < arr1.length && i < arr2.length ) {
+                if ( Integer.parseInt( arr1[ i ] ) < Integer.parseInt( arr2[ i ] ) ) {
+                    return -1;
+                }
+                else if ( Integer.parseInt( arr1[ i ] ) > Integer.parseInt( arr2[ i ] ) ) {
+                    return 1;
+                }
+            }
+            else if ( i < arr1.length ) {
+                if ( Integer.parseInt( arr1[ i ] ) != 0 ) {
+                    return 1;
+                }
+            }
+            else {
+                if ( Integer.parseInt( arr2[ i ] ) != 0 ) {
+                    return -1;
+                }
+            }
+
+            i++;
+        }
+
+        return 0;
+    }
 }

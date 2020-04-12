@@ -49,12 +49,12 @@ public class MCFLConstants {
 
     final static transient String JRE_EXTRACTED_FOLDER_NAME = "jdk8u232-b09-jre";
 
-    final static String URL_MINECRAFT_USER_ICONS = "http://minotar.net/armor/bust/user/100.png";
-    final static String URL_MINECRAFT_NO_MODPACK_IMAGE = "https://cdn.pixabay.com/photo/2016/11/11/14/49/minecraft-1816996_960_720.png";
+    public final static String URL_MINECRAFT_USER_ICONS = "http://minotar.net/armor/bust/user/100.png";
+    public final static String URL_MINECRAFT_NO_MODPACK_IMAGE = "https://cdn.pixabay.com/photo/2016/11/11/14/49/minecraft-1816996_960_720.png";
 
     final static String GUI_ACCENT_COLOR = "#002952";
     final static String GUI_LIGHT_COLOR = "#cccccc";
     final static String GUI_DARK_COLOR = "#5b5b5b";
 
-    final static String UPDATE_CHECK_REDIRECT_URL = "https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/releases/latest";
+    public final static String UPDATE_CHECK_REDIRECT_URL = "https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/releases/latest";
 }
