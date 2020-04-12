@@ -2,6 +2,8 @@
     -fx-font-family: Verdana, Geneva, sans-serif !important;
     -fx-prompt-text-fill: #ddd !important;
     -fx-text-fill: #ddd !important;
+    -jfx-focus-color: #7fc860 !important;
+    -jfx-unfocus-color: #4d4d4d !important;
 }
 
 .jfx-button {
@@ -14,12 +16,12 @@
     -jfx-checked-color: #7fc860 !important;
 }
 
-.jfx-text-field, .jfx-password-field {
-    -jfx-focus-color: #7fc860 !important;
-    -jfx-unfocus-color: #4d4d4d !important;
-}
-
 .jfx-progress-bar > .bar,
 .jfx-progress-bar:indeterminate > .bar {
     -fx-background-color: #7fc860 !important;
+}
+
+.cpanel {
+    -fx-background-color: rgba(170,170,170,0.3) !important;
+    -fx-background-radius: 6px !important;
 }

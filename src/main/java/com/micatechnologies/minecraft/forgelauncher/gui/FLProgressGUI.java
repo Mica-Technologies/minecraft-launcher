@@ -29,7 +29,7 @@ public class FLProgressGUI extends FLGenericGUI {
 
     @Override
     Pair< Integer, Integer > getWindowSize() {
-        return new Pair<>( 400, 400 );
+        return new Pair<>( 600, 600 );
     }
 
     @Override

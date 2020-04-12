@@ -6,7 +6,7 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 public class FLMainGUI extends FLGenericGUI {
     @Override
     String getFXMLResourcePath() {
-        return "MFLMainUI.fxml";
+        return "mainGUI.fxml";
     }
 
     @Override
