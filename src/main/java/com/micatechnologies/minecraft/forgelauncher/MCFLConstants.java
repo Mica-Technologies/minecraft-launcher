@@ -28,7 +28,7 @@ public class MCFLConstants {
     /**
      * Launcher client saved user location
      */
-    final static transient String LAUNCHER_CLIENT_SAVED_USER_FILE = LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "launcher" + File.separator + "user.cache";
+    public final static transient String LAUNCHER_CLIENT_SAVED_USER_FILE = LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "launcher" + File.separator + "user.cache";
 
     /**
      * Launcher client saved token location

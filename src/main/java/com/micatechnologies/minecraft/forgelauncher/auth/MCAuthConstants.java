@@ -51,7 +51,7 @@ public class MCAuthConstants {
     //
     // Authentication POST Request Properties
     //
-    static final SimpleEntry< String, String > MC_AUTH_POST_CONTENT_TYPE                  = new SimpleEntry<>(
+    public static final SimpleEntry< String, String > MC_AUTH_POST_CONTENT_TYPE                  = new SimpleEntry<>(
         "Content-Type", "application/json" );
 
     //
@@ -72,5 +72,5 @@ public class MCAuthConstants {
     //
     // Other Constants
     //
-    static final String                        MC_AUTH_EMPTY_JSON_OBJ_STR                 = "{}";
+    public static final String                        MC_AUTH_EMPTY_JSON_OBJ_STR                 = "{}";
 }

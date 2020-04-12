@@ -1,0 +1,25 @@
+* {
+    -fx-font-family: Verdana, Geneva, sans-serif !important;
+    -fx-prompt-text-fill: #ddd !important;
+    -fx-text-fill: #ddd !important;
+}
+
+.jfx-button {
+    -fx-background-color: #7fc860 !important;
+    -fx-text-fill: #222 !important;
+}
+
+.jfx-check-box {
+    -jfx-unchecked-color: #5A5A5A !important;
+    -jfx-checked-color: #7fc860 !important;
+}
+
+.jfx-text-field, .jfx-password-field {
+    -jfx-focus-color: #7fc860 !important;
+    -jfx-unfocus-color: #4d4d4d !important;
+}
+
+.jfx-progress-bar > .bar,
+.jfx-progress-bar:indeterminate > .bar {
+    -fx-background-color: #7fc860 !important;
+}

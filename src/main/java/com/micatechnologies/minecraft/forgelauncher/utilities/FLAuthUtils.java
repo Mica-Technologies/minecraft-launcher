@@ -1,7 +1,8 @@
-package com.micatechnologies.minecraft.forgelauncher.auth;
+package com.micatechnologies.minecraft.forgelauncher.utilities;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthConstants;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
 
 import java.io.BufferedReader;
@@ -20,7 +21,7 @@ import java.net.URL;
  * @author Mica Technologies/hawka97
  * @version 1.1
  */
-class MCAuthUtils {
+public class FLAuthUtils {
 
     /**
      * Perform an HTTP POST to the specified endpoint on the Mojang/Minecraft authentication servers
@@ -34,7 +35,7 @@ class MCAuthUtils {
      * @throws FLAuthenticationException if HTTP POST fails
      * @since 1.0
      */
-    static String doHTTPPOST( String endpoint, String content ) throws FLAuthenticationException {
+    public static String doHTTPPOST( String endpoint, String content ) throws FLAuthenticationException {
         // Create URL and Connection Objects
         URL httpURL;
         try {
@@ -155,7 +156,7 @@ class MCAuthUtils {
      *
      * @since 1.1
      */
-    static JsonObject stringToJsonObj( String jsonString ) {
+    public static JsonObject stringToJsonObj( String jsonString ) {
         return new Gson().fromJson( jsonString, JsonObject.class );
     }
 }

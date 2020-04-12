@@ -81,15 +81,15 @@ public class FLSystemUtils {
     }
 
     public static void executeStringCommand( String command, String workingDirectory )
-        throws IOException, InterruptedException {
+    throws IOException, InterruptedException {
         // Output
         System.out.println( "Running command: " + command );
 
         // Build process call
         ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO()
                                                                                   .directory(
-                                                                                      new File(
-                                                                                          workingDirectory ) );
+                                                                                          new File(
+                                                                                                  workingDirectory ) );
         // Start process and wait for finish
         processBuilder.start().waitFor();
     }
@@ -107,7 +107,7 @@ public class FLSystemUtils {
      * @since 1.0
      */
     public static boolean verifySHA( Path toCheck, String sha1 )
-        throws NoSuchAlgorithmException, IOException {
+    throws NoSuchAlgorithmException, IOException {
         if ( !doesFileExist( toCheck ) ) {
             return false;
         }
@@ -127,7 +127,7 @@ public class FLSystemUtils {
         return formatter.toString().equals( sha1 );
     }
 
-    public static void downloadFileFromURL( URL source, File destination) throws IOException {
+    public static void downloadFileFromURL( URL source, File destination ) throws IOException {
         URLConnection connection = source.openConnection();
         connection.setUseCaches( false );
         FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
@@ -140,7 +140,7 @@ public class FLSystemUtils {
      * @param destination extract to
      */
     public static void extractJarFile( JarFile source, String destination )
-        throws FLModpackException {
+    throws FLModpackException {
         // Create an enumeration over JarFile entries
         Enumeration< JarEntry > jarFileFiles = source.entries();
 
@@ -156,7 +156,7 @@ public class FLSystemUtils {
 
             // Create extracted file File object
             File extractedJarFileFile = new File(
-                destination + getFileSeparator() + jarFileFile.getName() );
+                    destination + getFileSeparator() + jarFileFile.getName() );
 
             // Create directory if expected
             if ( extractedJarFileFile.isDirectory() ) {
@@ -174,8 +174,8 @@ public class FLSystemUtils {
                 }
                 catch ( IOException e ) {
                     throw new FLModpackException(
-                        "Unable to create file for extraction. " + extractedJarFileFile.getPath(),
-                        e );
+                            "Unable to create file for extraction. " + extractedJarFileFile.getPath(),
+                            e );
                 }
             }
 
@@ -191,7 +191,7 @@ public class FLSystemUtils {
             }
             catch ( IOException e ) {
                 throw new FLModpackException(
-                    "Unable to read file from jar during extraction.", e );
+                        "Unable to read file from jar during extraction.", e );
             }
 
             // Close streams
@@ -203,5 +203,9 @@ public class FLSystemUtils {
                 System.err.println( "Unable to close streams after extracting JAR file." );
             }
         }
+    }
+
+    public static void spawnNewTask( Runnable runnable ) {
+        new Thread( runnable ).start();
     }
 }

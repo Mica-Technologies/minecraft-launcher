@@ -7,6 +7,9 @@ import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthAccount;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
 import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthService;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+import com.micatechnologies.minecraft.forgelauncher.gui.FLGUIController;
+import com.micatechnologies.minecraft.forgelauncher.gui.FLLoginGUI;
+import com.micatechnologies.minecraft.forgelauncher.gui.FLProgressGUI;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
@@ -53,6 +56,7 @@ public class MCFLApp {
     private static MCAuthAccount currentUser = null;
     private static MCFLConfiguration launcherConfig = null;
     private static List< MCForgeModpack > modpacks = new ArrayList<>();
+    private static final File savedUserFile = new File( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
     //endregion
 
     //region: Get/Set Methods
@@ -170,12 +174,12 @@ public class MCFLApp {
     }
 
     public static void buildMemoryModpackList() {
-        MCFLProgressGUI progressGUI = null;
+        FLProgressGUI progressGUI = null;
         if ( mode == MODE_CLIENT ) {
-            progressGUI = new MCFLProgressGUI();
-            progressGUI.open();
-            progressGUI.setUpperText( "Parsing Modpack List" );
-            progressGUI.setLowerText( "Setting Up" );
+            progressGUI = new FLProgressGUI();
+            progressGUI.show();
+            progressGUI.setUpperLabelText( "Parsing Modpack List" );
+            progressGUI.setLowerLabelText( "Setting Up" );
             progressGUI.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
         }
 
@@ -183,7 +187,7 @@ public class MCFLApp {
         for ( String s : getLauncherConfig().getModpacks() ) {
             Path modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + "sandbox" );
             if ( progressGUI != null ) {
-                progressGUI.setLowerText( "Checking " + s );
+                progressGUI.setLowerLabelText( "Checking " + s );
             }
             try {
                 MCForgeModpack tempPack = MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode );
@@ -195,7 +199,7 @@ public class MCFLApp {
                         FLLogUtil.debug( "Failed to cleanup sandbox install folder." );
                     }
                     if ( progressGUI != null ) {
-                        progressGUI.setLowerText( "Configuring " + tempPack.getPackName() );
+                        progressGUI.setLowerLabelText( "Configuring " + tempPack.getPackName() );
                     }
                     modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + tempPack.getPackName().replaceAll( "[^a-zA-Z0-9]", "" ) );
                     MCForgeModpack pack = MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, mode );
@@ -203,7 +207,7 @@ public class MCFLApp {
                 }
                 catch ( FLModpackException | MalformedURLException e ) {
                     if ( progressGUI != null ) {
-                        FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, progressGUI.getCurrentStage() );
+                        FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, progressGUI.getCurrentJFXStage() );
                     }
                     else {
                         FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, null );
@@ -212,7 +216,7 @@ public class MCFLApp {
             }
             catch ( FLModpackException | MalformedURLException e ) {
                 if ( progressGUI != null ) {
-                    FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, progressGUI.getCurrentStage() );
+                    FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, progressGUI.getCurrentJFXStage() );
                 }
                 else {
                     FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, null );
@@ -250,56 +254,36 @@ public class MCFLApp {
         // Launch selected modpack
         int minRAMMB = ( int ) ( getLauncherConfig().getMinRAM() * 1024 );
         int maxRAMMB = ( int ) ( getLauncherConfig().getMaxRAM() * 1024 );
-        MCFLProgressGUI progressGUI = null;
+        FLProgressGUI progressGUI = null;
         try {
             MCForgeModpack mp = modpacks.get( modpack );
-            MCFLProgressGUI internalProgressGUI = new MCFLProgressGUI();
-            progressGUI = internalProgressGUI;
-            internalProgressGUI.open();
-            try {
-                internalProgressGUI.readyLatch.await();
-            }
-            catch ( InterruptedException ignored ) {
-            }
-
-
-            new Thread( () -> {
-                try {
-                    internalProgressGUI.readyLatch.await();
-                }
-                catch ( InterruptedException ignored ) {
-                }
-                internalProgressGUI.setIcon( new javafx.scene.image.Image( mp.getPackLogoURL() ) );
-            } ).start();
+            progressGUI = new FLProgressGUI();
+            progressGUI.show();
 
             // Verify configured RAM
             if ( Integer.parseInt( mp.getPackMinRAMGB() ) > getLauncherConfig().getMaxRAM() ) {
-                try {
-                    progressGUI.readyLatch.await();
-                }
-                catch ( InterruptedException ignored ) {
-                }
-                FLLogUtil.error( "Modpack requires a minimum of " + mp.getPackMinRAMGB() + "GB of RAM. Please change your RAM settings in the settings menu.", 50, progressGUI.getCurrentStage() );
+                FLLogUtil.error( "Modpack requires a minimum of " + mp.getPackMinRAMGB() + "GB of RAM. Please change your RAM settings in the settings menu.", 50, progressGUI.getCurrentJFXStage() );
                 progressGUI.close();
                 return;
             }
 
 
+            FLProgressGUI finalProgressGUI = progressGUI;
             mp.setProgressProvider( new MCForgeModpackProgressProvider() {
                 @Override
                 public void updateProgressHandler( double percent, String text ) {
-                    internalProgressGUI.setUpperText( "Loading " + mp.getPackName() );
-                    internalProgressGUI.setLowerText( text );
-                    internalProgressGUI.setProgress( percent );
+                    finalProgressGUI.setUpperLabelText( "Loading " + mp.getPackName() );
+                    finalProgressGUI.setLowerLabelText( text );
+                    finalProgressGUI.setProgress( percent );
                     if ( percent == 100.0 ) {
                         new Thread( () -> {
-                            internalProgressGUI.setLowerText( "Passing to Minecraft" );
+                            finalProgressGUI.setLowerLabelText( "Passing to Minecraft" );
                             try {
                                 Thread.sleep( 3000 );
                             }
                             catch ( InterruptedException ignored ) {
                             }
-                            internalProgressGUI.close();
+                            finalProgressGUI.close();
                         } ).start();
                     }
                 }
@@ -356,14 +340,19 @@ public class MCFLApp {
         FileUtils.deleteDirectory( new File( getJREFolderPath() ) );
     }
 
+    public static void closeApp() {
+        FLGUIController.closeAllWindows();
+        System.exit( 0 );
+    }
+
     static void doLocalJDK() {
         // Create a progress GUI if in client mod
-        MCFLProgressGUI progressGUI = null;
+        FLProgressGUI progressGUI = null;
         if ( mode == MODE_CLIENT ) {
-            progressGUI = new MCFLProgressGUI();
-            progressGUI.open();
-            progressGUI.setUpperText( "Preparing Minecraft Runtime" );
-            progressGUI.setLowerText( "Preparing JRE Folder" );
+            progressGUI = new FLProgressGUI();
+            progressGUI.show();
+            progressGUI.setUpperLabelText( "Preparing Minecraft Runtime" );
+            progressGUI.setLowerLabelText( "Preparing JRE Folder" );
             progressGUI.setProgress( 0.0 );
         }
 
@@ -375,7 +364,7 @@ public class MCFLApp {
 
         // Verify JRE folder exists
         if ( progressGUI != null ) {
-            progressGUI.setLowerText( "Verifying JRE Folder" );
+            progressGUI.setLowerLabelText( "Verifying JRE Folder" );
             progressGUI.setProgress( 10.0 );
         }
         jreFolderFile.mkdirs();
@@ -384,7 +373,7 @@ public class MCFLApp {
 
         // Get proper URL and archive format
         if ( progressGUI != null ) {
-            progressGUI.setLowerText( "Preparing JRE Information" );
+            progressGUI.setLowerLabelText( "Preparing JRE Information" );
             progressGUI.setProgress( 20.0 );
         }
         String jreArchiveDownloadURL;
@@ -414,7 +403,7 @@ public class MCFLApp {
         }
         else {
             if ( progressGUI != null )
-                FLLogUtil.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, progressGUI.getCurrentStage() );
+                FLLogUtil.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, progressGUI.getCurrentJFXStage() );
             else
                 FLLogUtil.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, null );
             if ( progressGUI != null ) {
@@ -426,7 +415,7 @@ public class MCFLApp {
 
         // Get hash of JRE from URL
         if ( progressGUI != null ) {
-            progressGUI.setLowerText( "Downloading JRE Hash" );
+            progressGUI.setLowerLabelText( "Downloading JRE Hash" );
             progressGUI.setProgress( 25.0 );
         }
         try {
@@ -434,7 +423,7 @@ public class MCFLApp {
         }
         catch ( IOException e ) {
             if ( progressGUI != null )
-                FLLogUtil.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, progressGUI.getCurrentStage() );
+                FLLogUtil.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, progressGUI.getCurrentJFXStage() );
             else
                 FLLogUtil.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, null );
             javaPath = "java";
@@ -447,14 +436,14 @@ public class MCFLApp {
 
         try {
             if ( progressGUI != null ) {
-                progressGUI.setLowerText( "Verifying Local JRE" );
+                progressGUI.setLowerLabelText( "Verifying Local JRE" );
                 progressGUI.setProgress( 35.0 );
             }
             // Check if archive either doesn't exist or doesn't match hash
             if ( !jreArchiveFile.exists() || !Files.hash( jreArchiveFile, Hashing.sha256() ).toString().equalsIgnoreCase(
                     FileUtils.readFileToString( jreHashFile, Charset.defaultCharset() ).split( " " )[ 0 ] ) ) {
                 if ( progressGUI != null ) {
-                    progressGUI.setLowerText( "Downloading Configured JRE" );
+                    progressGUI.setLowerLabelText( "Downloading Configured JRE" );
                     progressGUI.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
                 }
                 // Download archive from URL
@@ -468,7 +457,7 @@ public class MCFLApp {
 
                 // Extract downloaded JRE
                 if ( progressGUI != null ) {
-                    progressGUI.setLowerText( "Extracting Downloaded JRE" );
+                    progressGUI.setLowerLabelText( "Extracting Downloaded JRE" );
                     progressGUI.setProgress( 70.0 );
                 }
                 Archiver archiver;
@@ -483,7 +472,7 @@ public class MCFLApp {
         }
         catch ( IOException e ) {
             if ( progressGUI != null )
-                FLLogUtil.error( "Unable to create local runtime. Using system Java.", 309, progressGUI.getCurrentStage() );
+                FLLogUtil.error( "Unable to create local runtime. Using system Java.", 309, progressGUI.getCurrentJFXStage() );
             else FLLogUtil.error( "Unable to create local runtime. Using system Java.", 309, null );
             javaPath = "java";
             if ( progressGUI != null ) {
@@ -493,16 +482,11 @@ public class MCFLApp {
             return;
         }
         if ( progressGUI != null ) {
-            progressGUI.setLowerText( "Finished JRE Preparation" );
+            progressGUI.setLowerLabelText( "Finished JRE Preparation" );
             progressGUI.setProgress( 100.0 );
             Platform.setImplicitExit( false );
             new Thread( progressGUI::close ).start();
         }
-    }
-
-    public static void loginUser( MCAuthAccount account ) {
-        // Store account to current user
-        currentUser = account;
     }
 
     public static void logoutCurrentUser() {
@@ -513,10 +497,11 @@ public class MCFLApp {
                 MCAuthService.invalidateLogin( getCurrentUser(), getClientToken() );
 
                 // Delete current user information on disk (if exists)
-                File savedUserFile = new File( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
-                savedUserFile.delete();
+                synchronized ( savedUserFile ) {
+                    FileUtils.forceDelete( savedUserFile );
+                }
             }
-            catch ( FLAuthenticationException e ) {
+            catch ( FLAuthenticationException | IOException e ) {
                 FLLogUtil.error( "Unable to invalidate cached token prior to logout. Local account information will still be destroyed.", 303, null );
             }
         }
@@ -553,38 +538,40 @@ public class MCFLApp {
 
             // Check for saved user on disk. Load and return if found
             boolean dirtyLogin = false;
-            File savedUserFile = new File( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
-            if ( ALLOW_SAVED_USERS && savedUserFile.isFile() ) {
-                try {
-                    currentUser = MCAuthAccount.readFromFile( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
+            synchronized ( savedUserFile ) {
+                if ( ALLOW_SAVED_USERS && savedUserFile.isFile() ) {
+                    try {
+                        currentUser = MCAuthAccount.readFromFile( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
 
-                    // Refresh auth only if not in offline mode
-                    if ( !offlineMode ) {
-                        MCAuthService.refreshAuth( getCurrentUser(), getClientToken() );
-                        MCAuthAccount.writeToFile( savedUserFile.getPath(), getCurrentUser() );
+                        // Refresh auth only if not in offline mode
+                        if ( !offlineMode ) {
+                            MCAuthService.refreshAuth( getCurrentUser(), getClientToken() );
+                            MCAuthAccount.writeToFile( savedUserFile.getPath(), getCurrentUser() );
+                        }
+                        return;
                     }
-                    return;
-                }
-                catch ( FLAuthenticationException e ) {
-                    dirtyLogin = true;
+                    catch ( FLAuthenticationException e ) {
+                        dirtyLogin = true;
+                    }
                 }
             }
 
             // Show login screen
-            MCFLLoginGUI loginGUI = new MCFLLoginGUI();
-            loginGUI.open();
+            FLLoginGUI loginGUI = new FLLoginGUI();
+            loginGUI.show();
 
             // Show error if exception encountered above (need to wait for GUI)
             if ( dirtyLogin ) {
-                FLLogUtil.error( "Unable to load remembered user account.", 301, loginGUI.getCurrentStage() );
+                FLLogUtil.error( "Unable to load remembered user account.", 301, loginGUI.getCurrentJFXStage() );
             }
 
             // Wait for login screen to complete
             try {
-                loginGUI.loginSuccessLatch.await();
+                currentUser = loginGUI.waitForLoginInfo();
             }
             catch ( InterruptedException e ) {
                 FLLogUtil.error( "Unable to wait for pending login task.", 300, null );
+                closeApp();
             }
 
             // Close login screen once complete

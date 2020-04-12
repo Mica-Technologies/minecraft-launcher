@@ -22,12 +22,12 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 
 public abstract class FLGenericGUI extends Application {
-    private Stage currentJFXStage = null;
+    Stage currentJFXStage = null;
     private final CountDownLatch closedLatch = new CountDownLatch( 1 );
     private final CountDownLatch readyLatch = new CountDownLatch( 1 );
 
     @FXML
-    private Pane rootPane;
+    Pane rootPane;
 
     @Override
     public void start( Stage stage ) throws Exception {
@@ -85,6 +85,18 @@ public abstract class FLGenericGUI extends Application {
                         styleMacWindow();
                     }
                 } );
+
+        // Wait for window ready
+        try {
+            readyLatch.await();
+        }
+        catch ( InterruptedException e ) {
+            e.printStackTrace();
+        }
+    }
+
+    public Stage getCurrentJFXStage() {
+        return currentJFXStage;
     }
 
     public void showAndWait() throws InterruptedException {
