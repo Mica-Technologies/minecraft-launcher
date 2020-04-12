@@ -19,6 +19,8 @@ import org.rococoa.ID;
 import org.rococoa.Rococoa;
 import org.rococoa.cocoa.foundation.NSUInteger;
 
+import javax.swing.*;
+import java.awt.*;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 
@@ -51,7 +53,8 @@ public abstract class FLGenericGUI extends Application {
         // Set window closing handler
         stage.setOnCloseRequest( windowEvent -> close() );
 
-        // Apply frost effect to center pane
+        // Prepare GUI effects
+        prepareGUIEffects();
 
         // Store stage
         currentJFXStage = stage;
@@ -64,6 +67,9 @@ public abstract class FLGenericGUI extends Application {
 
         // Count down ready latch
         readyLatch.countDown();
+    }
+
+    private void prepareGUIEffects() {
     }
 
     abstract String getFXMLResourcePath();
