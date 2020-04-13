@@ -5,7 +5,6 @@ import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
 import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
-import com.micatechnologies.minecraft.forgelauncher.MCFLSettingsGUI;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
@@ -120,13 +119,13 @@ public class FLMainGUI extends FLGenericGUI {
             hide();
 
             // Open settings GUI and disable main window
-            MCFLSettingsGUI MCFLSettingsGUI = new MCFLSettingsGUI();
-            MCFLSettingsGUI.open();
+            FLSettingsGUI flSettingsGUI = new FLSettingsGUI();
+            flSettingsGUI.show();
 
             // Wait for settings to close, then enable main window again
             FLSystemUtils.spawnNewTask( () -> {
                 try {
-                    MCFLSettingsGUI.closedLatch.await();
+                    flSettingsGUI.closedLatch.await();
                 }
                 catch ( InterruptedException e ) {
                 }

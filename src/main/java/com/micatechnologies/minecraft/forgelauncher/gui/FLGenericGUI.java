@@ -142,13 +142,17 @@ public abstract class FLGenericGUI extends Application {
         closedLatch.countDown();
     }
 
+    NSWindow getNSWindow() {
+        // Load rococoa library
+        System.load( this.getClass().getResource( "darwin/librococoa.dylib" ).getPath() );
+
+        // Wrap window as NSWindow and return
+        return Rococoa.wrap( ID.fromLong( getWindowHandle() ), NSWindow.class );
+    }
+
     private void styleMacWindow() {
         try {
-            // Load rococoa library
-            System.load( this.getClass().getResource( "darwin/librococoa.dylib" ).getPath() );
-
-            // Wrap window as NSWindow
-            NSWindow thisWindow = Rococoa.wrap( ID.fromLong( getWindowHandle() ), NSWindow.class );
+            NSWindow thisWindow = getNSWindow();
 
             // Perform styling
             thisWindow.setTitlebarAppearsTransparent( true );

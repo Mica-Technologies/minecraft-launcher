@@ -26,12 +26,12 @@ public class MCFLConfiguration {
     /**
      * Array of options for minimum RAM configuration
      */
-    static final transient double[] MIN_RAM_OPTIONS = { 0.25, 0.5, 0.75, 1.0, 2.0 };
+    public static final transient double[] MIN_RAM_OPTIONS = { 0.25, 0.5, 0.75, 1.0, 2.0 };
 
     /**
      * Array of options for maxmimum RAM configuration
      */
-    static final transient double[] MAX_RAM_OPTIONS = { 2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0, 28.0, 32.0, 36.0 };
+    public static final transient double[] MAX_RAM_OPTIONS = { 2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0, 28.0, 32.0, 36.0 };
 
     /**
      * Default option for minimum RAM configuration
@@ -95,7 +95,7 @@ public class MCFLConfiguration {
      *
      * @since 1.1
      */
-    double getMinRAM() {
+    public double getMinRAM() {
         return minRAM;
     }
 
@@ -106,7 +106,7 @@ public class MCFLConfiguration {
      *
      * @since 1.1
      */
-    double getMaxRAM() {
+    public double getMaxRAM() {
         return maxRAM;
     }
 
@@ -117,7 +117,7 @@ public class MCFLConfiguration {
      *
      * @since 1.1
      */
-    void setMinRAM( double minRAM ) {
+    public void setMinRAM( double minRAM ) {
         this.minRAM = minRAM;
     }
 
@@ -128,7 +128,7 @@ public class MCFLConfiguration {
      *
      * @since 1.1
      */
-    void setMaxRAM( double maxRAM ) {
+    public void setMaxRAM( double maxRAM ) {
         this.maxRAM = maxRAM;
     }
 
@@ -150,7 +150,7 @@ public class MCFLConfiguration {
      *
      * @since 1.1
      */
-    void setDebug( boolean debug ) {
+    public void setDebug( boolean debug ) {
         this.debug = debug;
     }
 
@@ -159,7 +159,7 @@ public class MCFLConfiguration {
      *
      * @return resizable guis boolean
      */
-    boolean getResizableguis() {
+    public boolean getResizableguis() {
         return resizableguis;
     }
 
@@ -168,7 +168,7 @@ public class MCFLConfiguration {
      *
      * @param resizableguis resizable guis boolean
      */
-    void setResizableguis( boolean resizableguis ) {
+    public void setResizableguis( boolean resizableguis ) {
         this.resizableguis = resizableguis;
     }
 
@@ -179,7 +179,7 @@ public class MCFLConfiguration {
      *
      * @since 1.1
      */
-    List< String > getModpacks() {
+    public List< String > getModpacks() {
         return modpacks;
     }
     //endregion

@@ -334,7 +334,7 @@ public class MCFLApp {
         }
     }
 
-    static void clearLocalJDK() throws IOException {
+    public static void clearLocalJDK() throws IOException {
         FileUtils.deleteDirectory( new File( getJREFolderPath() ) );
     }
 
@@ -343,7 +343,7 @@ public class MCFLApp {
         System.exit( 0 );
     }
 
-    static void doLocalJDK() {
+    public static void doLocalJDK() {
         // Create a progress GUI if in client mod
         FLProgressGUI progressGUI = null;
         if ( mode == MODE_CLIENT ) {
@@ -588,19 +588,6 @@ public class MCFLApp {
         if ( args.length == 0 ) mode = inferMode();
         else if ( args.length == 1 && args[ 0 ].equals( "-c" ) ) mode = MODE_CLIENT;
         else if ( args.length == 1 && args[ 0 ].equals( "-s" ) ) mode = MODE_SERVER;
-        else if ( args.length == 1 && args[ 0 ].equals( "-a" ) ) {
-            // Show admin UI and stop normal processes
-            loopLogin = false;
-
-            MCFLAdminGUI adminGUI = new MCFLAdminGUI();
-            adminGUI.open();
-            try {
-                adminGUI.closedLatch.await();
-            }
-            catch ( InterruptedException e ) {
-                System.err.println( "Unable to wait completion of GUI." );
-            }
-        }
         else if ( args.length == 1 && args[ 0 ].matches( "^\\d+$" ) ) initPackIndex = Integer.parseInt( args[ 0 ] );
         else if ( args.length == 2 && args[ 0 ].equals( "-c" ) && args[ 1 ].matches( "^\\d+$" ) ) {
             mode = MODE_CLIENT;
