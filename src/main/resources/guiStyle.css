@@ -25,3 +25,11 @@
     -fx-background-color: rgba(70,70,70,0.95) !important;
     -fx-background-radius: 10px !important;
 }
+
+.jfx-chip-view .jfx-chip * {
+    -fx-text-fill: #444 !important;
+}
+
+.jfx-chip-view .jfx-chip .close-button .jfx-rippler {
+    -jfx-rippler-fill: BLACK;
+}

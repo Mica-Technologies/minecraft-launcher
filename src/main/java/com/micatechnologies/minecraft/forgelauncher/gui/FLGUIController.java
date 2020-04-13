@@ -1,5 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
+import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
@@ -37,10 +39,15 @@ public class FLGUIController {
     }
 
     public synchronized static void doForAllWindows( Consumer< FLGenericGUI > task ) {
-        windowList.forEach( task );
+        FLGUIUtils.JFXPlatformRun( () -> windowList.forEach( task ) );
     }
 
     public synchronized static void closeAllWindows() {
         doForAllWindows( FLGenericGUI::close );
+    }
+
+    public synchronized static void refreshWindowConfiguration() {
+        // Set window resize mode
+        FLGUIUtils.JFXPlatformRun( () -> doForAllWindows( flGenericGUI -> flGenericGUI.getCurrentJFXStage().setResizable( MCFLApp.getLauncherConfig().getResizableguis() ) ) );
     }
 }

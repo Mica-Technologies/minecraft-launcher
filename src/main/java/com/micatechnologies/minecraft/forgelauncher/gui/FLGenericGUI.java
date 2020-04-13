@@ -98,6 +98,9 @@ public abstract class FLGenericGUI extends Application {
                     }
                 } );
 
+        // Force window changes apply
+        FLGUIController.refreshWindowConfiguration();
+
         // Wait for window ready
         try {
             readyLatch.await();

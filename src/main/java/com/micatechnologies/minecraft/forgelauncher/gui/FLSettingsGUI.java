@@ -119,7 +119,7 @@ public class FLSettingsGUI extends FLGenericGUI {
             saveBtn.setText( "Saved" );
 
             // Force window changes apply
-            // doWindowConfigUpdates();
+            FLGUIController.refreshWindowConfiguration();
 
             // Schedule save button text to revert to normal after 5s
             new Thread( () -> {
