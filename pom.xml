@@ -285,25 +285,27 @@
 
             <!-- CREATE MAC APP -->
             <plugin>
-                <groupId>de.perdian.maven.plugins</groupId>
-                <artifactId>macosappbundler-maven-plugin</artifactId>
-                <version>1.7.0</version>
+                <groupId>com.micatechnologies</groupId>
+                <artifactId>appbundle-maven-plugin</artifactId>
+                <version>2019.1</version>
                 <configuration>
-                    <plist>
-                        <CFBundleIconFile>
-                            src${file.separator}main${file.separator}resources${file.separator}micaforgelauncher.icns
-                        </CFBundleIconFile>
-                        <CFBundleDisplayName>${app.name}</CFBundleDisplayName>
-                        <CFBundleDevelopmentRegion>English</CFBundleDevelopmentRegion>
-                        <JVMMainClassName>${main.class}</JVMMainClassName>
-                        <JVMVersion>11+</JVMVersion>
-                        <JVMOptions>-Dfile.encoding=UTF-8</JVMOptions>
-                    </plist>
-                    <jdk>
-                        <include>true</include>
-                        <!--suppress UnresolvedMavenProperty -->
-                        <location>${jlink.mac.jdk.path}</location>
-                    </jdk>
+                    <version>${version}</version>
+                    <includeApplicationsSymlink>true</includeApplicationsSymlink>
+                    <!--suppress UnresolvedMavenProperty -->
+                    <jrePath>${jlink.mac.jdk.path}</jrePath>
+                    <mainClass>${main.class}</mainClass>
+                    <iconFile>micaforgelauncher.icns</iconFile>
+                    <additionalBundledClasspathResources>
+                        <fileSet>
+                            <directory>
+                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
+                            </directory>
+                        </fileSet>
+                    </additionalBundledClasspathResources>
+                    <bundleName>${app.name}</bundleName>
+                    <jvmOptions>
+                        <jvmOption>-Dfile.encoding=UTF-8</jvmOption>
+                    </jvmOptions>
                 </configuration>
                 <executions>
                     <execution>
@@ -339,7 +341,7 @@
                                 </fileSet>
                                 <fileSet>
                                     <sourceFile>
-                                        ${project.build.directory}${file.separator}${project.name}.app
+                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}${file.separator}${app.name}.app
                                     </sourceFile>
                                     <destinationFile>
                                         ${project.build.directory}${file.separator}${project.artifactId}-unsigned.app
