@@ -37,7 +37,7 @@ printf "\nPerforming code signing of application (.app)\n"
 find "micaforgelauncher-signed.app" -type f -not -path "*/Contents/PlugIns/*" -not -path "*/Contents/MacOS/JavaAppLauncher" -not -path "*libapplauncher.dylib" -exec codesign --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/entitlements.plist -s "Developer ID Application" --options runtime -v {} \;
 find "micaforgelauncher-signed.app/Contents/PlugIns/JRE" -type f -not -path "*/legal/*" -not -path "*/man/*" -exec codesign -f --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/entitlements.plist -s "Developer ID Application" --options runtime -v {} \;
 #codesign -f --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/entitlements.plist -s "Developer ID Application" --options runtime -v micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre
-codesign -f --deep --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/entitlements.plist -s "Developer ID Application" --options runtime -v "micaforgelauncher-signed.app"
+codesign -f --deep --timestamp --entitlements /Users/alexanderhawk/Git/Personal/Minecraft-Forge-Launcher/src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v "micaforgelauncher-signed.app"
 
 printf "Performing code signing of application (.app): DONE\n"
 printf "NOTE: APPLICATION .APP FILE MUST BE NOTARIZED BY APPLE\n"
