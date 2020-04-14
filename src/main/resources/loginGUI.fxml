@@ -40,24 +40,24 @@
                   <Image url="@mica_forge_launcher_icon.png" />
                </image>
             </ImageView>
-            <JFXTextField fx:id="emailField" focusColor="#4e514e" promptText="Email" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
-            <JFXCheckBox fx:id="rememberMeCheckBox" checkedColor="#7fc860" text="Remember Me" viewOrder="2.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER" />
-            <JFXButton fx:id="exitBtn" cancelButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" style="-fx-background-color: #7fc860;" text="Exit" viewOrder="4.0" GridPane.columnIndex="1" GridPane.halignment="LEFT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-               <GridPane.margin>
-                  <Insets left="10.0" />
-               </GridPane.margin>
-            </JFXButton>
-            <JFXButton fx:id="loginBtn" defaultButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Log In" viewOrder="3.0" GridPane.halignment="RIGHT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-               <GridPane.margin>
-                  <Insets right="10.0" />
-               </GridPane.margin>
-            </JFXButton>
-            <JFXPasswordField fx:id="passwordField" focusColor="#7fc860" promptText="Password" viewOrder="1.0" GridPane.columnSpan="2" GridPane.rowIndex="3" />
             <Label text="Login to Minecraft" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
                <font>
                   <Font size="18.0" />
                </font>
             </Label>
+            <JFXTextField fx:id="emailField" focusColor="#4e514e" promptText="Email" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
+            <JFXPasswordField fx:id="passwordField" focusColor="#7fc860" promptText="Password" viewOrder="1.0" GridPane.columnSpan="2" GridPane.rowIndex="3" />
+            <JFXCheckBox fx:id="rememberMeCheckBox" checkedColor="#7fc860" text="Remember Me" viewOrder="2.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER" />
+            <JFXButton fx:id="loginBtn" defaultButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Log In" viewOrder="3.0" GridPane.halignment="RIGHT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
+               <GridPane.margin>
+                  <Insets right="10.0" />
+               </GridPane.margin>
+            </JFXButton>
+            <JFXButton fx:id="exitBtn" cancelButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" style="-fx-background-color: #7fc860;" text="Exit" viewOrder="4.0" GridPane.columnIndex="1" GridPane.halignment="LEFT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
+               <GridPane.margin>
+                  <Insets left="10.0" />
+               </GridPane.margin>
+            </JFXButton>
          </children>
          <GridPane.margin>
             <Insets />

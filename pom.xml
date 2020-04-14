@@ -59,12 +59,12 @@
     </repositories>
 
     <build>
-            <resources>
-                <resource>
-                    <directory>src/main/resources</directory>
-                    <filtering>true</filtering>
-                </resource>
-            </resources>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
             <!-- CLEANUP UNWANTED FILES AND BINARIES -->
             <plugin>
@@ -248,7 +248,9 @@
                             <classPath>
                                 <mainClass>${main.class}</mainClass>
                             </classPath>
-                            <icon>${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}micaforgelauncher.ico</icon>
+                            <icon>
+                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}micaforgelauncher.ico
+                            </icon>
                             <jre>
                                 <!--suppress UnresolvedMavenProperty -->
                                 <path>.\LIBERICA_jre11.0.5_windows_amd64</path>
@@ -271,7 +273,8 @@
                             <messages>
                                 <bundledJreErr>There is a problem with the bundled JRE.</bundledJreErr>
                                 <startupErr>There is a problem with starting up.</startupErr>
-                                <jreVersionErr>There is a problem with your Java version. Java 11 or newer is required. This should not happen on a proper installation!
+                                <jreVersionErr>There is a problem with your Java version. Java 11 or newer is required.
+                                    This should not happen on a proper installation!
                                 </jreVersionErr>
                                 <launcherErr>There is a problem with the application launcher.</launcherErr>
                             </messages>
@@ -282,27 +285,25 @@
 
             <!-- CREATE MAC APP -->
             <plugin>
-                <groupId>com.micatechnologies</groupId>
-                <artifactId>appbundle-maven-plugin</artifactId>
-                <version>2019.1</version>
+                <groupId>de.perdian.maven.plugins</groupId>
+                <artifactId>macosappbundler-maven-plugin</artifactId>
+                <version>1.7.0</version>
                 <configuration>
-                    <version>${version}</version>
-                    <includeApplicationsSymlink>true</includeApplicationsSymlink>
-                    <!--suppress UnresolvedMavenProperty -->
-                    <jrePath>${jlink.mac.jdk.path}</jrePath>
-                    <mainClass>${main.class}</mainClass>
-                    <iconFile>micaforgelauncher.icns</iconFile>
-                    <additionalBundledClasspathResources>
-                        <fileSet>
-                            <directory>
-                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
-                            </directory>
-                        </fileSet>
-                    </additionalBundledClasspathResources>
-                    <bundleName>${app.name}</bundleName>
-                    <jvmOptions>
-                        <jvmOption>-Dfile.encoding=UTF-8</jvmOption>
-                    </jvmOptions>
+                    <plist>
+                        <CFBundleIconFile>
+                            src${file.separator}main${file.separator}resources${file.separator}micaforgelauncher.icns
+                        </CFBundleIconFile>
+                        <CFBundleDisplayName>${app.name}</CFBundleDisplayName>
+                        <CFBundleDevelopmentRegion>English</CFBundleDevelopmentRegion>
+                        <JVMMainClassName>${main.class}</JVMMainClassName>
+                        <JVMVersion>11+</JVMVersion>
+                        <JVMOptions>-Dfile.encoding=UTF-8</JVMOptions>
+                    </plist>
+                    <jdk>
+                        <include>true</include>
+                        <!--suppress UnresolvedMavenProperty -->
+                        <location>${jlink.mac.jdk.path}</location>
+                    </jdk>
                 </configuration>
                 <executions>
                     <execution>
@@ -338,7 +339,7 @@
                                 </fileSet>
                                 <fileSet>
                                     <sourceFile>
-                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}${file.separator}${app.name}.app
+                                        ${project.build.directory}${file.separator}${project.name}.app
                                     </sourceFile>
                                     <destinationFile>
                                         ${project.build.directory}${file.separator}${project.artifactId}-unsigned.app
@@ -469,15 +470,6 @@
             <groupId>org.eclipse.swt</groupId>
             <artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>
             <version>4.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.rococoa</groupId>
-            <artifactId>librococoa</artifactId>
-            <version>0.5</version>
-            <scope>system</scope>
-            <systemPath>
-                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}darwin${file.separator}librococoa.dylib
-            </systemPath>
         </dependency>
     </dependencies>
 </project>

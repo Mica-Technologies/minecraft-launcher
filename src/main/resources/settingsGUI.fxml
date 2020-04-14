@@ -35,27 +35,12 @@
             <RowConstraints maxHeight="1.7976931348623157E308" percentHeight="10.0" vgrow="SOMETIMES" />
         </rowConstraints>
          <children>
-            <JFXButton fx:id="returnBtn" cancelButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" style="-fx-background-color: #7fc860;" text="Return" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="LEFT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-               <GridPane.margin>
-                  <Insets left="10.0" />
-               </GridPane.margin>
-            </JFXButton>
-            <JFXButton fx:id="saveBtn" defaultButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Save" GridPane.columnSpan="2" GridPane.halignment="RIGHT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-               <GridPane.margin>
-                  <Insets right="10.0" />
-               </GridPane.margin>
-            </JFXButton>
             <Label text="Minimum RAM (GB)" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
-            <Label text="Maximum RAM (GB)" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
             <JFXComboBox fx:id="minRamBox" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
+            <Label text="Maximum RAM (GB)" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
             <JFXComboBox fx:id="maxRamBox" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
             <JFXCheckBox fx:id="debugCheckBox" text="Debug Mode" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
             <JFXCheckBox fx:id="windowResizeCheckBox" text="Window Resizing" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
-            <JFXChipView fx:id="packConfigList" promptText="Enter a Modpack URL" style="-fx-background-color: rgba(0,0,0,0.3);" GridPane.columnSpan="4" GridPane.rowIndex="4">
-               <GridPane.margin>
-                  <Insets top="10.0" />
-               </GridPane.margin>
-            </JFXChipView>
             <GridPane style="-fx-background-color: #500; -fx-background-radius: 10px;" GridPane.columnSpan="4" GridPane.rowIndex="3">
               <columnConstraints>
                 <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" percentWidth="50.0" />
@@ -65,13 +50,34 @@
                 <RowConstraints minHeight="10.0" percentHeight="100.0" prefHeight="30.0" vgrow="SOMETIMES" />
               </rowConstraints>
                <children>
-                  <JFXButton fx:id="resetLauncherBtn" defaultButton="true" maxHeight="25.0" maxWidth="115.0" minHeight="25.0" minWidth="115.0" prefHeight="25.0" prefWidth="115.0" style="-fx-background-color: #ccc!important;" text="Reset Launcher" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
-                  <JFXButton fx:id="resetRuntimeBtn" defaultButton="true" maxHeight="25.0" maxWidth="115.0" minHeight="25.0" minWidth="115.0" prefHeight="25.0" prefWidth="115.0" style="-fx-background-color: #ccc!important;" text="Reset Runtime" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
+                  <JFXButton fx:id="resetLauncherBtn" defaultButton="true" maxHeight="25.0" maxWidth="115.0" minHeight="25.0" minWidth="115.0" prefHeight="25.0" prefWidth="115.0" style="-fx-background-color: #ccc!important;" text="Reset Launcher" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                     <font>
+                        <Font size="12.0" />
+                     </font></JFXButton>
+                  <JFXButton fx:id="resetRuntimeBtn" defaultButton="true" maxHeight="25.0" maxWidth="115.0" minHeight="25.0" minWidth="115.0" prefHeight="25.0" prefWidth="115.0" style="-fx-background-color: #ccc!important;" text="Reset Runtime" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                     <font>
+                        <Font size="12.0" />
+                     </font></JFXButton>
                </children>
                <GridPane.margin>
                   <Insets bottom="5.0" left="60.0" right="60.0" top="5.0" />
                </GridPane.margin>
             </GridPane>
+            <JFXChipView fx:id="packConfigList" promptText="Enter a Modpack URL" style="-fx-background-color: rgba(0,0,0,0.3);" GridPane.columnSpan="4" GridPane.rowIndex="4">
+               <GridPane.margin>
+                  <Insets top="10.0" />
+               </GridPane.margin>
+            </JFXChipView>
+            <JFXButton fx:id="saveBtn" defaultButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Save" GridPane.columnSpan="2" GridPane.halignment="RIGHT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
+               <GridPane.margin>
+                  <Insets right="10.0" />
+               </GridPane.margin>
+            </JFXButton>
+            <JFXButton fx:id="returnBtn" cancelButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" style="-fx-background-color: #7fc860;" text="Return" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="LEFT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
+               <GridPane.margin>
+                  <Insets left="10.0" />
+               </GridPane.margin>
+            </JFXButton>
             <Label fx:id="versionLabel" text="Version: ERR_UNK" GridPane.columnIndex="3" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
                <font>
                   <Font size="10.0" />

@@ -1,16 +1,16 @@
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.micatechnologies.jadapt.NSWindow;
+import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
-import com.sun.jna.Native;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.effect.GaussianBlur;
+import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -19,10 +19,8 @@ import org.apache.commons.lang3.SystemUtils;
 import org.rococoa.ID;
 import org.rococoa.Rococoa;
 import org.rococoa.cocoa.foundation.NSUInteger;
-import org.rococoa.internal.RococoaLibrary;
 
-import javax.swing.*;
-import java.awt.*;
+import java.io.InputStream;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 
@@ -51,6 +49,13 @@ public abstract class FLGenericGUI extends Application {
         stage.setWidth( getWindowSize().fst );
         stage.setHeight( getWindowSize().snd );
         stage.initStyle( StageStyle.UNIFIED );
+
+        // Set window title and icon
+        stage.setTitle( MCFLConstants.LAUNCHER_APPLICATION_NAME );
+        InputStream iconStream = getClass().getClassLoader().getResourceAsStream( "micaforgelauncher.png" );
+        if ( iconStream != null ) {
+            stage.getIcons().add( new Image( iconStream ) );
+        }
 
         // Set window closing handler
         stage.setOnCloseRequest( windowEvent -> close() );

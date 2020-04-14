@@ -4,7 +4,7 @@
 #define MyAppName "Mica Forge Launcher"
 #define MyAppVersion "2020.2"
 #define MyAppPublisher "Mica Technologies"
-#define MyAppURL "www.github.com/Mica-Technologies/Minecraft-Forge-Launcher"
+#define MyAppURL "www.micatechnologies.com/forgelauncher.html"
 #define MyAppExeName "micaforgelauncher.exe"
 #define MyScriptWD SourcePath
 
