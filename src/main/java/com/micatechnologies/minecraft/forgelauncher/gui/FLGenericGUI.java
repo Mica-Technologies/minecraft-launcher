@@ -4,6 +4,7 @@ import com.micatechnologies.jadapt.NSWindow;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
+import com.sun.jna.Native;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -18,6 +19,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.rococoa.ID;
 import org.rococoa.Rococoa;
 import org.rococoa.cocoa.foundation.NSUInteger;
+import org.rococoa.internal.RococoaLibrary;
 
 import javax.swing.*;
 import java.awt.*;
@@ -147,7 +149,8 @@ public abstract class FLGenericGUI extends Application {
 
     NSWindow getNSWindow() {
         // Load rococoa library
-        System.load( this.getClass().getResource( "darwin/librococoa.dylib" ).getPath() );
+        String path = this.getClass().getClassLoader().getResource( "darwin/librococoa.dylib" ).getPath();
+        System.load( path );
 
         // Wrap window as NSWindow and return
         return Rococoa.wrap( ID.fromLong( getWindowHandle() ), NSWindow.class );
@@ -164,6 +167,7 @@ public abstract class FLGenericGUI extends Application {
                             thisWindow.styleMask().intValue() | NSWindow.StyleMaskFullSizeContentView ) );
         }
         catch ( Exception e ) {
+            e.printStackTrace();
             FLLogUtil.debug(
                     "An error occurred while performing style modifications to an NSWindow wrapper." );
         }

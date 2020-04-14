@@ -92,7 +92,7 @@ public class FLSettingsGUI extends FLGenericGUI {
         } ) );
 
         // Configure save button
-        saveBtn.setOnAction( actionEvent -> {
+        saveBtn.setOnAction( actionEvent -> FLSystemUtils.spawnNewTask( () -> {
             // Store min ram to config
             MCFLApp.getLauncherConfig().setMinRAM( MCFLConfiguration.MIN_RAM_OPTIONS[ minRamBox.getSelectionModel().getSelectedIndex() ] );
 
@@ -116,21 +116,21 @@ public class FLSettingsGUI extends FLGenericGUI {
             setEdited( false );
 
             // Change save button text to indicate successful save
-            saveBtn.setText( "Saved" );
+            FLGUIUtils.JFXPlatformRun( ()->saveBtn.setText( "Saved" ) );
 
             // Force window changes apply
             FLGUIController.refreshWindowConfiguration();
 
             // Schedule save button text to revert to normal after 5s
-            new Thread( () -> {
+            FLSystemUtils.spawnNewTask( () -> {
                 try {
                     Thread.sleep( 5000 );
                 }
                 catch ( InterruptedException ignored ) {
                 }
-                Platform.runLater( () -> saveBtn.setText( "Save" ) );
-            } ).start();
-        } );
+                FLGUIUtils.JFXPlatformRun(() -> saveBtn.setText( "Save" ) );
+            } );
+        } ) );
 
         // Configure reset launcher button
         resetLauncherBtn.setOnAction( actionEvent -> FLSystemUtils.spawnNewTask( () -> {

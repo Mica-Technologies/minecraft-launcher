@@ -613,9 +613,9 @@ public class MCFLApp {
                 logFile.getParentFile().mkdirs();
                 logFile.createNewFile();
             }
-            toLog = new PrintStream( logFile );
-            System.setOut( toLog );
-            System.setErr( toLog );
+            //toLog = new PrintStream( logFile );
+            //System.setOut( toLog );
+            //System.setErr( toLog );
             System.out.println( "Configured err and out to file" );
         }
         catch ( Exception e ) {
