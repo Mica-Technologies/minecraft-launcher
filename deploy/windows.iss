@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Mica Forge Launcher"
-#define MyAppVersion "2020.2"
+#define MyAppVersion "2020.2.1"
 #define MyAppPublisher "Mica Technologies"
 #define MyAppURL "www.micatechnologies.com/forgelauncher.html"
 #define MyAppExeName "micaforgelauncher.exe"

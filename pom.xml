@@ -7,7 +7,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>micaforgelauncher</artifactId>
-    <version>2020.2</version>
+    <version>2020.2.1</version>
     <name>micaforgelauncher</name>
     <packaging>jar</packaging>
 
