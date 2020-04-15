@@ -9,18 +9,19 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
-import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
-import javafx.stage.WindowEvent;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
-import java.util.List;
 
 public class FLSettingsGUI extends FLGenericGUI {
 
@@ -116,7 +117,7 @@ public class FLSettingsGUI extends FLGenericGUI {
             setEdited( false );
 
             // Change save button text to indicate successful save
-            FLGUIUtils.JFXPlatformRun( ()->saveBtn.setText( "Saved" ) );
+            FLGUIUtils.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
 
             // Force window changes apply
             FLGUIController.refreshWindowConfiguration();
@@ -128,7 +129,7 @@ public class FLSettingsGUI extends FLGenericGUI {
                 }
                 catch ( InterruptedException ignored ) {
                 }
-                FLGUIUtils.JFXPlatformRun(() -> saveBtn.setText( "Save" ) );
+                FLGUIUtils.JFXPlatformRun( () -> saveBtn.setText( "Save" ) );
             } );
         } ) );
 
@@ -169,8 +170,7 @@ public class FLSettingsGUI extends FLGenericGUI {
         } ) );
 
         // Load version information
-        Package p = getClass().getPackage();
-        String v = p.getImplementationVersion();
+        String v = FLSystemUtils.getAppVersion();
         versionLabel.setText( "Version: " + v );
 
         // Set and configure resizable windows check box

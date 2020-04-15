@@ -1,11 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Path;
@@ -19,6 +14,9 @@ import java.util.jar.JarFile;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 /**
  * Class of utility methods to facilitate classes in the {@link com.micatechnologies.minecraft.forgelauncher}
@@ -238,5 +236,17 @@ public class FLSystemUtils {
         }
 
         return 0;
+    }
+
+    public static String getAppVersion() {
+        try {
+            MavenXpp3Reader reader = new MavenXpp3Reader();
+            Model model;
+            model = reader.read( new FileReader( "pom.xml"));
+            return model.getVersion();
+        }
+        catch ( Exception e ) {
+            return "ERR_UNK";
+        }
     }
 }

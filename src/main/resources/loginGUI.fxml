@@ -52,11 +52,17 @@
                <GridPane.margin>
                   <Insets right="10.0" />
                </GridPane.margin>
+               <font>
+                  <Font size="11.0" />
+               </font>
             </JFXButton>
             <JFXButton fx:id="exitBtn" cancelButton="true" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" style="-fx-background-color: #7fc860;" text="Exit" viewOrder="4.0" GridPane.columnIndex="1" GridPane.halignment="LEFT" GridPane.rowIndex="5" GridPane.valignment="CENTER">
                <GridPane.margin>
                   <Insets left="10.0" />
                </GridPane.margin>
+               <font>
+                  <Font size="11.0" />
+               </font>
             </JFXButton>
          </children>
          <GridPane.margin>

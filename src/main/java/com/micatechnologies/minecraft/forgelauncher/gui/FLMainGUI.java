@@ -19,6 +19,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.WindowEvent;
+import org.apache.commons.lang3.NotImplementedException;
 
 import java.awt.*;
 import java.io.IOException;
@@ -80,8 +81,10 @@ public class FLMainGUI extends FLGenericGUI {
         FLSystemUtils.spawnNewTask( () -> {
             try {
                 // Get current version
-                Package p = getClass().getPackage();
-                String version = p.getImplementationVersion();
+                String version = FLSystemUtils.getAppVersion();
+
+                // Do not continue if version invalid
+                if ( version.equals( "ERR_UNK" ) ) throw new NotImplementedException( "Unable to read Maven version." );
 
                 // Get latest version
                 URLConnection con = new URL( MCFLConstants.UPDATE_CHECK_REDIRECT_URL ).openConnection();
@@ -93,7 +96,7 @@ public class FLMainGUI extends FLGenericGUI {
                 is.close();
 
                 // Check if current version is less than latest
-                if ( FLSystemUtils.compareVersionNumbers( version, latestVersion ) == 1){//-1 ) {
+                if ( FLSystemUtils.compareVersionNumbers( version, latestVersion ) == -1 ) {
                     updateImgView.setVisible( true );
                     updateImgView.setOnMouseClicked( mouseEvent -> FLSystemUtils.spawnNewTask( () -> {
                         int response = FLGUIUtils.showQuestionMessage( "Update Available", "Update Ready to Download", "An update has been found and is ready to be downloaded and installed.", "Update Now", "Update Later", getCurrentJFXStage() );
