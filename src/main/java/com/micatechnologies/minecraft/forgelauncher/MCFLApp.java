@@ -194,7 +194,8 @@ public class MCFLApp {
                         FileUtils.deleteDirectory( modpackRootFolder.toFile() );
                     }
                     catch ( IOException e ) {
-                        FLLogger.logDebug( "Failed to cleanup sandbox install folder." );
+                        FLLogger.logError( "Failed to cleanup sandbox install folder." );
+                        e.printStackTrace();
                     }
                     if ( progressGUI != null ) {
                         progressGUI.setLowerLabelText( "Configuring " + tempPack.getPackName() );

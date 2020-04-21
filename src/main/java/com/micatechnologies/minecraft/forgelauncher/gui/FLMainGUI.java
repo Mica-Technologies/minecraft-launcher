@@ -83,9 +83,6 @@ public class FLMainGUI extends FLGenericGUI {
                 // Get current version
                 String version = MCFLConstants.LAUNCHER_APPLICATION_VERSION;
 
-                // Do not continue if version invalid
-                if ( version.equals( "ERR_UNK" ) ) throw new NotImplementedException( "Unable to read Maven version." );
-
                 // Get latest version
                 URLConnection con = new URL( MCFLConstants.UPDATE_CHECK_REDIRECT_URL ).openConnection();
                 con.connect();
@@ -112,7 +109,8 @@ public class FLMainGUI extends FLGenericGUI {
                 }
             }
             catch ( Exception e ) {
-                FLLogger.logDebug( "An error occurred while checking for an updated launcher version!" );
+                e.printStackTrace();
+                FLLogger.logError( "An error occurred while checking for an updated launcher version!" );
             }
         } );
 
