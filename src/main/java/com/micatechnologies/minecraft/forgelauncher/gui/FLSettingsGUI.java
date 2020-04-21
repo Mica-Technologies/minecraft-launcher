@@ -5,8 +5,9 @@ import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.*;
 import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
 import com.micatechnologies.minecraft.forgelauncher.MCFLConfiguration;
+import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.collections.ListChangeListener;
@@ -15,12 +16,8 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 
 public class FLSettingsGUI extends FLGenericGUI {
@@ -147,7 +144,7 @@ public class FLSettingsGUI extends FLGenericGUI {
                 close();
             }
             catch ( IOException e ) {
-                FLLogUtil.error( "An error occurred while resetting the launcher. Will continue to attempt!", 700, getCurrentJFXStage() );
+                FLLogger.logError( "An error occurred while resetting the launcher. Will continue to attempt!", getCurrentJFXStage() );
             }
         } ) );
 
@@ -163,14 +160,14 @@ public class FLSettingsGUI extends FLGenericGUI {
                 MCFLApp.clearLocalJDK();
             }
             catch ( IOException e ) {
-                FLLogUtil.error( "Unable to clear previous runtime from disk. Will continue to attempt reset!", 700, getCurrentJFXStage() );
+                FLLogger.logError( "Unable to clear previous runtime from disk. Will continue to attempt reset!", getCurrentJFXStage() );
             }
             MCFLApp.doLocalJDK();
             show();
         } ) );
 
         // Load version information
-        String v = FLSystemUtils.getAppVersion();
+        String v = MCFLConstants.LAUNCHER_APPLICATION_VERSION;
         versionLabel.setText( "Version: " + v );
 
         // Set and configure resizable windows check box

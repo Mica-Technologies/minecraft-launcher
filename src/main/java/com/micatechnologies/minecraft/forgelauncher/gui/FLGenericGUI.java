@@ -3,7 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 import com.micatechnologies.jadapt.NSWindow;
 import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -173,7 +173,7 @@ public abstract class FLGenericGUI extends Application {
         }
         catch ( Exception e ) {
             e.printStackTrace();
-            FLLogUtil.debug(
+            FLLogger.logDebug(
                     "An error occurred while performing style modifications to an NSWindow wrapper." );
         }
     }
@@ -185,14 +185,14 @@ public abstract class FLGenericGUI extends Application {
                     start( new Stage() );
                 }
                 catch ( Exception e ) {
-                    FLLogUtil.error( "An error occurred while creating a window!", 3003, null );
+                    FLLogger.logError( "An error occurred while creating a window!" );
                 }
             } );
             try {
                 readyLatch.await();
             }
             catch ( InterruptedException e ) {
-                FLLogUtil.error( "An error occurred while waiting for window creation!", 3004, null );
+                FLLogger.logError( "An error occurred while waiting for window creation!" );
             }
         }
     }

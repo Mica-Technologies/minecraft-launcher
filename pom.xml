@@ -7,7 +7,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>micaforgelauncher</artifactId>
-    <version>2020.2.1</version>
+    <version>2020.2.2B</version>
     <name>micaforgelauncher</name>
     <packaging>jar</packaging>
 
@@ -59,12 +59,6 @@
     </repositories>
 
     <build>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
         <plugins>
             <!-- CLEANUP UNWANTED FILES AND BINARIES -->
             <plugin>
@@ -87,6 +81,38 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <!-- SET APP VERSION AND NAME CONSTANTS -->
+            <plugin>
+                <groupId>com.google.code.maven-replacer-plugin</groupId>
+                <artifactId>replacer</artifactId>
+                <version>1.5.3</version>
+                <executions>
+                    <execution>
+                        <id>replace-version-number</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>replace</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <includes>
+                        <include>
+                            ${project.basedir}${file.separator}src${file.separator}main${file.separator}java${file.separator}com${file.separator}micatechnologies${file.separator}minecraft${file.separator}forgelauncher${file.separator}MCFLConstants.java
+                        </include>
+                    </includes>
+                    <replacements>
+                        <replacement>
+                            <token>LAUNCHER_APPLICATION_NAME = ".*"</token>
+                            <value>LAUNCHER_APPLICATION_NAME = "${app.name}"</value>
+                        </replacement>
+                        <replacement>
+                            <token>LAUNCHER_APPLICATION_VERSION = ".*"</token>
+                            <value>LAUNCHER_APPLICATION_VERSION = "${project.version}"</value>
+                        </replacement>
+                    </replacements>
+                </configuration>
             </plugin>
 
             <!-- COMPILE CODE -->

@@ -1,13 +1,13 @@
 package com.micatechnologies.minecraft.forgelauncher.exceptions;
 
 /**
- * Class for exceptions thrown in {@link com.micatechnologies.minecraft.forgemodpacklib}
+ * Class for exceptions thrown in {@link com.micatechnologies.minecraft.forgelauncher.modpack}
  *
  * @author Mica Technologies/hawka97
  * @version 1.0
  * @see java.lang.Exception
  */
-public class FLModpackException extends Exception {
+public class FLModpackException extends FLLauncherException {
 
     /**
      * Create an MCForgeModpackException with error message and backtrace.

@@ -7,7 +7,7 @@ package com.micatechnologies.minecraft.forgelauncher.exceptions;
  * @version 1.0
  * @see java.lang.Exception
  */
-public class FLAuthenticationException extends Exception {
+public class FLAuthenticationException extends FLLauncherException {
 
     /**
      * Create an MCAuthException with specified message and backtrace.

@@ -237,16 +237,4 @@ public class FLSystemUtils {
 
         return 0;
     }
-
-    public static String getAppVersion() {
-        try {
-            MavenXpp3Reader reader = new MavenXpp3Reader();
-            Model model;
-            model = reader.read( new FileReader( "pom.xml"));
-            return model.getVersion();
-        }
-        catch ( Exception e ) {
-            return "ERR_UNK";
-        }
-    }
 }

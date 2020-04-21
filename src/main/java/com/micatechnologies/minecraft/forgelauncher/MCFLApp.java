@@ -12,9 +12,9 @@ import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLNetworkUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import org.apache.commons.io.FileUtils;
@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 
 public class MCFLApp {
     //region: Statics/Constants
@@ -91,7 +92,7 @@ public class MCFLApp {
                     }
                     catch ( IOException ee ) {
                         // Output error if attempt to write new client token fails
-                        FLLogUtil.error( "The client token could not be written to persistent storage. Remember me login functionality will not work.", 305, null );
+                        FLLogger.logError( "The client token could not be written to persistent storage. Remember me login functionality will not work." );
                     }
                 }
 
@@ -105,7 +106,7 @@ public class MCFLApp {
                 }
                 catch ( IOException ee ) {
                     // Output error if attempt to write new client token fails
-                    FLLogUtil.error( "The client token could not be written to persistent storage. Remember me login functionality will not work.", 304, null );
+                    FLLogger.logError( "The client token could not be written to persistent storage. Remember me login functionality will not work." );
                 }
             }
         }
@@ -122,7 +123,7 @@ public class MCFLApp {
                 launcherConfig = MCFLConfiguration.open();
             }
             catch ( IOException e ) {
-                FLLogUtil.error( "Unable to load launcher configuration from persistent storage. Configuration may be reset.", 306, null );
+                FLLogger.logError( "Unable to load launcher configuration from persistent storage. Configuration may be reset." );
             }
         }
 
@@ -141,7 +142,7 @@ public class MCFLApp {
             getLauncherConfig().save();
         }
         catch ( IOException e ) {
-            FLLogUtil.error( "Unable to save launcher configuration to disk. Configuration may be lost!", 302, null );
+            FLLogger.logError( "Unable to save launcher configuration to disk. Configuration may be lost!" );
         }
     }
 
@@ -167,8 +168,7 @@ public class MCFLApp {
     }
 
     public static void errorIllegalLauncherMode() {
-        String msg = "An illegal launcher mode is in use. This should not happen!";
-        FLLogUtil.error( msg, 307, null );
+        FLLogger.logError( "An illegal launcher mode is in use. This should not happen!" );
     }
 
     public static void buildMemoryModpackList() {
@@ -194,7 +194,7 @@ public class MCFLApp {
                         FileUtils.deleteDirectory( modpackRootFolder.toFile() );
                     }
                     catch ( IOException e ) {
-                        FLLogUtil.debug( "Failed to cleanup sandbox install folder." );
+                        FLLogger.logDebug( "Failed to cleanup sandbox install folder." );
                     }
                     if ( progressGUI != null ) {
                         progressGUI.setLowerLabelText( "Configuring " + tempPack.getPackName() );
@@ -205,19 +205,19 @@ public class MCFLApp {
                 }
                 catch ( FLModpackException | MalformedURLException e ) {
                     if ( progressGUI != null ) {
-                        FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, progressGUI.getCurrentJFXStage() );
+                        FLLogger.logError( "Unable to download modpack manifest from specified URL " + s + "!", progressGUI.getCurrentJFXStage() );
                     }
                     else {
-                        FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 310, null );
+                        FLLogger.logError( "Unable to download modpack manifest from specified URL " + s + "!" );
                     }
                 }
             }
             catch ( FLModpackException | MalformedURLException e ) {
                 if ( progressGUI != null ) {
-                    FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, progressGUI.getCurrentJFXStage() );
+                    FLLogger.logError( "Unable to download modpack manifest from specified URL " + s + "!", progressGUI.getCurrentJFXStage() );
                 }
                 else {
-                    FLLogUtil.error( "Unable to download modpack manifest from specified URL " + s + "!", 311, null );
+                    FLLogger.logError( "Unable to download modpack manifest from specified URL " + s + "!" );
                 }
             }
         }
@@ -228,11 +228,11 @@ public class MCFLApp {
 
     public static int inferMode() {
         if ( !GraphicsEnvironment.isHeadless() ) {
-            FLLogUtil.log( "Inferred client mode" );
+            FLLogger.logStd( "Inferred client mode" );
             return MODE_CLIENT;
         }
         else {
-            FLLogUtil.log( "Inferred server mode" );
+            FLLogger.logStd( "Inferred server mode" );
             return MODE_SERVER;
         }
     }
@@ -260,7 +260,7 @@ public class MCFLApp {
 
             // Verify configured RAM
             if ( Integer.parseInt( mp.getPackMinRAMGB() ) > getLauncherConfig().getMaxRAM() ) {
-                FLLogUtil.error( "Modpack requires a minimum of " + mp.getPackMinRAMGB() + "GB of RAM. Please change your RAM settings in the settings menu.", 50, progressGUI.getCurrentJFXStage() );
+                FLLogger.logError( "Modpack requires a minimum of " + mp.getPackMinRAMGB() + "GB of RAM. Please change your RAM settings in the settings menu.", progressGUI.getCurrentJFXStage() );
                 progressGUI.close();
                 return;
             }
@@ -290,7 +290,7 @@ public class MCFLApp {
         }
         catch ( FLModpackException e ) {
             e.printStackTrace();
-            FLLogUtil.error( "Unable to start game.", 312, gui.getCurrentJFXStage() );
+            FLLogger.logError( "Unable to start game.", gui.getCurrentJFXStage() );
             if ( progressGUI != null ) progressGUI.close();
         }
     }
@@ -305,13 +305,13 @@ public class MCFLApp {
             mp.setProgressProvider( new MCForgeModpackProgressProvider() {
                 @Override
                 public void updateProgressHandler( double percent, String text ) {
-                    FLLogUtil.log( "Play: " + percent + "% - " + text );
+                    FLLogger.logStd( "Play: " + percent + "% - " + text );
                 }
             } );
             mp.startGame( getJavaPath(), "", "", "", minRAMMB, maxRAMMB );
         }
         catch ( FLModpackException e ) {
-            FLLogUtil.error( "Unable to start game.", 313, null );
+            FLLogger.logError( "Unable to start game." );
         }
     }
 
@@ -323,7 +323,7 @@ public class MCFLApp {
                 mainGUI.closedLatch.await();
             }
             catch ( InterruptedException ignored ) {
-                FLLogUtil.error( "An error is preventing GUI completion handling. The login screen may not appear after logout.", 316, mainGUI.getCurrentJFXStage() );
+                FLLogger.logError( "An error is preventing GUI completion handling. The login screen may not appear after logout.", mainGUI.getCurrentJFXStage() );
             }
         }
         else if ( mode == MODE_SERVER ) {
@@ -401,9 +401,9 @@ public class MCFLApp {
         }
         else {
             if ( progressGUI != null )
-                FLLogUtil.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, progressGUI.getCurrentJFXStage() );
+                FLLogger.logError( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", progressGUI.getCurrentJFXStage() );
             else
-                FLLogUtil.error( "Unable to identify operating system. Launcher will not cache JRE for gameplay.", 308, null );
+                FLLogger.logError( "Unable to identify operating system. Launcher will not cache JRE for gameplay." );
             if ( progressGUI != null ) {
                 Platform.setImplicitExit( false );
                 new Thread( progressGUI::close ).start();
@@ -421,9 +421,9 @@ public class MCFLApp {
         }
         catch ( IOException e ) {
             if ( progressGUI != null )
-                FLLogUtil.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, progressGUI.getCurrentJFXStage() );
+                FLLogger.logError( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", progressGUI.getCurrentJFXStage() );
             else
-                FLLogUtil.error( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.", 309, null );
+                FLLogger.logError( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety." );
             javaPath = "java";
             if ( progressGUI != null ) {
                 Platform.setImplicitExit( false );
@@ -470,8 +470,9 @@ public class MCFLApp {
         }
         catch ( IOException e ) {
             if ( progressGUI != null )
-                FLLogUtil.error( "Unable to create local runtime. Using system Java.", 309, progressGUI.getCurrentJFXStage() );
-            else FLLogUtil.error( "Unable to create local runtime. Using system Java.", 309, null );
+                FLLogger.logError( "Unable to create local runtime. Using system Java.", progressGUI.getCurrentJFXStage() );
+            else
+                FLLogger.logError( "Unable to create local runtime. Using system Java." );
             javaPath = "java";
             if ( progressGUI != null ) {
                 Platform.setImplicitExit( false );
@@ -487,6 +488,10 @@ public class MCFLApp {
         }
     }
 
+    public static boolean getDebugLogEnabled() {
+        return launcherConfig.getDebug();
+    }
+
     public static void logoutCurrentUser() {
         // Check if current user is not null
         if ( currentUser != null ) {
@@ -500,7 +505,7 @@ public class MCFLApp {
                 }
             }
             catch ( FLAuthenticationException | IOException e ) {
-                FLLogUtil.error( "Unable to invalidate cached token prior to logout. Local account information will still be destroyed.", 303, null );
+                FLLogger.logError( "Unable to invalidate cached token prior to logout. Local account information will still be destroyed." );
             }
         }
 
@@ -560,7 +565,7 @@ public class MCFLApp {
 
             // Show error if exception encountered above (need to wait for GUI)
             if ( dirtyLogin ) {
-                FLLogUtil.error( "Unable to load remembered user account.", 301, loginGUI.getCurrentJFXStage() );
+                FLLogger.logError( "Unable to load remembered user account.", loginGUI.getCurrentJFXStage() );
             }
 
             // Wait for login screen to complete
@@ -568,7 +573,7 @@ public class MCFLApp {
                 currentUser = loginGUI.waitForLoginInfo();
             }
             catch ( InterruptedException e ) {
-                FLLogUtil.error( "Unable to wait for pending login task.", 300, null );
+                FLLogger.logError( "Unable to wait for pending login task." );
                 closeApp();
             }
 
@@ -607,19 +612,12 @@ public class MCFLApp {
         SimpleDateFormat logFileNameTimeStampFormat = new SimpleDateFormat( "yyyy-MM-dd--HH-mm-ss" );
         String modeStr = mode == MODE_SERVER ? "SRV" : "CLIENT";
         File logFile = new File( getLogFolderPath() + File.separator + "Log_" + modeStr + "_" + logFileNameTimeStampFormat.format( logTimeStamp ) + ".log" );
-        PrintStream toLog = null;
         try {
-            if ( !logFile.isFile() ) {
-                logFile.getParentFile().mkdirs();
-                logFile.createNewFile();
-            }
-            toLog = new PrintStream( logFile );
-            System.setOut( toLog );
-            System.setErr( toLog );
-            System.out.println( "Configured err and out to file" );
+            FLLogger.initLogSys( logFile );
         }
-        catch ( Exception e ) {
-            System.err.println( "Unable to configure logging for launcher." );
+        catch ( IOException e ) {
+            e.printStackTrace();
+            System.err.println( "OH NO! The logger didn't configure correctly." );
         }
 
 
@@ -632,9 +630,6 @@ public class MCFLApp {
             buildMemoryModpackList();
             doModpackSelection( initPackIndex );
         }
-
-        // Close log output
-        if ( toLog != null ) toLog.close();
 
         // Force call to exit
         System.exit( 0 );

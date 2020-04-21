@@ -11,9 +11,14 @@ import java.nio.file.Paths;
  */
 public class MCFLConstants {
     /**
-     * Launcher application name
+     * Launcher application name. Leave blank, this is auto-filled in.
      */
     public final static transient String LAUNCHER_APPLICATION_NAME = "Mica Forge Launcher";
+
+    /**
+     * Launcher application version. Leave blank, this is auto-filled in.
+     */
+    public final static transient String LAUNCHER_APPLICATION_VERSION = "2020.2.2B";
 
     /**
      * Launcher client installation directory

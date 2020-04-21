@@ -8,7 +8,7 @@ import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.application.Platform;
@@ -81,7 +81,7 @@ public class FLMainGUI extends FLGenericGUI {
         FLSystemUtils.spawnNewTask( () -> {
             try {
                 // Get current version
-                String version = FLSystemUtils.getAppVersion();
+                String version = MCFLConstants.LAUNCHER_APPLICATION_VERSION;
 
                 // Do not continue if version invalid
                 if ( version.equals( "ERR_UNK" ) ) throw new NotImplementedException( "Unable to read Maven version." );
@@ -105,14 +105,14 @@ public class FLMainGUI extends FLGenericGUI {
                                 Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
                             }
                             catch ( IOException e ) {
-                                FLLogUtil.error( "Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", -80, getCurrentJFXStage() );
+                                FLLogger.logError( "Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", getCurrentJFXStage() );
                             }
                         }
                     } ) );
                 }
             }
             catch ( Exception e ) {
-                FLLogUtil.debug( "An error occurred while checking for an updated launcher version!" );
+                FLLogger.logDebug( "An error occurred while checking for an updated launcher version!" );
             }
         } );
 

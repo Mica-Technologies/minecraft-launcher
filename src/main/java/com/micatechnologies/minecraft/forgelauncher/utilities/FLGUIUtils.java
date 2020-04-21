@@ -84,18 +84,17 @@ public class FLGUIUtils {
      * Show an error message dialog to user with specified information.
      *
      * @param contentText dialog content/error text
-     * @param errorID     error ID
      *
      * @since 1.0
      */
-    public static void showErrorMessage( String contentText, String errorID, Stage owner ) {
+    public static void showErrorMessage( String contentText, Stage owner ) {
         // Create an error with the specified and created information/messages
         CountDownLatch waitForError = new CountDownLatch( 1 );
         JFXPlatformRun( () -> {
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
             errorAlert.setTitle( "Oops" );
             errorAlert.setHeaderText( "Error" );
-            errorAlert.setContentText( contentText + "\nError Code: " + errorID + "\n" + "Client Token: " + MCFLApp.getClientToken() );
+            errorAlert.setContentText( contentText + "\nClient Token: " + MCFLApp.getClientToken() );
             errorAlert.initModality( Modality.WINDOW_MODAL );
             errorAlert.initStyle( StageStyle.UTILITY );
             errorAlert.initOwner( owner );

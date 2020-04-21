@@ -4,7 +4,7 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 import com.jfoenix.controls.JFXProgressBar;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogUtil;
+import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.application.Platform;
@@ -63,7 +63,7 @@ public class FLProgressGUI extends FLGenericGUI {
         // Print progress to logs
         FLSystemUtils.spawnNewTask( () -> {
             if ( upperLabel != null && lowerLabel != null ) {
-                FLLogUtil.debug( upperLabel.getText() + ", " + lowerLabel.getText() + ": " + progress + "%" );
+                FLLogger.logDebug( upperLabel.getText() + ", " + lowerLabel.getText() + ": " + progress + "%" );
             }
         } );
     }
