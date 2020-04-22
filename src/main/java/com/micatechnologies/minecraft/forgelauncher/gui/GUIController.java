@@ -23,10 +23,6 @@ public class GUIController {
         windowList.remove( window );
     }
 
-    public synchronized static int getWindowCount() {
-        return windowList.size();
-    }
-
     public synchronized static void doForAllWindows( Consumer< GenericGUI > task ) {
         GUIUtils.JFXPlatformRun( () -> windowList.forEach( task ) );
     }

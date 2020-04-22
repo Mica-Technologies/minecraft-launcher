@@ -39,10 +39,7 @@ public abstract class GenericGUI extends Application {
     @Override
     public void start( Stage stage ) throws Exception {
         // Create JavaFX scene and apply to stage
-        FXMLLoader fxmlLoader =
-                new FXMLLoader( getClass().getClassLoader().getResource( getFXMLResourcePath() ) );
-        fxmlLoader.setController( this );
-        stage.setScene( new Scene( fxmlLoader.load() ) );
+        stage.setScene( new Scene( GUIUtils.buildFXMLLoader( getFXMLResourcePath(), this ).load() ) );
 
         // Set window size
         stage.setMinWidth( getWindowSize().fst );

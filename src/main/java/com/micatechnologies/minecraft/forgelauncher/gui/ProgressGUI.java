@@ -49,15 +49,11 @@ public class ProgressGUI extends GenericGUI {
     }
 
     public void setUpperLabelText( String text ) {
-        GUIUtils.JFXPlatformRun( () -> {
-            upperLabel.setText( text );
-        } );
+        GUIUtils.JFXPlatformRun( () -> upperLabel.setText( text ) );
     }
 
     public void setLowerLabelText( String text ) {
-        GUIUtils.JFXPlatformRun( () -> {
-            lowerLabel.setText( text );
-        } );
+        GUIUtils.JFXPlatformRun( () -> lowerLabel.setText( text ) );
     }
 
     public void setProgress( double progress ) {
