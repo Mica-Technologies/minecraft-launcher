@@ -21,7 +21,7 @@ import java.net.URL;
  * @author Mica Technologies/hawka97
  * @version 1.1
  */
-public class FLAuthUtils {
+public class AuthenticationUtils {
 
     /**
      * Perform an HTTP POST to the specified endpoint on the Mojang/Minecraft authentication servers

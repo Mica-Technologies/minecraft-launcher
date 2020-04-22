@@ -13,10 +13,6 @@ import java.util.jar.JarFile;
 
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.SystemUtils;
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 /**
  * Class of utility methods to facilitate classes in the {@link com.micatechnologies.minecraft.forgelauncher}
@@ -25,7 +21,7 @@ import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
  * @author Mica Technologies/hawka97
  * @version 1.0
  */
-public class FLSystemUtils {
+public class SystemUtils {
 
     /**
      * Get the classpath separator that is specific to the calling operating system.
@@ -35,21 +31,10 @@ public class FLSystemUtils {
      * @since 1.0
      */
     public static String getClasspathSeparator() {
-        if ( SystemUtils.IS_OS_WINDOWS ) {
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
             return ";";
         }
         return ":";
-    }
-
-    /**
-     * Get the file separator that is specific to the calling operating system.
-     *
-     * @return OS-specific classpath separator
-     *
-     * @since 1.0
-     */
-    public static String getFileSeparator() {
-        return File.separator;
     }
 
     /**
@@ -154,7 +139,7 @@ public class FLSystemUtils {
 
             // Create extracted file File object
             File extractedJarFileFile = new File(
-                    destination + getFileSeparator() + jarFileFile.getName() );
+                    destination + File.separator + jarFileFile.getName() );
 
             // Create directory if expected
             if ( extractedJarFileFile.isDirectory() ) {

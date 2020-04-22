@@ -10,15 +10,15 @@ import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
 import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthAccount;
 import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthService;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.fxml.FXML;
 import javafx.stage.WindowEvent;
 
 import java.util.concurrent.CountDownLatch;
 
-public class FLLoginGUI extends FLGenericGUI {
+public class LoginGUI extends GenericGUI {
     @FXML
     JFXTextField emailField;
 
@@ -34,7 +34,7 @@ public class FLLoginGUI extends FLGenericGUI {
     @FXML
     JFXButton exitBtn;
 
-    private CountDownLatch loginSuccessLatch = new CountDownLatch( 1 );
+    private final CountDownLatch loginSuccessLatch = new CountDownLatch( 1 );
 
     @Override
     String getFXMLResourcePath() {
@@ -49,11 +49,11 @@ public class FLLoginGUI extends FLGenericGUI {
     @Override
     void setupWindow() {
         // Configure exit button and window close
-        currentJFXStage.setOnCloseRequest( windowEvent -> FLSystemUtils.spawnNewTask( MCFLApp::closeApp ) );
+        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtils.spawnNewTask( MCFLApp::closeApp ) );
         exitBtn.setOnAction( actionEvent -> currentJFXStage.fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Configure login button
-        loginBtn.setOnAction( actionEvent -> FLSystemUtils.spawnNewTask( () -> {
+        loginBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
             // Lock fields
             emailField.setDisable( true );
             passwordField.setDisable( true );
@@ -99,19 +99,19 @@ public class FLLoginGUI extends FLGenericGUI {
 
     private void handleBadLogin() {
         // Show try again message
-        FLGUIUtils.JFXPlatformRun( () -> {
+        GUIUtils.JFXPlatformRun( () -> {
             loginBtn.setText( "Try Again" );
             passwordField.clear();
         } );
 
         // Reset log in button text in 5 seconds
-        FLSystemUtils.spawnNewTask( () -> {
+        SystemUtils.spawnNewTask( () -> {
             try {
                 Thread.sleep( 5000 );
             }
             catch ( InterruptedException ignored ) {
             }
-            FLGUIUtils.JFXPlatformRun( () -> loginBtn.setText( "Log In" ) );
+            GUIUtils.JFXPlatformRun( () -> loginBtn.setText( "Log In" ) );
         } );
     }
 

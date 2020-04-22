@@ -2,21 +2,21 @@ package com.micatechnologies.minecraft.forgelauncher.modpack;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MCAssetManifest extends MCRemoteFile {
 
     private static final String MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER =
-            "assets" + FLSystemUtils.getFileSeparator() + "indexes";
+            "assets" + File.separator + "indexes";
 
     private final String modpackRootFolder;
 
     MCAssetManifest( String remote, String modpackRootFolder, String version ) {
-        super( remote, modpackRootFolder + FLSystemUtils.getFileSeparator()
-                + MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER + FLSystemUtils.getFileSeparator()
+        super( remote, modpackRootFolder + File.separator
+                + MINECRAFT_ASSET_MANIFEST_LOCAL_MODPACK_FOLDER + File.separator
                 + version + ".json" );
         this.modpackRootFolder = modpackRootFolder;
     }
@@ -33,10 +33,9 @@ public class MCAssetManifest extends MCRemoteFile {
             JsonObject asset = objects.getAsJsonObject( assetName );
             String assetHash = asset.get( "hash" ).getAsString();
             String assetFolder = assetHash.substring( 0, 2 );
-            String assetPath = modpackRootFolder + FLSystemUtils.getFileSeparator()
-                    + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER + FLSystemUtils
-                    .getFileSeparator() + "objects" + FLSystemUtils.getFileSeparator() + assetFolder
-                    + FLSystemUtils.getFileSeparator() + assetHash;
+            String assetPath = modpackRootFolder + File.separator
+                    + MCForgeModpackConsts.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER + File.separator + "objects" + File.separator + assetFolder
+                    + File.separator + assetHash;
             String assetURL =
                     "http://resources.download.minecraft.net/" + assetFolder + "/" + assetHash;
             assets.add( new MCRemoteFile( assetURL, assetPath, assetHash ) );

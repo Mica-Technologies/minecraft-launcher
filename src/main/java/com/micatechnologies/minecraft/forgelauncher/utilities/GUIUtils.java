@@ -1,7 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
 import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
-import com.micatechnologies.minecraft.forgelauncher.gui.FLGenericGUI;
+import com.micatechnologies.minecraft.forgelauncher.gui.GenericGUI;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Alert;
@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class FLGUIUtils {
+public class GUIUtils {
     /**
      * Show a question message prompt to user as a dialog using specified information.
      *
@@ -128,17 +128,37 @@ public class FLGUIUtils {
     }
 
     public static void JFXPlatformRun( Runnable r ) {
+        JFXPlatformRun( r, false );
+    }
+
+    public static void JFXPlatformRun( Runnable r, boolean wait ) {
+        // Create latch for completion
+        CountDownLatch countDownLatch = new CountDownLatch( 1 );
+
+        Runnable runnable = () -> {
+            r.run();
+            countDownLatch.countDown();
+        };
+
         try {
-            Platform.runLater( r );
+            Platform.runLater( runnable );
         }
         catch ( Exception e ) {
-            Platform.startup( r );
+            Platform.startup( runnable );
+        }
+
+        try {
+            if ( wait ) countDownLatch.await();
+        }
+        catch ( InterruptedException e ) {
+            e.printStackTrace();
+            Logger.logError( "Unable to wait for JavaFX platform runnable to finish!" );
         }
     }
 
-    public static FXMLLoader buildFXMLLoader( String fxmlFileName, FLGenericGUI owner ) {
+    public static FXMLLoader buildFXMLLoader( String fxmlFileName, GenericGUI owner ) {
         FXMLLoader fxmlLoader = new FXMLLoader();
-        fxmlLoader.setLocation( FLGUIUtils.class.getClassLoader().getResource( fxmlFileName ) );
+        fxmlLoader.setLocation( GUIUtils.class.getClassLoader().getResource( fxmlFileName ) );
         fxmlLoader.setController( owner );
         return fxmlLoader;
     }

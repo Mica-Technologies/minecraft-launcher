@@ -1,6 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher.modpack;
 
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
+import com.micatechnologies.minecraft.forgelauncher.game.GameMode;
 
 /**
  * A class representation of a Minecraft Forge mod that can be downloaded locally and verified using
@@ -56,9 +57,9 @@ public class MCForgeMod extends MCRemoteFile {
      *
      * @throws FLModpackException if update fails
      */
-    void updateLocalFile( int gameAppMode ) throws FLModpackException {
-        if ( ( gameAppMode == MCForgeModpackConsts.MINECRAFT_CLIENT_MODE && clientReq ) || (
-                gameAppMode == MCForgeModpackConsts.MINECRAFT_SERVER_MODE && serverReq ) ) {
+    void updateLocalFile( GameMode gameAppMode ) throws FLModpackException {
+        if ( ( gameAppMode == GameMode.CLIENT && clientReq ) || (
+                gameAppMode == GameMode.SERVER && serverReq ) ) {
             super.updateLocalFile();
         }
     }

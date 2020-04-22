@@ -1,7 +1,8 @@
 package com.micatechnologies.minecraft.forgelauncher.modpack;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
+
+import java.io.File;
 
 /**
  * A class of statics/constants for the Forge Modpack Library
@@ -20,13 +21,13 @@ public class MCForgeModpackConsts {
      * Modpack install folder relative path to Forge jar
      */
     static final String MODPACK_FORGE_JAR_LOCAL_PATH =
-            "bin" + FLSystemUtils.getFileSeparator() + "modpack.jar";
+            "bin" + File.separator + "modpack.jar";
 
     /**
      * Modpack install folder relative path to Forge jar
      */
     static final String MODPACK_MINECRAFT_JAR_LOCAL_PATH =
-            "bin" + FLSystemUtils.getFileSeparator() + "minecraft.jar";
+            "bin" + File.separator + "minecraft.jar";
 
     /**
      * Modpack install folder relative path to mods folder
@@ -47,7 +48,7 @@ public class MCForgeModpackConsts {
      * Modpack install folder relative path to game natives
      */
     static final String MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER =
-            "bin" + FLSystemUtils.getFileSeparator() + "natives";
+            "bin" + File.separator + "natives";
 
     /**
      * Modpack install folder relative path to game natives
@@ -65,7 +66,7 @@ public class MCForgeModpackConsts {
      * Modpack install folder relative path to pack logo
      */
     static final String MODPACK_LOGO_LOCAL_FILE =
-            "bin" + FLSystemUtils.getFileSeparator() + "logo.png";
+            "bin" + File.separator + "logo.png";
 
     /**
      * The Content-Type HTTP request parameter as JSON

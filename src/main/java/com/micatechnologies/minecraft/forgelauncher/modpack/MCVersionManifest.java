@@ -3,7 +3,8 @@ package com.micatechnologies.minecraft.forgelauncher.modpack;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+
+import java.io.File;
 
 /**
  * Class representing the Mojang Minecraft version manifest and providing functionality to download
@@ -23,7 +24,7 @@ class MCVersionManifest extends MCRemoteFile {
      * Local path of Minecraft version manifest, relative to modpack root folder
      */
     private static final String MINECRAFT_VERSION_MANIFEST_LOCAL_MODPACK_PATH =
-        "bin" + FLSystemUtils.getFileSeparator() + "minecraft-version.manifest";
+        "bin" + File.separator + "minecraft-version.manifest";
 
     /**
      * Root folder of modpack
@@ -41,7 +42,7 @@ class MCVersionManifest extends MCRemoteFile {
     MCVersionManifest( String modpackRootFolder ) {
         // Configure remote file
         super( MINECRAFT_VERSION_MANIFEST_URL,
-               modpackRootFolder + FLSystemUtils.getFileSeparator()
+               modpackRootFolder + File.separator
                    + MINECRAFT_VERSION_MANIFEST_LOCAL_MODPACK_PATH );
 
         // Store modpack root folder

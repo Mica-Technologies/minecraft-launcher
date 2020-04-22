@@ -15,7 +15,7 @@ import java.io.PrintStream;
  * @author Mica Technologies
  * @version 1.0
  */
-public class FLLogger {
+public class Logger {
 
     /**
      * Initializes the logging system
@@ -76,7 +76,7 @@ public class FLLogger {
      * @param jfxStage JavaFX stage to generate GUI error message from
      */
     public static void logError( String errorLog, Stage jfxStage ) {
-        if ( jfxStage != null ) FLGUIUtils.showErrorMessage( errorLog, jfxStage );
+        if ( jfxStage != null ) GUIUtils.showErrorMessage( errorLog, jfxStage );
         System.err.println( logErrorPrefix + errorLog );
     }
 

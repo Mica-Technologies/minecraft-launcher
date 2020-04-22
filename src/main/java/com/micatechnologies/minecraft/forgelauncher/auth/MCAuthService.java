@@ -2,7 +2,7 @@ package com.micatechnologies.minecraft.forgelauncher.auth;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLAuthUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.AuthenticationUtils;
 
 /**
  * Class for interacting with Mojang/Minecraft authentication server endpoints using MCAuthAccount
@@ -46,11 +46,11 @@ public class MCAuthService {
         root.addProperty( MCAuthConstants.MC_AUTH_ENDPOINT_CLIENT_TOKEN_KEY, clientToken );
 
         // Perform HTTP Post Call to Mojang Endpoint
-        String response = FLAuthUtils.doHTTPPOST( MCAuthConstants.MC_AUTH_PASSWORD_ENDPOINT,
-                                                  root.toString() );
+        String response = AuthenticationUtils.doHTTPPOST( MCAuthConstants.MC_AUTH_PASSWORD_ENDPOINT,
+                                                          root.toString() );
 
         // Convert response to Json Object
-        JsonObject responseObject = FLAuthUtils.stringToJsonObj( response );
+        JsonObject responseObject = AuthenticationUtils.stringToJsonObj( response );
 
         // Process response only if error or error message not present
         if ( !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_KEY ) && !responseObject
@@ -120,11 +120,11 @@ public class MCAuthService {
         root.addProperty( MCAuthConstants.MC_AUTH_ENDPOINT_CLIENT_TOKEN_KEY, clientToken );
 
         // Perform HTTP Post Call to Mojang Endpoint
-        String response = FLAuthUtils.doHTTPPOST( MCAuthConstants.MC_AUTH_REFRESH_TOKEN_ENDPOINT,
-                                                  root.toString() );
+        String response = AuthenticationUtils.doHTTPPOST( MCAuthConstants.MC_AUTH_REFRESH_TOKEN_ENDPOINT,
+                                                          root.toString() );
 
         // Convert response to Json Object
-        JsonObject responseObject = FLAuthUtils.stringToJsonObj( response );
+        JsonObject responseObject = AuthenticationUtils.stringToJsonObj( response );
 
         // Process response only if error or error message not present
         if ( !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_KEY ) && !responseObject
@@ -193,11 +193,11 @@ public class MCAuthService {
         root.addProperty( MCAuthConstants.MC_AUTH_ENDPOINT_CLIENT_TOKEN_KEY, clientToken );
 
         // Perform HTTP Post Call to Mojang Endpoint
-        String response = FLAuthUtils.doHTTPPOST( MCAuthConstants.MC_AUTH_VALIDATE_TOKEN_ENDPOINT,
-                                                  root.toString() );
+        String response = AuthenticationUtils.doHTTPPOST( MCAuthConstants.MC_AUTH_VALIDATE_TOKEN_ENDPOINT,
+                                                          root.toString() );
 
         // Convert response to Json Object
-        JsonObject responseObject = FLAuthUtils.stringToJsonObj( response );
+        JsonObject responseObject = AuthenticationUtils.stringToJsonObj( response );
 
         // Return true if no error in response
         return !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_KEY ) && !responseObject
@@ -230,11 +230,11 @@ public class MCAuthService {
         root.addProperty( MCAuthConstants.MC_AUTH_ENDPOINT_CLIENT_TOKEN_KEY, clientToken );
 
         // Perform HTTP Post Call to Mojang Endpoint
-        String response = FLAuthUtils.doHTTPPOST( MCAuthConstants.MC_AUTH_INVALIDATE_TOKEN_ENDPOINT,
-                                                  root.toString() );
+        String response = AuthenticationUtils.doHTTPPOST( MCAuthConstants.MC_AUTH_INVALIDATE_TOKEN_ENDPOINT,
+                                                          root.toString() );
 
         // Convert response to Json Object
-        JsonObject responseObject = FLAuthUtils.stringToJsonObj( response );
+        JsonObject responseObject = AuthenticationUtils.stringToJsonObj( response );
 
         // Return true if no error in response
         boolean isSuccess = !responseObject.has( MCAuthConstants.MC_AUTH_RESPONSE_ERROR_KEY )

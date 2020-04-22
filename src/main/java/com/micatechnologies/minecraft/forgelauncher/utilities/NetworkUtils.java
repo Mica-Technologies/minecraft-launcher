@@ -5,7 +5,7 @@ import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthConstants;
 import java.net.URL;
 import java.net.URLConnection;
 
-public class FLNetworkUtils {
+public class NetworkUtils {
     public static boolean isMojangAuthReachable() {
         try {
             URL url = new URL( MCAuthConstants.MC_AUTH_SERVER_URL );

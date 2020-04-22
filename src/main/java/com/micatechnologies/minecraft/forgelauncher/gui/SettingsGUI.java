@@ -6,21 +6,20 @@ import com.jfoenix.controls.*;
 import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
 import com.micatechnologies.minecraft.forgelauncher.MCFLConfiguration;
 import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogger;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
+import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.io.IOException;
 
-public class FLSettingsGUI extends FLGenericGUI {
+public class SettingsGUI extends GenericGUI {
 
     @FXML
     JFXComboBox< String > minRamBox;
@@ -73,11 +72,11 @@ public class FLSettingsGUI extends FLGenericGUI {
         } );
 
         // Configure return button
-        returnBtn.setOnAction( actionEvent -> FLSystemUtils.spawnNewTask( () -> {
+        returnBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
             if ( dirty ) {
-                int response = FLGUIUtils.showQuestionMessage( "Save?", "Unsaved Changes", "Are you sure you want to exit without saving changes?", "Save", "Exit", getCurrentJFXStage() );
+                int response = GUIUtils.showQuestionMessage( "Save?", "Unsaved Changes", "Are you sure you want to exit without saving changes?", "Save", "Exit", getCurrentJFXStage() );
                 if ( response == 1 ) {
-                    FLGUIUtils.JFXPlatformRun( () -> saveBtn.fire() );
+                    GUIUtils.JFXPlatformRun( () -> saveBtn.fire() );
                     close();
                 }
                 else if ( response == 2 ) {
@@ -90,7 +89,7 @@ public class FLSettingsGUI extends FLGenericGUI {
         } ) );
 
         // Configure save button
-        saveBtn.setOnAction( actionEvent -> FLSystemUtils.spawnNewTask( () -> {
+        saveBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
             // Store min ram to config
             MCFLApp.getLauncherConfig().setMinRAM( MCFLConfiguration.MIN_RAM_OPTIONS[ minRamBox.getSelectionModel().getSelectedIndex() ] );
 
@@ -114,25 +113,25 @@ public class FLSettingsGUI extends FLGenericGUI {
             setEdited( false );
 
             // Change save button text to indicate successful save
-            FLGUIUtils.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
+            GUIUtils.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
 
             // Force window changes apply
-            FLGUIController.refreshWindowConfiguration();
+            GUIController.refreshWindowConfiguration();
 
             // Schedule save button text to revert to normal after 5s
-            FLSystemUtils.spawnNewTask( () -> {
+            SystemUtils.spawnNewTask( () -> {
                 try {
                     Thread.sleep( 5000 );
                 }
                 catch ( InterruptedException ignored ) {
                 }
-                FLGUIUtils.JFXPlatformRun( () -> saveBtn.setText( "Save" ) );
+                GUIUtils.JFXPlatformRun( () -> saveBtn.setText( "Save" ) );
             } );
         } ) );
 
         // Configure reset launcher button
-        resetLauncherBtn.setOnAction( actionEvent -> FLSystemUtils.spawnNewTask( () -> {
-            int response = FLGUIUtils.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the launcher? This may take a few minutes!", "Reset", "Back to Safety", getCurrentJFXStage() );
+        resetLauncherBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
+            int response = GUIUtils.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the launcher? This may take a few minutes!", "Reset", "Back to Safety", getCurrentJFXStage() );
             if ( response != 1 ) {
                 return;
             }
@@ -144,13 +143,13 @@ public class FLSettingsGUI extends FLGenericGUI {
                 close();
             }
             catch ( IOException e ) {
-                FLLogger.logError( "An error occurred while resetting the launcher. Will continue to attempt!", getCurrentJFXStage() );
+                Logger.logError( "An error occurred while resetting the launcher. Will continue to attempt!", getCurrentJFXStage() );
             }
         } ) );
 
         // Configure reset runtime button
-        resetRuntimeBtn.setOnAction( event -> FLSystemUtils.spawnNewTask( () -> {
-            int response = FLGUIUtils.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the runtime? This may take a few minutes!", "Reset", "Back to Safety", getCurrentJFXStage() );
+        resetRuntimeBtn.setOnAction( event -> SystemUtils.spawnNewTask( () -> {
+            int response = GUIUtils.showQuestionMessage( "Continue?", "Entering the Danger Zone", "Are you sure you'd like to reset the runtime? This may take a few minutes!", "Reset", "Back to Safety", getCurrentJFXStage() );
             if ( response != 1 ) {
                 return;
             }
@@ -160,7 +159,7 @@ public class FLSettingsGUI extends FLGenericGUI {
                 MCFLApp.clearLocalJDK();
             }
             catch ( IOException e ) {
-                FLLogger.logError( "Unable to clear previous runtime from disk. Will continue to attempt reset!", getCurrentJFXStage() );
+                Logger.logError( "Unable to clear previous runtime from disk. Will continue to attempt reset!", getCurrentJFXStage() );
             }
             MCFLApp.doLocalJDK();
             show();
@@ -208,7 +207,7 @@ public class FLSettingsGUI extends FLGenericGUI {
     }
 
     private void setEdited( boolean edited ) {
-        if ( SystemUtils.IS_OS_MAC ) getNSWindow().setDocumentEdited( edited );
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) getNSWindow().setDocumentEdited( edited );
         dirty = edited;
     }
 }

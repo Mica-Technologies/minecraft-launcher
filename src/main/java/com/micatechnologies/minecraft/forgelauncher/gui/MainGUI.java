@@ -7,19 +7,17 @@ import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
 import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogger;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
+import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.WindowEvent;
-import org.apache.commons.lang3.NotImplementedException;
 
 import java.awt.*;
 import java.io.IOException;
@@ -30,7 +28,7 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FLMainGUI extends FLGenericGUI {
+public class MainGUI extends GenericGUI {
 
     @FXML
     ImageView packLogo;
@@ -73,12 +71,12 @@ public class FLMainGUI extends FLGenericGUI {
     @Override
     void setupWindow() {
         // Configure exit button and window close
-        currentJFXStage.setOnCloseRequest( windowEvent -> FLSystemUtils.spawnNewTask( MCFLApp::closeApp ) );
+        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtils.spawnNewTask( MCFLApp::closeApp ) );
         exitBtn.setOnAction( actionEvent -> currentJFXStage.fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Check for launcher update and show image if there is one
         updateImgView.setVisible( false );
-        FLSystemUtils.spawnNewTask( () -> {
+        SystemUtils.spawnNewTask( () -> {
             try {
                 // Get current version
                 String version = MCFLConstants.LAUNCHER_APPLICATION_VERSION;
@@ -93,16 +91,16 @@ public class FLMainGUI extends FLGenericGUI {
                 is.close();
 
                 // Check if current version is less than latest
-                if ( FLSystemUtils.compareVersionNumbers( version, latestVersion ) == -1 ) {
+                if ( SystemUtils.compareVersionNumbers( version, latestVersion ) == -1 ) {
                     updateImgView.setVisible( true );
-                    updateImgView.setOnMouseClicked( mouseEvent -> FLSystemUtils.spawnNewTask( () -> {
-                        int response = FLGUIUtils.showQuestionMessage( "Update Available", "Update Ready to Download", "An update has been found and is ready to be downloaded and installed.", "Update Now", "Update Later", getCurrentJFXStage() );
+                    updateImgView.setOnMouseClicked( mouseEvent -> SystemUtils.spawnNewTask( () -> {
+                        int response = GUIUtils.showQuestionMessage( "Update Available", "Update Ready to Download", "An update has been found and is ready to be downloaded and installed.", "Update Now", "Update Later", getCurrentJFXStage() );
                         if ( response == 1 ) {
                             try {
                                 Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
                             }
                             catch ( IOException e ) {
-                                FLLogger.logError( "Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", getCurrentJFXStage() );
+                                Logger.logError( "Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", getCurrentJFXStage() );
                             }
                         }
                     } ) );
@@ -110,25 +108,26 @@ public class FLMainGUI extends FLGenericGUI {
             }
             catch ( Exception e ) {
                 e.printStackTrace();
-                FLLogger.logError( "An error occurred while checking for an updated launcher version!" );
+                Logger.logError( "An error occurred while checking for an updated launcher version!" );
             }
         } );
 
         // Configure settings button
-        settingsBtn.setOnAction( actionEvent -> FLSystemUtils.spawnNewTask( () -> {
+        settingsBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
             hide();
 
             // Open settings GUI and disable main window
-            FLSettingsGUI flSettingsGUI = new FLSettingsGUI();
+            SettingsGUI flSettingsGUI = new SettingsGUI();
             flSettingsGUI.show();
 
             // Wait for settings to close, then enable main window again
-            FLSystemUtils.spawnNewTask( () -> {
+            SystemUtils.spawnNewTask( () -> {
                 try {
                     flSettingsGUI.closedLatch.await();
                 }
                 catch ( InterruptedException e ) {
+                    Logger.logError( "Unable to wait for settings GUI before showing main window again!" );
                 }
 
                 // If loop login is true, launcher reset, need to go to login screen
@@ -155,7 +154,7 @@ public class FLMainGUI extends FLGenericGUI {
         populateModpackDropdown();
 
         // Configure play button
-        playBtn.setOnAction( actionEvent -> FLSystemUtils.spawnNewTask( () -> {
+        playBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
             hide();
             MCFLApp.play( packSelection.getSelectionModel().getSelectedIndex(), this );
@@ -178,7 +177,7 @@ public class FLMainGUI extends FLGenericGUI {
     private final ChangeListener< Number > packSelectionChangeListener = ( observableValue, oldVal, newVal ) -> {
         // Load modpack logo and set in GUI
         Image packLogoImg = new Image( MCFLApp.getModpacks().get( packSelection.getSelectionModel().getSelectedIndex() == -1 ? 0 : packSelection.getSelectionModel().getSelectedIndex() ).getPackLogoURL() );
-        FLGUIUtils.JFXPlatformRun( () -> {
+        GUIUtils.JFXPlatformRun( () -> {
             packLogo.setImage( packLogoImg );
 
             // Set modpack background image on root pane
@@ -195,13 +194,13 @@ public class FLMainGUI extends FLGenericGUI {
         }
 
         // Reset modpack selector
-        FLGUIUtils.JFXPlatformRun( () -> {
+        GUIUtils.JFXPlatformRun( () -> {
             packSelection.getSelectionModel().selectedIndexProperty().removeListener( packSelectionChangeListener );
             packSelection.getItems().clear();
         } );
 
         if ( modpackList.size() > 0 ) {
-            FLGUIUtils.JFXPlatformRun( () -> {
+            GUIUtils.JFXPlatformRun( () -> {
                 packSelection.setDisable( false );
                 packSelection.getItems().addAll( modpackList );
                 packSelection.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
@@ -209,7 +208,7 @@ public class FLMainGUI extends FLGenericGUI {
             } );
         }
         else {
-            FLGUIUtils.JFXPlatformRun( () -> {
+            GUIUtils.JFXPlatformRun( () -> {
                 packSelection.getItems().add( "No modpacks installed!" );
                 packSelection.getSelectionModel().selectFirst();
                 packSelection.setDisable( true );

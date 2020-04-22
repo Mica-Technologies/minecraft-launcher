@@ -12,7 +12,7 @@ import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLSystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 
 /**
  * A Java class representation of a remote file that should be kept locally in sync.
@@ -111,7 +111,7 @@ class MCRemoteFile {
         // Hash Checking Enabled: Return true if file exists, is not a folder, and hashes match
         else {
             try {
-                return FLSystemUtils.verifySHA( localFile.toPath(), sha1 );
+                return SystemUtils.verifySHA( localFile.toPath(), sha1 );
             }
             catch ( NoSuchAlgorithmException | IOException e ) {
                 throw new FLModpackException( "Unable to verify local file hash.", e );
@@ -131,7 +131,7 @@ class MCRemoteFile {
 
         // Download file and return validation result
         try {
-            FLSystemUtils.downloadFileFromURL( new URL( remote ), localFile );
+            SystemUtils.downloadFileFromURL( new URL( remote ), localFile );
         }
         catch ( IOException e ) {
             throw new FLModpackException(
@@ -186,11 +186,11 @@ class MCRemoteFile {
      */
     String getFullLocalFilePath() {
         if ( !localPathPrefix.isEmpty() ) {
-            if ( localPathPrefix.endsWith( FLSystemUtils.getFileSeparator() ) ) {
+            if ( localPathPrefix.endsWith( File.separator ) ) {
                 return localPathPrefix + local;
             }
             else {
-                return localPathPrefix + FLSystemUtils.getFileSeparator() + local;
+                return localPathPrefix + File.separator + local;
             }
         }
         else {

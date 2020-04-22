@@ -2,8 +2,8 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.micatechnologies.jadapt.NSWindow;
 import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLGUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.FLLogger;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -21,13 +21,14 @@ import org.rococoa.Rococoa;
 import org.rococoa.cocoa.foundation.NSUInteger;
 
 import java.io.InputStream;
+import java.net.URL;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 
-public abstract class FLGenericGUI extends Application {
+public abstract class GenericGUI extends Application {
     Stage currentJFXStage = null;
     public final CountDownLatch closedLatch = new CountDownLatch( 1 );
-    private final CountDownLatch readyLatch = new CountDownLatch( 1 );
+    public final CountDownLatch readyLatch = new CountDownLatch( 1 );
 
     @FXML
     Pane rootPane;
@@ -70,7 +71,7 @@ public abstract class FLGenericGUI extends Application {
         setupWindow();
 
         // Register window with controller
-        FLGUIController.registerWindow( this );
+        GUIController.registerWindow( this );
 
         // Count down ready latch
         readyLatch.countDown();
@@ -94,7 +95,7 @@ public abstract class FLGenericGUI extends Application {
         internPrepWindow();
 
         // Show window
-        FLGUIUtils.JFXPlatformRun(
+        GUIUtils.JFXPlatformRun(
                 () -> {
                     // Show stage
                     currentJFXStage.show();
@@ -106,7 +107,7 @@ public abstract class FLGenericGUI extends Application {
                 } );
 
         // Force window changes apply
-        FLGUIController.refreshWindowConfiguration();
+        GUIController.refreshWindowConfiguration();
 
         // Wait for window ready
         try {
@@ -126,7 +127,7 @@ public abstract class FLGenericGUI extends Application {
         internPrepWindow();
 
         // Show window
-        FLGUIUtils.JFXPlatformRun(
+        GUIUtils.JFXPlatformRun(
                 () -> {
                     // Show stage
                     currentJFXStage.show();
@@ -143,10 +144,10 @@ public abstract class FLGenericGUI extends Application {
 
     public void close() {
         // Close window
-        FLGUIUtils.JFXPlatformRun( currentJFXStage::close );
+        GUIUtils.JFXPlatformRun( currentJFXStage::close );
 
         // Unregister window from controller
-        FLGUIController.unregisterWindow( this );
+        GUIController.unregisterWindow( this );
 
         // Countdown closed latch
         closedLatch.countDown();
@@ -154,8 +155,9 @@ public abstract class FLGenericGUI extends Application {
 
     NSWindow getNSWindow() {
         // Load rococoa library
-        String path = this.getClass().getClassLoader().getResource( "darwin/librococoa.dylib" ).getPath();
-        System.load( path );
+        URL url = this.getClass().getClassLoader().getResource( "darwin/librococoa.dylib" );
+        if ( url != null ) System.load( url.getPath() );
+        else Logger.logDebug( "Unable to load rococoa library for macOS window styling!" );
 
         // Wrap window as NSWindow and return
         return Rococoa.wrap( ID.fromLong( getWindowHandle() ), NSWindow.class );
@@ -173,26 +175,26 @@ public abstract class FLGenericGUI extends Application {
         }
         catch ( Exception e ) {
             e.printStackTrace();
-            FLLogger.logDebug(
+            Logger.logDebug(
                     "An error occurred while performing style modifications to an NSWindow wrapper." );
         }
     }
 
     private void internPrepWindow() {
         if ( readyLatch.getCount() > 0 ) {
-            FLGUIUtils.JFXPlatformRun( () -> {
+            GUIUtils.JFXPlatformRun( () -> {
                 try {
                     start( new Stage() );
                 }
                 catch ( Exception e ) {
-                    FLLogger.logError( "An error occurred while creating a window!" );
+                    Logger.logError( "An error occurred while creating a window!" );
                 }
             } );
             try {
                 readyLatch.await();
             }
             catch ( InterruptedException e ) {
-                FLLogger.logError( "An error occurred while waiting for window creation!" );
+                Logger.logError( "An error occurred while waiting for window creation!" );
             }
         }
     }
