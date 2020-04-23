@@ -2,6 +2,7 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 
 import java.util.ArrayList;
 import java.util.function.Consumer;
@@ -13,6 +14,10 @@ import java.util.function.Consumer;
  * @version 1.0
  */
 public class GUIController {
+
+    private static double lastCustomX = -1;
+    private static double lastCustomY = -1;
+
     private static final ArrayList< GenericGUI > windowList = new ArrayList<>();
 
     public synchronized static void registerWindow( GenericGUI window ) {
@@ -25,6 +30,15 @@ public class GUIController {
 
     public synchronized static void doForAllWindows( Consumer< GenericGUI > task ) {
         GUIUtils.JFXPlatformRun( () -> windowList.forEach( task ) );
+    }
+
+    public static void setCustomWindowLocations( double x, double y ) {
+        lastCustomX = x;
+        lastCustomY = y;
+    }
+
+    public static Pair< Double, Double > getCustomWindowLocation() {
+        return new Pair<>( lastCustomX, lastCustomY );
     }
 
     public synchronized static void closeAllWindows() {

@@ -49,6 +49,9 @@ public class MainGUI extends GenericGUI {
     JFXButton logoutBtn;
 
     @FXML
+    JFXButton editButton;
+
+    @FXML
     ImageView userImage;
 
     @FXML
@@ -142,6 +145,30 @@ public class MainGUI extends GenericGUI {
                 show();
                 populateModpackDropdown();
             } );
+        } ) );
+
+        // Configure modpacks edit button
+        editButton.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
+            // Create new edit GUI
+            EditModpacksGUI editModpacksGUI = new EditModpacksGUI();
+            editModpacksGUI.show();
+            rootPane.setDisable( true );
+
+            SystemUtils.spawnNewTask( () -> {
+                try {
+                    editModpacksGUI.closedLatch.await();
+                }
+                catch ( InterruptedException e ) {
+                    Logger.logError( "Unable to wait for settings GUI before showing main window again!" );
+                }
+
+                // Refresh main GUI and show again
+                MCFLApp.buildMemoryModpackList();
+                show();
+                rootPane.setDisable( false );
+                populateModpackDropdown();
+            } );
+
         } ) );
 
         // Configure logout button

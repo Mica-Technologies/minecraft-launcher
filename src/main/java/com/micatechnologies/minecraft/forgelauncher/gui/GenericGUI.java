@@ -7,6 +7,7 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -91,29 +92,52 @@ public abstract class GenericGUI extends Application {
         // Perform setup if not done
         internPrepWindow();
 
-        // Show window
+        // Change window location
+        Pair< Double, Double > customWindowLocation = GUIController.getCustomWindowLocation();
+        if ( customWindowLocation.fst != -1 && customWindowLocation.snd != -1 ) {
+            currentJFXStage.setX( customWindowLocation.fst );
+            currentJFXStage.setY( customWindowLocation.snd );
+        }
+
+        // Set listener for window location changes
+        ChangeListener< Number > windowMoveListener = ( observableValue, number, t1 ) -> {
+            GUIController.setCustomWindowLocations( currentJFXStage.getX(), currentJFXStage.getY() );
+        };
+
+        currentJFXStage.xProperty().addListener(windowMoveListener);
+        currentJFXStage.yProperty().addListener( windowMoveListener );
+
+    // Show window
         GUIUtils.JFXPlatformRun(
-                () -> {
-                    // Show stage
-                    currentJFXStage.show();
+                ()->
 
-                    // Style window for macOS
-                    if ( SystemUtils.IS_OS_MAC ) {
-                        styleMacWindow();
-                    }
-                } );
+    {
+        // Show stage
+        currentJFXStage.show();
 
-        // Force window changes apply
+        // Style window for macOS
+        if ( SystemUtils.IS_OS_MAC ) {
+            styleMacWindow();
+        }
+    } );
+
+    // Force window changes apply
         GUIController.refreshWindowConfiguration();
 
-        // Wait for window ready
-        try {
-            readyLatch.await();
-        }
-        catch ( InterruptedException e ) {
-            e.printStackTrace();
-        }
+    // Wait for window ready
+        try
+
+    {
+        readyLatch.await();
     }
+        catch(
+    InterruptedException e )
+
+    {
+        e.printStackTrace();
+    }
+
+}
 
     public Stage getCurrentJFXStage() {
         return currentJFXStage;
