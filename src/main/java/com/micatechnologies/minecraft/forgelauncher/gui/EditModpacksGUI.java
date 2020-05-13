@@ -1,7 +1,10 @@
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.jfoenix.controls.JFXButton;
+import com.jfoenix.controls.JFXComboBox;
+import com.jfoenix.controls.JFXTextField;
 import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
+import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import javafx.fxml.FXML;
@@ -25,6 +28,12 @@ public class EditModpacksGUI extends GenericGUI {
 
     @FXML
     JFXButton listAddBtn;
+
+    @FXML
+    JFXTextField urlAddBox;
+
+    @FXML
+    JFXComboBox< String > listAddBox;
 
     @FXML
     JFXButton returnBtn;
@@ -70,6 +79,14 @@ public class EditModpacksGUI extends GenericGUI {
         return new Pair<>( 600, 600 );
     }
 
+    private void loadModpackList() {
+        modpackList.setCellFactory( stringListView -> new XCell() );
+        // Add each modpack by name and version
+        for ( MCForgeModpack pack : MCFLApp.getModpacks() ) {
+            modpackList.getItems().add( pack.getPackName() + ": v" + pack.getPackVersion() );
+        }
+    }
+
     @Override
     void setupWindow() {
         // Configure return button and window close
@@ -77,8 +94,15 @@ public class EditModpacksGUI extends GenericGUI {
         returnBtn.setOnAction( actionEvent -> currentJFXStage.fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Populate mod pack list
-        modpackList.setCellFactory( stringListView -> new XCell() );
-        modpackList.getItems().addAll( MCFLApp.getLauncherConfig().getModpacks() );
+        loadModpackList();
+
+        // Configure add by URL button
+        urlAddBtn.setOnAction(actionEvent -> {
+            // Store URL from textbox
+            String newURL = urlAddBox.getText();
+
+            
+        });
     }
 }
 

@@ -748,4 +748,8 @@ public class MCForgeModpack {
             throw new FLModpackException( "Unable to parse downloaded manifest.", e );
         }
     }
+
+    public String getPackVersion() {
+        return packVersion;
+    }
 }
