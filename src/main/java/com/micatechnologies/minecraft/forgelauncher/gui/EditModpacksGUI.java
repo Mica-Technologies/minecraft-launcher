@@ -95,14 +95,6 @@ public class EditModpacksGUI extends GenericGUI {
 
         // Populate mod pack list
         loadModpackList();
-
-        // Configure add by URL button
-        urlAddBtn.setOnAction(actionEvent -> {
-            // Store URL from textbox
-            String newURL = urlAddBox.getText();
-
-            
-        });
     }
 }
 
