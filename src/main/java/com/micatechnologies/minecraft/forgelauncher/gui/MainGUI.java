@@ -5,7 +5,7 @@ import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
 import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
-import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
+import com.micatechnologies.minecraft.forgelauncher.modpack.ModPack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
@@ -216,7 +216,7 @@ public class MainGUI extends GenericGUI {
     private void populateModpackDropdown() {
         // Create list of modpack names
         List< String > modpackList = new ArrayList<>();
-        for ( MCForgeModpack modpack : MCFLApp.getModpacks() ) {
+        for ( ModPack modpack : MCFLApp.getModpacks() ) {
             modpackList.add( modpack.getPackName() );
         }
 

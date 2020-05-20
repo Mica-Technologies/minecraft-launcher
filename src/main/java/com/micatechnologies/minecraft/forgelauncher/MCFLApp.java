@@ -9,7 +9,7 @@ import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthService;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
 import com.micatechnologies.minecraft.forgelauncher.game.GameMode;
 import com.micatechnologies.minecraft.forgelauncher.gui.*;
-import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
+import com.micatechnologies.minecraft.forgelauncher.modpack.ModPack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
@@ -47,7 +47,7 @@ public class MCFLApp {
     private static String clientToken = "";
     private static MCAuthAccount currentUser = null;
     private static MCFLConfiguration launcherConfig = null;
-    private static final List< MCForgeModpack > modpacks = new ArrayList<>();
+    private static final List< ModPack > modpacks = new ArrayList<>();
     private static final File savedUserFile = new File( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
     //endregion
 
@@ -123,7 +123,7 @@ public class MCFLApp {
         return launcherConfig;
     }
 
-    public static List< MCForgeModpack > getModpacks() {
+    public static List< ModPack > getModpacks() {
         return modpacks;
     }
 
@@ -176,13 +176,13 @@ public class MCFLApp {
                 progressGUI.setLowerLabelText( "Checking " + s );
             }
             try {
-                MCForgeModpack tempPack = MCForgeModpack.downloadFromURL( new URL( s ), sandboxModpackRootFolder, gameMode );
+                ModPack tempPack = ModPack.downloadFromURL( new URL( s ), sandboxModpackRootFolder, gameMode );
                 try {
                     if ( progressGUI != null ) {
                         progressGUI.setLowerLabelText( "Configuring " + tempPack.getPackName() );
                     }
                     Path modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + tempPack.getPackName().replaceAll( "[^a-zA-Z0-9]", "" ) );
-                    MCForgeModpack pack = MCForgeModpack.downloadFromURL( new URL( s ), modpackRootFolder, gameMode );
+                    ModPack pack = ModPack.downloadFromURL( new URL( s ), modpackRootFolder, gameMode );
                     modpacks.add( pack );
                 }
                 catch ( FLModpackException | MalformedURLException e ) {
@@ -245,7 +245,7 @@ public class MCFLApp {
         int maxRAMMB = ( int ) ( getLauncherConfig().getMaxRAM() * 1024 );
         ProgressGUI progressGUI = null;
         try {
-            MCForgeModpack mp = modpacks.get( modpack );
+            ModPack mp = modpacks.get( modpack );
             progressGUI = new ProgressGUI();
             progressGUI.show();
 
@@ -292,7 +292,7 @@ public class MCFLApp {
         int minRAMMB = ( int ) ( getLauncherConfig().getMinRAM() * 1024 );
         int maxRAMMB = ( int ) ( getLauncherConfig().getMaxRAM() * 1024 );
         try {
-            MCForgeModpack mp = modpacks.get( modpack );
+            ModPack mp = modpacks.get( modpack );
             mp.setProgressProvider( new MCForgeModpackProgressProvider() {
                 @Override
                 public void updateProgressHandler( double percent, String text ) {

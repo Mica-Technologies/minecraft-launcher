@@ -3,8 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXTextField;
-import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
-import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpack;
+import com.micatechnologies.minecraft.forgelauncher.modpack.InstalledModPackManager;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import javafx.fxml.FXML;
@@ -15,7 +14,6 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.text.Font;
 import javafx.stage.WindowEvent;
 
 public class EditModpacksGUI extends GenericGUI {
@@ -52,7 +50,10 @@ public class EditModpacksGUI extends GenericGUI {
             button.setStyle( "-fx-text-fill:red!important;-fx-font-size:8;" );
             hbox.getChildren().addAll( label, pane, button );
             HBox.setHgrow( pane, Priority.ALWAYS );
-            button.setOnAction( event -> getListView().getItems().remove( getItem() ) );
+            button.setOnAction( event -> {
+                getListView().getItems().remove( getItem() );
+                InstalledModPackManager.removeModpackByFriendly( label.getText() );
+            } );
         }
 
         @Override
@@ -79,12 +80,9 @@ public class EditModpacksGUI extends GenericGUI {
         return new Pair<>( 600, 600 );
     }
 
-    private void loadModpackList() {
+    private void loadModPackList() {
         modpackList.setCellFactory( stringListView -> new XCell() );
-        // Add each modpack by name and version
-        for ( MCForgeModpack pack : MCFLApp.getModpacks() ) {
-            modpackList.getItems().add( pack.getPackName() + ": v" + pack.getPackVersion() );
-        }
+        modpackList.getItems().addAll( InstalledModPackManager.getModpacksListByFriendly() );
     }
 
     @Override
@@ -94,7 +92,7 @@ public class EditModpacksGUI extends GenericGUI {
         returnBtn.setOnAction( actionEvent -> currentJFXStage.fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Populate mod pack list
-        loadModpackList();
+        loadModPackList();
     }
 }
 

@@ -20,13 +20,12 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import org.apache.commons.io.FilenameUtils;
 
 /**
- * Class representation of a Forge modpack with functionality to update mods, game libraries and
- * start the game.
+ * Class representation of a Forge modpack with functionality to update mods, game libraries and start the game.
  *
  * @author Mica Technologies/hawka97
  * @version 1.0
  */
-public class MCForgeModpack {
+public class ModPack {
 
     /**
      * Modpack name
@@ -219,8 +218,8 @@ public class MCForgeModpack {
     }
 
     /**
-     * Verify all local modpack files and downloads files if necessary, then compiles the classpath
-     * String for running this modpack.
+     * Verify all local modpack files and downloads files if necessary, then compiles the classpath String for running
+     * this modpack.
      *
      * @return modpack classpath String
      *
@@ -457,8 +456,7 @@ public class MCForgeModpack {
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's mods and repair/download/update as
-     * necessary.
+     * Verifies the integrity of local copies of this modpack's mods and repair/download/update as necessary.
      *
      * @throws FLModpackException if unable to fetch latest mods
      */
@@ -495,8 +493,7 @@ public class MCForgeModpack {
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's configs and repair/download/update
-     * as necessary.
+     * Verifies the integrity of local copies of this modpack's configs and repair/download/update as necessary.
      *
      * @throws FLModpackException if unable to fetch latest configs
      */
@@ -527,8 +524,7 @@ public class MCForgeModpack {
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's resource packs and
-     * repair/download/update as necessary.
+     * Verifies the integrity of local copies of this modpack's resource packs and repair/download/update as necessary.
      *
      * @throws FLModpackException if unable to fetch latest resource packs
      */
@@ -563,8 +559,7 @@ public class MCForgeModpack {
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's shader packs and
-     * repair/download/update as necessary.
+     * Verifies the integrity of local copies of this modpack's shader packs and repair/download/update as necessary.
      *
      * @throws FLModpackException if unable to fetch latest shader packs
      */
@@ -599,8 +594,7 @@ public class MCForgeModpack {
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's initial files
-     * and repair/download/updated as necessary.
+     * Verifies the integrity of local copies of this modpack's initial files and repair/download/updated as necessary.
      *
      * @throws FLModpackException if unable to fetch latest initial files
      */
@@ -671,19 +665,19 @@ public class MCForgeModpack {
     }
 
     /**
-     * Download the modpack manifest from the specified URL to the specified modpack folder for the
-     * selected game mode (server/client).
+     * Download the modpack manifest from the specified URL to the specified modpack folder for the selected game mode
+     * (server/client).
      *
      * @param downloadURL       manifest URL
      * @param modpackRootFolder modpack root folder
-     * @param gameMode       client/server
+     * @param gameMode          client/server
      *
      * @return downloaded modpack manifest
      *
      * @throws FLModpackException if unable to download
      */
-    public static MCForgeModpack downloadFromURL( URL downloadURL, Path modpackRootFolder,
-                                                  GameMode gameMode ) throws FLModpackException {
+    public static ModPack downloadFromURL( URL downloadURL, Path modpackRootFolder,
+                                           GameMode gameMode ) throws FLModpackException {
         // Create file for downloading manifest
         File modpackManifestFile = new File(
                 modpackRootFolder.toString() + File.separator
@@ -737,10 +731,11 @@ public class MCForgeModpack {
         BufferedReader bufferedReader;
         try {
             bufferedReader = new BufferedReader( new FileReader( modpackManifestFile ) );
-            MCForgeModpack createdModpackManifest = new Gson().fromJson( bufferedReader,
-                                                                         MCForgeModpack.class );
+            ModPack createdModpackManifest = new Gson().fromJson( bufferedReader,
+                                                                  ModPack.class );
             createdModpackManifest.packRootFolder = modpackRootFolder;
             createdModpackManifest.gameMode = gameMode;
+            createdModpackManifest.manifestUrl = downloadURL.toString();
             return createdModpackManifest;
         }
         catch ( Exception e ) {
@@ -749,7 +744,17 @@ public class MCForgeModpack {
         }
     }
 
+    private String manifestUrl;
+
+    public String getManifestUrl() {
+        return manifestUrl;
+    }
+
     public String getPackVersion() {
         return packVersion;
+    }
+
+    public String getPackURL() {
+        return packURL;
     }
 }
