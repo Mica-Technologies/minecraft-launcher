@@ -16,12 +16,12 @@ import java.util.List;
  * @author Mica Technologies/HawkA97
  * @version 1.1
  */
-public class MCFLConfiguration {
+public class LauncherConfiguration {
     //region: Constant Fields
     /**
      * File for persistent configuration storage
      */
-    static final transient File DISK_FILE = new File( MCFLConstants.LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "config.json" );
+    static final transient File DISK_FILE = new File( LauncherConstants.LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "config.json" );
 
     /**
      * Array of options for minimum RAM configuration
@@ -193,18 +193,18 @@ public class MCFLConfiguration {
      * @since 1.1
      */
     void save() throws IOException {
-        MCFLConfiguration.save( this );
+        LauncherConfiguration.save( this );
     }
 
     /**
      * Save the specified instance to disk
      *
-     * @param MCFLConfiguration specified instance
+     * @param LauncherConfiguration specified instance
      *
      * @throws IOException if unable to write to disk
      * @since 1.0
      */
-    static void save( MCFLConfiguration MCFLConfiguration ) throws IOException {
+    static void save( LauncherConfiguration LauncherConfiguration) throws IOException {
         // Verify local file exists
         if ( !DISK_FILE.exists() ) {
             DISK_FILE.getParentFile().mkdirs();
@@ -212,7 +212,7 @@ public class MCFLConfiguration {
         }
 
         // Write configuration to file
-        FileUtils.writeStringToFile( DISK_FILE, new Gson().toJson( MCFLConfiguration ), Charset.defaultCharset() );
+        FileUtils.writeStringToFile( DISK_FILE, new Gson().toJson(LauncherConfiguration), Charset.defaultCharset() );
     }
 
     /**
@@ -223,24 +223,24 @@ public class MCFLConfiguration {
      * @throws IOException if unable to write default configuration to disk
      * @since 1.0
      */
-    static MCFLConfiguration open() throws IOException {
+    static LauncherConfiguration open() throws IOException {
         // Attempt to read from file
         try {
-            MCFLConfiguration mcflConfiguration = new Gson().fromJson( new FileReader( DISK_FILE ), MCFLConfiguration.class );
+            LauncherConfiguration launcherConfiguration = new Gson().fromJson( new FileReader( DISK_FILE ), LauncherConfiguration.class );
 
             // Change Alto modpack URL to new if present
             final String oldMCLAURL = "https://cityofmcla.com/modpack/pack-manifest.json";
             final String newAltoURL = "https://micatechnologies.com/alto-modpack/pack-manifest.json";
-            if (mcflConfiguration.modpacks.contains( oldMCLAURL )) {
-                mcflConfiguration.modpacks.remove( oldMCLAURL );
-                mcflConfiguration.modpacks.add( newAltoURL );
+            if (launcherConfiguration.modpacks.contains( oldMCLAURL )) {
+                launcherConfiguration.modpacks.remove( oldMCLAURL );
+                launcherConfiguration.modpacks.add( newAltoURL );
             }
 
-            return mcflConfiguration;
+            return launcherConfiguration;
         }
         // Write default configuration and load if unable to read
         catch ( Exception e ) {
-            MCFLConfiguration newConfig = new MCFLConfiguration();
+            LauncherConfiguration newConfig = new LauncherConfiguration();
             newConfig.debug = DEBUG_DEFAULT;
             newConfig.minRAM = MIN_RAM_DEFAULT;
             newConfig.maxRAM = MAX_RAM_DEFAULT;
@@ -248,7 +248,7 @@ public class MCFLConfiguration {
             newConfig.resizableguis = RESIZABLEGUIS_DEFAULT;
 
             save( newConfig );
-            return new Gson().fromJson( new FileReader( DISK_FILE ), MCFLConfiguration.class );
+            return new Gson().fromJson( new FileReader( DISK_FILE ), LauncherConfiguration.class );
         }
     }
     //endregion

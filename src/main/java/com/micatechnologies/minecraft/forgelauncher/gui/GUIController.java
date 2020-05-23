@@ -1,6 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
-import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
+import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 
@@ -47,6 +47,6 @@ public class GUIController {
 
     public synchronized static void refreshWindowConfiguration() {
         // Set window resize mode
-        GUIUtils.JFXPlatformRun( () -> doForAllWindows( flGenericGUI -> flGenericGUI.getCurrentJFXStage().setResizable( MCFLApp.getLauncherConfig().getResizableguis() ) ) );
+        GUIUtils.JFXPlatformRun( () -> doForAllWindows( flGenericGUI -> flGenericGUI.getCurrentJFXStage().setResizable( LauncherApp.getLauncherConfig().getResizableguis() ) ) );
     }
 }

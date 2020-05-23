@@ -3,10 +3,11 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
-import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
-import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
+import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
+import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
 import com.micatechnologies.minecraft.forgelauncher.modpack.ModPack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackConsts;
+import com.micatechnologies.minecraft.forgelauncher.modpack.ModPackInstallManager;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
@@ -34,7 +35,7 @@ public class MainGUI extends GenericGUI {
     ImageView packLogo;
 
     @FXML
-    JFXComboBox< String > packSelection;
+    JFXComboBox<String> packSelection;
 
     @FXML
     JFXButton playBtn;
@@ -67,57 +68,55 @@ public class MainGUI extends GenericGUI {
     }
 
     @Override
-    Pair< Integer, Integer > getWindowSize() {
-        return new Pair<>( 600, 600 );
+    Pair<Integer, Integer> getWindowSize() {
+        return new Pair<>(600, 600);
     }
 
     @Override
     void setupWindow() {
         // Configure exit button and window close
-        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtils.spawnNewTask( MCFLApp::closeApp ) );
-        exitBtn.setOnAction( actionEvent -> currentJFXStage.fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
+        currentJFXStage.setOnCloseRequest(windowEvent -> SystemUtils.spawnNewTask(LauncherApp::closeApp));
+        exitBtn.setOnAction(actionEvent -> currentJFXStage.fireEvent(new WindowEvent(currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST)));
 
         // Check for launcher update and show image if there is one
-        updateImgView.setVisible( false );
-        SystemUtils.spawnNewTask( () -> {
+        updateImgView.setVisible(false);
+        SystemUtils.spawnNewTask(() -> {
             try {
                 // Get current version
-                String version = MCFLConstants.LAUNCHER_APPLICATION_VERSION;
+                String version = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
 
                 // Get latest version
-                URLConnection con = new URL( MCFLConstants.UPDATE_CHECK_REDIRECT_URL ).openConnection();
+                URLConnection con = new URL(LauncherConstants.UPDATE_CHECK_REDIRECT_URL).openConnection();
                 con.connect();
                 InputStream is = con.getInputStream();
                 String latestVersionURL = con.getURL().toExternalForm();
-                String[] latestVersionURLParts = latestVersionURL.split( "/" );
-                String latestVersion = latestVersionURLParts[ latestVersionURLParts.length - 1 ];
+                String[] latestVersionURLParts = latestVersionURL.split("/");
+                String latestVersion = latestVersionURLParts[latestVersionURLParts.length - 1];
                 is.close();
 
                 // Check if current version is less than latest
-                if ( SystemUtils.compareVersionNumbers( version, latestVersion ) == -1 ) {
-                    updateImgView.setVisible( true );
-                    updateImgView.setOnMouseClicked( mouseEvent -> SystemUtils.spawnNewTask( () -> {
-                        int response = GUIUtils.showQuestionMessage( "Update Available", "Update Ready to Download", "An update has been found and is ready to be downloaded and installed.", "Update Now", "Update Later", getCurrentJFXStage() );
-                        if ( response == 1 ) {
+                if (SystemUtils.compareVersionNumbers(version, latestVersion) == -1) {
+                    updateImgView.setVisible(true);
+                    updateImgView.setOnMouseClicked(mouseEvent -> SystemUtils.spawnNewTask(() -> {
+                        int response = GUIUtils.showQuestionMessage("Update Available", "Update Ready to Download", "An update has been found and is ready to be downloaded and installed.", "Update Now", "Update Later", getCurrentJFXStage());
+                        if (response == 1) {
                             try {
-                                Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
-                            }
-                            catch ( IOException e ) {
-                                Logger.logError( "Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", getCurrentJFXStage() );
+                                Desktop.getDesktop().browse(URI.create(latestVersionURL));
+                            } catch (IOException e) {
+                                Logger.logError("Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", getCurrentJFXStage());
                             }
                         }
-                    } ) );
+                    }));
                 }
-            }
-            catch ( Exception e ) {
+            } catch (Exception e) {
                 e.printStackTrace();
-                Logger.logError( "An error occurred while checking for an updated launcher version!" );
+                Logger.logError("An error occurred while checking for an updated launcher version!");
             }
-        } );
+        });
 
         // Configure settings button
-        settingsBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
-            Platform.setImplicitExit( false );
+        settingsBtn.setOnAction(actionEvent -> SystemUtils.spawnNewTask(() -> {
+            Platform.setImplicitExit(false);
             hide();
 
             // Open settings GUI and disable main window
@@ -125,133 +124,127 @@ public class MainGUI extends GenericGUI {
             flSettingsGUI.show();
 
             // Wait for settings to close, then enable main window again
-            SystemUtils.spawnNewTask( () -> {
+            SystemUtils.spawnNewTask(() -> {
                 try {
                     flSettingsGUI.closedLatch.await();
-                }
-                catch ( InterruptedException e ) {
-                    Logger.logError( "Unable to wait for settings GUI before showing main window again!" );
+                } catch (InterruptedException e) {
+                    Logger.logError("Unable to wait for settings GUI before showing main window again!");
                 }
 
                 // If loop login is true, launcher reset, need to go to login screen
-                if ( MCFLApp.getLoopLogin() ) {
-                    new Thread( () -> {
-                        Platform.setImplicitExit( true );
+                if (LauncherApp.getLoopLogin()) {
+                    new Thread(() -> {
+                        Platform.setImplicitExit(true);
                         close();
-                    } ).start();
+                    }).start();
                 }
 
-                MCFLApp.buildMemoryModpackList();
+                LauncherApp.buildMemoryModpackList();
                 show();
                 populateModpackDropdown();
-            } );
-        } ) );
+            });
+        }));
 
         // Configure modpacks edit button
-        editButton.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
+        editButton.setOnAction(actionEvent -> SystemUtils.spawnNewTask(() -> {
             // Create new edit GUI
             EditModpacksGUI editModpacksGUI = new EditModpacksGUI();
             editModpacksGUI.show();
-            rootPane.setDisable( true );
+            rootPane.setDisable(true);
 
-            SystemUtils.spawnNewTask( () -> {
+            SystemUtils.spawnNewTask(() -> {
                 try {
                     editModpacksGUI.closedLatch.await();
-                }
-                catch ( InterruptedException e ) {
-                    Logger.logError( "Unable to wait for settings GUI before showing main window again!" );
+                } catch (InterruptedException e) {
+                    Logger.logError("Unable to wait for settings GUI before showing main window again!");
                 }
 
                 // Refresh main GUI and show again
-                MCFLApp.buildMemoryModpackList();
+                LauncherApp.buildMemoryModpackList();
                 show();
-                rootPane.setDisable( false );
+                rootPane.setDisable(false);
                 populateModpackDropdown();
-            } );
+            });
 
-        } ) );
+        }));
 
         // Configure logout button
-        logoutBtn.setOnAction( actionEvent -> {
-            MCFLApp.logoutCurrentUser();
+        logoutBtn.setOnAction(actionEvent -> {
+            LauncherApp.logoutCurrentUser();
             close();
-        } );
+        });
 
         // Populate list of modpacks
         populateModpackDropdown();
 
         // Configure play button
-        playBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
-            Platform.setImplicitExit( false );
+        playBtn.setOnAction(actionEvent -> SystemUtils.spawnNewTask(() -> {
+            Platform.setImplicitExit(false);
             hide();
-            MCFLApp.play( packSelection.getSelectionModel().getSelectedIndex(), this );
+            LauncherApp.play(packSelection.getSelectionModel().getSelectedIndex(), this);
             show();
-        } ) );
+        }));
 
         // Configure user label
-        playerLabel.setText( MCFLApp.getCurrentUser().getFriendlyName() );
+        playerLabel.setText(LauncherApp.getCurrentUser().getFriendlyName());
 
         // Configure user image
-        userImage.setImage( new Image( MCFLConstants.URL_MINECRAFT_USER_ICONS.replace( "user", MCFLApp.getCurrentUser().getUserIdentifier() ) ) );
+        userImage.setImage(new Image(LauncherConstants.URL_MINECRAFT_USER_ICONS.replace("user", LauncherApp.getCurrentUser().getUserIdentifier())));
 
         // Configure ENTER key to press login button
-        rootPane.setOnKeyPressed( keyEvent -> {
+        rootPane.setOnKeyPressed(keyEvent -> {
             keyEvent.consume();
             playBtn.fire();
-        } );
+        });
     }
 
-    private final ChangeListener< Number > packSelectionChangeListener = ( observableValue, oldVal, newVal ) -> {
+    private final ChangeListener<Number> packSelectionChangeListener = (observableValue, oldVal, newVal) -> {
         // Load modpack logo and set in GUI
-        Image packLogoImg = new Image( MCFLApp.getModpacks().get( packSelection.getSelectionModel().getSelectedIndex() == -1 ? 0 : packSelection.getSelectionModel().getSelectedIndex() ).getPackLogoURL() );
-        GUIUtils.JFXPlatformRun( () -> {
-            packLogo.setImage( packLogoImg );
+        Image packLogoImg = new Image(LauncherApp.getModpacks().get(packSelection.getSelectionModel().getSelectedIndex() == -1 ? 0 : packSelection.getSelectionModel().getSelectedIndex()).getPackLogoURL());
+        GUIUtils.JFXPlatformRun(() -> {
+            packLogo.setImage(packLogoImg);
 
             // Set modpack background image on root pane
-            rootPane.setStyle( rootPane.getStyle() + "-fx-background-image: url('" + MCFLApp.getModpacks().get( packSelection.getSelectionModel().getSelectedIndex() == -1 ? 0 : packSelection.getSelectionModel().getSelectedIndex() ).getPackBackgroundURL() + "');" );
-            rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
-        } );
+            rootPane.setStyle(rootPane.getStyle() + "-fx-background-image: url('" + LauncherApp.getModpacks().get(packSelection.getSelectionModel().getSelectedIndex() == -1 ? 0 : packSelection.getSelectionModel().getSelectedIndex()).getPackBackgroundURL() + "');");
+            rootPane.setStyle(rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;");
+        });
     };
 
     private void populateModpackDropdown() {
-        // Create list of modpack names
-        List< String > modpackList = new ArrayList<>();
-        for ( ModPack modpack : MCFLApp.getModpacks() ) {
-            modpackList.add( modpack.getPackName() );
-        }
+        // Get list of modpack names
+        List<String> modpackList = ModPackInstallManager.getInstalledModPackFriendlyNames();
 
         // Reset modpack selector
-        GUIUtils.JFXPlatformRun( () -> {
-            packSelection.getSelectionModel().selectedIndexProperty().removeListener( packSelectionChangeListener );
+        GUIUtils.JFXPlatformRun(() -> {
+            packSelection.getSelectionModel().selectedIndexProperty().removeListener(packSelectionChangeListener);
             packSelection.getItems().clear();
-        } );
+        });
 
-        if ( modpackList.size() > 0 ) {
-            GUIUtils.JFXPlatformRun( () -> {
-                packSelection.setDisable( false );
-                packSelection.getItems().addAll( modpackList );
-                packSelection.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
+        if (modpackList.size() > 0) {
+            GUIUtils.JFXPlatformRun(() -> {
+                packSelection.setDisable(false);
+                packSelection.getItems().addAll(modpackList);
+                packSelection.getSelectionModel().selectedIndexProperty().addListener(packSelectionChangeListener);
                 packSelection.getSelectionModel().selectFirst();
-            } );
-        }
-        else {
-            GUIUtils.JFXPlatformRun( () -> {
-                packSelection.getItems().add( "No modpacks installed!" );
+            });
+        } else {
+            GUIUtils.JFXPlatformRun(() -> {
+                packSelection.getItems().add("No modpacks installed!");
                 packSelection.getSelectionModel().selectFirst();
-                packSelection.setDisable( true );
-                packLogo.setImage( new Image( MCFLConstants.URL_MINECRAFT_NO_MODPACK_IMAGE ) );
-                rootPane.setStyle( rootPane.getStyle() + "-fx-background-image: url('" + MCForgeModpackConsts.MODPACK_DEFAULT_BG_URL + "');" );
-                rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
-            } );
+                packSelection.setDisable(true);
+                packLogo.setImage(new Image(LauncherConstants.URL_MINECRAFT_NO_MODPACK_IMAGE));
+                rootPane.setStyle(rootPane.getStyle() + "-fx-background-image: url('" + MCForgeModpackConsts.MODPACK_DEFAULT_BG_URL + "');");
+                rootPane.setStyle(rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;");
+            });
         }
     }
 
-    public void show( int modpack ) {
+    public void show(int modpack) {
         // Do standard show method tasks
         super.show();
 
         // Select supplied modpack
         packSelection.getSelectionModel().selectFirst();
-        packSelection.getSelectionModel().select( modpack );
+        packSelection.getSelectionModel().select(modpack);
     }
 }

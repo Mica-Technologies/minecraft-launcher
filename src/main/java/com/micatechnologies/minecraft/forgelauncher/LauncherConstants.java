@@ -9,7 +9,7 @@ import java.nio.file.Paths;
  * @author Mica Technologies/hawka97
  * @version 1.0
  */
-public class MCFLConstants {
+public class LauncherConstants {
     /**
      * Launcher application name. Leave blank, this is auto-filled in.
      */

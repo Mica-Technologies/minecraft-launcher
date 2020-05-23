@@ -3,9 +3,9 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.google.common.primitives.Doubles;
 import com.jfoenix.controls.*;
-import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
-import com.micatechnologies.minecraft.forgelauncher.MCFLConfiguration;
-import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
+import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
+import com.micatechnologies.minecraft.forgelauncher.LauncherConfiguration;
+import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
@@ -44,9 +44,6 @@ public class SettingsGUI extends GenericGUI {
 
     @FXML
     JFXButton returnBtn;
-
-    @FXML
-    JFXChipView< String > packConfigList;
 
     @FXML
     Label versionLabel;
@@ -91,23 +88,19 @@ public class SettingsGUI extends GenericGUI {
         // Configure save button
         saveBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
             // Store min ram to config
-            MCFLApp.getLauncherConfig().setMinRAM( MCFLConfiguration.MIN_RAM_OPTIONS[ minRamBox.getSelectionModel().getSelectedIndex() ] );
+            LauncherApp.getLauncherConfig().setMinRAM( LauncherConfiguration.MIN_RAM_OPTIONS[ minRamBox.getSelectionModel().getSelectedIndex() ] );
 
             // Store max ram to config
-            MCFLApp.getLauncherConfig().setMaxRAM( MCFLConfiguration.MAX_RAM_OPTIONS[ maxRamBox.getSelectionModel().getSelectedIndex() ] );
-
-            // Store modpack list to config
-            MCFLApp.getLauncherConfig().getModpacks().clear();
-            MCFLApp.getLauncherConfig().getModpacks().addAll( packConfigList.getChips() );
+            LauncherApp.getLauncherConfig().setMaxRAM( LauncherConfiguration.MAX_RAM_OPTIONS[ maxRamBox.getSelectionModel().getSelectedIndex() ] );
 
             // Store debug mode to config
-            MCFLApp.getLauncherConfig().setDebug( debugCheckBox.isSelected() );
+            LauncherApp.getLauncherConfig().setDebug( debugCheckBox.isSelected() );
 
             // Store resizable windows to config
-            MCFLApp.getLauncherConfig().setResizableguis( windowResizeCheckBox.isSelected() );
+            LauncherApp.getLauncherConfig().setResizableguis( windowResizeCheckBox.isSelected() );
 
             // Save config to disk
-            MCFLApp.saveConfig();
+            LauncherApp.saveConfig();
 
             // Reset dirty flag (changes have been saved)
             setEdited( false );
@@ -138,8 +131,8 @@ public class SettingsGUI extends GenericGUI {
 
             hide();
             try {
-                MCFLApp.logoutCurrentUser();
-                FileUtils.deleteDirectory( new File( MCFLApp.getInstallPath() ) );
+                LauncherApp.logoutCurrentUser();
+                FileUtils.deleteDirectory( new File( LauncherApp.getInstallPath() ) );
                 close();
             }
             catch ( IOException e ) {
@@ -156,53 +149,43 @@ public class SettingsGUI extends GenericGUI {
 
             hide();
             try {
-                MCFLApp.clearLocalJDK();
+                LauncherApp.clearLocalJDK();
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to clear previous runtime from disk. Will continue to attempt reset!", getCurrentJFXStage() );
             }
-            MCFLApp.doLocalJDK();
+            LauncherApp.doLocalJDK();
             show();
         } ) );
 
         // Load version information
-        String v = MCFLConstants.LAUNCHER_APPLICATION_VERSION;
+        String v = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
         versionLabel.setText( "Version: " + v );
 
         // Set and configure resizable windows check box
-        windowResizeCheckBox.setSelected( MCFLApp.getLauncherConfig().getResizableguis() );
+        windowResizeCheckBox.setSelected( LauncherApp.getLauncherConfig().getResizableguis() );
         windowResizeCheckBox.setOnAction( actionEvent -> setEdited( true ) );
 
         // Set and configure debug mode check box
-        debugCheckBox.setSelected( MCFLApp.getLauncherConfig().getDebug() );
+        debugCheckBox.setSelected( LauncherApp.getLauncherConfig().getDebug() );
         debugCheckBox.setOnAction( actionEvent -> setEdited( true ) );
 
-        // Populate and configure modpacks chip view
-        packConfigList.setChipFactory( ( stringJFXChipView, s ) -> {
-            JFXChip< String > newChip = new JFXDefaultChip<>( stringJFXChipView, s );
-            // Very scary, but it works
-            ( ( Label ) ( ( HBox ) newChip.getChildrenUnmodifiable().get( 0 ) ).getChildren().get( 0 ) ).setMaxWidth( 1000.0 );
-            return newChip;
-        } );
-        packConfigList.getChips().addAll( MCFLApp.getLauncherConfig().getModpacks() );
-        packConfigList.getChips().addListener( ( ListChangeListener< String > ) change -> setEdited( true ) );
-
         // Populate and configure minimum RAM dropdown
-        String[] minRAMOptions = new String[ MCFLConfiguration.MIN_RAM_OPTIONS.length ];
+        String[] minRAMOptions = new String[ LauncherConfiguration.MIN_RAM_OPTIONS.length ];
         for ( int i = 0; i < minRAMOptions.length; i++ ) {
-            minRAMOptions[ i ] = String.valueOf( MCFLConfiguration.MIN_RAM_OPTIONS[ i ] );
+            minRAMOptions[ i ] = String.valueOf( LauncherConfiguration.MIN_RAM_OPTIONS[ i ] );
         }
         minRamBox.getItems().addAll( minRAMOptions );
-        minRamBox.getSelectionModel().select( Doubles.asList( MCFLConfiguration.MIN_RAM_OPTIONS ).indexOf( MCFLApp.getLauncherConfig().getMinRAM() ) );
+        minRamBox.getSelectionModel().select( Doubles.asList( LauncherConfiguration.MIN_RAM_OPTIONS ).indexOf( LauncherApp.getLauncherConfig().getMinRAM() ) );
         minRamBox.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> setEdited( true ) );
 
         // Populate and configure maximum RAM dropdown
-        String[] maxRAMOptions = new String[ MCFLConfiguration.MAX_RAM_OPTIONS.length ];
+        String[] maxRAMOptions = new String[ LauncherConfiguration.MAX_RAM_OPTIONS.length ];
         for ( int i = 0; i < maxRAMOptions.length; i++ ) {
-            maxRAMOptions[ i ] = String.valueOf( MCFLConfiguration.MAX_RAM_OPTIONS[ i ] );
+            maxRAMOptions[ i ] = String.valueOf( LauncherConfiguration.MAX_RAM_OPTIONS[ i ] );
         }
         maxRamBox.getItems().addAll( maxRAMOptions );
-        maxRamBox.getSelectionModel().select( Doubles.asList( MCFLConfiguration.MAX_RAM_OPTIONS ).indexOf( MCFLApp.getLauncherConfig().getMaxRAM() ) );
+        maxRamBox.getSelectionModel().select( Doubles.asList( LauncherConfiguration.MAX_RAM_OPTIONS ).indexOf( LauncherApp.getLauncherConfig().getMaxRAM() ) );
         maxRamBox.getSelectionModel().selectedItemProperty().addListener( ( observable, oldValue, newValue ) -> setEdited( true ) );
     }
 

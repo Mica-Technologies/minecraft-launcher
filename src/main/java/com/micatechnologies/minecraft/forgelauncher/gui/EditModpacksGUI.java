@@ -3,7 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXTextField;
-import com.micatechnologies.minecraft.forgelauncher.modpack.InstalledModPackManager;
+import com.micatechnologies.minecraft.forgelauncher.modpack.ModPackInstallManager;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import javafx.fxml.FXML;
@@ -19,7 +19,7 @@ import javafx.stage.WindowEvent;
 public class EditModpacksGUI extends GenericGUI {
 
     @FXML
-    ListView< String > modpackList;
+    ListView<String> modpackList;
 
     @FXML
     JFXButton urlAddBtn;
@@ -31,41 +31,42 @@ public class EditModpacksGUI extends GenericGUI {
     JFXTextField urlAddBox;
 
     @FXML
-    JFXComboBox< String > listAddBox;
+    JFXComboBox<String> listAddBox;
 
     @FXML
     JFXButton returnBtn;
 
-    static class XCell extends ListCell< String > {
+    class XCell extends ListCell<String> {
         HBox hbox = new HBox();
-        Label label = new Label( "" );
+        Label label = new Label("");
         Pane pane = new Pane();
-        Button button = new Button( "X" );
+        Button button = new Button("X");
 
         public XCell() {
             super();
 
-            pane.setPrefWidth( 10 );
-            label.setStyle( "-fx-text-fill:black!important;" );
-            button.setStyle( "-fx-text-fill:red!important;-fx-font-size:8;" );
-            hbox.getChildren().addAll( label, pane, button );
-            HBox.setHgrow( pane, Priority.ALWAYS );
-            button.setOnAction( event -> {
-                getListView().getItems().remove( getItem() );
-                InstalledModPackManager.removeModpackByFriendly( label.getText() );
-            } );
+            pane.setPrefWidth(10);
+            label.setStyle("-fx-text-fill:black!important;");
+            button.setStyle("-fx-text-fill:red!important;-fx-font-size:8;");
+            hbox.getChildren().addAll(label, pane, button);
+            HBox.setHgrow(pane, Priority.ALWAYS);
+            button.setOnAction(event -> {
+                getListView().getItems().remove(getItem());
+                ModPackInstallManager.uninstallModPackByFriendlyName(label.getText());
+                loadModPackList();
+            });
         }
 
         @Override
-        protected void updateItem( String item, boolean empty ) {
-            super.updateItem( item, empty );
-            setText( null );
-            setGraphic( null );
+        protected void updateItem(String item, boolean empty) {
+            super.updateItem(item, empty);
+            setText(null);
+            setGraphic(null);
 
-            if ( item != null && !empty ) {
-                label.setText( item );
-                label.setPrefHeight( button.getPrefHeight() );
-                setGraphic( hbox );
+            if (item != null && !empty) {
+                label.setText(item);
+                label.setPrefHeight(button.getPrefHeight());
+                setGraphic(hbox);
             }
         }
     }
@@ -76,23 +77,43 @@ public class EditModpacksGUI extends GenericGUI {
     }
 
     @Override
-    Pair< Integer, Integer > getWindowSize() {
-        return new Pair<>( 600, 600 );
+    Pair<Integer, Integer> getWindowSize() {
+        return new Pair<>(600, 600);
     }
 
     private void loadModPackList() {
-        modpackList.setCellFactory( stringListView -> new XCell() );
-        modpackList.getItems().addAll( InstalledModPackManager.getModpacksListByFriendly() );
+        // Set installed mod pack list cell factory
+        modpackList.setCellFactory(stringListView -> new XCell());
+
+        // Add installed mod packs to list
+        modpackList.getItems().clear();
+        modpackList.getItems().addAll(ModPackInstallManager.getInstalledModPackFriendlyNames());
+
+        // Add available mod packs to list
+        listAddBox.getItems().clear();
+        listAddBox.getItems().addAll(ModPackInstallManager.getAvailableModPackFriendlyNames());
     }
 
     @Override
     void setupWindow() {
         // Configure return button and window close
-        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtils.spawnNewTask( this::close ) );
-        returnBtn.setOnAction( actionEvent -> currentJFXStage.fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
+        currentJFXStage.setOnCloseRequest(windowEvent -> SystemUtils.spawnNewTask(this::close));
+        returnBtn.setOnAction(actionEvent -> currentJFXStage.fireEvent(new WindowEvent(currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST)));
 
-        // Populate mod pack list
+        // Populate mod pack lists
         loadModPackList();
+
+        // Configure add by URL button
+        urlAddBtn.setOnAction(actionEvent -> {
+            ModPackInstallManager.installModPackByURL(urlAddBox.getText());
+            loadModPackList();
+        });
+
+        // Configure add by List button
+        listAddBtn.setOnAction(actionEvent -> {
+            ModPackInstallManager.installModPackByFriendlyName(listAddBox.getValue());
+            loadModPackList();
+        });
     }
 }
 

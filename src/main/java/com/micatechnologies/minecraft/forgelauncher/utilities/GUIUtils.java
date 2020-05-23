@@ -1,6 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
-import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
+import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
 import com.micatechnologies.minecraft.forgelauncher.gui.GenericGUI;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
@@ -67,7 +67,7 @@ public class GUIUtils {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText( "A question message latch was interrupted before handling completed." + "\n" + "Client Token: " + MCFLApp.getClientToken() );
+                errorAlert.setContentText( "A question message latch was interrupted before handling completed." + "\n" + "Client Token: " + LauncherApp.getClientToken() );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initOwner( owner );
@@ -94,7 +94,7 @@ public class GUIUtils {
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
             errorAlert.setTitle( "Oops" );
             errorAlert.setHeaderText( "Error" );
-            errorAlert.setContentText( contentText + "\nClient Token: " + MCFLApp.getClientToken() );
+            errorAlert.setContentText( contentText + "\nClient Token: " + LauncherApp.getClientToken() );
             errorAlert.initModality( Modality.WINDOW_MODAL );
             errorAlert.initStyle( StageStyle.UTILITY );
             errorAlert.initOwner( owner );
@@ -116,7 +116,7 @@ public class GUIUtils {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText( "An error message latch was interrupted before handling completed." + "\n" + "Client Token: " + MCFLApp.getClientToken() );
+                errorAlert.setContentText( "An error message latch was interrupted before handling completed." + "\n" + "Client Token: " + LauncherApp.getClientToken() );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initOwner( owner );

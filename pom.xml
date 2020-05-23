@@ -16,7 +16,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <main.class>com.micatechnologies.minecraft.forgelauncher.MCFLApp</main.class>
+        <main.class>com.micatechnologies.minecraft.forgelauncher.LauncherApp</main.class>
         <app.name>Mica Forge Launcher</app.name>
         <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
         <izpack.staging>${project.build.directory}${file.separator}windows-installer</izpack.staging>
@@ -99,7 +99,7 @@
                 <configuration>
                     <includes>
                         <include>
-                            ${project.basedir}${file.separator}src${file.separator}main${file.separator}java${file.separator}com${file.separator}micatechnologies${file.separator}minecraft${file.separator}forgelauncher${file.separator}MCFLConstants.java
+                            ${project.basedir}${file.separator}src${file.separator}main${file.separator}java${file.separator}com${file.separator}micatechnologies${file.separator}minecraft${file.separator}forgelauncher${file.separator}LauncherConstants.java
                         </include>
                     </includes>
                     <replacements>

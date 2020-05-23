@@ -38,7 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class MCFLApp {
+public class LauncherApp {
     //region: App Configuration & Information
     private static final boolean ALLOW_SAVED_USERS = true;
     private static boolean loopLogin = true;
@@ -46,9 +46,9 @@ public class MCFLApp {
     private static String javaPath = "java";
     private static String clientToken = "";
     private static MCAuthAccount currentUser = null;
-    private static MCFLConfiguration launcherConfig = null;
+    private static LauncherConfiguration launcherConfig = null;
     private static final List< ModPack > modpacks = new ArrayList<>();
-    private static final File savedUserFile = new File( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
+    private static final File savedUserFile = new File( LauncherConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
     //endregion
 
     //region: Get/Set Methods
@@ -68,7 +68,7 @@ public class MCFLApp {
         // Client token not loaded to memory, need to load first
         if ( clientToken.equals( "" ) ) {
             // Create file object for local token file
-            File tokenFile = new File( MCFLConstants.LAUNCHER_CLIENT_TOKEN_FILE );
+            File tokenFile = new File( LauncherConstants.LAUNCHER_CLIENT_TOKEN_FILE );
 
             // Check if file exists.
             if ( tokenFile.isFile() ) {
@@ -110,10 +110,10 @@ public class MCFLApp {
         return currentUser;
     }
 
-    public static MCFLConfiguration getLauncherConfig() {
+    public static LauncherConfiguration getLauncherConfig() {
         if ( launcherConfig == null ) {
             try {
-                launcherConfig = MCFLConfiguration.open();
+                launcherConfig = LauncherConfiguration.open();
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to load launcher configuration from persistent storage. Configuration may be reset." );
@@ -140,7 +140,7 @@ public class MCFLApp {
     }
 
     public static String getInstallPath() {
-        return gameMode == GameMode.CLIENT ? MCFLConstants.LAUNCHER_CLIENT_INSTALLATION_DIRECTORY : MCFLConstants.LAUNCHER_SERVER_INSTALLATION_DIRECTORY;
+        return gameMode == GameMode.CLIENT ? LauncherConstants.LAUNCHER_CLIENT_INSTALLATION_DIRECTORY : LauncherConstants.LAUNCHER_SERVER_INSTALLATION_DIRECTORY;
     }
 
     public static String getJREFolderPath() {
@@ -372,23 +372,23 @@ public class MCFLApp {
         if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
             jreArchiveFormat = ArchiveFormat.ZIP;
             jreArchiveCompressionType = null;
-            jreArchiveDownloadURL = MCFLConstants.URL_JRE_WIN;
-            jreHashDownloadURL = MCFLConstants.URL_JRE_WIN_HASH;
-            javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java.exe";
+            jreArchiveDownloadURL = LauncherConstants.URL_JRE_WIN;
+            jreHashDownloadURL = LauncherConstants.URL_JRE_WIN_HASH;
+            javaPath = getJREFolderPath() + File.separator + LauncherConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java.exe";
         }
         else if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
             jreArchiveFormat = ArchiveFormat.TAR;
             jreArchiveCompressionType = CompressionType.GZIP;
-            jreArchiveDownloadURL = MCFLConstants.URL_JRE_MAC;
-            jreHashDownloadURL = MCFLConstants.URL_JRE_MAC_HASH;
-            javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "Contents" + File.separator + "Home" + File.separator + "bin" + File.separator + "java";
+            jreArchiveDownloadURL = LauncherConstants.URL_JRE_MAC;
+            jreHashDownloadURL = LauncherConstants.URL_JRE_MAC_HASH;
+            javaPath = getJREFolderPath() + File.separator + LauncherConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "Contents" + File.separator + "Home" + File.separator + "bin" + File.separator + "java";
         }
         else if ( org.apache.commons.lang3.SystemUtils.IS_OS_LINUX ) {
             jreArchiveFormat = ArchiveFormat.TAR;
             jreArchiveCompressionType = CompressionType.GZIP;
-            jreArchiveDownloadURL = MCFLConstants.URL_JRE_UNX;
-            jreHashDownloadURL = MCFLConstants.URL_JRE_UNX_HASH;
-            javaPath = getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java";
+            jreArchiveDownloadURL = LauncherConstants.URL_JRE_UNX;
+            jreHashDownloadURL = LauncherConstants.URL_JRE_UNX_HASH;
+            javaPath = getJREFolderPath() + File.separator + LauncherConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java";
         }
         else {
             if ( progressGUI != null )
@@ -439,7 +439,7 @@ public class MCFLApp {
                 SystemUtils.downloadFileFromURL( new URL( jreArchiveDownloadURL ), jreArchiveFile );
 
                 // Delete previous extracted JRE
-                File extractedJREFolder = new File( getJREFolderPath() + File.separator + MCFLConstants.JRE_EXTRACTED_FOLDER_NAME );
+                File extractedJREFolder = new File( getJREFolderPath() + File.separator + LauncherConstants.JRE_EXTRACTED_FOLDER_NAME );
                 if ( extractedJREFolder.exists() ) {
                     FileUtils.deleteDirectory( extractedJREFolder );
                 }
@@ -535,7 +535,7 @@ public class MCFLApp {
             synchronized ( savedUserFile ) {
                 if ( ALLOW_SAVED_USERS && savedUserFile.isFile() ) {
                     try {
-                        currentUser = MCAuthAccount.readFromFile( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
+                        currentUser = MCAuthAccount.readFromFile( LauncherConstants.LAUNCHER_CLIENT_SAVED_USER_FILE );
 
                         // Refresh auth only if not in offline mode
                         if ( !offlineMode ) {

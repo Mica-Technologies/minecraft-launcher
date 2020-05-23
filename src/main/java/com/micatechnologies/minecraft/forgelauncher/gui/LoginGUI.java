@@ -5,8 +5,8 @@ import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXCheckBox;
 import com.jfoenix.controls.JFXPasswordField;
 import com.jfoenix.controls.JFXTextField;
-import com.micatechnologies.minecraft.forgelauncher.MCFLApp;
-import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
+import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
+import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
 import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthAccount;
 import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthService;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
@@ -49,7 +49,7 @@ public class LoginGUI extends GenericGUI {
     @Override
     void setupWindow() {
         // Configure exit button and window close
-        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtils.spawnNewTask( MCFLApp::closeApp ) );
+        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtils.spawnNewTask( LauncherApp::closeApp ) );
         exitBtn.setOnAction( actionEvent -> currentJFXStage.fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Configure login button
@@ -66,12 +66,12 @@ public class LoginGUI extends GenericGUI {
             MCAuthAccount authAccount = new MCAuthAccount( email );
             try {
                 // Attempt login
-                boolean authSuccess = MCAuthService.usernamePasswordAuth( authAccount, password, MCFLApp.getClientToken() );
+                boolean authSuccess = MCAuthService.usernamePasswordAuth( authAccount, password, LauncherApp.getClientToken() );
 
                 // If successful, register login with app and save account if applicable
                 if ( authSuccess ) {
                     if ( rememberMeCheckBox.isSelected() ) {
-                        MCAuthAccount.writeToFile( MCFLConstants.LAUNCHER_CLIENT_SAVED_USER_FILE, authAccount );
+                        MCAuthAccount.writeToFile( LauncherConstants.LAUNCHER_CLIENT_SAVED_USER_FILE, authAccount );
                     }
                     loggedIn = authAccount;
                     loginSuccessLatch.countDown();

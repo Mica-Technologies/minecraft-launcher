@@ -1,6 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
-import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
+import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
 import javafx.stage.Stage;
 import org.apache.commons.io.output.TeeOutputStream;
 
@@ -58,7 +58,7 @@ public class Logger {
     /**
      * Prefix for error logs
      */
-    private static final String logErrorPrefix = "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/ERROR] ";
+    private static final String logErrorPrefix = "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/ERROR] ";
 
     /**
      * Log an error with its prefix.
@@ -83,7 +83,7 @@ public class Logger {
     /**
      * Prefix for standard logs
      */
-    private static final String logStdPrefix = "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/STD] ";
+    private static final String logStdPrefix = "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/STD] ";
 
     /**
      * Log a standard message with its prefix
@@ -97,7 +97,7 @@ public class Logger {
     /**
      * Prefix for debug logs
      */
-    private static final String logDebugPrefix = "[" + MCFLConstants.LAUNCHER_APPLICATION_NAME + "/DEBUG] ";
+    private static final String logDebugPrefix = "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/DEBUG] ";
 
     /**
      * Log a debug message with its prefix

@@ -8,7 +8,7 @@ printf "TIME: %s\n" "$now" | tee -a notarize.log
 #### FUNCTIONS
 function_doSubmit() {
 	echo "Submitting application to Apple Developer services for notarization" | tee -a notarize.log
-	xcrun altool -t osx -f micaforgelauncher.dmg --primary-bundle-id com.micatechnologies.minecraft.forgelauncher.MCFLApp --notarize-app -u hawkaj@icloud.com -p "@keychain:APPLENOTARIZE" | tee -a notarize.log
+	xcrun altool -t osx -f micaforgelauncher.dmg --primary-bundle-id com.micatechnologies.minecraft.forgelauncher.LauncherApp --notarize-app -u hawkaj@icloud.com -p "@keychain:APPLENOTARIZE" | tee -a notarize.log
 }
 
 function_doCheck() {

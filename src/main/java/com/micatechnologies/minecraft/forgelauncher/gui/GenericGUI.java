@@ -1,7 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.micatechnologies.jadapt.NSWindow;
-import com.micatechnologies.minecraft.forgelauncher.MCFLConstants;
+import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
@@ -9,7 +9,6 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
@@ -50,7 +49,7 @@ public abstract class GenericGUI extends Application {
         stage.initStyle( StageStyle.UNIFIED );
 
         // Set window title and icon
-        stage.setTitle( MCFLConstants.LAUNCHER_APPLICATION_NAME );
+        stage.setTitle( LauncherConstants.LAUNCHER_APPLICATION_NAME );
         InputStream iconStream = getClass().getClassLoader().getResourceAsStream( "micaforgelauncher.png" );
         if ( iconStream != null ) {
             stage.getIcons().add( new Image( iconStream ) );
