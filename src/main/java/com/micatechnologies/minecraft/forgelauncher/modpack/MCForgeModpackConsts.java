@@ -106,4 +106,6 @@ public class MCForgeModpackConsts {
     public static final int MINECRAFT_SERVER_MODE = 1;
 
     public static final String MODPACK_DEFAULT_BG_URL = "https://i.ytimg.com/vi/oi3A9Wkn8XA/maxresdefault.jpg";
+
+    public static final String MODPACK_DEFAULT_LOGO_URL = "https://cdn.freebiesupply.com/logos/large/2x/minecraft-1-logo-png-transparent.png";
 }

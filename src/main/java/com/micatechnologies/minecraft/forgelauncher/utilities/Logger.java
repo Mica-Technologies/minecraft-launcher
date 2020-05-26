@@ -1,6 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
 import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
+import com.micatechnologies.minecraft.forgelauncher.gui.GUIController;
 import javafx.stage.Stage;
 import org.apache.commons.io.output.TeeOutputStream;
 
@@ -21,10 +22,9 @@ public class Logger {
      * Initializes the logging system
      *
      * @param logFile log file
-     *
      * @throws FileNotFoundException if unable to find log file
      */
-    public static void initLogSys( File logFile ) throws IOException {
+    public static void initLogSys(File logFile) throws IOException {
         // Create log file if necessary
         if (!logFile.isFile()) {
             logFile.getParentFile().mkdirs();
@@ -34,7 +34,7 @@ public class Logger {
         /*
          * File print stream
          */
-        PrintStream file = new PrintStream( logFile );
+        PrintStream file = new PrintStream(logFile);
 
         /*
          * Original console (System.out) print stream
@@ -47,12 +47,12 @@ public class Logger {
         PrintStream consoleErr = System.err;
 
         // Create new tee print stream for System.out and System.err
-        PrintStream sysOut = new PrintStream( new TeeOutputStream( console, file ) );
-        PrintStream sysErr = new PrintStream( new TeeOutputStream( consoleErr, file ) );
+        PrintStream sysOut = new PrintStream(new TeeOutputStream(console, file));
+        PrintStream sysErr = new PrintStream(new TeeOutputStream(consoleErr, file));
 
         // Assign tee-d print streams
-        System.setOut( sysOut );
-        System.setErr( sysErr );
+        System.setOut(sysOut);
+        System.setErr(sysErr);
     }
 
     /**
@@ -65,19 +65,11 @@ public class Logger {
      *
      * @param errorLog error to log
      */
-    public static void logError( String errorLog ) {
-        System.err.println( logErrorPrefix + errorLog );
-    }
+    public static void logError(String errorLog) {
+        Stage jfxStage = GUIController.getTopStageOrNull();
+        if (jfxStage != null) GUIUtils.showErrorMessage(errorLog, jfxStage);
 
-    /**
-     * Log an error with its prefix and show a GUI error message
-     *
-     * @param errorLog error to log
-     * @param jfxStage JavaFX stage to generate GUI error message from
-     */
-    public static void logError( String errorLog, Stage jfxStage ) {
-        if ( jfxStage != null ) GUIUtils.showErrorMessage( errorLog, jfxStage );
-        System.err.println( logErrorPrefix + errorLog );
+        System.err.println(logErrorPrefix + errorLog);
     }
 
     /**
@@ -90,8 +82,8 @@ public class Logger {
      *
      * @param log message to log
      */
-    public static void logStd( String log ) {
-        System.out.println( logStdPrefix + log );
+    public static void logStd(String log) {
+        System.out.println(logStdPrefix + log);
     }
 
     /**
@@ -104,7 +96,7 @@ public class Logger {
      *
      * @param debugLog debug message to log
      */
-    public static void logDebug( String debugLog ) {
-        System.out.println( logDebugPrefix + debugLog );
+    public static void logDebug(String debugLog) {
+        System.out.println(logDebugPrefix + debugLog);
     }
 }

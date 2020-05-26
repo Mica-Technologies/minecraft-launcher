@@ -7,8 +7,8 @@ import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackExceptio
 import java.io.File;
 
 /**
- * Class representing the Mojang Minecraft version manifest and providing functionality to download
- * a Minecraft version's library manifest.
+ * Class representing the Mojang Minecraft version manifest and providing functionality to download a Minecraft
+ * version's library manifest.
  *
  * @author Mica Technologies/hawka97
  * @version 1.0
@@ -18,22 +18,22 @@ class MCVersionManifest extends MCRemoteFile {
     /**
      * Download URL of Minecraft version manifest
      */
-    private static final String MINECRAFT_VERSION_MANIFEST_URL                = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+    private static final String MINECRAFT_VERSION_MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 
     /**
      * Local path of Minecraft version manifest, relative to modpack root folder
      */
     private static final String MINECRAFT_VERSION_MANIFEST_LOCAL_MODPACK_PATH =
-        "bin" + File.separator + "minecraft-version.manifest";
+            "bin" + File.separator + "minecraft-version.manifest";
 
     /**
      * Root folder of modpack
      */
-    private final        String modpackRootFolder;
+    private final String modpackRootFolder;
 
     /**
-     * Create a Minecraft version manifest object for modpack at modpackRootFolder. Instances do not
-     * require a local path prefix to be defined for download.
+     * Create a Minecraft version manifest object for modpack at modpackRootFolder. Instances do not require a local
+     * path prefix to be defined for download.
      *
      * @param modpackRootFolder root folder of modpack
      *
@@ -43,7 +43,7 @@ class MCVersionManifest extends MCRemoteFile {
         // Configure remote file
         super( MINECRAFT_VERSION_MANIFEST_URL,
                modpackRootFolder + File.separator
-                   + MINECRAFT_VERSION_MANIFEST_LOCAL_MODPACK_PATH );
+                       + MINECRAFT_VERSION_MANIFEST_LOCAL_MODPACK_PATH );
 
         // Store modpack root folder
         this.modpackRootFolder = modpackRootFolder;
@@ -60,7 +60,7 @@ class MCVersionManifest extends MCRemoteFile {
      * @since 1.0
      */
     private String getMinecraftLibaryManifestURL( String minecraftVersion )
-        throws FLModpackException {
+    throws FLModpackException {
         // Get versions from version manifest root object
         JsonArray minecraftVersions = readToJsonObject().getAsJsonArray( "versions" );
 
@@ -74,7 +74,7 @@ class MCVersionManifest extends MCRemoteFile {
 
         // Throw exception if not found
         throw new FLModpackException(
-            "Unable to find specified Minecraft version library manifest." );
+                "Unable to find specified Minecraft version library manifest." );
     }
 
     /**
@@ -88,7 +88,7 @@ class MCVersionManifest extends MCRemoteFile {
      * @since 1.0
      */
     MCLibraryManifest getMinecraftLibraryManifest( String minecraftVersion )
-        throws FLModpackException {
+    throws FLModpackException {
         return new MCLibraryManifest( getMinecraftLibaryManifestURL( minecraftVersion ),
                                       modpackRootFolder );
     }

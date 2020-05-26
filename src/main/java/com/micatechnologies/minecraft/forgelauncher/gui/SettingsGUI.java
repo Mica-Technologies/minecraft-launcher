@@ -136,7 +136,7 @@ public class SettingsGUI extends GenericGUI {
                 close();
             }
             catch ( IOException e ) {
-                Logger.logError( "An error occurred while resetting the launcher. Will continue to attempt!", getCurrentJFXStage() );
+                Logger.logError( "An error occurred while resetting the launcher. Will continue to attempt!" );
             }
         } ) );
 
@@ -152,7 +152,7 @@ public class SettingsGUI extends GenericGUI {
                 LauncherApp.clearLocalJDK();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to clear previous runtime from disk. Will continue to attempt reset!", getCurrentJFXStage() );
+                Logger.logError( "Unable to clear previous runtime from disk. Will continue to attempt reset!" );
             }
             LauncherApp.doLocalJDK();
             show();

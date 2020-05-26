@@ -17,70 +17,60 @@ import java.io.OutputStream;
 import java.io.Serializable;
 
 /**
- * Minecraft Authentication Account object.
- * <p>
- * MCAuthAccount objects can be safely serialized. Read from file and write to file are functions of
- * this class.
+ * Minecraft account object that can be safely serialized for write to or read from file using the built-in class
+ * functions.
  *
  * @author Mica Technologies/hawka97
- * @version 1.1
+ * @version 2.0
  * @see java.io.Serializable
  */
-public class MCAuthAccount implements Serializable {
+public class MinecraftAccount implements Serializable {
 
     /**
-     * Class serialization identifier. DO NOT MODIFY. Modification will invalidate all existing
-     * serialized instances.
+     * Class serialization identifier. DO NOT MODIFY. Modification will invalidate all existing serialized instances.
+     *
+     * @since 1.0
      */
-    private static final long   serialVersionUID = 0x6f40b3a5d4216db6L;
+    private static final long serialVersionUID = 0x6f40b3a5d4216db6L;
 
     /**
-     * Account name. For legacy Minecraft accounts, this should be the Minecraft username. For
-     * Mojang accounts, this should be the account holders email address.
+     * Account name. For legacy Minecraft accounts, this should be the Minecraft username. For Mojang accounts, this
+     * should be the account holders email address.
+     *
+     * @since 1.0
      */
-    private final        String accountName;
+    private final String accountName;
 
     /**
      * Account friendly name. This should be the Minecraft username.
+     *
+     * @since 1.0
      */
-    private              String friendlyName     = null;
+    private String friendlyName = null;
 
     /**
-     * Account identifier. Unique and assigned by Minecraft/Mojang.
+     * Account identifier. Unique and assigned by Minecraft account service.
+     *
+     * @since 1.0
      */
-    private              String userIdentifier   = null;
+    private String userIdentifier = null;
 
     /**
-     * Account last access token. This needs to renew for each game launch.
+     * Account last access token. This needs to be renewed for each game launch.
+     *
+     * @since 1.0
      */
-    private              String lastAccessToken  = null;
+    private String lastAccessToken = null;
 
     /**
-     * Create a new MCAuthAccount with specified account name. Token and account information are not
-     * populated.
+     * Create a new MinecraftAccount with specified account name. Token and account information are not populated.
      *
      * @param accountName authentication username
      *
      * @since 1.0
      */
-    public MCAuthAccount( final String accountName ) {
+    public MinecraftAccount( final String accountName ) {
         this.accountName = accountName;
-    }
-
-    /**
-     * Create a new MCAuthAccount with specified account name, then automatically retrieve token and
-     * account information using supplied password and client token.
-     *
-     * @param accountName     authentication username
-     * @param accountPassword authentication password
-     * @param clientToken     client token
-     *
-     * @since 1.1
-     */
-    public MCAuthAccount( final String accountName, final String accountPassword,
-                          final String clientToken ) throws FLAuthenticationException {
-        this.accountName = accountName;
-        MCAuthService.usernamePasswordAuth( this, accountPassword, clientToken );
     }
 
     /**
@@ -95,8 +85,7 @@ public class MCAuthAccount implements Serializable {
     }
 
     /**
-     * Get the last used access token of this account. Note, this does not include tokens outside of
-     * this instance.
+     * Get the last used access token of this account. Note, this does not include tokens outside of this instance.
      *
      * @return last access token
      *
@@ -162,26 +151,26 @@ public class MCAuthAccount implements Serializable {
     }
 
     /**
-     * Reads a saved MCAuthAccount from the specified file location.
+     * Reads a saved MinecraftAccount from the specified file location.
      *
      * @param fileURL file location
      *
-     * @return opened MCAuthAccount file
+     * @return opened MinecraftAccount file
      *
      * @throws FLAuthenticationException if read fails
      * @since 1.0
      */
-    public static MCAuthAccount readFromFile( String fileURL ) throws FLAuthenticationException {
+    public static MinecraftAccount readFromFile( String fileURL ) throws FLAuthenticationException {
         // Create file input stream and read
         InputStream inputStream;
         InputStream buffer;
         ObjectInput objectInput;
-        MCAuthAccount read;
+        MinecraftAccount read;
         try {
             inputStream = new FileInputStream( new File( fileURL ) );
             buffer = new BufferedInputStream( inputStream );
             objectInput = new ObjectInputStream( buffer );
-            read = ( MCAuthAccount ) objectInput.readObject();
+            read = ( MinecraftAccount ) objectInput.readObject();
         }
         catch ( IOException | ClassNotFoundException e ) {
             throw new FLAuthenticationException( "Unable to read input stream from specified file.", e );
@@ -201,16 +190,16 @@ public class MCAuthAccount implements Serializable {
     }
 
     /**
-     * Writes an MCAuthAccount object to the specified file location.
+     * Writes a MinecraftAccount object to the specified file location.
      *
-     * @param fileURL       file location
-     * @param mcAuthAccount account to write
+     * @param fileURL          file location
+     * @param minecraftAccount account to write
      *
      * @throws FLAuthenticationException if write fails
      * @since 1.0
      */
-    public static void writeToFile( String fileURL, MCAuthAccount mcAuthAccount )
-        throws FLAuthenticationException {
+    public static void writeToFile( String fileURL, MinecraftAccount minecraftAccount )
+    throws FLAuthenticationException {
         // Verify file exists before writing
         File diskFile = new File( fileURL );
         if ( !diskFile.exists() ) {
@@ -230,7 +219,7 @@ public class MCAuthAccount implements Serializable {
             outputStream = new FileOutputStream( diskFile );
             buffer = new BufferedOutputStream( outputStream );
             objectOutput = new ObjectOutputStream( buffer );
-            objectOutput.writeObject( mcAuthAccount );
+            objectOutput.writeObject( minecraftAccount );
         }
         catch ( IOException e ) {
             throw new FLAuthenticationException( "writeToFile: Unable to write to file via stream.", e );

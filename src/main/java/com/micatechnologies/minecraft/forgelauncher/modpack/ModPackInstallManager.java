@@ -210,6 +210,44 @@ public class ModPackInstallManager {
     }
 
     /**
+     * Gets and returns the mod pack object of the installed mod pack with the specified name.
+     *
+     * @param packName mod pack name
+     * @return mod pack with specified name
+     * @since 1.0
+     */
+    public synchronized static ModPack getInstalledModPackByName(String packName) {
+        // Populate lists if not already done
+        if (availableModPacks == null || installedModPacks == null) fetchModPackInfo();
+
+        // Find matching mod pack and return
+        ModPack foundModPack = null;
+        for (ModPack modPack : getInstalledModPacks()) {
+            if (modPack.getPackName().equalsIgnoreCase(packName)) foundModPack = modPack;
+        }
+        return foundModPack;
+    }
+
+    /**
+     * Gets and returns the mod pack object of the installed mod pack with the specified friendly name.
+     *
+     * @param friendlyName mod pack friendly name
+     * @return mod pack with specified friendly name
+     * @since 1.0
+     */
+    public synchronized static ModPack getInstalledModPackByFriendlyName(String friendlyName) {
+        // Populate lists if not already done
+        if (availableModPacks == null || installedModPacks == null) fetchModPackInfo();
+
+        // Find matching mod pack and return
+        ModPack foundModPack = null;
+        for (ModPack modPack : getInstalledModPacks()) {
+            if (modPack.getFriendlyName().equalsIgnoreCase(friendlyName)) foundModPack = modPack;
+        }
+        return foundModPack;
+    }
+
+    /**
      * Uninstalls the specified mod pack from the launcher.
      *
      * @param modPack mod pack to uninstall

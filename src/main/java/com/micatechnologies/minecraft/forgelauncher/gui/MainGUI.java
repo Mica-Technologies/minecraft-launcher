@@ -103,7 +103,7 @@ public class MainGUI extends GenericGUI {
                             try {
                                 Desktop.getDesktop().browse(URI.create(latestVersionURL));
                             } catch (IOException e) {
-                                Logger.logError("Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!", getCurrentJFXStage());
+                                Logger.logError("Unable to open your browser. Please visit " + latestVersionURL + " to download the latest launcher updates!");
                             }
                         }
                     }));
@@ -181,7 +181,7 @@ public class MainGUI extends GenericGUI {
         playBtn.setOnAction(actionEvent -> SystemUtils.spawnNewTask(() -> {
             Platform.setImplicitExit(false);
             hide();
-            LauncherApp.play(packSelection.getSelectionModel().getSelectedIndex(), this);
+            LauncherApp.play(packSelection.getSelectionModel().getSelectedItem(), this);
             show();
         }));
 
@@ -199,13 +199,20 @@ public class MainGUI extends GenericGUI {
     }
 
     private final ChangeListener<Number> packSelectionChangeListener = (observableValue, oldVal, newVal) -> {
+        // Get selected mod pack
+        ModPack selectedModPack = ModPackInstallManager.getInstalledModPackByFriendlyName(packSelection.getValue());
+
         // Load modpack logo and set in GUI
-        Image packLogoImg = new Image(LauncherApp.getModpacks().get(packSelection.getSelectionModel().getSelectedIndex() == -1 ? 0 : packSelection.getSelectionModel().getSelectedIndex()).getPackLogoURL());
+        Image packLogoImg;
+        if (selectedModPack != null) packLogoImg = new Image(selectedModPack.getPackLogoURL());
+        else packLogoImg = new Image(MCForgeModpackConsts.MODPACK_DEFAULT_LOGO_URL);
         GUIUtils.JFXPlatformRun(() -> {
             packLogo.setImage(packLogoImg);
 
             // Set modpack background image on root pane
-            rootPane.setStyle(rootPane.getStyle() + "-fx-background-image: url('" + LauncherApp.getModpacks().get(packSelection.getSelectionModel().getSelectedIndex() == -1 ? 0 : packSelection.getSelectionModel().getSelectedIndex()).getPackBackgroundURL() + "');");
+            if (selectedModPack != null) rootPane.setStyle(rootPane.getStyle() + "-fx-background-image: url('" +selectedModPack.getPackBackgroundURL() +"');");
+            else rootPane.setStyle(rootPane.getStyle() + "-fx-background-image: url('" + MCForgeModpackConsts.MODPACK_DEFAULT_BG_URL+"');");
+
             rootPane.setStyle(rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;");
         });
     };
@@ -239,7 +246,7 @@ public class MainGUI extends GenericGUI {
         }
     }
 
-    public void show(int modpack) {
+    public void show(String modpack) {
         // Do standard show method tasks
         super.show();
 

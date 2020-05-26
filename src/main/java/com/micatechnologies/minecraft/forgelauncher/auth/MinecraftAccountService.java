@@ -5,18 +5,16 @@ import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationE
 import com.micatechnologies.minecraft.forgelauncher.utilities.AuthenticationUtils;
 
 /**
- * Class for interacting with Mojang/Minecraft authentication server endpoints using MCAuthAccount
- * objects.
+ * Class for interacting with Minecraft authentication server endpoints using MinecraftAccount objects.
  *
  * @author Mica Technologies/hawka97
- * @version 1.1
- * @see MCAuthAccount
+ * @version 2.0
+ * @see MinecraftAccount
  */
-public class MCAuthService {
+public class MinecraftAccountService {
 
     /**
-     * Perform authentication for the specified account using the specified password and client
-     * token.
+     * Perform authentication for the specified account using the specified password and client token.
      *
      * @param account     account to authenticate
      * @param password    password to authenticate with
@@ -27,7 +25,7 @@ public class MCAuthService {
      * @throws FLAuthenticationException if an error occurs
      * @since 1.0
      */
-    public static boolean usernamePasswordAuth( MCAuthAccount account, String password,
+    public static boolean usernamePasswordAuth( MinecraftAccount account, String password,
                                                 String clientToken ) throws FLAuthenticationException {
         // Build JSON Objects for Request
         JsonObject root = new JsonObject();
@@ -94,8 +92,8 @@ public class MCAuthService {
     }
 
     /**
-     * Refresh the authentication for the specified account by renewing the last access token. The
-     * account must have a last access token.
+     * Refresh the authentication for the specified account by renewing the last access token. The account must have a
+     * last access token.
      *
      * @param account     account to authenticate
      * @param clientToken persistent client/device token
@@ -105,7 +103,7 @@ public class MCAuthService {
      * @throws FLAuthenticationException if an error occurs
      * @since 1.0
      */
-    public static boolean refreshAuth( MCAuthAccount account, String clientToken )
+    public static boolean refreshAuth( MinecraftAccount account, String clientToken )
     throws FLAuthenticationException {
         // Check for presence of existing access token
         // If none, return immediately
@@ -178,7 +176,7 @@ public class MCAuthService {
      * @throws FLAuthenticationException if an error occurs
      * @since 1.0
      */
-    public static boolean validateLogin( MCAuthAccount account, String clientToken )
+    public static boolean validateLogin( MinecraftAccount account, String clientToken )
     throws FLAuthenticationException {
         // Check for presence of existing access token
         // If none, return immediately
@@ -215,7 +213,7 @@ public class MCAuthService {
      * @throws FLAuthenticationException if an error occurs
      * @since 1.0
      */
-    public static boolean invalidateLogin( MCAuthAccount account, String clientToken )
+    public static boolean invalidateLogin( MinecraftAccount account, String clientToken )
     throws FLAuthenticationException {
         // Check for presence of existing access token
         // If none, return immediately

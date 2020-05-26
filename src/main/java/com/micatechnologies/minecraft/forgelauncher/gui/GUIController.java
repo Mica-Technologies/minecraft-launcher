@@ -3,6 +3,7 @@ package com.micatechnologies.minecraft.forgelauncher.gui;
 import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
+import javafx.stage.Stage;
 
 import java.util.ArrayList;
 import java.util.function.Consumer;
@@ -48,5 +49,14 @@ public class GUIController {
     public synchronized static void refreshWindowConfiguration() {
         // Set window resize mode
         GUIUtils.JFXPlatformRun( () -> doForAllWindows( flGenericGUI -> flGenericGUI.getCurrentJFXStage().setResizable( LauncherApp.getLauncherConfig().getResizableguis() ) ) );
+    }
+
+    public synchronized static Stage getTopStageOrNull() {
+        Stage getStage = null;
+        for (GenericGUI gui: windowList) {
+            getStage = gui.getCurrentJFXStage();
+            if (gui.getCurrentJFXStage().isFocused()) break;
+        }
+        return getStage;
     }
 }

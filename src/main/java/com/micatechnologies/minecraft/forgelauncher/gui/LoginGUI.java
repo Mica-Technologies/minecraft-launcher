@@ -7,8 +7,8 @@ import com.jfoenix.controls.JFXPasswordField;
 import com.jfoenix.controls.JFXTextField;
 import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
 import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
-import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthAccount;
-import com.micatechnologies.minecraft.forgelauncher.auth.MCAuthService;
+import com.micatechnologies.minecraft.forgelauncher.auth.MinecraftAccount;
+import com.micatechnologies.minecraft.forgelauncher.auth.MinecraftAccountService;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
@@ -63,15 +63,15 @@ public class LoginGUI extends GenericGUI {
             String password = passwordField.getText();
 
             // Create account to test authorization
-            MCAuthAccount authAccount = new MCAuthAccount( email );
+            MinecraftAccount authAccount = new MinecraftAccount( email );
             try {
                 // Attempt login
-                boolean authSuccess = MCAuthService.usernamePasswordAuth( authAccount, password, LauncherApp.getClientToken() );
+                boolean authSuccess = MinecraftAccountService.usernamePasswordAuth( authAccount, password, LauncherApp.getClientToken() );
 
                 // If successful, register login with app and save account if applicable
                 if ( authSuccess ) {
                     if ( rememberMeCheckBox.isSelected() ) {
-                        MCAuthAccount.writeToFile( LauncherConstants.LAUNCHER_CLIENT_SAVED_USER_FILE, authAccount );
+                        MinecraftAccount.writeToFile( LauncherConstants.LAUNCHER_CLIENT_SAVED_USER_FILE, authAccount );
                     }
                     loggedIn = authAccount;
                     loginSuccessLatch.countDown();
@@ -115,9 +115,9 @@ public class LoginGUI extends GenericGUI {
         } );
     }
 
-    private MCAuthAccount loggedIn;
+    private MinecraftAccount loggedIn;
 
-    public MCAuthAccount waitForLoginInfo() throws InterruptedException {
+    public MinecraftAccount waitForLoginInfo() throws InterruptedException {
         // Wait for login success
         loginSuccessLatch.await();
 

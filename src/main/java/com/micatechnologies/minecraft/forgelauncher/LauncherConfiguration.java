@@ -10,11 +10,10 @@ import java.nio.charset.Charset;
 import java.util.List;
 
 /**
- * Class for storing and handling configuration. Can be read/written as JSON
- * to disk for persistent storage.
+ * Class for storing and handling configuration. Can be read/written as JSON to disk for persistent storage.
  *
  * @author Mica Technologies/HawkA97
- * @version 1.1
+ * @version 2.0
  */
 public class LauncherConfiguration {
     //region: Constant Fields
@@ -204,7 +203,7 @@ public class LauncherConfiguration {
      * @throws IOException if unable to write to disk
      * @since 1.0
      */
-    static void save( LauncherConfiguration LauncherConfiguration) throws IOException {
+    static void save( LauncherConfiguration LauncherConfiguration ) throws IOException {
         // Verify local file exists
         if ( !DISK_FILE.exists() ) {
             DISK_FILE.getParentFile().mkdirs();
@@ -212,7 +211,7 @@ public class LauncherConfiguration {
         }
 
         // Write configuration to file
-        FileUtils.writeStringToFile( DISK_FILE, new Gson().toJson(LauncherConfiguration), Charset.defaultCharset() );
+        FileUtils.writeStringToFile( DISK_FILE, new Gson().toJson( LauncherConfiguration ), Charset.defaultCharset() );
     }
 
     /**
@@ -231,7 +230,7 @@ public class LauncherConfiguration {
             // Change Alto modpack URL to new if present
             final String oldMCLAURL = "https://cityofmcla.com/modpack/pack-manifest.json";
             final String newAltoURL = "https://micatechnologies.com/alto-modpack/pack-manifest.json";
-            if (launcherConfiguration.modpacks.contains( oldMCLAURL )) {
+            if ( launcherConfiguration.modpacks.contains( oldMCLAURL ) ) {
                 launcherConfiguration.modpacks.remove( oldMCLAURL );
                 launcherConfiguration.modpacks.add( newAltoURL );
             }

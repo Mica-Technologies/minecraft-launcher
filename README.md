@@ -18,13 +18,13 @@ __To force server mode__: `launcher-file-name.jar -s`
 
 __To force client mode__: `launcher-file-name.jar -c`
 
-__To specify modpack__: `launcher-file-name.jar [modpack number]` where [modpack number] is the number of the installed modpack, starting at 1.  For example, `launcher-file-name.jar 2` would run the launcher with the second installed modpack selected. 
+__To specify mod pack__: `launcher-file-name.jar [modpack name]` where [modpack name] is the name of the installed modpack.  For example, `launcher-file-name.jar Alto` would run the launcher with the Alto mod pack selected. 
 
-__To force server mode with specified modpack__: `launcher-file-name.jar -s [modpack number]`
+__To force server mode with specified mod pack__: `launcher-file-name.jar -s [modpack name]`
 
-__To force client mode with specified modpack__: `launcher-file-name.jar -c [modpack number]`
+__To force client mode with specified mod pack__: `launcher-file-name.jar -c [modpack name]`
 
-## Adding a Modpack to the Launcher
+## Adding a Mod pack to the Launcher
 
 Adding a modpack to the Mica Forge Launcher is simple...just follow these steps:
 
@@ -36,7 +36,7 @@ Adding a modpack to the Mica Forge Launcher is simple...just follow these steps:
 
 3. Click the "_Save_" button, and then "_Return_"
 
-## Creating a Modpack for the Launcher
+## Creating a Mod pack for the Launcher
 
 Creating a modpack for the Mica Forge Launcher is simple...just follow these steps:
 

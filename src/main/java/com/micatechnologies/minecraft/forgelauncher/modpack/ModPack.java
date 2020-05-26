@@ -129,7 +129,7 @@ public class ModPack {
 
 
     /**
-     * Get the installation folder of this modpack.
+     * Get the installation folder of this mod pack.
      *
      * @return installation folder Path
      */
@@ -142,7 +142,7 @@ public class ModPack {
     /**
      * Get a Forge application object referencing the Forge application jar in this modpack.
      *
-     * @return modpack MCForgeApp
+     * @return mod pack MCForgeApp
      * @throws FLModpackException if unable to get Forge app object
      */
     private MCForgeApp getForgeApp() throws FLModpackException {
