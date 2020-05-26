@@ -186,7 +186,7 @@ public class ModPackInstallManager {
         // Populate list of available mod pack manifest URLs and return
         List<String> availableModPackFriendlyNames = new ArrayList<>();
         for (ModPack modPack : getAvailableModPacks()) {
-            availableModPackFriendlyNames.add(String.format(ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, modPack.getPackName(), modPack.getPackVersion()));
+            availableModPackFriendlyNames.add(modPack.getFriendlyName());
         }
         return availableModPackFriendlyNames;
     }
@@ -204,7 +204,7 @@ public class ModPackInstallManager {
         // Populate list of installed mod pack manifest URLs and return
         List<String> installedModPackFriendlyNames = new ArrayList<>();
         for (ModPack modPack : getInstalledModPacks()) {
-            installedModPackFriendlyNames.add(String.format(ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, modPack.getPackName(), modPack.getPackVersion()));
+            installedModPackFriendlyNames.add(modPack.getFriendlyName());
         }
         return installedModPackFriendlyNames;
     }
@@ -256,7 +256,7 @@ public class ModPackInstallManager {
 
         // Find matching mod pack and remove
         for (ModPack modPack : getInstalledModPacks()) {
-            final String modPackFriendlyName = String.format(ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, modPack.getPackName(), modPack.getPackVersion());
+            final String modPackFriendlyName = modPack.getFriendlyName();
             if (modPackFriendlyName.equals(friendlyName)) uninstallModPack(modPack);
         }
     }
@@ -295,7 +295,7 @@ public class ModPackInstallManager {
             // Find mod pack by friendly name
             ModPack locatedModPack = null;
             for (ModPack modPack : getAvailableModPacks()) {
-                final String modPackFriendlyName = String.format(ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, modPack.getPackName(), modPack.getPackVersion());
+                final String modPackFriendlyName = modPack.getFriendlyName();
                 if (modPackFriendlyName.equals(friendlyName)) {
                     locatedModPack = modPack;
                     break;

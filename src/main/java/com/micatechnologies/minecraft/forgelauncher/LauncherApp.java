@@ -169,41 +169,9 @@ public class LauncherApp {
             progressGUI.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
         }
 
-        modpacks.clear();
-        Path sandboxModpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + "sandbox" );
-        for ( String s : getLauncherConfig().getModpacks() ) {
-            if ( progressGUI != null ) {
-                progressGUI.setLowerLabelText( "Checking " + s );
-            }
-            try {
-                ModPack tempPack = ModPack.downloadFromURL( new URL( s ), sandboxModpackRootFolder, gameMode );
-                try {
-                    if ( progressGUI != null ) {
-                        progressGUI.setLowerLabelText( "Configuring " + tempPack.getPackName() );
-                    }
-                    Path modpackRootFolder = Paths.get( getModpacksInstallPath() + File.separator + tempPack.getPackName().replaceAll( "[^a-zA-Z0-9]", "" ) );
-                    ModPack pack = ModPack.downloadFromURL( new URL( s ), modpackRootFolder, gameMode );
-                    modpacks.add( pack );
-                }
-                catch ( FLModpackException | MalformedURLException e ) {
-                    e.printStackTrace();
-                    if ( progressGUI != null ) {
-                        Logger.logError( "Unable to download modpack manifest from specified URL " + s + "!", progressGUI.getCurrentJFXStage() );
-                    }
-                    else {
-                        Logger.logError( "Unable to download modpack manifest from specified URL " + s + "!" );
-                    }
-                }
-            }
-            catch ( FLModpackException | MalformedURLException e ) {
-                e.printStackTrace();
-                if ( progressGUI != null ) {
-                    Logger.logError( "Unable to download modpack manifest from specified URL " + s + "!", progressGUI.getCurrentJFXStage() );
-                }
-                else {
-                    Logger.logError( "Unable to download modpack manifest from specified URL " + s + "!" );
-                }
-            }
+        modpacks.clear();;
+        for ( ModPack) {
+
         }
         try {
             FileUtils.deleteDirectory( sandboxModpackRootFolder.toFile() );

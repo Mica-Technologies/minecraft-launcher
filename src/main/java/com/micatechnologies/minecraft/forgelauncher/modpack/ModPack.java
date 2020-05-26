@@ -648,35 +648,19 @@ public class ModPack {
         return packName;
     }
 
-    /**
-     * Download the modpack manifest from the specified URL to the specified modpack folder for the selected game mode
-     * (server/client).
-     *
-     * @param downloadURL       manifest URL
-     * @param modpackRootFolder modpack root folder
-     * @param gameMode          client/server
-     * @return downloaded modpack manifest
-     * @throws FLModpackException if unable to download
-     */
-    public static ModPack downloadFromURL(URL downloadURL, Path modpackRootFolder,
-                                          GameMode gameMode) throws FLModpackException {
-        // Create file for downloading manifest
-        File modpackManifestFile = new File(
-                modpackRootFolder.toString() + File.separator
-                        + MCForgeModpackConsts.MODPACK_MANIFEST_LOCAL_PATH);
-
+    public void prepareEnvironment() {
         // Ensure local paths exist
-        File binPath = new File(modpackRootFolder + File.separator + "bin");
+        File binPath = new File(getPackRootFolder() + File.separator + "bin");
         File modsPath = new File(
-                modpackRootFolder + File.separator + "mods");
+                getPackRootFolder() + File.separator + "mods");
         File configPath = new File(
-                modpackRootFolder + File.separator + "config");
+                getPackRootFolder() + File.separator + "config");
         File nativePath = new File(
-                modpackRootFolder + File.separator + "bin" + File.separator + "natives");
+                getPackRootFolder() + File.separator + "bin" + File.separator + "natives");
         File resPackPath = new File(
-                modpackRootFolder + File.separator + "resourcepacks");
+                getPackRootFolder() + File.separator + "resourcepacks");
         File shaderPackPath = new File(
-                modpackRootFolder + File.separator + "shaderpacks");
+                getPackRootFolder() + File.separator + "shaderpacks");
 
         binPath.getParentFile().mkdirs();
 
@@ -692,33 +676,12 @@ public class ModPack {
         if (!nativePath.exists()) {
             nativePath.mkdir();
         }
-        if (!resPackPath.exists() && gameMode == GameMode.CLIENT) {
+        if (!resPackPath.exists() && LauncherApp.getMode() == GameMode.CLIENT) {
             resPackPath.mkdir();
         }
         if (!shaderPackPath.exists()
-                && gameMode == GameMode.CLIENT) {
+                && LauncherApp.getMode() == GameMode.CLIENT) {
             shaderPackPath.mkdir();
-        }
-
-        // Download manifest from supplied URL
-        try {
-            modpackManifestFile.delete();
-            SystemUtils.downloadFileFromURL(downloadURL, modpackManifestFile);
-        } catch (IOException e) {
-            throw new FLModpackException("Unable to download manifest from URL.", e);
-        }
-
-        // Read downloaded manifest into object and return
-        BufferedReader bufferedReader;
-        try {
-            bufferedReader = new BufferedReader(new FileReader(modpackManifestFile));
-            ModPack createdModpackManifest = new Gson().fromJson(bufferedReader,
-                    ModPack.class);
-            createdModpackManifest.manifestUrl = downloadURL.toString();
-            return createdModpackManifest;
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new FLModpackException("Unable to parse downloaded manifest.", e);
         }
     }
 
@@ -734,5 +697,8 @@ public class ModPack {
 
     public String getPackURL() {
         return packURL;
+    }
+    public String getFriendlyName() {
+        return String.format(ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, getPackName(), getPackVersion());
     }
 }
