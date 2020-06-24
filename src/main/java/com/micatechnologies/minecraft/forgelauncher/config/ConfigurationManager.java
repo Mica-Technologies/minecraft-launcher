@@ -1,6 +1,24 @@
-package com.micatechnologies.minecraft.forgelauncher;
+/*
+ * Copyright (c) 2020 Mica Technologies
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package com.micatechnologies.minecraft.forgelauncher.config;
 
 import com.google.gson.Gson;
+import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -12,15 +30,18 @@ import java.util.List;
 /**
  * Class for storing and handling configuration. Can be read/written as JSON to disk for persistent storage.
  *
- * @author Mica Technologies/HawkA97
+ * @author Mica Technologies
  * @version 2.0
+ * @creator hawka97
+ * @editors hawka97
  */
-public class LauncherConfiguration {
-    //region: Constant Fields
+public class ConfigurationManager
+{
     /**
      * File for persistent configuration storage
      */
-    static final transient File DISK_FILE = new File( LauncherConstants.LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "config.json" );
+    static final transient File DISK_FILE =
+            new File( LauncherConstants.LAUNCHER_CLIENT_INSTALLATION_DIRECTORY + File.separator + "config.json" );
 
     /**
      * Array of options for minimum RAM configuration
@@ -30,7 +51,8 @@ public class LauncherConfiguration {
     /**
      * Array of options for maxmimum RAM configuration
      */
-    public static final transient double[] MAX_RAM_OPTIONS = { 2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0, 28.0, 32.0, 36.0 };
+    public static final transient double[] MAX_RAM_OPTIONS =
+            { 2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 20.0, 24.0, 28.0, 32.0, 36.0 };
 
     /**
      * Default option for minimum RAM configuration
@@ -45,7 +67,8 @@ public class LauncherConfiguration {
     /**
      * Default modpack list
      */
-    static final transient List< String > MODPACKS_DEFAULT = List.of( "https://micatechnologies.com/alto-modpack/pack-manifest.json" );
+    static final transient List< String > MODPACKS_DEFAULT =
+            List.of( "https://micatechnologies.com/alto-modpack/pack-manifest.json" );
 
     /**
      * Default debug mode value
@@ -56,9 +79,7 @@ public class LauncherConfiguration {
      * Default resizable guis value
      */
     static final transient boolean RESIZABLEGUIS_DEFAULT = false;
-    //endregion
 
-    //region: Instance Fields
     /**
      * Configured amount of minimum RAM
      */
@@ -83,9 +104,6 @@ public class LauncherConfiguration {
      * Configured resizable guis boolean (true/false)
      */
     private boolean resizableguis;
-    //endregion
-
-    //region: Get/Set Methods
 
     /**
      * Get the configured minimum amount of RAM
@@ -181,9 +199,6 @@ public class LauncherConfiguration {
     public List< String > getModpacks() {
         return modpacks;
     }
-    //endregion
-
-    //region: Functional Methods
 
     /**
      * Save the instance to disk
@@ -191,8 +206,8 @@ public class LauncherConfiguration {
      * @throws IOException if unable to write to disk
      * @since 1.1
      */
-    void save() throws IOException {
-        LauncherConfiguration.save( this );
+    public void save() throws IOException {
+        ConfigurationManager.save( this );
     }
 
     /**
@@ -203,7 +218,7 @@ public class LauncherConfiguration {
      * @throws IOException if unable to write to disk
      * @since 1.0
      */
-    static void save( LauncherConfiguration LauncherConfiguration ) throws IOException {
+    static void save( ConfigurationManager LauncherConfiguration ) throws IOException {
         // Verify local file exists
         if ( !DISK_FILE.exists() ) {
             DISK_FILE.getParentFile().mkdirs();
@@ -222,10 +237,11 @@ public class LauncherConfiguration {
      * @throws IOException if unable to write default configuration to disk
      * @since 1.0
      */
-    static LauncherConfiguration open() throws IOException {
+    static ConfigurationManager open() throws IOException {
         // Attempt to read from file
         try {
-            LauncherConfiguration launcherConfiguration = new Gson().fromJson( new FileReader( DISK_FILE ), LauncherConfiguration.class );
+            ConfigurationManager launcherConfiguration =
+                    new Gson().fromJson( new FileReader( DISK_FILE ), ConfigurationManager.class );
 
             // Change Alto modpack URL to new if present
             final String oldMCLAURL = "https://cityofmcla.com/modpack/pack-manifest.json";
@@ -239,7 +255,7 @@ public class LauncherConfiguration {
         }
         // Write default configuration and load if unable to read
         catch ( Exception e ) {
-            LauncherConfiguration newConfig = new LauncherConfiguration();
+            ConfigurationManager newConfig = new ConfigurationManager();
             newConfig.debug = DEBUG_DEFAULT;
             newConfig.minRAM = MIN_RAM_DEFAULT;
             newConfig.maxRAM = MAX_RAM_DEFAULT;
@@ -247,8 +263,7 @@ public class LauncherConfiguration {
             newConfig.resizableguis = RESIZABLEGUIS_DEFAULT;
 
             save( newConfig );
-            return new Gson().fromJson( new FileReader( DISK_FILE ), LauncherConfiguration.class );
+            return new Gson().fromJson( new FileReader( DISK_FILE ), ConfigurationManager.class );
         }
     }
-    //endregion
 }

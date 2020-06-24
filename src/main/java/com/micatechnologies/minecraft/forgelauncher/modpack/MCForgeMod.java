@@ -1,7 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher.modpack;
 
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
-import com.micatechnologies.minecraft.forgelauncher.game.GameMode;
+import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
 
 /**
  * A class representation of a Minecraft Forge mod that can be downloaded locally and verified using

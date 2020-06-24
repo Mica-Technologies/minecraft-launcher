@@ -26,7 +26,7 @@ public class LauncherConstants
     /**
      * Launcher client installation directory
      */
-    final static transient String LAUNCHER_CLIENT_INSTALLATION_DIRECTORY =
+    public final static transient String LAUNCHER_CLIENT_INSTALLATION_DIRECTORY =
             System.getProperty( "user.home" ) + File.separator + "." + LAUNCHER_APPLICATION_NAME_TRIMMED;
 
     /**

@@ -17,11 +17,17 @@
 
 package com.micatechnologies.minecraft.forgelauncher;
 
-import com.micatechnologies.minecraft.forgelauncher.game.GameMode;
-import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
+import com.micatechnologies.minecraft.forgelauncher.auth.AuthAccount;
+import com.micatechnologies.minecraft.forgelauncher.auth.AuthService;
+import com.micatechnologies.minecraft.forgelauncher.auth.AuthManager;
+import com.micatechnologies.minecraft.forgelauncher.config.GameModeManager;
+import com.micatechnologies.minecraft.forgelauncher.consts.FileConstants;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.AuthException;
+import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
+import com.micatechnologies.minecraft.forgelauncher.gui.LoginWindow;
+import com.micatechnologies.minecraft.forgelauncher.utilities.LogUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.NetworkUtils;
 
-import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -38,13 +44,6 @@ public class LauncherCore
 {
 
     /**
-     * Current launcher game mode. This value is updated on start up in {@link #main(String[])}.
-     *
-     * @since 1.0
-     */
-    private static GameMode gameMode;
-
-    /**
      * Launcher application restart flag. This flag must be true for the application to start. If this flag is set when
      * the launcher closes, it will restart.
      */
@@ -59,23 +58,34 @@ public class LauncherCore
      */
     public static void main( String[] args ) {
         while ( restartFlag ) {
+            // Reset restart flag to false
+            restartFlag = false;
+
+            // Set game mode from parameters. If unspecified, infer game mode from presence of graphics environment
+            String initialModPackSelection = parseLauncherArgs( args );
+
             // Apply system properties
             applySystemProperties();
 
             // Configure logging
             configureLogger();
 
-            // Set game mode from parameters. If unspecified, infer game mode from presence of graphics environment
-            String initialModPackSelection = parseLauncherArgs( args );
-
             // Check for internet connection. Close if unable to connect
-            if ( NetworkUtils.isMojangAuthReachable() ) {
-                Logger.logError(
+            if ( !NetworkUtils.isMojangAuthReachable() ) {
+                LogUtils.logError(
                         "Unable to reach the Mojang authentication servers! Cannot start launcher. Try again later or contact support." );
                 closeApp();
             }
 
             // If client, do login
+            if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
+                LogUtils.logDebug( "Launcher is running in client game mode. Starting login..." );
+                performClientLogin();
+                LogUtils.logDebug( "The login process has finished." );
+            }
+            else {
+                LogUtils.logDebug( "Launcher is not in client game mode. Skipping authentication/login handler." );
+            }
 
             // Load mod pack information
 
@@ -92,17 +102,62 @@ public class LauncherCore
      */
     public static void configureLogger() {
         Timestamp logTimeStamp = new Timestamp( System.currentTimeMillis() );
-        SimpleDateFormat logFileNameTimeStampFormat = new SimpleDateFormat( "yyyy-MM-dd--HH-mm-ss" );
         File logFile = new File(
                 getLogFolderPath() + File.separator + LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED + "_" +
-                        getGameMode().getStringName() + "_" +
-                        logFileNameTimeStampFormat.format( logTimeStamp ) + ".log" );
+                        GameModeManager.getCurrentGameMode().getStringName() + "_" +
+                        FileConstants.LOG_FILE_NAME_DATE_FORMAT.format( logTimeStamp ) + ".log" );
         try {
-            Logger.initLogSys( logFile );
+            LogUtils.initLogSys( logFile );
         }
         catch ( IOException e ) {
             e.printStackTrace();
             System.err.println( "An error was encountered while configuring the application logging system." );
+        }
+    }
+
+    public static void performClientLogin() {
+        // Check for and load saved user from disk
+        AuthAccount authAccount = AuthManager.getLoggedInAccount();
+
+        // If no saved account, show message and login screen, otherwise continue.
+        if ( authAccount == null ) {
+            LogUtils.logStd( "A remembered user account was not found on disk. Showing login screen..." );
+
+            // Show login screen
+            LoginWindow loginWindow = new LoginWindow();
+            loginWindow.show();
+
+            // Wait for login screen to complete
+            try {
+                loginWindow.waitForLoginSuccess();
+            }
+            catch ( InterruptedException e ) {
+                LogUtils.logError( "Unable to wait for pending login task." );
+                closeApp();
+            }
+
+            // Close login screen once complete
+            loginWindow.close();
+        }
+        else {
+            // Renew token of saved account
+            try {
+                AuthService.refreshAuth( authAccount, LauncherApp.getClientToken() );
+            }
+            catch ( AuthException e1 ) {
+                e1.printStackTrace();
+                LogUtils.logError(
+                        "Unable to refresh the authentication of the remembered user account. Returning to login." );
+                try {
+                    AuthManager.logout();
+                }
+                catch ( IOException e2 ) {
+                    e2.printStackTrace();
+                }
+                restartFlag = true;
+                restartApp();
+            }
+            LogUtils.logStd( "[" + authAccount.getFriendlyName() + "] was logged in to the launcher." );
         }
     }
 
@@ -117,31 +172,28 @@ public class LauncherCore
      */
     public static String parseLauncherArgs( String[] args ) {
         String initialModPackSelection = "";
-        if ( args.length == 0 && GraphicsEnvironment.isHeadless() ) {
-            gameMode = GameMode.SERVER;
-        }
-        else if ( args.length == 0 && !GraphicsEnvironment.isHeadless() ) {
-            gameMode = GameMode.CLIENT;
+        if ( args.length == 0 ) {
+            GameModeManager.inferGameMode();
         }
         else if ( args.length == 1 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_CLIENT_MODE ) ) {
-            gameMode = GameMode.CLIENT;
+            GameModeManager.setCurrentGameMode( GameMode.CLIENT );
         }
         else if ( args.length == 1 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_SERVER_MODE ) ) {
-            gameMode = GameMode.SERVER;
+            GameModeManager.setCurrentGameMode( GameMode.SERVER );
         }
         else if ( args.length == 1 ) {
             initialModPackSelection = args[ 0 ];
         }
         else if ( args.length == 2 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_CLIENT_MODE ) ) {
-            gameMode = GameMode.CLIENT;
+            GameModeManager.setCurrentGameMode( GameMode.CLIENT );
             initialModPackSelection = args[ 1 ];
         }
         else if ( args.length == 2 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_SERVER_MODE ) ) {
-            gameMode = GameMode.SERVER;
+            GameModeManager.setCurrentGameMode( GameMode.SERVER );
             initialModPackSelection = args[ 1 ];
         }
         else {
-            Logger.logError(
+            LogUtils.logError(
                     "Invalid arguments specified.\nUsage: launcher.jar [ -s [modpack_name] | -c [modpack_name] | modpack_name ]" );
             closeApp();
         }
@@ -159,17 +211,6 @@ public class LauncherCore
     }
 
     /**
-     * Gets the current launcher game mode.
-     *
-     * @return game mode
-     *
-     * @since 1.0
-     */
-    public synchronized static GameMode getGameMode() {
-        return gameMode;
-    }
-
-    /**
      * Gets the install path of the launcher.
      *
      * @return launcher install path
@@ -178,7 +219,7 @@ public class LauncherCore
      */
     public static String getLauncherInstallPath() {
         String launcherInstallPath = LauncherConstants.LAUNCHER_CLIENT_INSTALLATION_DIRECTORY;
-        if ( getGameMode() == GameMode.SERVER ) {
+        if ( GameModeManager.getCurrentGameMode() == GameMode.SERVER ) {
             launcherInstallPath = LauncherConstants.LAUNCHER_SERVER_INSTALLATION_DIRECTORY;
         }
         return launcherInstallPath;
@@ -212,9 +253,8 @@ public class LauncherCore
      * @since 2.0
      */
     public static void restartApp() {
-        cleanupApp();
         restartFlag = true;
-
+        cleanupApp();
     }
 
     /**

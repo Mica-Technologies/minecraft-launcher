@@ -3,7 +3,9 @@ package com.micatechnologies.minecraft.forgelauncher.exceptions;
 /**
  * Exception wrapper class for handling and reporting errors and exceptions with user-friendly wording/explanation.
  *
- * @author Mica Technologies/hawka97
+ * @author Mica Technologies
+ * @editors hawka97
+ * @creator hawka97
  * @version 1.1
  * @see java.lang.Exception
  */

@@ -1,7 +1,7 @@
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
 import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
-import com.micatechnologies.minecraft.forgelauncher.gui.GenericGUI;
+import com.micatechnologies.minecraft.forgelauncher.gui.AbstractWindow;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Alert;
@@ -15,7 +15,14 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class GUIUtils {
+/**
+ * @author Mica Technologies
+ * @version 2.0
+ * @editors hawka97
+ * @creator hawka97
+ */
+public class GuiUtils
+{
     /**
      * Show a question message prompt to user as a dialog using specified information.
      *
@@ -29,7 +36,9 @@ public class GUIUtils {
      *
      * @since 1.0
      */
-    public static int showQuestionMessage( String title, String headerText, String contentText, String button1, String button2, Stage owner ) {
+    public static int showQuestionMessage( String title, String headerText, String contentText, String button1,
+                                           String button2, Stage owner )
+    {
         // Create a question dialog with the specified and created information/messages
         CountDownLatch waitForResponse = new CountDownLatch( 1 );
         AtomicInteger index = new AtomicInteger( 0 );
@@ -50,8 +59,12 @@ public class GUIUtils {
 
             // Show the created question dialog
             Optional< ButtonType > opt = questionAlert.showAndWait();
-            if ( opt.isPresent() && opt.get() == btn1 ) index.set( 1 );
-            else if ( opt.isPresent() && opt.get() == btn2 ) index.set( 2 );
+            if ( opt.isPresent() && opt.get() == btn1 ) {
+                index.set( 1 );
+            }
+            else if ( opt.isPresent() && opt.get() == btn2 ) {
+                index.set( 2 );
+            }
 
             // Release code from waiting
             waitForResponse.countDown();
@@ -67,7 +80,9 @@ public class GUIUtils {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText( "A question message latch was interrupted before handling completed." + "\n" + "Client Token: " + LauncherApp.getClientToken() );
+                errorAlert.setContentText(
+                        "A question message latch was interrupted before handling completed." + "\n" +
+                                "Client Token: " + LauncherApp.getClientToken() );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initOwner( owner );
@@ -116,7 +131,9 @@ public class GUIUtils {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText( "An error message latch was interrupted before handling completed." + "\n" + "Client Token: " + LauncherApp.getClientToken() );
+                errorAlert.setContentText(
+                        "An error message latch was interrupted before handling completed." + "\n" + "Client Token: " +
+                                LauncherApp.getClientToken() );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initOwner( owner );
@@ -148,17 +165,19 @@ public class GUIUtils {
         }
 
         try {
-            if ( wait ) countDownLatch.await();
+            if ( wait ) {
+                countDownLatch.await();
+            }
         }
         catch ( InterruptedException e ) {
             e.printStackTrace();
-            Logger.logError( "Unable to wait for JavaFX platform runnable to finish!" );
+            LogUtils.logError( "Unable to wait for JavaFX platform runnable to finish!" );
         }
     }
 
-    public static FXMLLoader buildFXMLLoader( String fxmlFileName, GenericGUI owner ) {
+    public static FXMLLoader buildFXMLLoader( String fxmlFileName, AbstractWindow owner ) {
         FXMLLoader fxmlLoader = new FXMLLoader();
-        fxmlLoader.setLocation( GUIUtils.class.getClassLoader().getResource( fxmlFileName ) );
+        fxmlLoader.setLocation( GuiUtils.class.getClassLoader().getResource( fxmlFileName ) );
         fxmlLoader.setController( owner );
         return fxmlLoader;
     }

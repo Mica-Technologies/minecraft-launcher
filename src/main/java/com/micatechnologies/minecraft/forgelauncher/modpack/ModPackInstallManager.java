@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
-import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
+import com.micatechnologies.minecraft.forgelauncher.utilities.LogUtils;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -48,7 +48,7 @@ public class ModPackInstallManager {
             availableModPackManifestBody = IOUtils.toString(new URL(ModPackConstants.AVAILABLE_PACKS_MANIFEST_URL), Charset.defaultCharset());
         } catch (IOException e) {
             e.printStackTrace();
-            Logger.logError("Unable to fetch information about installable mod packs.");
+            LogUtils.logError( "Unable to fetch information about installable mod packs.");
             return;
         }
 
@@ -67,12 +67,12 @@ public class ModPackInstallManager {
                 if (!installedModPackManifestUrls.contains(manifestUrlVal)) {
                     availableModPacks.add(ModPackFetcher.get(manifestUrlVal));
                 } else {
-                    Logger.logDebug("Not marking mod pack manifest as installable because it is installed already: " + manifestUrlVal);
+                    LogUtils.logDebug( "Not marking mod pack manifest as installable because it is installed already: " + manifestUrlVal);
                 }
 
             } catch (IOException e) {
                 e.printStackTrace();
-                Logger.logError("Unable to create an object for an available mod pack.");
+                LogUtils.logError( "Unable to create an object for an available mod pack.");
             }
         }
     }
@@ -96,7 +96,7 @@ public class ModPackInstallManager {
                 installedModPacks.add(ModPackFetcher.get(manifestUrl));
             } catch (Exception e) {
                 e.printStackTrace();
-                Logger.logError("Unable to create an object for the installed mod pack from" + manifestUrl);
+                LogUtils.logError( "Unable to create an object for the installed mod pack from" + manifestUrl);
             }
         }
     }
@@ -263,7 +263,7 @@ public class ModPackInstallManager {
             saveToConfig();
             fetchInstalledModPacks();
             fetchAvailableModPacks();
-        } else Logger.logError("Unable to uninstall mod pack " + modPack.getPackName() + "!");
+        } else LogUtils.logError( "Unable to uninstall mod pack " + modPack.getPackName() + "!");
     }
 
     /**
@@ -316,7 +316,7 @@ public class ModPackInstallManager {
             fetchInstalledModPacks();
             fetchAvailableModPacks();
 
-        } else Logger.logError("Unable to install mod pack " + modPack.getPackName() + "!");
+        } else LogUtils.logError( "Unable to install mod pack " + modPack.getPackName() + "!");
     }
 
     /**
@@ -342,13 +342,13 @@ public class ModPackInstallManager {
 
             // Install mod pack
             if (locatedModPack == null) {
-                Logger.logError("Unable to install " + friendlyName + " because it is not an available mod pack.");
+                LogUtils.logError( "Unable to install " + friendlyName + " because it is not an available mod pack.");
             } else {
                 installModPack(locatedModPack);
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Logger.logError("Unable to install " + friendlyName);
+            LogUtils.logError( "Unable to install " + friendlyName);
         }
     }
 
@@ -367,7 +367,7 @@ public class ModPackInstallManager {
             installModPack(ModPackFetcher.get(url));
         } catch (Exception e) {
             e.printStackTrace();
-            Logger.logError("Unable to install mod pack from " + url);
+            LogUtils.logError( "Unable to install mod pack from " + url);
         }
     }
 

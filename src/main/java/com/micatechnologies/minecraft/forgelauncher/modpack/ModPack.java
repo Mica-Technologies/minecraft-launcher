@@ -1,22 +1,17 @@
 package com.micatechnologies.minecraft.forgelauncher.modpack;
 
-import com.google.gson.Gson;
-
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.net.URL;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
-import com.micatechnologies.minecraft.forgelauncher.game.GameMode;
-import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
+import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
+import com.micatechnologies.minecraft.forgelauncher.utilities.LogUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import org.apache.commons.io.FilenameUtils;
 
@@ -434,7 +429,7 @@ public class ModPack {
             for (File modFile : modsFolderFiles) {
                 if (!validModPaths.contains(modFile.getPath())) {
                     boolean delete = modFile.delete();
-                    if (!delete) Logger.logError("Unable to delete file during mod folder sanitization.");
+                    if (!delete) LogUtils.logError( "Unable to delete file during mod folder sanitization.");
                 }
             }
         }

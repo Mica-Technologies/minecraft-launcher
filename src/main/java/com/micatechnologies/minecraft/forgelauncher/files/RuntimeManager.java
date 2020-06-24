@@ -15,15 +15,17 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.micatechnologies.minecraft.forgelauncher;
+package com.micatechnologies.minecraft.forgelauncher.files;
 
 /**
  * Class for managing the download and usage of JREs required for Minecraft.
  *
- * @author Mica Technologies/hawka97
+ * @author Mica Technologies
+ * @editors hawka97
+ * @creator hawka97
  * @version 1.0
  */
-public class LauncherJREManager
+public class RuntimeManager
 {
     /**
      * The path to the downloaded and verified JRE 8 installation. This value is <code>null</code> until populated by

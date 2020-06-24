@@ -4,7 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
-import com.micatechnologies.minecraft.forgelauncher.game.GameMode;
+import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 
 import java.io.File;

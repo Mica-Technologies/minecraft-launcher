@@ -1,6 +1,6 @@
 package com.micatechnologies.minecraft.forgelauncher.modpack;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.Pair;
+import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
 
 import java.io.File;
 

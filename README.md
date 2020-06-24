@@ -9,7 +9,6 @@ All versions (macOS, Windows, Linux) support client mode and server mode. Client
 - Client mode is the mode for those looking to play a Minecraft game (Minecraft Client). 
 - Server mode is the mode for those looking to host a Minecraft server (Minecraft Server).
 
-
 ### Opening the Launcher (Switches)
 
 If you're using the native Windows or macOS application (exe, dmg, app), only client mode is supported, and these switches will not work.
@@ -158,4 +157,11 @@ __Full Example__:
 | packShaderPacks   | [{<br>    "remote": "www.shader-pack.com/url",<br>    "local": "shader-pack.zip",<br>    "sha1": "9a71cb24ef4c9ba2e1"<br>}]                                                                          | List of shader packs (no limit)<br><br>remote: Shader pack (.zip) download URL<br>local: Shader pack local filename<br>sha1: Shader pack file sha-1 sum                                                                                                                                                                                                                                                                                                                         | NO       |
 | packInitialFiles  | [{    <br>    "remote": "www.example.com/file.txt",<br>    "local": "initial-file.txt",<br>    "sha1": "-1",<br>    "clientReq": true,<br>    "serverReq": false<br>}]                               | List of initial files (no limit)<br><br>Initial files are files that do not fit <br>the existing categories. Initial files<br>are handled like other modpack files, <br>and will be redownloaded each time the <br>local file fails sha-1 verification, if<br>sha-1 verification is enabled.<br><br>remote: Initial file download URL<br>local: Initial file local filename<br>sha1: Initial file sha-1 sum<br>clientReq: required for client<br>serverReq: required for server | NO       |
 |                   |                                                                                                                                                                                                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |          |
+
+## Development
+There are many ways to contribute to this project. If you have an issue or feature suggestion, please feel free to bring it to the development team's attention by adding a GitHub Issue to the project [here](https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/issues). To contribute to the source code or functionality of the application, please download [IntelliJ IDEA](https://www.jetbrains.com/idea/download/#section=windows) and checkout this repository as a Maven project.
+   
+### Branches
+The `master` branch is a protected branch, and pushing to it is not permitted. Development must be completed on a secondary branch, and then merged to the main project using a pull request. At least one person must review all pull requests before they may be merged, and all pull requests are automatically build tested. If the pull request is not reviewed, or the code fails to build, the pull request cannot be merged.
+   
 

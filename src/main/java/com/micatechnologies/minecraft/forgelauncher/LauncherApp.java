@@ -3,17 +3,18 @@ package com.micatechnologies.minecraft.forgelauncher;
 import com.google.common.hash.Hashing;
 import com.google.common.io.Files;
 import com.jfoenix.controls.JFXProgressBar;
-import com.micatechnologies.minecraft.forgelauncher.auth.MinecraftAccount;
-import com.micatechnologies.minecraft.forgelauncher.exceptions.FLAuthenticationException;
-import com.micatechnologies.minecraft.forgelauncher.auth.MinecraftAccountService;
+import com.micatechnologies.minecraft.forgelauncher.auth.AuthAccount;
+import com.micatechnologies.minecraft.forgelauncher.config.ConfigurationManager;
+import com.micatechnologies.minecraft.forgelauncher.exceptions.GameAccountException;
+import com.micatechnologies.minecraft.forgelauncher.auth.AuthService;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.FLModpackException;
-import com.micatechnologies.minecraft.forgelauncher.game.GameMode;
+import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.forgelauncher.gui.*;
 import com.micatechnologies.minecraft.forgelauncher.modpack.ModPack;
 import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
 import com.micatechnologies.minecraft.forgelauncher.modpack.ModPackInstallManager;
-import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.Logger;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GuiUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.LogUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.NetworkUtils;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import javafx.application.Platform;
@@ -42,8 +43,8 @@ public class LauncherApp {
     private static GameMode gameMode = GameMode.CLIENT;
     private static String javaPath = "java";
     private static String clientToken = "";
-    private static MinecraftAccount currentUser = null;
-    private static LauncherConfiguration launcherConfig = null;
+    private static AuthAccount currentUser = null;
+    private static ConfigurationManager launcherConfig = null;
     private static final File savedUserFile = new File(LauncherConstants.LAUNCHER_CLIENT_SAVED_USER_FILE);
     //endregion
 
@@ -79,7 +80,7 @@ public class LauncherApp {
                         FileUtils.writeStringToFile(tokenFile, clientToken, Charset.defaultCharset());
                     } catch (IOException ee) {
                         // Output error if attempt to write new client token fails
-                        Logger.logError("The client token could not be written to persistent storage. Remember me login functionality will not work.");
+                        LogUtils.logError( "The client token could not be written to persistent storage. Remember me login functionality will not work.");
                     }
                 }
 
@@ -91,23 +92,23 @@ public class LauncherApp {
                     FileUtils.writeStringToFile(tokenFile, clientToken, Charset.defaultCharset());
                 } catch (IOException ee) {
                     // Output error if attempt to write new client token fails
-                    Logger.logError("The client token could not be written to persistent storage. Remember me login functionality will not work.");
+                    LogUtils.logError( "The client token could not be written to persistent storage. Remember me login functionality will not work.");
                 }
             }
         }
         return clientToken;
     }
 
-    public static MinecraftAccount getCurrentUser() {
+    public static AuthAccount getCurrentUser() {
         return currentUser;
     }
 
-    public static LauncherConfiguration getLauncherConfig() {
+    public static ConfigurationManager getLauncherConfig() {
         if (launcherConfig == null) {
             try {
-                launcherConfig = LauncherConfiguration.open();
+                launcherConfig = ConfigurationManager.open();
             } catch (IOException e) {
-                Logger.logError("Unable to load launcher configuration from persistent storage. Configuration may be reset.");
+                LogUtils.logError( "Unable to load launcher configuration from persistent storage. Configuration may be reset.");
             }
         }
 
@@ -121,7 +122,7 @@ public class LauncherApp {
         try {
             getLauncherConfig().save();
         } catch (IOException e) {
-            Logger.logError("Unable to save launcher configuration to disk. Configuration may be lost!");
+            LogUtils.logError( "Unable to save launcher configuration to disk. Configuration may be lost!");
         }
     }
 
@@ -142,20 +143,20 @@ public class LauncherApp {
     }
 
     public static void errorIllegalLauncherMode() {
-        Logger.logError("An illegal launcher mode is in use. This should not happen!");
+        LogUtils.logError( "An illegal launcher mode is in use. This should not happen!");
     }
 
     public static void buildMemoryModpackList() {
         // Create progress GUI if running in client mode
-        ProgressGUI progressGUI = null;
-        if (gameMode == GameMode.CLIENT) progressGUI = new ProgressGUI();
+        ProgressWindow progressWindow = null;
+        if (gameMode == GameMode.CLIENT) progressWindow = new ProgressWindow();
 
         // Get installed mod packs
-        if (progressGUI != null) {
-            progressGUI.setUpperLabelText("Loading Mod Packs");
-            progressGUI.setLowerLabelText("Downloading latest manifests");
-            progressGUI.setProgress(JFXProgressBar.INDETERMINATE_PROGRESS);
-            progressGUI.show();
+        if ( progressWindow != null) {
+            progressWindow.setUpperLabelText( "Loading Mod Packs");
+            progressWindow.setLowerLabelText( "Downloading latest manifests");
+            progressWindow.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS);
+            progressWindow.show();
         }
         List<ModPack> installedModPacks = ModPackInstallManager.getInstalledModPacks();
 
@@ -166,37 +167,37 @@ public class LauncherApp {
         final double progressIncrementSize = (progressFinish - progressStart) / installedModPacks.size();
         double progressNow = progressStart;
         for (ModPack modPack : installedModPacks) {
-            if (progressGUI != null) {
-                progressGUI.setLowerLabelText("Preparing " + modPack.getFriendlyName());
-                progressGUI.setProgress(progressNow / progressBase);
+            if ( progressWindow != null) {
+                progressWindow.setLowerLabelText( "Preparing " + modPack.getFriendlyName());
+                progressWindow.setProgress( progressNow / progressBase);
                 progressNow += progressIncrementSize;
             }
         }
 
         // Close progress GUI if open
-        if (progressGUI != null) {
-            progressGUI.close();
+        if ( progressWindow != null) {
+            progressWindow.close();
         }
     }
 
     public static GameMode inferMode() {
         if (!GraphicsEnvironment.isHeadless()) {
-            Logger.logStd("Inferred client mode");
+            LogUtils.logStd( "Inferred client mode");
             return GameMode.CLIENT;
         } else {
-            Logger.logStd("Inferred server mode");
+            LogUtils.logStd( "Inferred server mode");
             return GameMode.SERVER;
         }
     }
     //endregion
 
     //region: Function Methods
-    public static void play(String modpackName, GenericGUI gui) {
+    public static void play(String modpackName, AbstractWindow gui) {
         if (gameMode == GameMode.CLIENT) playClient(modpackName, gui);
         else if (gameMode == GameMode.SERVER) playServer(modpackName);
     }
 
-    private static void playClient(String modpackName, GenericGUI gui) {
+    private static void playClient(String modpackName, AbstractWindow gui) {
         // Verify user logged in and mode is client
         if (currentUser == null) return;
         if (gameMode != GameMode.CLIENT) return;
@@ -204,7 +205,7 @@ public class LauncherApp {
         // Launch selected modpack
         int minRAMMB = (int) (getLauncherConfig().getMinRAM() * 1024);
         int maxRAMMB = (int) (getLauncherConfig().getMaxRAM() * 1024);
-        ProgressGUI progressGUI = null;
+        ProgressWindow progressWindow = null;
         try {
             ModPack clientModPack = null;
             for (ModPack modPack : ModPackInstallManager.getInstalledModPacks()) {
@@ -215,45 +216,45 @@ public class LauncherApp {
             }
 
             if (clientModPack != null) {
-                progressGUI = new ProgressGUI();
-                progressGUI.show();
+                progressWindow = new ProgressWindow();
+                progressWindow.show();
 
                 // Verify configured RAM
                 if (Integer.parseInt(clientModPack.getPackMinRAMGB()) > getLauncherConfig().getMaxRAM()) {
-                    Logger.logError("Modpack requires a minimum of " + clientModPack.getPackMinRAMGB() + "GB of RAM. Please change your RAM settings in the settings menu.");
-                    progressGUI.close();
+                    LogUtils.logError( "Modpack requires a minimum of " + clientModPack.getPackMinRAMGB() + "GB of RAM. Please change your RAM settings in the settings menu.");
+                    progressWindow.close();
                     return;
                 }
 
 
-                ProgressGUI finalProgressGUI = progressGUI;
+                ProgressWindow finalProgressWindow = progressWindow;
                 ModPack finalClientModPack = clientModPack;
                 clientModPack.setProgressProvider(new MCForgeModpackProgressProvider() {
                     @Override
                     public void updateProgressHandler(double percent, String text) {
-                        finalProgressGUI.setUpperLabelText("Loading " + finalClientModPack.getPackName());
-                        finalProgressGUI.setLowerLabelText(text);
-                        finalProgressGUI.setProgress(percent);
+                        finalProgressWindow.setUpperLabelText( "Loading " + finalClientModPack.getPackName());
+                        finalProgressWindow.setLowerLabelText( text);
+                        finalProgressWindow.setProgress( percent);
                         if (percent == 100.0) {
                             new Thread(() -> {
-                                finalProgressGUI.setLowerLabelText("Passing to Minecraft");
+                                finalProgressWindow.setLowerLabelText( "Passing to Minecraft");
                                 try {
                                     Thread.sleep(3000);
                                 } catch (InterruptedException ignored) {
                                 }
-                                finalProgressGUI.close();
+                                finalProgressWindow.close();
                             }).start();
                         }
                     }
                 });
                 clientModPack.startGame(getJavaPath(), currentUser.getFriendlyName(), currentUser.getUserIdentifier(), currentUser.getLastAccessToken(), minRAMMB, maxRAMMB);
             } else {
-                Logger.logError("Unable to find mod pack: " + modpackName);
+                LogUtils.logError( "Unable to find mod pack: " + modpackName);
             }
         } catch (FLModpackException e) {
             e.printStackTrace();
-            Logger.logError("Unable to start game.");
-            if (progressGUI != null) progressGUI.close();
+            LogUtils.logError( "Unable to start game.");
+            if ( progressWindow != null) progressWindow.close();
         }
     }
 
@@ -275,15 +276,15 @@ public class LauncherApp {
                 serverModPack.setProgressProvider(new MCForgeModpackProgressProvider() {
                     @Override
                     public void updateProgressHandler(double percent, String text) {
-                        Logger.logStd("Play: " + percent + "% - " + text);
+                        LogUtils.logStd( "Play: " + percent + "% - " + text);
                     }
                 });
                 serverModPack.startGame(getJavaPath(), "", "", "", minRAMMB, maxRAMMB);
             } else {
-                Logger.logError("Unable to find mod pack: " + modpackName);
+                LogUtils.logError( "Unable to find mod pack: " + modpackName);
             }
         } catch (FLModpackException e) {
-            Logger.logError("Unable to start mod pack: " + modpackName);
+            LogUtils.logError( "Unable to start mod pack: " + modpackName);
         }
     }
 
@@ -292,12 +293,12 @@ public class LauncherApp {
         if (modpackName.equals("")) actualModPackName = ModPackInstallManager.getInstalledModPackFriendlyNames().get(0);
 
         if (gameMode == GameMode.CLIENT) {
-            MainGUI mainGUI = new MainGUI();
-            mainGUI.show(actualModPackName);
+            MainWindow mainWindow = new MainWindow();
+            mainWindow.show( actualModPackName);
             try {
-                mainGUI.closedLatch.await();
+                mainWindow.closedLatch.await();
             } catch (InterruptedException ignored) {
-                Logger.logError("An error is preventing GUI completion handling. The login screen may not appear after logout.");
+                LogUtils.logError( "An error is preventing GUI completion handling. The login screen may not appear after logout.");
             }
         } else if (gameMode == GameMode.SERVER) {
             playServer(actualModPackName);
@@ -317,13 +318,13 @@ public class LauncherApp {
 
     public static void doLocalJDK() {
         // Create a progress GUI if in client mod
-        ProgressGUI progressGUI = null;
+        ProgressWindow progressWindow = null;
         if (gameMode == GameMode.CLIENT) {
-            progressGUI = new ProgressGUI();
-            progressGUI.show();
-            progressGUI.setUpperLabelText("Preparing Minecraft Runtime");
-            progressGUI.setLowerLabelText("Preparing JRE Folder");
-            progressGUI.setProgress(0.0);
+            progressWindow = new ProgressWindow();
+            progressWindow.show();
+            progressWindow.setUpperLabelText( "Preparing Minecraft Runtime");
+            progressWindow.setLowerLabelText( "Preparing JRE Folder");
+            progressWindow.setProgress( 0.0);
         }
 
         // Store JRE path and create file objects
@@ -333,18 +334,18 @@ public class LauncherApp {
         File jreFolderFile = new File(jreFolderPath);
 
         // Verify JRE folder exists
-        if (progressGUI != null) {
-            progressGUI.setLowerLabelText("Verifying JRE Folder");
-            progressGUI.setProgress(10.0);
+        if ( progressWindow != null) {
+            progressWindow.setLowerLabelText( "Verifying JRE Folder");
+            progressWindow.setProgress( 10.0);
         }
         jreFolderFile.mkdirs();
         jreFolderFile.setReadable(true);
         jreFolderFile.setWritable(true);
 
         // Get proper URL and archive format
-        if (progressGUI != null) {
-            progressGUI.setLowerLabelText("Preparing JRE Information");
-            progressGUI.setProgress(20.0);
+        if ( progressWindow != null) {
+            progressWindow.setLowerLabelText( "Preparing JRE Information");
+            progressWindow.setProgress( 20.0);
         }
         String jreArchiveDownloadURL;
         String jreHashDownloadURL;
@@ -370,43 +371,43 @@ public class LauncherApp {
             javaPath = getJREFolderPath() + File.separator + LauncherConstants.JRE_EXTRACTED_FOLDER_NAME + File.separator + "bin" + File.separator + "java";
         } else {
 
-            Logger.logError("Unable to identify operating system. Launcher will not cache JRE for gameplay.");
-            if (progressGUI != null) {
+            LogUtils.logError( "Unable to identify operating system. Launcher will not cache JRE for gameplay.");
+            if ( progressWindow != null) {
                 Platform.setImplicitExit(false);
-                new Thread(progressGUI::close).start();
+                new Thread( progressWindow::close).start();
             }
             return;
         }
 
         // Get hash of JRE from URL
-        if (progressGUI != null) {
-            progressGUI.setLowerLabelText("Downloading JRE Hash");
-            progressGUI.setProgress(25.0);
+        if ( progressWindow != null) {
+            progressWindow.setLowerLabelText( "Downloading JRE Hash");
+            progressWindow.setProgress( 25.0);
         }
         try {
             SystemUtils.downloadFileFromURL(new URL(jreHashDownloadURL), jreHashFile);
         } catch (IOException e) {
 
-            Logger.logError("Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.");
+            LogUtils.logError( "Unable to create a file necessary for maintaining launcher integrity. Using system Java for safety.");
             javaPath = "java";
-            if (progressGUI != null) {
+            if ( progressWindow != null) {
                 Platform.setImplicitExit(false);
-                new Thread(progressGUI::close).start();
+                new Thread( progressWindow::close).start();
             }
             return;
         }
 
         try {
-            if (progressGUI != null) {
-                progressGUI.setLowerLabelText("Verifying Local JRE");
-                progressGUI.setProgress(35.0);
+            if ( progressWindow != null) {
+                progressWindow.setLowerLabelText( "Verifying Local JRE");
+                progressWindow.setProgress( 35.0);
             }
             // Check if archive either doesn't exist or doesn't match hash
             if (!jreArchiveFile.exists() || !Files.hash(jreArchiveFile, Hashing.sha256()).toString().equalsIgnoreCase(
                     FileUtils.readFileToString(jreHashFile, Charset.defaultCharset()).split(" ")[0])) {
-                if (progressGUI != null) {
-                    progressGUI.setLowerLabelText("Downloading Configured JRE");
-                    progressGUI.setProgress(JFXProgressBar.INDETERMINATE_PROGRESS);
+                if ( progressWindow != null) {
+                    progressWindow.setLowerLabelText( "Downloading Configured JRE");
+                    progressWindow.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS);
                 }
                 // Download archive from URL
                 SystemUtils.downloadFileFromURL(new URL(jreArchiveDownloadURL), jreArchiveFile);
@@ -418,9 +419,9 @@ public class LauncherApp {
                 }
 
                 // Extract downloaded JRE
-                if (progressGUI != null) {
-                    progressGUI.setLowerLabelText("Extracting Downloaded JRE");
-                    progressGUI.setProgress(70.0);
+                if ( progressWindow != null) {
+                    progressWindow.setLowerLabelText( "Extracting Downloaded JRE");
+                    progressWindow.setProgress( 70.0);
                 }
                 Archiver archiver;
                 if (jreArchiveCompressionType != null) {
@@ -432,19 +433,19 @@ public class LauncherApp {
             }
         } catch (IOException e) {
 
-            Logger.logError("Unable to create local runtime. Using system Java.");
+            LogUtils.logError( "Unable to create local runtime. Using system Java.");
             javaPath = "java";
-            if (progressGUI != null) {
+            if ( progressWindow != null) {
                 Platform.setImplicitExit(false);
-                new Thread(progressGUI::close).start();
+                new Thread( progressWindow::close).start();
             }
             return;
         }
-        if (progressGUI != null) {
-            progressGUI.setLowerLabelText("Finished JRE Preparation");
-            progressGUI.setProgress(100.0);
+        if ( progressWindow != null) {
+            progressWindow.setLowerLabelText( "Finished JRE Preparation");
+            progressWindow.setProgress( 100.0);
             Platform.setImplicitExit(false);
-            new Thread(progressGUI::close).start();
+            new Thread( progressWindow::close).start();
         }
     }
 
@@ -457,14 +458,14 @@ public class LauncherApp {
         if (currentUser != null) {
             try {
                 // Invalidate current user
-                MinecraftAccountService.invalidateLogin( getCurrentUser(), getClientToken());
+                AuthService.invalidateLogin( getCurrentUser(), getClientToken());
 
                 // Delete current user information on disk (if exists)
                 synchronized (savedUserFile) {
                     FileUtils.forceDelete(savedUserFile);
                 }
-            } catch (FLAuthenticationException | IOException e) {
-                Logger.logError("Unable to invalidate cached token prior to logout. Local account information will still be destroyed.");
+            } catch ( GameAccountException | IOException e) {
+                LogUtils.logError( "Unable to invalidate cached token prior to logout. Local account information will still be destroyed.");
             }
         }
 
@@ -480,7 +481,7 @@ public class LauncherApp {
             if (!NetworkUtils.isMojangAuthReachable()) {
                 CountDownLatch waitForDialog = new CountDownLatch(1);
                 AtomicReference<Alert> alert = new AtomicReference<>();
-                GUIUtils.JFXPlatformRun(() -> {
+                GuiUtils.JFXPlatformRun( () -> {
                     // Show alert and prompt user for offline mode
                     alert.set(new Alert(Alert.AlertType.ERROR));
                     alert.get().setTitle("Offline Mode");
@@ -502,39 +503,39 @@ public class LauncherApp {
             synchronized (savedUserFile) {
                 if (ALLOW_SAVED_USERS && savedUserFile.isFile()) {
                     try {
-                        currentUser = MinecraftAccount.readFromFile(LauncherConstants.LAUNCHER_CLIENT_SAVED_USER_FILE);
+                        currentUser = AuthAccount.readFromFile( LauncherConstants.LAUNCHER_CLIENT_SAVED_USER_FILE);
 
                         // Refresh auth only if not in offline mode
                         if (!offlineMode) {
-                            MinecraftAccountService.refreshAuth( getCurrentUser(), getClientToken());
-                            MinecraftAccount.writeToFile(savedUserFile.getPath(), getCurrentUser());
+                            AuthService.refreshAuth( getCurrentUser(), getClientToken());
+                            AuthAccount.writeToFile( savedUserFile.getPath(), getCurrentUser());
                         }
                         return;
-                    } catch (FLAuthenticationException e) {
+                    } catch ( GameAccountException e) {
                         dirtyLogin = true;
                     }
                 }
             }
 
             // Show login screen
-            LoginGUI loginGUI = new LoginGUI();
-            loginGUI.show();
+            LoginWindow loginWindow = new LoginWindow();
+            loginWindow.show();
 
             // Show error if exception encountered above (need to wait for GUI)
             if (dirtyLogin) {
-                Logger.logError("Unable to load remembered user account.");
+                LogUtils.logError( "Unable to load remembered user account.");
             }
 
             // Wait for login screen to complete
             try {
-                currentUser = loginGUI.waitForLoginInfo();
+                currentUser = loginWindow.waitForLoginInfo();
             } catch (InterruptedException e) {
-                Logger.logError("Unable to wait for pending login task.");
+                LogUtils.logError( "Unable to wait for pending login task.");
                 closeApp();
             }
 
             // Close login screen once complete
-            loginGUI.close();
+            loginWindow.close();
         }
     }
     //endregion
@@ -567,7 +568,7 @@ public class LauncherApp {
         String modeStr = gameMode == GameMode.SERVER ? "SRV" : "CLIENT";
         File logFile = new File(getLogFolderPath() + File.separator + "Log_" + modeStr + "_" + logFileNameTimeStampFormat.format(logTimeStamp) + ".log");
         try {
-            Logger.initLogSys(logFile);
+            LogUtils.initLogSys( logFile);
         } catch (IOException e) {
             e.printStackTrace();
             System.err.println("OH NO! The logger didn't configure correctly.");
