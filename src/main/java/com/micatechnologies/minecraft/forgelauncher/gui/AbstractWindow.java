@@ -1,10 +1,28 @@
+/*
+ * Copyright (c) 2020 Mica Technologies
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.micatechnologies.jadapt.NSWindow;
-import com.micatechnologies.minecraft.forgelauncher.LauncherConstants;
-import com.micatechnologies.minecraft.forgelauncher.utilities.GuiUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.LogUtils;
+import com.micatechnologies.minecraft.forgelauncher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtilities;
+import com.micatechnologies.minecraft.forgelauncher.files.Logger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.OnScreen;
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.RunsOnJFXThread;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -21,7 +39,6 @@ import org.rococoa.ID;
 import org.rococoa.Rococoa;
 import org.rococoa.cocoa.foundation.NSUInteger;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Objects;
@@ -70,15 +87,6 @@ public abstract class AbstractWindow extends Application
     Pane rootPane;
 
     /**
-     * Center pane of the window
-     *
-     * @since 3.0
-     */
-    @FXML
-    @OnScreen
-    Pane centerPane;
-
-    /**
      * Performs the setup and startup of the window and its stage.
      *
      * @param stage window stage
@@ -87,9 +95,10 @@ public abstract class AbstractWindow extends Application
      * @since 1.0
      */
     @Override
+    @RunsOnJFXThread
     public void start( Stage stage ) throws Exception {
         // Create JavaFX scene and apply to stage
-        stage.setScene( new Scene( GuiUtils.buildFXMLLoader( getFXMLResourcePath(), this ).load() ) );
+        stage.setScene( new Scene( GUIUtilities.buildFXMLLoader( getFXMLResourcePath(), this ).load() ) );
 
         // Set window size
         stage.setMinWidth( getWindowSize()._1 );
@@ -129,6 +138,7 @@ public abstract class AbstractWindow extends Application
      *
      * @since 2.1
      */
+    @RunsOnJFXThread
     private void prepareGUIEffects() {
         /*
           NOTE: This method does not prepare any GUI effects
@@ -186,19 +196,21 @@ public abstract class AbstractWindow extends Application
         // Change window location
         Pair< Double, Double > customWindowLocation = GUIController.getCustomWindowLocation();
         if ( customWindowLocation._1 != -1 && customWindowLocation._2 != -1 ) {
-            currentJFXStage.setX( customWindowLocation._1 );
-            currentJFXStage.setY( customWindowLocation._2 );
+            GUIUtilities.JFXPlatformRun( () -> {
+                currentJFXStage.setX( customWindowLocation._1 );
+                currentJFXStage.setY( customWindowLocation._2 );
+            } );
         }
+
 
         // Set listener for window location changes
         ChangeListener< Number > windowMoveListener = ( observableValue, number, t1 ) -> GUIController
                 .setCustomWindowLocations( currentJFXStage.getX(), currentJFXStage.getY() );
-
         currentJFXStage.xProperty().addListener( windowMoveListener );
         currentJFXStage.yProperty().addListener( windowMoveListener );
 
         // Show window
-        GuiUtils.JFXPlatformRun( () -> {
+        GUIUtilities.JFXPlatformRun( () -> {
             // Show stage
             currentJFXStage.show();
 
@@ -218,7 +230,6 @@ public abstract class AbstractWindow extends Application
         catch ( InterruptedException e ) {
             e.printStackTrace();
         }
-
     }
 
     /**
@@ -242,16 +253,7 @@ public abstract class AbstractWindow extends Application
         internPrepWindow();
 
         // Show window
-        GuiUtils.JFXPlatformRun(
-                () -> {
-                    // Show stage
-                    currentJFXStage.show();
-
-                    // Style window for macOS
-                    if ( SystemUtils.IS_OS_MAC ) {
-                        styleMacWindow();
-                    }
-                } );
+        show();
 
         // Wait for window to close
         closedLatch.await();
@@ -264,7 +266,8 @@ public abstract class AbstractWindow extends Application
      */
     public void close() {
         // Close window
-        GuiUtils.JFXPlatformRun( currentJFXStage::close );
+        Platform.setImplicitExit( false );
+        GUIUtilities.JFXPlatformRun( currentJFXStage::close );
 
         // Unregister window from controller
         GUIController.unregisterWindow( this );
@@ -287,7 +290,7 @@ public abstract class AbstractWindow extends Application
             System.load( url.getPath() );
         }
         else {
-            LogUtils.logDebug( "Unable to load rococoa library for macOS window styling!" );
+            Logger.logDebug( "Unable to load rococoa library for macOS window styling!" );
         }
 
         // Wrap window as NSWindow and return
@@ -311,7 +314,7 @@ public abstract class AbstractWindow extends Application
         }
         catch ( Exception e ) {
             e.printStackTrace();
-            LogUtils.logDebug(
+            Logger.logDebug(
                     "An error occurred while performing style modifications to an NSWindow wrapper." );
         }
     }
@@ -323,19 +326,19 @@ public abstract class AbstractWindow extends Application
      */
     private void internPrepWindow() {
         if ( readyLatch.getCount() > 0 ) {
-            GuiUtils.JFXPlatformRun( () -> {
+            GUIUtilities.JFXPlatformRun( () -> {
                 try {
                     start( new Stage() );
                 }
                 catch ( Exception e ) {
-                    LogUtils.logError( "An error occurred while creating a window!" );
+                    Logger.logError( "An error occurred while creating a window!" );
                 }
             } );
             try {
                 readyLatch.await();
             }
             catch ( InterruptedException e ) {
-                LogUtils.logError( "An error occurred while waiting for window creation!" );
+                Logger.logError( "An error occurred while waiting for window creation!" );
             }
         }
     }

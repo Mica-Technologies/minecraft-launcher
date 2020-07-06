@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2020 Mica Technologies
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
 
@@ -5,15 +22,17 @@ import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXCheckBox;
 import com.jfoenix.controls.JFXPasswordField;
 import com.jfoenix.controls.JFXTextField;
-import com.micatechnologies.minecraft.forgelauncher.LauncherApp;
-import com.micatechnologies.minecraft.forgelauncher.auth.AuthAccount;
-import com.micatechnologies.minecraft.forgelauncher.auth.AuthService;
-import com.micatechnologies.minecraft.forgelauncher.auth.AuthManager;
+import com.micatechnologies.minecraft.forgelauncher.LauncherCore;
+import com.micatechnologies.minecraft.forgelauncher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.forgelauncher.game.auth.AuthAccount;
+import com.micatechnologies.minecraft.forgelauncher.game.auth.AuthService;
+import com.micatechnologies.minecraft.forgelauncher.game.auth.AuthManager;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.AuthException;
-import com.micatechnologies.minecraft.forgelauncher.utilities.GuiUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.LogUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtilities;
+import com.micatechnologies.minecraft.forgelauncher.files.Logger;
+import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.OnScreen;
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.RunsOnJFXThread;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
 import javafx.fxml.FXML;
 import javafx.stage.WindowEvent;
@@ -109,15 +128,18 @@ public class LoginWindow extends AbstractWindow
      *
      * @since 1.0
      */
-    @Override
+    @Override @RunsOnJFXThread
     void setupWindow() {
+        // Set window title
+        currentJFXStage.setTitle( LauncherConstants.LAUNCHER_APPLICATION_NAME + " | Login" );
+
         // Configure exit button and window close
-        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtils.spawnNewTask( LauncherApp::closeApp ) );
+        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtilities.spawnNewTask( LauncherCore::closeApp ) );
         exitBtn.setOnAction( actionEvent -> currentJFXStage
                 .fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Configure login button
-        loginBtn.setOnAction( actionEvent -> SystemUtils.spawnNewTask( () -> {
+        loginBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             // Lock fields
             emailField.setDisable( true );
             passwordField.setDisable( true );
@@ -133,10 +155,10 @@ public class LoginWindow extends AbstractWindow
             boolean authSuccess = false;
             try {
                 authSuccess = AuthService
-                        .usernamePasswordAuth( authAccount, password, LauncherApp.getClientToken() );
+                        .usernamePasswordAuth( authAccount, password);
             }
             catch ( AuthException e ) {
-                LogUtils.logError( "An authentication error has occurred." );
+                Logger.logError( "An authentication error has occurred." );
                 e.printStackTrace();
             }
 
@@ -170,21 +192,21 @@ public class LoginWindow extends AbstractWindow
      */
     private void handleBadLogin() {
         // Show try again message
-        GuiUtils.JFXPlatformRun( () -> {
+        GUIUtilities.JFXPlatformRun( () -> {
             loginBtn.setText( "Try Again" );
             passwordField.clear();
         } );
 
         // Reset log in button text in 5 seconds
-        SystemUtils.spawnNewTask( () -> {
+        SystemUtilities.spawnNewTask( () -> {
             try {
                 Thread.sleep( 5000 );
             }
             catch ( InterruptedException e ) {
-                LogUtils.logDebug( "An error occurred while waiting to reset the login button text from \"Try " +
+                Logger.logDebug( "An error occurred while waiting to reset the login button text from \"Try " +
                                            "Again\" to \"Log In\"." );
             }
-            GuiUtils.JFXPlatformRun( () -> loginBtn.setText( "Log In" ) );
+            GUIUtilities.JFXPlatformRun( () -> loginBtn.setText( "Log In" ) );
         } );
     }
 

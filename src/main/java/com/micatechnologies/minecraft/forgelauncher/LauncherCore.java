@@ -17,28 +17,42 @@
 
 package com.micatechnologies.minecraft.forgelauncher;
 
-import com.micatechnologies.minecraft.forgelauncher.auth.AuthAccount;
-import com.micatechnologies.minecraft.forgelauncher.auth.AuthService;
-import com.micatechnologies.minecraft.forgelauncher.auth.AuthManager;
+import com.micatechnologies.minecraft.forgelauncher.config.ConfigManager;
+import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.forgelauncher.game.auth.AuthAccount;
+import com.micatechnologies.minecraft.forgelauncher.game.auth.AuthService;
+import com.micatechnologies.minecraft.forgelauncher.game.auth.AuthManager;
 import com.micatechnologies.minecraft.forgelauncher.config.GameModeManager;
-import com.micatechnologies.minecraft.forgelauncher.consts.FileConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.AuthException;
+import com.micatechnologies.minecraft.forgelauncher.files.LocalPathManager;
+import com.micatechnologies.minecraft.forgelauncher.files.RuntimeManager;
+import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPack;
+import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPackManager;
+import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPackProgressProvider;
+import com.micatechnologies.minecraft.forgelauncher.gui.GUIController;
+import com.micatechnologies.minecraft.forgelauncher.files.Logger;
+import com.micatechnologies.minecraft.forgelauncher.gui.MainWindow;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.forgelauncher.gui.LoginWindow;
-import com.micatechnologies.minecraft.forgelauncher.utilities.LogUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.NetworkUtils;
+import com.micatechnologies.minecraft.forgelauncher.utilities.NetworkUtilities;
+import javafx.application.Platform;
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
+import java.util.List;
 
 /**
  * Launcher core class. This class is the main entry point of the Mica Forge Launcher, and handles the main processes
- * that are required by the launcher for full functionality, such as login, starting game, etc.
+ * that are required by the launcher for full functionality, such as login, starting game, etc. Note that methods and
+ * fields that were deprecated earlier than version 2.0 have been removed in version 2.0
  *
- * @author Mica Technologies/hawka97
+ * @author Mica Technologies
  * @version 2.0
+ * @creator hawka97
+ * @editors hawka97
  */
 public class LauncherCore
 {
@@ -61,7 +75,10 @@ public class LauncherCore
             // Reset restart flag to false
             restartFlag = false;
 
-            // Set game mode from parameters. If unspecified, infer game mode from presence of graphics environment
+            /*
+             * Parse launcher args and set game mode from parameters if present,
+             * otherwise infer by detection of graphics environment.
+             */
             String initialModPackSelection = parseLauncherArgs( args );
 
             // Apply system properties
@@ -71,27 +88,124 @@ public class LauncherCore
             configureLogger();
 
             // Check for internet connection. Close if unable to connect
-            if ( !NetworkUtils.isMojangAuthReachable() ) {
-                LogUtils.logError(
+            if ( !NetworkUtilities.isMojangAuthReachable() ) {
+                Logger.logError(
                         "Unable to reach the Mojang authentication servers! Cannot start launcher. Try again later or contact support." );
                 closeApp();
             }
 
             // If client, do login
             if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
-                LogUtils.logDebug( "Launcher is running in client game mode. Starting login..." );
+                Logger.logDebug( "Launcher is running in client game mode. Starting login..." );
                 performClientLogin();
-                LogUtils.logDebug( "The login process has finished." );
+                Logger.logDebug( "The login process has finished." );
             }
             else {
-                LogUtils.logDebug( "Launcher is not in client game mode. Skipping authentication/login handler." );
+                Logger.logDebug( "Launcher is not in client game mode. Skipping authentication/login handler." );
             }
 
             // Load mod pack information
+            GameModPackManager.fetchModPackInfo();
 
             // Get local JDK
+            RuntimeManager.verifyJre8();
 
-            // Show mod pack selection
+            // Show main (mod pack selection) window
+            doModpackSelection( initialModPackSelection );
+        }
+    }
+
+    /**
+     * Launches the specified mod pack for gameplay.
+     *
+     * @param gameModPack mod pack to launch/play
+     *
+     * @since 2.0
+     */
+    public static void play( GameModPack gameModPack ) {
+        if ( gameModPack.getPackMinRAMGB() >= ConfigManager.getMaxRamInGb() ) {
+            try {
+                Logger.logDebug( "Launching mod pack: " + gameModPack.getFriendlyName() );
+                gameModPack.setProgressProvider( new GameModPackProgressProvider()
+                {
+                    @Override
+                    public void updateProgressHandler( double percent, String text ) {
+                        Logger.logStd( text + " - " + percent );
+                    }
+                } );
+                gameModPack.startGame();
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Unable to start the game. An exception occurred!" );
+                e.printStackTrace();
+            }
+        }
+        else {
+            Logger.logError( "The mod pack [" + gameModPack.getFriendlyName() +
+                                     "] requires a minimum of GB of RAM. The maximum RAM setting must be increased." );
+        }
+    }
+
+    /**
+     * Performs mod pack selection using the specified desired mod pack, if present. In client mode, mod pack selection
+     * displays the mod pack selection window with the specified mod pack preselected. In server mode, mod pack
+     * selection launches the specified mod pack.
+     *
+     * @param modPackName name of mod pack
+     *
+     * @since 1.0
+     */
+    public static void doModpackSelection( String modPackName ) {
+        // Create variable to store final resulting mod pack name
+        GameModPack finalGameModPack = GameModPackManager.getInstalledModPackByName( modPackName );
+
+        // Check if requested mod pack is installed
+        if ( modPackName.length() > 0 && finalGameModPack == null ) {
+            Logger.logError( "The mod pack [" + modPackName + "] is not installed! Will default to first mod pack." );
+        }
+        // Show message if using first mod pack by default
+        else if ( modPackName.length() == 0 && finalGameModPack == null ) {
+            Logger.logStd( "No mod pack specified. Will default to first mod pack." );
+        }
+
+        // Select first mod pack by default
+        if ( finalGameModPack == null ) {
+            // Check for installed mod packs
+            final List< GameModPack > installedGameModPacks = GameModPackManager.getInstalledModPacks();
+            if ( installedGameModPacks.size() == 0 ) {
+                Logger.logStd( "No mod packs are installed. Cannot automatically select first mod pack." );
+            }
+            else {
+                finalGameModPack = installedGameModPacks.get( 0 );
+            }
+        }
+
+        // Show gui or start start
+        if ( GameModeManager.isClient() ) {
+            MainWindow mainWindow = new MainWindow();
+            if ( finalGameModPack != null ) {
+                mainWindow.show( finalGameModPack );
+            }
+            else {
+                mainWindow.show();
+            }
+            try {
+                mainWindow.closedLatch.await();
+            }
+            catch ( InterruptedException e ) {
+                Logger.logError(
+                        "An error is preventing GUI completion handling. The login screen may not appear after logout." );
+                e.printStackTrace();
+            }
+        }
+        else if ( GameModeManager.isServer() ) {
+            if ( finalGameModPack != null ) {
+                play( finalGameModPack );
+            }
+            else {
+                Logger.logError(
+                        "There are no mod packs installed. Cannot launch server unless a mod pack is installed to start." );
+            }
         }
     }
 
@@ -102,12 +216,13 @@ public class LauncherCore
      */
     public static void configureLogger() {
         Timestamp logTimeStamp = new Timestamp( System.currentTimeMillis() );
-        File logFile = new File(
-                getLogFolderPath() + File.separator + LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED + "_" +
+        File logFile = SynchronizedFileManager.getSynchronizedFile(
+                LocalPathManager.getLauncherLogFolderPath() + File.separator +
+                        LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED + "_" +
                         GameModeManager.getCurrentGameMode().getStringName() + "_" +
-                        FileConstants.LOG_FILE_NAME_DATE_FORMAT.format( logTimeStamp ) + ".log" );
+                        LocalPathConstants.LOG_FILE_NAME_DATE_FORMAT.format( logTimeStamp ) + ".log" );
         try {
-            LogUtils.initLogSys( logFile );
+            Logger.initLogSys( logFile );
         }
         catch ( IOException e ) {
             e.printStackTrace();
@@ -115,13 +230,20 @@ public class LauncherCore
         }
     }
 
+    /**
+     * Performs login when the launcher is in client mode. If a user is remembered, it will be loaded from memory and
+     * logged in automatically. If a user is not remembered or cannot be logged in automatically, the login screen will
+     * display.
+     *
+     * @since 2.0
+     */
     public static void performClientLogin() {
         // Check for and load saved user from disk
         AuthAccount authAccount = AuthManager.getLoggedInAccount();
 
         // If no saved account, show message and login screen, otherwise continue.
         if ( authAccount == null ) {
-            LogUtils.logStd( "A remembered user account was not found on disk. Showing login screen..." );
+            Logger.logStd( "A remembered user account was not found on disk. Showing login screen..." );
 
             // Show login screen
             LoginWindow loginWindow = new LoginWindow();
@@ -132,7 +254,7 @@ public class LauncherCore
                 loginWindow.waitForLoginSuccess();
             }
             catch ( InterruptedException e ) {
-                LogUtils.logError( "Unable to wait for pending login task." );
+                Logger.logError( "Unable to wait for pending login task." );
                 closeApp();
             }
 
@@ -142,22 +264,22 @@ public class LauncherCore
         else {
             // Renew token of saved account
             try {
-                AuthService.refreshAuth( authAccount, LauncherApp.getClientToken() );
+                boolean authRefreshed = AuthService.refreshAuth( authAccount );
+                AuthManager.writeAccountToDiskIfRemembered();
+                if ( !authRefreshed ) {
+                    Logger.logError(
+                            "The authentication of the loaded user account was not refreshed. Try again later!" );
+                }
             }
             catch ( AuthException e1 ) {
                 e1.printStackTrace();
-                LogUtils.logError(
+                Logger.logError(
                         "Unable to refresh the authentication of the remembered user account. Returning to login." );
-                try {
-                    AuthManager.logout();
-                }
-                catch ( IOException e2 ) {
-                    e2.printStackTrace();
-                }
+                AuthManager.logout();
                 restartFlag = true;
                 restartApp();
             }
-            LogUtils.logStd( "[" + authAccount.getFriendlyName() + "] was logged in to the launcher." );
+            Logger.logStd( "[" + authAccount.getFriendlyName() + "] was logged in to the launcher." );
         }
     }
 
@@ -193,7 +315,7 @@ public class LauncherCore
             initialModPackSelection = args[ 1 ];
         }
         else {
-            LogUtils.logError(
+            Logger.logError(
                     "Invalid arguments specified.\nUsage: launcher.jar [ -s [modpack_name] | -c [modpack_name] | modpack_name ]" );
             closeApp();
         }
@@ -208,32 +330,7 @@ public class LauncherCore
     public static void applySystemProperties() {
         System.setProperty( "prism.lcdtext", "false" );
         System.setProperty( "prism.text", "t2k" );
-    }
-
-    /**
-     * Gets the install path of the launcher.
-     *
-     * @return launcher install path
-     *
-     * @since 1.0
-     */
-    public static String getLauncherInstallPath() {
-        String launcherInstallPath = LauncherConstants.LAUNCHER_CLIENT_INSTALLATION_DIRECTORY;
-        if ( GameModeManager.getCurrentGameMode() == GameMode.SERVER ) {
-            launcherInstallPath = LauncherConstants.LAUNCHER_SERVER_INSTALLATION_DIRECTORY;
-        }
-        return launcherInstallPath;
-    }
-
-    /**
-     * Gets the log folder path of the launcher.
-     *
-     * @return launcher log folder path
-     *
-     * @since 1.0
-     */
-    public static String getLogFolderPath() {
-        return getLauncherInstallPath() + File.separator + LauncherConstants.LOG_FOLDER_NAME;
+        System.setProperty( "prism.order", "sw" );
     }
 
     /**
@@ -243,7 +340,9 @@ public class LauncherCore
      * @since 2.0
      */
     public static void cleanupApp() {
-
+        Logger.logStd( "Performing application cleanup..." );
+        GUIController.closeAllWindows();
+        Logger.logStd( "Finished application cleanup" );
     }
 
     /**
@@ -264,7 +363,9 @@ public class LauncherCore
      * @since 1.1
      */
     public static void closeApp() {
+        Platform.setImplicitExit( true );
         cleanupApp();
+        Logger.logStd( "See you soon!" );
         System.exit( 0 );
     }
 }

@@ -27,6 +27,7 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
  * @version 1.1
  * @editors hawka97
  * @creator hawka97
+ * @since 1.0
  */
 @ClientModeOnly
 public class AuthConstants

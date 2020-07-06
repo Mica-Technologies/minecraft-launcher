@@ -19,6 +19,8 @@
  * Package containing utility classes that provide various levels of functionality to all packages in the application.
  *
  * @version 2.0
- * @author Mica Technologies/hawka97
+ * @author Mica Technologies
+ * @creator hawka97
+ * @editors hawka97
  */
 package com.micatechnologies.minecraft.forgelauncher.utilities;

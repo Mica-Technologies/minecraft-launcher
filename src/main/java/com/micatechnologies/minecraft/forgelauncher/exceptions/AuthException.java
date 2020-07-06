@@ -20,22 +20,23 @@ package com.micatechnologies.minecraft.forgelauncher.exceptions;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
 
 /**
- * Exception wrapper class allowing for a customizable explanation or explanation and backtrace for exceptions or errors
- * that occur within the authentication package.
+ * Exception wrapper class for handling and reporting errors and exceptions with user-friendly working/explanation if
+ * they occur within the {@link com.micatechnologies.minecraft.forgelauncher.game.auth} library.
  *
  * @author Mica Technologies
+ * @version 1.0
  * @editors hawka97
  * @creator hawka97
- * @version 1.1
- * @since 1.1
+ * @see com.micatechnologies.minecraft.forgelauncher.exceptions.LauncherException
+ * @since 1.0.1
  */
 @ClientModeOnly
-public class AuthException extends Exception
+public class AuthException extends LauncherException
 {
     /**
-     * Exception wrapper constructor for specifying a custom exception with customized explanation.
+     * Create a {@link AuthException} with specified message.
      *
-     * @param reason exception explanation
+     * @param reason exception message
      */
     @ClientModeOnly
     public AuthException( String reason ) {
@@ -43,10 +44,9 @@ public class AuthException extends Exception
     }
 
     /**
-     * Exception wrapper constructor for specifying a custom exception with customized explanation and specified
-     * backtrace.
+     * Create a {@link AuthException} with specified message and backtrace.
      *
-     * @param reason    exception explanation
+     * @param reason    exception message
      * @param backtrace exception backtrace
      */
     @ClientModeOnly

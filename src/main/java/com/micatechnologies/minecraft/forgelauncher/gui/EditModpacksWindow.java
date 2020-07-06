@@ -1,12 +1,31 @@
+/*
+ * Copyright (c) 2020 Mica Technologies
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXTextField;
-import com.micatechnologies.minecraft.forgelauncher.modpack.ModPackInstallManager;
+import com.micatechnologies.minecraft.forgelauncher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPackManager;
+import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.OnScreen;
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.RunsOnJFXThread;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
-import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -136,7 +155,7 @@ public class EditModpacksWindow extends AbstractWindow
             HBox.setHgrow( pane, Priority.ALWAYS );
             button.setOnAction( event -> {
                 getListView().getItems().remove( getItem() );
-                ModPackInstallManager.uninstallModPackByFriendlyName( label.getText() );
+                GameModPackManager.uninstallModPackByFriendlyName( label.getText() );
                 loadModPackList();
             } );
         }
@@ -198,11 +217,11 @@ public class EditModpacksWindow extends AbstractWindow
 
         // Add installed mod packs to list
         modpackList.getItems().clear();
-        modpackList.getItems().addAll( ModPackInstallManager.getInstalledModPackFriendlyNames() );
+        modpackList.getItems().addAll( GameModPackManager.getInstalledModPackFriendlyNames() );
 
         // Add available mod packs to list
         listAddBox.getItems().clear();
-        listAddBox.getItems().addAll( ModPackInstallManager.getAvailableModPackFriendlyNames() );
+        listAddBox.getItems().addAll( GameModPackManager.getAvailableModPackFriendlyNames() );
     }
 
     /**
@@ -210,10 +229,13 @@ public class EditModpacksWindow extends AbstractWindow
      *
      * @since 1.0
      */
-    @Override
+    @Override @RunsOnJFXThread
     void setupWindow() {
+        // Set window title
+        currentJFXStage.setTitle( LauncherConstants.LAUNCHER_APPLICATION_NAME + " | Mod Packs" );
+
         // Configure return button and window close
-        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtils.spawnNewTask( this::close ) );
+        currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtilities.spawnNewTask( this::close ) );
         returnBtn.setOnAction( actionEvent -> currentJFXStage
                 .fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
@@ -222,13 +244,13 @@ public class EditModpacksWindow extends AbstractWindow
 
         // Configure add by URL button
         urlAddBtn.setOnAction( actionEvent -> {
-            ModPackInstallManager.installModPackByURL( urlAddBox.getText() );
+            GameModPackManager.installModPackByURL( urlAddBox.getText() );
             loadModPackList();
         } );
 
         // Configure add by List button
         listAddBtn.setOnAction( actionEvent -> {
-            ModPackInstallManager.installModPackByFriendlyName( listAddBox.getValue() );
+            GameModPackManager.installModPackByFriendlyName( listAddBox.getValue() );
             loadModPackList();
         } );
     }

@@ -1,14 +1,33 @@
+/*
+ * Copyright (c) 2020 Mica Technologies
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
 
 import com.jfoenix.controls.JFXProgressBar;
-import com.micatechnologies.minecraft.forgelauncher.modpack.MCForgeModpackProgressProvider;
-import com.micatechnologies.minecraft.forgelauncher.utilities.GuiUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.LogUtils;
-import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtils;
+import com.micatechnologies.minecraft.forgelauncher.LauncherCore;
+import com.micatechnologies.minecraft.forgelauncher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPackProgressProvider;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtilities;
+import com.micatechnologies.minecraft.forgelauncher.files.Logger;
+import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.OnScreen;
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.RunsOnJFXThread;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 
@@ -18,8 +37,8 @@ import javafx.scene.control.Label;
  * @author Mica Technologies
  * @version 2.0
  * @editors hawka97
- * @since 1.0
  * @creator hawka97
+ * @since 1.0
  */
 public class ProgressWindow extends AbstractWindow
 {
@@ -54,6 +73,20 @@ public class ProgressWindow extends AbstractWindow
     JFXProgressBar progressBar;
 
     /**
+     * The initial text of the upper progress label.
+     *
+     * @since 2.0
+     */
+    private static String initialUpperLabelText = "Just a Moment";
+
+    /**
+     * The initial text of the lower progress label.
+     *
+     * @since 2.0
+     */
+    private static String initialLowerLabelText = "Fetching progress information...";
+
+    /**
      * Implementation of abstract method that returns the file name of the FXML associated with this class.
      *
      * @return FXML file name
@@ -83,21 +116,39 @@ public class ProgressWindow extends AbstractWindow
      * @since 1.0
      */
     @Override
+    @RunsOnJFXThread
     void setupWindow() {
+        // Set window title
+        currentJFXStage.setTitle( LauncherConstants.LAUNCHER_APPLICATION_NAME + " | Progress" );
+
         // Set filler display information
-        setUpperLabelText( "Just a Moment" );
-        setLowerLabelText( "Fetching progress information..." );
+        setUpperLabelText( initialUpperLabelText );
+        setLowerLabelText( initialLowerLabelText );
         setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
 
         // Configure exit button
-        currentJFXStage.setOnCloseRequest( event -> SystemUtils.spawnNewTask( () -> {
-            int response = GuiUtils.showQuestionMessage( "Close?", "Launcher is Busy",
-                                                         "Are you sure you want to cancel while a task is running?",
-                                                         "Yes", "No", getCurrentJFXStage() );
+        currentJFXStage.setOnCloseRequest( event -> SystemUtilities.spawnNewTask( () -> {
+            int response = GUIUtilities.showQuestionMessage( "Close?", "Launcher is Busy",
+                                                             "Are you sure you want to cancel while a task is running?",
+                                                             "Yes", "No", getCurrentJFXStage() );
             if ( response == 1 ) {
-                Platform.setImplicitExit( true );
+                LauncherCore.closeApp();
             }
         } ) );
+    }
+
+    /**
+     * Shows the window with the specified initial strings for the upper and lower progress window labels.
+     *
+     * @param upper initial upper label value
+     * @param lower initial lower label value
+     *
+     * @since 2.0
+     */
+    public void show( String upper, String lower ) {
+        initialUpperLabelText = upper;
+        initialLowerLabelText = lower;
+        show();
     }
 
     /**
@@ -109,7 +160,7 @@ public class ProgressWindow extends AbstractWindow
      * @since 1.0
      */
     public void setUpperLabelText( String text ) {
-        GuiUtils.JFXPlatformRun( () -> upperLabel.setText( text ) );
+        GUIUtilities.JFXPlatformRun( () -> upperLabel.setText( text ) );
     }
 
     /**
@@ -121,7 +172,7 @@ public class ProgressWindow extends AbstractWindow
      * @since 1.0
      */
     public void setLowerLabelText( String text ) {
-        GuiUtils.JFXPlatformRun( () -> lowerLabel.setText( text ) );
+        GUIUtilities.JFXPlatformRun( () -> lowerLabel.setText( text ) );
     }
 
     /**
@@ -133,19 +184,18 @@ public class ProgressWindow extends AbstractWindow
      */
     public void setProgress( double progress ) {
         // Update progress bar
-        GuiUtils.JFXPlatformRun(
-                () -> progressBar.setProgress( progress / MCForgeModpackProgressProvider.PROGRESS_PERCENT_BASE ) );
+        GUIUtilities.JFXPlatformRun(
+                () -> progressBar.setProgress( progress / GameModPackProgressProvider.PROGRESS_PERCENT_BASE ) );
 
         // Print progress to logs
-        SystemUtils.spawnNewTask( () -> {
-            if ( upperLabel != null && lowerLabel != null && readyLatch.getCount() == 0 ) {
-                if ( progress > 0 ) {
-                    LogUtils.logDebug( progress + "%: " + upperLabel.getText() + ", " + lowerLabel.getText() );
-                }
-                else {
-                    LogUtils.logDebug( "Running: " + upperLabel.getText() + ", " + lowerLabel.getText() );
-                }
+        if ( upperLabel != null && lowerLabel != null && readyLatch.getCount() == 0 ) {
+            if ( progress >= 0 ) {
+                Logger.logStd( upperLabel.getText() + ": " + lowerLabel.getText() + " (" + progress + "%)" );
             }
-        } );
+            else {
+                Logger.logStd( upperLabel.getText() + ": " + lowerLabel.getText() + " (Running)" );
+            }
+        }
     }
+
 }

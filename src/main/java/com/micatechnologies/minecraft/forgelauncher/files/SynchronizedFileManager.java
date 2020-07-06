@@ -17,19 +17,58 @@
 
 package com.micatechnologies.minecraft.forgelauncher.files;
 
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Class that manages access to files on the file system in a manner that only allows for one instance of a File object for each file. This allows for consistent synchronization when writing, reading and otherwise interacting with files in a multi-threaded environment.
- * @since 123123123213
- * @version 1.0
+ * Class that manages access to files on the file system in a manner that only allows for one instance of a File object
+ * for each file. This allows for consistent synchronization when writing, reading and otherwise interacting with files
+ * in a multi-threaded environment.
+ *
  * @author Mica Technologies
+ * @version 1.0
  * @creator hawka97
  * @editors hawka97
+ * @since 1.1
  */
+@ClientAndServer
 public class SynchronizedFileManager
 {
+    /**
+     * Internal list used to store file objects of files that have previously been accessed.
+     *
+     * @since 1.0
+     */
     private static final List< File > managedFiles = new ArrayList<>();
+
+    /**
+     * Gets the single file object for the specified file path
+     *
+     * @param filePath file path
+     *
+     * @return single file object
+     *
+     * @since 1.0
+     */
+    @ClientAndServer
+    public static File getSynchronizedFile( String filePath ) {
+        // Search for existing object for desired file path
+        File desiredSynchronizedFile = null;
+        for ( File managedFile : managedFiles ) {
+            if ( managedFile.getAbsolutePath().equalsIgnoreCase( filePath ) ) {
+                desiredSynchronizedFile = managedFile;
+                break;
+            }
+        }
+
+        // If an object does not exist for desired file path, create it
+        if ( desiredSynchronizedFile == null ) {
+            desiredSynchronizedFile = new File( filePath );
+        }
+
+        return desiredSynchronizedFile;
+    }
 }

@@ -17,27 +17,118 @@
 
 package com.micatechnologies.minecraft.forgelauncher.files;
 
+import com.micatechnologies.minecraft.forgelauncher.config.GameModeManager;
 import com.micatechnologies.minecraft.forgelauncher.consts.LocalPathConstants;
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
 
+/**
+ * Class that manages the local paths used by the launcher for storing configuration, mod pack installations, and Java
+ * runtimes.
+ *
+ * @author Mica Technologies
+ * @version 1.0
+ * @creator hawka97
+ * @editors hawka97
+ * @since 1.1
+ */
+@ClientAndServer
 public class LocalPathManager
 {
+    /**
+     * Gets the local path for storing launcher configuration, installation and runtime information.
+     *
+     * @return local launcher folder path
+     *
+     * @since 1.0
+     */
+    @ClientAndServer
     public static String getLauncherLocalPath() {
-        return "TODO: GET APATH";
+        return GameModeManager.isClient() ? LocalPathConstants.CLIENT_MODE_LAUNCHER_FOLDER_PATH :
+                LocalPathConstants.SERVER_MODE_LAUNCHER_FOLDER_PATH;
     }
 
+    /**
+     * Gets the local path for storing launcher configuration information.
+     *
+     * @return launcher configuration folder path
+     *
+     * @since 1.0
+     */
+    @ClientAndServer
     public static String getLauncherConfigFolderPath() {
         return getLauncherLocalPath() + LocalPathConstants.CONFIG_FOLDER;
     }
 
+    /**
+     * Gets the local path for storing installed mod packs.
+     *
+     * @return launcher mod pack installation folder path
+     *
+     * @since 1.0
+     */
+    @ClientAndServer
     public static String getLauncherModpackFolderPath() {
         return getLauncherLocalPath() + LocalPathConstants.MODPACK_FOLDER;
     }
 
+    /**
+     * Gets the local path for storing launcher logs.
+     *
+     * @return launcher log folder path
+     *
+     * @since 1.0
+     */
+    @ClientAndServer
     public static String getLauncherLogFolderPath() {
         return getLauncherLocalPath() + LocalPathConstants.LOG_FOLDER;
     }
 
+    /**
+     * Gets the local path for storing game runtimes.
+     *
+     * @return launcher runtime folder path
+     *
+     * @since 1.0
+     */
+    @ClientAndServer
     public static String getLauncherRuntimeFolderPath() {
         return getLauncherLocalPath() + LocalPathConstants.RUNTIME_FOLDER;
+    }
+
+    /**
+     * Gets the local path to the client token file.
+     *
+     * @return client token file path
+     *
+     * @since 1.0
+     */
+    @ClientModeOnly
+    public static String getClientTokenFilePath() {
+        return getLauncherConfigFolderPath() + LocalPathConstants.CLIENT_TOKEN_FILE_NAME;
+    }
+
+    /**
+     * Gets the local path to the remembered user account file.
+     *
+     * @return remembered user account file path
+     *
+     * @since 1.0
+     */
+    @ClientModeOnly
+    public static String getRememberedAccountFilePath() {
+        return getLauncherConfigFolderPath() + LocalPathConstants.AUTH_ACCOUNT_REMEMBERED_FILE_NAME;
+    }
+
+    /**
+     * Gets the local path to the Minecraft version manifest.
+     *
+     * @return Minecraft version manifest file path
+     *
+     * @since 1.0
+     */
+    @ClientAndServer
+    public static String getMinecraftVersionManifestFilePath() {
+        return getLauncherConfigFolderPath() + LocalPathConstants.MINECRAFT_VERSION_MANIFEST_FILE_NAME;
     }
 }
