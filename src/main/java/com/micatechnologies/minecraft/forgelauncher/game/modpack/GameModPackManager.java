@@ -21,6 +21,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.config.ConfigManager;
+import com.micatechnologies.minecraft.forgelauncher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.forgelauncher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.gui.GUIController;
@@ -72,12 +73,13 @@ public class GameModPackManager
     private synchronized static void fetchAvailableModPacks( ProgressWindow progressWindow ) {
         // Update progress window
         if ( progressWindow != null ) {
-            progressWindow.setUpperLabelText( "Downloading available mod packs list" );
-            progressWindow.setLowerLabelText( "Contacting server" );
+            progressWindow.setUpperLabelText( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT );
+            progressWindow.setLowerLabelText( LocalizationManager.CONTACTING_SERVER_TEXT );
         }
         else {
-            Logger.logStd( "Downloading available mod packs list" + ": " +
-                                   "Contacting server" );
+            Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
+                                   ": " +
+                                   LocalizationManager.CONTACTING_SERVER_TEXT );
         }
 
         // Fetch contents of available mod pack manifest
@@ -88,7 +90,7 @@ public class GameModPackManager
         }
         catch ( IOException e ) {
             e.printStackTrace();
-            Logger.logError( "Unable to fetch information about installable mod packs." );
+            Logger.logError( LocalizationManager.UNABLE_FETCH_INFO_INSTALLABLE_MOD_PACKS_TEXT );
             return;
         }
 
@@ -105,8 +107,8 @@ public class GameModPackManager
 
         // Parse available mod pack manifest contents
         JsonObject installableManifestUrls = new Gson().fromJson( availableModPackManifestBody, JsonObject.class );
-        for ( JsonElement manifestUrl : installableManifestUrls
-                .getAsJsonArray( ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY ) ) {
+        for ( JsonElement manifestUrl : installableManifestUrls.getAsJsonArray(
+                ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY ) ) {
             final String manifestUrlVal = manifestUrl.getAsString();
             try {
                 if ( !installedModPackManifestUrls.contains( manifestUrlVal ) ) {
@@ -115,44 +117,59 @@ public class GameModPackManager
 
                     // Update progress window
                     if ( progressWindow != null ) {
-                        progressWindow.setLowerLabelText(
-                                "Added " + gameModPack.getPackName() + " v" + gameModPack.getPackVersion() +
-                                        " to available mod packs" );
+                        progressWindow.setLowerLabelText( LocalizationManager.ADDED_TEXT +
+                                                                  " " +
+                                                                  gameModPack.getPackName() +
+                                                                  " v" +
+                                                                  gameModPack.getPackVersion() +
+                                                                  " " +
+                                                                  LocalizationManager.TO_AVAILABLE_MOD_PACKS_TEXT );
                     }
                     else {
-                        Logger.logStd(
-                                "Downloading available mod packs list" + ": " + "Added " + gameModPack.getPackName() +
-                                        " v" + gameModPack.getPackVersion() +
-                                        " to available mod packs" );
+                        Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
+                                               ": " +
+                                               LocalizationManager.ADDED_TEXT +
+                                               " " +
+                                               gameModPack.getPackName() +
+                                               " v" +
+                                               gameModPack.getPackVersion() +
+                                               " " +
+                                               LocalizationManager.TO_AVAILABLE_MOD_PACKS_TEXT );
                     }
                 }
                 else {
-                    Logger.logDebug(
-                            "Not marking mod pack manifest as installable because it is installed already: " +
-                                    manifestUrlVal );
+                    Logger.logDebug( LocalizationManager.NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT +
+                                             ": " +
+                                             manifestUrlVal );
 
                     // Update progress window
                     if ( progressWindow != null ) {
-                        progressWindow.setLowerLabelText( "Already installed: " + manifestUrlVal );
+                        progressWindow.setLowerLabelText(
+                                LocalizationManager.ALREADY_INSTALLED_TEXT + ": " + manifestUrlVal );
                     }
                     else {
-                        Logger.logStd( "Downloading available mod packs list" + ": " + "Already installed: " +
+                        Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
+                                               ": " +
+                                               LocalizationManager.ALREADY_INSTALLED_TEXT +
+                                               ": " +
                                                manifestUrlVal );
                     }
                 }
 
             }
             catch ( IOException e ) {
-                e.printStackTrace();
-                Logger.logError( "Unable to create an object for an available mod pack." );
+                Logger.logError( LocalizationManager.UNABLE_CREATE_OBJ_FOR_AVAILABLE_MOD_PACK_TEXT );
+                Logger.logThrowable( e );
             }
         }
         // Update progress window
         if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( "Complete" );
+            progressWindow.setLowerLabelText( LocalizationManager.COMPLETED_TEXT );
         }
         else {
-            Logger.logStd( "Downloading available mod packs list" + ": " + "Complete" );
+            Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
+                                   ": " +
+                                   LocalizationManager.COMPLETED_TEXT );
         }
     }
 
@@ -166,13 +183,14 @@ public class GameModPackManager
     private synchronized static void fetchInstalledModPacks( ProgressWindow progressWindow ) {
         // Update progress window to show start of fetch installed
         if ( progressWindow != null ) {
-            progressWindow.setUpperLabelText( "Downloading installed mod pack updates" );
-            progressWindow.setLowerLabelText( "Updating list of applicable mod packs" );
+            progressWindow.setUpperLabelText( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT );
+            progressWindow.setLowerLabelText( LocalizationManager.UPDATING_LIST_APPLICABLE_MOD_PACKS_TEXT );
         }
         else {
-            Logger.logStd( "Downloading installed mod pack updates" + ": " + "Updating list of applicable mod packs" );
+            Logger.logStd( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT +
+                                   ": " +
+                                   LocalizationManager.UPDATING_LIST_APPLICABLE_MOD_PACKS_TEXT );
         }
-
 
         // Get list of installed mod pack manifest URLs
         List< String > installedModPackManifestUrls = ConfigManager.getInstalledModPacks();
@@ -193,26 +211,39 @@ public class GameModPackManager
 
                 // Update progress window
                 if ( progressWindow != null ) {
-                    progressWindow.setLowerLabelText(
-                            "Got latest version of " + gameModPack.getPackName() + " (v" + gameModPack.getPackVersion() + ")" );
+                    progressWindow.setLowerLabelText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +
+                                                              " " +
+                                                              gameModPack.getPackName() +
+                                                              " (v" +
+                                                              gameModPack.getPackVersion() +
+                                                              ")" );
                 }
                 else {
-                    Logger.logStd( "Downloading installed mod pack updates" + ": " + "Got latest version of " +
-                                           gameModPack.getPackName() + " (v" + gameModPack.getPackVersion() + ")" );
+                    Logger.logStd( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT +
+                                           ": " +
+                                           LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +
+                                           " " +
+                                           gameModPack.getPackName() +
+                                           " (v" +
+                                           gameModPack.getPackVersion() +
+                                           ")" );
                 }
             }
             catch ( Exception e ) {
-                e.printStackTrace();
-                Logger.logError( "Unable to create an object for the installed mod pack from" + manifestUrl );
+                Logger.logError(
+                        LocalizationManager.UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT + " " + manifestUrl );
+                Logger.logThrowable( e );
             }
         }
 
         // Update progress window
         if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( "Complete" );
+            progressWindow.setLowerLabelText( LocalizationManager.COMPLETED_TEXT );
         }
         else {
-            Logger.logStd( "Downloading installed mod pack updates" + ": " + "Complete" );
+            Logger.logStd( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT +
+                                   ": " +
+                                   LocalizationManager.COMPLETED_TEXT );
         }
     }
 
@@ -243,9 +274,8 @@ public class GameModPackManager
                 progressWindow.closedLatch.await();
             }
             catch ( InterruptedException e ) {
-                Logger.logError(
-                        "Unable to wait for progress window to complete before returning from parent task." );
-                e.printStackTrace();
+                Logger.logError( LocalizationManager.UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT );
+                Logger.logThrowable( e );
             }
         }
     }
@@ -436,7 +466,7 @@ public class GameModPackManager
             fetchModPackInfo();
         }
         else {
-            Logger.logError( "Unable to uninstall mod pack " + gameModPack.getPackName() + "!" );
+            Logger.logError( LocalizationManager.UNABLE_TO_UNINSTALL_MOD_PACK_TEXT + " " + gameModPack.getPackName() );
         }
     }
 
@@ -534,15 +564,19 @@ public class GameModPackManager
 
             // Install mod pack
             if ( locatedGameModPack == null ) {
-                Logger.logError( "Unable to install " + friendlyName + " because it is not an available mod pack." );
+                Logger.logError( LocalizationManager.UNABLE_TO_INSTALL_TEXT +
+                                         " " +
+                                         friendlyName +
+                                         " " +
+                                         LocalizationManager.BECAUSE_NOT_AVAILABLE_MOD_PACK_TEXT );
             }
             else {
                 installModPack( locatedGameModPack );
             }
         }
         catch ( Exception e ) {
-            e.printStackTrace();
-            Logger.logError( "Unable to install " + friendlyName );
+            Logger.logError( LocalizationManager.UNABLE_TO_INSTALL_TEXT + " " + friendlyName );
+            Logger.logThrowable( e );
         }
     }
 
@@ -564,8 +598,8 @@ public class GameModPackManager
             installModPack( GameModPackFetcher.get( url ) );
         }
         catch ( Exception e ) {
-            e.printStackTrace();
-            Logger.logError( "Unable to install mod pack from " + url );
+            Logger.logError( LocalizationManager.UNABLE_TO_INSTALL_MOD_PACK_FROM_TEXT + " " + url );
+            Logger.logThrowable( e );
         }
     }
 

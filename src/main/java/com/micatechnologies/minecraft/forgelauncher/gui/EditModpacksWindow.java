@@ -191,7 +191,7 @@ public class EditModpacksWindow extends AbstractWindow
      */
     @Override
     String getFXMLResourcePath() {
-        return "editGUI.fxml";
+        return "gui/editGUI.fxml";
     }
 
     /**

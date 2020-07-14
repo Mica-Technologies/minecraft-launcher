@@ -17,8 +17,8 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
-
 import com.google.gson.reflect.TypeToken;
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
 
 import java.io.File;
 import java.lang.reflect.Type;
@@ -27,6 +27,9 @@ import java.util.List;
 
 /**
  * Class containing constants that are used in the launcher configuration package.
+ * <p>
+ * NOTE: This class should NOT contain display strings that are visible to the end-user. All localizable strings MUST be
+ * stored and retrieved using {@link com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager}.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -34,6 +37,7 @@ import java.util.List;
  * @creator hawka97
  * @since 2.0
  */
+@ClientAndServer
 public class ConfigConstants
 {
 

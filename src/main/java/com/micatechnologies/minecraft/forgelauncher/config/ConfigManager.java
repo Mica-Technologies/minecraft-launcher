@@ -21,6 +21,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.files.LocalPathManager;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FileUtilities;
@@ -266,8 +267,8 @@ public class ConfigManager
         }
 
         // Set value of min RAM
-        JsonArray installedModPacksArray =
-                ( JsonArray ) new Gson().toJsonTree( installedModPacks, ConfigConstants.modPacksListType );
+        JsonArray installedModPacksArray = ( JsonArray ) new Gson().toJsonTree( installedModPacks,
+                                                                                ConfigConstants.modPacksListType );
         configObject.add( ConfigConstants.MOD_PACKS_INSTALLED_KEY, installedModPacksArray );
 
         // Save configuration to disk
@@ -293,8 +294,8 @@ public class ConfigManager
                 configObject = FileUtilities.readAsJson( configFile );
             }
             catch ( Exception e ) {
-                Logger.logError(
-                        "An application configuration file was found but could not be loaded. The configuration will be reset!" );
+                Logger.logError( LocalizationManager.CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT );
+                Logger.logThrowable( e );
                 read = false;
             }
         }
@@ -307,7 +308,7 @@ public class ConfigManager
             setDebugLogging( ConfigConstants.LOG_DEBUG_ENABLE_DEFAULT );
             setResizableWindows( ConfigConstants.RESIZE_WINDOWS_ENABLE_DEFAULT );
             setInstalledModPacks( ConfigConstants.MOD_PACKS_INSTALLED_DEFAULT );
-            Logger.logStd( "The application configuration has been successfully reset!" );
+            Logger.logStd( LocalizationManager.CONFIG_RESET_SUCCESS_TEXT );
         }
     }
 
@@ -320,7 +321,7 @@ public class ConfigManager
     private synchronized static void writeConfigurationToDisk() {
         // Check if configuration is loaded, return if not
         if ( configObject == null ) {
-            Logger.logError( "Unable to save configuration because it has not been loaded from file." );
+            Logger.logError( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
             return;
         }
 
@@ -332,9 +333,8 @@ public class ConfigManager
             FileUtilities.writeFromJson( configObject, configFile );
         }
         catch ( Exception e ) {
-            e.printStackTrace();
-            Logger.logError( "An error occurred while saving the application configuration to file." );
-            e.printStackTrace();
+            Logger.logError( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
+            Logger.logThrowable( e );
         }
     }
 }

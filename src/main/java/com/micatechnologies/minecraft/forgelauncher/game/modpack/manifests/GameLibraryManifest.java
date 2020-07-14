@@ -20,6 +20,8 @@ package com.micatechnologies.minecraft.forgelauncher.game.modpack.manifests;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.forgelauncher.consts.LocalPathConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.ManifestConstants;
 import com.micatechnologies.minecraft.forgelauncher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameLibrary;
@@ -39,23 +41,25 @@ import java.util.jar.JarFile;
 /**
  * Class representing a library manifest for a specific Minecraft version, based on specified URL.
  *
- * @author Mica Technologies/hawka97
- * @version 1.0
+ * @author Mica Technologies
+ * @version 1.1
+ * @creator hawka97
+ * @editors hawka97
+ * @since 1.0
  */
 public class GameLibraryManifest extends ManagedGameFile
 {
 
     /**
-     * Local path of Minecraft library manifest, relative to modpack root folder
+     * The mod pack to which this {@link GameLibraryManifest} belongs to.
+     *
+     * @since 1.1
      */
-    private static final String MINECRAFT_LIBRARY_MANIFEST_LOCAL_MODPACK_PATH =
-            "bin" + File.separator + "minecraft-libraries.manifest";
-
     private final GameModPack parentModPack;
 
     /**
-     * Create a Minecraft library manifest object for modpack at modpackRootFolder. Instances do not require a local
-     * path prefix to be defined for download.
+     * Creates a Minecraft library manifest object for the specified mod pack. Instances do not require a local path
+     * prefix to be defined for download.
      *
      * @param remote        library manifest URL
      * @param parentModPack parent mod pack
@@ -63,8 +67,8 @@ public class GameLibraryManifest extends ManagedGameFile
      * @since 1.0
      */
     public GameLibraryManifest( String remote, GameModPack parentModPack ) {
-        super( remote, SystemUtilities
-                .buildFilePath( parentModPack.getPackRootFolder(), MINECRAFT_LIBRARY_MANIFEST_LOCAL_MODPACK_PATH ) );
+        super( remote, SystemUtilities.buildFilePath( parentModPack.getPackBinFolder(),
+                                                      LocalPathConstants.MINECRAFT_LIBRARY_MANIFEST_FILE_NAME ) );
         this.parentModPack = parentModPack;
     }
 
@@ -84,7 +88,8 @@ public class GameLibraryManifest extends ManagedGameFile
         JsonObject libManifest = readToJsonObject();
 
         // Loop through each library in manifest
-        JsonArray libManifestLibraries = libManifest.getAsJsonArray( "libraries" );
+        JsonArray libManifestLibraries = libManifest.getAsJsonArray(
+                ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARIES_KEY );
         for ( JsonElement libManifestLib : libManifestLibraries ) {
             // Get element as a JsonObject
             JsonObject libManifestLibObj = libManifestLib.getAsJsonObject();
@@ -92,22 +97,36 @@ public class GameLibraryManifest extends ManagedGameFile
             // Check for library entry format
             // name : String
             // downloads: Object
-            if ( libManifestLibObj.has( "downloads" ) && libManifestLibObj.has( "name" ) ) {
+            if ( libManifestLibObj.has( ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ) &&
+                    libManifestLibObj.has( ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_NAME_KEY ) ) {
                 // Library information variables
                 Path path = null;
                 String sha1 = null;
                 String url = null;
 
                 // Check for and process library information
-                if ( libManifestLibObj.getAsJsonObject( "downloads" ).has( "artifact" ) ) {
+                if ( libManifestLibObj.getAsJsonObject(
+                        ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                      .has( ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY ) ) {
                     // Store library path, sha1 and url
-                    path = Paths.get( libManifestLibObj.getAsJsonObject( "downloads" )
-                                                       .getAsJsonObject( "artifact" ).get( "path" )
+                    path = Paths.get( libManifestLibObj.getAsJsonObject(
+                            ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                                       .getAsJsonObject(
+                                                               ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY )
+                                                       .get( "path" )
                                                        .getAsString() );
-                    sha1 = libManifestLibObj.getAsJsonObject( "downloads" ).getAsJsonObject(
-                            "artifact" ).get( "sha1" ).getAsString();
-                    url = libManifestLibObj.getAsJsonObject( "downloads" ).getAsJsonObject(
-                            "artifact" ).get( "url" ).getAsString();
+                    sha1 = libManifestLibObj.getAsJsonObject(
+                            ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                            .getAsJsonObject(
+                                                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY )
+                                            .get( "sha1" )
+                                            .getAsString();
+                    url = libManifestLibObj.getAsJsonObject(
+                            ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                           .getAsJsonObject(
+                                                   ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY )
+                                           .get( "url" )
+                                           .getAsString();
                 }
 
                 // Create list for operating system rules
@@ -123,27 +142,25 @@ public class GameLibraryManifest extends ManagedGameFile
                         JsonObject ruleObj = rule.getAsJsonObject();
 
                         // Check for generic allow rule
-                        if ( ruleObj.has( "action" ) && ruleObj.get( "action" ).getAsString()
-                                                               .toLowerCase().equals( "allow" )
-                                && !ruleObj.has( "os" ) ) {
+                        if ( ruleObj.has( "action" ) &&
+                                ruleObj.get( "action" ).getAsString().toLowerCase().equals( "allow" ) &&
+                                !ruleObj.has( "os" ) ) {
                             // Allow all OS
                             rulesOS.add( ModPackConstants.PLATFORM_WINDOWS );
                             rulesOS.add( ModPackConstants.PLATFORM_MACOS );
                             rulesOS.add( ModPackConstants.PLATFORM_UNIX );
                         }
                         // Check for operating system specific allow rule
-                        else if ( ruleObj.has( "action" ) && ruleObj.get( "action" ).getAsString()
-                                                                    .toLowerCase().equals( "allow" )
-                                && ruleObj.has( "os" ) ) {
-                            rulesOS.add( ruleObj.getAsJsonObject( "os" ).get( "name" )
-                                                .getAsString() );
+                        else if ( ruleObj.has( "action" ) &&
+                                ruleObj.get( "action" ).getAsString().toLowerCase().equals( "allow" ) &&
+                                ruleObj.has( "os" ) ) {
+                            rulesOS.add( ruleObj.getAsJsonObject( "os" ).get( "name" ).getAsString() );
                         }
                         // Check for operating system specific disallow rule
-                        else if ( ruleObj.has( "action" ) && ruleObj.get( "action" ).getAsString()
-                                                                    .toLowerCase().equals(
-                                        "disallow" ) && ruleObj.has( "os" ) ) {
-                            rulesOS.remove( ruleObj.getAsJsonObject( "os" ).get( "name" )
-                                                   .getAsString() );
+                        else if ( ruleObj.has( "action" ) &&
+                                ruleObj.get( "action" ).getAsString().toLowerCase().equals( "disallow" ) &&
+                                ruleObj.has( "os" ) ) {
+                            rulesOS.remove( ruleObj.getAsJsonObject( "os" ).get( "name" ).getAsString() );
                         }
                         // Handle unidentified rule type
                         else {
@@ -157,13 +174,17 @@ public class GameLibraryManifest extends ManagedGameFile
                 // sub-libraries associated with the parent library
                 // Note: logging classifiers are ignored.
                 // Please report to github.com/hawka97 if this causes issues.
-                if ( libManifestLibObj.getAsJsonObject( "downloads" ).has( "classifiers" ) ) {
+                if ( libManifestLibObj.getAsJsonObject(
+                        ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ).has( "classifiers" ) ) {
                     // Create new library object to temporarily hold classifiers
                     GameLibrary nativeLib;
 
                     // Check for and process windows native libraries
-                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS && libManifestLibObj.getAsJsonObject(
-                            "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-windows" ) ) {
+                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS &&
+                            libManifestLibObj.getAsJsonObject(
+                                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                             .getAsJsonObject( "classifiers" )
+                                             .has( "natives-windows" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
 
@@ -173,28 +194,35 @@ public class GameLibraryManifest extends ManagedGameFile
                         }
 
                         // Initialize new native library object
-                        String localLibPath = libManifestLibObj.getAsJsonObject( "downloads" )
+                        String localLibPath = libManifestLibObj.getAsJsonObject(
+                                ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
                                                                .getAsJsonObject( "classifiers" )
                                                                .getAsJsonObject( "natives-windows" )
-                                                               .get( "path" ).getAsString();
-                        nativeLib = new GameLibrary( libManifestLibObj.getAsJsonObject( "downloads" )
-                                                                      .getAsJsonObject(
-                                                                              "classifiers" )
-                                                                      .getAsJsonObject(
-                                                                              "natives-windows" )
-                                                                      .get( "url" ).getAsString(),
-                                                     localLibPath, libManifestLibObj.getAsJsonObject(
-                                "downloads" ).getAsJsonObject( "classifiers" ).getAsJsonObject(
-                                "natives-windows" ).get( "sha1" ).getAsString(), true, nativeValidOS,
-                                                     true );
+                                                               .get( "path" )
+                                                               .getAsString();
+                        nativeLib = new GameLibrary( libManifestLibObj.getAsJsonObject(
+                                ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                                                      .getAsJsonObject( "classifiers" )
+                                                                      .getAsJsonObject( "natives-windows" )
+                                                                      .get( "url" )
+                                                                      .getAsString(), localLibPath,
+                                                     libManifestLibObj.getAsJsonObject(
+                                                             ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                                                      .getAsJsonObject( "classifiers" )
+                                                                      .getAsJsonObject( "natives-windows" )
+                                                                      .get( "sha1" )
+                                                                      .getAsString(), true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
                         libraries.add( nativeLib );
                     }
 
                     // Check for and process macOS native libraries
-                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC && libManifestLibObj.getAsJsonObject(
-                            "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-osx" ) ) {
+                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC &&
+                            libManifestLibObj.getAsJsonObject(
+                                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                             .getAsJsonObject( "classifiers" )
+                                             .has( "natives-osx" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
 
@@ -204,31 +232,35 @@ public class GameLibraryManifest extends ManagedGameFile
                         }
 
                         // Initialize new native library object
-                        String localLibPath = libManifestLibObj.getAsJsonObject( "downloads" )
+                        String localLibPath = libManifestLibObj.getAsJsonObject(
+                                ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
                                                                .getAsJsonObject( "classifiers" )
                                                                .getAsJsonObject( "natives-osx" )
-                                                               .get( "path" ).getAsString();
-                        nativeLib = new GameLibrary( libManifestLibObj.getAsJsonObject( "downloads" )
-                                                                      .getAsJsonObject(
-                                                                              "classifiers" )
-                                                                      .getAsJsonObject(
-                                                                              "natives-osx" ).get( "url" )
+                                                               .get( "path" )
+                                                               .getAsString();
+                        nativeLib = new GameLibrary( libManifestLibObj.getAsJsonObject(
+                                ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                                                      .getAsJsonObject( "classifiers" )
+                                                                      .getAsJsonObject( "natives-osx" )
+                                                                      .get( "url" )
                                                                       .getAsString(), localLibPath,
-                                                     libManifestLibObj.getAsJsonObject( "downloads" )
-                                                                      .getAsJsonObject(
-                                                                              "classifiers" )
-                                                                      .getAsJsonObject(
-                                                                              "natives-osx" )
-                                                                      .get( "sha1" ).getAsString(),
-                                                     true, nativeValidOS, true );
+                                                     libManifestLibObj.getAsJsonObject(
+                                                             ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                                                      .getAsJsonObject( "classifiers" )
+                                                                      .getAsJsonObject( "natives-osx" )
+                                                                      .get( "sha1" )
+                                                                      .getAsString(), true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
                         libraries.add( nativeLib );
                     }
 
                     // Check for and process Linux native libraries if on Linux
-                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_LINUX && libManifestLibObj.getAsJsonObject(
-                            "downloads" ).getAsJsonObject( "classifiers" ).has( "natives-linux" ) ) {
+                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_LINUX &&
+                            libManifestLibObj.getAsJsonObject(
+                                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                             .getAsJsonObject( "classifiers" )
+                                             .has( "natives-linux" ) ) {
                         // Create list to store applicable OSes for native
                         ArrayList< String > nativeValidOS = new ArrayList<>();
 
@@ -238,20 +270,24 @@ public class GameLibraryManifest extends ManagedGameFile
                         }
 
                         // Initialize new native library object
-                        String localLibPath = libManifestLibObj.getAsJsonObject( "downloads" )
+                        String localLibPath = libManifestLibObj.getAsJsonObject(
+                                ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
                                                                .getAsJsonObject( "classifiers" )
                                                                .getAsJsonObject( "natives-linux" )
-                                                               .get( "path" ).getAsString();
-                        nativeLib = new GameLibrary( libManifestLibObj.getAsJsonObject( "downloads" )
-                                                                      .getAsJsonObject(
-                                                                              "classifiers" )
-                                                                      .getAsJsonObject(
-                                                                              "natives-linux" )
-                                                                      .get( "url" ).getAsString(),
-                                                     localLibPath, libManifestLibObj.getAsJsonObject(
-                                "downloads" ).getAsJsonObject( "classifiers" ).getAsJsonObject(
-                                "natives-linux" ).get( "sha1" ).getAsString(), true, nativeValidOS,
-                                                     true );
+                                                               .get( "path" )
+                                                               .getAsString();
+                        nativeLib = new GameLibrary( libManifestLibObj.getAsJsonObject(
+                                ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                                                      .getAsJsonObject( "classifiers" )
+                                                                      .getAsJsonObject( "natives-linux" )
+                                                                      .get( "url" )
+                                                                      .getAsString(), localLibPath,
+                                                     libManifestLibObj.getAsJsonObject(
+                                                             ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
+                                                                      .getAsJsonObject( "classifiers" )
+                                                                      .getAsJsonObject( "natives-linux" )
+                                                                      .get( "sha1" )
+                                                                      .getAsString(), true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
                         libraries.add( nativeLib );
@@ -260,15 +296,14 @@ public class GameLibraryManifest extends ManagedGameFile
 
                 // Create final library object and add to applicable list
                 if ( path != null && url != null && sha1 != null ) {
-                    GameLibrary thisLib = new GameLibrary( url, path.toString(), sha1, useStrictRules,
-                                                           rulesOS, false );
+                    GameLibrary thisLib = new GameLibrary( url, path.toString(), sha1, useStrictRules, rulesOS, false );
 
-                    if ( ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS && thisLib.getApplicableOSes().contains(
-                            ModPackConstants.PLATFORM_WINDOWS ) ) || ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC
-                            && thisLib.getApplicableOSes().contains(
-                            ModPackConstants.PLATFORM_MACOS ) ) || ( org.apache.commons.lang3.SystemUtils.IS_OS_LINUX
-                            && thisLib.getApplicableOSes().contains(
-                            ModPackConstants.PLATFORM_UNIX ) ) ) {
+                    if ( ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS &&
+                            thisLib.getApplicableOSes().contains( ModPackConstants.PLATFORM_WINDOWS ) ) ||
+                            ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC &&
+                                    thisLib.getApplicableOSes().contains( ModPackConstants.PLATFORM_MACOS ) ) ||
+                            ( org.apache.commons.lang3.SystemUtils.IS_OS_LINUX &&
+                                    thisLib.getApplicableOSes().contains( ModPackConstants.PLATFORM_UNIX ) ) ) {
 
                         libraries.add( thisLib );
                     }
@@ -291,14 +326,15 @@ public class GameLibraryManifest extends ManagedGameFile
      * @throws ModpackException if update or download fails
      * @since 1.0
      */
-    private void downloadVerifyLibraries( GameModPackProgressProvider progressProvider )
-    throws ModpackException
+    private void downloadVerifyLibraries( GameModPackProgressProvider progressProvider ) throws ModpackException
     {
         // Build full path to libraries and natives folders
-        String localLibPath = parentModPack.getPackRootFolder() + File.separator
-                + ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
-        String localNativePath = parentModPack.getPackRootFolder() + File.separator
-                + ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
+        String localLibPath = parentModPack.getPackRootFolder() +
+                File.separator +
+                ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
+        String localNativePath = parentModPack.getPackRootFolder() +
+                File.separator +
+                ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
 
         // Get list of libraries
         ArrayList< GameLibrary > libraries = getLibraries();
@@ -309,8 +345,7 @@ public class GameLibraryManifest extends ManagedGameFile
             boolean didChange = lib.updateLocalFile();
             if ( lib.isNativeLib() && didChange ) {
                 try {
-                    SystemUtilities.extractJarFile( new JarFile( lib.getFullLocalFilePath() ),
-                                                    localNativePath );
+                    SystemUtilities.extractJarFile( new JarFile( lib.getFullLocalFilePath() ), localNativePath );
                 }
                 catch ( IOException e ) {
                     throw new ModpackException( "Unable to extract native library.", e );
@@ -333,8 +368,7 @@ public class GameLibraryManifest extends ManagedGameFile
      *
      * @throws ModpackException if update or download fails
      */
-    public String buildMinecraftClasspath( GameMode appGameMode,
-                                           GameModPackProgressProvider progressProvider )
+    public String buildMinecraftClasspath( GameMode appGameMode, GameModPackProgressProvider progressProvider )
     throws ModpackException
     {
         // Get list of libraries
@@ -356,28 +390,26 @@ public class GameLibraryManifest extends ManagedGameFile
         StringBuilder classpath = new StringBuilder();
         for ( GameLibrary library : minecraftLibsList ) {
             // Add separator to string if necessary
-            if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith(
-                    File.pathSeparator ) ) {
+            if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith( File.pathSeparator ) ) {
                 classpath.append( File.pathSeparator );
             }
 
             // Add library to classpath
-            String localLibPath = parentModPack.getPackRootFolder() + File.separator
-                    + ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
+            String localLibPath = parentModPack.getPackRootFolder() +
+                    File.separator +
+                    ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
             library.setLocalPathPrefix( localLibPath );
             classpath.append( library.getFullLocalFilePath() );
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider.submitProgress(
-                        "Added to classpath: " + library.getLocalFilePath(),
-                        ( 10.0 / ( double ) minecraftLibsList.size() ) );
+                progressProvider.submitProgress( "Added to classpath: " + library.getLocalFilePath(),
+                                                 ( 10.0 / ( double ) minecraftLibsList.size() ) );
             }
         }
 
         // Add separator to string if necessary
-        if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith(
-                File.pathSeparator ) ) {
+        if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith( File.pathSeparator ) ) {
             classpath.append( File.pathSeparator );
         }
 
@@ -387,8 +419,7 @@ public class GameLibraryManifest extends ManagedGameFile
         return classpath.toString();
     }
 
-    void downloadMinecraftAssets( final GameModPackProgressProvider progressProvider )
-    throws ModpackException
+    void downloadMinecraftAssets( final GameModPackProgressProvider progressProvider ) throws ModpackException
     {
         getAssetManifest().downloadAssets( progressProvider );
     }
@@ -405,8 +436,7 @@ public class GameLibraryManifest extends ManagedGameFile
     }
 
     GameAssetManifest getAssetManifest() throws ModpackException {
-        String remote = readToJsonObject().get( "assetIndex" ).getAsJsonObject().get( "url" )
-                                          .getAsString();
+        String remote = readToJsonObject().get( "assetIndex" ).getAsJsonObject().get( "url" ).getAsString();
         return new GameAssetManifest( remote, parentModPack, getAssetIndexVersion() );
     }
 
@@ -425,18 +455,21 @@ public class GameLibraryManifest extends ManagedGameFile
         // Get download information for client or server Minecraft app
         JsonObject appObj;
         if ( gameAppMode == GameMode.CLIENT ) {
-            appObj = readToJsonObject().getAsJsonObject( "downloads" ).getAsJsonObject( "client" );
+            appObj = readToJsonObject().getAsJsonObject(
+                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ).getAsJsonObject( "client" );
         }
         else if ( gameAppMode == GameMode.SERVER ) {
-            appObj = readToJsonObject().getAsJsonObject( "downloads" ).getAsJsonObject( "server" );
+            appObj = readToJsonObject().getAsJsonObject(
+                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ).getAsJsonObject( "server" );
         }
         else {
             throw new ModpackException( "An invalid game app mode was specified." );
         }
 
         // Build RemoteFile with download information and return
-        String localMinecraftAppPath = parentModPack.getPackRootFolder() + File.separator
-                + ModPackConstants.MODPACK_MINECRAFT_JAR_LOCAL_PATH;
+        String localMinecraftAppPath = parentModPack.getPackRootFolder() +
+                File.separator +
+                ModPackConstants.MODPACK_MINECRAFT_JAR_LOCAL_PATH;
         return new ManagedGameFile( appObj.get( "url" ).getAsString(), localMinecraftAppPath,
                                     appObj.get( "sha1" ).getAsString() );
     }

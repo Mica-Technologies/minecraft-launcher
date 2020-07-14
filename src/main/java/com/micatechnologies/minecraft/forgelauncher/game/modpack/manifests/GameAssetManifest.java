@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.forgelauncher.game.modpack.manifests;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.forgelauncher.consts.ManifestConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.forgelauncher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPack;
@@ -36,7 +37,7 @@ import java.util.List;
  * applicable libraries for the Minecraft game.
  *
  * @author Mica Technologies
- * @version 1.0.1
+ * @version 1.1
  * @creator hawka97
  * @editors hawka97
  * @since 1.0
@@ -46,7 +47,7 @@ public class GameAssetManifest extends ManagedGameFile
     /**
      * The mod pack to which this {@link GameAssetManifest} belongs to.
      *
-     * @since 1.0.1
+     * @since 1.1
      */
     private final GameModPack parentModPack;
 
@@ -61,10 +62,9 @@ public class GameAssetManifest extends ManagedGameFile
      * @since 1.0
      */
     public GameAssetManifest( String remote, GameModPack parentModPack, String version ) {
-        super( remote, SystemUtilities
-                .buildFilePath( parentModPack.getPackRootFolder(),
-                                LocalPathConstants.MINECRAFT_ASSET_RELATIVE_INDEXES_FOLDER,
-                                version + ManifestConstants.JSON_FILE_EXTENSION ) );
+        super( remote, SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
+                                                      LocalPathConstants.MINECRAFT_ASSET_RELATIVE_INDEXES_FOLDER,
+                                                      version + ManifestConstants.JSON_FILE_EXTENSION ) );
         this.parentModPack = parentModPack;
     }
 
@@ -81,14 +81,15 @@ public class GameAssetManifest extends ManagedGameFile
         ArrayList< ManagedGameFile > assets = new ArrayList<>();
 
         // Get objects list from assets manifest
-        JsonObject objects = readToJsonObject().get( "objects" ).getAsJsonObject();
+        JsonObject objects = readToJsonObject().get( ManifestConstants.MINECRAFT_ASSET_MANIFEST_OBJECTS_KEY )
+                                               .getAsJsonObject();
 
         // Add each asset to list
         for ( String assetName : objects.keySet() ) {
             JsonObject asset = objects.getAsJsonObject( assetName );
 
             // Get hash of asset (file name)
-            String assetHash = asset.get( "hash" ).getAsString();
+            String assetHash = asset.get( ManifestConstants.MINECRAFT_ASSET_MANIFEST_OBJECT_HASH_KEY ).getAsString();
 
             // Get first two letters of hash (folder name)
             String assetFolder = assetHash.substring( 0, 2 );
@@ -99,9 +100,11 @@ public class GameAssetManifest extends ManagedGameFile
                                                               assetFolder, assetHash );
 
             // Build full asset URL
-            String assetURL = ManifestConstants.MINECRAFT_ASSET_SERVER_URL_TEMPLATE
-                    .replaceAll( ManifestConstants.MINECRAFT_ASSET_SERVER_URL_FOLDER_KEY, assetFolder )
-                    .replaceAll( ManifestConstants.MINECRAFT_ASSET_SERVER_URL_HASH_KEY, assetHash );
+            String assetURL = ManifestConstants.MINECRAFT_ASSET_SERVER_URL_TEMPLATE.replaceAll(
+                    ManifestConstants.MINECRAFT_ASSET_SERVER_URL_FOLDER_KEY, assetFolder )
+                                                                                   .replaceAll(
+                                                                                           ManifestConstants.MINECRAFT_ASSET_SERVER_URL_HASH_KEY,
+                                                                                           assetHash );
             assets.add( new ManagedGameFile( assetURL, assetPath, assetHash ) );
         }
 
@@ -115,10 +118,9 @@ public class GameAssetManifest extends ManagedGameFile
      * @param progressProvider progress manager
      *
      * @throws ModpackException if unable to read manifest or update asset
-     * @since 1.0.1
+     * @since 1.1
      */
-    public void downloadAssets( final GameModPackProgressProvider progressProvider )
-    throws ModpackException
+    public void downloadAssets( final GameModPackProgressProvider progressProvider ) throws ModpackException
     {
         // Update asset manifest first
         updateLocalFile();
@@ -130,8 +132,9 @@ public class GameAssetManifest extends ManagedGameFile
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified asset " + asset.getFileName(),
-                                                 ( 50.0 / ( double ) assets.size() ) );
+                progressProvider.submitProgress(
+                        LocalizationManager.VERIFIED_ASSET_PROGRESS_TEXT + " " + asset.getFileName(),
+                        ( 50.0 / ( double ) assets.size() ) );
             }
         }
     }

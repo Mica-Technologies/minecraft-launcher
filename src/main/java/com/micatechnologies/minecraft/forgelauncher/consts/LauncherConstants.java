@@ -17,8 +17,15 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
+
+import java.util.Map;
+
 /**
  * Class of constants/statics for use across package.
+ * <p>
+ * NOTE: This class should NOT contain display strings that are visible to the end-user. All localizable strings MUST be
+ * stored and retrieved using {@link com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager}.
  *
  * @author Mica Technologies
  * @version 1.1
@@ -26,6 +33,7 @@ package com.micatechnologies.minecraft.forgelauncher.consts;
  * @editors hawka97
  * @since 1.0
  */
+@ClientAndServer
 public class LauncherConstants
 {
     /**
@@ -33,30 +41,29 @@ public class LauncherConstants
      *
      * @since 1.0
      */
-    public final static transient String LAUNCHER_APPLICATION_NAME = "Mica Forge Launcher";
+    public final static String LAUNCHER_APPLICATION_NAME = "Mica Forge Launcher";
 
     /**
      * Launcher application version. Leave blank, this is auto-filled in.
      *
      * @since 1.0
      */
-    public final static transient String LAUNCHER_APPLICATION_VERSION = "2020.1";
+    public final static String LAUNCHER_APPLICATION_VERSION = "2020.3";
 
     /**
      * Launcher application name without spaces.
      *
      * @since 1.0
      */
-    public final static transient String LAUNCHER_APPLICATION_NAME_TRIMMED =
-            LAUNCHER_APPLICATION_NAME.replaceAll( " ", "" );
+    public final static String LAUNCHER_APPLICATION_NAME_TRIMMED = LAUNCHER_APPLICATION_NAME.replaceAll( " ", "" );
 
     /**
      * Launcher update check URL. This URL is checked to see if the latest release is newer than the current release.
      *
      * @since 1.0.1
      */
-    public final static String UPDATE_CHECK_REDIRECT_URL =
-            "https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/releases/latest";
+    public final static String UPDATE_CHECK_REDIRECT_URL
+            = "https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/releases/latest";
 
     /**
      * Argument used to open application in forced client mode.
@@ -99,4 +106,19 @@ public class LauncherConstants
      * @since 1.1
      */
     public static final double SETTINGS_MAX_RAM_MAX = 64.0;
+
+    /**
+     * Exit code used when the launcher is closing cleanly/normally.
+     *
+     * @since 1.1
+     */
+    public static final int EXIT_STATUS_CODE_GOOD = 0;
+
+    /**
+     * Map containing the JVM properties that must be applied at startup of each instance of the application.
+     *
+     * @since 1.1
+     */
+    public static final Map< String, String > JVM_PROPERTIES = Map.of( "prism.lcdtext", "false", "prism.text", "t2k",
+                                                                       "prism.order", "sw" );
 }

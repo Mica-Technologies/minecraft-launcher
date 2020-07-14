@@ -108,7 +108,7 @@ public class LoginWindow extends AbstractWindow
      */
     @Override
     String getFXMLResourcePath() {
-        return "loginGUI.fxml";
+        return "gui/loginGUI.fxml";
     }
 
     /**

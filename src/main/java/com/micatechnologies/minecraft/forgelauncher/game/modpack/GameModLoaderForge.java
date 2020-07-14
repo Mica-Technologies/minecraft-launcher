@@ -21,8 +21,12 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.forgelauncher.consts.ForgeConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.forgelauncher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.ModpackException;
+import com.micatechnologies.minecraft.forgelauncher.files.Logger;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
@@ -40,7 +44,7 @@ import java.util.jar.JarFile;
  * Class representation of a modpack Forge jar application
  *
  * @author Mica Technologies
- * @version 1.0
+ * @version 1.0.1
  * @editors hawka97
  * @creator hawka97
  * @since 1.0
@@ -83,17 +87,24 @@ class GameModLoaderForge extends ManagedGameFile
      */
     private final GameModPack parentModPack;
 
-    GameModLoaderForge( String remoteURL, String sha1Hash, GameModPack parentModPack )
-    throws ModpackException
+    /**
+     * Constructor for {@link GameModLoaderForge}. Creates a {@link GameModLoaderForge} object with the specified remote
+     * URL, SHA-1 hash and associated mod pack.
+     *
+     * @param remoteURL     URL of Forge
+     * @param sha1Hash      hash of Forge
+     * @param parentModPack parent mod pack
+     *
+     * @throws ModpackException if unable to download or update
+     * @since 1.0
+     */
+    public GameModLoaderForge( String remoteURL, String sha1Hash, GameModPack parentModPack ) throws ModpackException
     {
         // Populate remote file information/configuration
+        super( remoteURL, SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
+                                                         ModPackConstants.MODPACK_FORGE_JAR_LOCAL_PATH ), sha1Hash );
 
-        super( remoteURL,
-               SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
-                                              ModPackConstants.MODPACK_FORGE_JAR_LOCAL_PATH ),
-               sha1Hash );
-
-        // Store modpack root folder
+        // Store parent mod pack
         this.parentModPack = parentModPack;
 
         // Download Forge app
@@ -101,41 +112,89 @@ class GameModLoaderForge extends ManagedGameFile
 
         // Store Forge/MC information
         JsonObject forgeVersionManifest = getForgeVersionManifest();
-        forgeVersion = forgeVersionManifest.get( "id" ).getAsString();
-        minecraftVersion = forgeVersionManifest.get( "inheritsFrom" ).getAsString();
-        minecraftArguments = forgeVersionManifest.get( "minecraftArguments" ).getAsString();
-        minecraftMainClass = forgeVersionManifest.get( "mainClass" ).getAsString();
+        forgeVersion = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY ).getAsString();
+        minecraftVersion = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_INHERITS_FROM_KEY )
+                                               .getAsString();
+        minecraftArguments = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_MINECRAFT_ARGS_KEY )
+                                                 .getAsString();
+        minecraftMainClass = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_MAIN_CLASS_KEY )
+                                                 .getAsString();
     }
 
-    String getForgeVersion() {
+    /**
+     * Gets the version of Forge for this mod loader instance.
+     *
+     * @return Forge version
+     *
+     * @since 1.0
+     */
+    public String getForgeVersion() {
         return forgeVersion;
     }
 
-    String getMinecraftVersion() {
+    /**
+     * Gets the version of Minecraft for this Forge mod loader instance.
+     *
+     * @return Forge Minecraft version
+     *
+     * @since 1.0
+     */
+    public String getMinecraftVersion() {
         return minecraftVersion;
     }
 
-    String getMinecraftArguments() {
+    /**
+     * Gets the arguments for this Forge mod loader instance.
+     *
+     * @return Minecraft Forge arguments
+     *
+     * @since 1.0
+     */
+    public String getMinecraftArguments() {
         return minecraftArguments;
     }
 
-    String getMinecraftMainClass() {
+    /**
+     * Gets the main class for this Forge mod loader instance.
+     *
+     * @return Minecraft Forge main class
+     *
+     * @since 1.0
+     */
+    public String getMinecraftMainClass() {
         return minecraftMainClass;
     }
 
+    /**
+     * Gets the {@link JarFile} for this Forge mod loader instance.
+     *
+     * @return Forge {@link JarFile}
+     *
+     * @throws ModpackException if unable to get Forge {@link JarFile}
+     * @since 1.0
+     */
     private JarFile getForgeJarFile() throws ModpackException {
         try {
             return new JarFile( getFullLocalFilePath() );
         }
         catch ( IOException e ) {
-            throw new ModpackException( "Unable to access Forge jar file.", e );
+            throw new ModpackException( LocalizationManager.UNABLE_ACCESS_FORGE_JAR_TEXT, e );
         }
     }
 
-    private ArrayList< GameAsset > getForgeAssetList() throws ModpackException {
-        // Get Forge Version Manifest Information
+    /**
+     * Gets the list of libraries for this Forge mod loader instance.
+     *
+     * @return Forge library list
+     *
+     * @throws ModpackException if unable to load Forge version manifest
+     * @since 1.0
+     */
+    private ArrayList< GameAsset > getForgeLibrariesList() throws ModpackException {
+        // Get Forge version manifest libraries array
         JsonObject forgeVersionManifest = getForgeVersionManifest();
-        JsonArray forgeAssetsArray = forgeVersionManifest.getAsJsonArray( "libraries" );
+        JsonArray forgeAssetsArray = forgeVersionManifest.getAsJsonArray(
+                ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARIES_KEY );
 
         // Create list for storing processed libraries
         ArrayList< GameAsset > forgeAssets = new ArrayList<>();
@@ -144,11 +203,12 @@ class GameModLoaderForge extends ManagedGameFile
         for ( JsonElement forgeAsset : forgeAssetsArray ) {
             // Get Asset Object and Information
             JsonObject forgeAssetObj = forgeAsset.getAsJsonObject();
-            String forgeAssetName = forgeAssetObj.get( "name" ).getAsString();
+            String forgeAssetName = forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_NAME_KEY )
+                                                 .getAsString();
 
             // Build Repo Path from URL
-            String forgeAssetRepoPath = forgeAssetName.substring(
-                    forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "-" );
+            String forgeAssetRepoPath = forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 )
+                                                      .replace( ":", "-" );
 
             // Get Repo URL
             String repoURL = "https://repo1.maven.org/maven2/";
@@ -161,23 +221,26 @@ class GameModLoaderForge extends ManagedGameFile
             }
 
             // Build Full Repo URL and Path
-            String forgeAssetURL = repoURL + forgeAssetName.substring( 0, forgeAssetName
-                    .indexOf( ":" ) ).replace( ".", "/" ) + "/" + forgeAssetName.substring(
-                    forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "/" ) + "/" + forgeAssetRepoPath
-                    + ".jar";
+            String forgeAssetURL = repoURL +
+                    forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) ).replace( ".", "/" ) +
+                    "/" +
+                    forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "/" ) +
+                    "/" +
+                    forgeAssetRepoPath +
+                    ".jar";
 
             // Override special libraries
             if ( forgeAssetURL.contains( "scala-parser-combinators" ) ) {
-                forgeAssetURL =
-                        "https://repo1.maven.org/maven2/org/scala-lang/scala-parser-combinators/2.11.0-M4/scala-parser-combinators-2.11.0-M4.jar";
+                forgeAssetURL
+                        = "https://repo1.maven.org/maven2/org/scala-lang/scala-parser-combinators/2.11.0-M4/scala-parser-combinators-2.11.0-M4.jar";
             }
             if ( forgeAssetURL.contains( "scala-swing" ) ) {
-                forgeAssetURL =
-                        "https://repo1.maven.org/maven2/org/scala-lang/scala-swing/2.11.0-M7/scala-swing-2.11.0-M7.jar";
+                forgeAssetURL
+                        = "https://repo1.maven.org/maven2/org/scala-lang/scala-swing/2.11.0-M7/scala-swing-2.11.0-M7.jar";
             }
             if ( forgeAssetURL.contains( "scala-xml" ) ) {
-                forgeAssetURL =
-                        "https://repo1.maven.org/maven2/org/scala-lang/scala-xml/2.11.0-M4/scala-xml-2.11.0-M4.jar";
+                forgeAssetURL
+                        = "https://repo1.maven.org/maven2/org/scala-lang/scala-xml/2.11.0-M4/scala-xml-2.11.0-M4.jar";
             }
             if ( forgeAssetURL.contains( "lzma/lzma" ) ) {
                 forgeAssetURL = "https://repo.spongepowered.org/maven/lzma/lzma/0.0.1/lzma-0.0.1.jar";
@@ -187,36 +250,38 @@ class GameModLoaderForge extends ManagedGameFile
             }
 
             // Build Local File Path
-            String localForgeAssetFilePath = forgeAssetName.substring( 0, forgeAssetName
-                    .indexOf( ":" ) ).replace( ".", File.separator )
-                    + File.separator + forgeAssetRepoPath + ".jar";
+            String localForgeAssetFilePath = forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) )
+                                                           .replace( ".", File.separator ) +
+                    File.separator +
+                    forgeAssetRepoPath +
+                    LocalPathConstants.JAR_FILE_EXTENSION;
 
             // Get Forge Asset Requirements
             boolean clientReq = true;
-            if ( forgeAssetObj.has( "clientreq" ) ) {
-                clientReq = forgeAssetObj.get( "clientreq" ).getAsBoolean();
+            if ( forgeAssetObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_CLIENT_REQ_KEY ) ) {
+                clientReq = forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_CLIENT_REQ_KEY )
+                                         .getAsBoolean();
             }
             boolean serverReq = true;
-            if ( forgeAssetObj.has( "serverreq" ) ) {
-                serverReq = forgeAssetObj.get( "serverreq" ).getAsBoolean();
+            if ( forgeAssetObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_SERVER_REQ_KEY ) ) {
+                serverReq = forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_SERVER_REQ_KEY )
+                                         .getAsBoolean();
             }
 
             // Build Forge Asset Object and Add to List of Assets
             // Note: hash checking not supported on forge assets yet
-            forgeAssets.add(
-                    new GameAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
+            forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
         }
 
         // Return resulting list of Forge Assets
         return forgeAssets;
     }
 
-    private void downloadForgeAssets( GameMode gameAppMode,
-                                      GameModPackProgressProvider progressProvider )
+    private void downloadForgeAssets( GameMode gameAppMode, GameModPackProgressProvider progressProvider )
     throws ModpackException
     {
         // Get list of Forge Assets
-        ArrayList< GameAsset > forgeAssetsList = getForgeAssetList();
+        ArrayList< GameAsset > forgeAssetsList = getForgeLibrariesList();
 
         // For each asset, verify and download as necessary
         for ( GameAsset forgeAsset : forgeAssetsList ) {
@@ -227,10 +292,10 @@ class GameModLoaderForge extends ManagedGameFile
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider
-                        .submitProgress( "Verified asset " + SynchronizedFileManager
-                                                 .getSynchronizedFile( forgeAsset.getFullLocalFilePath() ).getName(),
-                                         ( 60.0 / ( double ) forgeAssetsList.size() ) );
+                progressProvider.submitProgress( "Verified asset " +
+                                                         SynchronizedFileManager.getSynchronizedFile(
+                                                                 forgeAsset.getFullLocalFilePath() ).getName(),
+                                                 ( 60.0 / ( double ) forgeAssetsList.size() ) );
             }
         }
     }
@@ -239,7 +304,7 @@ class GameModLoaderForge extends ManagedGameFile
     throws ModpackException
     {
         // Get list of Forge Assets
-        ArrayList< GameAsset > forgeAssetsList = getForgeAssetList();
+        ArrayList< GameAsset > forgeAssetsList = getForgeLibrariesList();
         // Update progress provider if present
         if ( progressProvider != null ) {
             progressProvider.submitProgress( "Got Forge asset list", 20.0 );
@@ -252,8 +317,7 @@ class GameModLoaderForge extends ManagedGameFile
         StringBuilder classpath = new StringBuilder();
         for ( GameAsset forgeAsset : forgeAssetsList ) {
             // Add separator to string if necessary
-            if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith(
-                    File.pathSeparator ) ) {
+            if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith( File.pathSeparator ) ) {
                 classpath.append( File.pathSeparator );
             }
 
@@ -265,9 +329,8 @@ class GameModLoaderForge extends ManagedGameFile
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider.submitProgress(
-                        "Added to classpath: " + forgeAsset.getLocalFilePath(),
-                        ( 20.0 / ( double ) forgeAssetsList.size() ) );
+                progressProvider.submitProgress( "Added to classpath: " + forgeAsset.getLocalFilePath(),
+                                                 ( 20.0 / ( double ) forgeAssetsList.size() ) );
             }
         }
 
@@ -283,15 +346,15 @@ class GameModLoaderForge extends ManagedGameFile
         while ( enumeration.hasMoreElements() ) {
             // Check if element is version.json
             JarEntry jarEntry = enumeration.nextElement();
-            if ( jarEntry.getName().equals( "version.json" ) ) {
+            if ( jarEntry.getName().equals( ForgeConstants.FORGE_JAR_VERSION_FILE_NAME ) ) {
                 // Read version.json via input stream
                 InputStream inputStream;
                 try {
                     inputStream = forgeJarFile.getInputStream( jarEntry );
                 }
                 catch ( IOException e ) {
-                    throw new ModpackException(
-                            "Unable to open Forge version manifest for parsing.", e );
+                    throw new ModpackException( LocalizationManager.UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT,
+                                                e );
                 }
                 InputStreamReader inputStreamReader = new InputStreamReader( inputStream );
                 JsonObject jsonObject = new Gson().fromJson( inputStreamReader, JsonObject.class );
@@ -303,13 +366,13 @@ class GameModLoaderForge extends ManagedGameFile
                     forgeJarFile.close();
                 }
                 catch ( IOException e ) {
-                    System.err.println( "unable to close streams" );
+                    Logger.logError( LocalizationManager.UNABLE_CLOSE_STREAMS_TEXT );
                 }
                 return jsonObject;
             }
         }
 
         // Throw exception if not able to locate version.json
-        throw new ModpackException( "Unable to find Forge version file." );
+        throw new ModpackException( LocalizationManager.UNABLE_FIND_FORGE_VERSION_FILE_TEXT );
     }
 }

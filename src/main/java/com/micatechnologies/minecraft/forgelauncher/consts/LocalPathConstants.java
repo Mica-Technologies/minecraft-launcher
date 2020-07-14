@@ -25,6 +25,9 @@ import java.text.SimpleDateFormat;
 
 /**
  * Class of constants related to local file paths and storage for the application.
+ * <p>
+ * NOTE: This class should NOT contain display strings that are visible to the end-user. All localizable strings MUST be
+ * stored and retrieved using {@link com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager}.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -40,9 +43,10 @@ public class LocalPathConstants
      *
      * @since 1.0
      */
-    public static final String CLIENT_MODE_LAUNCHER_FOLDER_PATH =
-            System.getProperty( "user.home" ) + File.separator + "." +
-                    LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED;
+    public static final String CLIENT_MODE_LAUNCHER_FOLDER_PATH = System.getProperty( "user.home" ) +
+            File.separator +
+            "." +
+            LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED;
 
     /**
      * The absolute file path to the application local storage folder when the application is operating in server mode.
@@ -50,7 +54,6 @@ public class LocalPathConstants
      * @since 1.0
      */
     public static final String SERVER_MODE_LAUNCHER_FOLDER_PATH = Paths.get( "" ).toAbsolutePath().toString();
-
 
     /**
      * Relative path to the application configuration folder within the application folder.
@@ -102,11 +105,20 @@ public class LocalPathConstants
     public static final String AUTH_ACCOUNT_REMEMBERED_FILE_NAME = File.separator + "player.mica";
 
     /**
+     * File extension of Minecraft manifests that are stored locally.
+     *
+     * @since 1.0
+     */
+    public static final String MINECRAFT_MANIFEST_LOCAL_FILE_EXTENSION = ".manifest";
+
+    /**
      * The name of the file used to store the Minecraft version manifest
      *
      * @since 1.0
      */
-    public static final String MINECRAFT_VERSION_MANIFEST_FILE_NAME = File.separator + "version.manifest";
+    public static final String MINECRAFT_VERSION_MANIFEST_FILE_NAME = File.separator +
+            "version" +
+            MINECRAFT_MANIFEST_LOCAL_FILE_EXTENSION;
 
     /**
      * The mod pack relative path where assets are stored.
@@ -120,15 +132,46 @@ public class LocalPathConstants
      *
      * @since 1.0
      */
-    public static final String MINECRAFT_ASSET_RELATIVE_INDEXES_FOLDER =
-            MINECRAFT_ASSET_RELATIVE_FOLDER + File.separator + "indexes";
+    public static final String MINECRAFT_ASSET_RELATIVE_INDEXES_FOLDER = MINECRAFT_ASSET_RELATIVE_FOLDER +
+            File.separator +
+            "indexes";
 
     /**
      * The mod pack relative path where asset objects are stored.
      *
      * @since 1.0
      */
-    public static final String MINECRAFT_ASSET_RELATIVE_OBJECTS_FOLDER =
-            MINECRAFT_ASSET_RELATIVE_FOLDER + File.separator + "objects";
+    public static final String MINECRAFT_ASSET_RELATIVE_OBJECTS_FOLDER = MINECRAFT_ASSET_RELATIVE_FOLDER +
+            File.separator +
+            "objects";
+
+    /**
+     * The name of the file used to store the Minecraft library manifest
+     *
+     * @since 1.0
+     */
+    public static final String MINECRAFT_LIBRARY_MANIFEST_FILE_NAME = "libraries" +
+            MINECRAFT_MANIFEST_LOCAL_FILE_EXTENSION;
+
+    /**
+     * Name of the bin folder in mod pack installation folders.
+     *
+     * @since 1.0
+     */
+    public static final String MOD_PACK_BIN_FOLDER_NAME = "bin";
+
+    /**
+     * File extension of a Java .jar file.
+     *
+     * @since 1.0
+     */
+    public static final String JAR_FILE_EXTENSION = ".jar";
+
+    /**
+     * File extension of a launcher log file.
+     *
+     * @since 1.0
+     */
+    public static final String LOG_FILE_EXTENSION = ".log";
 
 }

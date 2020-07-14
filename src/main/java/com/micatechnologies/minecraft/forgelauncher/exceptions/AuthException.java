@@ -34,7 +34,7 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.Client
 public class AuthException extends LauncherException
 {
     /**
-     * Create a {@link AuthException} with specified message.
+     * Create an {@link AuthException} with specified message.
      *
      * @param reason exception message
      */
@@ -44,7 +44,7 @@ public class AuthException extends LauncherException
     }
 
     /**
-     * Create a {@link AuthException} with specified message and backtrace.
+     * Create an {@link AuthException} with specified message and backtrace.
      *
      * @param reason    exception message
      * @param backtrace exception backtrace

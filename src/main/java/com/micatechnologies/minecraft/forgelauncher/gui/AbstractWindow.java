@@ -202,10 +202,10 @@ public abstract class AbstractWindow extends Application
             } );
         }
 
-
         // Set listener for window location changes
-        ChangeListener< Number > windowMoveListener = ( observableValue, number, t1 ) -> GUIController
-                .setCustomWindowLocations( currentJFXStage.getX(), currentJFXStage.getY() );
+        ChangeListener< Number > windowMoveListener
+                = ( observableValue, number, t1 ) -> GUIController.setCustomWindowLocations( currentJFXStage.getX(),
+                                                                                             currentJFXStage.getY() );
         currentJFXStage.xProperty().addListener( windowMoveListener );
         currentJFXStage.yProperty().addListener( windowMoveListener );
 
@@ -309,13 +309,17 @@ public abstract class AbstractWindow extends Application
             // Perform styling
             thisWindow.setTitlebarAppearsTransparent( true );
             thisWindow.setStyleMask(
-                    new NSUInteger(
-                            thisWindow.styleMask().intValue() | NSWindow.StyleMaskFullSizeContentView ) );
+                    new NSUInteger( thisWindow.styleMask().intValue() | NSWindow.StyleMaskFullSizeContentView ) );
+
+            // Make window draggable
+            rootPane.setOnMousePressed( pressEvent -> rootPane.setOnMouseDragged( dragEvent -> {
+                currentJFXStage.setX( dragEvent.getScreenX() + pressEvent.getSceneX() );
+                currentJFXStage.setY( dragEvent.getScreenY() + pressEvent.getSceneY() );
+            } ) );
         }
         catch ( Exception e ) {
             e.printStackTrace();
-            Logger.logDebug(
-                    "An error occurred while performing style modifications to an NSWindow wrapper." );
+            Logger.logDebug( "An error occurred while performing style modifications to an NSWindow wrapper." );
         }
     }
 
@@ -353,11 +357,11 @@ public abstract class AbstractWindow extends Application
     public long getWindowHandle() {
         // Attempt to compare windows and ensure correct one picked
         for ( Window w : Window.getWindows() ) {
-            if ( Objects.equals( w.getTitle(), currentJFXStage.getTitle() )
-                    && w.getHeight() == currentJFXStage.getHeight()
-                    && w.getWidth() == currentJFXStage.getWidth()
-                    && w.getX() == currentJFXStage.getX()
-                    && w.getY() == currentJFXStage.getY() ) {
+            if ( Objects.equals( w.getTitle(), currentJFXStage.getTitle() ) &&
+                    w.getHeight() == currentJFXStage.getHeight() &&
+                    w.getWidth() == currentJFXStage.getWidth() &&
+                    w.getX() == currentJFXStage.getX() &&
+                    w.getY() == currentJFXStage.getY() ) {
                 return w.getNativeHandle();
             }
         }

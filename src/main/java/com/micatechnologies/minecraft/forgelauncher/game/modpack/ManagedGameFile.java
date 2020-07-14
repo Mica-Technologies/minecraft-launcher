@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FileUtilities;
@@ -146,7 +147,7 @@ public class ManagedGameFile
         }
         // Hash Checking Enabled: Return true if file exists, is not a folder, and hashes match
         else {
-            return HashUtilities.verifySHA1( localFile,sha1 );
+            return HashUtilities.verifySHA1( localFile, sha1 );
         }
     }
 
@@ -162,11 +163,12 @@ public class ManagedGameFile
 
         // Download file and return validation result
         try {
+            localFile.getParentFile().mkdirs();
             NetworkUtilities.downloadFileFromURL( new URL( remote ), localFile );
         }
         catch ( IOException e ) {
             throw new ModpackException(
-                    "Unable to download file locally to " + getFullLocalFilePath(), e );
+                    LocalizationManager.UNABLE_DOWNLOAD_FILE_LOCALLY_TO_TEXT + " " + getFullLocalFilePath(), e );
         }
     }
 
@@ -247,7 +249,7 @@ public class ManagedGameFile
             return FileUtilities.readAsJson( localFileObject );
         }
         catch ( IOException e ) {
-            throw new ModpackException( "Unable to read local file to JSON object.", e );
+            throw new ModpackException( LocalizationManager.UNABLE_READ_LOCAL_FILE_TO_JSON_EXCEPTION_TEXT, e );
         }
     }
 }

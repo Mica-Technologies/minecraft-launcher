@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.forgelauncher.files;
 
 import com.micatechnologies.minecraft.forgelauncher.config.ConfigManager;
 import com.micatechnologies.minecraft.forgelauncher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.gui.GUIController;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
@@ -47,29 +48,44 @@ public class Logger
      *
      * @since 1.0
      */
-    private static final String logErrorPrefix = "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/ERROR] ";
+    private static final String logErrorPrefix = "[" +
+            LauncherConstants.LAUNCHER_APPLICATION_NAME +
+            "/" +
+            LocalizationManager.LOG_ERROR_PREFIX +
+            "] ";
 
     /**
      * Prefix for warning logs
      *
      * @since 1.1
      */
-    private static final String logWarnPrefix = "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/WARN] ";
-
+    private static final String logWarnPrefix = "[" +
+            LauncherConstants.LAUNCHER_APPLICATION_NAME +
+            "/" +
+            LocalizationManager.LOG_WARNING_PREFIX +
+            "] ";
 
     /**
      * Prefix for standard logs
      *
      * @since 1.0
      */
-    private static final String logStdPrefix = "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/STD] ";
+    private static final String logStdPrefix = "[" +
+            LauncherConstants.LAUNCHER_APPLICATION_NAME +
+            "/" +
+            LocalizationManager.LOG_STANDARD_PREFIX +
+            "] ";
 
     /**
      * Prefix for debug logs
      *
      * @since 1.0
      */
-    private static final String logDebugPrefix = "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/DEBUG] ";
+    private static final String logDebugPrefix = "[" +
+            LauncherConstants.LAUNCHER_APPLICATION_NAME +
+            "/" +
+            LocalizationManager.LOG_DEBUG_PREFIX +
+            "] ";
 
     /**
      * Initializes the logging system
@@ -84,14 +100,13 @@ public class Logger
         // Create parent directory(ies) if necessary
         final var mkdirs = logFile.getParentFile().mkdirs();
         if ( !mkdirs ) {
-            Logger.logDebug(
-                    "The log file directory (or parent) was not created. It may already exist, or access may have been denied." );
+            Logger.logDebug( LocalizationManager.LOG_FILE_DIR_NOT_CREATED_TEXT );
         }
 
         // Create a new log file
         var newFile = logFile.createNewFile();
         if ( !newFile ) {
-            Logger.logError( "A log file was not created. The logging subsystem may not recorded logs to file." );
+            Logger.logError( LocalizationManager.LOG_FILE_NOT_CREATED_TEXT );
         }
 
         /*
@@ -116,7 +131,7 @@ public class Logger
         // Assign tee-d print streams
         System.setOut( sysOut );
         System.setErr( sysErr );
-        Logger.logStd( "Logging subsystem has been initialized" );
+        Logger.logStd( LocalizationManager.LOG_SYSTEM_INITIALIZED_TEXT );
     }
 
     /**
@@ -166,7 +181,6 @@ public class Logger
 
         System.err.println( logWarnPrefix + warningLog );
     }
-
 
     /**
      * Log a standard message with its prefix

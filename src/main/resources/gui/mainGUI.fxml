@@ -28,7 +28,7 @@
   ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="400.0" minWidth="400.0" prefHeight="400.0" prefWidth="400.0" style="-fx-background-color: #4D3620;" stylesheets="@guiStyle.css" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml">
+<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="400.0" minWidth="400.0" prefHeight="400.0" prefWidth="400.0" style="-fx-background-color: #4D3620;" stylesheets="@../guiStyle.css" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
     </columnConstraints>
@@ -55,7 +55,7 @@
             <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
         </padding>
         <ImageView fx:id="packLogo" fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-            <Image url="@mica_forge_launcher_icon.png" />
+            <Image url="@../mica_forge_launcher_icon.png" />
         </ImageView>
       <GridPane maxHeight="35.0" maxWidth="250.0" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
         <columnConstraints>
@@ -134,10 +134,10 @@
             <GridPane.margin>
                 <Insets left="10.0" />
             </GridPane.margin>
-            <Image url="@no_user.png" />
+            <Image url="@../no_user.png" />
         </ImageView>
         <ImageView fx:id="updateImgView" fitHeight="36.0" fitWidth="26.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="3" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER">
-            <Image url="@update.png" />
+            <Image url="@../update.png" />
         </ImageView>
     </GridPane>
 </GridPane>

@@ -95,7 +95,7 @@ public class ProgressWindow extends AbstractWindow
      */
     @Override
     String getFXMLResourcePath() {
-        return "progressGUI.fxml";
+        return "gui/progressGUI.fxml";
     }
 
     /**

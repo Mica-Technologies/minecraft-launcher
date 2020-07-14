@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.forgelauncher;
 
 import com.micatechnologies.minecraft.forgelauncher.config.ConfigManager;
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.forgelauncher.game.auth.AuthAccount;
 import com.micatechnologies.minecraft.forgelauncher.game.auth.AuthService;
@@ -43,6 +44,8 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 /**
  * Launcher core class. This class is the main entry point of the Mica Forge Launcher, and handles the main processes
@@ -53,6 +56,7 @@ import java.util.List;
  * @version 2.0
  * @creator hawka97
  * @editors hawka97
+ * @since START
  */
 public class LauncherCore
 {
@@ -89,19 +93,18 @@ public class LauncherCore
 
             // Check for internet connection. Close if unable to connect
             if ( !NetworkUtilities.isMojangAuthReachable() ) {
-                Logger.logError(
-                        "Unable to reach the Mojang authentication servers! Cannot start launcher. Try again later or contact support." );
+                Logger.logError( LocalizationManager.UNABLE_TO_REACH_MOJANG_CANT_START_TEXT );
                 closeApp();
             }
 
             // If client, do login
             if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
-                Logger.logDebug( "Launcher is running in client game mode. Starting login..." );
+                Logger.logDebug( LocalizationManager.LAUNCHER_CLIENT_MODE_STARTING_LOGIN_TEXT );
                 performClientLogin();
-                Logger.logDebug( "The login process has finished." );
+                Logger.logDebug( LocalizationManager.LOGIN_PROCESS_FINISHED_TEXT );
             }
             else {
-                Logger.logDebug( "Launcher is not in client game mode. Skipping authentication/login handler." );
+                Logger.logDebug( LocalizationManager.LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT );
             }
 
             // Load mod pack information
@@ -123,9 +126,9 @@ public class LauncherCore
      * @since 2.0
      */
     public static void play( GameModPack gameModPack ) {
-        if ( gameModPack.getPackMinRAMGB() >= ConfigManager.getMaxRamInGb() ) {
+        if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
             try {
-                Logger.logDebug( "Launching mod pack: " + gameModPack.getFriendlyName() );
+                Logger.logDebug( LocalizationManager.LAUNCHING_MOD_PACK_TEXT + ": " + gameModPack.getFriendlyName() );
                 gameModPack.setProgressProvider( new GameModPackProgressProvider()
                 {
                     @Override
@@ -136,13 +139,21 @@ public class LauncherCore
                 gameModPack.startGame();
             }
             catch ( Exception e ) {
-                Logger.logError( "Unable to start the game. An exception occurred!" );
+                Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );
                 e.printStackTrace();
             }
         }
         else {
-            Logger.logError( "The mod pack [" + gameModPack.getFriendlyName() +
-                                     "] requires a minimum of GB of RAM. The maximum RAM setting must be increased." );
+            Logger.logError( "[" +
+                                     gameModPack.getFriendlyName() +
+                                     "] " +
+                                     LocalizationManager.REQUIRES_MIN_OF_TEXT +
+                                     " " +
+                                     gameModPack.getPackMinRAMGB() +
+                                     " " +
+                                     LocalizationManager.GB_OF_RAM_TEXT +
+                                     ". " +
+                                     LocalizationManager.MAX_RAM_SETTING_MUST_INCREASE_TEXT );
         }
     }
 
@@ -161,11 +172,11 @@ public class LauncherCore
 
         // Check if requested mod pack is installed
         if ( modPackName.length() > 0 && finalGameModPack == null ) {
-            Logger.logError( "The mod pack [" + modPackName + "] is not installed! Will default to first mod pack." );
+            Logger.logError( modPackName + " " + LocalizationManager.PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT );
         }
         // Show message if using first mod pack by default
         else if ( modPackName.length() == 0 && finalGameModPack == null ) {
-            Logger.logStd( "No mod pack specified. Will default to first mod pack." );
+            Logger.logStd( LocalizationManager.NO_MOD_PACK_SPECIFIED_WILL_DEFAULT_TO_FIRST_TEXT );
         }
 
         // Select first mod pack by default
@@ -173,7 +184,7 @@ public class LauncherCore
             // Check for installed mod packs
             final List< GameModPack > installedGameModPacks = GameModPackManager.getInstalledModPacks();
             if ( installedGameModPacks.size() == 0 ) {
-                Logger.logStd( "No mod packs are installed. Cannot automatically select first mod pack." );
+                Logger.logStd( LocalizationManager.NO_MOD_PACKS_INSTALLED_CANT_SELECT_FIRST_TEXT );
             }
             else {
                 finalGameModPack = installedGameModPacks.get( 0 );
@@ -193,9 +204,8 @@ public class LauncherCore
                 mainWindow.closedLatch.await();
             }
             catch ( InterruptedException e ) {
-                Logger.logError(
-                        "An error is preventing GUI completion handling. The login screen may not appear after logout." );
-                e.printStackTrace();
+                Logger.logError( LocalizationManager.ERROR_PREVENTING_GUI_COMPLETE_HANDLING_TEXT );
+                Logger.logThrowable( e );
             }
         }
         else if ( GameModeManager.isServer() ) {
@@ -203,8 +213,7 @@ public class LauncherCore
                 play( finalGameModPack );
             }
             else {
-                Logger.logError(
-                        "There are no mod packs installed. Cannot launch server unless a mod pack is installed to start." );
+                Logger.logError( LocalizationManager.NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT );
             }
         }
     }
@@ -216,17 +225,22 @@ public class LauncherCore
      */
     public static void configureLogger() {
         Timestamp logTimeStamp = new Timestamp( System.currentTimeMillis() );
-        File logFile = SynchronizedFileManager.getSynchronizedFile(
-                LocalPathManager.getLauncherLogFolderPath() + File.separator +
-                        LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED + "_" +
-                        GameModeManager.getCurrentGameMode().getStringName() + "_" +
-                        LocalPathConstants.LOG_FILE_NAME_DATE_FORMAT.format( logTimeStamp ) + ".log" );
+        File logFile = SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLogFolderPath() +
+                                                                            File.separator +
+                                                                            LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED +
+                                                                            "_" +
+                                                                            GameModeManager.getCurrentGameMode()
+                                                                                           .getStringName() +
+                                                                            "_" +
+                                                                            LocalPathConstants.LOG_FILE_NAME_DATE_FORMAT
+                                                                                    .format( logTimeStamp ) +
+                                                                            LocalPathConstants.LOG_FILE_EXTENSION );
         try {
             Logger.initLogSys( logFile );
         }
         catch ( IOException e ) {
-            e.printStackTrace();
-            System.err.println( "An error was encountered while configuring the application logging system." );
+            Logger.logError( LocalizationManager.ERROR_CONFIGURING_LOG_SYSTEM_TEXT );
+            Logger.logThrowable( e );
         }
     }
 
@@ -243,7 +257,7 @@ public class LauncherCore
 
         // If no saved account, show message and login screen, otherwise continue.
         if ( authAccount == null ) {
-            Logger.logStd( "A remembered user account was not found on disk. Showing login screen..." );
+            Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
 
             // Show login screen
             LoginWindow loginWindow = new LoginWindow();
@@ -254,7 +268,7 @@ public class LauncherCore
                 loginWindow.waitForLoginSuccess();
             }
             catch ( InterruptedException e ) {
-                Logger.logError( "Unable to wait for pending login task." );
+                Logger.logError( LocalizationManager.UNABLE_WAIT_PENDING_LOGIN_TEXT );
                 closeApp();
             }
 
@@ -267,19 +281,18 @@ public class LauncherCore
                 boolean authRefreshed = AuthService.refreshAuth( authAccount );
                 AuthManager.writeAccountToDiskIfRemembered();
                 if ( !authRefreshed ) {
-                    Logger.logError(
-                            "The authentication of the loaded user account was not refreshed. Try again later!" );
+                    Logger.logError( LocalizationManager.AUTH_NOT_REFRESHED_TEXT );
                 }
             }
             catch ( AuthException e1 ) {
-                e1.printStackTrace();
-                Logger.logError(
-                        "Unable to refresh the authentication of the remembered user account. Returning to login." );
+                Logger.logError( LocalizationManager.AUTH_UNABLE_TO_REFRESH_TEXT );
+                Logger.logThrowable( e1 );
                 AuthManager.logout();
                 restartFlag = true;
                 restartApp();
             }
-            Logger.logStd( "[" + authAccount.getFriendlyName() + "] was logged in to the launcher." );
+            Logger.logStd(
+                    "[" + authAccount.getFriendlyName() + "] " + LocalizationManager.WAS_LOGGED_IN_TO_LAUNCHER_TEXT );
         }
     }
 
@@ -315,8 +328,13 @@ public class LauncherCore
             initialModPackSelection = args[ 1 ];
         }
         else {
-            Logger.logError(
-                    "Invalid arguments specified.\nUsage: launcher.jar [ -s [modpack_name] | -c [modpack_name] | modpack_name ]" );
+            Logger.logError( LocalizationManager.INVALID_ARGS_SPECIFIED_TEXT +
+                                     "\n" +
+                                     LocalizationManager.USAGE_TEXT +
+                                     ": launcher.jar [ -s [modpack_name] | -c" +
+                                     " " +
+                                     "[modpack_name] | " +
+                                     "modpack_name ]" );
             closeApp();
         }
         return initialModPackSelection;
@@ -328,9 +346,7 @@ public class LauncherCore
      * @since 1.0
      */
     public static void applySystemProperties() {
-        System.setProperty( "prism.lcdtext", "false" );
-        System.setProperty( "prism.text", "t2k" );
-        System.setProperty( "prism.order", "sw" );
+        LauncherConstants.JVM_PROPERTIES.forEach( System::setProperty );
     }
 
     /**
@@ -340,9 +356,9 @@ public class LauncherCore
      * @since 2.0
      */
     public static void cleanupApp() {
-        Logger.logStd( "Performing application cleanup..." );
+        Logger.logStd( LocalizationManager.PERFORMING_APP_CLEANUP_TEXT );
         GUIController.closeAllWindows();
-        Logger.logStd( "Finished application cleanup" );
+        Logger.logStd( LocalizationManager.FINISHED_APP_CLEANUP_TEXT );
     }
 
     /**
@@ -365,7 +381,7 @@ public class LauncherCore
     public static void closeApp() {
         Platform.setImplicitExit( true );
         cleanupApp();
-        Logger.logStd( "See you soon!" );
-        System.exit( 0 );
+        Logger.logStd( LocalizationManager.SEE_YOU_SOON_TEXT );
+        System.exit( LauncherConstants.EXIT_STATUS_CODE_GOOD );
     }
 }

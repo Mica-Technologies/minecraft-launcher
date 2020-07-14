@@ -17,19 +17,24 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
 
 import java.io.File;
 
 /**
  * Class containing constants that support the mod pack functionality of the launcher.
+ * <p>
+ * NOTE: This class should NOT contain display strings that are visible to the end-user. All localizable strings MUST be
+ * stored and retrieved using {@link com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager}.
  *
  * @author Mica Technologies
  * @version 1.0
- * @since 2.0
  * @creator hawka97
  * @editors hawka97
+ * @since 2.0
  */
+@ClientAndServer
 public class ModPackConstants
 {
     /**
@@ -44,16 +49,14 @@ public class ModPackConstants
      *
      * @since 1.0
      */
-    public static final String MODPACK_FORGE_JAR_LOCAL_PATH =
-            "bin" + File.separator + "modpack.jar";
+    public static final String MODPACK_FORGE_JAR_LOCAL_PATH = "bin" + File.separator + "modpack.jar";
 
     /**
      * Modpack install folder relative path to Forge jar
      *
      * @since 1.0
      */
-    public static final String MODPACK_MINECRAFT_JAR_LOCAL_PATH =
-            "bin" + File.separator + "minecraft.jar";
+    public static final String MODPACK_MINECRAFT_JAR_LOCAL_PATH = "bin" + File.separator + "minecraft.jar";
 
     /**
      * Modpack install folder relative path to mods folder
@@ -81,8 +84,7 @@ public class ModPackConstants
      *
      * @since 1.0
      */
-    public static final String MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER =
-            "bin" + File.separator + "natives";
+    public static final String MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER = "bin" + File.separator + "natives";
 
     /**
      * Modpack install folder relative path to game resource packs
@@ -110,24 +112,22 @@ public class ModPackConstants
      *
      * @since 1.0
      */
-    public static final String MODPACK_LOGO_LOCAL_FILE =
-            "bin" + File.separator + "logo.png";
+    public static final String MODPACK_LOGO_LOCAL_FILE = "bin" + File.separator + "logo.png";
 
     /**
      * The Content-Type HTTP request parameter as JSON
      *
      * @since 1.0
      */
-    public static final Pair< String, String > MANIFEST_CXN_CONTENT_TYPE = new Pair<>(
-            "Content-Type", "application/json" );
+    public static final Pair< String, String > MANIFEST_CXN_CONTENT_TYPE = new Pair<>( "Content-Type",
+                                                                                       "application/json" );
 
     /**
      * The charset HTTP request parameter as UTF-8
      *
      * @since 1.0
      */
-    public static final Pair< String, String > MANIFEST_CXN_CHARSET = new Pair<>(
-            "charset", "utf-8" );
+    public static final Pair< String, String > MANIFEST_CXN_CHARSET = new Pair<>( "charset", "utf-8" );
 
     /**
      * Constant for the Microsoft(r) Windows platform
@@ -164,16 +164,16 @@ public class ModPackConstants
      *
      * @since 2.0
      */
-    public static final String MODPACK_DEFAULT_LOGO_URL =
-            "https://cdn.freebiesupply.com/logos/large/2x/minecraft-1-logo-png-transparent.png";
+    public static final String MODPACK_DEFAULT_LOGO_URL
+            = "https://cdn.freebiesupply.com/logos/large/2x/minecraft-1-logo-png-transparent.png";
 
     /**
      * URL of manifest containing the manifest URLs of installable mod packs.
      *
      * @since 1.0
      */
-    public static final String AVAILABLE_PACKS_MANIFEST_URL =
-            "https://minecraft.micatechnologies.com/files/packs/installable.json";
+    public static final String AVAILABLE_PACKS_MANIFEST_URL
+            = "https://minecraft.micatechnologies.com/files/packs/installable.json";
 
     /**
      * The key that identifies the list of installable mod pack manifest URLs in the available mod packs manifest.
@@ -195,18 +195,15 @@ public class ModPackConstants
      *
      * @since 1.0
      */
-    public static final String APP_GARBAGE_COLLECTOR_SETTINGS =
-            "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M ";
-
+    public static final String APP_GARBAGE_COLLECTOR_SETTINGS
+            = "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M ";
 
     /**
      * Download URL of Minecraft version manifest
      *
      * @since 1.0
      */
-    public static final String MINECRAFT_VERSION_MANIFEST_URL =
-            "https://launchermeta.mojang.com/mc/game/version_manifest.json";
-
-
+    public static final String MINECRAFT_VERSION_MANIFEST_URL
+            = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 
 }

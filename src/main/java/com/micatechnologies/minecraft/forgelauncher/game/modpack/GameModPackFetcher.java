@@ -27,8 +27,11 @@ import java.nio.charset.Charset;
 /**
  * Class for fetching mod pack objects from their manifest URL.
  *
- * @author Mica Technologies/hawka97
+ * @author Mica Technologies
  * @version 1.0
+ * @creator hawka97
+ * @editors hawka97
+ * @since 2.0
  */
 public class GameModPackFetcher
 {
@@ -37,14 +40,17 @@ public class GameModPackFetcher
      * Fetches the mod pack object from the specified manifest URL.
      *
      * @param manifestUrl mod pack manifest URL
+     *
      * @return mod pack object
+     *
+     * @since 1.0
      */
-    public static GameModPack get( String manifestUrl) throws IOException {
+    public static GameModPack get( String manifestUrl ) throws IOException {
         // Fetch contents of available mod pack manifest
-        String manifestBody = IOUtils.toString(new URL(manifestUrl), Charset.defaultCharset());
+        String manifestBody = IOUtils.toString( new URL( manifestUrl ), Charset.defaultCharset() );
 
         // Parse available mod pack manifest contents
-        GameModPack gameModPack = new Gson().fromJson( manifestBody, GameModPack.class);
+        GameModPack gameModPack = new Gson().fromJson( manifestBody, GameModPack.class );
         gameModPack.manifestUrl = manifestUrl;
         return gameModPack;
     }

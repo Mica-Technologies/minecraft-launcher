@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.forgelauncher.game.auth;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.consts.AuthConstants;
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.AuthException;
 import com.micatechnologies.minecraft.forgelauncher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
@@ -58,10 +59,8 @@ public class AuthService
         JsonObject agent = new JsonObject();
 
         // Populate agent object
-        agent.addProperty( AuthConstants.AUTH_AGENT_NAME._1,
-                           AuthConstants.AUTH_AGENT_NAME._2 );
-        agent.addProperty( AuthConstants.AUTH_AGENT_VERSION._1,
-                           AuthConstants.AUTH_AGENT_VERSION._2 );
+        agent.addProperty( AuthConstants.AUTH_AGENT_NAME._1, AuthConstants.AUTH_AGENT_NAME._2 );
+        agent.addProperty( AuthConstants.AUTH_AGENT_VERSION._1, AuthConstants.AUTH_AGENT_VERSION._2 );
 
         // Populate root object
         root.add( AuthConstants.AUTH_ENDPOINT_KEY_AGENT, agent );
@@ -70,48 +69,45 @@ public class AuthService
         root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_CLIENT_TOKEN, AuthManager.getClientToken() );
 
         // Perform HTTP Post Call to Mojang Endpoint
-        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_PASSWORD_ENDPOINT,
-                                                    root.toString() );
+        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_PASSWORD_ENDPOINT, root.toString() );
 
         // Convert response to Json Object
         JsonObject responseObject = JSONUtilities.stringToObject( response );
 
         // Process response only if error or error message not present
-        if ( !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) && !responseObject
-                .has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG ) ) {
+        if ( !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) &&
+                !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG ) ) {
             // Read and save acquired access token
             if ( responseObject.has( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ) ) {
                 account.setLastAccessToken(
-                        responseObject.get( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN )
-                                      .getAsString() );
+                        responseObject.get( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ).getAsString() );
             }
             else {
-                throw new AuthException( "An access token could not be found in the authentication response." );
+                throw new AuthException( LocalizationManager.AUTH_RESPONSE_NO_ACCESS_TOKEN_TEXT );
             }
 
             // Read and save profile name and id, if present
             // If not present, method will continue
             if ( responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ) ) {
-                if ( responseObject.getAsJsonObject(
-                        AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ).has(
-                        AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME ) ) {
-                    account.setFriendlyName( responseObject.getAsJsonObject(
-                            AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ).get(
-                            AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME )
-                                                           .getAsString() );
+                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME ) ) {
+                    account.setFriendlyName(
+                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME )
+                                          .getAsString() );
                 }
                 else {
-                    Logger.logDebug( "The authentication response did not include a profile name." );
+                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_NAME_TEXT );
                 }
-                if ( responseObject.getAsJsonObject(
-                        AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ).has(
-                        AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ) ) {
-                    account.setUserIdentifier( responseObject.getAsJsonObject(
-                            AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ).get(
-                            AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ).getAsString() );
+                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ) ) {
+                    account.setUserIdentifier(
+                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID )
+                                          .getAsString() );
                 }
                 else {
-                    Logger.logDebug( "The authentication response did not include a profile identifier (ID)." );
+                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_ID_TEXT );
                 }
             }
         }
@@ -145,53 +141,49 @@ public class AuthService
 
         // Build JSON Object for Request
         JsonObject root = new JsonObject();
-        root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN,
-                          account.getLastAccessToken() );
+        root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN, account.getLastAccessToken() );
         root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_CLIENT_TOKEN, AuthManager.getClientToken() );
 
         // Perform HTTP Post Call to Mojang Endpoint
-        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_REFRESH_TOKEN_ENDPOINT,
-                                                    root.toString() );
+        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_REFRESH_TOKEN_ENDPOINT, root.toString() );
 
         // Convert response to Json Object
         JsonObject responseObject = JSONUtilities.stringToObject( response );
 
         // Process response only if error or error message not present
-        if ( !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) && !responseObject
-                .has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG ) ) {
+        if ( !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) &&
+                !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG ) ) {
             // Read and save acquired access token
             if ( responseObject.has( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ) ) {
                 account.setLastAccessToken(
-                        responseObject.get( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN )
-                                      .getAsString() );
+                        responseObject.get( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ).getAsString() );
             }
             else {
-                throw new AuthException( "An access token could not be found in the authentication response." );
+                throw new AuthException( LocalizationManager.AUTH_RESPONSE_NO_ACCESS_TOKEN_TEXT );
             }
 
             // Read and save profile name and id, if present
             // If not present, method will continue
             if ( responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ) ) {
-                if ( responseObject.getAsJsonObject(
-                        AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ).has(
-                        AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME ) ) {
-                    account.setFriendlyName( responseObject.getAsJsonObject(
-                            AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ).get(
-                            AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME )
-                                                           .getAsString() );
+                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME ) ) {
+                    account.setFriendlyName(
+                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME )
+                                          .getAsString() );
                 }
                 else {
-                    Logger.logDebug( "The authentication response did not include a profile name." );
+                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_NAME_TEXT );
                 }
-                if ( responseObject.getAsJsonObject(
-                        AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ).has(
-                        AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ) ) {
-                    account.setUserIdentifier( responseObject.getAsJsonObject(
-                            AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ).get(
-                            AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ).getAsString() );
+                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ) ) {
+                    account.setUserIdentifier(
+                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID )
+                                          .getAsString() );
                 }
                 else {
-                    Logger.logDebug( "The authentication response did not include a profile identifier (ID)." );
+                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_ID_TEXT );
                 }
             }
         }
@@ -224,20 +216,18 @@ public class AuthService
 
         // Build JSON Object for Request
         JsonObject root = new JsonObject();
-        root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN,
-                          account.getLastAccessToken() );
+        root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN, account.getLastAccessToken() );
         root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_CLIENT_TOKEN, AuthManager.getClientToken() );
 
         // Perform HTTP Post Call to Mojang Endpoint
-        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_VALIDATE_TOKEN_ENDPOINT,
-                                                    root.toString() );
+        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_VALIDATE_TOKEN_ENDPOINT, root.toString() );
 
         // Convert response to Json Object
         JsonObject responseObject = JSONUtilities.stringToObject( response );
 
         // Return true if no error in response
-        return !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) && !responseObject
-                .has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG );
+        return !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) &&
+                !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG );
     }
 
     /**
@@ -261,20 +251,18 @@ public class AuthService
 
         // Build JSON Object for Request
         JsonObject root = new JsonObject();
-        root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN,
-                          account.getLastAccessToken() );
+        root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN, account.getLastAccessToken() );
         root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_CLIENT_TOKEN, AuthManager.getClientToken() );
 
         // Perform HTTP Post Call to Mojang Endpoint
-        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_INVALIDATE_TOKEN_ENDPOINT,
-                                                    root.toString() );
+        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_INVALIDATE_TOKEN_ENDPOINT, root.toString() );
 
         // Convert response to Json Object
         JsonObject responseObject = JSONUtilities.stringToObject( response );
 
         // Return true if no error in response
-        boolean isSuccess = !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR )
-                && !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG );
+        boolean isSuccess = !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) &&
+                !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG );
         if ( isSuccess ) {
             account.setLastAccessToken( null );
         }

@@ -49,19 +49,6 @@ public class SystemUtilities
 {
 
     /**
-     * Check if the specified path exists and is a file.
-     *
-     * @param filePath path to check
-     *
-     * @return if path exists and is file
-     *
-     * @since 1.0
-     */
-    static boolean doesFileExist( Path filePath ) {
-        return filePath.toFile().exists() && filePath.toFile().isFile();
-    }
-
-    /**
      * Executes the specified string command in the specified working directory.
      *
      * @param command          command to execute
@@ -75,8 +62,10 @@ public class SystemUtilities
     throws IOException, InterruptedException
     {
         // Build process call
-        ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO().directory(
-                SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
+        ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO()
+                                                                                  .directory(
+                                                                                          SynchronizedFileManager.getSynchronizedFile(
+                                                                                                  workingDirectory ) );
 
         // Start process and wait for finish
         Logger.logStd( "Executing command: " + command );
@@ -89,8 +78,7 @@ public class SystemUtilities
      * @param source      extract from
      * @param destination extract to
      */
-    public static void extractJarFile( JarFile source, String destination )
-    throws ModpackException
+    public static void extractJarFile( JarFile source, String destination ) throws ModpackException
     {
         // Create an enumeration over JarFile entries
         Enumeration< JarEntry > jarFileFiles = source.entries();
@@ -125,8 +113,7 @@ public class SystemUtilities
                 }
                 catch ( IOException e ) {
                     throw new ModpackException(
-                            "Unable to create file for extraction. " + extractedJarFileFile.getPath(),
-                            e );
+                            "Unable to create file for extraction. " + extractedJarFileFile.getPath(), e );
                 }
             }
 
@@ -141,8 +128,7 @@ public class SystemUtilities
                 }
             }
             catch ( IOException e ) {
-                throw new ModpackException(
-                        "Unable to read file from jar during extraction.", e );
+                throw new ModpackException( "Unable to read file from jar during extraction.", e );
             }
 
             // Close streams

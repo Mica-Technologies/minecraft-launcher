@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.forgelauncher.config;
 
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
@@ -55,7 +56,7 @@ public class GameModeManager
         else {
             currentGameMode = GameMode.CLIENT;
         }
-        Logger.logStd( "Automatically detected and setting game mode: " + currentGameMode.getStringName() );
+        Logger.logStd( LocalizationManager.GAME_MODE_INFERRED_SET_TO_TEXT + " " + currentGameMode.getStringName() );
     }
 
     /**
@@ -79,8 +80,9 @@ public class GameModeManager
      */
     @ClientAndServer
     public synchronized static void setCurrentGameMode( GameMode gameMode ) {
-        Logger.logDebug( "The game mode is being set to " + currentGameMode.getStringName() + "." );
         currentGameMode = gameMode;
+        Logger.logDebug(
+                LocalizationManager.GAME_MODE_BEING_SET_TO_TEXT + " " + currentGameMode.getStringName() + "." );
     }
 
     /**

@@ -17,10 +17,15 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
+
 import java.io.File;
 
 /**
  * Constants related to and required by the runtime management subsystem in the application.
+ * <p>
+ * NOTE: This class should NOT contain display strings that are visible to the end-user. All localizable strings MUST be
+ * stored and retrieved using {@link com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager}.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -28,6 +33,7 @@ import java.io.File;
  * @editors hawka97
  * @since 2.0
  */
+@ClientAndServer
 public class RuntimeConstants
 {
     /**
@@ -35,24 +41,24 @@ public class RuntimeConstants
      *
      * @since 1.0
      */
-    public static final String JRE_8_WIN_URL =
-            "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_windows_hotspot_8u232b09.zip";
+    public static final String JRE_8_WIN_URL
+            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_windows_hotspot_8u232b09.zip";
 
     /**
      * Download URL for version of JRE 8 that is compatible with macOS.
      *
      * @since 1.0
      */
-    public static final String JRE_8_MAC_URL =
-            "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_mac_hotspot_8u232b09.tar.gz";
+    public static final String JRE_8_MAC_URL
+            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_mac_hotspot_8u232b09.tar.gz";
 
     /**
      * Download URL for version of JRE 8 that is compatible with Linux.
      *
      * @since 1.0
      */
-    public static final String JRE_8_LNX_URL =
-            "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_linux_hotspot_8u232b09.tar.gz";
+    public static final String JRE_8_LNX_URL
+            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_linux_hotspot_8u232b09.tar.gz";
 
     /**
      * Download URL for SHA-256 hash of JRE 8 that is compatible with Windows.
@@ -108,8 +114,13 @@ public class RuntimeConstants
      *
      * @since 1.0
      */
-    public static final String JRE_8_MAC_JAVA_EXEC_PATH =
-            "Contents" + File.separator + "Home" + File.separator + "bin" + File.separator + "java";
+    public static final String JRE_8_MAC_JAVA_EXEC_PATH = "Contents" +
+            File.separator +
+            "Home" +
+            File.separator +
+            "bin" +
+            File.separator +
+            "java";
 
     /**
      * The file path to the Java executable in an extracted JRE 8 install for Linux.

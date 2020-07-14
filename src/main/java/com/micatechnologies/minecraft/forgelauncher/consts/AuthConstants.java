@@ -22,6 +22,9 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
 
 /**
  * Class of constants used by the Minecraft Authentication Library
+ * <p>
+ * NOTE: This class should NOT contain display strings that are visible to the end-user. All localizable strings MUST be
+ * stored and retrieved using {@link com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager}.
  *
  * @author Mica Technologies
  * @version 1.1
@@ -110,8 +113,7 @@ public class AuthConstants
      *
      * @since 1.0
      */
-    public static final Pair< String, String > AUTH_AGENT_NAME = new Pair<>(
-            "name", "Minecraft" );
+    public static final Pair< String, String > AUTH_AGENT_NAME = new Pair<>( "name", "Minecraft" );
 
     /**
      * The key and value pair for the agent version in requests to endpoints on the Mojang/Minecraft authentication
@@ -119,8 +121,7 @@ public class AuthConstants
      *
      * @since 1.0
      */
-    public static final Pair< String, String > AUTH_AGENT_VERSION = new Pair<>(
-            "version", "1" );
+    public static final Pair< String, String > AUTH_AGENT_VERSION = new Pair<>( "version", "1" );
 
     /**
      * The key and value pair for the <code>Content-Type</code> header field used when contacting the Mojang/Minecraft
@@ -128,8 +129,8 @@ public class AuthConstants
      *
      * @since 1.0
      */
-    public static final Pair< String, String > AUTH_POST_CONTENT_TYPE = new Pair<>(
-            "Content-Type", "application/json" );
+    public static final Pair< String, String > AUTH_POST_CONTENT_TYPE = new Pair<>( "Content-Type",
+                                                                                    "application/json" );
 
     /**
      * The key for an access token that is returned in a response from the Mojang/Minecraft authentication server.

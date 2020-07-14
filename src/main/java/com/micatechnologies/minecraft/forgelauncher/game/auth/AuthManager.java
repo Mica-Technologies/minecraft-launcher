@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.forgelauncher.game.auth;
 
+import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.AuthException;
 import com.micatechnologies.minecraft.forgelauncher.files.LocalPathManager;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
@@ -75,16 +76,15 @@ public class AuthManager
     public static synchronized AuthAccount getLoggedInAccount() {
         // Attempt to load remember game account from disk if no user is logged in
         if ( loggedInAccount == null ) {
-            Logger.logDebug( "An account is not logged in. Checking persistent storage for a remembered account..." );
+            Logger.logDebug( LocalizationManager.NO_LOGIN_CHECKING_FOR_SAVED_TEXT );
             readAccountFromDisk();
             if ( loggedInAccount == null ) {
-                Logger.logDebug(
-                        "Finished checking persistent storage for a remembered account and was unable to locate one." );
+                Logger.logDebug( LocalizationManager.NO_REMEMBERED_ACCOUNT_TEXT );
             }
             else {
                 rememberAccount = true;
-                Logger.logDebug( "Finished checking persistent storage for a remembered account and the account [" +
-                                         loggedInAccount.getFriendlyName() + "] was located." );
+                Logger.logDebug(
+                        LocalizationManager.REMEMBERED_USER_LOADED_TEXT + " " + loggedInAccount.getFriendlyName() );
             }
         }
 
@@ -109,9 +109,9 @@ public class AuthManager
 
         // Write game account to disk if option chosen
         if ( remember ) {
-            Logger.logDebug( "The remember me option was enabled, writing account to persistent storage..." );
+            Logger.logDebug( LocalizationManager.REMEMBERED_USER_WRITING_TEXT );
             writeAccountToDisk();
-            Logger.logDebug( "Finished writing account to persistent storage." );
+            Logger.logDebug( LocalizationManager.REMEMBERED_USER_WRITE_FINISHED_TEXT );
         }
     }
 
@@ -129,8 +129,8 @@ public class AuthManager
                 AuthService.invalidateLogin( loggedInAccount );
             }
             catch ( AuthException e ) {
-                Logger.logError( "Unable to invalidate login of user account." );
-                e.printStackTrace();
+                Logger.logError( LocalizationManager.UNABLE_TO_INVALIDATE_LOGIN_TEXT );
+                Logger.logThrowable( e );
             }
         }
 
@@ -142,8 +142,8 @@ public class AuthManager
             deleteRememberedUserFile();
         }
         catch ( IOException e ) {
-            Logger.logError( "Unable to remove user account file from disk. User may not be logged out." );
-            e.printStackTrace();
+            Logger.logError( LocalizationManager.UNABLE_REMOVE_USER_FROM_DISK_TEXT );
+            Logger.logThrowable( e );
         }
     }
 
@@ -155,8 +155,8 @@ public class AuthManager
      */
     @ClientModeOnly
     private static void deleteRememberedUserFile() throws IOException {
-        File userDiskFile =
-                SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getRememberedAccountFilePath() );
+        File userDiskFile = SynchronizedFileManager.getSynchronizedFile(
+                LocalPathManager.getRememberedAccountFilePath() );
         FileUtils.forceDelete( userDiskFile );
     }
 
@@ -168,21 +168,20 @@ public class AuthManager
     @ClientModeOnly
     public static void readAccountFromDisk() {
         // Create saved account file object
-        File userDiskFile =
-                SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getRememberedAccountFilePath() );
+        File userDiskFile = SynchronizedFileManager.getSynchronizedFile(
+                LocalPathManager.getRememberedAccountFilePath() );
 
         // Return if saved account file does not exist, otherwise read save account from file
         if ( !userDiskFile.isFile() ) {
-            Logger.logDebug( "There is no saved account file present on disk. Skipping read from disk." );
+            Logger.logDebug( LocalizationManager.NO_USER_ON_DISK_SKIPPING_TEXT );
         }
         else {
             try {
                 loggedInAccount = ( AuthAccount ) FileUtilities.readAsObject( userDiskFile );
             }
             catch ( Exception e ) {
-                Logger.logError(
-                        "A problem occurred while reading the saved user account from disk. Login may be required." );
-                e.printStackTrace();
+                Logger.logError( LocalizationManager.PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT );
+                Logger.logThrowable( e );
             }
         }
     }
@@ -200,7 +199,6 @@ public class AuthManager
 
     }
 
-
     /**
      * Writes the current logged in user to a file in persistent storage.
      *
@@ -210,14 +208,13 @@ public class AuthManager
     public static void writeAccountToDisk() {
         try {
             // Create saved account file object and write account
-            File userDiskFile =
-                    SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getRememberedAccountFilePath() );
+            File userDiskFile = SynchronizedFileManager.getSynchronizedFile(
+                    LocalPathManager.getRememberedAccountFilePath() );
             FileUtilities.writeFromObject( loggedInAccount, userDiskFile );
         }
         catch ( Exception e ) {
-            Logger.logError(
-                    "A problem occurred while writing the remembered game account to disk. The game account may not be remembered." );
-            e.printStackTrace();
+            Logger.logError( LocalizationManager.PROBLEM_WRITING_ACCOUNT_TO_DISK_TEXT );
+            Logger.logThrowable( e );
         }
     }
 
@@ -231,41 +228,38 @@ public class AuthManager
     @ClientModeOnly
     public static String getClientToken() {
         if ( clientToken == null ) {
-            Logger.logDebug( "Client token has not been loaded. Checking for file..." );
+            Logger.logDebug( LocalizationManager.CLIENT_TOKEN_CHECKING_TEXT );
 
             // Attempt to read client token from saved file
-            final File clientTokenFile =
-                    SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getClientTokenFilePath() );
+            final File clientTokenFile = SynchronizedFileManager.getSynchronizedFile(
+                    LocalPathManager.getClientTokenFilePath() );
             if ( clientTokenFile.isFile() ) {
                 try {
-                    clientToken = FileUtils.readFileToString( clientTokenFile,
-                                                              FileUtilities.persistenceCharset );
+                    clientToken = FileUtils.readFileToString( clientTokenFile, FileUtilities.persistenceCharset );
                 }
                 catch ( Exception e ) {
                     clientToken = null;
-                    Logger.logError( "Unable to read stored client token." );
-                    e.printStackTrace();
+                    Logger.logError( LocalizationManager.UNABLE_READ_STORED_CLIENT_TOKEN_TEXT );
+                    Logger.logThrowable( e );
                 }
             }
 
             // Generate new client token if unable to load from saved file and save to file
             if ( clientToken == null ) {
                 clientToken = UUID.randomUUID().toString();
-                Logger.logStd( "A new client token has been generated: " + clientToken );
+                Logger.logStd( LocalizationManager.NEW_CLIENT_TOKEN_TEXT + " " + clientToken );
                 try {
-                    FileUtils.writeStringToFile( clientTokenFile, clientToken,
-                                                 FileUtilities.persistenceCharset );
-                    Logger.logDebug( "Wrote generated client token to file." );
+                    FileUtils.writeStringToFile( clientTokenFile, clientToken, FileUtilities.persistenceCharset );
+                    Logger.logDebug( LocalizationManager.STORED_CLIENT_TOKEN_TEXT );
                 }
                 catch ( Exception e ) {
-                    Logger.logError(
-                            "Unable to save client token to file. Saved/remembered login information may be lost." );
-                    e.printStackTrace();
+                    Logger.logError( LocalizationManager.UNABLE_SAVE_CLIENT_TOKEN_TEXT );
+                    Logger.logThrowable( e );
                 }
             }
 
             if ( clientToken != null ) {
-                Logger.logDebug( "Loaded client token: " + clientToken );
+                Logger.logDebug( LocalizationManager.LOADED_CLIENT_TOKEN_TEXT + " " + clientToken );
             }
         }
 

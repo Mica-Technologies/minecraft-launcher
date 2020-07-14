@@ -33,7 +33,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <main.class>com.micatechnologies.minecraft.forgelauncher.LauncherApp</main.class>
+        <main.class>com.micatechnologies.minecraft.forgelauncher.LauncherCore</main.class>
         <app.name>Mica Forge Launcher</app.name>
         <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
         <izpack.staging>${project.build.directory}${file.separator}windows-installer</izpack.staging>
@@ -292,7 +292,7 @@
                                 <mainClass>${main.class}</mainClass>
                             </classPath>
                             <icon>
-                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}micaforgelauncher.ico
+                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}icons${file.separator}micaforgelauncher.ico
                             </icon>
                             <jre>
                                 <!--suppress UnresolvedMavenProperty -->
@@ -337,7 +337,7 @@
                     <!--suppress UnresolvedMavenProperty -->
                     <jrePath>${jlink.mac.jdk.path}</jrePath>
                     <mainClass>${main.class}</mainClass>
-                    <iconFile>micaforgelauncher.icns</iconFile>
+                    <iconFile>icons${file.separator}micaforgelauncher.icns</iconFile>
                     <additionalBundledClasspathResources>
                         <fileSet>
                             <directory>

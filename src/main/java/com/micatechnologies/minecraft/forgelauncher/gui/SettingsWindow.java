@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.gui;
 
-
 import com.jfoenix.controls.*;
 import com.micatechnologies.minecraft.forgelauncher.LauncherCore;
 import com.micatechnologies.minecraft.forgelauncher.config.ConfigManager;
@@ -99,7 +98,7 @@ public class SettingsWindow extends AbstractWindow
      */
     @Override
     String getFXMLResourcePath() {
-        return "settingsGUI.fxml";
+        return "gui/settingsGUI.fxml";
     }
 
     /**
@@ -167,7 +166,7 @@ public class SettingsWindow extends AbstractWindow
             ConfigManager.setResizableWindows( windowResizeCheckBox.isSelected() );
 
             // Reset dirty flag (changes have been saved)
-            setEdited( false );
+            GUIUtilities.JFXPlatformRun( ()->setEdited( false ) );
 
             // Change save button text to indicate successful save
             GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
@@ -250,27 +249,29 @@ public class SettingsWindow extends AbstractWindow
 
         // Populate and configure minimum RAM dropdown
         minRamGb.setEditable( true );
+        double correctedMaxForMin = Math.min( LauncherConstants.SETTINGS_MIN_RAM_MAX, maxRamGbVal );
         minRamGb.setValueFactory(
-                new SpinnerValueFactory.DoubleSpinnerValueFactory( LauncherConstants.SETTINGS_MIN_RAM_MIN,
-                                                                   maxRamGbVal, minRamGbVal,
-                                                                   0.1 ) );
-        minRamGb.getValueFactory().valueProperty().addListener(
-                ( observable, oldValue, newValue ) -> {
-                    setEdited( true );
-                    ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) maxRamGb.getValueFactory() ).setMin( newValue );
-                } );
+                new SpinnerValueFactory.DoubleSpinnerValueFactory( LauncherConstants.SETTINGS_MIN_RAM_MIN, correctedMaxForMin,
+                                                                   minRamGbVal, 0.1 ) );
+        minRamGb.getValueFactory().valueProperty().addListener( ( observable, oldValue, newValue ) -> {
+            setEdited( true );
+            double newValWithMinForMax = Math.max( LauncherConstants.SETTINGS_MAX_RAM_MIN, newValue );
+            ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) maxRamGb.getValueFactory() ).setMin(
+                    newValWithMinForMax );
+        } );
 
         // Populate and configure maximum RAM dropdown
         maxRamGb.setEditable( true );
+        double correctedMinForMax = Math.max(LauncherConstants.SETTINGS_MAX_RAM_MIN, minRamGbVal);
         maxRamGb.setValueFactory(
-                new SpinnerValueFactory.DoubleSpinnerValueFactory( minRamGbVal,
-                                                                   LauncherConstants.SETTINGS_MAX_RAM_MAX, maxRamGbVal,
-                                                                   0.1 ) );
-        maxRamGb.getValueFactory().valueProperty().addListener(
-                ( observable, oldValue, newValue ) -> {
-                    setEdited( true );
-                    ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) minRamGb.getValueFactory() ).setMax( newValue );
-                } );
+                new SpinnerValueFactory.DoubleSpinnerValueFactory( correctedMinForMax, LauncherConstants.SETTINGS_MAX_RAM_MAX,
+                                                                   maxRamGbVal, 0.1 ) );
+        maxRamGb.getValueFactory().valueProperty().addListener( ( observable, oldValue, newValue ) -> {
+            setEdited( true );
+            double newValWithMaxForMin = Math.min( LauncherConstants.SETTINGS_MIN_RAM_MAX, newValue );
+            ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) minRamGb.getValueFactory() ).setMax(
+                    newValWithMaxForMin );
+        } );
     }
 
     private void setEdited( boolean edited ) {

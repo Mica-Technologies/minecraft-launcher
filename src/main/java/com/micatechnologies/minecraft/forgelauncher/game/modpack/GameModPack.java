@@ -27,6 +27,7 @@ import java.util.List;
 
 import com.micatechnologies.minecraft.forgelauncher.config.ConfigManager;
 import com.micatechnologies.minecraft.forgelauncher.config.GameModeManager;
+import com.micatechnologies.minecraft.forgelauncher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.forgelauncher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.forgelauncher.files.LocalPathManager;
@@ -147,7 +148,6 @@ public class GameModPack
 
     private transient GameModPackProgressProvider progressProvider = null;
 
-
     /**
      * Get the installation folder of this mod pack.
      *
@@ -157,6 +157,10 @@ public class GameModPack
     public String getPackRootFolder() {
         final String sanitizedModPackName = getPackName().replaceAll( "[^a-zA-Z0-9]", "" );
         return LocalPathManager.getLauncherModpackFolderPath() + File.separator + sanitizedModPackName;
+    }
+
+    public String getPackBinFolder() {
+        return SystemUtilities.buildFilePath( getPackRootFolder(), LocalPathConstants.MOD_PACK_BIN_FOLDER_NAME );
     }
 
     /**
@@ -312,45 +316,39 @@ public class GameModPack
 
         // Verify local Minecraft assets and get classpath
         if ( progressProvider != null ) {
-            progressProvider.startProgressSection(
-                    "Fetching Minecraft assets, libraries and classpath", 40.0 );
+            progressProvider.startProgressSection( "Fetching Minecraft assets, libraries and classpath", 40.0 );
         }
-        GameLibraryManifest libraryManifest = GameVersionManifest.getMinecraftLibraryManifest(
-                getMinecraftVersion(), this );
+        GameLibraryManifest libraryManifest = GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(),
+                                                                                               this );
         String minecraftAssetClasspath = libraryManifest.buildMinecraftClasspath( GameModeManager.getCurrentGameMode(),
                                                                                   progressProvider );
         if ( progressProvider != null ) {
-            progressProvider.endProgressSection(
-                    "Done fetching Minecraft assets, libraries and classpath" );
+            progressProvider.endProgressSection( "Done fetching Minecraft assets, libraries and classpath" );
         }
 
         // Add classpath separator between Forge and Minecraft only if Forge classpath not empty (it shouldn't be)
-        if ( !forgeAssetClasspath.isEmpty() && !forgeAssetClasspath.endsWith(
-                File.pathSeparator ) ) {
+        if ( !forgeAssetClasspath.isEmpty() && !forgeAssetClasspath.endsWith( File.pathSeparator ) ) {
             forgeAssetClasspath += File.pathSeparator;
         }
 
         return forgeAssetClasspath + minecraftAssetClasspath;
     }
 
-    public void startGame()
-    throws ModpackException
+    public void startGame() throws ModpackException
     {
         // Get classpath, main class and Minecraft args
         String cp = buildModpackClasspath();
-        String minecraftArgs =
-                GameModeManager.isClient() ? getForgeApp()
-                        .getMinecraftArguments() : "";
-        String minecraftMainClass =
-                GameModeManager.isClient() ? getForgeApp()
-                        .getMinecraftMainClass() : "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
+        String minecraftArgs = GameModeManager.isClient() ? getForgeApp().getMinecraftArguments() : "";
+        String minecraftMainClass = GameModeManager.isClient() ?
+                                    getForgeApp().getMinecraftMainClass() :
+                                    "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
 
         // Add main class to arguments
         minecraftArgs = minecraftMainClass + " " + minecraftArgs;
 
         // Add min and max RAM to arguments
         long SminRAMMB = ConfigManager.getMinRam();
-        long SmaxRAMMB = ConfigManager.getMinRam();
+        long SmaxRAMMB = ConfigManager.getMaxRam();
         if ( GameModeManager.isServer() ) {
             // Get min and max RAM from existing JVM args
             RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
@@ -387,46 +385,48 @@ public class GameModPack
 
         // Add natives path to arguments
         if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-            minecraftArgs =
-                    "-Djava.library.path=\"" + getPackRootFolder() + File.separator
-                            + ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + "\" " + minecraftArgs;
+            minecraftArgs = "-Djava.library.path=\"" +
+                    getPackRootFolder() +
+                    File.separator +
+                    ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER +
+                    "\" " +
+                    minecraftArgs;
         }
         else {
-            minecraftArgs =
-                    "-Djava.library.path=" + getPackRootFolder() + File.separator
-                            + ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER + " " + minecraftArgs;
+            minecraftArgs = "-Djava.library.path=" +
+                    getPackRootFolder() +
+                    File.separator +
+                    ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER +
+                    " " +
+                    minecraftArgs;
         }
 
         // Replace fillers with data
         if ( GameModeManager.isClient() ) {
-            minecraftArgs =
-                    minecraftArgs.replace( "${auth_player_name}", AuthManager.getLoggedInAccount().getFriendlyName() );
+            minecraftArgs = minecraftArgs.replace( "${auth_player_name}",
+                                                   AuthManager.getLoggedInAccount().getFriendlyName() );
             minecraftArgs = minecraftArgs.replace( "${version_name}", getForgeVersion() );
             if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-                minecraftArgs = minecraftArgs.replace( "${game_directory}",
-                                                       "\"" + getPackRootFolder() + "\"" );
-                minecraftArgs = minecraftArgs.replace( "${assets_root}",
-                                                       "\"" + getPackRootFolder() + File.separator
-                                                               +
-                                                               ModPackConstants.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER +
-                                                               "\"" );
+                minecraftArgs = minecraftArgs.replace( "${game_directory}", "\"" + getPackRootFolder() + "\"" );
+                minecraftArgs = minecraftArgs.replace( "${assets_root}", "\"" +
+                        getPackRootFolder() +
+                        File.separator +
+                        ModPackConstants.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER +
+                        "\"" );
             }
             else {
-                minecraftArgs = minecraftArgs.replace( "${game_directory}",
-                                                       getPackRootFolder() );
-                minecraftArgs = minecraftArgs.replace( "${assets_root}",
-                                                       getPackRootFolder() + File.separator
-                                                               +
-                                                               ModPackConstants.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
+                minecraftArgs = minecraftArgs.replace( "${game_directory}", getPackRootFolder() );
+                minecraftArgs = minecraftArgs.replace( "${assets_root}", getPackRootFolder() +
+                        File.separator +
+                        ModPackConstants.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
             }
 
             minecraftArgs = minecraftArgs.replace( "${assets_index_name}",
-                                                   getMinecraftLibraryManifest()
-                                                           .getAssetIndexVersion() );
-            minecraftArgs =
-                    minecraftArgs.replace( "${auth_uuid}", AuthManager.getLoggedInAccount().getUserIdentifier() );
-            minecraftArgs = minecraftArgs
-                    .replace( "${auth_access_token}", AuthManager.getLoggedInAccount().getLastAccessToken() );
+                                                   getMinecraftLibraryManifest().getAssetIndexVersion() );
+            minecraftArgs = minecraftArgs.replace( "${auth_uuid}",
+                                                   AuthManager.getLoggedInAccount().getUserIdentifier() );
+            minecraftArgs = minecraftArgs.replace( "${auth_access_token}",
+                                                   AuthManager.getLoggedInAccount().getLastAccessToken() );
             minecraftArgs = minecraftArgs.replace( "${user_type}", "mojang" );
 
             // Add title and icon to arguments
@@ -460,9 +460,9 @@ public class GameModPack
      */
     private void clearFloatingMods() {
         // Get full path to modpack mods folder
-        String modLocalPathPrefix =
-                getPackRootFolder().toString() + File.separator
-                        + ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
+        String modLocalPathPrefix = getPackRootFolder() +
+                File.separator +
+                ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
         // Build list of valid mods
         ArrayList< String > validModPaths = new ArrayList<>();
@@ -507,9 +507,9 @@ public class GameModPack
         }
 
         // Get full path to mods folder
-        String modLocalPathPrefix =
-                getPackRootFolder().toString() + File.separator
-                        + ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
+        String modLocalPathPrefix = getPackRootFolder().toString() +
+                File.separator +
+                ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
         // Update each mod if not already fully downloaded
         for ( GameMod mod : packMods ) {
@@ -517,8 +517,7 @@ public class GameModPack
             mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + mod.name,
-                                                 ( 70.0 / ( double ) packMods.size() ) );
+                progressProvider.submitProgress( "Verified " + mod.name, ( 70.0 / ( double ) packMods.size() ) );
             }
         }
     }
@@ -530,9 +529,9 @@ public class GameModPack
      */
     private void fetchLatestConfigs() throws ModpackException {
         // Get full path to configs folder
-        String configLocalPathPrefix =
-                getPackRootFolder().toString() + File.separator
-                        + ModPackConstants.MODPACK_FORGE_CONFIGS_LOCAL_FOLDER;
+        String configLocalPathPrefix = getPackRootFolder().toString() +
+                File.separator +
+                ModPackConstants.MODPACK_FORGE_CONFIGS_LOCAL_FOLDER;
 
         // Check if configs supplied
         if ( packConfigs == null ) {
@@ -574,18 +573,18 @@ public class GameModPack
         }
 
         // Get full path to resource pack folder
-        String resPackLocalPathPrefix =
-                getPackRootFolder().toString() + File.separator
-                        + ModPackConstants.MODPACK_FORGE_RESOURCEPACKS_LOCAL_FOLDER;
+        String resPackLocalPathPrefix = getPackRootFolder().toString() +
+                File.separator +
+                ModPackConstants.MODPACK_FORGE_RESOURCEPACKS_LOCAL_FOLDER;
 
         // Update each resource pack if necessary
         for ( ManagedGameFile resourcePack : packResourcePacks ) {
             resourcePack.setLocalPathPrefix( resPackLocalPathPrefix );
             resourcePack.updateLocalFile();
             if ( progressProvider != null ) {
-                progressProvider
-                        .submitProgress( "Verified " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ),
-                                         ( 100.0 / ( double ) packResourcePacks.size() ) );
+                progressProvider.submitProgress(
+                        "Verified " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ),
+                        ( 100.0 / ( double ) packResourcePacks.size() ) );
             }
         }
     }
@@ -610,18 +609,18 @@ public class GameModPack
         }
 
         // Get full path to shader pack folder
-        String shaderPackLocalPathPrefix =
-                getPackRootFolder().toString() + File.separator
-                        + ModPackConstants.MODPACK_FORGE_SHADERPACKS_LOCAL_FOLDER;
+        String shaderPackLocalPathPrefix = getPackRootFolder().toString() +
+                File.separator +
+                ModPackConstants.MODPACK_FORGE_SHADERPACKS_LOCAL_FOLDER;
 
         // Update each shader pack if necessary
         for ( ManagedGameFile shaderPack : packShaderPacks ) {
             shaderPack.setLocalPathPrefix( shaderPackLocalPathPrefix );
             shaderPack.updateLocalFile();
             if ( progressProvider != null ) {
-                progressProvider
-                        .submitProgress( "Verified " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ),
-                                         ( 100.0 / ( double ) packShaderPacks.size() ) );
+                progressProvider.submitProgress(
+                        "Verified " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ),
+                        ( 100.0 / ( double ) packShaderPacks.size() ) );
             }
         }
     }
@@ -633,8 +632,7 @@ public class GameModPack
      */
     private void fetchLatestInitialFiles() throws ModpackException {
         // Get full path to configs folder
-        String initFilesLocalPathPrefix =
-                getPackRootFolder().toString();
+        String initFilesLocalPathPrefix = getPackRootFolder().toString();
 
         // Check if initial files supplied
         if ( packInitialFiles == null ) {
@@ -657,8 +655,7 @@ public class GameModPack
     }
 
     String getPackLogoFilepath() {
-        return getPackRootFolder().toString() + File.separator
-                + ModPackConstants.MODPACK_LOGO_LOCAL_FILE;
+        return getPackRootFolder() + File.separator + ModPackConstants.MODPACK_LOGO_LOCAL_FILE;
     }
 
     public void setProgressProvider( GameModPackProgressProvider progressProvider ) {
@@ -678,9 +675,8 @@ public class GameModPack
 
         // Download latest logo
         try {
-            NetworkUtilities.downloadFileFromURL( new URL( packLogoURL ),
-                                                  SynchronizedFileManager
-                                                          .getSynchronizedFile( getPackLogoFilepath() ) );
+            NetworkUtilities.downloadFileFromURL( new URL( packLogoURL ), SynchronizedFileManager.getSynchronizedFile(
+                    getPackLogoFilepath() ) );
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "Verified modpack logo", 100.0 );
             }
@@ -702,8 +698,7 @@ public class GameModPack
     public void prepareEnvironment() {
         // Ensure local paths exist
         File binPath = SynchronizedFileManager.getSynchronizedFile( getPackRootFolder() + File.separator + "bin" );
-        File modsPath = SynchronizedFileManager.getSynchronizedFile(
-                getPackRootFolder() + File.separator + "mods" );
+        File modsPath = SynchronizedFileManager.getSynchronizedFile( getPackRootFolder() + File.separator + "mods" );
         File configPath = SynchronizedFileManager.getSynchronizedFile(
                 getPackRootFolder() + File.separator + "config" );
         File nativePath = SynchronizedFileManager.getSynchronizedFile(

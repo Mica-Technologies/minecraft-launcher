@@ -161,7 +161,7 @@ public class MainWindow extends AbstractWindow
      */
     @Override
     String getFXMLResourcePath() {
-        return "mainGUI.fxml";
+        return "gui/mainGUI.fxml";
     }
 
     /**
@@ -275,9 +275,9 @@ public class MainWindow extends AbstractWindow
 
                 // Refresh main GUI and show again
                 GameModPackManager.fetchModPackInfo();
-                show();
-                rootPane.setDisable( false );
                 populateModpackDropdown();
+                rootPane.setDisable( false );
+                show();
             } );
 
         } ) );

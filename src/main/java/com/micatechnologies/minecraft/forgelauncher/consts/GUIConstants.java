@@ -17,8 +17,13 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
+import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
+
 /**
  * Class containing constants that are related or required by various components of the application's GUI subsystem.
+ * <p>
+ * NOTE: This class should NOT contain display strings that are visible to the end-user. All localizable strings MUST be
+ * stored and retrieved using {@link com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager}.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -26,6 +31,7 @@ package com.micatechnologies.minecraft.forgelauncher.consts;
  * @creator hawka97
  * @since 1.0
  */
+@ClientModeOnly
 public class GUIConstants
 {
     /**
@@ -40,8 +46,9 @@ public class GUIConstants
      *
      * @since 1.0
      */
-    public final static String URL_MINECRAFT_USER_ICONS =
-            "http://minotar.net/armor/bust/" + URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY + "/100.png";
+    public final static String URL_MINECRAFT_USER_ICONS = "http://minotar.net/armor/bust/" +
+            URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY +
+            "/100.png";
 
     /**
      * The download URL of a default mod pack logo image. This logo is also used as a placeholder when no mod packs are
@@ -49,6 +56,6 @@ public class GUIConstants
      *
      * @since 1.0
      */
-    public final static String URL_MINECRAFT_NO_MOD_PACK_IMAGE =
-            "https://cdn.pixabay.com/photo/2016/11/11/14/49/minecraft-1816996_960_720.png";
+    public final static String URL_MINECRAFT_NO_MOD_PACK_IMAGE
+            = "https://cdn.pixabay.com/photo/2016/11/11/14/49/minecraft-1816996_960_720.png";
 }
