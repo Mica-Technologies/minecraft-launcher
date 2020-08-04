@@ -46,7 +46,7 @@
         <!-- for appbundle-maven-plugin -->
         <pluginRepository>
             <id>mica-appbundle-maven-plugin</id>
-            <url>https://github.com/Mica-Technologies/appbundle-maven-plugin/raw/master/mvn-repo</url>
+            <url>https://git.micatechnologies.com/tools/appbundle-maven-plugin/-/raw/master/mvn-repo</url>
             <releases>
                 <enabled>true</enabled>
             </releases>
