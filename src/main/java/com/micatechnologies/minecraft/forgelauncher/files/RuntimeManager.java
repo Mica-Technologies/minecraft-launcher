@@ -26,7 +26,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
@@ -46,7 +45,6 @@ import java.io.IOException;
  * @creator hawka97
  * @since 1.1
  */
-@ClientAndServer
 public class RuntimeManager
 {
     /**
@@ -63,7 +61,6 @@ public class RuntimeManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static void verifyJre8() {
         // Create progress window if applicable
         ProgressWindow progressWindow = null;
@@ -291,7 +288,6 @@ public class RuntimeManager
      * @throws IOException if unable to delete local runtime
      * @since 1.0
      */
-    @ClientAndServer
     public static void clearJre8() throws IOException {
         FileUtils.deleteDirectory(
                 SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherRuntimeFolderPath() ) );
@@ -304,7 +300,6 @@ public class RuntimeManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static String getJre8Path() {
         if ( jre8VerifiedPath == null ) {
             verifyJre8();

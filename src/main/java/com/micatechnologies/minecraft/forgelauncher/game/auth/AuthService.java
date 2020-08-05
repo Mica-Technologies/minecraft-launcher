@@ -23,7 +23,6 @@ import com.micatechnologies.minecraft.forgelauncher.consts.localization.Localiza
 import com.micatechnologies.minecraft.forgelauncher.exceptions.AuthException;
 import com.micatechnologies.minecraft.forgelauncher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
 import com.micatechnologies.minecraft.forgelauncher.utilities.JSONUtilities;
 
 /**
@@ -36,7 +35,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.JSONUtilities;
  * @see AuthAccount
  * @since 1.0
  */
-@ClientModeOnly
 public class AuthService
 {
 
@@ -51,7 +49,6 @@ public class AuthService
      * @throws AuthException if an error occurs
      * @since 1.0
      */
-    @ClientModeOnly
     public static boolean usernamePasswordAuth( AuthAccount account, String password ) throws AuthException
     {
         // Build JSON Objects for Request
@@ -130,7 +127,6 @@ public class AuthService
      * @throws AuthException if an error occurs
      * @since 1.0
      */
-    @ClientModeOnly
     public static boolean refreshAuth( AuthAccount account ) throws AuthException
     {
         // Check for presence of existing access token
@@ -205,7 +201,6 @@ public class AuthService
      * @throws AuthException if an error occurs
      * @since 1.0
      */
-    @ClientModeOnly
     public static boolean validateLogin( AuthAccount account ) throws AuthException
     {
         // Check for presence of existing access token
@@ -240,7 +235,6 @@ public class AuthService
      * @throws AuthException if an error occurs
      * @since 1.0
      */
-    @ClientModeOnly
     public static boolean invalidateLogin( AuthAccount account ) throws AuthException
     {
         // Check for presence of existing access token

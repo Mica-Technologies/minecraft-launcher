@@ -26,7 +26,6 @@ import com.micatechnologies.minecraft.forgelauncher.files.LocalPathManager;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPack;
-import com.micatechnologies.minecraft.forgelauncher.game.modpack.ManagedGameFile;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.NetworkUtilities;
 
@@ -62,7 +61,7 @@ public class GameVersionManifest
         File versionManifestFile =
                 SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getMinecraftVersionManifestFilePath() );
         NetworkUtilities.downloadFileFromURL( ModPackConstants.MINECRAFT_VERSION_MANIFEST_URL, versionManifestFile );
-        versionManifest = FileUtilities.readAsJson( versionManifestFile );
+        versionManifest = FileUtilities.readAsJsonObject( versionManifestFile );
     }
 
     /**

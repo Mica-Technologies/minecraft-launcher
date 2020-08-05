@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
-
 /**
  * Class containing constants that are related or required by various components of the application's GUI subsystem.
  * <p>
@@ -31,7 +29,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.Client
  * @creator hawka97
  * @since 1.0
  */
-@ClientModeOnly
 public class GUIConstants
 {
     /**

@@ -22,7 +22,6 @@ import com.google.gson.JsonObject;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.security.NoSuchAlgorithmException;
 
 import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.exceptions.ModpackException;
@@ -30,7 +29,6 @@ import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManage
 import com.micatechnologies.minecraft.forgelauncher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.NetworkUtilities;
-import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
 
 /**
  * A Java class representation of a remote file that should be kept locally in sync.
@@ -246,7 +244,7 @@ public class ManagedGameFile
         // Return file contents as JSON object
         File localFileObject = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
         try {
-            return FileUtilities.readAsJson( localFileObject );
+            return FileUtilities.readAsJsonObject( localFileObject );
         }
         catch ( IOException e ) {
             throw new ModpackException( LocalizationManager.UNABLE_READ_LOCAL_FILE_TO_JSON_EXCEPTION_TEXT, e );

@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-
 import java.util.Map;
 
 /**
@@ -33,7 +31,6 @@ import java.util.Map;
  * @editors hawka97
  * @since 1.0
  */
-@ClientAndServer
 public class LauncherConstants
 {
     /**
@@ -56,14 +53,6 @@ public class LauncherConstants
      * @since 1.0
      */
     public final static String LAUNCHER_APPLICATION_NAME_TRIMMED = LAUNCHER_APPLICATION_NAME.replaceAll( " ", "" );
-
-    /**
-     * Launcher update check URL. This URL is checked to see if the latest release is newer than the current release.
-     *
-     * @since 1.0.1
-     */
-    public final static String UPDATE_CHECK_REDIRECT_URL
-            = "https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/releases/latest";
 
     /**
      * Argument used to open application in forced client mode.

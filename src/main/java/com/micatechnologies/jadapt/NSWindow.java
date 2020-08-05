@@ -17,7 +17,6 @@
 
 package com.micatechnologies.jadapt;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
 import org.rococoa.ObjCClass;
 import org.rococoa.ObjCObject;
 import org.rococoa.Rococoa;
@@ -27,12 +26,11 @@ import org.rococoa.cocoa.foundation.NSUInteger;
  * Abstract adapter for modifying native macOS window properties of a Java Swing or JavaFX window.
  *
  * @author Mica Technologies
- * @version 1.0
+ * @version 1.0.1
  * @creator hawka97
  * @editors hawka97
  * @since 1.0
  */
-@ClientModeOnly
 public abstract class NSWindow implements ObjCObject
 {
     /**
@@ -157,7 +155,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public void setTitle( String title );
 
     /**
@@ -167,7 +164,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public void setDocumentEdited( boolean edited );
 
     /**
@@ -177,7 +173,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public void setStyleMask( NSUInteger styleMask );
 
     /**
@@ -187,7 +182,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public NSUInteger styleMask();
 
     /**
@@ -197,7 +191,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public void setTitlebarAppearsTransparent( boolean titlebarAppearsTransparent );
 
     /**
@@ -207,7 +200,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public boolean getTitlebarAppearsTransparent();
 
     /**
@@ -218,7 +210,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public void setMovableByWindowBackground( boolean movableByWindowBackground );
 
     /**
@@ -229,7 +220,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public void setMovable( boolean movable );
 
     /**
@@ -237,7 +227,6 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public void toggleFullScreen();
 
     /**
@@ -247,6 +236,5 @@ public abstract class NSWindow implements ObjCObject
      *
      * @since 1.0
      */
-    @ClientModeOnly
     abstract public boolean isFullScreen();
 }

@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-
 import java.io.File;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
@@ -35,7 +33,6 @@ import java.text.SimpleDateFormat;
  * @creator hawka97
  * @since 2.0
  */
-@ClientAndServer
 public class LocalPathConstants
 {
     /**
@@ -103,6 +100,13 @@ public class LocalPathConstants
      * @since 1.0
      */
     public static final String AUTH_ACCOUNT_REMEMBERED_FILE_NAME = File.separator + "player.mica";
+
+    /**
+     * The name of the file used to store the launcher update information from the launcher releases API.
+     *
+     * @since 1.0
+     */
+    public static final String LAUNCHER_UPDATE_INFO_FILE_NAME = File.separator + "update.mica";
 
     /**
      * File extension of Minecraft manifests that are stored locally.

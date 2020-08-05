@@ -19,8 +19,6 @@ package com.micatechnologies.minecraft.forgelauncher.files;
 
 import com.micatechnologies.minecraft.forgelauncher.config.GameModeManager;
 import com.micatechnologies.minecraft.forgelauncher.consts.LocalPathConstants;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
 
 /**
  * Class that manages the local paths used by the launcher for storing configuration, mod pack installations, and Java
@@ -32,7 +30,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.Client
  * @editors hawka97
  * @since 1.1
  */
-@ClientAndServer
 public class LocalPathManager
 {
     /**
@@ -42,10 +39,10 @@ public class LocalPathManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static String getLauncherLocalPath() {
-        return GameModeManager.isClient() ? LocalPathConstants.CLIENT_MODE_LAUNCHER_FOLDER_PATH :
-                LocalPathConstants.SERVER_MODE_LAUNCHER_FOLDER_PATH;
+        return GameModeManager.isClient() ?
+               LocalPathConstants.CLIENT_MODE_LAUNCHER_FOLDER_PATH :
+               LocalPathConstants.SERVER_MODE_LAUNCHER_FOLDER_PATH;
     }
 
     /**
@@ -55,7 +52,6 @@ public class LocalPathManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static String getLauncherConfigFolderPath() {
         return getLauncherLocalPath() + LocalPathConstants.CONFIG_FOLDER;
     }
@@ -67,7 +63,6 @@ public class LocalPathManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static String getLauncherModpackFolderPath() {
         return getLauncherLocalPath() + LocalPathConstants.MODPACK_FOLDER;
     }
@@ -79,7 +74,6 @@ public class LocalPathManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static String getLauncherLogFolderPath() {
         return getLauncherLocalPath() + LocalPathConstants.LOG_FOLDER;
     }
@@ -91,7 +85,6 @@ public class LocalPathManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static String getLauncherRuntimeFolderPath() {
         return getLauncherLocalPath() + LocalPathConstants.RUNTIME_FOLDER;
     }
@@ -103,7 +96,6 @@ public class LocalPathManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static String getClientTokenFilePath() {
         return getLauncherConfigFolderPath() + LocalPathConstants.CLIENT_TOKEN_FILE_NAME;
     }
@@ -115,9 +107,19 @@ public class LocalPathManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static String getRememberedAccountFilePath() {
         return getLauncherConfigFolderPath() + LocalPathConstants.AUTH_ACCOUNT_REMEMBERED_FILE_NAME;
+    }
+
+    /**
+     * Gets the local path to the launcher update information file.
+     *
+     * @return launcher update info file path
+     *
+     * @since 1.0
+     */
+    public static String getUpdateInfoFilePath() {
+        return getLauncherConfigFolderPath() + LocalPathConstants.LAUNCHER_UPDATE_INFO_FILE_NAME;
     }
 
     /**
@@ -127,7 +129,6 @@ public class LocalPathManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static String getMinecraftVersionManifestFilePath() {
         return getLauncherConfigFolderPath() + LocalPathConstants.MINECRAFT_VERSION_MANIFEST_FILE_NAME;
     }

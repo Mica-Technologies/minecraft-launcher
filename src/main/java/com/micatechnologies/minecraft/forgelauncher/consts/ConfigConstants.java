@@ -18,7 +18,6 @@
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
 import com.google.gson.reflect.TypeToken;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
 
 import java.io.File;
 import java.lang.reflect.Type;
@@ -37,7 +36,6 @@ import java.util.List;
  * @creator hawka97
  * @since 2.0
  */
-@ClientAndServer
 public class ConfigConstants
 {
 

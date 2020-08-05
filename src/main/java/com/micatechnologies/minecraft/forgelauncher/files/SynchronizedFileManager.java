@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.files;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +32,6 @@ import java.util.List;
  * @editors hawka97
  * @since 1.1
  */
-@ClientAndServer
 public class SynchronizedFileManager
 {
     /**
@@ -53,7 +50,6 @@ public class SynchronizedFileManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static File getSynchronizedFile( String filePath ) {
         // Search for existing object for desired file path
         File desiredSynchronizedFile = null;

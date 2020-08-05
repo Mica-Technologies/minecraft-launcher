@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.game.auth;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
-
 import java.io.Serializable;
 
 /**
@@ -32,7 +30,6 @@ import java.io.Serializable;
  * @see java.io.Serializable
  * @since 1.0
  */
-@ClientModeOnly
 public class AuthAccount implements Serializable
 {
 
@@ -79,7 +76,6 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public AuthAccount( final String accountName ) {
         this.accountName = accountName;
     }
@@ -91,7 +87,6 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public String getAccountName() {
         return this.accountName;
     }
@@ -103,7 +98,6 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public String getLastAccessToken() {
         return this.lastAccessToken;
     }
@@ -115,7 +109,6 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public String getFriendlyName() {
         return this.friendlyName;
     }
@@ -127,7 +120,6 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public String getUserIdentifier() {
         return userIdentifier;
     }
@@ -139,7 +131,6 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    @ClientModeOnly
     void setFriendlyName( final String friendlyName ) {
         this.friendlyName = friendlyName;
     }
@@ -151,7 +142,6 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    @ClientModeOnly
     void setLastAccessToken( final String lastAccessToken ) {
         this.lastAccessToken = lastAccessToken;
     }
@@ -163,7 +153,6 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    @ClientModeOnly
     void setUserIdentifier( final String userIdentifier ) {
         this.userIdentifier = userIdentifier;
     }

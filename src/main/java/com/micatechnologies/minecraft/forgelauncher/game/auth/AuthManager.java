@@ -23,7 +23,6 @@ import com.micatechnologies.minecraft.forgelauncher.files.LocalPathManager;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
 import org.apache.commons.io.FileUtils;
 
 import java.io.*;
@@ -39,7 +38,6 @@ import java.util.UUID;
  * @editors hawka97
  * @since 1.1
  */
-@ClientModeOnly
 public class AuthManager
 {
     /**
@@ -72,7 +70,6 @@ public class AuthManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static synchronized AuthAccount getLoggedInAccount() {
         // Attempt to load remember game account from disk if no user is logged in
         if ( loggedInAccount == null ) {
@@ -101,7 +98,6 @@ public class AuthManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static synchronized void login( AuthAccount authAccount, boolean remember ) {
         // Store the game account
         loggedInAccount = authAccount;
@@ -121,7 +117,6 @@ public class AuthManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static synchronized void logout() {
         // Invalidate user login
         if ( loggedInAccount != null ) {
@@ -153,7 +148,6 @@ public class AuthManager
      * @throws IOException if unable to delete remembered user file
      * @since 1.0
      */
-    @ClientModeOnly
     private static void deleteRememberedUserFile() throws IOException {
         File userDiskFile = SynchronizedFileManager.getSynchronizedFile(
                 LocalPathManager.getRememberedAccountFilePath() );
@@ -165,7 +159,6 @@ public class AuthManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static void readAccountFromDisk() {
         // Create saved account file object
         File userDiskFile = SynchronizedFileManager.getSynchronizedFile(
@@ -191,7 +184,6 @@ public class AuthManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static void writeAccountToDiskIfRemembered() {
         if ( rememberAccount ) {
             writeAccountToDisk();
@@ -204,7 +196,6 @@ public class AuthManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static void writeAccountToDisk() {
         try {
             // Create saved account file object and write account
@@ -225,7 +216,6 @@ public class AuthManager
      *
      * @since 1.0
      */
-    @ClientModeOnly
     public static String getClientToken() {
         if ( clientToken == null ) {
             Logger.logDebug( LocalizationManager.CLIENT_TOKEN_CHECKING_TEXT );

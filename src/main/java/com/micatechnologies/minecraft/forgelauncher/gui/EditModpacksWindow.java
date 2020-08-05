@@ -22,6 +22,7 @@ import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXTextField;
 import com.micatechnologies.minecraft.forgelauncher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPackManager;
+import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.OnScreen;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.RunsOnJFXThread;
@@ -35,6 +36,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.stage.WindowEvent;
+
+import java.util.List;
 
 /**
  * Modpack installation (add/remove) window class.
@@ -132,7 +135,7 @@ public class EditModpacksWindow extends AbstractWindow
          *
          * @since 1.0
          */
-        Pane pane = new Pane();
+        Pane   pane   = new Pane();
         /**
          * Added button for removing the associated item in the list.
          *
@@ -156,7 +159,7 @@ public class EditModpacksWindow extends AbstractWindow
             button.setOnAction( event -> {
                 getListView().getItems().remove( getItem() );
                 GameModPackManager.uninstallModPackByFriendlyName( label.getText() );
-                loadModPackList();
+                SystemUtilities.spawnNewTask( EditModpacksWindow.this::loadModPackList );
             } );
         }
 
@@ -212,16 +215,28 @@ public class EditModpacksWindow extends AbstractWindow
      * @since 1.0
      */
     private void loadModPackList() {
-        // Set installed mod pack list cell factory
-        modpackList.setCellFactory( stringListView -> new XCell() );
+        // Get information before locking and updating GUI
+        final List< String > installedModPackFriendlyNames = GameModPackManager.getInstalledModPackFriendlyNames();
+        final List< String > availableModPackFriendlyNames = GameModPackManager.getAvailableModPackFriendlyNames();
 
-        // Add installed mod packs to list
-        modpackList.getItems().clear();
-        modpackList.getItems().addAll( GameModPackManager.getInstalledModPackFriendlyNames() );
+        GUIUtilities.JFXPlatformRun( () -> {
+            // Lock window during load
+            rootPane.setDisable( true );
 
-        // Add available mod packs to list
-        listAddBox.getItems().clear();
-        listAddBox.getItems().addAll( GameModPackManager.getAvailableModPackFriendlyNames() );
+            // Set installed mod pack list cell factory
+            modpackList.setCellFactory( stringListView -> new XCell() );
+
+            // Add installed mod packs to list
+            modpackList.getItems().clear();
+            modpackList.getItems().addAll( installedModPackFriendlyNames );
+
+            // Add available mod packs to list
+            listAddBox.getItems().clear();
+            listAddBox.getItems().addAll( availableModPackFriendlyNames );
+
+            // Unlock window when done
+            rootPane.setDisable( false );
+        } );
     }
 
     /**
@@ -229,30 +244,35 @@ public class EditModpacksWindow extends AbstractWindow
      *
      * @since 1.0
      */
-    @Override @RunsOnJFXThread
+    @Override
+    @RunsOnJFXThread
     void setupWindow() {
         // Set window title
         currentJFXStage.setTitle( LauncherConstants.LAUNCHER_APPLICATION_NAME + " | Mod Packs" );
 
         // Configure return button and window close
         currentJFXStage.setOnCloseRequest( windowEvent -> SystemUtilities.spawnNewTask( this::close ) );
-        returnBtn.setOnAction( actionEvent -> currentJFXStage
-                .fireEvent( new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
+        returnBtn.setOnAction( actionEvent -> currentJFXStage.fireEvent(
+                new WindowEvent( currentJFXStage, WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
         // Populate mod pack lists
         loadModPackList();
 
         // Configure add by URL button
-        urlAddBtn.setOnAction( actionEvent -> {
+        urlAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+            rootPane.setDisable( true );
             GameModPackManager.installModPackByURL( urlAddBox.getText() );
             loadModPackList();
-        } );
+            rootPane.setDisable( false );
+        } ) );
 
         // Configure add by List button
-        listAddBtn.setOnAction( actionEvent -> {
+        listAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+            rootPane.setDisable( true );
             GameModPackManager.installModPackByFriendlyName( listAddBox.getValue() );
             loadModPackList();
-        } );
+            rootPane.setDisable( false );
+        } ) );
     }
 }
 

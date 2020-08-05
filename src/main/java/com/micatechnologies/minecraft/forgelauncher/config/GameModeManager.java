@@ -19,7 +19,6 @@ package com.micatechnologies.minecraft.forgelauncher.config;
 
 import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
 
 import java.awt.*;
@@ -33,7 +32,6 @@ import java.awt.*;
  * @editors hawka97
  * @since 1.1
  */
-@ClientAndServer
 public class GameModeManager
 {
     /**
@@ -48,7 +46,6 @@ public class GameModeManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static void inferGameMode() {
         if ( GraphicsEnvironment.isHeadless() ) {
             currentGameMode = GameMode.SERVER;
@@ -66,7 +63,6 @@ public class GameModeManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static GameMode getCurrentGameMode() {
         return currentGameMode;
     }
@@ -78,7 +74,6 @@ public class GameModeManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static void setCurrentGameMode( GameMode gameMode ) {
         currentGameMode = gameMode;
         Logger.logDebug(
@@ -92,7 +87,6 @@ public class GameModeManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static boolean isClient() {
         return getCurrentGameMode() == GameMode.CLIENT;
     }
@@ -104,7 +98,6 @@ public class GameModeManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static boolean isServer() {
         return getCurrentGameMode() == GameMode.SERVER;
     }

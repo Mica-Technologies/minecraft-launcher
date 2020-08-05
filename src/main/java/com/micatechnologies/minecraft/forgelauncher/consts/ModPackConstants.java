@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
 
 import java.io.File;
@@ -34,7 +33,6 @@ import java.io.File;
  * @editors hawka97
  * @since 2.0
  */
-@ClientAndServer
 public class ModPackConstants
 {
     /**

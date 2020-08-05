@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.exceptions;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-
 /**
  * Exception wrapper class for handling and reporting errors and exceptions with user-friendly working/explanation if
  * they occur within the {@link com.micatechnologies.minecraft.forgelauncher.game.modpack} library.
@@ -30,7 +28,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.Client
  * @see com.micatechnologies.minecraft.forgelauncher.exceptions.LauncherException
  * @since 1.0
  */
-@ClientAndServer
 public class ModpackException extends LauncherException
 {
 
@@ -41,7 +38,6 @@ public class ModpackException extends LauncherException
      *
      * @since 1.0
      */
-    @ClientAndServer
     public ModpackException( String exceptionMsg ) {
         super( exceptionMsg );
     }
@@ -54,7 +50,6 @@ public class ModpackException extends LauncherException
      *
      * @since 1.0
      */
-    @ClientAndServer
     public ModpackException( String exceptionMsg, Throwable exceptionTrace ) {
         super( exceptionMsg, exceptionTrace );
     }

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.forgelauncher.utilities;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.forgelauncher.files.LocalPathManager;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
@@ -29,7 +30,7 @@ import java.nio.charset.Charset;
  * Utility class for reading and writing strings and JSON objects to a persistent file.
  *
  * @author Mica Technologies
- * @version 1.0
+ * @version 1.0.1
  * @editors hawka97
  * @creator hawka97
  * @since 1.0
@@ -80,8 +81,22 @@ public class FileUtilities
      * @throws IOException if unable to access or read file
      * @since 1.0
      */
-    public static JsonObject readAsJson( File f ) throws IOException {
+    public static JsonObject readAsJsonObject( File f ) throws IOException {
         return JSONUtilities.stringToObject( readAsString( f ) );
+    }
+
+    /**
+     * Reads the contents of the specified file as JSON and returns the resulting {@link JsonArray}.
+     *
+     * @param f file to read
+     *
+     * @return file contents as a {@link JsonArray}
+     *
+     * @throws IOException if unable to access or read file
+     * @since 1.0
+     */
+    public static JsonArray readAsJsonArray( File f ) throws IOException {
+        return JSONUtilities.stringToArray( readAsString( f ) );
     }
 
     /**

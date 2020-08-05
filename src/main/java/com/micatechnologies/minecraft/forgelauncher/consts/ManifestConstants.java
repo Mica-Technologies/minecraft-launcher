@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-
 /**
  * Class of constants used by mod pack and Minecraft manifest object classes.
  * <p>
@@ -31,7 +29,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.Client
  * @editors hawka97
  * @since 2.0
  */
-@ClientAndServer
 public class ManifestConstants
 {
     /**

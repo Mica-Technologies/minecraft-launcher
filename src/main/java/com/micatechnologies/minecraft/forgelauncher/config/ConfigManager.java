@@ -26,8 +26,6 @@ import com.micatechnologies.minecraft.forgelauncher.files.LocalPathManager;
 import com.micatechnologies.minecraft.forgelauncher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.forgelauncher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
 
 import java.io.File;
 import java.util.List;
@@ -41,7 +39,6 @@ import java.util.List;
  * @editors hawka97
  * @since 1.0
  */
-@ClientAndServer
 public class ConfigManager
 {
     /**
@@ -60,7 +57,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static long getMinRam() {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -78,7 +74,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static double getMinRamInGb() {
         return getMinRam() / 1024.0;
     }
@@ -90,7 +85,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static void setMinRam( long minRam ) {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -111,7 +105,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static long getMaxRam() {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -129,7 +122,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static double getMaxRamInGb() {
         return getMaxRam() / 1024.0;
     }
@@ -141,7 +133,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static void setMaxRam( long maxRam ) {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -162,7 +153,6 @@ public class ConfigManager
      *
      * @since 2.0
      */
-    @ClientAndServer
     public synchronized static boolean getDebugLogging() {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -180,7 +170,6 @@ public class ConfigManager
      *
      * @since 2.0
      */
-    @ClientAndServer
     public synchronized static void setDebugLogging( boolean debugLogging ) {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -201,7 +190,6 @@ public class ConfigManager
      *
      * @since 2.0
      */
-    @ClientModeOnly
     public synchronized static boolean getResizableWindows() {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -219,7 +207,6 @@ public class ConfigManager
      *
      * @since 2.0
      */
-    @ClientModeOnly
     public synchronized static void setResizableWindows( boolean resizableWindows ) {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -240,7 +227,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static List< String > getInstalledModPacks() {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -259,7 +245,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     public synchronized static void setInstalledModPacks( List< String > installedModPacks ) {
         // Read configuration from disk if not loaded
         if ( configObject == null ) {
@@ -281,7 +266,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     private synchronized static void readConfigurationFromDisk() {
         // Get file path and file object for config file
         String configFilePath = LocalPathManager.getLauncherConfigFolderPath() + ConfigConstants.CONFIG_FILE_NAME;
@@ -291,7 +275,7 @@ public class ConfigManager
         boolean read = configFile.isFile();
         if ( read ) {
             try {
-                configObject = FileUtilities.readAsJson( configFile );
+                configObject = FileUtilities.readAsJsonObject( configFile );
             }
             catch ( Exception e ) {
                 Logger.logError( LocalizationManager.CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT );
@@ -317,7 +301,6 @@ public class ConfigManager
      *
      * @since 1.0
      */
-    @ClientAndServer
     private synchronized static void writeConfigurationToDisk() {
         // Check if configuration is loaded, return if not
         if ( configObject == null ) {

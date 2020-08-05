@@ -22,7 +22,6 @@ import com.micatechnologies.minecraft.forgelauncher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.forgelauncher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.forgelauncher.gui.GUIController;
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtilities;
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
 import javafx.stage.Stage;
 import org.apache.commons.io.output.TeeOutputStream;
 
@@ -40,7 +39,6 @@ import java.io.PrintStream;
  * @creator hawka97
  * @since 1.0
  */
-@ClientAndServer
 public class Logger
 {
     /**
@@ -95,7 +93,6 @@ public class Logger
      * @throws FileNotFoundException if unable to find log file
      * @since 1.0
      */
-    @ClientAndServer
     public static void initLogSys( File logFile ) throws IOException {
         // Create parent directory(ies) if necessary
         final var mkdirs = logFile.getParentFile().mkdirs();
@@ -141,7 +138,6 @@ public class Logger
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static void logThrowable( Throwable throwable ) {
         throwable.printStackTrace( System.err );
     }
@@ -153,7 +149,6 @@ public class Logger
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static void logError( String errorLog ) {
         // Show error on GUI, if GUI available
         Stage jfxStage = GUIController.getTopStageOrNull();
@@ -171,7 +166,6 @@ public class Logger
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static void logWarning( String warningLog ) {
         // Show warning on GUI, if GUI available
         Stage jfxStage = GUIController.getTopStageOrNull();
@@ -189,7 +183,6 @@ public class Logger
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static void logStd( String log ) {
         System.out.println( logStdPrefix + log );
     }
@@ -201,7 +194,6 @@ public class Logger
      *
      * @since 1.0
      */
-    @ClientAndServer
     public static void logDebug( String debugLog ) {
         if ( ConfigManager.getDebugLogging() ) {
             System.out.println( logDebugPrefix + debugLog );

@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.consts;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
 
 /**
@@ -32,7 +31,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
  * @creator hawka97
  * @since 1.0
  */
-@ClientModeOnly
 public class AuthConstants
 {
 

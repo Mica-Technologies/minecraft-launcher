@@ -35,6 +35,8 @@ import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPackProg
 import com.micatechnologies.minecraft.forgelauncher.gui.GUIController;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
 import com.micatechnologies.minecraft.forgelauncher.gui.MainWindow;
+import com.micatechnologies.minecraft.forgelauncher.gui.ProgressWindow;
+import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.forgelauncher.gui.LoginWindow;
 import com.micatechnologies.minecraft.forgelauncher.utilities.NetworkUtilities;
@@ -127,6 +129,11 @@ public class LauncherCore
      */
     public static void play( GameModPack gameModPack ) {
         if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
+            final ProgressWindow playProgressWindow = GameModeManager.isClient() ? new ProgressWindow() : null;
+            if ( playProgressWindow != null ) {
+                playProgressWindow.show( LocalizationManager.LAUNCHING_MOD_PACK_TEXT, gameModPack.getFriendlyName() );
+            }
+
             try {
                 Logger.logDebug( LocalizationManager.LAUNCHING_MOD_PACK_TEXT + ": " + gameModPack.getFriendlyName() );
                 gameModPack.setProgressProvider( new GameModPackProgressProvider()
@@ -134,13 +141,31 @@ public class LauncherCore
                     @Override
                     public void updateProgressHandler( double percent, String text ) {
                         Logger.logStd( text + " - " + percent );
+
+                        if ( playProgressWindow != null ) {
+                            playProgressWindow.setUpperLabelText( "Launching: " + gameModPack.getPackName() );
+                            playProgressWindow.setLowerLabelText( text );
+                            playProgressWindow.setProgress( percent );
+                            if ( percent >= 100.0 ) {
+                                playProgressWindow.setLowerLabelText( "Starting Minecraft..." );
+                                SystemUtilities.spawnNewTask( () -> {
+                                    try {
+                                        Thread.sleep( 3000 );
+                                    }
+                                    catch ( InterruptedException ignored ) {
+                                    }
+                                    playProgressWindow.close();
+                                } );
+
+                            }
+                        }
                     }
                 } );
                 gameModPack.startGame();
             }
             catch ( Exception e ) {
                 Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );
-                e.printStackTrace();
+                Logger.logThrowable( e );
             }
         }
         else {

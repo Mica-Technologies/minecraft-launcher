@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.exceptions;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientModeOnly;
-
 /**
  * Exception wrapper class for handling and reporting errors and exceptions with user-friendly working/explanation if
  * they occur within the {@link com.micatechnologies.minecraft.forgelauncher.game.auth} library.
@@ -30,7 +28,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.Client
  * @see com.micatechnologies.minecraft.forgelauncher.exceptions.LauncherException
  * @since 1.0.1
  */
-@ClientModeOnly
 public class AuthException extends LauncherException
 {
     /**
@@ -38,7 +35,6 @@ public class AuthException extends LauncherException
      *
      * @param reason exception message
      */
-    @ClientModeOnly
     public AuthException( String reason ) {
         super( reason );
     }
@@ -49,7 +45,6 @@ public class AuthException extends LauncherException
      * @param reason    exception message
      * @param backtrace exception backtrace
      */
-    @ClientModeOnly
     public AuthException( String reason, Throwable backtrace ) {
         super( reason, backtrace );
     }

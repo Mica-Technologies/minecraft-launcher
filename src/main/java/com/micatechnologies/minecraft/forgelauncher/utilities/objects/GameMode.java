@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.utilities.objects;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-
 /**
  * Enum used to identify the supported game modes of the launcher, client and server.
  *
@@ -28,7 +26,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.Client
  * @version 1.0
  * @since 2.0
  */
-@ClientAndServer
 public enum GameMode
 {
     /**
@@ -59,7 +56,6 @@ public enum GameMode
      *
      * @since 1.0
      */
-    @ClientAndServer
     GameMode( String gameModeString ) {
         this.gameModeString = gameModeString;
     }
@@ -71,7 +67,6 @@ public enum GameMode
      *
      * @since 1.0
      */
-    @ClientAndServer
     public String getStringName() {
         return gameModeString;
     }

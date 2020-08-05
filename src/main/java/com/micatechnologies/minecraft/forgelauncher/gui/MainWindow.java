@@ -30,6 +30,7 @@ import com.micatechnologies.minecraft.forgelauncher.game.modpack.GameModPackMana
 import com.micatechnologies.minecraft.forgelauncher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.forgelauncher.files.Logger;
 import com.micatechnologies.minecraft.forgelauncher.utilities.SystemUtilities;
+import com.micatechnologies.minecraft.forgelauncher.utilities.UpdateCheckUtilities;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.OnScreen;
 import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.RunsOnJFXThread;
 import com.micatechnologies.minecraft.forgelauncher.utilities.objects.Pair;
@@ -197,16 +198,11 @@ public class MainWindow extends AbstractWindow
         SystemUtilities.spawnNewTask( () -> {
             try {
                 // Get current version
-                String version = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
+                String version = "2019.1";//LauncherConstants.LAUNCHER_APPLICATION_VERSION;
 
                 // Get latest version
-                URLConnection con = new URL( LauncherConstants.UPDATE_CHECK_REDIRECT_URL ).openConnection();
-                con.connect();
-                InputStream is = con.getInputStream();
-                String latestVersionURL = con.getURL().toExternalForm();
-                String[] latestVersionURLParts = latestVersionURL.split( "/" );
-                String latestVersion = latestVersionURLParts[ latestVersionURLParts.length - 1 ];
-                is.close();
+                String latestVersionURL = UpdateCheckUtilities.getLatestReleaseURL();
+                String latestVersion = UpdateCheckUtilities.getLatestReleaseVersion();
 
                 // Check if current version is less than latest
                 if ( SystemUtilities.compareVersionNumbers( version, latestVersion ) == -1 ) {

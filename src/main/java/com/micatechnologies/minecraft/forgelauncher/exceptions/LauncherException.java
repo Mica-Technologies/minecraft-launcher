@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.forgelauncher.exceptions;
 
-import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.ClientAndServer;
-
 /**
  * Exception wrapper class for handling and reporting errors and exceptions with user-friendly wording/explanation.
  *
@@ -29,7 +27,6 @@ import com.micatechnologies.minecraft.forgelauncher.utilities.annotations.Client
  * @see java.lang.Exception
  * @since 1.0
  */
-@ClientAndServer
 public class LauncherException extends Exception
 {
 
@@ -40,7 +37,6 @@ public class LauncherException extends Exception
      *
      * @since 1.0
      */
-    @ClientAndServer
     public LauncherException( String exceptionMsg ) {
         super( exceptionMsg );
     }
@@ -54,7 +50,6 @@ public class LauncherException extends Exception
      * @see java.lang.Throwable
      * @since 1.0
      */
-    @ClientAndServer
     public LauncherException( String exceptionMsg, Throwable exceptionTrace ) {
         super( exceptionMsg, exceptionTrace );
     }
