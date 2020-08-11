@@ -55,7 +55,7 @@
             <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
         </padding>
         <ImageView fx:id="packLogo" fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-            <Image url="@../mica_forge_launcher_icon.png" />
+            <Image url="@../micaforgelauncher.png" />
         </ImageView>
       <GridPane maxHeight="35.0" maxWidth="250.0" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
         <columnConstraints>

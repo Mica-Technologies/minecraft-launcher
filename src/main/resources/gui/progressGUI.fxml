@@ -52,7 +52,7 @@
             <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
         </padding>
         <ImageView fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-            <Image url="@../mica_forge_launcher_icon.png" />
+            <Image url="@../micaforgelauncher.png" />
         </ImageView>
         <Label fx:id="upperLabel" alignment="CENTER" contentDisplay="CENTER" prefHeight="53.0" prefWidth="294.0" text="Just a Moment" textAlignment="CENTER" wrapText="true" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
             <font>

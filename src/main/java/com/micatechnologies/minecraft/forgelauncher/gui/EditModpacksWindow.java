@@ -158,8 +158,10 @@ public class EditModpacksWindow extends AbstractWindow
             HBox.setHgrow( pane, Priority.ALWAYS );
             button.setOnAction( event -> {
                 getListView().getItems().remove( getItem() );
-                GameModPackManager.uninstallModPackByFriendlyName( label.getText() );
-                SystemUtilities.spawnNewTask( EditModpacksWindow.this::loadModPackList );
+                SystemUtilities.spawnNewTask( () -> {
+                    GameModPackManager.uninstallModPackByFriendlyName( label.getText() );
+                    loadModPackList();
+                } );
             } );
         }
 

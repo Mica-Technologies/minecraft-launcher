@@ -313,13 +313,13 @@ public abstract class AbstractWindow extends Application
 
             // Make window draggable
             rootPane.setOnMousePressed( pressEvent -> rootPane.setOnMouseDragged( dragEvent -> {
-                currentJFXStage.setX( dragEvent.getScreenX() + pressEvent.getSceneX() );
-                currentJFXStage.setY( dragEvent.getScreenY() + pressEvent.getSceneY() );
+                currentJFXStage.setX( dragEvent.getScreenX() - pressEvent.getSceneX() );
+                currentJFXStage.setY( dragEvent.getScreenY() - pressEvent.getSceneY() );
             } ) );
         }
         catch ( Exception e ) {
-            e.printStackTrace();
             Logger.logDebug( "An error occurred while performing style modifications to an NSWindow wrapper." );
+            Logger.logThrowable( e );
         }
     }
 

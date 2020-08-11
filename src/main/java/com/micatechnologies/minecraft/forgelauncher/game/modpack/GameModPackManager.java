@@ -327,7 +327,7 @@ public class GameModPackManager
 
         // Populate list of available mod pack manifest URLs and return
         List< String > availableModPackURLs = new ArrayList<>();
-        for ( GameModPack gameModPack : getAvailableModPacks() ) {
+        for ( GameModPack gameModPack : availableGameModPacks ) {
             availableModPackURLs.add( gameModPack.getManifestUrl() );
         }
         return availableModPackURLs;
@@ -348,7 +348,7 @@ public class GameModPackManager
 
         // Populate list of installed mod pack manifest URLs and return
         List< String > installedModPackUrls = new ArrayList<>();
-        for ( GameModPack gameModPack : getInstalledModPacks() ) {
+        for ( GameModPack gameModPack : installedGameModPacks ) {
             installedModPackUrls.add( gameModPack.getManifestUrl() );
         }
         return installedModPackUrls;
@@ -369,7 +369,7 @@ public class GameModPackManager
 
         // Populate list of available mod pack manifest URLs and return
         List< String > availableModPackFriendlyNames = new ArrayList<>();
-        for ( GameModPack gameModPack : getAvailableModPacks() ) {
+        for ( GameModPack gameModPack : availableGameModPacks ) {
             availableModPackFriendlyNames.add( gameModPack.getFriendlyName() );
         }
         return availableModPackFriendlyNames;
@@ -390,7 +390,7 @@ public class GameModPackManager
 
         // Populate list of installed mod pack manifest URLs and return
         List< String > installedModPackFriendlyNames = new ArrayList<>();
-        for ( GameModPack gameModPack : getInstalledModPacks() ) {
+        for ( GameModPack gameModPack : installedGameModPacks ) {
             installedModPackFriendlyNames.add( gameModPack.getFriendlyName() );
         }
         return installedModPackFriendlyNames;
@@ -413,7 +413,7 @@ public class GameModPackManager
 
         // Find matching mod pack and return
         GameModPack foundGameModPack = null;
-        for ( GameModPack gameModPack : getInstalledModPacks() ) {
+        for ( GameModPack gameModPack : installedGameModPacks ) {
             if ( gameModPack.getPackName().equalsIgnoreCase( packName ) ) {
                 foundGameModPack = gameModPack;
             }
@@ -438,7 +438,7 @@ public class GameModPackManager
 
         // Find matching mod pack and return
         GameModPack foundGameModPack = null;
-        for ( GameModPack gameModPack : getInstalledModPacks() ) {
+        for ( GameModPack gameModPack : installedGameModPacks ) {
             if ( gameModPack.getFriendlyName().equalsIgnoreCase( friendlyName ) ) {
                 foundGameModPack = gameModPack;
             }
@@ -484,9 +484,10 @@ public class GameModPackManager
         }
 
         // Find matching mod pack and remove
-        for ( GameModPack gameModPack : getInstalledModPacks() ) {
+        for ( GameModPack gameModPack : installedGameModPacks ) {
             if ( gameModPack.getManifestUrl().equals( url ) ) {
                 uninstallModPack( gameModPack );
+                break;
             }
         }
     }
@@ -505,10 +506,11 @@ public class GameModPackManager
         }
 
         // Find matching mod pack and remove
-        for ( GameModPack gameModPack : getInstalledModPacks() ) {
+        for ( GameModPack gameModPack : installedGameModPacks ) {
             final String modPackFriendlyName = gameModPack.getFriendlyName();
             if ( modPackFriendlyName.equals( friendlyName ) ) {
                 uninstallModPack( gameModPack );
+                break;
             }
         }
     }

@@ -198,7 +198,7 @@ public class MainWindow extends AbstractWindow
         SystemUtilities.spawnNewTask( () -> {
             try {
                 // Get current version
-                String version = "2019.1";//LauncherConstants.LAUNCHER_APPLICATION_VERSION;
+                String version = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
 
                 // Get latest version
                 String latestVersionURL = UpdateCheckUtilities.getLatestReleaseURL();
@@ -219,14 +219,15 @@ public class MainWindow extends AbstractWindow
                             catch ( IOException e ) {
                                 Logger.logError( "Unable to open your browser. Please visit " + latestVersionURL +
                                                          " to download the latest launcher updates!" );
+                                Logger.logThrowable( e );
                             }
                         }
                     } ) );
                 }
             }
             catch ( Exception e ) {
-                e.printStackTrace();
                 Logger.logError( "An error occurred while checking for an updated launcher version!" );
+                Logger.logThrowable( e );
             }
         } );
 

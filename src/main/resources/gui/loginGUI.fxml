@@ -63,7 +63,7 @@
         </padding>
         <ImageView fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="2"
                    GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-            <Image url="@../mica_forge_launcher_icon.png"/>
+            <Image url="@../micaforgelauncher.png"/>
         </ImageView>
         <Label text="Login to Minecraft" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1"
                GridPane.valignment="CENTER">

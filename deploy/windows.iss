@@ -2,9 +2,9 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Mica Forge Launcher"
-#define MyAppVersion "2020.2.1"
+#define MyAppVersion "2020.3"
 #define MyAppPublisher "Mica Technologies"
-#define MyAppURL "www.micatechnologies.com/forgelauncher.html"
+#define MyAppURL "minecraft.micatechnologies.com"
 #define MyAppExeName "micaforgelauncher.exe"
 #define MyScriptWD SourcePath
 
@@ -29,7 +29,7 @@ LicenseFile={#MyScriptWD}\..\LICENSE
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputBaseFilename=micaforgelauncher
-SetupIconFile={#MyScriptWD}\..\src\main\resources\micaforgelauncher.ico
+SetupIconFile={#MyScriptWD}\..\src\main\resources\icons\micaforgelauncher.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
