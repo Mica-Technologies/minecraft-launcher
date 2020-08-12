@@ -52,10 +52,10 @@ printf "\nPerforming code signing of application (.app)\n"
 #find "micaforgelauncher-signed.app/Contents/PlugIns" -type f \( -name "*.jar" -or -name "*.dylib" \) -exec codesign --timestamp --force --deep --entitlements ../src/main/resources/darwin/entitlements.plist --sign 'Developer ID Application' {} \;
 #codesign -vvv --deep --force --timestamp --strict --entitlements ../src/main/resources/darwin/entitlements.plist --options runtime --sign "Developer ID Application" "micaforgelauncher-signed.app"
 
-find "micaforgelauncher-signed.app" -type f -not -path "*/Contents/PlugIns/*" -not -path "*/Contents/MacOS/JavaAppLauncher" -not -path "*libapplauncher.dylib" -exec codesign --timestamp --entitlements ../src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v {} \;
-find "micaforgelauncher-signed.app/Contents/PlugIns/JRE" -type f -not -path "*/legal/*" -not -path "*/man/*" -exec codesign -f --timestamp --entitlements ../src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v {} \;
-codesign -f --timestamp --entitlements ../src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre
-codesign -f --deep --timestamp --entitlements ../src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v "micaforgelauncher-signed.app"
+#find "micaforgelauncher-signed.app" -type f -not -path "*/Contents/PlugIns/*" -not -path "*/Contents/MacOS/JavaAppLauncher" -not -path "*libapplauncher.dylib" -exec codesign --timestamp --entitlements ../src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v {} \;
+#find "micaforgelauncher-signed.app/Contents/PlugIns/JRE" -type f -not -path "*/legal/*" -not -path "*/man/*" -exec codesign -f --timestamp --entitlements ../src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v {} \;
+#codesign -f --timestamp --entitlements ../src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v micaforgelauncher-signed.app/Contents/PlugIns/JRE/Contents/Home/jre
+#codesign -f --deep --timestamp --entitlements ../src/main/resources/darwin/micaforgelauncher.entitlements -s "Developer ID Application" --options runtime -v "micaforgelauncher-signed.app"
 
 printf "Performing code signing of application (.app): DONE\n"
 printf "NOTE: APPLICATION .APP FILE MUST BE NOTARIZED BY APPLE\n"

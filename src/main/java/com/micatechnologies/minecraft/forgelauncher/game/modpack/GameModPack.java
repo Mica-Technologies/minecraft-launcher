@@ -476,7 +476,7 @@ public class GameModPack
         File[] modsFolderFiles = modpackModsFolderFile.listFiles();
         if ( modsFolderFiles != null ) {
             for ( File modFile : modsFolderFiles ) {
-                if ( !validModPaths.contains( modFile.getPath() ) ) {
+                if ( !validModPaths.contains( modFile.getPath() ) && modFile.isFile() ) {
                     boolean delete = modFile.delete();
                     if ( !delete ) {
                         Logger.logError( "Unable to delete file during mod folder sanitization." );
@@ -514,10 +514,15 @@ public class GameModPack
         // Update each mod if not already fully downloaded
         for ( GameMod mod : packMods ) {
             mod.setLocalPathPrefix( modLocalPathPrefix );
+
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "Verifying " + mod.name, ( 70.0 / ( double ) packMods.size() ) );
+            }
+
             mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + mod.name, ( 70.0 / ( double ) packMods.size() ) );
+                progressProvider.setCurrText( "Verified " + mod.name );
             }
         }
     }
