@@ -1,6 +1,8 @@
 # Mica Minecraft Forge Launcher
 A simple-to-use launcher for Minecraft Forge, built on the Java and JavaFX platforms. Compatible with Windows, macOS and Linux.
 
+IMPORTANT- We are working on a full rebrand of the Mica Forge Launcher as it will now called Mica Minecraft Launcher starting in version 2021.1 of the launcher for now on. It will not be a full rewrite of the source code as we were once planning on doing but it will build from what is already currently in upstream in the newer repo for the launcher. Once 2021.1 is released, this repo will be deleted as everyrthing will now be migrated towards the new repo. We hope to have this done by January 2021 if not the latest.
+
 ## General Information
 
 The Mica Forge Launcher is a cross-platform, easy-to-use modpack launcher that uses modpacks defined in JSON files that are hosted on the internet.
@@ -159,9 +161,9 @@ __Full Example__:
 |                   |                                                                                                                                                                                                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |          |
 
 ## Development
-There are many ways to contribute to this project. If you have an issue or feature suggestion, please feel free to bring it to the development team's attention by adding a GitHub Issue to the project [here](https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/issues). To contribute to the source code or functionality of the application, please download [IntelliJ IDEA](https://www.jetbrains.com/idea/download/#section=windows) and checkout this repository as a Maven project.
+There are many ways to contribute to this project. If you have an issue or feature suggestion, please feel free to bring it to the development team's attention by adding a GitLab Issue to the project on the Issues tab of this repo. To contribute to the source code or functionality of the application, please download [IntelliJ IDEA](https://www.jetbrains.com/idea/download/#section=windows) and checkout this repository as a Maven project.
    
 ### Branches
-The `master` branch is a protected branch, and pushing to it is not permitted. Development must be completed on a secondary branch, and then merged to the main project using a pull request. At least one person must review all pull requests before they may be merged, and all pull requests are automatically build tested. If the pull request is not reviewed, or the code fails to build, the pull request cannot be merged.
+The `master` branch is a protected branch, and pushing to it is not permitted. Development must be completed on a secondary branch, and then merged to the main project using a merge request. At least one person must review all pull requests before they may be merged, and all merge requests are automatically build tested. If the merge request is not reviewed, or the code fails to build, the merge request cannot be merged.
    
 
