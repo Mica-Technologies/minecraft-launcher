@@ -370,10 +370,8 @@ public class GameModPack
         minecraftArgs = "-Xms" + SminRAMMB + "m " + minecraftArgs;
         minecraftArgs = "-Xmx" + SmaxRAMMB + "m " + minecraftArgs;
 
-        // Add garbage collection config to arguments for client
-        if ( GameModeManager.isClient() ) {
-            minecraftArgs = ModPackConstants.APP_GARBAGE_COLLECTOR_SETTINGS + minecraftArgs;
-        }
+        // Add garbage collection config to arguments
+        minecraftArgs = ConfigManager.getCustomJvmArgs() + " " + minecraftArgs;
 
         // Add classpath to arguments
         if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {

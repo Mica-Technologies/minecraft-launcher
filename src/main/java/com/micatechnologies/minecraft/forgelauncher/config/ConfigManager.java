@@ -221,6 +221,32 @@ public class ConfigManager
     }
 
     /**
+     * Gets the configured custom JVM launch arguments for the application.
+     *
+     * @return custom JVM launch arguments
+     *
+     * @since 3.0
+     */
+    public synchronized static String getCustomJvmArgs() {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        // Check for presence of field, and create default if does not exist
+        if ( !configObject.has( ConfigConstants.JVM_ARGS_KEY ) ) {
+            // Add property with default value
+            configObject.addProperty( ConfigConstants.JVM_ARGS_KEY, ConfigConstants.JVM_ARGS_VALUE_DEFAULT );
+
+            // Save configuration to disk
+            writeConfigurationToDisk();
+        }
+
+        // Get and return value of custom JVM args
+        return configObject.get( ConfigConstants.JVM_ARGS_KEY ).getAsString();
+    }
+
+    /**
      * Gets the configured list of installed mod packs by their manifest URLs.
      *
      * @return list of installed mod packs' manifest URLs

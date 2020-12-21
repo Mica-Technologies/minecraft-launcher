@@ -33,3 +33,8 @@
 .jfx-chip-view .jfx-chip .close-button .jfx-rippler {
     -jfx-rippler-fill: BLACK;
 }
+
+.combo-box-popup .list-view .list-cell {
+    -fx-text-fill: BLACK !important;
+    -fx-text-color: BLACK !important;
+}

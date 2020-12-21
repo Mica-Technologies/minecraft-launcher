@@ -24,7 +24,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>micaforgelauncher</artifactId>
-    <version>2020.3.1</version>
+    <version>2020.4</version>
     <name>micaforgelauncher</name>
     <packaging>jar</packaging>
 

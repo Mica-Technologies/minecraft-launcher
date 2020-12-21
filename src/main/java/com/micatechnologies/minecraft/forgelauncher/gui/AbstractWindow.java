@@ -285,9 +285,9 @@ public abstract class AbstractWindow extends Application
      */
     NSWindow getNSWindow() {
         // Load rococoa library
-        URL url = this.getClass().getClassLoader().getResource( "darwin/librococoa.dylib" );
+        URL url = this.getClass().getClassLoader().getResource( "lib/darwin/librococoa.dylib" );
         if ( url != null ) {
-            System.load( url.getPath() );
+            System.load( url.toExternalForm() );
         }
         else {
             Logger.logDebug( "Unable to load rococoa library for macOS window styling!" );

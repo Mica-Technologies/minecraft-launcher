@@ -189,14 +189,6 @@ public class ModPackConstants
     public static final String MODPACK_FRIENDLY_NAME_TEMPLATE = "%s: %s";
 
     /**
-     * Garbage collector settings for the Minecraft game. Added to the command used to start Minecraft.
-     *
-     * @since 1.0
-     */
-    public static final String APP_GARBAGE_COLLECTOR_SETTINGS
-            = "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M ";
-
-    /**
      * Download URL of Minecraft version manifest
      *
      * @since 1.0
