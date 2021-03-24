@@ -1,7 +1,7 @@
 # Mica Minecraft Forge Launcher
 A simple-to-use launcher for Minecraft Forge, built on the Java and JavaFX platforms. Compatible with Windows, macOS and Linux.
 
-IMPORTANT- We are working on a full rebrand of the Mica Forge Launcher as it will now called Mica Minecraft Launcher starting in version 2021.1 of the launcher for now on. It will not be a full rewrite of the source code as we were once planning on doing but it will build from what is already currently in upstream in the newer repo for the launcher. Once 2021.1 is released, this repo will be deleted as everyrthing will now be migrated towards the new repo. We hope to have this done by January 2021 if not the latest.
+IMPORTANT- As of March 2021 and even going back into the Fall of 2020, we are working on a full rebrand of the Mica Forge Launcher as it will now be called the Mica Minecraft Launcher starting in version 2021.1 of the launcher for now on. It will not be a full rewrite of the source code as we were once planning on doing but it will build from what is already currently in upstream in the newer repo for the launcher. Once 2021.1 is released, this repo will be deleted as everything will now be migrated towards the new repo. We hope to have this done sometime by early to mid April 2021 if not the latest, but we cannot be certain when that may happen.
 
 ## General Information
 
@@ -27,7 +27,7 @@ __To force client mode with specified mod pack__: `launcher-file-name.jar -c [mo
 
 ## Adding a Mod pack to the Launcher
 
-Adding a modpack to the Mica Forge Launcher is simple...just follow these steps:
+Adding a modpack to the Mica Forge Launcher is simple and easy! All you have to do is:
 
 1. Open the launcher settings window
     1. If not already done, login to the launcher with your Minecraft/Mojang account
@@ -39,9 +39,9 @@ Adding a modpack to the Mica Forge Launcher is simple...just follow these steps:
 
 ## Creating a Mod pack for the Launcher
 
-Creating a modpack for the Mica Forge Launcher is simple...just follow these steps:
+Just like adding a modpack, creating one yourself is just as easy! All you have to do is:
 
-1. Create a new JSON modpack definition, or download the example one [HERE](https://github.com/Mica-Technologies/Minecraft-Forge-Launcher/raw/master/full_modpack_json_example.json)
+1. Create a new JSON modpack definition, or download the example one [HERE](https://git.micatechnologies.com/minecraft/forge-launcher/-/blob/master/full_modpack_json_example.json)
 
 2. Edit the required fields in the modpack definition to fit your modpack
 
@@ -161,9 +161,11 @@ __Full Example__:
 |                   |                                                                                                                                                                                                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |          |
 
 ## Development
+
+### Contributing
 There are many ways to contribute to this project. If you have an issue or feature suggestion, please feel free to bring it to the development team's attention by adding a GitLab Issue to the project on the Issues tab of this repo. To contribute to the source code or functionality of the application, please download [IntelliJ IDEA](https://www.jetbrains.com/idea/download/#section=windows) and checkout this repository as a Maven project.
    
 ### Branches
-The `master` branch is a protected branch, and pushing to it is not permitted. Development must be completed on a secondary branch, and then merged to the main project using a merge request. At least one person must review all pull requests before they may be merged, and all merge requests are automatically build tested. If the merge request is not reviewed, or the code fails to build, the merge request cannot be merged.
+The `master` branch is a protected branch, and pushing to it is not permitted. Development must be completed on a secondary branch, and then merged to the main project using a merge request. At least one person must review all merge requests before they may be merged, and all merge requests are automatically build tested. If the merge request is not reviewed, or the code fails to build, the merge request cannot be merged.
    
 
