@@ -23,9 +23,9 @@
 
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
-    <artifactId>micaforgelauncher</artifactId>
+    <artifactId>launcher</artifactId>
     <version>2020.4</version>
-    <name>micaforgelauncher</name>
+    <name>Mica Minecraft Launcher</name>
     <packaging>jar</packaging>
 
     <!-- PROJECT AND CUSTOM PROPERTIES -->
@@ -33,8 +33,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <main.class>com.micatechnologies.minecraft.forgelauncher.LauncherCore</main.class>
-        <app.name>Mica Forge Launcher</app.name>
+        <main.class>com.micatechnologies.minecraft.launcher.LauncherCore</main.class>
+        <app.name>Mica Minecraft Launcher</app.name>
         <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
         <izpack.staging>${project.build.directory}${file.separator}windows-installer</izpack.staging>
         <timestamp>${maven.build.timestamp}</timestamp>
