@@ -39,7 +39,7 @@ public class RuntimeConstants
      * @since 1.0
      */
     public static final String JRE_8_WIN_URL
-            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_windows_hotspot_8u232b09.zip";
+            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u282-b08/OpenJDK8U-jre_x64_windows_hotspot_8u282b08.zip";
 
     /**
      * Download URL for version of JRE 8 that is compatible with macOS.
@@ -47,7 +47,7 @@ public class RuntimeConstants
      * @since 1.0
      */
     public static final String JRE_8_MAC_URL
-            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_mac_hotspot_8u232b09.tar.gz";
+            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u282-b08/OpenJDK8U-jre_x64_mac_hotspot_8u282b08.tar.gz";
 
     /**
      * Download URL for version of JRE 8 that is compatible with Linux.
@@ -55,7 +55,7 @@ public class RuntimeConstants
      * @since 1.0
      */
     public static final String JRE_8_LNX_URL
-            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u232-b09/OpenJDK8U-jre_x64_linux_hotspot_8u232b09.tar.gz";
+            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u282-b08/OpenJDK8U-jre_x64_linux_hotspot_8u282b08.tar.gz";
 
     /**
      * Download URL for SHA-256 hash of JRE 8 that is compatible with Windows.
@@ -83,7 +83,7 @@ public class RuntimeConstants
      *
      * @since 1.0
      */
-    public static final String JRE_8_EXTRACTED_FOLDER_NAME = "jdk8u232-b09-jre";
+    public static final String JRE_8_EXTRACTED_FOLDER_NAME = "jdk8u282-b08-jre";
 
     /**
      * The file name of the downloaded JRE 8 archive file.
