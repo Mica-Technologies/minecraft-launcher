@@ -1,7 +1,9 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Core (Server)" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="liberica-11" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="MAIN_CLASS_NAME" value="com.micatechnologies.minecraft.forgelauncher.LauncherCore" />
-    <module name="micaforgelauncher" />
+    <module name="forge-launcher" />
     <option name="PROGRAM_PARAMETERS" value="-s" />
     <extension name="coverage">
       <pattern>
