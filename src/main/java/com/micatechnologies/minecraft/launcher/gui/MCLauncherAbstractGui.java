@@ -23,6 +23,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.Pane;
+import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.net.URL;
@@ -40,6 +41,8 @@ public abstract class MCLauncherAbstractGui
      */
     final Scene scene;
 
+    final Stage stage;
+
     /**
      * Root pane of the scene.
      *
@@ -55,13 +58,13 @@ public abstract class MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherAbstractGui() throws IOException {
+    public MCLauncherAbstractGui( Stage stage ) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader();
-        URL resource = getClass().getResource( getSceneFxmlPath() );
-        System.out.println( resource.getPath() );
+        URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
         fxmlLoader.setLocation( resource );
         fxmlLoader.setController( this );
         scene = new Scene( fxmlLoader.load() );
+        this.stage = stage;
     }
 
     /**

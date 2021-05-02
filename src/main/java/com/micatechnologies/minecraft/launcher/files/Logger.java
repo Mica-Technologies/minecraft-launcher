@@ -20,7 +20,7 @@ package com.micatechnologies.minecraft.launcher.files;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
-import com.micatechnologies.minecraft.launcher.gui.GUIController;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import javafx.stage.Stage;
 import org.apache.commons.io.output.TeeOutputStream;
@@ -151,7 +151,7 @@ public class Logger
      */
     public static void logError( String errorLog ) {
         // Show error on GUI, if GUI available
-        Stage jfxStage = GUIController.getTopStageOrNull();
+        Stage jfxStage = MCLauncherGuiController.getTopStageOrNull();
         if ( jfxStage != null ) {
             GUIUtilities.showErrorMessage( errorLog, jfxStage );
         }
@@ -168,7 +168,7 @@ public class Logger
      */
     public static void logWarning( String warningLog ) {
         // Show warning on GUI, if GUI available
-        Stage jfxStage = GUIController.getTopStageOrNull();
+        Stage jfxStage = MCLauncherGuiController.getTopStageOrNull();
         if ( jfxStage != null ) {
             GUIUtilities.showWarningMessage( warningLog, jfxStage );
         }

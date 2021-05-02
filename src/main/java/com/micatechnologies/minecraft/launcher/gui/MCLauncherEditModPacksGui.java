@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXTextField;
+import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
@@ -32,6 +33,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
 import java.io.IOException;
@@ -101,7 +103,8 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherEditModPacksGui() throws IOException {
+    public MCLauncherEditModPacksGui( Stage stage) throws IOException {
+        super(stage);
     }
 
     /**
@@ -210,7 +213,16 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     @Override
     void setup() {
         // Configure return button and window close
-        returnBtn.setOnAction( actionEvent -> MCLauncherGuiController.goToMainGui() );
+        returnBtn.setOnAction( actionEvent -> {
+            try {
+                MCLauncherGuiController.goToMainGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logThrowable( e );
+            }
+
+        } );
 
         // Populate mod pack lists
         loadModPackList();
@@ -220,6 +232,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
             rootPane.setDisable( true );
             GameModPackManager.installModPackByURL( urlAddBox.getText() );
             loadModPackList();
+            MCLauncherGuiController.goToGui( this );
             rootPane.setDisable( false );
         } ) );
 
@@ -228,6 +241,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
             rootPane.setDisable( true );
             GameModPackManager.installModPackByFriendlyName( listAddBox.getValue() );
             loadModPackList();
+            MCLauncherGuiController.goToGui( this );
             rootPane.setDisable( false );
         } ) );
     }

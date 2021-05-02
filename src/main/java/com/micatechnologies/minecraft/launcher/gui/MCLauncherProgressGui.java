@@ -9,7 +9,9 @@ import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.stage.Stage;
 
+import java.io.File;
 import java.io.IOException;
 
 public class MCLauncherProgressGui extends MCLauncherAbstractGui
@@ -63,7 +65,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherProgressGui() throws IOException {
+    public MCLauncherProgressGui( Stage stage ) throws IOException {
+        super( stage );
     }
 
     /**
@@ -98,8 +101,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     }
 
     /**
-     * This method must perform preparations of the environment, such as enabling menu bars, context
-     * menus, or other OS-specific enhancements.
+     * This method must perform preparations of the environment, such as enabling menu bars, context menus, or other
+     * OS-specific enhancements.
      */
     @Override
     void loadEnvironment() {
@@ -107,8 +110,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     }
 
     /**
-     * This method returns a boolean indicating if a warning should be shown to the user before closing
-     * the window while displaying the stage/GUI.
+     * This method returns a boolean indicating if a warning should be shown to the user before closing the window while
+     * displaying the stage/GUI.
      *
      * @return boolean indicating if window close warning should be shown
      */
@@ -139,6 +142,11 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      */
     public void setLowerLabelText( String text ) {
         GUIUtilities.JFXPlatformRun( () -> lowerLabel.setText( text ) );
+    }
+
+    public void setLabelTexts( String upper, String lower ) {
+        setUpperLabelText( upper );
+        setLowerLabelText( lower );
     }
 
     /**

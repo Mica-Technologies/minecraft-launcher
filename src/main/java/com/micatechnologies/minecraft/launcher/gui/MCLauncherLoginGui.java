@@ -32,6 +32,7 @@ import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import javafx.fxml.FXML;
 import javafx.scene.input.KeyCode;
+import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
 import java.io.IOException;
@@ -94,7 +95,8 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherLoginGui() throws IOException {
+    public MCLauncherLoginGui( Stage stage) throws IOException {
+        super(stage);
     }
 
     /**

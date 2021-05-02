@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.stage.Stage;
@@ -30,7 +31,7 @@ public class MCLauncherGuiWindow extends Application
     @Override
     public void start( Stage stage ) throws Exception {
         // Initialize default scene/GUI
-        MCLauncherProgressGui progressGui = new MCLauncherProgressGui();
+        MCLauncherProgressGui progressGui = new MCLauncherProgressGui( stage );
 
         // Save stage
         this.stage = stage;
@@ -41,22 +42,30 @@ public class MCLauncherGuiWindow extends Application
 
         // Set scene
         setScene( progressGui );
+        show();
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
-        // Change stage name
-        stage.setTitle(
-                LauncherConstants.LAUNCHER_APPLICATION_NAME + GUIConstants.TITLE_SPLIT_CHAR + gui.getSceneName() );
+        GUIUtilities.JFXPlatformRun( () -> {
+            // Change stage name
+            stage.setTitle(
+                    LauncherConstants.LAUNCHER_APPLICATION_NAME + GUIConstants.TITLE_SPLIT_CHAR + gui.getSceneName() );
 
-        // Prepare scene environment
-        gui.loadEnvironment();
+            // Prepare scene environment
+            gui.setup();
+            gui.loadEnvironment();
 
-        // Set scene
-        stage.setScene( gui.scene );
+            // Set scene
+            stage.setScene( gui.scene );
+        } );
     }
 
     public void show() {
-        Platform.runLater( () -> stage.show() );
+        GUIUtilities.JFXPlatformRun( () -> stage.show() );
+    }
+
+    public Stage getStage() {
+        return stage;
     }
 }
 

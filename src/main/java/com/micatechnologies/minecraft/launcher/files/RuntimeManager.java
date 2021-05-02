@@ -20,8 +20,8 @@ package com.micatechnologies.minecraft.launcher.files;
 import com.jfoenix.controls.JFXProgressBar;
 import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
-import com.micatechnologies.minecraft.launcher.gui.GUIController;
-import com.micatechnologies.minecraft.launcher.gui.ProgressWindow;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
@@ -63,11 +63,20 @@ public class RuntimeManager
      */
     public static void verifyJre8() {
         // Create progress window if applicable
-        ProgressWindow progressWindow = null;
-        if ( GUIController.shouldCreateGui() ) {
-            progressWindow = new ProgressWindow();
-            progressWindow.show( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL,
-                                 LocalizationManager.RUNTIME_INSTALL_PROGRESS_LOWER_LABEL );
+        MCLauncherProgressGui progressWindow = null;
+        try {
+            if ( MCLauncherGuiController.shouldCreateGui() ) {
+                progressWindow = MCLauncherGuiController.goToProgressGui();
+            }
+        }
+        catch ( IOException e ) {
+            Logger.logError( "Unable to load progress GUI due to an incomplete response from the GUI subsystem." );
+            Logger.logThrowable( e );
+        }
+
+        if ( progressWindow != null ) {
+            progressWindow.setLabelTexts( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL,
+                                          LocalizationManager.RUNTIME_INSTALL_PROGRESS_LOWER_LABEL );
         }
 
         // Create runtime folder and file objects
@@ -262,14 +271,14 @@ public class RuntimeManager
         if ( progressWindow != null ) {
             progressWindow.setLowerLabelText( LocalizationManager.COMPLETED_TEXT );
             progressWindow.setProgress( 100 );
-            progressWindow.close();
-            try {
-                progressWindow.closedLatch.await();
-            }
-            catch ( InterruptedException e ) {
-                Logger.logError( LocalizationManager.UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT );
-                e.printStackTrace();
-            }
+            //TODO: progressWindow.close();
+            //try {
+            //TODO:progressWindow.closedLatch.await();
+            //}
+            //catch ( InterruptedException e ) {
+            //    Logger.logError( LocalizationManager.UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT );
+            //    e.printStackTrace();
+            //}
         }
         else {
             Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
