@@ -38,6 +38,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
+import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
 import java.awt.*;
@@ -143,7 +144,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherMainGui() throws IOException {
+    public MCLauncherMainGui( Stage stage) throws IOException {
+        super(stage);
     }
 
     /**
@@ -217,13 +219,26 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         // Configure settings button
         settingsBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            MCLauncherGuiController.goToSettingsGui();
+            try {
+                MCLauncherGuiController.goToSettingsGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError(
+                        "Unable to load settings GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logThrowable( e );
+            }
         } ) );
 
         // Configure modpacks edit button
         editButton.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            MCLauncherGuiController.goToEditModpacksGui();
-
+            try {
+                MCLauncherGuiController.goToEditModpacksGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError(
+                        "Unable to load edit mod-packs GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logThrowable( e );
+            }
         } ) );
 
         // Configure logout button
@@ -288,7 +303,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     private final ChangeListener< Number > packSelectionChangeListener = ( observableValue, oldVal, newVal ) -> {
         // Get selected mod pack
-        GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName( packSelection.getValue() );
+        GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName(
+                packSelection.getValue() );
 
         // Load modpack logo and set in GUI
         Image packLogoImg;
@@ -303,18 +319,27 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
             // Set modpack background image on root pane
             if ( selectedGameModPack != null ) {
-                rootPane.setStyle(
-                        rootPane.getStyle() + "-fx-background-image: url('" + selectedGameModPack.getPackBackgroundURL() +
-                                "');" );
+                rootPane.setStyle( rootPane.getStyle() +
+                                           "-fx-background-image: url('" +
+                                           selectedGameModPack.getPackBackgroundURL() +
+                                           "');" );
             }
             else {
-                rootPane.setStyle( rootPane.getStyle() + "-fx-background-image: url('" +
-                                           ModPackConstants.MODPACK_DEFAULT_BG_URL + "');" );
+                rootPane.setStyle( rootPane.getStyle() +
+                                           "-fx-background-image: url('" +
+                                           ModPackConstants.MODPACK_DEFAULT_BG_URL +
+                                           "');" );
             }
 
             rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
         } );
     };
+
+    public void selectModpack( GameModPack modPack ) {
+        // Select supplied modpack
+        packSelection.getSelectionModel().selectFirst();
+        packSelection.getSelectionModel().select( modPack.getFriendlyName() );
+    }
 
     /**
      * Populates the contents of the mod pack dropdown list, or disables the pack selection list and displays a message
@@ -346,8 +371,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 packSelection.getSelectionModel().selectFirst();
                 packSelection.setDisable( true );
                 packLogo.setImage( new Image( GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE ) );
-                rootPane.setStyle( rootPane.getStyle() + "-fx-background-image: url('" +
-                                           ModPackConstants.MODPACK_DEFAULT_BG_URL + "');" );
+                rootPane.setStyle( rootPane.getStyle() +
+                                           "-fx-background-image: url('" +
+                                           ModPackConstants.MODPACK_DEFAULT_BG_URL +
+                                           "');" );
                 rootPane.setStyle(
                         rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
             } );

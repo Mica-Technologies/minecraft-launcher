@@ -23,8 +23,8 @@ import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
-import com.micatechnologies.minecraft.launcher.gui.GUIController;
-import com.micatechnologies.minecraft.launcher.gui.ProgressWindow;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import org.apache.commons.io.IOUtils;
 
@@ -69,7 +69,7 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    private synchronized static void fetchAvailableModPacks( ProgressWindow progressWindow ) {
+    private synchronized static void fetchAvailableModPacks( MCLauncherProgressGui progressWindow ) {
         // Update progress window
         if ( progressWindow != null ) {
             progressWindow.setUpperLabelText( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT );
@@ -179,7 +179,7 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    private synchronized static void fetchInstalledModPacks( ProgressWindow progressWindow ) {
+    private synchronized static void fetchInstalledModPacks( MCLauncherProgressGui progressWindow ) {
         // Update progress window to show start of fetch installed
         if ( progressWindow != null ) {
             progressWindow.setUpperLabelText( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT );
@@ -255,11 +255,20 @@ public class GameModPackManager
      */
     public synchronized static void fetchModPackInfo() {
         // Create progress window if applicable
-        ProgressWindow progressWindow = null;
-        if ( GUIController.shouldCreateGui() ) {
-            progressWindow = new ProgressWindow();
-            progressWindow.show( LocalizationManager.MODPACK_INSTALL_FETCH_UPPER_LABEL,
-                                 LocalizationManager.MODPACK_INSTALL_FETCH_LOWER_LABEL );
+        MCLauncherProgressGui progressWindow = null;
+        try {
+            if ( MCLauncherGuiController.shouldCreateGui() ) {
+                progressWindow = MCLauncherGuiController.goToProgressGui();
+            }
+        }
+        catch ( IOException e ) {
+            Logger.logError( "Unable to load progress GUI due to an incomplete response from the GUI subsystem." );
+            Logger.logThrowable( e );
+        }
+
+        if ( progressWindow != null ) {
+            progressWindow.setLabelTexts( LocalizationManager.MODPACK_INSTALL_FETCH_UPPER_LABEL,
+                                          LocalizationManager.MODPACK_INSTALL_FETCH_LOWER_LABEL );
         }
 
         // Update installed mod packs and available mod packs
@@ -268,14 +277,14 @@ public class GameModPackManager
 
         // Close progress window if applicable
         if ( progressWindow != null ) {
-            progressWindow.close();
-            try {
-                progressWindow.closedLatch.await();
-            }
-            catch ( InterruptedException e ) {
-                Logger.logError( LocalizationManager.UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT );
-                Logger.logThrowable( e );
-            }
+            //TODO progressWindow.close();
+            //try {
+            //TODO progressWindow.closedLatch.await();
+            //}
+            //catch ( InterruptedException e ) {
+            //    Logger.logError( LocalizationManager.UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT );
+            //    Logger.logThrowable( e );
+            //}
         }
     }
 

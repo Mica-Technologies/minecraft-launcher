@@ -34,6 +34,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
+import javafx.stage.Stage;
 import org.codehaus.plexus.util.FileUtils;
 
 import java.io.IOException;
@@ -84,7 +85,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherSettingsGui() throws IOException {
+    public MCLauncherSettingsGui( Stage stage) throws IOException {
+        super(stage);
     }
 
     /**
@@ -113,7 +115,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @Override
     void setup() {
         // Configure window close
-        currentJFXStage.setOnCloseRequest( windowEvent -> {
+        stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();
             returnBtn.fire();
         } );
@@ -123,17 +125,35 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             if ( dirty ) {
                 int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
                                                                  "Are you sure you want to exit without saving changes?",
-                                                                 "Save", "Exit", getCurrentJFXStage() );
+                                                                 "Save", "Exit", stage );
                 if ( response == 1 ) {
                     GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
-                    close();
+                    //TODO: This is probably gonna end horribly
+                    try {
+                        MCLauncherGuiController.goToMainGui();
+                    }
+                    catch ( IOException e ) {
+                        e.printStackTrace();
+                    }
                 }
                 else if ( response == 2 ) {
-                    close();
+                    //TODO: This is probably gonna end horribly
+                    try {
+                        MCLauncherGuiController.goToMainGui();
+                    }
+                    catch ( IOException e ) {
+                        e.printStackTrace();
+                    }
                 }
             }
             else {
-                close();
+                //TODO: This is probably gonna end horribly
+                try {
+                    MCLauncherGuiController.goToMainGui();
+                }
+                catch ( IOException e ) {
+                    e.printStackTrace();
+                }
             }
         } ) );
 
@@ -159,9 +179,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             // Change save button text to indicate successful save
             GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
 
-            // Force window changes apply
-            GUIController.refreshWindowConfiguration();
-
             // Schedule save button text to revert to normal after 5s
             SystemUtilities.spawnNewTask( () -> {
                 try {
@@ -179,12 +196,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         resetLauncherBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             int response = GUIUtilities.showQuestionMessage( "Continue?", "Entering the Danger Zone",
                                                              "Are you sure you'd like to reset the launcher? This may take a few minutes!",
-                                                             "Reset", "Back to Safety", getCurrentJFXStage() );
+                                                             "Reset", "Back to Safety", stage );
             if ( response != 1 ) {
                 return;
             }
 
-            hide();
             AuthManager.logout();
             try {
                 FileUtils.deleteDirectory(
@@ -202,12 +218,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         resetRuntimeBtn.setOnAction( event -> SystemUtilities.spawnNewTask( () -> {
             int response = GUIUtilities.showQuestionMessage( "Continue?", "Entering the Danger Zone",
                                                              "Are you sure you'd like to reset the runtime? This may take a few minutes!",
-                                                             "Reset", "Back to Safety", scene );
+                                                             "Reset", "Back to Safety", stage );
             if ( response != 1 ) {
                 return;
             }
 
-            hide();
+            //TODO hide();
             try {
                 RuntimeManager.clearJre8();
             }
@@ -216,7 +232,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         "The runtime could not be deleted due to an IO exception. Continuing runtime verification..." );
             }
             RuntimeManager.verifyJre8();
-            show();
+            //Return to this settings window
+            MCLauncherGuiController.goToGui( this );
         } ) );
 
         // Load version information
@@ -284,7 +301,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     private void setEdited( boolean edited ) {
         if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
-            getNSWindow().setDocumentEdited( edited );
+            //TODO getNSWindow().setDocumentEdited( edited );
         }
         dirty = edited;
     }

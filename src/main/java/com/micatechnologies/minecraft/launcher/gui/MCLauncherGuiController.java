@@ -17,17 +17,141 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
+import javafx.application.Platform;
+import javafx.stage.Stage;
+
+import java.awt.*;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class MCLauncherGuiController
 {
-    public static void goToMainGui() {
 
+    private static MCLauncherGuiWindow guiWindow = null;
+
+    public static Stage getTopStageOrNull() {
+        return guiWindow != null ? guiWindow.getStage() : null;
     }
 
-    public  static void goToSettingsGui() {
+    private static boolean startGui() {
+        AtomicBoolean success = new AtomicBoolean( true );
+        if ( guiWindow == null ) {
+            GUIUtilities.JFXPlatformRun( () -> {
+                try {
+                    guiWindow = new MCLauncherGuiWindow();
+                    guiWindow.start( new Stage() );
+                    guiWindow.show();
+                }
+                catch ( Exception e ) {
+                    Logger.logError( "An exception was encountered while starting the application GUI window." );
+                    Logger.logThrowable( e );
+                    success.set( false );
+                }
+            } );
+        }
 
+        return success.get();
     }
 
-    public static void goToEditModpacksGui() {
+    public static void goToGui( MCLauncherAbstractGui abstractGui ) {
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            guiWindow.setScene( abstractGui );
+        }
+        else {
+            Logger.logError(
+                    "An application GUI could not be displayed due to the application GUI not being " + "started." );
+        }
+    }
 
+    public static MCLauncherMainGui goToMainGui() throws IOException {
+        MCLauncherMainGui newMainGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newMainGui = new MCLauncherMainGui( guiWindow.getStage() );
+            guiWindow.setScene( newMainGui );
+        }
+        else {
+            Logger.logError( "The application main GUI could not be displayed due to the application GUI not being " +
+                                     "started." );
+        }
+        return newMainGui;
+    }
+
+    public static MCLauncherSettingsGui goToSettingsGui() throws IOException {
+        MCLauncherSettingsGui newSettingsGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newSettingsGui = new MCLauncherSettingsGui( guiWindow.getStage() );
+            guiWindow.setScene( newSettingsGui );
+        }
+        else {
+            Logger.logError( "The application settings GUI could not be displayed due to the application GUI not " +
+                                     "being started." );
+        }
+        return newSettingsGui;
+    }
+
+    public static MCLauncherEditModPacksGui goToEditModpacksGui() throws IOException {
+        MCLauncherEditModPacksGui newEditModpacksGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newEditModpacksGui = new MCLauncherEditModPacksGui( guiWindow.getStage() );
+            guiWindow.setScene( newEditModpacksGui );
+        }
+        else {
+            Logger.logError( "The edit mod-packs GUI could not be displayed due to the application GUI not " +
+                                     "being started." );
+        }
+        return newEditModpacksGui;
+    }
+
+    public static MCLauncherLoginGui goToLoginGui() throws IOException {
+        MCLauncherLoginGui newLoginGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newLoginGui = new MCLauncherLoginGui( guiWindow.getStage() );
+            guiWindow.setScene( newLoginGui );
+        }
+        else {
+            Logger.logError(
+                    "The login GUI could not be displayed due to the application GUI not " + "being started." );
+        }
+        return newLoginGui;
+    }
+
+    public static MCLauncherProgressGui goToProgressGui() throws IOException {
+        MCLauncherProgressGui newProgressGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newProgressGui = new MCLauncherProgressGui( guiWindow.getStage() );
+            guiWindow.setScene( newProgressGui );
+        }
+        else {
+            Logger.logError(
+                    "The progress GUI could not be displayed due to the application GUI not " + "being started." );
+        }
+        return newProgressGui;
+    }
+
+    public static void exit() {
+        if ( guiWindow != null && guiWindow.getStage() != null ) {
+            Platform.setImplicitExit( false );
+            GUIUtilities.JFXPlatformRun( () -> guiWindow.getStage().close() );
+            guiWindow = null;
+        }
+    }
+
+    /**
+     * Returns a boolean indicating if the application in its current state should use graphical user interfaces.
+     *
+     * @return true if GUIs should be used
+     *
+     * @since 1.0
+     */
+    public static boolean shouldCreateGui() {
+        return !GraphicsEnvironment.isHeadless();
     }
 }

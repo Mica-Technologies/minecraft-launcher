@@ -19,7 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
-import com.micatechnologies.minecraft.launcher.gui.AbstractWindow;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherAbstractGui;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Alert;
@@ -272,7 +272,7 @@ public class GUIUtilities
      *
      * @since 2.0
      */
-    public static FXMLLoader buildFXMLLoader( String fxmlFileName, AbstractWindow owner ) {
+    public static FXMLLoader buildFXMLLoader( String fxmlFileName, MCLauncherAbstractGui owner ) {
         FXMLLoader fxmlLoader = new FXMLLoader();
         fxmlLoader.setLocation( GUIUtilities.class.getClassLoader().getResource( fxmlFileName ) );
         fxmlLoader.setController( owner );

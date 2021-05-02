@@ -32,13 +32,13 @@ import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
-import com.micatechnologies.minecraft.launcher.gui.GUIController;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.gui.MainWindow;
-import com.micatechnologies.minecraft.launcher.gui.ProgressWindow;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
-import com.micatechnologies.minecraft.launcher.gui.LoginWindow;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import javafx.application.Platform;
 
@@ -127,32 +127,45 @@ public class LauncherCore
      */
     public static void play( GameModPack gameModPack ) {
         if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
-            final ProgressWindow playProgressWindow = GameModeManager.isClient() ? new ProgressWindow() : null;
+            MCLauncherProgressGui playProgressWindow = null;
+            try {
+                if ( MCLauncherGuiController.shouldCreateGui() ) {
+                    playProgressWindow = MCLauncherGuiController.goToProgressGui();
+                }
+            }
+            catch ( IOException e ) {
+                Logger.logError(
+                        "Unable to load progress GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logThrowable( e );
+            }
+
             if ( playProgressWindow != null ) {
-                playProgressWindow.show( LocalizationManager.LAUNCHING_MOD_PACK_TEXT, gameModPack.getFriendlyName() );
+                playProgressWindow.setLabelTexts( LocalizationManager.LAUNCHING_MOD_PACK_TEXT,
+                                                  gameModPack.getFriendlyName() );
             }
 
             try {
                 Logger.logDebug( LocalizationManager.LAUNCHING_MOD_PACK_TEXT + ": " + gameModPack.getFriendlyName() );
+                MCLauncherProgressGui finalPlayProgressWindow = playProgressWindow;
                 gameModPack.setProgressProvider( new GameModPackProgressProvider()
                 {
                     @Override
                     public void updateProgressHandler( double percent, String text ) {
                         Logger.logStd( text + " - " + percent );
 
-                        if ( playProgressWindow != null ) {
-                            playProgressWindow.setUpperLabelText( "Launching: " + gameModPack.getPackName() );
-                            playProgressWindow.setLowerLabelText( text );
-                            playProgressWindow.setProgress( percent );
+                        if ( finalPlayProgressWindow != null ) {
+                            finalPlayProgressWindow.setUpperLabelText( "Launching: " + gameModPack.getPackName() );
+                            finalPlayProgressWindow.setLowerLabelText( text );
+                            finalPlayProgressWindow.setProgress( percent );
                             if ( percent >= 100.0 ) {
-                                playProgressWindow.setLowerLabelText( "Starting Minecraft..." );
+                                finalPlayProgressWindow.setLowerLabelText( "Starting Minecraft..." );
                                 SystemUtilities.spawnNewTask( () -> {
                                     try {
                                         Thread.sleep( 3000 );
                                     }
                                     catch ( InterruptedException ignored ) {
                                     }
-                                    playProgressWindow.close();
+                                    //TODO playProgressWindow.close();
                                 } );
 
                             }
@@ -216,20 +229,25 @@ public class LauncherCore
 
         // Show gui or start start
         if ( GameModeManager.isClient() ) {
-            MainWindow mainWindow = new MainWindow();
-            if ( finalGameModPack != null ) {
-                mainWindow.show( finalGameModPack );
-            }
-            else {
-                mainWindow.show();
-            }
+            MCLauncherMainGui mainWindow = null;
             try {
-                mainWindow.closedLatch.await();
+                mainWindow = MCLauncherGuiController.goToMainGui();
             }
-            catch ( InterruptedException e ) {
-                Logger.logError( LocalizationManager.ERROR_PREVENTING_GUI_COMPLETE_HANDLING_TEXT );
+            catch ( IOException e ) {
+                Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
+            if ( finalGameModPack != null && mainWindow != null ) {
+                mainWindow.selectModpack( finalGameModPack );
+            }
+
+            //try {
+            //    //TODO mainWindow.closedLatch.await();
+            //}
+            //catch ( InterruptedException e ) {
+            //     Logger.logError( LocalizationManager.ERROR_PREVENTING_GUI_COMPLETE_HANDLING_TEXT );
+            //    Logger.logThrowable( e );
+            //}
         }
         else if ( GameModeManager.isServer() ) {
             if ( finalGameModPack != null ) {
@@ -283,20 +301,29 @@ public class LauncherCore
             Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
 
             // Show login screen
-            LoginWindow loginWindow = new LoginWindow();
-            loginWindow.show();
-
-            // Wait for login screen to complete
+            MCLauncherLoginGui loginWindow = null;
             try {
-                loginWindow.waitForLoginSuccess();
+                loginWindow = MCLauncherGuiController.goToLoginGui();
+
+                // Wait for login screen to complete
+                try {
+                    loginWindow.waitForLoginSuccess();
+                }
+                catch ( InterruptedException e ) {
+                    Logger.logError( LocalizationManager.UNABLE_WAIT_PENDING_LOGIN_TEXT );
+                    Logger.logThrowable( e );
+                    closeApp();
+                }
+
+                // Close login screen once complete
+                //TODO loginWindow.close();
             }
-            catch ( InterruptedException e ) {
-                Logger.logError( LocalizationManager.UNABLE_WAIT_PENDING_LOGIN_TEXT );
+            catch ( IOException e ) {
+                Logger.logError( "Unable to load login GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logThrowable( e );
                 closeApp();
             }
 
-            // Close login screen once complete
-            loginWindow.close();
         }
         else {
             // Renew token of saved account
@@ -380,7 +407,7 @@ public class LauncherCore
      */
     public static void cleanupApp() {
         Logger.logStd( LocalizationManager.PERFORMING_APP_CLEANUP_TEXT );
-        GUIController.closeAllWindows();
+        MCLauncherGuiController.exit();
         Logger.logStd( LocalizationManager.FINISHED_APP_CLEANUP_TEXT );
     }
 
