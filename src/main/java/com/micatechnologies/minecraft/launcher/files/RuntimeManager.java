@@ -271,14 +271,6 @@ public class RuntimeManager
         if ( progressWindow != null ) {
             progressWindow.setLowerLabelText( LocalizationManager.COMPLETED_TEXT );
             progressWindow.setProgress( 100 );
-            //TODO: progressWindow.close();
-            //try {
-            //TODO:progressWindow.closedLatch.await();
-            //}
-            //catch ( InterruptedException e ) {
-            //    Logger.logError( LocalizationManager.UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT );
-            //    e.printStackTrace();
-            //}
         }
         else {
             Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +

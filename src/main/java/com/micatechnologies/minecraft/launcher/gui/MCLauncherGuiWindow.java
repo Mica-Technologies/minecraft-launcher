@@ -17,12 +17,18 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
+
+import java.io.InputStream;
+import java.util.Objects;
 
 public class MCLauncherGuiWindow extends Application
 {
@@ -40,6 +46,20 @@ public class MCLauncherGuiWindow extends Application
         stage.setMinHeight( 400 );
         stage.setMinWidth( 400 );
 
+        // Set resizable property
+        stage.setResizable( ConfigManager.getResizableWindows() );
+
+        // Set application icon
+        try {
+            InputStream iconStream = getClass().getClassLoader().getResourceAsStream( "micaforgelauncher.png" );
+            Image icon = new Image( iconStream );
+            stage.getIcons().add( icon );
+        }
+        catch ( Exception e ) {
+            Logger.logError( "An error occurred while setting the application icon!" );
+            Logger.logThrowable( e );
+        }
+
         // Set scene
         setScene( progressGui );
         show();
@@ -47,13 +67,13 @@ public class MCLauncherGuiWindow extends Application
 
     void setScene( MCLauncherAbstractGui gui ) {
         GUIUtilities.JFXPlatformRun( () -> {
-            // Change stage name
-            stage.setTitle(
-                    LauncherConstants.LAUNCHER_APPLICATION_NAME + GUIConstants.TITLE_SPLIT_CHAR + gui.getSceneName() );
-
             // Prepare scene environment
             gui.setup();
             gui.loadEnvironment();
+
+            // Change stage name
+            stage.setTitle(
+                    LauncherConstants.LAUNCHER_APPLICATION_NAME + GUIConstants.TITLE_SPLIT_CHAR + gui.getSceneName() );
 
             // Set scene
             stage.setScene( gui.scene );

@@ -274,18 +274,6 @@ public class GameModPackManager
         // Update installed mod packs and available mod packs
         fetchInstalledModPacks( progressWindow );
         fetchAvailableModPacks( progressWindow );
-
-        // Close progress window if applicable
-        if ( progressWindow != null ) {
-            //TODO progressWindow.close();
-            //try {
-            //TODO progressWindow.closedLatch.await();
-            //}
-            //catch ( InterruptedException e ) {
-            //    Logger.logError( LocalizationManager.UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT );
-            //    Logger.logThrowable( e );
-            //}
-        }
     }
 
     /**
@@ -541,7 +529,6 @@ public class GameModPackManager
             installedGameModPacks.add( gameModPack );
             saveToConfig();
             fetchModPackInfo();
-
         }
         else {
             Logger.logError( "Unable to install mod pack " + gameModPack.getPackName() + "!" );

@@ -85,8 +85,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherSettingsGui( Stage stage) throws IOException {
-        super(stage);
+    public MCLauncherSettingsGui( Stage stage ) throws IOException {
+        super( stage );
     }
 
     /**
@@ -128,31 +128,31 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                                                                  "Save", "Exit", stage );
                 if ( response == 1 ) {
                     GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
-                    //TODO: This is probably gonna end horribly
                     try {
                         MCLauncherGuiController.goToMainGui();
                     }
                     catch ( IOException e ) {
-                        e.printStackTrace();
+                        Logger.logError( "Unable to open the main application GUI!" );
+                        Logger.logThrowable( e );
                     }
                 }
                 else if ( response == 2 ) {
-                    //TODO: This is probably gonna end horribly
                     try {
                         MCLauncherGuiController.goToMainGui();
                     }
                     catch ( IOException e ) {
-                        e.printStackTrace();
+                        Logger.logError( "Unable to open the main application GUI!" );
+                        Logger.logThrowable( e );
                     }
                 }
             }
             else {
-                //TODO: This is probably gonna end horribly
                 try {
                     MCLauncherGuiController.goToMainGui();
                 }
                 catch ( IOException e ) {
-                    e.printStackTrace();
+                    Logger.logError( "Unable to open the main application GUI!" );
+                    Logger.logThrowable( e );
                 }
             }
         } ) );
@@ -172,9 +172,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
             // Store resizable windows to config
             ConfigManager.setResizableWindows( windowResizeCheckBox.isSelected() );
+            GUIUtilities.JFXPlatformRun( () -> stage.setResizable( ConfigManager.getResizableWindows() ) );
 
             // Reset dirty flag (changes have been saved)
-            GUIUtilities.JFXPlatformRun( ()->setEdited( false ) );
+            GUIUtilities.JFXPlatformRun( () -> setEdited( false ) );
 
             // Change save button text to indicate successful save
             GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
@@ -223,7 +224,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 return;
             }
 
-            //TODO hide();
             try {
                 RuntimeManager.clearJre8();
             }
@@ -232,6 +232,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         "The runtime could not be deleted due to an IO exception. Continuing runtime verification..." );
             }
             RuntimeManager.verifyJre8();
+
             //Return to this settings window
             MCLauncherGuiController.goToGui( this );
         } ) );
@@ -256,8 +257,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         minRamGb.setEditable( true );
         double correctedMaxForMin = Math.min( LauncherConstants.SETTINGS_MIN_RAM_MAX, maxRamGbVal );
         minRamGb.setValueFactory(
-                new SpinnerValueFactory.DoubleSpinnerValueFactory( LauncherConstants.SETTINGS_MIN_RAM_MIN, correctedMaxForMin,
-                                                                   minRamGbVal, 0.1 ) );
+                new SpinnerValueFactory.DoubleSpinnerValueFactory( LauncherConstants.SETTINGS_MIN_RAM_MIN,
+                                                                   correctedMaxForMin, minRamGbVal, 0.1 ) );
         minRamGb.getValueFactory().valueProperty().addListener( ( observable, oldValue, newValue ) -> {
             setEdited( true );
             double newValWithMinForMax = Math.max( LauncherConstants.SETTINGS_MAX_RAM_MIN, newValue );
@@ -267,10 +268,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Populate and configure maximum RAM dropdown
         maxRamGb.setEditable( true );
-        double correctedMinForMax = Math.max(LauncherConstants.SETTINGS_MAX_RAM_MIN, minRamGbVal);
-        maxRamGb.setValueFactory(
-                new SpinnerValueFactory.DoubleSpinnerValueFactory( correctedMinForMax, LauncherConstants.SETTINGS_MAX_RAM_MAX,
-                                                                   maxRamGbVal, 0.1 ) );
+        double correctedMinForMax = Math.max( LauncherConstants.SETTINGS_MAX_RAM_MIN, minRamGbVal );
+        maxRamGb.setValueFactory( new SpinnerValueFactory.DoubleSpinnerValueFactory( correctedMinForMax,
+                                                                                     LauncherConstants.SETTINGS_MAX_RAM_MAX,
+                                                                                     maxRamGbVal, 0.1 ) );
         maxRamGb.getValueFactory().valueProperty().addListener( ( observable, oldValue, newValue ) -> {
             setEdited( true );
             double newValWithMaxForMin = Math.min( LauncherConstants.SETTINGS_MIN_RAM_MAX, newValue );

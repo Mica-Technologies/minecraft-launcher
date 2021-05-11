@@ -19,7 +19,7 @@
  * Package containing classes and other utilities that are used to perform and manage authentication to the
  * Microsoft/Mojang authentication and login server(s).
  *
- * @version 1.1
+ * @version 2021/05
  * @author Mica Technologies
  * @creator hawka97
  * @editors hawka97

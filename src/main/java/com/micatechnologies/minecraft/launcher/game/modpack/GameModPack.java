@@ -505,7 +505,7 @@ public class GameModPack
         }
 
         // Get full path to mods folder
-        String modLocalPathPrefix = getPackRootFolder().toString() +
+        String modLocalPathPrefix = getPackRootFolder() +
                 File.separator +
                 ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
@@ -532,7 +532,7 @@ public class GameModPack
      */
     private void fetchLatestConfigs() throws ModpackException {
         // Get full path to configs folder
-        String configLocalPathPrefix = getPackRootFolder().toString() +
+        String configLocalPathPrefix = getPackRootFolder() +
                 File.separator +
                 ModPackConstants.MODPACK_FORGE_CONFIGS_LOCAL_FOLDER;
 
@@ -576,7 +576,7 @@ public class GameModPack
         }
 
         // Get full path to resource pack folder
-        String resPackLocalPathPrefix = getPackRootFolder().toString() +
+        String resPackLocalPathPrefix = getPackRootFolder() +
                 File.separator +
                 ModPackConstants.MODPACK_FORGE_RESOURCEPACKS_LOCAL_FOLDER;
 
@@ -612,7 +612,7 @@ public class GameModPack
         }
 
         // Get full path to shader pack folder
-        String shaderPackLocalPathPrefix = getPackRootFolder().toString() +
+        String shaderPackLocalPathPrefix = getPackRootFolder() +
                 File.separator +
                 ModPackConstants.MODPACK_FORGE_SHADERPACKS_LOCAL_FOLDER;
 
@@ -635,7 +635,7 @@ public class GameModPack
      */
     private void fetchLatestInitialFiles() throws ModpackException {
         // Get full path to configs folder
-        String initFilesLocalPathPrefix = getPackRootFolder().toString();
+        String initFilesLocalPathPrefix = getPackRootFolder();
 
         // Check if initial files supplied
         if ( packInitialFiles == null ) {

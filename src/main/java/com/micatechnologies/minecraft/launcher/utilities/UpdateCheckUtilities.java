@@ -33,35 +33,35 @@ public class UpdateCheckUtilities
     private static String latestReleaseURL     = null;
 
     public static String getLatestReleaseVersion() throws IOException {
-        if (latestReleaseVersion == null) fetchLatestInformation();
+        if ( latestReleaseVersion == null ) {
+            fetchLatestInformation();
+        }
 
         return latestReleaseVersion;
     }
 
     public static String getLatestReleaseURL() throws IOException {
-        if (latestReleaseURL == null) fetchLatestInformation();
+        if ( latestReleaseURL == null ) {
+            fetchLatestInformation();
+        }
 
         return latestReleaseURL;
     }
 
     private static void fetchLatestInformation() throws IOException {
-        // Download latest version information from launcher releases API
+        // Download latest version information from launcher GitHub releases API
         File latestVersionInfoFile = SynchronizedFileManager.getSynchronizedFile(
                 LocalPathManager.getUpdateInfoFilePath() );
-        NetworkUtilities.downloadFileFromURL( UpdateCheckConstants.UPDATE_CHECK_API_URL, latestVersionInfoFile );
+        NetworkUtilities.downloadFileFromURL( UpdateCheckConstants.UPDATE_CHECK_API_URL, latestVersionInfoFile,
+                                              "application/vnd.github.v3+json" );
 
-        // Get latest version information file JSON contents
-        JsonArray latestVersionInfoFileContents = FileUtilities.readAsJsonArray( latestVersionInfoFile );
-
-        // Extract latest release from JSON
-        if ( latestVersionInfoFileContents.size() > 0 ) {
-            JsonObject latestReleaseInfoObject = latestVersionInfoFileContents.get( 0 ).getAsJsonObject();
-            latestReleaseVersion = latestReleaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_API_RELEASE_TAG_KEY )
+        // Extract latest version number and URL from JSON
+        JsonObject releaseInfoObject = FileUtilities.readAsJsonObject( latestVersionInfoFile );
+        if ( releaseInfoObject.size() > 0 ) {
+            latestReleaseVersion = releaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_LATEST_VERSION_KEY )
                                                           .getAsString();
-            latestReleaseURL = latestReleaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_API_RELEASE_LINKS_KEY )
-                                                      .getAsJsonObject()
-                                                      .get( UpdateCheckConstants.UPDATE_CHECK_API_RELEASE_LINKS_SELF_KEY )
-                                                      .getAsString();
+            latestReleaseURL = releaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_LATEST_URL_KEY )
+                                                .getAsString();
         }
         else {
             Logger.logStd( "Unable to check for an available launcher update because the releases API " +

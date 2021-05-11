@@ -1,17 +1,14 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.jfoenix.controls.JFXProgressBar;
-import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
 
-import java.io.File;
 import java.io.IOException;
 
 public class MCLauncherProgressGui extends MCLauncherAbstractGui
@@ -50,14 +47,14 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      *
      * @since 2.0
      */
-    private static String initialUpperLabelText = "Just a Moment";
+    private static final String INITIAL_UPPER_LABEL_TEXT = "Just a Moment";
 
     /**
      * The initial text of the lower progress label.
      *
      * @since 2.0
      */
-    private static String initialLowerLabelText = "Fetching progress information...";
+    private static final String INITIAL_LOWER_LABEL_TEXT = "Fetching progress information...";
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
@@ -95,8 +92,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     @Override
     void setup() {
         // Set filler display information
-        setUpperLabelText( initialUpperLabelText );
-        setLowerLabelText( initialLowerLabelText );
+        setUpperLabelText( INITIAL_UPPER_LABEL_TEXT );
+        setLowerLabelText( INITIAL_LOWER_LABEL_TEXT );
         setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
     }
 
