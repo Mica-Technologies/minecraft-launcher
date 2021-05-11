@@ -144,8 +144,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherMainGui( Stage stage) throws IOException {
-        super(stage);
+    public MCLauncherMainGui( Stage stage ) throws IOException {
+        super( stage );
     }
 
     /**
@@ -173,6 +173,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @Override
     void setup() {
+        // Configure window close
+        stage.setOnCloseRequest( windowEvent -> {
+            windowEvent.consume();
+            exitBtn.fire();
+        } );
+
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
 
@@ -191,12 +197,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 if ( SystemUtilities.compareVersionNumbers( version, latestVersion ) == -1 ) {
                     updateImgView.setVisible( true );
                     updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
-                        // TODO: POPUP
-                        /*int response = GUIUtilities.showQuestionMessage( "Update Available", "Update Ready to " +
-                                                                                  "Download",
+                        int response = GUIUtilities.showQuestionMessage( "Update Available",
+                                                                         "Update Ready to " + "Download",
                                                                          "An update has been found and is ready to be downloaded and installed.",
-                                                                         "Update Now", "Update Later",
-                                                                         getCurrentJFXStage() );
+                                                                         "Update Now", "Update Later", stage );
                         if ( response == 1 ) {
                             try {
                                 Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
@@ -207,7 +211,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                                          " to download the latest launcher updates!" );
                                 Logger.logThrowable( e );
                             }
-                        }*/
+                        }
                     } ) );
                 }
             }
@@ -223,8 +227,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 MCLauncherGuiController.goToSettingsGui();
             }
             catch ( IOException e ) {
-                Logger.logError(
-                        "Unable to load settings GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( "Unable to load settings GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
         } ) );
@@ -254,7 +257,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
             LauncherCore.play( GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelection.getSelectionModel().getSelectedItem() ) );
+                    packSelection.getSelectionModel().getSelectedItem() ), () -> {
+                try {
+                    MCLauncherGuiController.goToMainGui();
+                }
+                catch ( IOException e ) {
+                    Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                    Logger.logThrowable( e );
+                    LauncherCore.closeApp();
+                }
+            } );
         } ) );
 
         // Configure user label
@@ -271,6 +283,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             if ( keyEvent.getCode() == KeyCode.ENTER ) {
                 keyEvent.consume();
                 playBtn.fire();
+            }
+        } );
+
+        // Configure F5 key to refresh
+        scene.setOnKeyPressed( keyEvent -> {
+            if ( keyEvent.getCode() == KeyCode.F5 ) {
+                keyEvent.consume();
+                SystemUtilities.spawnNewTask( ()->{
+                    GameModPackManager.fetchModPackInfo();
+                    populateModpackDropdown();
+                    MCLauncherGuiController.goToGui( this );
+                } );
             }
         } );
     }

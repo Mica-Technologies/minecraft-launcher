@@ -32,7 +32,7 @@ import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
  * @version 1.2
  * @editors hawka97
  * @creator hawka97
- * @see AuthAccount
+ * @see AuthAccountMojang
  * @since 1.0
  */
 public class AuthService
@@ -49,7 +49,7 @@ public class AuthService
      * @throws AuthException if an error occurs
      * @since 1.0
      */
-    public static boolean usernamePasswordAuth( AuthAccount account, String password ) throws AuthException
+    public static boolean usernamePasswordAuth( AuthAccountMojang account, String password ) throws AuthException
     {
         // Build JSON Objects for Request
         JsonObject root = new JsonObject();
@@ -127,7 +127,7 @@ public class AuthService
      * @throws AuthException if an error occurs
      * @since 1.0
      */
-    public static boolean refreshAuth( AuthAccount account ) throws AuthException
+    public static boolean refreshAuth( AuthAccountMojang account ) throws AuthException
     {
         // Check for presence of existing access token
         // If none, return immediately
@@ -201,7 +201,7 @@ public class AuthService
      * @throws AuthException if an error occurs
      * @since 1.0
      */
-    public static boolean validateLogin( AuthAccount account ) throws AuthException
+    public static boolean validateLogin( AuthAccountMojang account ) throws AuthException
     {
         // Check for presence of existing access token
         // If none, return immediately
@@ -235,7 +235,7 @@ public class AuthService
      * @throws AuthException if an error occurs
      * @since 1.0
      */
-    public static boolean invalidateLogin( AuthAccount account ) throws AuthException
+    public static boolean invalidateLogin( AuthAccountMojang account ) throws AuthException
     {
         // Check for presence of existing access token
         // If none, return immediately

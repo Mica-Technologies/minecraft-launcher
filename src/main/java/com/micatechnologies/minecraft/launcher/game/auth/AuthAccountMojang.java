@@ -30,7 +30,7 @@ import java.io.Serializable;
  * @see java.io.Serializable
  * @since 1.0
  */
-public class AuthAccount implements Serializable
+public class AuthAccountMojang implements Serializable
 {
 
     /**
@@ -76,7 +76,7 @@ public class AuthAccount implements Serializable
      *
      * @since 1.0
      */
-    public AuthAccount( final String accountName ) {
+    public AuthAccountMojang( final String accountName ) {
         this.accountName = accountName;
     }
 

@@ -20,7 +20,7 @@ package com.micatechnologies.minecraft.launcher;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import com.micatechnologies.minecraft.launcher.game.auth.AuthAccount;
+import com.micatechnologies.minecraft.launcher.game.auth.AuthAccountMojang;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthService;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
@@ -126,6 +126,17 @@ public class LauncherCore
      * @since 2.0
      */
     public static void play( GameModPack gameModPack ) {
+        play( gameModPack, null );
+    }
+
+    /**
+     * Launches the specified mod pack for gameplay.
+     *
+     * @param gameModPack mod pack to launch/play
+     *
+     * @since 2.0
+     */
+    public static void play( GameModPack gameModPack, Runnable after ) {
         if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
             MCLauncherProgressGui playProgressWindow = null;
             try {
@@ -134,8 +145,7 @@ public class LauncherCore
                 }
             }
             catch ( IOException e ) {
-                Logger.logError(
-                        "Unable to load progress GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( "Unable to load progress GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
 
@@ -165,7 +175,7 @@ public class LauncherCore
                                     }
                                     catch ( InterruptedException ignored ) {
                                     }
-                                    //TODO playProgressWindow.close();
+                                    finalPlayProgressWindow.hideStage();
                                 } );
 
                             }
@@ -173,6 +183,11 @@ public class LauncherCore
                     }
                 } );
                 gameModPack.startGame();
+
+                // If after runnable present, run it
+                if ( after != null ) {
+                    after.run();
+                }
             }
             catch ( Exception e ) {
                 Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );
@@ -240,14 +255,6 @@ public class LauncherCore
             if ( finalGameModPack != null && mainWindow != null ) {
                 mainWindow.selectModpack( finalGameModPack );
             }
-
-            //try {
-            //    //TODO mainWindow.closedLatch.await();
-            //}
-            //catch ( InterruptedException e ) {
-            //     Logger.logError( LocalizationManager.ERROR_PREVENTING_GUI_COMPLETE_HANDLING_TEXT );
-            //    Logger.logThrowable( e );
-            //}
         }
         else if ( GameModeManager.isServer() ) {
             if ( finalGameModPack != null ) {
@@ -294,10 +301,10 @@ public class LauncherCore
      */
     public static void performClientLogin() {
         // Check for and load saved user from disk
-        AuthAccount authAccount = AuthManager.getLoggedInAccount();
+        AuthAccountMojang authAccountMojang = AuthManager.getLoggedInAccount();
 
         // If no saved account, show message and login screen, otherwise continue.
-        if ( authAccount == null ) {
+        if ( authAccountMojang == null ) {
             Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
 
             // Show login screen
@@ -328,7 +335,7 @@ public class LauncherCore
         else {
             // Renew token of saved account
             try {
-                boolean authRefreshed = AuthService.refreshAuth( authAccount );
+                boolean authRefreshed = AuthService.refreshAuth( authAccountMojang );
                 AuthManager.writeAccountToDiskIfRemembered();
                 if ( !authRefreshed ) {
                     Logger.logError( LocalizationManager.AUTH_NOT_REFRESHED_TEXT );
@@ -341,8 +348,10 @@ public class LauncherCore
                 restartFlag = true;
                 restartApp();
             }
-            Logger.logStd(
-                    "[" + authAccount.getFriendlyName() + "] " + LocalizationManager.WAS_LOGGED_IN_TO_LAUNCHER_TEXT );
+            Logger.logStd( "[" +
+                                   authAccountMojang.getFriendlyName() +
+                                   "] " +
+                                   LocalizationManager.WAS_LOGGED_IN_TO_LAUNCHER_TEXT );
         }
     }
 

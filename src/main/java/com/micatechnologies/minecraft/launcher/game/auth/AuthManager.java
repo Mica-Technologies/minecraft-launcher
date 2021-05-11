@@ -45,7 +45,7 @@ public class AuthManager
      *
      * @since 1.0
      */
-    private static AuthAccount loggedInAccount = null;
+    private static AuthAccountMojang loggedInAccount = null;
 
     /**
      * Variable containing the client token for the current installation.
@@ -70,7 +70,7 @@ public class AuthManager
      *
      * @since 1.0
      */
-    public static synchronized AuthAccount getLoggedInAccount() {
+    public static synchronized AuthAccountMojang getLoggedInAccount() {
         // Attempt to load remember game account from disk if no user is logged in
         if ( loggedInAccount == null ) {
             Logger.logDebug( LocalizationManager.NO_LOGIN_CHECKING_FOR_SAVED_TEXT );
@@ -93,14 +93,14 @@ public class AuthManager
      * Sets the specified game account as the currently logged in game account. If the remember me option is
      * enabled/selected/true, the specified game account will also be written to persistent storage.
      *
-     * @param authAccount game account to log in
-     * @param remember    true if remember me option selected
+     * @param authAccountMojang game account to log in
+     * @param remember          true if remember me option selected
      *
      * @since 1.0
      */
-    public static synchronized void login( AuthAccount authAccount, boolean remember ) {
+    public static synchronized void login( AuthAccountMojang authAccountMojang, boolean remember ) {
         // Store the game account
-        loggedInAccount = authAccount;
+        loggedInAccount = authAccountMojang;
         rememberAccount = remember;
 
         // Write game account to disk if option chosen
@@ -121,7 +121,10 @@ public class AuthManager
         // Invalidate user login
         if ( loggedInAccount != null ) {
             try {
-                AuthService.invalidateLogin( loggedInAccount );
+                boolean invalidated = AuthService.invalidateLogin( loggedInAccount );
+                if ( !invalidated ) {
+                    Logger.logError( LocalizationManager.UNABLE_TO_INVALIDATE_LOGIN_TEXT );
+                }
             }
             catch ( AuthException e ) {
                 Logger.logError( LocalizationManager.UNABLE_TO_INVALIDATE_LOGIN_TEXT );
@@ -170,7 +173,7 @@ public class AuthManager
         }
         else {
             try {
-                loggedInAccount = ( AuthAccount ) FileUtilities.readAsObject( userDiskFile );
+                loggedInAccount = ( AuthAccountMojang ) FileUtilities.readAsObject( userDiskFile );
             }
             catch ( Exception e ) {
                 Logger.logError( LocalizationManager.PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT );

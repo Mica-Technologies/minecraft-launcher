@@ -24,10 +24,10 @@ public class UpdateCheckConstants
      *
      * @since 1.0.1
      */
-    public final static String UPDATE_CHECK_API_URL = "https://git.micatechnologies.com/api/v4/projects/7/releases";
+    public final static String UPDATE_CHECK_API_URL = "https://api.github.com/repos/Mica-Technologies/minecraft" +
+            "-launcher/releases/latest";
 
-    public final static String UPDATE_CHECK_API_RELEASE_TAG_KEY = "tag_name";
+    public final static String UPDATE_CHECK_LATEST_URL_KEY = "html_url";
 
-    public final static String UPDATE_CHECK_API_RELEASE_LINKS_KEY      = "_links";
-    public final static String UPDATE_CHECK_API_RELEASE_LINKS_SELF_KEY = "self";
+    public final static String UPDATE_CHECK_LATEST_VERSION_KEY    = "tag_name";
 }

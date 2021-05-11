@@ -103,8 +103,8 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
-    public MCLauncherEditModPacksGui( Stage stage) throws IOException {
-        super(stage);
+    public MCLauncherEditModPacksGui( Stage stage ) throws IOException {
+        super( stage );
     }
 
     /**
@@ -158,10 +158,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
             HBox.setHgrow( pane, Priority.ALWAYS );
             button.setOnAction( event -> {
                 getListView().getItems().remove( getItem() );
-                SystemUtilities.spawnNewTask( () -> {
-                    GameModPackManager.uninstallModPackByFriendlyName( label.getText() );
-                    loadModPackList();
-                } );
+                SystemUtilities.spawnNewTask( () -> uninstallModPack( label.getText() ) );
             } );
         }
 
@@ -205,6 +202,14 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     @Override
     String getSceneName() {
         return "Edit Mod Packs";
+    }
+
+    void uninstallModPack( String name ) {
+        rootPane.setDisable( true );
+        GameModPackManager.uninstallModPackByFriendlyName( name );
+        loadModPackList();
+        MCLauncherGuiController.goToGui( this );
+        rootPane.setDisable( false );
     }
 
     /**

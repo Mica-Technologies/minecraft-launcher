@@ -143,7 +143,7 @@ public class GameLibraryManifest extends ManagedGameFile
 
                         // Check for generic allow rule
                         if ( ruleObj.has( "action" ) &&
-                                ruleObj.get( "action" ).getAsString().toLowerCase().equals( "allow" ) &&
+                                ruleObj.get( "action" ).getAsString().equalsIgnoreCase( "allow" ) &&
                                 !ruleObj.has( "os" ) ) {
                             // Allow all OS
                             rulesOS.add( ModPackConstants.PLATFORM_WINDOWS );
@@ -152,13 +152,13 @@ public class GameLibraryManifest extends ManagedGameFile
                         }
                         // Check for operating system specific allow rule
                         else if ( ruleObj.has( "action" ) &&
-                                ruleObj.get( "action" ).getAsString().toLowerCase().equals( "allow" ) &&
+                                ruleObj.get( "action" ).getAsString().equalsIgnoreCase( "allow" ) &&
                                 ruleObj.has( "os" ) ) {
                             rulesOS.add( ruleObj.getAsJsonObject( "os" ).get( "name" ).getAsString() );
                         }
                         // Check for operating system specific disallow rule
                         else if ( ruleObj.has( "action" ) &&
-                                ruleObj.get( "action" ).getAsString().toLowerCase().equals( "disallow" ) &&
+                                ruleObj.get( "action" ).getAsString().equalsIgnoreCase( "disallow" ) &&
                                 ruleObj.has( "os" ) ) {
                             rulesOS.remove( ruleObj.getAsJsonObject( "os" ).get( "name" ).getAsString() );
                         }

@@ -28,37 +28,38 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MCLauncherGuiController
 {
-
+    private static AtomicBoolean startSuccess = new AtomicBoolean(false);
     private static MCLauncherGuiWindow guiWindow = null;
 
     public static Stage getTopStageOrNull() {
-        return guiWindow != null ? guiWindow.getStage() : null;
+        return startSuccess.get() ? guiWindow.getStage() : null;
     }
 
     private static boolean startGui() {
-        AtomicBoolean success = new AtomicBoolean( true );
         if ( guiWindow == null ) {
             GUIUtilities.JFXPlatformRun( () -> {
                 try {
                     guiWindow = new MCLauncherGuiWindow();
                     guiWindow.start( new Stage() );
                     guiWindow.show();
+                    startSuccess.set( true );
                 }
                 catch ( Exception e ) {
+                    guiWindow = null;
                     Logger.logError( "An exception was encountered while starting the application GUI window." );
                     Logger.logThrowable( e );
-                    success.set( false );
+                    startSuccess.set( false );
                 }
             } );
         }
-
-        return success.get();
+        return startSuccess.get();
     }
 
     public static void goToGui( MCLauncherAbstractGui abstractGui ) {
         boolean guiStarted = startGui();
         if ( guiStarted ) {
             guiWindow.setScene( abstractGui );
+            guiWindow.show();
         }
         else {
             Logger.logError(
@@ -72,6 +73,7 @@ public class MCLauncherGuiController
         if ( guiStarted ) {
             newMainGui = new MCLauncherMainGui( guiWindow.getStage() );
             guiWindow.setScene( newMainGui );
+            guiWindow.show();
         }
         else {
             Logger.logError( "The application main GUI could not be displayed due to the application GUI not being " +
@@ -86,6 +88,7 @@ public class MCLauncherGuiController
         if ( guiStarted ) {
             newSettingsGui = new MCLauncherSettingsGui( guiWindow.getStage() );
             guiWindow.setScene( newSettingsGui );
+            guiWindow.show();
         }
         else {
             Logger.logError( "The application settings GUI could not be displayed due to the application GUI not " +
@@ -100,6 +103,7 @@ public class MCLauncherGuiController
         if ( guiStarted ) {
             newEditModpacksGui = new MCLauncherEditModPacksGui( guiWindow.getStage() );
             guiWindow.setScene( newEditModpacksGui );
+            guiWindow.show();
         }
         else {
             Logger.logError( "The edit mod-packs GUI could not be displayed due to the application GUI not " +
@@ -114,6 +118,7 @@ public class MCLauncherGuiController
         if ( guiStarted ) {
             newLoginGui = new MCLauncherLoginGui( guiWindow.getStage() );
             guiWindow.setScene( newLoginGui );
+            guiWindow.show();
         }
         else {
             Logger.logError(
@@ -128,6 +133,7 @@ public class MCLauncherGuiController
         if ( guiStarted ) {
             newProgressGui = new MCLauncherProgressGui( guiWindow.getStage() );
             guiWindow.setScene( newProgressGui );
+            guiWindow.show();
         }
         else {
             Logger.logError(

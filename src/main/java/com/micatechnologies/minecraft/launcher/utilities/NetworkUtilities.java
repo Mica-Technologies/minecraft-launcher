@@ -77,6 +77,22 @@ public class NetworkUtilities
     }
 
     /**
+     * Downloads the file from the specified URL (as string) to the specified file.
+     *
+     * @param source              source URL (as string)
+     * @param destination         destination file
+     * @param responseContentType content type of response
+     *
+     * @throws IOException if unable to download or save file
+     * @since 1.1
+     */
+    public static void downloadFileFromURL( String source, File destination, String responseContentType )
+    throws IOException
+    {
+        downloadFileFromURL( new URL( source ), destination, responseContentType );
+    }
+
+    /**
      * Downloads the file from the specified URL to the specified file.
      *
      * @param source      source URL
@@ -88,6 +104,27 @@ public class NetworkUtilities
     public static void downloadFileFromURL( URL source, File destination ) throws IOException {
         URLConnection connection = source.openConnection();
         connection.setUseCaches( false );
+        FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
+    }
+
+    /**
+     * Downloads the file from the specified URL to the specified file.
+     *
+     * @param source              source URL
+     * @param destination         destination file
+     * @param responseContentType content type of response
+     *
+     * @throws IOException if unable to download or save file
+     * @since 1.1
+     */
+    public static void downloadFileFromURL( URL source, File destination, String responseContentType )
+    throws IOException
+    {
+        URLConnection connection = source.openConnection();
+        connection.setUseCaches( false );
+        connection.setDoInput( true );
+        connection.setDoOutput( true );
+        connection.setRequestProperty( "Accept", responseContentType );
         FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
     }
 }

@@ -24,7 +24,7 @@ import com.jfoenix.controls.JFXTextField;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.exceptions.AuthException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.game.auth.AuthAccount;
+import com.micatechnologies.minecraft.launcher.game.auth.AuthAccountMojang;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthService;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
@@ -33,7 +33,6 @@ import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import javafx.fxml.FXML;
 import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -124,6 +123,12 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @Override
     void setup() {
+        // Configure window close
+        stage.setOnCloseRequest( windowEvent -> {
+            windowEvent.consume();
+            exitBtn.fire();
+        } );
+
         // Configure login button
         loginBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             // Lock fields
@@ -135,12 +140,12 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
             String password = passwordField.getText();
 
             // Create account to test authorization
-            AuthAccount authAccount = new AuthAccount( email );
+            AuthAccountMojang authAccountMojang = new AuthAccountMojang( email );
 
             // Attempt login
             boolean authSuccess = false;
             try {
-                authSuccess = AuthService.usernamePasswordAuth( authAccount, password );
+                authSuccess = AuthService.usernamePasswordAuth( authAccountMojang, password );
             }
             catch ( AuthException e ) {
                 Logger.logError( "An authentication error has occurred." );
@@ -149,7 +154,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
             // If successful, register login with app and save account if applicable
             if ( authSuccess ) {
-                AuthManager.login( authAccount, rememberMeCheckBox.isSelected() );
+                AuthManager.login( authAccountMojang, rememberMeCheckBox.isSelected() );
 
                 loginSuccessLatch.countDown();
             }

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -63,8 +64,21 @@ public abstract class MCLauncherAbstractGui
         URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
         fxmlLoader.setLocation( resource );
         fxmlLoader.setController( this );
-        scene = new Scene( fxmlLoader.load() );
+        if ( stage.getScene() != null ) {
+            scene = new Scene( fxmlLoader.load(), stage.getScene().getWidth(), stage.getScene().getHeight() );
+        }
+        else {
+            scene = new Scene( fxmlLoader.load() );
+        }
         this.stage = stage;
+    }
+
+    public void hideStage() {
+        GUIUtilities.JFXPlatformRun( stage::hide );
+    }
+
+    public void showStage() {
+        GUIUtilities.JFXPlatformRun( stage::show );
     }
 
     /**
