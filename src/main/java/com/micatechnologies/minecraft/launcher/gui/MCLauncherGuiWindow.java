@@ -17,17 +17,23 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.jadapt.NSWindow;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
+import com.sun.glass.ui.Window;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import org.apache.commons.lang3.SystemUtils;
+import org.rococoa.ID;
+import org.rococoa.Rococoa;
+import org.rococoa.cocoa.foundation.NSUInteger;
 
 import java.io.InputStream;
+import java.net.URL;
 import java.util.Objects;
 
 public class MCLauncherGuiWindow extends Application
@@ -63,6 +69,11 @@ public class MCLauncherGuiWindow extends Application
         // Set scene
         setScene( progressGui );
         show();
+
+        // Style macOS Window
+        if ( SystemUtils.IS_OS_MAC ) {
+            styleMacWindow();
+        }
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
@@ -78,6 +89,77 @@ public class MCLauncherGuiWindow extends Application
             // Set scene
             stage.setScene( gui.scene );
         } );
+    }
+
+    /**
+     * Performs styling of the window that is specific to the macOS operating system.
+     *
+     * @since 2.0
+     */
+    private void styleMacWindow() {
+        try {
+            NSWindow thisWindow = getNSWindow();
+
+            // Perform styling
+            thisWindow.setTitlebarAppearsTransparent( true );
+            thisWindow.setStyleMask(
+                    new NSUInteger( thisWindow.styleMask().intValue() | NSWindow.StyleMaskFullSizeContentView ) );
+
+            // Make window draggable
+            stage.getScene()
+                 .setOnMousePressed( pressEvent -> stage.getScene().setOnMouseDragged( dragEvent -> {
+                     stage.setX( dragEvent.getScreenX() - pressEvent.getSceneX() );
+                     stage.setY( dragEvent.getScreenY() - pressEvent.getSceneY() );
+                 } ) );
+        }
+        catch ( Exception e ) {
+            Logger.logDebug( "An error occurred while performing style modifications to an NSWindow wrapper." );
+            Logger.logThrowable( e );
+        }
+    }
+
+    /**
+     * Gets the native macOS NSWindow interface class to allow for advanced macOS window styling.
+     *
+     * @return macOS native window
+     *
+     * @since 3.0
+     */
+    NSWindow getNSWindow() {
+        // Load rococoa library
+        URL url = this.getClass().getClassLoader().getResource( "lib/darwin/librococoa.dylib" );
+        if ( url != null ) {
+            System.load( url.toExternalForm() );
+        }
+        else {
+            Logger.logDebug( "Unable to load rococoa library for macOS window styling!" );
+        }
+
+        // Wrap window as NSWindow and return
+        return Rococoa.wrap( ID.fromLong( getWindowHandle() ), NSWindow.class );
+    }
+
+    /**
+     * Gets the native window pointer.
+     *
+     * @return native window pointer
+     *
+     * @since 3.0
+     */
+    public long getWindowHandle() {
+        // Attempt to compare windows and ensure correct one picked
+        for ( Window w : Window.getWindows() ) {
+            if ( Objects.equals( w.getTitle(), stage.getTitle() ) &&
+                    w.getHeight() == stage.getHeight() &&
+                    w.getWidth() == stage.getWidth() &&
+                    w.getX() == stage.getX() &&
+                    w.getY() == stage.getY() ) {
+                return w.getNativeHandle();
+            }
+        }
+
+        // If unable to find window, return window 0
+        return Window.getWindows().get( 0 ).getNativeHandle();
     }
 
     public void show() {
