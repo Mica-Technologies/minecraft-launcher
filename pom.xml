@@ -24,7 +24,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>launcher</artifactId>
-    <version>2021.1</version>
+    <version>9.99.2021.1</version>
     <name>Mica Minecraft Launcher</name>
     <packaging>jar</packaging>
 
@@ -128,18 +128,13 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
-                    <parameters>true</parameters>
-                    <compilerArgs>
-                        <arg>--add-exports</arg>
-                        <arg>javafx.graphics/com.sun.glass.ui=ALL-UNNAMED</arg>
-                    </compilerArgs>
                 </configuration>
             </plugin>
 
             <!-- ASSEMBLE JAR WITH DEPENDENCIES -->
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>3.3.0</version>
                 <configuration>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
@@ -262,14 +257,22 @@
                 <configuration>
                     <mainClass>${main.class}</mainClass>
                     <bundleJre>true</bundleJre>
+                    <customizedJre>true</customizedJre>
                     <jreMinVersion>11</jreMinVersion>
                     <generateInstaller>true</generateInstaller>
                     <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
                     <runnableJar>${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar</runnableJar>
                     <copyDependencies>false</copyDependencies>
                     <additionalResources>
-                        <additionalResource>${project.basedir}${file.separator}src${file.separator}main${file.separator}resources</additionalResource>
+                        <additionalResource>
+                            ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
+                        </additionalResource>
                     </additionalResources>
+                    <macConfig>
+                        <entitlements>
+                            ${project.basedir}${file.separator}assets${file.separator}mac${file.separator}micaforgelauncher.entitlements
+                        </entitlements>
+                    </macConfig>
                 </configuration>
                 <executions>
                     <execution>
@@ -315,6 +318,11 @@
 
 
     <dependencies>
+        <dependency>
+            <groupId>org.tukaani</groupId>
+            <artifactId>xz</artifactId>
+            <version>1.8</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -387,21 +395,6 @@
             <version>5.3.1</version>
         </dependency>
         <dependency>
-            <groupId>org.rococoa</groupId>
-            <artifactId>rococoa-cocoa</artifactId>
-            <version>0.5</version>
-        </dependency>
-        <dependency>
-            <groupId>org.rococoa</groupId>
-            <artifactId>rococoa-core</artifactId>
-            <version>0.5</version>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.swt</groupId>
-            <artifactId>org.eclipse.swt.cocoa.macosx.x86_64</artifactId>
-            <version>4.3</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-model</artifactId>
             <version>3.6.2</version>
@@ -410,6 +403,76 @@
             <groupId>de.jangassen</groupId>
             <artifactId>nsmenufx</artifactId>
             <version>3.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.6.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.brotli</groupId>
+            <artifactId>dec</artifactId>
+            <version>0.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.luben</groupId>
+            <artifactId>zstd-jni</artifactId>
+            <version>1.4.9-5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ant</groupId>
+            <artifactId>ant</artifactId>
+            <version>1.10.6</version>
+        </dependency>
+        <dependency>
+            <groupId>cglib</groupId>
+            <artifactId>cglib</artifactId>
+            <version>2.2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>asm</groupId>
+            <artifactId>asm-all</artifactId>
+            <version>2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.30</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>1.7.30</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.jms</groupId>
+            <artifactId>javax.jms-api</artifactId>
+            <version>2.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.mail</groupId>
+            <artifactId>mail</artifactId>
+            <version>1.5.0-b01</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.avalon.framework</groupId>
+            <artifactId>avalon-framework-api</artifactId>
+            <version>4.3.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.avalon.framework</groupId>
+            <artifactId>avalon-framework-impl</artifactId>
+            <version>4.3.1</version>
+        </dependency>
+        <dependency>
+            <groupId>logkit</groupId>
+            <artifactId>logkit</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>servlet-api</artifactId>
+            <version>3.0-alpha-1</version>
         </dependency>
     </dependencies>
 </project>
