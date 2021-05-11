@@ -24,6 +24,7 @@ import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.sun.glass.ui.Window;
+import de.jangassen.jfa.appkit.NSMenu;
 import javafx.application.Application;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
@@ -67,13 +68,9 @@ public class MCLauncherGuiWindow extends Application
         }
 
         // Set scene
-        setScene( progressGui );
         show();
-
-        // Style macOS Window
-        if ( SystemUtils.IS_OS_MAC ) {
-            styleMacWindow();
-        }
+        setScene( progressGui );
+        stage.centerOnScreen();
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
@@ -88,6 +85,11 @@ public class MCLauncherGuiWindow extends Application
 
             // Set scene
             stage.setScene( gui.scene );
+
+            // Style macOS Window
+            if ( SystemUtils.IS_OS_MAC ) {
+                styleMacWindow( gui );
+            }
         } );
     }
 
@@ -96,7 +98,7 @@ public class MCLauncherGuiWindow extends Application
      *
      * @since 2.0
      */
-    private void styleMacWindow() {
+    private void styleMacWindow( MCLauncherAbstractGui gui ) {
         try {
             NSWindow thisWindow = getNSWindow();
 
@@ -106,14 +108,21 @@ public class MCLauncherGuiWindow extends Application
                     new NSUInteger( thisWindow.styleMask().intValue() | NSWindow.StyleMaskFullSizeContentView ) );
 
             // Make window draggable
-            stage.getScene()
-                 .setOnMousePressed( pressEvent -> stage.getScene().setOnMouseDragged( dragEvent -> {
-                     stage.setX( dragEvent.getScreenX() - pressEvent.getSceneX() );
-                     stage.setY( dragEvent.getScreenY() - pressEvent.getSceneY() );
-                 } ) );
+            gui.rootPane.setOnMousePressed( pressEvent -> gui.rootPane.setOnMouseDragged( dragEvent -> {
+                stage.setX( dragEvent.getScreenX() - pressEvent.getSceneX() );
+                stage.setY( dragEvent.getScreenY() - pressEvent.getSceneY() );
+            } ) );
         }
         catch ( Exception e ) {
             Logger.logDebug( "An error occurred while performing style modifications to an NSWindow wrapper." );
+            Logger.logThrowable( e );
+        }
+
+        try {
+            // Setup mac menu bar
+        }
+        catch ( Exception e ) {
+            Logger.logDebug( "An error occurred while editing the macOS menu bar." );
             Logger.logThrowable( e );
         }
     }
@@ -127,13 +136,13 @@ public class MCLauncherGuiWindow extends Application
      */
     NSWindow getNSWindow() {
         // Load rococoa library
-        URL url = this.getClass().getClassLoader().getResource( "lib/darwin/librococoa.dylib" );
-        if ( url != null ) {
-            System.load( url.toExternalForm() );
-        }
-        else {
-            Logger.logDebug( "Unable to load rococoa library for macOS window styling!" );
-        }
+        //URL url = this.getClass().getClassLoader().getResource( "lib/darwin/librococoa.dylib" );
+        //if ( url != null ) {
+        //    System.load( url.toExternalForm() );
+        //}
+        //else {
+        //    Logger.logDebug( "Unable to load rococoa library for macOS window styling!" );
+        //}
 
         // Wrap window as NSWindow and return
         return Rococoa.wrap( ID.fromLong( getWindowHandle() ), NSWindow.class );
