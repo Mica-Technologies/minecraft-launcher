@@ -24,7 +24,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>launcher</artifactId>
-    <version>2020.4</version>
+    <version>2021.1</version>
     <name>Mica Minecraft Launcher</name>
     <packaging>jar</packaging>
 
@@ -40,18 +40,6 @@
         <timestamp>${maven.build.timestamp}</timestamp>
         <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
     </properties>
-
-    <!-- SPECIFIED REPOSITORIES FOR PLUGINS -->
-    <pluginRepositories>
-        <!-- for appbundle-maven-plugin -->
-        <pluginRepository>
-            <id>mica-appbundle-maven-plugin</id>
-            <url>https://git.micatechnologies.com/tools/appbundle-maven-plugin/-/raw/master/mvn-repo</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-        </pluginRepository>
-    </pluginRepositories>
 
     <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
     <repositories>
@@ -116,7 +104,7 @@
                 <configuration>
                     <includes>
                         <include>
-                            ${project.basedir}${file.separator}src${file.separator}main${file.separator}java${file.separator}com${file.separator}micatechnologies${file.separator}minecraft${file.separator}forgelauncher${file.separator}consts${file.separator}LauncherConstants.java
+                            ${project.basedir}${file.separator}src${file.separator}main${file.separator}java${file.separator}com${file.separator}micatechnologies${file.separator}minecraft${file.separator}launcher${file.separator}consts${file.separator}LauncherConstants.java
                         </include>
                     </includes>
                     <replacements>
@@ -192,8 +180,8 @@
                             <provider>BELLSOFT</provider>
                             <providerConfig>
                                 <type>jre</type>
-                                <version>11.0.8+10</version>
-                                <arch>amd64</arch>
+                                <version>11.0.11+9</version>
+                                <arch>amd64-full</arch>
                                 <os>macos</os>
                             </providerConfig>
                             <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}mac</jdkCachePath>
@@ -210,8 +198,8 @@
                             <provider>BELLSOFT</provider>
                             <providerConfig>
                                 <type>jre</type>
-                                <version>11.0.8+10</version>
-                                <arch>amd64</arch>
+                                <version>11.0.11+9</version>
+                                <arch>amd64-full</arch>
                                 <os>windows</os>
                             </providerConfig>
                             <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}win</jdkCachePath>
@@ -228,8 +216,8 @@
                             <provider>BELLSOFT</provider>
                             <providerConfig>
                                 <type>jre</type>
-                                <version>11.0.8+10</version>
-                                <arch>amd64</arch>
+                                <version>11.0.11+9</version>
+                                <arch>amd64-full</arch>
                                 <os>linux</os>
                             </providerConfig>
                             <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}lin</jdkCachePath>
@@ -267,160 +255,57 @@
                 </executions>
             </plugin>
 
-            <!-- CREATE WINDOWS EXE -->
             <plugin>
-                <groupId>com.akathist.maven.plugins.launch4j</groupId>
-                <artifactId>launch4j-maven-plugin</artifactId>
-                <version>1.7.25</version>
-                <executions>
-                    <execution>
-                        <id>l4j-gui</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>launch4j</goal>
-                        </goals>
-                        <configuration>
-                            <headerType>gui</headerType>
-                            <jar>
-                                ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
-                            </jar>
-                            <outfile>
-                                ${project.build.directory}${file.separator}${project.artifactId}.exe
-                            </outfile>
-                            <downloadUrl>https://bell-sw.com/pages/java-11.0.5/</downloadUrl>
-                            <classPath>
-                                <mainClass>${main.class}</mainClass>
-                            </classPath>
-                            <icon>
-                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources${file.separator}icons${file.separator}micaforgelauncher.ico
-                            </icon>
-                            <jre>
-                                <!--suppress UnresolvedMavenProperty -->
-                                <path>.\LIBERICA_jre11.0.8+10_windows_amd64</path>
-                                <bundledJre64Bit>true</bundledJre64Bit>
-                                <minVersion>11</minVersion>
-                                <jdkPreference>preferJre</jdkPreference>
-                                <runtimeBits>64</runtimeBits>
-                            </jre>
-                            <versionInfo>
-                                <fileVersion>1.0.0.0</fileVersion>
-                                <txtFileVersion>${project.version}</txtFileVersion>
-                                <fileDescription>${app.name}</fileDescription>
-                                <copyright>C</copyright>
-                                <productVersion>1.0.0.0</productVersion>
-                                <txtProductVersion>1.0.0.0</txtProductVersion>
-                                <productName>${app.name}</productName>
-                                <internalName>${project.artifactId}</internalName>
-                                <originalFilename>${project.artifactId}.exe</originalFilename>
-                            </versionInfo>
-                            <messages>
-                                <bundledJreErr>There is a problem with the bundled JRE.</bundledJreErr>
-                                <startupErr>There is a problem with starting up.</startupErr>
-                                <jreVersionErr>There is a problem with your Java version. Java 11 or newer is required.
-                                    This should not happen on a proper installation!
-                                </jreVersionErr>
-                                <launcherErr>There is a problem with the application launcher.</launcherErr>
-                            </messages>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- CREATE MAC APP -->
-            <plugin>
-                <groupId>com.micatechnologies</groupId>
-                <artifactId>appbundle-maven-plugin</artifactId>
-                <version>2019.1</version>
+                <groupId>io.github.fvarrui</groupId>
+                <artifactId>javapackager</artifactId>
+                <version>1.5.1</version>
                 <configuration>
-                    <version>${version}</version>
-                    <includeApplicationsSymlink>true</includeApplicationsSymlink>
-                    <!--suppress UnresolvedMavenProperty -->
-                    <jrePath>${jlink.mac.jdk.path}</jrePath>
                     <mainClass>${main.class}</mainClass>
-                    <iconFile>icons${file.separator}micaforgelauncher.icns</iconFile>
-                    <additionalBundledClasspathResources>
-                        <fileSet>
-                            <directory>
-                                ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
-                            </directory>
-                        </fileSet>
-                    </additionalBundledClasspathResources>
-                    <bundleName>${app.name}</bundleName>
-                    <jvmOptions>
-                        <jvmOption>-Dfile.encoding=UTF-8</jvmOption>
-                    </jvmOptions>
+                    <bundleJre>true</bundleJre>
+                    <jreMinVersion>11</jreMinVersion>
+                    <generateInstaller>true</generateInstaller>
+                    <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
+                    <runnableJar>${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar</runnableJar>
+                    <copyDependencies>false</copyDependencies>
+                    <additionalResources>
+                        <additionalResource>${project.basedir}${file.separator}src${file.separator}main${file.separator}resources</additionalResource>
+                    </additionalResources>
                 </configuration>
                 <executions>
                     <execution>
+                        <id>bundling-for-windows</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>bundle</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- MOVE JAR WITH DEPENDENCIES AND MAC APP TO FINAL LOCATION -->
-            <plugin>
-                <groupId>com.coderplus.maven.plugins</groupId>
-                <artifactId>copy-rename-maven-plugin</artifactId>
-                <version>1.0.1</version>
-                <executions>
-                    <execution>
-                        <id>rename-final-jar</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>rename</goal>
+                            <goal>package</goal>
                         </goals>
                         <configuration>
-                            <fileSets>
-                                <fileSet>
-                                    <sourceFile>
-                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
-                                    </sourceFile>
-                                    <destinationFile>
-                                        ${project.build.directory}${file.separator}${project.artifactId}.jar
-                                    </destinationFile>
-                                </fileSet>
-                                <fileSet>
-                                    <sourceFile>
-                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}${file.separator}${app.name}.app
-                                    </sourceFile>
-                                    <destinationFile>
-                                        ${project.build.directory}${file.separator}${project.artifactId}-unsigned.app
-                                    </destinationFile>
-                                </fileSet>
-                                <fileSet>
-                                    <sourceFile>
-                                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}.jar
-                                    </sourceFile>
-                                    <destinationFile>
-                                        ${project.build.directory}${file.separator}${project.artifactId}-no-deps.jar
-                                    </destinationFile>
-                                </fileSet>
-                            </fileSets>
+                            <platform>windows</platform>
+                            <createZipball>true</createZipball>
+                            <jrePath>${jlink.win.jdk.path}</jrePath>
                         </configuration>
                     </execution>
-                </executions>
-            </plugin>
-
-            <!-- RUN CODESIGN FOR macOS APP -->
-            <plugin>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.6.0</version>
-                <groupId>org.codehaus.mojo</groupId>
-                <executions>
                     <execution>
-                        <id>Run macOS app signing</id>
+                        <id>bundling-for-linux</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>package</goal>
                         </goals>
                         <configuration>
-                            <executable>bash</executable>
-                            <commandlineArgs>${project.basedir}${file.separator}deploy${file.separator}macos.sh
-                            </commandlineArgs>
-                            <workingDirectory>${project.build.directory}</workingDirectory>
+                            <platform>linux</platform>
+                            <createTarball>true</createTarball>
+                            <jrePath>${jlink.lin.jdk.path}</jrePath>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>bundling-for-mac</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>package</goal>
+                        </goals>
+                        <configuration>
+                            <platform>mac</platform>
+                            <createTarball>true</createTarball>
+                            <jrePath>${jlink.mac.jdk.path}</jrePath>
                         </configuration>
                     </execution>
                 </executions>

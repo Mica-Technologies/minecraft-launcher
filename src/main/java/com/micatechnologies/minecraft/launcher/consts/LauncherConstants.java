@@ -38,14 +38,14 @@ public class LauncherConstants
      *
      * @since 1.0
      */
-    public final static String LAUNCHER_APPLICATION_NAME = "Mica Forge Launcher";
+    public final static String LAUNCHER_APPLICATION_NAME = "Mica Minecraft Launcher";
 
     /**
      * Launcher application version. Leave blank, this is auto-filled in.
      *
      * @since 1.0
      */
-    public final static String LAUNCHER_APPLICATION_VERSION = "2020.4";
+    public final static String LAUNCHER_APPLICATION_VERSION = "2021.1";
 
     /**
      * Launcher application name without spaces.
