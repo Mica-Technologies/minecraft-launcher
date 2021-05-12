@@ -39,10 +39,18 @@
         <izpack.staging>${project.build.directory}${file.separator}windows-installer</izpack.staging>
         <timestamp>${maven.build.timestamp}</timestamp>
         <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
+        <dependency.locations.enabled>false</dependency.locations.enabled>
     </properties>
 
     <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
     <repositories>
+        <!-- JCenter REPO -->
+        <repository>
+            <id>jcenter</id>
+            <url>https://jcenter.bintray.com</url>
+            <name>jcenter-bintray</name>
+        </repository>
+
         <!-- CyberDuck MAVEN REPOSITORY -->
         <repository>
             <id>maven.cyberduck.io-release</id>
@@ -60,13 +68,6 @@
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
-        </repository>
-
-        <!-- JCenter REPO -->
-        <repository>
-            <id>jcenter</id>
-            <url>https://jcenter.bintray.com</url>
-            <name>jcenter-bintray</name>
         </repository>
     </repositories>
 
@@ -135,6 +136,34 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
+                    <encoding>UTF-8</encoding>
+                    <parameters>true</parameters>
+                    <compilerArgs>
+                        <arg>--add-exports=javafx.controls/javafx.scene.control.skin=com.jfoenix</arg>
+                        <arg>--add-exports=java.base/java.lang.reflect=ALL-UNNAMED</arg>
+                        <arg>--add-exports=java.base/java.lang.reflect=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.controls/com.Sun.javafx.scene.control.behavior=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.base/com.sun.javafx.event=ALL-UNNAMED</arg>
+                        <arg>--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.binding=com.jfoenix</arg>
+                        <arg>--add-opens=javafx.controls/javafx.scene.control.skin=com.jfoenix</arg>
+                        <arg>--add-opens=java.base/java.lang.reflect=ALL-UNNAMED</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.base/com.sun.javafx.binding=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.base/com.sun.javafx.event=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.base/com.sun.javafx.binding=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</arg>
+                        <arg>--add-exports=javafx.base/com.sun.javafx.event=com.jfoenix</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
 
@@ -181,8 +210,8 @@
                         <configuration>
                             <provider>BELLSOFT</provider>
                             <providerConfig>
-                                <type>jre</type>
-                                <version>11.0.11+9</version>
+                                <type>jdk</type>
+                                <version>16.0.1+9</version>
                                 <arch>amd64-full</arch>
                                 <os>macos</os>
                             </providerConfig>
@@ -199,8 +228,8 @@
                         <configuration>
                             <provider>BELLSOFT</provider>
                             <providerConfig>
-                                <type>jre</type>
-                                <version>11.0.11+9</version>
+                                <type>jdk</type>
+                                <version>16.0.1+9</version>
                                 <arch>amd64-full</arch>
                                 <os>windows</os>
                             </providerConfig>
@@ -217,8 +246,8 @@
                         <configuration>
                             <provider>BELLSOFT</provider>
                             <providerConfig>
-                                <type>jre</type>
-                                <version>11.0.11+9</version>
+                                <type>jdk</type>
+                                <version>16.0.1+9</version>
                                 <arch>amd64-full</arch>
                                 <os>linux</os>
                             </providerConfig>
@@ -229,43 +258,22 @@
                 </executions>
             </plugin>
 
-            <!-- VERIFY JDK DOWNLOADS -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.0.0-M2</version>
-                <executions>
-                    <execution>
-                        <id>check-folder-exist</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <requireFilesExist>
-                                    <files>
-                                        <file>${project.basedir}${file.separator}jdk${file.separator}mac</file>
-                                        <file>${project.basedir}${file.separator}jdk${file.separator}win</file>
-                                        <file>${project.basedir}${file.separator}jdk${file.separator}lin</file>
-                                    </files>
-                                </requireFilesExist>
-                            </rules>
-                            <fail>true</fail>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
                 <version>1.5.1</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.akathist.maven.plugins.launch4j</groupId>
+                        <artifactId>launch4j-maven-plugin</artifactId>
+                        <version>2.0.1</version>
+                    </dependency>
+                </dependencies>
                 <configuration>
                     <mainClass>${main.class}</mainClass>
                     <bundleJre>true</bundleJre>
                     <customizedJre>true</customizedJre>
-                    <jreMinVersion>11</jreMinVersion>
+                    <jreMinVersion>16</jreMinVersion>
                     <generateInstaller>true</generateInstaller>
                     <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
                     <runnableJar>
@@ -293,7 +301,8 @@
                         <configuration>
                             <platform>windows</platform>
                             <createZipball>true</createZipball>
-                            <jrePath>${jlink.win.jdk.path}</jrePath>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <jdkPath>${jlink.win.jdk.path}</jdkPath>
                         </configuration>
                     </execution>
                     <execution>
@@ -305,7 +314,8 @@
                         <configuration>
                             <platform>linux</platform>
                             <createTarball>true</createTarball>
-                            <jrePath>${jlink.lin.jdk.path}</jrePath>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <jdkPath>${jlink.lin.jdk.path}</jdkPath>
                         </configuration>
                     </execution>
                     <execution>
@@ -317,7 +327,8 @@
                         <configuration>
                             <platform>mac</platform>
                             <createTarball>true</createTarball>
-                            <jrePath>${jlink.mac.jdk.path}</jrePath>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <jdkPath>${jlink.mac.jdk.path}</jdkPath>
                         </configuration>
                     </execution>
                 </executions>
@@ -341,22 +352,22 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-base</artifactId>
-            <version>11.0.2</version>
+            <version>16</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-graphics</artifactId>
-            <version>11.0.2</version>
+            <version>16</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
-            <version>11.0.2</version>
+            <version>16</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
-            <version>11.0.2</version>
+            <version>16</version>
         </dependency>
         <dependency>
             <groupId>org.rauschig</groupId>
@@ -366,7 +377,7 @@
         <dependency>
             <groupId>com.jfoenix</groupId>
             <artifactId>jfoenix</artifactId>
-            <version>9.0.9</version>
+            <version>9.0.10</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -486,7 +497,7 @@
         <dependency>
             <groupId>com.jagrosh</groupId>
             <artifactId>DiscordIPC</artifactId>
-            <version>LATEST</version>
+            <version>0.4</version>
         </dependency>
     </dependencies>
 </project>
