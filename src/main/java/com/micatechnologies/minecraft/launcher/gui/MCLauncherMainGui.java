@@ -203,8 +203,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 }
             } );
             discordRpcClient.connect();
-        } catch (Exception e) {
-
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Unable to setup Discord rich presence!" );
+            Logger.logThrowable( e );
         }
 
         // Configure exit button
@@ -286,14 +288,20 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             Platform.setImplicitExit( false );
             GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
                     packSelection.getSelectionModel().getSelectedItem() );
-            if (discordRpcClient!=null) {
-                RichPresence.Builder builder = new RichPresence.Builder();
-                builder.setState( "In Game (Minecraft)" )
-                       .setDetails( "Mod Pack: " + installedModPackByFriendlyName.getPackName() )
-                       .setStartTimestamp( OffsetDateTime.now() )
-                       .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
-                       .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
-                discordRpcClient.sendRichPresence( builder.build() );
+            if ( discordRpcClient != null ) {
+                try {
+                    RichPresence.Builder builder = new RichPresence.Builder();
+                    builder.setState( "In Game (Minecraft)" )
+                           .setDetails( "Mod Pack: " + installedModPackByFriendlyName.getPackName() )
+                           .setStartTimestamp( OffsetDateTime.now() )
+                           .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
+                           .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
+                    discordRpcClient.sendRichPresence( builder.build() );
+                }
+                catch ( Exception e ) {
+                    Logger.logWarningSilent( "Unable to update Discord rich presence!" );
+                    Logger.logThrowable( e );
+                }
             }
             LauncherCore.play( installedModPackByFriendlyName, () -> {
                 try {
@@ -328,7 +336,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         scene.setOnKeyPressed( keyEvent -> {
             if ( keyEvent.getCode() == KeyCode.F5 ) {
                 keyEvent.consume();
-                SystemUtilities.spawnNewTask( ()->{
+                SystemUtilities.spawnNewTask( () -> {
                     GameModPackManager.fetchModPackInfo();
                     populateModpackDropdown();
                     MCLauncherGuiController.goToGui( this );
