@@ -17,6 +17,9 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.jagrosh.discordipc.IPCClient;
+import com.jagrosh.discordipc.IPCListener;
+import com.jagrosh.discordipc.entities.RichPresence;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
@@ -44,6 +47,7 @@ import javafx.stage.WindowEvent;
 import java.awt.*;
 import java.io.IOException;
 import java.net.URI;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 public class MCLauncherMainGui extends MCLauncherAbstractGui
@@ -168,6 +172,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return "Home";
     }
 
+    IPCClient discordRpcClient = null;
+
     /**
      * Abstract method: This method must perform initialization and setup of the scene and @FXML components.
      */
@@ -178,6 +184,28 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             windowEvent.consume();
             exitBtn.fire();
         } );
+
+        // Set up Discord rich presence
+        try {
+            discordRpcClient = new IPCClient( 841860482029846528L );
+            discordRpcClient.setListener( new IPCListener()
+            {
+                @Override
+                public void onReady( IPCClient client )
+                {
+                    RichPresence.Builder builder = new RichPresence.Builder();
+                    builder.setState( "In Menus" )
+                           .setDetails( "At Mod Pack Selection" )
+                           .setStartTimestamp( OffsetDateTime.now() )
+                           .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
+                           .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
+                    client.sendRichPresence( builder.build() );
+                }
+            } );
+            discordRpcClient.connect();
+        } catch (Exception e) {
+
+        }
 
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
@@ -256,8 +284,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure play button
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
-            LauncherCore.play( GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelection.getSelectionModel().getSelectedItem() ), () -> {
+            GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
+                    packSelection.getSelectionModel().getSelectedItem() );
+            if (discordRpcClient!=null) {
+                RichPresence.Builder builder = new RichPresence.Builder();
+                builder.setState( "In Game (Minecraft)" )
+                       .setDetails( "Mod Pack: " + installedModPackByFriendlyName.getPackName() )
+                       .setStartTimestamp( OffsetDateTime.now() )
+                       .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
+                       .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
+                discordRpcClient.sendRichPresence( builder.build() );
+            }
+            LauncherCore.play( installedModPackByFriendlyName, () -> {
                 try {
                     MCLauncherGuiController.goToMainGui();
                 }

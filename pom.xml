@@ -61,6 +61,13 @@
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
+
+        <!-- JCenter REPO -->
+        <repository>
+            <id>jcenter</id>
+            <url>https://jcenter.bintray.com</url>
+            <name>jcenter-bintray</name>
+        </repository>
     </repositories>
 
     <build>
@@ -261,7 +268,9 @@
                     <jreMinVersion>11</jreMinVersion>
                     <generateInstaller>true</generateInstaller>
                     <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
-                    <runnableJar>${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar</runnableJar>
+                    <runnableJar>
+                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
+                    </runnableJar>
                     <copyDependencies>false</copyDependencies>
                     <additionalResources>
                         <additionalResource>
@@ -473,6 +482,11 @@
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
             <version>3.0-alpha-1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.jagrosh</groupId>
+            <artifactId>DiscordIPC</artifactId>
+            <version>LATEST</version>
         </dependency>
     </dependencies>
 </project>
