@@ -173,6 +173,17 @@ public class Logger
             GUIUtilities.showWarningMessage( warningLog, jfxStage );
         }
 
+        logWarningSilent( warningLog );
+    }
+
+    /**
+     * Log a silent warning with its prefix.
+     *
+     * @param warningLog warning to log
+     *
+     * @since 1.0
+     */
+    public static void logWarningSilent( String warningLog ) {
         System.err.println( logWarnPrefix + warningLog );
     }
 
