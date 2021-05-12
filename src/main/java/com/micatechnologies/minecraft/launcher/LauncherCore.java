@@ -183,15 +183,15 @@ public class LauncherCore
                     }
                 } );
                 gameModPack.startGame();
-
-                // If after runnable present, run it
-                if ( after != null ) {
-                    after.run();
-                }
             }
             catch ( Exception e ) {
                 Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );
                 Logger.logThrowable( e );
+            }
+
+            // If after runnable present, run it
+            if ( after != null ) {
+                after.run();
             }
         }
         else {
