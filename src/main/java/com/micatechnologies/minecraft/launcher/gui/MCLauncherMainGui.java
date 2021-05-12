@@ -30,6 +30,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
+import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.UpdateCheckUtilities;
@@ -185,29 +186,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             exitBtn.fire();
         } );
 
-        // Set up Discord rich presence
-        try {
-            discordRpcClient = new IPCClient( 841860482029846528L );
-            discordRpcClient.setListener( new IPCListener()
-            {
-                @Override
-                public void onReady( IPCClient client )
-                {
-                    RichPresence.Builder builder = new RichPresence.Builder();
-                    builder.setState( "In Menus" )
-                           .setDetails( "At Mod Pack Selection" )
-                           .setStartTimestamp( OffsetDateTime.now() )
-                           .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
-                           .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
-                    client.sendRichPresence( builder.build() );
-                }
-            } );
-            discordRpcClient.connect();
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( "Unable to setup Discord rich presence!" );
-            Logger.logThrowable( e );
-        }
+        // Start Discord rich presence
+        DiscordRpcUtility.setRichPresence( "In Menus", "Selecting a Mod Pack", OffsetDateTime.now(),
+                                           "mica_minecraft_launcher", "Mica Minecraft Launcher",
+                                           "mica_minecraft_launcher", "Mica Minecraft Launcher" );
 
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
@@ -255,6 +237,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         settingsBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToSettingsGui();
+                DiscordRpcUtility.setRichPresence( "In Menus", "Settings", OffsetDateTime.now(),
+                                                   "mica_minecraft_launcher", "Mica Minecraft Launcher",
+                                                   "mica_minecraft_launcher", "Mica Minecraft Launcher" );
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to load settings GUI due to an incomplete response from the GUI subsystem." );
@@ -266,6 +251,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         editButton.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToEditModpacksGui();
+                DiscordRpcUtility.setRichPresence( "In Menus", "Editing Mod Packs", OffsetDateTime.now(),
+                                                   "mica_minecraft_launcher", "Mica Minecraft Launcher",
+                                                   "mica_minecraft_launcher", "Mica Minecraft Launcher" );
             }
             catch ( IOException e ) {
                 Logger.logError(
@@ -288,21 +276,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             Platform.setImplicitExit( false );
             GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
                     packSelection.getSelectionModel().getSelectedItem() );
-            if ( discordRpcClient != null ) {
-                try {
-                    RichPresence.Builder builder = new RichPresence.Builder();
-                    builder.setState( "In Game (Minecraft)" )
-                           .setDetails( "Mod Pack: " + installedModPackByFriendlyName.getPackName() )
-                           .setStartTimestamp( OffsetDateTime.now() )
-                           .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
-                           .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
-                    discordRpcClient.sendRichPresence( builder.build() );
-                }
-                catch ( Exception e ) {
-                    Logger.logWarningSilent( "Unable to update Discord rich presence!" );
-                    Logger.logThrowable( e );
-                }
-            }
+            DiscordRpcUtility.setRichPresence( "In Game (Minecraft)",
+                                               "Mod Pack: " + installedModPackByFriendlyName.getPackName(),
+                                               OffsetDateTime.now(), "mica_minecraft_launcher",
+                                               "Mica Minecraft Launcher", "mica_minecraft_launcher",
+                                               "Mica Minecraft Launcher" );
             LauncherCore.play( installedModPackByFriendlyName, () -> {
                 try {
                     MCLauncherGuiController.goToMainGui();
