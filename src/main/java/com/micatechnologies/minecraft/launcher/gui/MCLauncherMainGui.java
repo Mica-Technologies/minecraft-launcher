@@ -306,6 +306,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             LauncherCore.play( installedModPackByFriendlyName, () -> {
                 try {
                     MCLauncherGuiController.goToMainGui();
+                    MCLauncherGuiController.requestFocus();
                 }
                 catch ( IOException e ) {
                     Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
