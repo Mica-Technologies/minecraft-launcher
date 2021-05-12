@@ -206,54 +206,102 @@ class GameModLoaderForge extends ManagedGameFile
             String forgeAssetName = forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_NAME_KEY )
                                                  .getAsString();
 
-            // Build Repo Path from URL
-            String forgeAssetRepoPath = forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 )
-                                                      .replace( ":", "-" );
+            // Get Asset Downloads Information
+            JsonObject forgeAssetDownloadsObj = null;
+            JsonObject forgeAssetDownloadsArtifactObj = null;
+            if ( forgeAssetObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_DOWNLOADS_KEY ) ) {
 
-            // Get Repo URL
-            String repoURL = "https://repo1.maven.org/maven2/";
-            if ( forgeAssetName.contains( "net.minecraft:" ) ) {
-                repoURL = "https://libraries.minecraft.net/";
+                forgeAssetDownloadsObj = forgeAssetObj.getAsJsonObject(
+                        ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_DOWNLOADS_KEY );
+                forgeAssetDownloadsArtifactObj = forgeAssetDownloadsObj.getAsJsonObject(
+                        ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_ARTIFACT_KEY );
             }
-            else if ( forgeAssetName.contains( "net.minecraftforge:" ) ) {
-                repoURL = "https://files.minecraftforge.net/maven/";
-                forgeAssetRepoPath += "-universal";
+
+            // Get Repo Path
+            String forgeAssetRepoPath;
+            boolean isSpecifiedRepoPath = false;
+            String inferredForgeAssetRepoPath = forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 )
+                                                              .replace( ":", "-" );
+            if ( forgeAssetDownloadsArtifactObj != null &&
+                    forgeAssetDownloadsArtifactObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_PATH_KEY ) ) {
+                forgeAssetRepoPath = forgeAssetDownloadsArtifactObj.get(
+                        ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_PATH_KEY ).getAsString();
+                isSpecifiedRepoPath = true;
+            }
+            else {
+                forgeAssetRepoPath = inferredForgeAssetRepoPath;
             }
 
             // Build Full Repo URL and Path
-            String forgeAssetURL = repoURL +
-                    forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) ).replace( ".", "/" ) +
-                    "/" +
-                    forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "/" ) +
-                    "/" +
-                    forgeAssetRepoPath +
-                    ".jar";
+            String forgeAssetURL;
+            if ( forgeAssetDownloadsArtifactObj != null &&
+                    forgeAssetDownloadsArtifactObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY ) &&
+                    forgeAssetDownloadsArtifactObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY )
+                                                  .getAsString()
+                                                  .trim()
+                                                  .length() > 0 ) {
+                forgeAssetURL = forgeAssetDownloadsArtifactObj.get(
+                        ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY ).getAsString();
+            }
+            else {
+                // Get Repo URL
+                String repoURL = "https://repo1.maven.org/maven2/";
+                if ( forgeAssetName.contains( "net.minecraft:" ) ) {
+                    repoURL = "https://libraries.minecraft.net/";
+                }
+                else if ( forgeAssetName.contains( "net.minecraftforge:forge:" ) ) {
+                    repoURL = "https://maven.minecraftforge.net/";
+                    if ( !isSpecifiedRepoPath ) {
+                        forgeAssetRepoPath += "-universal";
+                    }
+                    else if ( !forgeAssetRepoPath.contains( "-universal" ) ) {
+                        String originalForgeAssetRepoPath = forgeAssetRepoPath;
+                        forgeAssetRepoPath = originalForgeAssetRepoPath.substring( 0,
+                                                                                   originalForgeAssetRepoPath.lastIndexOf(
+                                                                                           ".jar" ) ) +
+                                "-universal.jar";
+                    }
+                }
 
-            // Override special libraries
-            if ( forgeAssetURL.contains( "scala-parser-combinators" ) ) {
-                forgeAssetURL
-                        = "https://repo1.maven.org/maven2/org/scala-lang/scala-parser-combinators/2.11.0-M4/scala-parser-combinators-2.11.0-M4.jar";
-            }
-            if ( forgeAssetURL.contains( "scala-swing" ) ) {
-                forgeAssetURL
-                        = "https://repo1.maven.org/maven2/org/scala-lang/scala-swing/2.11.0-M7/scala-swing-2.11.0-M7.jar";
-            }
-            if ( forgeAssetURL.contains( "scala-xml" ) ) {
-                forgeAssetURL
-                        = "https://repo1.maven.org/maven2/org/scala-lang/scala-xml/2.11.0-M4/scala-xml-2.11.0-M4.jar";
-            }
-            if ( forgeAssetURL.contains( "lzma/lzma" ) ) {
-                forgeAssetURL = "https://repo.spongepowered.org/maven/lzma/lzma/0.0.1/lzma-0.0.1.jar";
-            }
-            if ( forgeAssetURL.contains( "vecmath" ) ) {
-                forgeAssetURL = "https://repo1.maven.org/maven2/javax/vecmath/vecmath/1.5.2/vecmath-1.5.2.jar";
+                if ( isSpecifiedRepoPath ) {
+                    forgeAssetURL = repoURL + forgeAssetRepoPath;
+                }
+                else {
+                    forgeAssetURL = repoURL +
+                            forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) ).replace( ".", "/" ) +
+                            "/" +
+                            forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "/" ) +
+                            "/" +
+                            forgeAssetRepoPath +
+                            ".jar";
+                }
+
+                // Override special libraries
+                if ( forgeAssetURL.contains( "scala-parser-combinators" ) ) {
+                    forgeAssetURL
+                            = "https://repo1.maven.org/maven2/org/scala-lang/scala-parser-combinators/2.11.0-M4/scala-parser-combinators-2.11.0-M4.jar";
+                }
+                if ( forgeAssetURL.contains( "scala-swing" ) ) {
+                    forgeAssetURL
+                            = "https://repo1.maven.org/maven2/org/scala-lang/scala-swing/2.11.0-M7/scala-swing-2.11.0-M7.jar";
+                }
+                if ( forgeAssetURL.contains( "scala-xml" ) ) {
+                    forgeAssetURL
+                            = "https://repo1.maven.org/maven2/org/scala-lang/scala-xml/2.11.0-M4/scala-xml-2.11.0-M4.jar";
+                }
+                if ( forgeAssetURL.contains( "lzma/lzma" ) ) {
+                    forgeAssetURL = "https://repo.spongepowered.org/maven/lzma/lzma/0.0.1/lzma-0.0.1.jar";
+                }
+                if ( forgeAssetURL.contains( "vecmath" ) ) {
+                    forgeAssetURL = "https://repo1.maven.org/maven2/javax/vecmath/vecmath/1.5.2/vecmath-1.5.2.jar";
+                }
             }
 
             // Build Local File Path
             String localForgeAssetFilePath = forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) )
                                                            .replace( ".", File.separator ) +
                     File.separator +
-                    forgeAssetRepoPath +
+                    inferredForgeAssetRepoPath +
                     LocalPathConstants.JAR_FILE_EXTENSION;
 
             // Get Forge Asset Requirements

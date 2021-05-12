@@ -81,6 +81,18 @@ public class ForgeConstants
     public static final String FORGE_VERSION_MANIFEST_LIBRARY_NAME_KEY = "name";
 
     /**
+     * Key for accessing the url of a library in a Forge version manifest.
+     *
+     * @since 1.0
+     */
+    public static final String FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY = "url";
+
+    public static final String FORGE_VERSION_MANIFEST_LIBRARY_DOWNLOADS_KEY = "downloads";
+    public static final String FORGE_VERSION_MANIFEST_LIBRARY_ARTIFACT_KEY = "artifact";
+    public static final String FORGE_VERSION_MANIFEST_LIBRARY_PATH_KEY = "path";
+    public static final String FORGE_VERSION_MANIFEST_LIBRARY_SHA1_KEY = "sha1";
+
+    /**
      * Key for accessing the server requirement field of a library in a Forge version manifest.
      *
      * @since 1.0

@@ -321,9 +321,6 @@ public class LauncherCore
                     Logger.logThrowable( e );
                     closeApp();
                 }
-
-                // Close login screen once complete
-                //TODO loginWindow.close();
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to load login GUI due to an incomplete response from the GUI subsystem." );

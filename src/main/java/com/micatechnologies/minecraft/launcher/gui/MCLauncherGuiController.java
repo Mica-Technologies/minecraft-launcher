@@ -28,11 +28,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MCLauncherGuiController
 {
-    private static AtomicBoolean startSuccess = new AtomicBoolean(false);
-    private static MCLauncherGuiWindow guiWindow = null;
+    private static AtomicBoolean       startSuccess = new AtomicBoolean( false );
+    private static MCLauncherGuiWindow guiWindow    = null;
 
     public static Stage getTopStageOrNull() {
         return startSuccess.get() ? guiWindow.getStage() : null;
+    }
+
+    public static void requestFocus() {
+        Stage topStage = getTopStageOrNull();
+        if ( topStage != null ) {
+            topStage.requestFocus();
+        }
     }
 
     private static boolean startGui() {
