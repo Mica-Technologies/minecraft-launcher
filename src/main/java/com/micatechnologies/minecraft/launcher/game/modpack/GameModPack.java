@@ -436,6 +436,7 @@ public class GameModPack
                 minecraftArgs += " -Xdock:icon=\"" + getPackLogoFilepath() + "\"";
                 minecraftArgs += " -Xdock:name=\"" + getPackName() + "\" ";
                 minecraftArgs += "-Dapple.laf.useScreenMenuBar=true ";
+                minecraftArgs += "-Djdk.lang.Process.launchMechanism=vfork ";
             }
         }
 
