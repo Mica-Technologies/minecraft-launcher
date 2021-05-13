@@ -3,7 +3,7 @@ A simple-to-use launcher for Minecraft Forge, built on the Java and JavaFX platf
 
 ## General Information
 
-The Mica Forge Launcher is a cross-platform, easy-to-use modpack launcher that uses modpacks defined in JSON files that are hosted on the internet.
+The Mica Minecraft Launcher is a cross-platform, easy-to-use modpack launcher that uses modpacks defined in JSON files that are hosted on the internet.
 
 All versions (macOS, Windows, Linux) support client mode and server mode. Client mode is the default mode, unless a graphic interface is not supported.
 - Client mode is the mode for those looking to play a Minecraft game (Minecraft Client). 
@@ -161,9 +161,9 @@ __Full Example__:
 ## Development
 
 ### Contributing
-There are many ways to contribute to this project. If you have an issue or feature suggestion, please feel free to bring it to the development team's attention by adding a GitLab Issue to the project on the Issues tab of this repo. To contribute to the source code or functionality of the application, please download [IntelliJ IDEA](https://www.jetbrains.com/idea/download/#section=windows) and checkout this repository as a Maven project.
+There are many ways to contribute to this project. If you have an issue or feature suggestion, please feel free to bring it to the development team's attention by adding a GitHub Issue to the project on the Issues tab of this repo. To contribute to the source code or functionality of the application, please download [IntelliJ IDEA](https://www.jetbrains.com/idea/download/#section=windows) and checkout this repository as a Maven project.
    
 ### Branches
-The `main` branch is a protected branch, and pushing to it is not permitted. Development must be completed on a secondary branch, and then merged to the main project using a merge request. At least one person must review all merge requests before they may be merged, and all merge requests are automatically build tested. If the merge request is not reviewed, or the code fails to build, the merge request cannot be merged.
+The `main` branch is a protected branch, and pushing to it is not permitted. Development must be completed on a secondary branch, and then merged to the main project using a pull request. At least one person must review all pull requests before they may be merged, and all pull requests are automatically build tested. If the pull request is not reviewed, or the code fails to build, the pull request cannot be merged.
    
 
