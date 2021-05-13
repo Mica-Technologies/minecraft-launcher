@@ -38,7 +38,7 @@ public class MCLauncherGuiController
     public static void requestFocus() {
         Stage topStage = getTopStageOrNull();
         if ( topStage != null ) {
-            topStage.requestFocus();
+            GUIUtilities.JFXPlatformRun( topStage::requestFocus );
         }
     }
 
