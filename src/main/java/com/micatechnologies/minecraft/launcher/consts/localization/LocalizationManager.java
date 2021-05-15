@@ -475,14 +475,6 @@ public class LocalizationManager
             "AUTH_RESPONSE_NO_PROFILE_ID_TEXT" );
 
     /**
-     * Message shown when the application is unable to install a mod pack from the specified location.
-     *
-     * @since 1.0
-     */
-    public static final String UNABLE_TO_INSTALL_MOD_PACK_FROM_TEXT = localResourceBundle.getString(
-            "UNABLE_TO_INSTALL_MOD_PACK_FROM_TEXT" );
-
-    /**
      * Message shown when unable to install the specified item.
      *
      * @since 1.0
@@ -589,14 +581,6 @@ public class LocalizationManager
      */
     public static final String NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT = localResourceBundle.getString(
             "NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT" );
-
-    /**
-     * Message shown when unable to create an object required by (or for) an available mod pack.
-     *
-     * @since 1.0
-     */
-    public static final String UNABLE_CREATE_OBJ_FOR_AVAILABLE_MOD_PACK_TEXT = localResourceBundle.getString(
-            "UNABLE_CREATE_OBJ_FOR_AVAILABLE_MOD_PACK_TEXT" );
 
     /**
      * Message shown when unable to download a file locally to the specified location.

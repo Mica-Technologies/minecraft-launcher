@@ -109,9 +109,9 @@ public class GameModPackManager
         for ( JsonElement manifestUrl : installableManifestUrls.getAsJsonArray(
                 ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY ) ) {
             final String manifestUrlVal = manifestUrl.getAsString();
-            try {
-                if ( !installedModPackManifestUrls.contains( manifestUrlVal ) ) {
-                    GameModPack gameModPack = GameModPackFetcher.get( manifestUrlVal );
+            if ( !installedModPackManifestUrls.contains( manifestUrlVal ) ) {
+                GameModPack gameModPack = GameModPackFetcher.get( manifestUrlVal );
+                if ( gameModPack.getFriendlyName() != null ) {
                     availableGameModPacks.add( gameModPack );
 
                     // Update progress window
@@ -136,30 +136,25 @@ public class GameModPackManager
                                                LocalizationManager.TO_AVAILABLE_MOD_PACKS_TEXT );
                     }
                 }
-                else {
-                    Logger.logDebug( LocalizationManager.NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT +
-                                             ": " +
-                                             manifestUrlVal );
+            }
+            else {
+                Logger.logDebug(
+                        LocalizationManager.NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT + ": " + manifestUrlVal );
 
-                    // Update progress window
-                    if ( progressWindow != null ) {
-                        progressWindow.setLowerLabelText(
-                                LocalizationManager.ALREADY_INSTALLED_TEXT + ": " + manifestUrlVal );
-                    }
-                    else {
-                        Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
-                                               ": " +
-                                               LocalizationManager.ALREADY_INSTALLED_TEXT +
-                                               ": " +
-                                               manifestUrlVal );
-                    }
+                // Update progress window
+                if ( progressWindow != null ) {
+                    progressWindow.setLowerLabelText(
+                            LocalizationManager.ALREADY_INSTALLED_TEXT + ": " + manifestUrlVal );
                 }
+                else {
+                    Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
+                                           ": " +
+                                           LocalizationManager.ALREADY_INSTALLED_TEXT +
+                                           ": " +
+                                           manifestUrlVal );
+                }
+            }
 
-            }
-            catch ( IOException e ) {
-                Logger.logError( LocalizationManager.UNABLE_CREATE_OBJ_FOR_AVAILABLE_MOD_PACK_TEXT );
-                Logger.logThrowable( e );
-            }
         }
         // Update progress window
         if ( progressWindow != null ) {
@@ -350,7 +345,9 @@ public class GameModPackManager
         // Populate list of installed mod pack manifest URLs and return
         List< String > installedModPackFriendlyNames = new ArrayList<>();
         for ( GameModPack gameModPack : installedGameModPacks ) {
-            installedModPackFriendlyNames.add( gameModPack.getFriendlyName() );
+            if ( gameModPack.getFriendlyName() != null ) {
+                installedModPackFriendlyNames.add( gameModPack.getFriendlyName() );
+            }
         }
         return installedModPackFriendlyNames;
     }
@@ -381,6 +378,31 @@ public class GameModPackManager
     }
 
     /**
+     * Gets and returns the mod pack object of the installed mod pack with the specified URL.
+     *
+     * @param packUrl mod pack URL
+     *
+     * @return mod pack with specified URL
+     *
+     * @since 1.0
+     */
+    public synchronized static GameModPack getInstalledModPackByURL( String packUrl ) {
+        // Populate lists if not already done
+        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+            fetchModPackInfo();
+        }
+
+        // Find matching mod pack and return
+        GameModPack foundGameModPack = null;
+        for ( GameModPack gameModPack : installedGameModPacks ) {
+            if ( gameModPack.getManifestUrl() != null && gameModPack.getManifestUrl().equalsIgnoreCase( packUrl ) ) {
+                foundGameModPack = gameModPack;
+            }
+        }
+        return foundGameModPack;
+    }
+
+    /**
      * Gets and returns the mod pack object of the installed mod pack with the specified friendly name.
      *
      * @param friendlyName mod pack friendly name
@@ -398,7 +420,8 @@ public class GameModPackManager
         // Find matching mod pack and return
         GameModPack foundGameModPack = null;
         for ( GameModPack gameModPack : installedGameModPacks ) {
-            if ( gameModPack.getFriendlyName().equalsIgnoreCase( friendlyName ) ) {
+            if ( gameModPack.getFriendlyName() != null &&
+                    gameModPack.getFriendlyName().equalsIgnoreCase( friendlyName ) ) {
                 foundGameModPack = gameModPack;
             }
         }
@@ -430,6 +453,28 @@ public class GameModPackManager
     }
 
     /**
+     * Uninstalls the mod pack with specified manifest URL from the launcher.
+     *
+     * @param url manifest URL of mod pack to uninstall
+     *
+     * @since 1.0
+     */
+    public synchronized static void uninstallModPackByURL( String url ) {
+        // Populate lists if not already done
+        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+            fetchModPackInfo();
+        }
+
+        // Find matching mod pack and remove
+        for ( GameModPack gameModPack : installedGameModPacks ) {
+            if ( gameModPack.getManifestUrl() != null && gameModPack.getManifestUrl().equals( url ) ) {
+                uninstallModPack( gameModPack );
+                break;
+            }
+        }
+    }
+
+    /**
      * Uninstalls the mod pack with specified friendly name from the launcher.
      *
      * @param friendlyName friendly name of mod pack to uninstall
@@ -445,7 +490,7 @@ public class GameModPackManager
         // Find matching mod pack and remove
         for ( GameModPack gameModPack : installedGameModPacks ) {
             final String modPackFriendlyName = gameModPack.getFriendlyName();
-            if ( modPackFriendlyName.equals( friendlyName ) ) {
+            if ( modPackFriendlyName != null && modPackFriendlyName.equals( friendlyName ) ) {
                 uninstallModPack( gameModPack );
                 break;
             }
@@ -532,12 +577,9 @@ public class GameModPackManager
         }
 
         // Add mod pack
-        try {
+        GameModPack modPack = GameModPackFetcher.get( url );
+        if ( modPack.getFriendlyName() != null ) {
             installModPack( GameModPackFetcher.get( url ) );
-        }
-        catch ( Exception e ) {
-            Logger.logError( LocalizationManager.UNABLE_TO_INSTALL_MOD_PACK_FROM_TEXT + " " + url );
-            Logger.logThrowable( e );
         }
     }
 
