@@ -62,7 +62,7 @@ public class AuthUtilities
         catch ( MalformedURLException e ) {
             throw new AuthException( "Unable to create HTTP URL.", e );
         }
-        HttpURLConnection httpURLConnection = null;
+        HttpURLConnection httpURLConnection;
         try {
             httpURLConnection = ( HttpURLConnection ) httpURL.openConnection();
         }
@@ -77,9 +77,8 @@ public class AuthUtilities
         catch ( ProtocolException e ) {
             throw new AuthException( "Unable to assign HTTP connection type.", e );
         }
-        httpURLConnection.setRequestProperty( AuthConstants.AUTH_POST_CONTENT_TYPE._1,
-                                              AuthConstants.AUTH_POST_CONTENT_TYPE
-                                                      ._2 );
+        httpURLConnection.setRequestProperty( AuthConstants.AUTH_POST_CONTENT_TYPE._1(),
+                                              AuthConstants.AUTH_POST_CONTENT_TYPE._2() );
         httpURLConnection.setUseCaches( false );
         httpURLConnection.setDoInput( true );
         httpURLConnection.setDoOutput( true );
@@ -115,15 +114,14 @@ public class AuthUtilities
         try {
             if ( httpURLConnection.getResponseCode() == HttpURLConnection.HTTP_OK ) {
                 // Create Input Stream and Reader to Read Response
-                InputStream inputStream = null;
+                InputStream inputStream;
                 try {
                     inputStream = httpURLConnection.getInputStream();
                 }
                 catch ( IOException e ) {
                     throw new AuthException( "Unable to create connection response stream.", e );
                 }
-                BufferedReader bufferedReader = new BufferedReader(
-                        new InputStreamReader( inputStream ) );
+                BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( inputStream ) );
 
                 // Read Response from Buffered Reader
                 String line;

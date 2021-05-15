@@ -20,16 +20,12 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
 import io.github.palexdev.materialfx.controls.MFXTextField;
-import io.github.palexdev.materialfx.controls.enums.Styles;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.geometry.NodeOrientation;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -37,7 +33,6 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -50,8 +45,8 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     ListView< String > modpackList;
 
     /**
@@ -59,8 +54,8 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton urlAddBtn;
 
     /**
@@ -68,8 +63,8 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton listAddBtn;
 
     /**
@@ -78,8 +73,8 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXTextField urlAddBox;
 
     /**
@@ -88,8 +83,8 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXComboBox< String > listAddBox;
 
     /**
@@ -97,8 +92,8 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton returnBtn;
 
     /**
@@ -125,27 +120,27 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
          *
          * @since 1.0
          */
-        HBox hbox = new HBox();
+        final HBox hbox = new HBox();
 
         /**
          * Label for list cell value (string).
          *
          * @since 1.0
          */
-        Label label = new Label( "" );
+        final Label label = new Label( "" );
 
         /**
          * Pane for separation between list cell value (string) and added button.
          *
          * @since 1.0
          */
-        Pane   pane   = new Pane();
+        final Pane   pane   = new Pane();
         /**
          * Added button for removing the associated item in the list.
          *
          * @since 1.0
          */
-        Button button = new Button( "X" );
+        final Button button = new Button( "X" );
 
         /**
          * Constructor for custom list cell implementation that populates and styles each element.
@@ -272,29 +267,9 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
         loadModPackList();
     }
 
-    /**
-     * Abstract method: This method must perform preparations of the environment, such as enabling menu bars, context
-     * menus, or other OS-specific enhancements.
-     */
-    @Override
-    void loadEnvironment() {
-
-    }
-
     @Override
     void afterShow() {
 
-    }
-
-    /**
-     * Abstract method: This method returns a boolean indicating if a warning should be shown to the user before closing
-     * the window while displaying the stage/GUI.
-     *
-     * @return boolean indicating if window close warning should be shown
-     */
-    @Override
-    boolean warnOnExit() {
-        return false;
     }
 
     /**

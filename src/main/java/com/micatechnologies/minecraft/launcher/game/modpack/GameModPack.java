@@ -55,6 +55,7 @@ public class GameModPack
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     private String packName;
 
     /**
@@ -62,6 +63,7 @@ public class GameModPack
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     private String packVersion;
 
     /**
@@ -69,6 +71,7 @@ public class GameModPack
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     private String packURL;
 
     /**
@@ -76,6 +79,7 @@ public class GameModPack
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     private String packLogoURL;
 
     /**
@@ -83,6 +87,7 @@ public class GameModPack
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     private String packBackgroundURL;
 
     /**
@@ -90,6 +95,7 @@ public class GameModPack
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     private String packMinRAMGB;
 
     /**
@@ -97,6 +103,7 @@ public class GameModPack
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     private String packForgeURL;
 
     /**
@@ -104,6 +111,7 @@ public class GameModPack
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     private String packForgeHash;
 
     /**
@@ -111,7 +119,7 @@ public class GameModPack
      *
      * @since 1.0
      */
-    @SuppressWarnings( "MismatchedQueryAndUpdateOfCollection" )
+    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
     private List< GameMod > packMods;
 
     /**
@@ -119,7 +127,7 @@ public class GameModPack
      *
      * @since 1.0
      */
-    @SuppressWarnings( "MismatchedQueryAndUpdateOfCollection" )
+    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
     private List< GameAsset > packConfigs;
 
     /**
@@ -127,7 +135,7 @@ public class GameModPack
      *
      * @since 1.0
      */
-    @SuppressWarnings( "MismatchedQueryAndUpdateOfCollection" )
+    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
     private List< ManagedGameFile > packResourcePacks;
 
     /**
@@ -135,7 +143,7 @@ public class GameModPack
      *
      * @since 1.0
      */
-    @SuppressWarnings( "MismatchedQueryAndUpdateOfCollection" )
+    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
     private List< ManagedGameFile > packShaderPacks;
 
     /**
@@ -143,7 +151,7 @@ public class GameModPack
      *
      * @since 1.0
      */
-    @SuppressWarnings( "MismatchedQueryAndUpdateOfCollection" )
+    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
     private List< GameAsset > packInitialFiles;
 
     private transient GameModPackProgressProvider progressProvider = null;
@@ -712,24 +720,31 @@ public class GameModPack
         File shaderPackPath = SynchronizedFileManager.getSynchronizedFile(
                 getPackRootFolder() + File.separator + "shaderpacks" );
 
+        //noinspection ResultOfMethodCallIgnored
         binPath.getParentFile().mkdirs();
 
         if ( !binPath.exists() ) {
+            //noinspection ResultOfMethodCallIgnored
             binPath.mkdir();
         }
         if ( !modsPath.exists() ) {
+            //noinspection ResultOfMethodCallIgnored
             modsPath.mkdir();
         }
         if ( !configPath.exists() ) {
+            //noinspection ResultOfMethodCallIgnored
             configPath.mkdir();
         }
         if ( !nativePath.exists() ) {
+            //noinspection ResultOfMethodCallIgnored
             nativePath.mkdir();
         }
         if ( !resPackPath.exists() && GameModeManager.isClient() ) {
+            //noinspection ResultOfMethodCallIgnored
             resPackPath.mkdir();
         }
         if ( !shaderPackPath.exists() && GameModeManager.isClient() ) {
+            //noinspection ResultOfMethodCallIgnored
             shaderPackPath.mkdir();
         }
     }

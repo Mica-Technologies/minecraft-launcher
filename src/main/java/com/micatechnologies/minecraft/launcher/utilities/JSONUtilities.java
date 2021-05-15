@@ -44,19 +44,6 @@ public class JSONUtilities
     }
 
     /**
-     * Converts the specified string to a JSON array.
-     *
-     * @param json JSON string
-     *
-     * @return JSON object
-     *
-     * @since 1.0
-     */
-    public static JsonArray stringToArray( String json ) {
-        return new Gson().fromJson( json, JsonArray.class );
-    }
-
-    /**
      * Converts the specified JSON object to a string.
      *
      * @param object JSON object

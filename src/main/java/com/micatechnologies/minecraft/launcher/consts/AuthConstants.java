@@ -57,13 +57,6 @@ public class AuthConstants
     public static final String AUTH_REFRESH_TOKEN_ENDPOINT = "refresh";
 
     /**
-     * Endpoint on Mojang/Minecraft authentication server that allows for an access token to be checked for validity.
-     *
-     * @since 1.0
-     */
-    public static final String AUTH_VALIDATE_TOKEN_ENDPOINT = "validate";
-
-    /**
      * Endpoint on Mojang/Minecraft authentication server that allows for an access token to be invalidated.
      *
      * @since 1.0
@@ -129,13 +122,6 @@ public class AuthConstants
      */
     public static final Pair< String, String > AUTH_POST_CONTENT_TYPE = new Pair<>( "Content-Type",
                                                                                     "application/json" );
-
-    /**
-     * The key for an access token that is returned in a response from the Mojang/Minecraft authentication server.
-     *
-     * @since 1.0
-     */
-    public static final String AUTH_RESPONSE_KEY_ACCESS_TOKEN = "accessToken";
 
     /**
      * The key for the selected profile information that is returned in a response from the Mojang/Minecraft

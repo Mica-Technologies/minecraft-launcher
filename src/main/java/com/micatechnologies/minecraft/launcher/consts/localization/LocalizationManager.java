@@ -325,15 +325,6 @@ public class LocalizationManager
     public static final String COMPLETED_TEXT = localResourceBundle.getString( "COMPLETED_TEXT" );
 
     /**
-     * Message shown when the application is unable to wait for a progress window to cleanly finish and close before
-     * returning to the parent/calling task.
-     *
-     * @since 1.0
-     */
-    public static final String UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT = localResourceBundle.getString(
-            "UNABLE_WAIT_FOR_PROGRESS_WINDOW_TEXT" );
-
-    /**
      * Message shown when a user account is not logged in and the application is going to check for a remembered user
      * account on persistent storage.
      *
@@ -734,37 +725,12 @@ public class LocalizationManager
             "PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT" );
 
     /**
-     * Message shown when no mod pack is specified and the launcher will default to the first mod pack.
-     *
-     * @since 1.0
-     */
-    public static final String NO_MOD_PACK_SPECIFIED_WILL_DEFAULT_TO_FIRST_TEXT = localResourceBundle.getString(
-            "NO_MOD_PACK_SPECIFIED_WILL_DEFAULT_TO_FIRST_TEXT" );
-
-    /**
-     * Message shown when no mod packs are installed thus the first mod pack cannot be selected.
-     *
-     * @since 1.0
-     */
-    public static final String NO_MOD_PACKS_INSTALLED_CANT_SELECT_FIRST_TEXT = localResourceBundle.getString(
-            "NO_MOD_PACKS_INSTALLED_CANT_SELECT_FIRST_TEXT" );
-
-    /**
      * Message shown when no mod packs are installed thus the launcher cannot start a server.
      *
      * @since 1.0
      */
     public static final String NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT = localResourceBundle.getString(
             "NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT" );
-
-    /**
-     * Message shown when an error prevents handling the completion of a GUI, such as waiting for a GUI to close
-     * cleanly.
-     *
-     * @since 1.0
-     */
-    public static final String ERROR_PREVENTING_GUI_COMPLETE_HANDLING_TEXT = localResourceBundle.getString(
-            "ERROR_PREVENTING_GUI_COMPLETE_HANDLING_TEXT" );
 
     /**
      * Message shown when a remembered user account was not found and the login screen will be shown.

@@ -18,7 +18,6 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.google.gson.*;
-import org.apache.commons.io.*;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -80,20 +79,6 @@ public class FileUtilities
      */
     public static JsonObject readAsJsonObject( File f ) throws IOException {
         return JSONUtilities.stringToObject( readAsString( f ) );
-    }
-
-    /**
-     * Reads the contents of the specified file as JSON and returns the resulting {@link JsonArray}.
-     *
-     * @param f file to read
-     *
-     * @return file contents as a {@link JsonArray}
-     *
-     * @throws IOException if unable to access or read file
-     * @since 1.0
-     */
-    public static JsonArray readAsJsonArray( File f ) throws IOException {
-        return JSONUtilities.stringToArray( readAsString( f ) );
     }
 
     /**

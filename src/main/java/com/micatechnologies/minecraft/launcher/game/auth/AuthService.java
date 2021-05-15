@@ -56,8 +56,8 @@ public class AuthService
         JsonObject agent = new JsonObject();
 
         // Populate agent object
-        agent.addProperty( AuthConstants.AUTH_AGENT_NAME._1, AuthConstants.AUTH_AGENT_NAME._2 );
-        agent.addProperty( AuthConstants.AUTH_AGENT_VERSION._1, AuthConstants.AUTH_AGENT_VERSION._2 );
+        agent.addProperty( AuthConstants.AUTH_AGENT_NAME._1(), AuthConstants.AUTH_AGENT_NAME._2() );
+        agent.addProperty( AuthConstants.AUTH_AGENT_VERSION._1(), AuthConstants.AUTH_AGENT_VERSION._2() );
 
         // Populate root object
         root.add( AuthConstants.AUTH_ENDPOINT_KEY_AGENT, agent );
@@ -189,40 +189,6 @@ public class AuthService
 
         // Return true on success
         return true;
-    }
-
-    /**
-     * Validate the authentication of the specified account.
-     *
-     * @param account account to validate
-     *
-     * @return true for success, false for failure
-     *
-     * @throws AuthException if an error occurs
-     * @since 1.0
-     */
-    public static boolean validateLogin( AuthAccountMojang account ) throws AuthException
-    {
-        // Check for presence of existing access token
-        // If none, return immediately
-        if ( account.getLastAccessToken() == null ) {
-            return false;
-        }
-
-        // Build JSON Object for Request
-        JsonObject root = new JsonObject();
-        root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN, account.getLastAccessToken() );
-        root.addProperty( AuthConstants.AUTH_ENDPOINT_KEY_CLIENT_TOKEN, AuthManager.getClientToken() );
-
-        // Perform HTTP Post Call to Mojang Endpoint
-        String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_VALIDATE_TOKEN_ENDPOINT, root.toString() );
-
-        // Convert response to Json Object
-        JsonObject responseObject = JSONUtilities.stringToObject( response );
-
-        // Return true if no error in response
-        return !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) &&
-                !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG );
     }
 
     /**

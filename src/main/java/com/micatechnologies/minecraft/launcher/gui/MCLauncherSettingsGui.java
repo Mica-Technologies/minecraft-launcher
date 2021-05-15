@@ -28,13 +28,9 @@ import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.materialfx.controls.MFXCheckbox;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
 import io.github.palexdev.materialfx.controls.MFXToggleButton;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
@@ -44,54 +40,53 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
 import org.codehaus.plexus.util.FileUtils;
 import oshi.SystemInfo;
-import oshi.hardware.PhysicalMemory;
 
 import java.io.IOException;
 
 public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 {
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     Spinner< Double > minRamGb;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     Spinner< Double > maxRamGb;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXToggleButton debugCheckBox;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXToggleButton windowResizeCheckBox;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton resetLauncherBtn;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton resetRuntimeBtn;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton saveBtn;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton returnBtn;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     Label versionLabel;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     Label sysRamLabel;
 
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXComboBox< String > themeSelection;
 
     boolean dirty = false;
@@ -343,15 +338,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         } );
     }
 
-    /**
-     * Abstract method: This method must perform preparations of the environment, such as enabling menu bars, context
-     * menus, or other OS-specific enhancements.
-     */
-    @Override
-    void loadEnvironment() {
-
-    }
-
     @Override
     void afterShow() {
         // Select current theme in dropdown
@@ -373,17 +359,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         themeSelection.getSelectionModel()
                       .selectedIndexProperty()
                       .addListener( ( observable, oldValue, newValue ) -> setEdited( true ) );
-    }
-
-    /**
-     * Abstract method: This method returns a boolean indicating if a warning should be shown to the user before closing
-     * the window while displaying the stage/GUI.
-     *
-     * @return boolean indicating if window close warning should be shown
-     */
-    @Override
-    boolean warnOnExit() {
-        return dirty;
     }
 
     private void setEdited( boolean edited ) {

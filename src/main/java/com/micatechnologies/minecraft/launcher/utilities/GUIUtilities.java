@@ -19,9 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
-import com.micatechnologies.minecraft.launcher.gui.MCLauncherAbstractGui;
 import javafx.application.Platform;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -260,22 +258,5 @@ public class GUIUtilities
                 Logger.logError( "Unable to wait for a user interface task to complete!" );
             }
         }
-    }
-
-    /**
-     * Builds an FXML loader from the FXML file at the specified path and sets its owner to the specified window.
-     *
-     * @param fxmlFileName FXML file path
-     * @param owner        window owner
-     *
-     * @return generated FXML loader
-     *
-     * @since 2.0
-     */
-    public static FXMLLoader buildFXMLLoader( String fxmlFileName, MCLauncherAbstractGui owner ) {
-        FXMLLoader fxmlLoader = new FXMLLoader();
-        fxmlLoader.setLocation( GUIUtilities.class.getClassLoader().getResource( fxmlFileName ) );
-        fxmlLoader.setController( owner );
-        return fxmlLoader;
     }
 }

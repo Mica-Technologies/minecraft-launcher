@@ -293,43 +293,6 @@ public class GameModPackManager
     }
 
     /**
-     * Gets and returns a list of the mod packs that are currently installed.
-     *
-     * @return list of installed mod packs
-     *
-     * @since 1.0
-     */
-    public synchronized static List< GameModPack > getInstalledModPacks() {
-        // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
-            fetchModPackInfo();
-        }
-
-        return installedGameModPacks;
-    }
-
-    /**
-     * Gets and returns a list of the manifest URLs of mod packs that are available for install.
-     *
-     * @return list of installable mod pack manifest URLs
-     *
-     * @since 1.0
-     */
-    public synchronized static List< String > getAvailableModPackURLs() {
-        // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
-            fetchModPackInfo();
-        }
-
-        // Populate list of available mod pack manifest URLs and return
-        List< String > availableModPackURLs = new ArrayList<>();
-        for ( GameModPack gameModPack : availableGameModPacks ) {
-            availableModPackURLs.add( gameModPack.getManifestUrl() );
-        }
-        return availableModPackURLs;
-    }
-
-    /**
      * Gets and returns a list of the manifest URLs of mod packs that are currently installed.
      *
      * @return list of installed mod pack manifest URLs
@@ -463,28 +426,6 @@ public class GameModPackManager
         }
         else {
             Logger.logError( LocalizationManager.UNABLE_TO_UNINSTALL_MOD_PACK_TEXT + " " + gameModPack.getPackName() );
-        }
-    }
-
-    /**
-     * Uninstalls the mod pack with specified manifest URL from the launcher.
-     *
-     * @param url manifest URL of mod pack to uninstall
-     *
-     * @since 1.0
-     */
-    public synchronized static void uninstallModPackByURL( String url ) {
-        // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
-            fetchModPackInfo();
-        }
-
-        // Find matching mod pack and remove
-        for ( GameModPack gameModPack : installedGameModPacks ) {
-            if ( gameModPack.getManifestUrl().equals( url ) ) {
-                uninstallModPack( gameModPack );
-                break;
-            }
         }
     }
 

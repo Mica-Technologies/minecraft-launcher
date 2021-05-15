@@ -161,6 +161,7 @@ public class ManagedGameFile
 
         // Download file and return validation result
         try {
+            //noinspection ResultOfMethodCallIgnored
             localFile.getParentFile().mkdirs();
             NetworkUtilities.downloadFileFromURL( new URL( remote ), localFile );
         }
