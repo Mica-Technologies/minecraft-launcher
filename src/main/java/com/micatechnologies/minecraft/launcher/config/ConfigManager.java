@@ -293,6 +293,52 @@ public class ConfigManager
     }
 
     /**
+     * Gets the theme.
+     *
+     * @return theme
+     *
+     * @since 3.0
+     */
+    public synchronized static String getTheme() {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        // Check for presence of field, and create default if does not exist
+        if ( !configObject.has( ConfigConstants.THEME_KEY ) ) {
+            // Add property with default value
+            configObject.addProperty( ConfigConstants.THEME_KEY, ConfigConstants.THEME_AUTOMATIC );
+
+            // Save configuration to disk
+            writeConfigurationToDisk();
+        }
+
+        // Get and return value of custom JVM args
+        return configObject.get( ConfigConstants.THEME_KEY ).getAsString();
+    }
+
+    /**
+     * Sets the theme.
+     *
+     * @param theme theme
+     *
+     * @since 2.0
+     */
+    public synchronized static void setTheme( String theme ) {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        // Set value of last mod pack selected
+        configObject.addProperty( ConfigConstants.THEME_KEY, theme );
+
+        // Save configuration to disk
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Gets the configured list of installed mod packs by their manifest URLs.
      *
      * @return list of installed mod packs' manifest URLs

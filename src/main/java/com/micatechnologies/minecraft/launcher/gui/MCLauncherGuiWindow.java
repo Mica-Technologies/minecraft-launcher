@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.jthemedetecor.OsThemeDetector;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -32,7 +33,8 @@ import java.io.InputStream;
 
 public class MCLauncherGuiWindow extends Application
 {
-    private Stage stage;
+    private Stage                 stage;
+    private MCLauncherAbstractGui gui;
 
     private OsThemeDetector detector = null;
 
@@ -78,6 +80,7 @@ public class MCLauncherGuiWindow extends Application
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
+        this.gui = gui;
         GUIUtilities.JFXPlatformRun( () -> {
             // Prepare scene environment
             gui.setup();
@@ -88,34 +91,7 @@ public class MCLauncherGuiWindow extends Application
                     LauncherConstants.LAUNCHER_APPLICATION_NAME + GUIConstants.TITLE_SPLIT_CHAR + gui.getSceneName() );
 
             // Set correct first theme
-            if ( detector != null ) {
-                if ( detector.isDark() ) {
-                    // The OS switched to a dark theme
-                    GUIUtilities.JFXPlatformRun( () -> {
-                        gui.rootPane.getStylesheets()
-                                    .remove( getClass().getClassLoader()
-                                                       .getResource( "guiStyle-light.css" )
-                                                       .toExternalForm() );
-                        gui.rootPane.getStylesheets()
-                                    .add( getClass().getClassLoader()
-                                                    .getResource( "guiStyle-dark.css" )
-                                                    .toExternalForm() );
-                    } );
-                }
-                else {
-                    // The OS switched to a light theme
-                    GUIUtilities.JFXPlatformRun( () -> {
-                        gui.rootPane.getStylesheets()
-                                    .remove( getClass().getClassLoader()
-                                                       .getResource( "guiStyle-dark.css" )
-                                                       .toExternalForm() );
-                        gui.rootPane.getStylesheets()
-                                    .add( getClass().getClassLoader()
-                                                    .getResource( "guiStyle-light.css" )
-                                                    .toExternalForm() );
-                    } );
-                }
-            }
+            forceThemeChange();
 
             // Set scene
             stage.setScene( gui.scene );
@@ -131,34 +107,7 @@ public class MCLauncherGuiWindow extends Application
         // Setup theme detector change listener
         if ( detector != null ) {
             try {
-                detector.registerListener( isDark -> {
-                    if ( isDark ) {
-                        // The OS switched to a dark theme
-                        GUIUtilities.JFXPlatformRun( () -> {
-                            gui.rootPane.getStylesheets()
-                                        .remove( getClass().getClassLoader()
-                                                           .getResource( "guiStyle-light.css" )
-                                                           .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .add( getClass().getClassLoader()
-                                                        .getResource( "guiStyle-dark.css" )
-                                                        .toExternalForm() );
-                        } );
-                    }
-                    else {
-                        // The OS switched to a light theme
-                        GUIUtilities.JFXPlatformRun( () -> {
-                            gui.rootPane.getStylesheets()
-                                        .remove( getClass().getClassLoader()
-                                                           .getResource( "guiStyle-dark.css" )
-                                                           .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .add( getClass().getClassLoader()
-                                                        .getResource( "guiStyle-light.css" )
-                                                        .toExternalForm() );
-                        } );
-                    }
-                } );
+                detector.registerListener( isDark -> forceThemeChange() );
             }
             catch ( Exception e ) {
                 Logger.logWarningSilent( "Unable to configure theme change listener for dark/light mode!" );
@@ -188,6 +137,69 @@ public class MCLauncherGuiWindow extends Application
 
     public Stage getStage() {
         return stage;
+    }
+
+    public OsThemeDetector getDetector() {
+        return detector;
+    }
+
+    public void forceThemeChange() {
+        switch ( ConfigManager.getTheme() ) {
+            case ConfigConstants.THEME_AUTOMATIC:
+                if ( detector != null ) {
+                    if ( detector.isDark() ) {
+                        // The OS switched to a dark theme
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            gui.rootPane.getStylesheets()
+                                        .remove( getClass().getClassLoader()
+                                                           .getResource( "guiStyle-light.css" )
+                                                           .toExternalForm() );
+                            gui.rootPane.getStylesheets()
+                                        .add( getClass().getClassLoader()
+                                                        .getResource( "guiStyle-dark.css" )
+                                                        .toExternalForm() );
+                        } );
+                    }
+                    else {
+                        // The OS switched to a light theme
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            gui.rootPane.getStylesheets()
+                                        .remove( getClass().getClassLoader()
+                                                           .getResource( "guiStyle-dark.css" )
+                                                           .toExternalForm() );
+                            gui.rootPane.getStylesheets()
+                                        .add( getClass().getClassLoader()
+                                                        .getResource( "guiStyle-light.css" )
+                                                        .toExternalForm() );
+                        } );
+                    }
+                }
+                break;
+            case ConfigConstants.THEME_LIGHT:
+                // The OS switched to a light theme
+                GUIUtilities.JFXPlatformRun( () -> {
+                    gui.rootPane.getStylesheets()
+                                .remove( getClass().getClassLoader()
+                                                   .getResource( "guiStyle-dark.css" )
+                                                   .toExternalForm() );
+                    gui.rootPane.getStylesheets()
+                                .add( getClass().getClassLoader()
+                                                .getResource( "guiStyle-light.css" )
+                                                .toExternalForm() );
+                } );
+                break;
+            case ConfigConstants.THEME_DARK:
+                // The OS switched to a dark theme
+                GUIUtilities.JFXPlatformRun( () -> {
+                    gui.rootPane.getStylesheets()
+                                .remove( getClass().getClassLoader()
+                                                   .getResource( "guiStyle-light.css" )
+                                                   .toExternalForm() );
+                    gui.rootPane.getStylesheets()
+                                .add( getClass().getClassLoader().getResource( "guiStyle-dark.css" ).toExternalForm() );
+                } );
+                break;
+        }
     }
 }
 
