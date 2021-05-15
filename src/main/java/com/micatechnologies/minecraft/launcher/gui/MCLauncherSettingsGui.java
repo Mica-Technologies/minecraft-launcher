@@ -36,7 +36,10 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.stage.Stage;
+import org.apache.commons.math3.util.Precision;
 import org.codehaus.plexus.util.FileUtils;
+import oshi.SystemInfo;
+import oshi.hardware.PhysicalMemory;
 
 import java.io.IOException;
 
@@ -77,6 +80,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     @OnScreen
     Label versionLabel;
+
+    @FXML
+    @OnScreen
+    Label sysRamLabel;
 
     boolean dirty = false;
 
@@ -126,8 +133,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             if ( dirty ) {
                 int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
                                                                  "Are you sure you want to return without saving " +
-                                                                         "changes?",
-                                                                 "Save", "Return", stage );
+                                                                         "changes?", "Save", "Return", stage );
                 if ( response == 1 ) {
                     GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
                     try {
@@ -222,8 +228,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             if ( dirty ) {
                 int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
                                                                  "Are you sure you want to reset the runtime without " +
-                                                                         "saving changes?",
-                                                                 "Save & Reset Runtime", "Reset Runtime", stage );
+                                                                         "saving changes?", "Save & Reset Runtime",
+                                                                 "Reset Runtime", stage );
                 // Save first
                 if ( response == 1 ) {
                     GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
@@ -272,6 +278,20 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Set and configure debug mode check box
         debugCheckBox.setSelected( ConfigManager.getDebugLogging() );
         debugCheckBox.setOnAction( actionEvent -> setEdited( true ) );
+
+        // Load system RAM config label
+        SystemInfo systemInfo = new SystemInfo();
+        long memTotalRaw = systemInfo.getHardware().getMemory().getTotal();
+        long memAvailRaw = systemInfo.getHardware().getMemory().getAvailable();
+        double memTotal = memTotalRaw / 1024.0 / 1024.0 / 1024.0;
+        double memAvail = memAvailRaw / 1024.0 / 1024.0 / 1024.0;
+        double memUsed = memTotal - memAvail;
+        sysRamLabel.setText( "You have " +
+                                     Precision.round( memTotal, 2 ) +
+                                     " GB RAM. You're currently using " +
+                                     Precision.round( memUsed, 2 ) +
+                                     " GB" +
+                                     "." );
 
         // Calculate configured RAM amounts in GB
         final double minRamGbVal = ConfigManager.getMinRam() / 1024.0;
