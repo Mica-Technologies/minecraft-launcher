@@ -365,31 +365,34 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
 
         // Load modpack logo and set in GUI
-        Image packLogoImg;
-        if ( selectedGameModPack != null ) {
-            packLogoImg = new Image( selectedGameModPack.getPackLogoURL() );
-        }
-        else {
-            packLogoImg = new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
-        }
-        GUIUtilities.JFXPlatformRun( () -> {
-            packLogo.setImage( packLogoImg );
-
-            // Set modpack background image on root pane
+        SystemUtilities.spawnNewTask( () -> {
+            Image packLogoImg;
             if ( selectedGameModPack != null ) {
-                rootPane.setStyle( rootPane.getStyle() +
-                                           "-fx-background-image: url('" +
-                                           selectedGameModPack.getPackBackgroundURL() +
-                                           "');" );
+                packLogoImg = new Image( selectedGameModPack.getPackLogoURL() );
             }
             else {
-                rootPane.setStyle( rootPane.getStyle() +
-                                           "-fx-background-image: url('" +
-                                           ModPackConstants.MODPACK_DEFAULT_BG_URL +
-                                           "');" );
+                packLogoImg = new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
             }
+            GUIUtilities.JFXPlatformRun( () -> {
+                packLogo.setImage( packLogoImg );
 
-            rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
+                // Set modpack background image on root pane
+                if ( selectedGameModPack != null ) {
+                    rootPane.setStyle( rootPane.getStyle() +
+                                               "-fx-background-image: url('" +
+                                               selectedGameModPack.getPackBackgroundURL() +
+                                               "');" );
+                }
+                else {
+                    rootPane.setStyle( rootPane.getStyle() +
+                                               "-fx-background-image: url('" +
+                                               ModPackConstants.MODPACK_DEFAULT_BG_URL +
+                                               "');" );
+                }
+
+                rootPane.setStyle(
+                        rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
+            } );
         } );
     };
 
