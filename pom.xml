@@ -242,32 +242,6 @@
                     <customizedJre>false</customizedJre>
                     <jreMinVersion>16</jreMinVersion>
                     <generateInstaller>true</generateInstaller>
-                    <vmArgs>
-                        <vmArg>--add-exports=javafx.controls/javafx.scene.control.skin=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=java.base/java.lang.reflect=ALL-UNNAMED</vmArg>
-                        <vmArg>--add-exports=java.base/java.lang.reflect=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.Sun.javafx.scene.control.behavior=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.base/com.sun.javafx.event=ALL-UNNAMED</vmArg>
-                        <vmArg>--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.binding=com.jfoenix</vmArg>
-                        <vmArg>--add-opens=javafx.controls/javafx.scene.control.skin=com.jfoenix</vmArg>
-                        <vmArg>--add-opens=java.base/java.lang.reflect=ALL-UNNAMED</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.scene.control=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.base/com.sun.javafx.binding=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.base/com.sun.javafx.event=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.controls/com.sun.javafx.scene.control=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.base/com.sun.javafx.binding=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</vmArg>
-                        <vmArg>--add-exports=javafx.base/com.sun.javafx.event=com.jfoenix</vmArg>
-                    </vmArgs>
                     <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
                     <runnableJar>
                         ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
