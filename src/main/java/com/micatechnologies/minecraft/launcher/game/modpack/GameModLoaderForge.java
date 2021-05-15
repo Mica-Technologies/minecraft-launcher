@@ -232,6 +232,14 @@ class GameModLoaderForge extends ManagedGameFile
                 forgeAssetRepoPath = inferredForgeAssetRepoPath;
             }
 
+            // Get SHA-1, if present
+            String sha1 = null;
+            if ( forgeAssetDownloadsArtifactObj != null &&
+                    forgeAssetDownloadsArtifactObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_SHA1_KEY ) ) {
+                sha1 = forgeAssetDownloadsArtifactObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_SHA1_KEY )
+                                                     .getAsString();
+            }
+
             // Build Full Repo URL and Path
             String forgeAssetURL;
             if ( forgeAssetDownloadsArtifactObj != null &&
@@ -317,8 +325,12 @@ class GameModLoaderForge extends ManagedGameFile
             }
 
             // Build Forge Asset Object and Add to List of Assets
-            // Note: hash checking not supported on forge assets yet
-            forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
+            if ( sha1 != null ) {
+                forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, sha1, clientReq, serverReq ) );
+            }
+            else {
+                forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
+            }
         }
 
         // Return resulting list of Forge Assets
