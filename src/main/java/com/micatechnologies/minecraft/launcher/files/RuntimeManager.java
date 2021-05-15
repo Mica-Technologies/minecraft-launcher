@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.files;
 
-import com.jfoenix.controls.JFXProgressBar;
 import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
@@ -26,6 +25,7 @@ import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
@@ -207,7 +207,7 @@ public class RuntimeManager
                 // Download archive from URL
                 if ( progressWindow != null ) {
                     progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADING_RUNTIME_TEXT );
-                    progressWindow.setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
+                    progressWindow.setProgress( MFXProgressBar.INDETERMINATE_PROGRESS );
 
                 }
                 else {

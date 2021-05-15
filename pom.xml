@@ -137,33 +137,6 @@
                     <source>16</source>
                     <target>16</target>
                     <encoding>UTF-8</encoding>
-                    <parameters>true</parameters>
-                    <compilerArgs>
-                        <arg>--add-exports=javafx.controls/javafx.scene.control.skin=com.jfoenix</arg>
-                        <arg>--add-exports=java.base/java.lang.reflect=ALL-UNNAMED</arg>
-                        <arg>--add-exports=java.base/java.lang.reflect=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.controls/com.Sun.javafx.scene.control.behavior=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.base/com.sun.javafx.event=ALL-UNNAMED</arg>
-                        <arg>--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.binding=com.jfoenix</arg>
-                        <arg>--add-opens=javafx.controls/javafx.scene.control.skin=com.jfoenix</arg>
-                        <arg>--add-opens=java.base/java.lang.reflect=ALL-UNNAMED</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.base/com.sun.javafx.binding=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.base/com.sun.javafx.event=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control.behavior=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.controls/com.sun.javafx.scene.control=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.base/com.sun.javafx.binding=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.graphics/com.sun.javafx.stage=com.jfoenix</arg>
-                        <arg>--add-exports=javafx.base/com.sun.javafx.event=com.jfoenix</arg>
-                    </compilerArgs>
                 </configuration>
             </plugin>
 
@@ -394,11 +367,6 @@
             <version>1.0.0</version>
         </dependency>
         <dependency>
-            <groupId>com.jfoenix</groupId>
-            <artifactId>jfoenix</artifactId>
-            <version>9.0.10</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.9</version>
@@ -442,11 +410,6 @@
             <groupId>de.jangassen</groupId>
             <artifactId>nsmenufx</artifactId>
             <version>3.1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.6.4</version>
         </dependency>
         <dependency>
             <groupId>org.brotli</groupId>
@@ -517,6 +480,16 @@
             <groupId>com.jagrosh</groupId>
             <artifactId>DiscordIPC</artifactId>
             <version>0.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.Dansoftowner</groupId>
+            <artifactId>jSystemThemeDetector</artifactId>
+            <version>3.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.palexdev</groupId>
+            <artifactId>materialfx</artifactId>
+            <version>11.10.1</version>
         </dependency>
     </dependencies>
 </project>

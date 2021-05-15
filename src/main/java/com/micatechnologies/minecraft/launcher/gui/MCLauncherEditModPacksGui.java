@@ -17,15 +17,19 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import com.jfoenix.controls.JFXButton;
-import com.jfoenix.controls.JFXComboBox;
-import com.jfoenix.controls.JFXTextField;
+import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
+import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXComboBox;
+import io.github.palexdev.materialfx.controls.MFXTextField;
+import io.github.palexdev.materialfx.controls.enums.Styles;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.geometry.NodeOrientation;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -33,8 +37,8 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 
 import java.io.IOException;
 import java.util.List;
@@ -57,7 +61,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton urlAddBtn;
+    MFXButton urlAddBtn;
 
     /**
      * Add mod pack by list button. This button processes the selected combo box entry of {@link #listAddBox}.
@@ -66,7 +70,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton listAddBtn;
+    MFXButton listAddBtn;
 
     /**
      * Add mod pack by URL text field. This text field accepts entries for URLs that are to be added to the list of
@@ -76,7 +80,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXTextField urlAddBox;
+    MFXTextField urlAddBox;
 
     /**
      * Add mod pack by list dropdown box. This combo box lists mod packs that are approved and available for easy
@@ -86,7 +90,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXComboBox< String > listAddBox;
+    MFXComboBox< String > listAddBox;
 
     /**
      * Return to main window button
@@ -95,7 +99,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton returnBtn;
+    MFXButton returnBtn;
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
@@ -205,11 +209,15 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     }
 
     void uninstallModPack( String name ) {
-        rootPane.setDisable( true );
         GameModPackManager.uninstallModPackByFriendlyName( name );
-        loadModPackList();
-        MCLauncherGuiController.goToGui( this );
-        rootPane.setDisable( false );
+        try {
+            MCLauncherGuiController.goToEditModpacksGui();
+        }
+        catch ( IOException e ) {
+            Logger.logError( "Oops! Unable to reload edit mod packs GUI" );
+            Logger.logThrowable( e );
+            LauncherCore.closeApp();
+        }
     }
 
     /**
@@ -217,6 +225,12 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @Override
     void setup() {
+        // Configure window close
+        stage.setOnCloseRequest( windowEvent -> {
+            windowEvent.consume();
+            returnBtn.fire();
+        } );
+
         // Configure return button and window close
         returnBtn.setOnAction( actionEvent -> {
             try {
@@ -226,29 +240,36 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
                 Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
-
         } );
-
-        // Populate mod pack lists
-        loadModPackList();
 
         // Configure add by URL button
         urlAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            rootPane.setDisable( true );
             GameModPackManager.installModPackByURL( urlAddBox.getText() );
-            loadModPackList();
-            MCLauncherGuiController.goToGui( this );
-            rootPane.setDisable( false );
+            try {
+                MCLauncherGuiController.goToEditModpacksGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Oops! Unable to reload edit mod packs GUI" );
+                Logger.logThrowable( e );
+                LauncherCore.closeApp();
+            }
         } ) );
 
         // Configure add by List button
         listAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            rootPane.setDisable( true );
-            GameModPackManager.installModPackByFriendlyName( listAddBox.getValue() );
-            loadModPackList();
-            MCLauncherGuiController.goToGui( this );
-            rootPane.setDisable( false );
+            GameModPackManager.installModPackByFriendlyName( listAddBox.getSelectedValue() );
+            try {
+                MCLauncherGuiController.goToEditModpacksGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Oops! Unable to reload edit mod packs GUI" );
+                Logger.logThrowable( e );
+                LauncherCore.closeApp();
+            }
         } ) );
+
+        // Loads lists
+        loadModPackList();
     }
 
     /**
@@ -257,6 +278,11 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @Override
     void loadEnvironment() {
+
+    }
+
+    @Override
+    void afterShow() {
 
     }
 
@@ -281,31 +307,27 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
         final List< String > installedModPackFriendlyNames = GameModPackManager.getInstalledModPackFriendlyNames();
         final List< String > availableModPackFriendlyNames = GameModPackManager.getAvailableModPackFriendlyNames();
 
-        GUIUtilities.JFXPlatformRun( () -> {
-            // Lock window during load
-            modpackList.setDisable( true );
-            urlAddBtn.setDisable( true );
-            listAddBox.setDisable( true );
-            listAddBtn.setDisable( true );
-            returnBtn.setDisable( true );
+        // Lock window during load
+        modpackList.setDisable( true );
+        urlAddBtn.setDisable( true );
+        listAddBox.setDisable( true );
+        listAddBtn.setDisable( true );
+        returnBtn.setDisable( true );
 
-            // Set installed mod pack list cell factory
-            modpackList.setCellFactory( stringListView -> new MCLauncherEditModPacksGui.XCell() );
+        // Set installed mod pack list cell factory
+        modpackList.setCellFactory( stringListView -> new MCLauncherEditModPacksGui.XCell() );
 
-            // Add installed mod packs to list
-            modpackList.getItems().clear();
-            modpackList.getItems().addAll( installedModPackFriendlyNames );
+        // Add installed mod packs to list
+        modpackList.setItems( FXCollections.observableList( installedModPackFriendlyNames ) );
 
-            // Add available mod packs to list
-            listAddBox.getItems().clear();
-            listAddBox.getItems().addAll( availableModPackFriendlyNames );
+        // Add available mod packs to list
+        listAddBox.setItems( FXCollections.observableList( availableModPackFriendlyNames ) );
 
-            // Unlock window when done
-            modpackList.setDisable( false );
-            urlAddBtn.setDisable( false );
-            listAddBox.setDisable( false );
-            listAddBtn.setDisable( false );
-            returnBtn.setDisable( false );
-        } );
+        // Unlock window when done
+        modpackList.setDisable( false );
+        urlAddBtn.setDisable( false );
+        listAddBox.setDisable( false );
+        listAddBtn.setDisable( false );
+        returnBtn.setDisable( false );
     }
 }

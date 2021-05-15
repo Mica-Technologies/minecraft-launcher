@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import com.jfoenix.controls.JFXButton?>
-<?import com.jfoenix.controls.JFXComboBox?>
+<?import io.github.palexdev.materialfx.controls.MFXButton?>
+<?import io.github.palexdev.materialfx.controls.MFXComboBox?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.Image?>
@@ -9,7 +9,6 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
-<?import javafx.scene.text.Font?>
 
 <!--
   ~ Copyright (c) 2020 Mica Technologies
@@ -28,16 +27,14 @@
   ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="500.0" minWidth="500.0"
-          prefHeight="500.0" prefWidth="700.0" style="-fx-background-color: #4D3620;" stylesheets="@../guiStyle.css"
-          xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml">
+<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="500.0" minWidth="500.0" prefHeight="500.0" prefWidth="700.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
     </columnConstraints>
     <rowConstraints>
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
-    <GridPane fx:id="centerPane" maxHeight="325.0" maxWidth="325.0" minHeight="325.0" minWidth="325.0" prefHeight="325.0" prefWidth="325.0" styleClass="cpanel" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+    <GridPane fx:id="centerPane" maxHeight="325.0" maxWidth="325.0" minHeight="325.0" minWidth="325.0" prefHeight="325.0" prefWidth="325.0" styleClass="centerPane" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
         <columnConstraints>
             <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="10.0" percentWidth="25.0" prefWidth="100.0" />
             <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" percentWidth="25.0" />
@@ -68,12 +65,8 @@
           <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
         </rowConstraints>
          <children>
-              <JFXComboBox fx:id="packSelection" prefHeight="23.0" prefWidth="213.0" promptText="Select a Modpack" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
-            <JFXButton fx:id="editButton" maxHeight="23.0" maxWidth="36.0" minHeight="23.0" minWidth="36.0" prefHeight="23.0" prefWidth="36.0" style="-fx-background-image: url('edito_icon.png');" text="✎" textAlignment="CENTER" textOverrun="CLIP" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-               <font>
-                  <Font size="11.0" />
-               </font>
-            </JFXButton>
+            <MFXButton fx:id="editButton" maxHeight="25.0" maxWidth="36.0" minHeight="25.0" minWidth="36.0" prefHeight="25.0" prefWidth="36.0" text="✎" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
+            <MFXComboBox fx:id="packSelection" maxHeight="25.0" maxWidth="200.0" minHeight="25.0" minWidth="200.0" prefHeight="25.0" prefWidth="200.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
          </children>
       </GridPane>
         <GridPane GridPane.columnSpan="4" GridPane.rowIndex="2">
@@ -85,30 +78,21 @@
             <rowConstraints>
                 <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
             </rowConstraints>
-            <JFXButton fx:id="playBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Play" GridPane.halignment="CENTER" GridPane.valignment="TOP">
-                <GridPane.margin>
-                    <Insets top="10.0" />
-                </GridPane.margin>
-                <font>
-                    <Font size="11.0" />
-                </font>
-            </JFXButton>
-            <JFXButton fx:id="settingsBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Settings" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="TOP">
-                <GridPane.margin>
-                    <Insets top="10.0" />
-                </GridPane.margin>
-                <font>
-                    <Font size="11.0" />
-                </font>
-            </JFXButton>
-            <JFXButton fx:id="exitBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Exit" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.valignment="TOP">
-                <GridPane.margin>
-                    <Insets top="10.0" />
-                </GridPane.margin>
-                <font>
-                    <Font size="11.0" />
-                </font>
-            </JFXButton>
+         <MFXButton fx:id="playBtn" prefHeight="25.0" prefWidth="80.0" text="Play" GridPane.halignment="CENTER" GridPane.valignment="TOP">
+            <GridPane.margin>
+               <Insets top="10.0" />
+            </GridPane.margin>
+         </MFXButton>
+         <MFXButton fx:id="settingsBtn" prefHeight="25.0" prefWidth="80.0" text="Settings" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="TOP">
+            <GridPane.margin>
+               <Insets top="10.0" />
+            </GridPane.margin>
+         </MFXButton>
+         <MFXButton fx:id="exitBtn" prefHeight="25.0" prefWidth="80.0" text="Exit" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.valignment="TOP">
+            <GridPane.margin>
+               <Insets top="10.0" />
+            </GridPane.margin>
+         </MFXButton>
         </GridPane>
         <GridPane GridPane.columnSpan="2" GridPane.rowIndex="3">
             <columnConstraints>
@@ -123,14 +107,11 @@
                     <Insets right="10.0" />
                 </GridPane.margin>
             </Label>
-            <JFXButton fx:id="logoutBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Log Out" GridPane.halignment="RIGHT" GridPane.rowIndex="1" GridPane.valignment="CENTER">
-                <GridPane.margin>
-                    <Insets right="10.0" />
-                </GridPane.margin>
-                <font>
-                    <Font size="11.0" />
-                </font>
-            </JFXButton>
+         <MFXButton fx:id="logoutBtn" prefHeight="25.0" prefWidth="80.0" text="Log Out" GridPane.halignment="RIGHT" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+            <GridPane.margin>
+               <Insets right="10.0" />
+            </GridPane.margin>
+         </MFXButton>
         </GridPane>
         <ImageView fx:id="userImage" fitHeight="55.0" fitWidth="55.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="2" GridPane.halignment="LEFT" GridPane.rowIndex="3" GridPane.valignment="CENTER">
             <GridPane.margin>

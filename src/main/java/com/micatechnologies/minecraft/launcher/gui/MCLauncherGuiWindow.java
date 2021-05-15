@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.jthemedetecor.OsThemeDetector;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
@@ -32,6 +33,8 @@ import java.io.InputStream;
 public class MCLauncherGuiWindow extends Application
 {
     private Stage stage;
+
+    private OsThemeDetector detector = null;
 
     @Override
     public void start( Stage stage ) throws Exception {
@@ -59,10 +62,57 @@ public class MCLauncherGuiWindow extends Application
             Logger.logThrowable( e );
         }
 
+        // Setup theme detector
+        try {
+            detector = OsThemeDetector.getDetector();
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Unable to configure theme detector for dark/light mode!" );
+            Logger.logThrowable( e );
+        }
+
         // Set scene
         show();
         setScene( progressGui );
         stage.centerOnScreen();
+
+        // Setup theme detector change listener
+        if ( detector != null ) {
+            try {
+                detector.registerListener( isDark -> {
+                    if ( isDark ) {
+                        // The OS switched to a dark theme
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            progressGui.rootPane.getStylesheets()
+                                                .remove( getClass().getClassLoader()
+                                                                   .getResource( "guiStyle-light.css" )
+                                                                   .toExternalForm() );
+                            progressGui.rootPane.getStylesheets()
+                                                .add( getClass().getClassLoader()
+                                                                .getResource( "guiStyle-dark.css" )
+                                                                .toExternalForm() );
+                        } );
+                    }
+                    else {
+                        // The OS switched to a light theme
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            progressGui.rootPane.getStylesheets()
+                                                .remove( getClass().getClassLoader()
+                                                                   .getResource( "guiStyle-dark.css" )
+                                                                   .toExternalForm() );
+                            progressGui.rootPane.getStylesheets()
+                                                .add( getClass().getClassLoader()
+                                                                .getResource( "guiStyle-light.css" )
+                                                                .toExternalForm() );
+                        } );
+                    }
+                } );
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Unable to configure theme change listener for dark/light mode!" );
+                Logger.logThrowable( e );
+            }
+        }
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
@@ -78,11 +128,51 @@ public class MCLauncherGuiWindow extends Application
             // Set scene
             stage.setScene( gui.scene );
 
+            gui.afterShow();
+
             // Style macOS Window
             if ( SystemUtils.IS_OS_MAC ) {
                 styleMacWindow( gui );
             }
         } );
+
+        // Setup theme detector change listener
+        if ( detector != null ) {
+            try {
+                detector.registerListener( isDark -> {
+                    if ( isDark ) {
+                        // The OS switched to a dark theme
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            gui.rootPane.getStylesheets()
+                                        .remove( getClass().getClassLoader()
+                                                           .getResource( "guiStyle-light.css" )
+                                                           .toExternalForm() );
+                            gui.rootPane.getStylesheets()
+                                        .add( getClass().getClassLoader()
+                                                        .getResource( "guiStyle-dark.css" )
+                                                        .toExternalForm() );
+                        } );
+                    }
+                    else {
+                        // The OS switched to a light theme
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            gui.rootPane.getStylesheets()
+                                        .remove( getClass().getClassLoader()
+                                                           .getResource( "guiStyle-dark.css" )
+                                                           .toExternalForm() );
+                            gui.rootPane.getStylesheets()
+                                        .add( getClass().getClassLoader()
+                                                        .getResource( "guiStyle-light.css" )
+                                                        .toExternalForm() );
+                        } );
+                    }
+                } );
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Unable to configure theme change listener for dark/light mode!" );
+                Logger.logThrowable( e );
+            }
+        }
     }
 
     /**
@@ -91,7 +181,6 @@ public class MCLauncherGuiWindow extends Application
      * @since 2.0
      */
     private void styleMacWindow( MCLauncherAbstractGui gui ) {
-
         try {
             // Setup mac menu bar
         }

@@ -17,10 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import com.jfoenix.controls.JFXButton;
-import com.jfoenix.controls.JFXCheckBox;
-import com.jfoenix.controls.JFXPasswordField;
-import com.jfoenix.controls.JFXTextField;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.exceptions.AuthException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -30,6 +26,9 @@ import com.micatechnologies.minecraft.launcher.game.auth.AuthService;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
+import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXTextField;
+import io.github.palexdev.materialfx.controls.MFXToggleButton;
 import javafx.fxml.FXML;
 import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
@@ -47,7 +46,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXTextField emailField;
+    MFXTextField emailField;
 
     /**
      * Mojang/Minecraft account password.
@@ -56,7 +55,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXPasswordField passwordField;
+    MFXTextField passwordField;
 
     /**
      * Account remember me option check box. If checked, this enabled saving of the account on persistent storage so it
@@ -66,7 +65,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXCheckBox rememberMeCheckBox;
+    MFXToggleButton rememberMeCheckBox;
 
     /**
      * Login button. This button initiates the login process.
@@ -75,7 +74,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton loginBtn;
+    MFXButton loginBtn;
 
     /**
      * Exit button. This button closes the window, but in most cases the result is the application closing as well.
@@ -84,7 +83,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton exitBtn;
+    MFXButton exitBtn;
 
     private final CountDownLatch loginSuccessLatch = new CountDownLatch( 1 );
 
@@ -185,6 +184,11 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @Override
     void loadEnvironment() {
+
+    }
+
+    @Override
+    void afterShow() {
 
     }
 
