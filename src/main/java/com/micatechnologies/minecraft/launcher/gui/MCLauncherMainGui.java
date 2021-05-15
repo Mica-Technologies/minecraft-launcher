@@ -46,8 +46,8 @@ import java.awt.*;
 import java.io.IOException;
 import java.net.URI;
 import java.time.OffsetDateTime;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class MCLauncherMainGui extends MCLauncherAbstractGui
 {
@@ -282,15 +282,20 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                                                                    "mica_minecraft_launcher",
                                                                                    "Mica Minecraft Launcher" ) );
             LauncherCore.play( installedModPackByFriendlyName, () -> {
-                try {
-                    MCLauncherGuiController.goToMainGui();
-                    MCLauncherGuiController.requestFocus();
-                }
-                catch ( IOException e ) {
-                    Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
-                    Logger.logThrowable( e );
-                    LauncherCore.closeApp();
-                }
+                GUIUtilities.JFXPlatformRun( () -> {
+                    try {
+                        Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
+                        MCLauncherGuiController.goToMainGui();
+                        MCLauncherGuiController.requestFocus();
+                    }
+                    catch ( Exception e ) {
+                        Logger.logError(
+                                "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                        Logger.logThrowable( e );
+                        LauncherCore.closeApp();
+                    }
+                } );
+
             } );
         } ) );
 
@@ -399,6 +404,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     public void selectModpack( String modPack ) {
         // Select supplied mod pack
+        packSelection.setSelectedValue( modPack );
         packSelection.getSelectionModel().selectItem( modPack );
     }
 
@@ -416,29 +422,26 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Get list of mod pack names
         List< String > modpackList = GameModPackManager.getInstalledModPackFriendlyNames();
 
-        GUIUtilities.JFXPlatformRun( () -> {
-            // Reset mod pack selector
-            packSelection.setDisable( false );
-            packSelection.getSelectionModel().selectedIndexProperty().removeListener( packSelectionChangeListener );
-            packSelection.getItems().clear();
+        // Reset mod pack selector
+        packSelection.setDisable( false );
+        packSelection.getSelectionModel().selectedIndexProperty().removeListener( packSelectionChangeListener );
+        packSelection.getItems().clear();
 
-            // Populate mod packs dropdown
-            String noModPacksText = "No mod packs installed!";
-            if ( modpackList.size() > 0 ) {
-                packSelection.setItems( FXCollections.observableList( modpackList ) );
-                packSelection.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
-            }
-            else {
-                packSelection.setItems( FXCollections.singletonObservableList( noModPacksText ) );
-                packSelection.setDisable( true );
-                packLogo.setImage( new Image( GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE ) );
-                rootPane.setStyle( rootPane.getStyle() +
-                                           "-fx-background-image: url('" +
-                                           ModPackConstants.MODPACK_DEFAULT_BG_URL +
-                                           "');" );
-                rootPane.setStyle(
-                        rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
-            }
-        } );
+        // Populate mod packs dropdown
+        String noModPacksText = "No mod packs installed!";
+        if ( modpackList.size() > 0 ) {
+            packSelection.setItems( FXCollections.observableList( modpackList ) );
+            packSelection.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
+        }
+        else {
+            packSelection.setItems( FXCollections.singletonObservableList( noModPacksText ) );
+            packSelection.setDisable( true );
+            packLogo.setImage( new Image( GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE ) );
+            rootPane.setStyle( rootPane.getStyle() +
+                                       "-fx-background-image: url('" +
+                                       ModPackConstants.MODPACK_DEFAULT_BG_URL +
+                                       "');" );
+            rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
+        }
     }
 }
