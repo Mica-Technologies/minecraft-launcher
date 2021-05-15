@@ -91,16 +91,19 @@ public class SystemUtilities
 
             // Create directory if expected
             if ( extractedJarFileFile.isDirectory() ) {
+                //noinspection ResultOfMethodCallIgnored
                 extractedJarFileFile.mkdir();
                 continue;
             }
 
             // Make sure the parent folders exist
+            //noinspection ResultOfMethodCallIgnored
             extractedJarFileFile.getParentFile().mkdirs();
 
             // Create file if doesn't exist
             if ( !extractedJarFileFile.exists() ) {
                 try {
+                    //noinspection ResultOfMethodCallIgnored
                     extractedJarFileFile.createNewFile();
                 }
                 catch ( IOException e ) {

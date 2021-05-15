@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
+import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 
 /**
  * A class representation of a Minecraft Forge mod that can be downloaded locally and verified using the specified
@@ -56,8 +57,12 @@ public class GameMod extends ManagedGameFile
      *
      * @since 1.0
      */
-    public GameMod( String modName, String modURL, String modSHA1, String modLocalFile,
-                    boolean clientReq, boolean serverReq )
+    public GameMod( String modName,
+                    String modURL,
+                    String modSHA1,
+                    String modLocalFile,
+                    boolean clientReq,
+                    boolean serverReq )
     {
         super( modURL, modLocalFile, modSHA1 );
 
@@ -74,13 +79,9 @@ public class GameMod extends ManagedGameFile
      *
      * @throws ModpackException if update fails
      */
-    void updateLocalFile( com.micatechnologies.minecraft.launcher.utilities.objects.GameMode gameAppMode )
-    throws ModpackException
+    void updateLocalFile( GameMode gameAppMode ) throws ModpackException
     {
-        if ( ( gameAppMode == com.micatechnologies.minecraft.launcher.utilities.objects.GameMode.CLIENT &&
-                clientReq ) || (
-                gameAppMode == com.micatechnologies.minecraft.launcher.utilities.objects.GameMode.SERVER &&
-                        serverReq ) ) {
+        if ( ( gameAppMode == GameMode.CLIENT && clientReq ) || ( gameAppMode == GameMode.SERVER && serverReq ) ) {
             super.updateLocalFile();
         }
     }

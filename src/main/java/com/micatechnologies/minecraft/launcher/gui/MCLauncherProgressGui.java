@@ -4,7 +4,6 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -20,8 +19,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     Label upperLabel;
 
     /**
@@ -30,8 +29,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     Label lowerLabel;
 
     /**
@@ -39,8 +38,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXProgressBar progressBar;
 
     /**
@@ -104,29 +103,9 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         } );
     }
 
-    /**
-     * This method must perform preparations of the environment, such as enabling menu bars, context menus, or other
-     * OS-specific enhancements.
-     */
-    @Override
-    void loadEnvironment() {
-
-    }
-
     @Override
     void afterShow() {
 
-    }
-
-    /**
-     * This method returns a boolean indicating if a warning should be shown to the user before closing the window while
-     * displaying the stage/GUI.
-     *
-     * @return boolean indicating if window close warning should be shown
-     */
-    @Override
-    boolean warnOnExit() {
-        return true;
     }
 
     /**

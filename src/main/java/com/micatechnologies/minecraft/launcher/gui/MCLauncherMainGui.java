@@ -30,7 +30,6 @@ import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.UpdateCheckUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
 import javafx.application.Platform;
@@ -57,8 +56,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 2.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     ImageView packLogo;
 
     /**
@@ -66,8 +65,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXComboBox< String > packSelection;
 
     /**
@@ -75,8 +74,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton playBtn;
 
     /**
@@ -84,8 +83,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton exitBtn;
 
     /**
@@ -93,8 +92,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton settingsBtn;
 
     /**
@@ -102,8 +101,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton logoutBtn;
 
     /**
@@ -111,8 +110,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 3.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton editButton;
 
     /**
@@ -120,8 +119,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 2.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     ImageView userImage;
 
     /**
@@ -129,8 +128,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 2.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     ImageView updateImgView;
 
     /**
@@ -138,8 +137,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     Label playerLabel;
 
     /**
@@ -282,22 +281,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                                                                    "Mica Minecraft Launcher",
                                                                                    "mica_minecraft_launcher",
                                                                                    "Mica Minecraft Launcher" ) );
-            LauncherCore.play( installedModPackByFriendlyName, () -> {
-                GUIUtilities.JFXPlatformRun( () -> {
-                    try {
-                        Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
-                        MCLauncherGuiController.goToMainGui();
-                        MCLauncherGuiController.requestFocus();
-                    }
-                    catch ( Exception e ) {
-                        Logger.logError(
-                                "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
-                        Logger.logThrowable( e );
-                        LauncherCore.closeApp();
-                    }
-                } );
-
-            } );
+            LauncherCore.play( installedModPackByFriendlyName, () -> GUIUtilities.JFXPlatformRun( () -> {
+                try {
+                    Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
+                    MCLauncherGuiController.goToMainGui();
+                    MCLauncherGuiController.requestFocus();
+                }
+                catch ( Exception e ) {
+                    Logger.logError(
+                            "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                    Logger.logThrowable( e );
+                    LauncherCore.closeApp();
+                }
+            } ) );
         } ) );
 
         // Configure user label
@@ -338,15 +334,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         populateModpackDropdown();
     }
 
-    /**
-     * Abstract method: This method must perform preparations of the environment, such as enabling menu bars, context
-     * menus, or other OS-specific enhancements.
-     */
-    @Override
-    void loadEnvironment() {
-
-    }
-
     @Override
     void afterShow() {
         // Get last mod pack selected from config
@@ -362,17 +349,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         else {
             selectModpack( packSelection.getItems().get( 0 ) );
         }
-    }
-
-    /**
-     * Abstract method: This method returns a boolean indicating if a warning should be shown to the user before closing
-     * the window while displaying the stage/GUI.
-     *
-     * @return boolean indicating if window close warning should be shown
-     */
-    @Override
-    boolean warnOnExit() {
-        return false;
     }
 
     /**

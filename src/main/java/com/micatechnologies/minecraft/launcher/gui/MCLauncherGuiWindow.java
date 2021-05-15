@@ -27,9 +27,9 @@ import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import javafx.application.Application;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
-import org.apache.commons.lang3.SystemUtils;
 
 import java.io.InputStream;
+import java.util.Objects;
 
 public class MCLauncherGuiWindow extends Application
 {
@@ -56,8 +56,10 @@ public class MCLauncherGuiWindow extends Application
         // Set application icon
         try {
             InputStream iconStream = getClass().getClassLoader().getResourceAsStream( "micaforgelauncher.png" );
-            Image icon = new Image( iconStream );
-            stage.getIcons().add( icon );
+            if ( iconStream != null ) {
+                Image icon = new Image( iconStream );
+                stage.getIcons().add( icon );
+            }
         }
         catch ( Exception e ) {
             Logger.logError( "An error occurred while setting the application icon!" );
@@ -84,7 +86,6 @@ public class MCLauncherGuiWindow extends Application
         GUIUtilities.JFXPlatformRun( () -> {
             // Prepare scene environment
             gui.setup();
-            gui.loadEnvironment();
 
             // Change stage name
             stage.setTitle(
@@ -97,11 +98,6 @@ public class MCLauncherGuiWindow extends Application
             stage.setScene( gui.scene );
 
             gui.afterShow();
-
-            // Style macOS Window
-            if ( SystemUtils.IS_OS_MAC ) {
-                styleMacWindow( gui );
-            }
         } );
 
         // Setup theme detector change listener
@@ -116,31 +112,12 @@ public class MCLauncherGuiWindow extends Application
         }
     }
 
-    /**
-     * Performs styling of the window that is specific to the macOS operating system.
-     *
-     * @since 2.0
-     */
-    private void styleMacWindow( MCLauncherAbstractGui gui ) {
-        try {
-            // Setup mac menu bar
-        }
-        catch ( Exception e ) {
-            Logger.logDebug( "An error occurred while editing the macOS menu bar." );
-            Logger.logThrowable( e );
-        }
-    }
-
     public void show() {
         GUIUtilities.JFXPlatformRun( () -> stage.show() );
     }
 
     public Stage getStage() {
         return stage;
-    }
-
-    public OsThemeDetector getDetector() {
-        return detector;
     }
 
     public void forceThemeChange() {
@@ -151,26 +128,26 @@ public class MCLauncherGuiWindow extends Application
                         // The OS switched to a dark theme
                         GUIUtilities.JFXPlatformRun( () -> {
                             gui.rootPane.getStylesheets()
-                                        .remove( getClass().getClassLoader()
-                                                           .getResource( "guiStyle-light.css" )
-                                                           .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .add( getClass().getClassLoader()
-                                                        .getResource( "guiStyle-dark.css" )
+                                        .remove( Objects.requireNonNull(
+                                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
                                                         .toExternalForm() );
+                            gui.rootPane.getStylesheets()
+                                        .add( Objects.requireNonNull(
+                                                getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
+                                                     .toExternalForm() );
                         } );
                     }
                     else {
                         // The OS switched to a light theme
                         GUIUtilities.JFXPlatformRun( () -> {
                             gui.rootPane.getStylesheets()
-                                        .remove( getClass().getClassLoader()
-                                                           .getResource( "guiStyle-dark.css" )
-                                                           .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .add( getClass().getClassLoader()
-                                                        .getResource( "guiStyle-light.css" )
+                                        .remove( Objects.requireNonNull(
+                                                getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
                                                         .toExternalForm() );
+                            gui.rootPane.getStylesheets()
+                                        .add( Objects.requireNonNull(
+                                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
+                                                     .toExternalForm() );
                         } );
                     }
                 }
@@ -179,24 +156,26 @@ public class MCLauncherGuiWindow extends Application
                 // The OS switched to a light theme
                 GUIUtilities.JFXPlatformRun( () -> {
                     gui.rootPane.getStylesheets()
-                                .remove( getClass().getClassLoader()
-                                                   .getResource( "guiStyle-dark.css" )
-                                                   .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .add( getClass().getClassLoader()
-                                                .getResource( "guiStyle-light.css" )
+                                .remove( Objects.requireNonNull(
+                                        getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
                                                 .toExternalForm() );
+                    gui.rootPane.getStylesheets()
+                                .add( Objects.requireNonNull(
+                                        getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
+                                             .toExternalForm() );
                 } );
                 break;
             case ConfigConstants.THEME_DARK:
                 // The OS switched to a dark theme
                 GUIUtilities.JFXPlatformRun( () -> {
                     gui.rootPane.getStylesheets()
-                                .remove( getClass().getClassLoader()
-                                                   .getResource( "guiStyle-light.css" )
-                                                   .toExternalForm() );
+                                .remove( Objects.requireNonNull(
+                                        getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
+                                                .toExternalForm() );
                     gui.rootPane.getStylesheets()
-                                .add( getClass().getClassLoader().getResource( "guiStyle-dark.css" ).toExternalForm() );
+                                .add( Objects.requireNonNull(
+                                        getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
+                                             .toExternalForm() );
                 } );
                 break;
         }

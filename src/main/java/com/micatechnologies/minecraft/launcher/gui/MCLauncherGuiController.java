@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MCLauncherGuiController
 {
-    private static AtomicBoolean       startSuccess = new AtomicBoolean( false );
-    private static MCLauncherGuiWindow guiWindow    = null;
+    private static final AtomicBoolean       startSuccess = new AtomicBoolean( false );
+    private static       MCLauncherGuiWindow guiWindow    = null;
 
     public static Stage getTopStageOrNull() {
         return startSuccess.get() ? guiWindow.getStage() : null;
@@ -62,6 +62,7 @@ public class MCLauncherGuiController
         return startSuccess.get();
     }
 
+    @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherMainGui goToMainGui() throws IOException {
         MCLauncherMainGui newMainGui = null;
         boolean guiStarted = startGui();
@@ -77,6 +78,7 @@ public class MCLauncherGuiController
         return newMainGui;
     }
 
+    @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherSettingsGui goToSettingsGui() throws IOException {
         MCLauncherSettingsGui newSettingsGui = null;
         boolean guiStarted = startGui();
@@ -92,6 +94,7 @@ public class MCLauncherGuiController
         return newSettingsGui;
     }
 
+    @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherEditModPacksGui goToEditModpacksGui() throws IOException {
         MCLauncherEditModPacksGui newEditModpacksGui = null;
         boolean guiStarted = startGui();
@@ -107,6 +110,7 @@ public class MCLauncherGuiController
         return newEditModpacksGui;
     }
 
+    @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherLoginGui goToLoginGui() throws IOException {
         MCLauncherLoginGui newLoginGui = null;
         boolean guiStarted = startGui();
@@ -122,6 +126,7 @@ public class MCLauncherGuiController
         return newLoginGui;
     }
 
+    @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherProgressGui goToProgressGui() throws IOException {
         MCLauncherProgressGui newProgressGui = null;
         boolean guiStarted = startGui();

@@ -25,7 +25,6 @@ import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
 import com.micatechnologies.minecraft.launcher.game.auth.AuthService;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXTextField;
 import io.github.palexdev.materialfx.controls.MFXToggleButton;
@@ -44,8 +43,8 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXTextField emailField;
 
     /**
@@ -53,8 +52,8 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXTextField passwordField;
 
     /**
@@ -63,8 +62,8 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXToggleButton rememberMeCheckBox;
 
     /**
@@ -72,8 +71,8 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton loginBtn;
 
     /**
@@ -81,8 +80,8 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     MFXButton exitBtn;
 
     private final CountDownLatch loginSuccessLatch = new CountDownLatch( 1 );
@@ -178,29 +177,9 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
     }
 
-    /**
-     * Abstract method: This method must perform preparations of the environment, such as enabling menu bars, context
-     * menus, or other OS-specific enhancements.
-     */
-    @Override
-    void loadEnvironment() {
-
-    }
-
     @Override
     void afterShow() {
 
-    }
-
-    /**
-     * Abstract method: This method returns a boolean indicating if a warning should be shown to the user before closing
-     * the window while displaying the stage/GUI.
-     *
-     * @return boolean indicating if window close warning should be shown
-     */
-    @Override
-    boolean warnOnExit() {
-        return false;
     }
 
     /**

@@ -18,11 +18,9 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.control.ListView;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 
@@ -49,8 +47,8 @@ public abstract class MCLauncherAbstractGui
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     @FXML
-    @OnScreen
     Pane rootPane;
 
     /**
@@ -77,10 +75,6 @@ public abstract class MCLauncherAbstractGui
         GUIUtilities.JFXPlatformRun( stage::hide );
     }
 
-    public void showStage() {
-        GUIUtilities.JFXPlatformRun( stage::show );
-    }
-
     /**
      * Abstract method: This method must return the resource path for the JavaFX scene FXML file.
      *
@@ -101,20 +95,6 @@ public abstract class MCLauncherAbstractGui
     @FXML
     abstract void setup();
 
-    /**
-     * Abstract method: This method must perform preparations of the environment, such as enabling menu bars, context
-     * menus, or other OS-specific enhancements.
-     */
-    abstract void loadEnvironment();
-
     abstract void afterShow();
-
-    /**
-     * Abstract method: This method returns a boolean indicating if a warning should be shown to the user before closing
-     * the window while displaying the stage/GUI.
-     *
-     * @return boolean indicating if window close warning should be shown
-     */
-    abstract boolean warnOnExit();
 }
 

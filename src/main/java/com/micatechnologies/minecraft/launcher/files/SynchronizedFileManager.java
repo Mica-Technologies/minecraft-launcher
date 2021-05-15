@@ -63,6 +63,7 @@ public class SynchronizedFileManager
         // If an object does not exist for desired file path, create it
         if ( desiredSynchronizedFile == null ) {
             desiredSynchronizedFile = new File( filePath );
+            managedFiles.add( desiredSynchronizedFile );
         }
 
         return desiredSynchronizedFile;

@@ -56,19 +56,21 @@
         <ImageView fx:id="packLogo" fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
             <Image url="@../micaforgelauncher.png" />
         </ImageView>
-      <GridPane maxHeight="35.0" maxWidth="250.0" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
-        <columnConstraints>
-          <ColumnConstraints hgrow="SOMETIMES" maxWidth="250.0" minWidth="10.0" prefWidth="205.0" />
-            <ColumnConstraints hgrow="SOMETIMES" maxWidth="142.0" minWidth="10.0" prefWidth="45.0" />
-        </columnConstraints>
-        <rowConstraints>
-          <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-        </rowConstraints>
-         <children>
-            <MFXButton fx:id="editButton" maxHeight="25.0" maxWidth="36.0" minHeight="25.0" minWidth="36.0" prefHeight="25.0" prefWidth="36.0" text="✎" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
-            <MFXComboBox fx:id="packSelection" maxHeight="25.0" maxWidth="200.0" minHeight="25.0" minWidth="200.0" prefHeight="25.0" prefWidth="200.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
-         </children>
-      </GridPane>
+        <GridPane maxHeight="35.0" maxWidth="250.0" GridPane.columnSpan="4" GridPane.halignment="CENTER"
+                  GridPane.rowIndex="1" GridPane.valignment="CENTER">
+            <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="250.0" minWidth="10.0" prefWidth="205.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="142.0" minWidth="10.0" prefWidth="45.0"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+            </rowConstraints>
+            <MFXButton fx:id="editButton" maxHeight="25.0" maxWidth="36.0" minHeight="25.0" minWidth="36.0"
+                       prefHeight="25.0" prefWidth="36.0" text="✎" GridPane.columnIndex="1" GridPane.halignment="CENTER"
+                       GridPane.valignment="CENTER"/>
+            <MFXComboBox fx:id="packSelection" maxHeight="25.0" maxWidth="200.0" minHeight="25.0" minWidth="200.0"
+                         prefHeight="25.0" prefWidth="200.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER"/>
+        </GridPane>
         <GridPane GridPane.columnSpan="4" GridPane.rowIndex="2">
             <columnConstraints>
                 <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" percentWidth="33.0" />

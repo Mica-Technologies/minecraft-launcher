@@ -68,17 +68,6 @@ public class ConfigManager
     }
 
     /**
-     * Gets the configured minimum RAM (in GB) for the Minecraft game.
-     *
-     * @return Minecraft starting/min RAM (in GB)
-     *
-     * @since 1.0
-     */
-    public synchronized static double getMinRamInGb() {
-        return getMinRam() / 1024.0;
-    }
-
-    /**
      * Sets the configured minimum RAM for the Minecraft game.
      *
      * @param minRam Minecraft starting/min RAM

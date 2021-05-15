@@ -46,7 +46,6 @@ import org.apache.log4j.BasicConfigurator;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
-import java.util.List;
 
 /**
  * Launcher core class. This class is the main entry point of the Mica Forge Launcher, and handles the main processes
@@ -294,7 +293,7 @@ public class LauncherCore
             Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
 
             // Show login screen
-            MCLauncherLoginGui loginWindow = null;
+            MCLauncherLoginGui loginWindow;
             try {
                 loginWindow = MCLauncherGuiController.goToLoginGui();
 

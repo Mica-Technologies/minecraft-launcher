@@ -55,7 +55,7 @@ public class HashUtilities
 
         // Create byte array for reading file data in chunks
         byte[] fileByteArray = new byte[ 1024 ];
-        int fileByteCount = 0;
+        int fileByteCount;
 
         // Read entire file data and update digest
         while ( ( fileByteCount = fileInputStream.read( fileByteArray ) ) != -1 ) {

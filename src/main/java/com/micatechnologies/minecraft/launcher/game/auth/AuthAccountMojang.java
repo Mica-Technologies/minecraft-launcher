@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.game.auth;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 /**
@@ -38,6 +39,7 @@ public class AuthAccountMojang implements Serializable
      *
      * @since 1.0
      */
+    @Serial
     private static final long serialVersionUID = 0x6f40b3a5d4216db6L;
 
     /**

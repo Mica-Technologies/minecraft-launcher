@@ -29,26 +29,14 @@ package com.micatechnologies.minecraft.launcher.utilities.objects;
  * @creator hawka97
  * @since 1.0
  */
-public class Pair< T1, T2 >
+public record Pair< T1, T2 >(T1 _1, T2 _2)
 {
-    /**
-     * First object in the pair. Is of type {@link T1}.
-     */
-    public final T1 _1;
-
-    /**
-     * Second object in the pair. Is of type {@link T2}.
-     */
-    public final T2 _2;
-
     /**
      * Constructor for object pair.
      *
      * @param _1 first object
      * @param _2 second object
      */
-    public Pair( T1 _1, T2 _2 ) {
-        this._1 = _1;
-        this._2 = _2;
+    public Pair {
     }
 }

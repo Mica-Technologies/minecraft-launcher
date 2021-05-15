@@ -207,7 +207,7 @@ class GameModLoaderForge extends ManagedGameFile
                                                  .getAsString();
 
             // Get Asset Downloads Information
-            JsonObject forgeAssetDownloadsObj = null;
+            JsonObject forgeAssetDownloadsObj;
             JsonObject forgeAssetDownloadsArtifactObj = null;
             if ( forgeAssetObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_DOWNLOADS_KEY ) ) {
 
