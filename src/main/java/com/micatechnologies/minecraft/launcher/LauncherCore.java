@@ -226,22 +226,6 @@ public class LauncherCore
         if ( modPackName.length() > 0 && finalGameModPack == null ) {
             Logger.logError( modPackName + " " + LocalizationManager.PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT );
         }
-        // Show message if using first mod pack by default
-        else if ( modPackName.length() == 0 && finalGameModPack == null ) {
-            Logger.logStd( LocalizationManager.NO_MOD_PACK_SPECIFIED_WILL_DEFAULT_TO_FIRST_TEXT );
-        }
-
-        // Select first mod pack by default
-        if ( finalGameModPack == null ) {
-            // Check for installed mod packs
-            final List< GameModPack > installedGameModPacks = GameModPackManager.getInstalledModPacks();
-            if ( installedGameModPacks.size() == 0 ) {
-                Logger.logStd( LocalizationManager.NO_MOD_PACKS_INSTALLED_CANT_SELECT_FIRST_TEXT );
-            }
-            else {
-                finalGameModPack = installedGameModPacks.get( 0 );
-            }
-        }
 
         // Show gui or start start
         if ( GameModeManager.isClient() ) {

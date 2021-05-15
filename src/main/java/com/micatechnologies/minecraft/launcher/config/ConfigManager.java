@@ -139,7 +139,7 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        // Set value of min RAM
+        // Set value of max RAM
         configObject.addProperty( ConfigConstants.MAX_RAM_KEY, maxRam );
 
         // Save configuration to disk
@@ -176,7 +176,7 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        // Set value of min RAM
+        // Set value of debug logging
         configObject.addProperty( ConfigConstants.LOG_DEBUG_ENABLE_KEY, debugLogging );
 
         // Save configuration to disk
@@ -213,7 +213,7 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        // Set value of min RAM
+        // Set value of resizable windows
         configObject.addProperty( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY, resizableWindows );
 
         // Save configuration to disk
@@ -244,6 +244,52 @@ public class ConfigManager
 
         // Get and return value of custom JVM args
         return configObject.get( ConfigConstants.JVM_ARGS_KEY ).getAsString();
+    }
+
+    /**
+     * Gets the last mod pack selected.
+     *
+     * @return last mod pack selected
+     *
+     * @since 3.0
+     */
+    public synchronized static String getLastModPackSelected() {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        // Check for presence of field, and create default if does not exist
+        if ( !configObject.has( ConfigConstants.LAST_MP_KEY ) ) {
+            // Add property with default value
+            configObject.addProperty( ConfigConstants.LAST_MP_KEY, "" );
+
+            // Save configuration to disk
+            writeConfigurationToDisk();
+        }
+
+        // Get and return value of custom JVM args
+        return configObject.get( ConfigConstants.LAST_MP_KEY ).getAsString();
+    }
+
+    /**
+     * Sets the last mod pack selected.
+     *
+     * @param lastModPackSelected last mod pack selected
+     *
+     * @since 2.0
+     */
+    public synchronized static void setLastModPackSelected( String lastModPackSelected ) {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        // Set value of last mod pack selected
+        configObject.addProperty( ConfigConstants.LAST_MP_KEY, lastModPackSelected );
+
+        // Save configuration to disk
+        writeConfigurationToDisk();
     }
 
     /**

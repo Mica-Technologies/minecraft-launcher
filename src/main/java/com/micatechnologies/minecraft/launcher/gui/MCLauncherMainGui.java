@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
@@ -348,7 +349,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
-        selectModpack( packSelection.getItems().get( 0 ) );
+        // Get last mod pack selected from config
+        String lastModPackSelected = ConfigManager.getLastModPackSelected();
+
+        // Check if it exists/is installed
+        GameModPack lastGameModPack = GameModPackManager.getInstalledModPackByName( lastModPackSelected );
+
+        // Select mod pack
+        if ( lastGameModPack != null ) {
+            selectModpack( lastGameModPack.getFriendlyName() );
+        }
+        else {
+            selectModpack( packSelection.getItems().get( 0 ) );
+        }
     }
 
     /**
@@ -370,8 +383,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     private final ChangeListener< Number > packSelectionChangeListener = ( observableValue, oldVal, newVal ) -> {
         // Get selected mod pack
-        GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName(
-                packSelection.getItems().get( packSelection.getSelectionModel().getSelectedIndex() ) );
+        String selectedModPack = packSelection.getItems().get( packSelection.getSelectionModel().getSelectedIndex() );
+        GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName( selectedModPack );
+        if ( selectedGameModPack != null ) {
+            ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
+        }
 
         // Load modpack logo and set in GUI
         Image packLogoImg;

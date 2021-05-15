@@ -118,6 +118,13 @@ public class ConfigConstants
                     "-Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true";
 
     /**
+     * Key for accessing the value of the last mod pack.
+     *
+     * @since 1.1
+     */
+    public static final String LAST_MP_KEY = "lastModPack";
+
+    /**
      * Key for accessing the debug logging enable value.
      *
      * @since 1.0
