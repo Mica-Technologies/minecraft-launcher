@@ -18,9 +18,9 @@
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.google.gson.Gson;
+import com.micatechnologies.minecraft.launcher.files.Logger;
 import org.apache.commons.io.IOUtils;
 
-import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.Charset;
 
@@ -45,13 +45,16 @@ public class GameModPackFetcher
      *
      * @since 1.0
      */
-    public static GameModPack get( String manifestUrl ) throws IOException {
+    public static GameModPack get( String manifestUrl ) {
         // Fetch contents of available mod pack manifest
         GameModPack gameModPack;
         try {
             String manifestBody = IOUtils.toString( new URL( manifestUrl ), Charset.defaultCharset() );
             gameModPack = new Gson().fromJson( manifestBody, GameModPack.class );
-        } catch (Exception e) {
+        }
+        catch ( Exception e ) {
+            Logger.logError( "The following installed mod pack could not be loaded: " + manifestUrl );
+            Logger.logThrowable( e );
             gameModPack = new GameModPack();
         }
 

@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.consts;
 
-import com.micatechnologies.minecraft.launcher.utilities.objects.Pair;
-
 import java.io.File;
 
 /**
@@ -35,13 +33,6 @@ import java.io.File;
  */
 public class ModPackConstants
 {
-    /**
-     * Modpack install folder relative path to modpack manifest
-     *
-     * @since 1.0
-     */
-    public static final String MODPACK_MANIFEST_LOCAL_PATH = "pack.manifest";
-
     /**
      * Modpack install folder relative path to Forge jar
      *
@@ -111,21 +102,6 @@ public class ModPackConstants
      * @since 1.0
      */
     public static final String MODPACK_LOGO_LOCAL_FILE = "bin" + File.separator + "logo.png";
-
-    /**
-     * The Content-Type HTTP request parameter as JSON
-     *
-     * @since 1.0
-     */
-    public static final Pair< String, String > MANIFEST_CXN_CONTENT_TYPE = new Pair<>( "Content-Type",
-                                                                                       "application/json" );
-
-    /**
-     * The charset HTTP request parameter as UTF-8
-     *
-     * @since 1.0
-     */
-    public static final Pair< String, String > MANIFEST_CXN_CHARSET = new Pair<>( "charset", "utf-8" );
 
     /**
      * Constant for the Microsoft(r) Windows platform
