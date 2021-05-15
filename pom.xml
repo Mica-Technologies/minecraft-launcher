@@ -31,8 +31,6 @@
     <!-- PROJECT AND CUSTOM PROPERTIES -->
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
         <main.class>com.micatechnologies.minecraft.launcher.LauncherCore</main.class>
         <app.name>Mica Minecraft Launcher</app.name>
         <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
@@ -175,9 +173,9 @@
                 <artifactId>mvn-jlink-wrapper</artifactId>
                 <version>1.0.5</version>
                 <executions>
-                    <!-- CACHE MAC JDK 11 -->
+                    <!-- CACHE MAC JDK -->
                     <execution>
-                        <id>cache-jdk-11-mac</id>
+                        <id>cache-jdk-mac</id>
                         <goals>
                             <goal>cache-jdk</goal>
                         </goals>
@@ -193,9 +191,9 @@
                             <jdkPathProperty>jlink.mac.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
-                    <!-- CACHE WIN JDK 11 -->
+                    <!-- CACHE WIN JDK -->
                     <execution>
-                        <id>cache-jdk-11-win</id>
+                        <id>cache-jdk-win</id>
                         <goals>
                             <goal>cache-jdk</goal>
                         </goals>
@@ -211,9 +209,9 @@
                             <jdkPathProperty>jlink.win.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
-                    <!-- CACHE LINUX JDK 11 -->
+                    <!-- CACHE LINUX JDK -->
                     <execution>
-                        <id>cache-jdk-11-lin</id>
+                        <id>cache-jdk-lin</id>
                         <goals>
                             <goal>cache-jdk</goal>
                         </goals>
