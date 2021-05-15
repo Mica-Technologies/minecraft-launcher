@@ -22,6 +22,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -125,6 +126,13 @@ public class ConfigConstants
     public static final String LAST_MP_KEY = "lastModPack";
 
     /**
+     * Key for accessing the value of the theme.
+     *
+     * @since 1.1
+     */
+    public static final String THEME_KEY = "theme";
+
+    /**
      * Key for accessing the debug logging enable value.
      *
      * @since 1.0
@@ -153,4 +161,10 @@ public class ConfigConstants
     public static final Type modPacksListType = new TypeToken< List< String > >()
     {
     }.getType();
+
+    public static final String THEME_DARK      = "Dark";
+    public static final String THEME_LIGHT     = "Light";
+    public static final String THEME_AUTOMATIC = "Automatic";
+
+    public static final List< String > ALLOWED_THEMES = Arrays.asList( THEME_AUTOMATIC, THEME_DARK, THEME_LIGHT );
 }

@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -30,12 +31,16 @@ import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXCheckbox;
+import io.github.palexdev.materialfx.controls.MFXComboBox;
 import io.github.palexdev.materialfx.controls.MFXToggleButton;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.stage.Stage;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
 import org.codehaus.plexus.util.FileUtils;
 import oshi.SystemInfo;
@@ -84,6 +89,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     @OnScreen
     Label sysRamLabel;
+
+    @FXML
+    @OnScreen
+    MFXComboBox< String > themeSelection;
 
     boolean dirty = false;
 
@@ -182,8 +191,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             ConfigManager.setResizableWindows( windowResizeCheckBox.isSelected() );
             GUIUtilities.JFXPlatformRun( () -> stage.setResizable( ConfigManager.getResizableWindows() ) );
 
+            // Store theme selection
+            if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedValue() ) ) {
+                ConfigManager.setTheme( themeSelection.getSelectedValue() );
+                MCLauncherGuiController.forceThemeRefresh();
+            }
+
             // Reset dirty flag (changes have been saved)
-            GUIUtilities.JFXPlatformRun( () -> setEdited( false ) );
+            setEdited( false );
 
             // Change save button text to indicate successful save
             GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
@@ -279,6 +294,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         debugCheckBox.setSelected( ConfigManager.getDebugLogging() );
         debugCheckBox.setOnAction( actionEvent -> setEdited( true ) );
 
+        // Populate theme selection dropdown
+        themeSelection.getItems().clear();
+        themeSelection.getItems().addAll( ConfigConstants.ALLOWED_THEMES );
+
         // Load system RAM config label
         SystemInfo systemInfo = new SystemInfo();
         long memTotalRaw = systemInfo.getHardware().getMemory().getTotal();
@@ -335,7 +354,25 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
+        // Select current theme in dropdown
+        String currentConfigTheme = ConfigManager.getTheme();
 
+        // Convert to standard capital first letter, lowercase rest format
+        String safeCurrentConfigTheme = StringUtils.capitalize( currentConfigTheme.toLowerCase() );
+
+        // Check if valid option
+        if ( !ConfigConstants.ALLOWED_THEMES.contains( safeCurrentConfigTheme ) ) {
+            safeCurrentConfigTheme = ConfigConstants.THEME_AUTOMATIC;
+            ConfigManager.setTheme( ConfigConstants.THEME_AUTOMATIC );
+        }
+
+        themeSelection.setSelectedValue( safeCurrentConfigTheme );
+        themeSelection.getSelectionModel().selectItem( safeCurrentConfigTheme );
+
+        // Add theme selection change listener
+        themeSelection.getSelectionModel()
+                      .selectedIndexProperty()
+                      .addListener( ( observable, oldValue, newValue ) -> setEdited( true ) );
     }
 
     /**

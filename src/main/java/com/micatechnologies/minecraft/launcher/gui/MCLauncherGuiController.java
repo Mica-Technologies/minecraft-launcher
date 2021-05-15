@@ -62,18 +62,6 @@ public class MCLauncherGuiController
         return startSuccess.get();
     }
 
-    public static void goToGui( MCLauncherAbstractGui abstractGui ) {
-        boolean guiStarted = startGui();
-        if ( guiStarted ) {
-            guiWindow.setScene( abstractGui );
-            guiWindow.show();
-        }
-        else {
-            Logger.logError(
-                    "An application GUI could not be displayed due to the application GUI not being " + "started." );
-        }
-    }
-
     public static MCLauncherMainGui goToMainGui() throws IOException {
         MCLauncherMainGui newMainGui = null;
         boolean guiStarted = startGui();
@@ -147,6 +135,12 @@ public class MCLauncherGuiController
                     "The progress GUI could not be displayed due to the application GUI not " + "being started." );
         }
         return newProgressGui;
+    }
+
+    public static void forceThemeRefresh() {
+        if ( guiWindow != null ) {
+            guiWindow.forceThemeChange();
+        }
     }
 
     public static void exit() {
