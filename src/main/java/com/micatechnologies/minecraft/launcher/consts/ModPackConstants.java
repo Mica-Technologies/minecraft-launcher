@@ -104,6 +104,13 @@ public class ModPackConstants
     public static final String MODPACK_LOGO_LOCAL_FILE = "bin" + File.separator + "logo.png";
 
     /**
+     * Modpack install folder relative path to pack background
+     *
+     * @since 1.0
+     */
+    public static final String MODPACK_BACKGROUND_LOCAL_FILE = "bin" + File.separator + "background.png";
+
+    /**
      * Constant for the Microsoft(r) Windows platform
      *
      * @since 1.0

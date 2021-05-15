@@ -51,6 +51,7 @@ public class GameModPackFetcher
         try {
             String manifestBody = IOUtils.toString( new URL( manifestUrl ), Charset.defaultCharset() );
             gameModPack = new Gson().fromJson( manifestBody, GameModPack.class );
+            gameModPack.cacheImages();
         }
         catch ( Exception e ) {
             Logger.logError( "The following installed mod pack could not be loaded: " + manifestUrl );
