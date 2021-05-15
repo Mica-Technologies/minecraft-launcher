@@ -288,8 +288,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     MCLauncherGuiController.requestFocus();
                 }
                 catch ( Exception e ) {
-                    Logger.logError(
-                            "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                    Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
                     Logger.logThrowable( e );
                     LauncherCore.closeApp();
                 }
@@ -422,7 +421,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Populate mod packs dropdown
         String noModPacksText = "No mod packs installed!";
         if ( modpackList.size() > 0 ) {
-            // TODO: Don't add nulls (bad URL packs)
             packSelection.setItems( FXCollections.observableList( modpackList ) );
             packSelection.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
         }
