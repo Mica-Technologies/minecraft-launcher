@@ -764,6 +764,8 @@ public class GameModPack
     }
 
     public String getFriendlyName() {
-        return String.format( ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, getPackName(), getPackVersion() );
+        return getPackName() != null ?
+               String.format( ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, getPackName(), getPackVersion() ) :
+               null;
     }
 }
