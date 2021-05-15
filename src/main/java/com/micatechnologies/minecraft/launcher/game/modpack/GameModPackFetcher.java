@@ -47,10 +47,15 @@ public class GameModPackFetcher
      */
     public static GameModPack get( String manifestUrl ) throws IOException {
         // Fetch contents of available mod pack manifest
-        String manifestBody = IOUtils.toString( new URL( manifestUrl ), Charset.defaultCharset() );
+        GameModPack gameModPack;
+        try {
+            String manifestBody = IOUtils.toString( new URL( manifestUrl ), Charset.defaultCharset() );
+            gameModPack = new Gson().fromJson( manifestBody, GameModPack.class );
+        } catch (Exception e) {
+            gameModPack = new GameModPack();
+        }
 
         // Parse available mod pack manifest contents
-        GameModPack gameModPack = new Gson().fromJson( manifestBody, GameModPack.class );
         gameModPack.manifestUrl = manifestUrl;
         return gameModPack;
     }

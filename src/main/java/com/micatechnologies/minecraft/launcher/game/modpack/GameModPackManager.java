@@ -373,7 +373,7 @@ public class GameModPackManager
         // Find matching mod pack and return
         GameModPack foundGameModPack = null;
         for ( GameModPack gameModPack : installedGameModPacks ) {
-            if ( gameModPack.getPackName().equalsIgnoreCase( packName ) ) {
+            if ( gameModPack.getPackName() != null && gameModPack.getPackName().equalsIgnoreCase( packName ) ) {
                 foundGameModPack = gameModPack;
             }
         }

@@ -1,0 +1,124 @@
+/* Root Pane Styling */
+
+.rootPane {
+	-fx-background-color: #041a3d;
+}
+
+
+/* Label Styling */
+
+.label {
+	-fx-text-fill: white;
+}
+
+
+/* Regular Button Styling */
+
+.mfx-button:armed,
+.mfx-button:hover,
+.mfx-button:focused,
+.mfx-button {
+	-mfx-button-type: RAISED;
+	-mfx-depth-level: Level3;
+}
+
+.mfx-button,
+.mfx-button:armed,
+.mfx-button:focused {
+	-fx-background-color: #477A1E;
+}
+
+.mfx-button .ripple-generator,
+.mfx-button:armed .ripple-generator,
+.mfx-button:focused .ripple-generator {
+	-mfx-ripple-color: #3c6719;
+}
+
+.mfx-button .text,
+.mfx-button:armed .text,
+.mfx-button:focused .text {
+	-fx-fill: white;
+}
+
+
+/* Toggle Button Styling */
+
+.mfx-toggle-button,
+.mfx-toggle-button:armed,
+.mfx-toggle-button:hover,
+.mfx-toggle-button:focused,
+.mfx-toggle-button:selected,
+.mfx-toggle-button:focused:selected {
+	-mfx-toggle-color: #477A1E;
+}
+
+.mfx-toggle-button .text,
+.mfx-toggle-button:armed .text,
+.mfx-toggle-button:hover .text,
+.mfx-toggle-button:focused .text,
+.mfx-toggle-button:selected .text,
+.mfx-toggle-button:focused:selected .text {
+	-fx-fill: white;
+}
+
+/* Text Field Styling */
+
+.mfx-text-field {
+    -fx-prompt-text-fill: #fff;
+    -fx-text-fill: #fff;
+    -mfx-line-color: #477A1E;
+}
+
+
+/* Center Pane Styling */
+
+.centerPane {
+	-fx-background-color: rgba(80, 80, 80, 0.85);
+	-fx-background-radius: 8px;
+}
+
+
+/* Combo Box Styling */
+
+.mfx-combo-box {
+    -fx-background-color: TRANSPARENT;
+	-mfx-line-color: #477A1E;
+}
+
+.mfx-combo-box .mfx-icon-wrapper .ripple-generator {
+	-mfx-ripple-color: rgba(71, 122, 30, 0.3) !important;
+}
+
+.mfx-combo-box:focused .mfx-icon-wrapper .mfx-font-icon {
+	-mfx-color: rgb(71, 122, 30) !important;
+}
+
+.mfx-combo-box:editor .mfx-icon-wrapper .mfx-font-icon {
+	-mfx-color: rgb(71, 122, 30) !important;
+}
+
+
+/* Settings Window Danger Zone Styling */
+
+.dangerZone {
+	-fx-background-color: #500;
+	-fx-background-radius: 10px;
+}
+
+.dangerZone .mfx-button,
+.dangerZone .mfx-button:armed,
+.dangerZone .mfx-button:focused {
+	-fx-background-color: #ccc;
+}
+
+.dangerZone .mfx-button .ripple-generator,
+.dangerZone .mfx-button:armed .ripple-generator,
+.dangerZone .mfx-button:focused .ripple-generator {
+	-mfx-ripple-color: #bbb;
+}
+
+.dangerZone .mfx-button .text,
+.dangerZone .mfx-button:armed .text,
+.dangerZone .mfx-button:focused .text {
+	-fx-fill: black;
+}
