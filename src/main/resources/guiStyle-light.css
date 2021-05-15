@@ -8,7 +8,7 @@
 /* Label Styling */
 
 .label {
-	-fx-text-fill: white;
+	-fx-text-fill: black;
 }
 
 
@@ -58,14 +58,14 @@
 .mfx-toggle-button:focused .text,
 .mfx-toggle-button:selected .text,
 .mfx-toggle-button:focused:selected .text {
-	-fx-fill: white;
+	-fx-fill: black;
 }
 
 /* Text Field Styling */
 
 .mfx-text-field {
-    -fx-prompt-text-fill: #fff;
-    -fx-text-fill: #fff;
+    -fx-prompt-text-fill: #000;
+    -fx-text-fill: #000;
     -mfx-line-color: #477A1E;
 }
 
