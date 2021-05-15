@@ -43,6 +43,7 @@ import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
 
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.time.OffsetDateTime;
@@ -368,7 +369,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         SystemUtilities.spawnNewTask( () -> {
             Image packLogoImg;
             if ( selectedGameModPack != null ) {
-                packLogoImg = new Image( selectedGameModPack.getPackLogoURL() );
+                packLogoImg = new Image( new File( selectedGameModPack.getPackLogoFilepath() ).toURI().toString() );
             }
             else {
                 packLogoImg = new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
@@ -380,7 +381,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 if ( selectedGameModPack != null ) {
                     rootPane.setStyle( rootPane.getStyle() +
                                                "-fx-background-image: url('" +
-                                               selectedGameModPack.getPackBackgroundURL() +
+                                               new File( selectedGameModPack.getPackBackgroundFilepath() ).toURI().toString() +
                                                "');" );
                 }
                 else {

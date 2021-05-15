@@ -24,6 +24,7 @@ import java.lang.management.RuntimeMXBean;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
@@ -155,6 +156,7 @@ public class GameModPack
     private List< GameAsset > packInitialFiles;
 
     private transient GameModPackProgressProvider progressProvider = null;
+    private           boolean                     didCacheImages   = false;
 
     /**
      * Get the installation folder of this mod pack.
@@ -305,11 +307,11 @@ public class GameModPack
 
         // Verify modpack logo
         if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching modpack logo", 1.0 );
+            progressProvider.startProgressSection( "Fetching modpack images", 1.0 );
         }
-        fetchLatestModpackLogo();
+        cacheImages();
         if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching modpack logo" );
+            progressProvider.endProgressSection( "Done fetching modpack images" );
         }
 
         // Verify local Forge assets and get classpath
@@ -666,8 +668,18 @@ public class GameModPack
         }
     }
 
-    String getPackLogoFilepath() {
+    public String getPackLogoFilepath() {
+        if ( !didCacheImages ) {
+            cacheImages();
+        }
         return getPackRootFolder() + File.separator + ModPackConstants.MODPACK_LOGO_LOCAL_FILE;
+    }
+
+    public String getPackBackgroundFilepath() {
+        if ( !didCacheImages ) {
+            cacheImages();
+        }
+        return getPackRootFolder() + File.separator + ModPackConstants.MODPACK_BACKGROUND_LOCAL_FILE;
     }
 
     public void setProgressProvider( GameModPackProgressProvider progressProvider ) {
@@ -680,21 +692,47 @@ public class GameModPack
      * @throws ModpackException if unable to download/fetch logo
      */
     private void fetchLatestModpackLogo() throws ModpackException {
-        // Only download logo on client (not server)
-        if ( GameModeManager.isServer() ) {
-            return;
-        }
-
         // Download latest logo
         try {
-            NetworkUtilities.downloadFileFromURL( new URL( packLogoURL ), SynchronizedFileManager.getSynchronizedFile(
-                    getPackLogoFilepath() ) );
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified modpack logo", 100.0 );
-            }
+            String logoFilePath = getPackRootFolder() + File.separator + ModPackConstants.MODPACK_LOGO_LOCAL_FILE;
+            NetworkUtilities.downloadFileFromURL( new URL( packLogoURL ),
+                                                  SynchronizedFileManager.getSynchronizedFile( logoFilePath ) );
         }
         catch ( IOException e ) {
-            throw new ModpackException( "Unable to download/fetch modpack logo.", e );
+            throw new ModpackException( "Unable to download/fetch mod pack logo.", e );
+        }
+    }
+
+    /**
+     * Download the modpack's logo from the URL specified in the manifest
+     *
+     * @throws ModpackException if unable to download/fetch logo
+     */
+    private void fetchLatestModpackBackground() throws ModpackException {
+        // Download latest background
+        try {
+            String backgroundFilePath = getPackRootFolder() +
+                    File.separator +
+                    ModPackConstants.MODPACK_BACKGROUND_LOCAL_FILE;
+            NetworkUtilities.downloadFileFromURL(
+                    new URL( Objects.requireNonNullElse( packBackgroundURL, ModPackConstants.MODPACK_DEFAULT_BG_URL ) ),
+                    SynchronizedFileManager.getSynchronizedFile( backgroundFilePath ) );
+        }
+        catch ( IOException e ) {
+            throw new ModpackException( "Unable to download/fetch mod pack background.", e );
+        }
+    }
+
+    public void cacheImages() {
+        try {
+            fetchLatestModpackLogo();
+            fetchLatestModpackBackground();
+            didCacheImages = true;
+        }
+        catch ( Exception e ) {
+            didCacheImages = false;
+            Logger.logError( "Unable to download image assets for mod pack: " + getFriendlyName() );
+            Logger.logThrowable( e );
         }
     }
 
