@@ -41,6 +41,7 @@ import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import javafx.application.Platform;
+import org.apache.log4j.BasicConfigurator;
 
 import java.io.File;
 import java.io.IOException;
@@ -272,6 +273,7 @@ public class LauncherCore
      * @since 2.0
      */
     public static void configureLogger() {
+        BasicConfigurator.configure();
         Timestamp logTimeStamp = new Timestamp( System.currentTimeMillis() );
         File logFile = SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLogFolderPath() +
                                                                             File.separator +
