@@ -75,44 +75,6 @@ public class MCLauncherGuiWindow extends Application
         show();
         setScene( progressGui );
         stage.centerOnScreen();
-
-        // Setup theme detector change listener
-        if ( detector != null ) {
-            try {
-                detector.registerListener( isDark -> {
-                    if ( isDark ) {
-                        // The OS switched to a dark theme
-                        GUIUtilities.JFXPlatformRun( () -> {
-                            progressGui.rootPane.getStylesheets()
-                                                .remove( getClass().getClassLoader()
-                                                                   .getResource( "guiStyle-light.css" )
-                                                                   .toExternalForm() );
-                            progressGui.rootPane.getStylesheets()
-                                                .add( getClass().getClassLoader()
-                                                                .getResource( "guiStyle-dark.css" )
-                                                                .toExternalForm() );
-                        } );
-                    }
-                    else {
-                        // The OS switched to a light theme
-                        GUIUtilities.JFXPlatformRun( () -> {
-                            progressGui.rootPane.getStylesheets()
-                                                .remove( getClass().getClassLoader()
-                                                                   .getResource( "guiStyle-dark.css" )
-                                                                   .toExternalForm() );
-                            progressGui.rootPane.getStylesheets()
-                                                .add( getClass().getClassLoader()
-                                                                .getResource( "guiStyle-light.css" )
-                                                                .toExternalForm() );
-                        } );
-                    }
-                } );
-            }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to configure theme change listener for dark/light mode!" );
-                Logger.logThrowable( e );
-            }
-        }
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
@@ -124,6 +86,36 @@ public class MCLauncherGuiWindow extends Application
             // Change stage name
             stage.setTitle(
                     LauncherConstants.LAUNCHER_APPLICATION_NAME + GUIConstants.TITLE_SPLIT_CHAR + gui.getSceneName() );
+
+            // Set correct first theme
+            if ( detector != null ) {
+                if ( detector.isDark() ) {
+                    // The OS switched to a dark theme
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        gui.rootPane.getStylesheets()
+                                    .remove( getClass().getClassLoader()
+                                                       .getResource( "guiStyle-light.css" )
+                                                       .toExternalForm() );
+                        gui.rootPane.getStylesheets()
+                                    .add( getClass().getClassLoader()
+                                                    .getResource( "guiStyle-dark.css" )
+                                                    .toExternalForm() );
+                    } );
+                }
+                else {
+                    // The OS switched to a light theme
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        gui.rootPane.getStylesheets()
+                                    .remove( getClass().getClassLoader()
+                                                       .getResource( "guiStyle-dark.css" )
+                                                       .toExternalForm() );
+                        gui.rootPane.getStylesheets()
+                                    .add( getClass().getClassLoader()
+                                                    .getResource( "guiStyle-light.css" )
+                                                    .toExternalForm() );
+                    } );
+                }
+            }
 
             // Set scene
             stage.setScene( gui.scene );
