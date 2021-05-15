@@ -54,6 +54,20 @@ class GameAsset extends ManagedGameFile
     }
 
     /**
+     * Create an MCForgeAsset object using the specified remote URL and local file path.
+     *
+     * @param remote remote file url
+     * @param local  local file path
+     *
+     * @since 1.0
+     */
+    GameAsset( String remote, String local, String sha1, boolean clientReq, boolean serverReq ) {
+        super( remote, local, sha1 );
+        this.clientReq = clientReq;
+        this.serverReq = serverReq;
+    }
+
+    /**
      * Update the local copy of this MCForgeAsset using the specified game mode (Client/Server).
      *
      * @param gameAppMode client/server
@@ -61,8 +75,7 @@ class GameAsset extends ManagedGameFile
      * @throws ModpackException if update fails
      */
     void updateLocalFile( GameMode gameAppMode ) throws ModpackException {
-        if ( ( gameAppMode == GameMode.CLIENT && clientReq ) || (
-                gameAppMode == GameMode.SERVER && serverReq ) ) {
+        if ( ( gameAppMode == GameMode.CLIENT && clientReq ) || ( gameAppMode == GameMode.SERVER && serverReq ) ) {
             super.updateLocalFile();
         }
     }
