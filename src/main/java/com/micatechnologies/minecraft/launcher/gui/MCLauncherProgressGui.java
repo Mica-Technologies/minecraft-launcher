@@ -1,10 +1,11 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
-import com.jfoenix.controls.JFXProgressBar;
+import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
+import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
@@ -40,7 +41,7 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXProgressBar progressBar;
+    MFXProgressBar progressBar;
 
     /**
      * The initial text of the upper progress label.
@@ -94,7 +95,13 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         // Set filler display information
         setUpperLabelText( INITIAL_UPPER_LABEL_TEXT );
         setLowerLabelText( INITIAL_LOWER_LABEL_TEXT );
-        setProgress( JFXProgressBar.INDETERMINATE_PROGRESS );
+        setProgress( MFXProgressBar.INDETERMINATE_PROGRESS );
+
+        // Configure window close
+        stage.setOnCloseRequest( windowEvent -> {
+            windowEvent.consume();
+            LauncherCore.closeApp();
+        } );
     }
 
     /**
@@ -103,6 +110,11 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      */
     @Override
     void loadEnvironment() {
+
+    }
+
+    @Override
+    void afterShow() {
 
     }
 

@@ -17,8 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import com.jfoenix.controls.JFXButton;
-import com.jfoenix.controls.JFXCheckBox;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
@@ -30,6 +28,9 @@ import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
+import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXCheckbox;
+import io.github.palexdev.materialfx.controls.MFXToggleButton;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
@@ -51,27 +52,27 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @FXML
     @OnScreen
-    JFXCheckBox debugCheckBox;
+    MFXToggleButton debugCheckBox;
 
     @FXML
     @OnScreen
-    JFXCheckBox windowResizeCheckBox;
+    MFXToggleButton windowResizeCheckBox;
 
     @FXML
     @OnScreen
-    JFXButton resetLauncherBtn;
+    MFXButton resetLauncherBtn;
 
     @FXML
     @OnScreen
-    JFXButton resetRuntimeBtn;
+    MFXButton resetRuntimeBtn;
 
     @FXML
     @OnScreen
-    JFXButton saveBtn;
+    MFXButton saveBtn;
 
     @FXML
     @OnScreen
-    JFXButton returnBtn;
+    MFXButton returnBtn;
 
     @FXML
     @OnScreen
@@ -124,8 +125,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         returnBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             if ( dirty ) {
                 int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
-                                                                 "Are you sure you want to exit without saving changes?",
-                                                                 "Save", "Exit", stage );
+                                                                 "Are you sure you want to return without saving " +
+                                                                         "changes?",
+                                                                 "Save", "Return", stage );
                 if ( response == 1 ) {
                     GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
                     try {
@@ -217,6 +219,21 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Configure reset runtime button
         resetRuntimeBtn.setOnAction( event -> SystemUtilities.spawnNewTask( () -> {
+            if ( dirty ) {
+                int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
+                                                                 "Are you sure you want to reset the runtime without " +
+                                                                         "saving changes?",
+                                                                 "Save & Reset Runtime", "Reset Runtime", stage );
+                // Save first
+                if ( response == 1 ) {
+                    GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
+                }
+                // Cancel
+                else if ( response != 2 ) {
+                    return;
+                }
+            }
+
             int response = GUIUtilities.showQuestionMessage( "Continue?", "Entering the Danger Zone",
                                                              "Are you sure you'd like to reset the runtime? This may take a few minutes!",
                                                              "Reset", "Back to Safety", stage );
@@ -233,8 +250,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             }
             RuntimeManager.verifyJre8();
 
-            //Return to this settings window
-            MCLauncherGuiController.goToGui( this );
+            //Return to the settings window
+            try {
+                MCLauncherGuiController.goToSettingsGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Oops! Unable to reload settings GUI" );
+                Logger.logThrowable( e );
+                LauncherCore.closeApp();
+            }
         } ) );
 
         // Load version information
@@ -289,6 +313,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     }
 
+    @Override
+    void afterShow() {
+
+    }
+
     /**
      * Abstract method: This method returns a boolean indicating if a warning should be shown to the user before closing
      * the window while displaying the stage/GUI.
@@ -301,9 +330,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     private void setEdited( boolean edited ) {
-        if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
-            //TODO getNSWindow().setDocumentEdited( edited );
-        }
         dirty = edited;
     }
 }

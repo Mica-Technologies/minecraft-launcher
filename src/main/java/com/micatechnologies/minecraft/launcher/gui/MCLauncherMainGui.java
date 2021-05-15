@@ -17,11 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import com.jagrosh.discordipc.IPCClient;
-import com.jagrosh.discordipc.IPCListener;
-import com.jagrosh.discordipc.entities.RichPresence;
-import com.jfoenix.controls.JFXButton;
-import com.jfoenix.controls.JFXComboBox;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
@@ -35,20 +30,23 @@ import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.UpdateCheckUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.annotations.OnScreen;
+import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXComboBox;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 
 import java.awt.*;
 import java.io.IOException;
 import java.net.URI;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 public class MCLauncherMainGui extends MCLauncherAbstractGui
@@ -69,7 +67,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXComboBox< String > packSelection;
+    MFXComboBox< String > packSelection;
 
     /**
      * Play button. Starts the current selected mod pack.
@@ -78,7 +76,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton playBtn;
+    MFXButton playBtn;
 
     /**
      * Exit button. Closes the application.
@@ -87,7 +85,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton exitBtn;
+    MFXButton exitBtn;
 
     /**
      * Settings button. Opens the settings window.
@@ -96,7 +94,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton settingsBtn;
+    MFXButton settingsBtn;
 
     /**
      * Logout button. Logs out the currently logged in user.
@@ -105,7 +103,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton logoutBtn;
+    MFXButton logoutBtn;
 
     /**
      * Edit mod packs button. Opens the mod pack installation window.
@@ -114,7 +112,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @FXML
     @OnScreen
-    JFXButton editButton;
+    MFXButton editButton;
 
     /**
      * Current user avatar image. Displays the avatar of the currently logged in user.
@@ -173,8 +171,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return "Home";
     }
 
-    IPCClient discordRpcClient = null;
-
     /**
      * Abstract method: This method must perform initialization and setup of the scene and @FXML components.
      */
@@ -187,9 +183,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
 
         // Start Discord rich presence
-        DiscordRpcUtility.setRichPresence( "In Menus", "Selecting a Mod Pack", OffsetDateTime.now(),
-                                           "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                           "mica_minecraft_launcher", "Mica Minecraft Launcher" );
+        SystemUtilities.spawnNewTask(
+                () -> DiscordRpcUtility.setRichPresence( "In Menus", "Selecting a Mod Pack", OffsetDateTime.now(),
+                                                         "mica_minecraft_launcher", "Mica Minecraft Launcher",
+                                                         "mica_minecraft_launcher", "Mica Minecraft Launcher" ) );
 
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
@@ -207,24 +204,26 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
                 // Check if current version is less than latest
                 if ( SystemUtilities.compareVersionNumbers( version, latestVersion ) == -1 ) {
-                    updateImgView.setVisible( true );
-                    updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
-                        int response = GUIUtilities.showQuestionMessage( "Update Available",
-                                                                         "Update Ready to " + "Download",
-                                                                         "An update has been found and is ready to be downloaded and installed.",
-                                                                         "Update Now", "Update Later", stage );
-                        if ( response == 1 ) {
-                            try {
-                                Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        updateImgView.setVisible( true );
+                        updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
+                            int response = GUIUtilities.showQuestionMessage( "Update Available",
+                                                                             "Update Ready to " + "Download",
+                                                                             "An update has been found and is ready to be downloaded and installed.",
+                                                                             "Update Now", "Update Later", stage );
+                            if ( response == 1 ) {
+                                try {
+                                    Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
+                                }
+                                catch ( IOException e ) {
+                                    Logger.logError( "Unable to open your browser. Please visit " +
+                                                             latestVersionURL +
+                                                             " to download the latest launcher updates!" );
+                                    Logger.logThrowable( e );
+                                }
                             }
-                            catch ( IOException e ) {
-                                Logger.logError( "Unable to open your browser. Please visit " +
-                                                         latestVersionURL +
-                                                         " to download the latest launcher updates!" );
-                                Logger.logThrowable( e );
-                            }
-                        }
-                    } ) );
+                        } ) );
+                    } );
                 }
             }
             catch ( Exception e ) {
@@ -237,9 +236,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         settingsBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToSettingsGui();
-                DiscordRpcUtility.setRichPresence( "In Menus", "Settings", OffsetDateTime.now(),
-                                                   "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                                   "mica_minecraft_launcher", "Mica Minecraft Launcher" );
+                SystemUtilities.spawnNewTask(
+                        () -> DiscordRpcUtility.setRichPresence( "In Menus", "Settings", OffsetDateTime.now(),
+                                                                 "mica_minecraft_launcher", "Mica Minecraft Launcher",
+                                                                 "mica_minecraft_launcher",
+                                                                 "Mica Minecraft Launcher" ) );
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to load settings GUI due to an incomplete response from the GUI subsystem." );
@@ -251,9 +252,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         editButton.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToEditModpacksGui();
-                DiscordRpcUtility.setRichPresence( "In Menus", "Editing Mod Packs", OffsetDateTime.now(),
-                                                   "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                                   "mica_minecraft_launcher", "Mica Minecraft Launcher" );
+                SystemUtilities.spawnNewTask(
+                        () -> DiscordRpcUtility.setRichPresence( "In Menus", "Editing Mod Packs", OffsetDateTime.now(),
+                                                                 "mica_minecraft_launcher", "Mica Minecraft Launcher",
+                                                                 "mica_minecraft_launcher",
+                                                                 "Mica Minecraft Launcher" ) );
             }
             catch ( IOException e ) {
                 Logger.logError(
@@ -268,19 +271,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             LauncherCore.restartApp();
         } );
 
-        // Populate list of modpacks
-        populateModpackDropdown();
-
         // Configure play button
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
             GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelection.getSelectionModel().getSelectedItem() );
-            DiscordRpcUtility.setRichPresence( "In Game (Minecraft)",
-                                               "Mod Pack: " + installedModPackByFriendlyName.getPackName(),
-                                               OffsetDateTime.now(), "mica_minecraft_launcher",
-                                               "Mica Minecraft Launcher", "mica_minecraft_launcher",
-                                               "Mica Minecraft Launcher" );
+                    packSelection.getSelectedValue() );
+            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)", "Mod Pack: " +
+                                                                                           installedModPackByFriendlyName.getPackName(), OffsetDateTime.now(), "mica_minecraft_launcher",
+                                                                                   "Mica Minecraft Launcher",
+                                                                                   "mica_minecraft_launcher",
+                                                                                   "Mica Minecraft Launcher" ) );
             LauncherCore.play( installedModPackByFriendlyName, () -> {
                 try {
                     MCLauncherGuiController.goToMainGui();
@@ -317,11 +317,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 keyEvent.consume();
                 SystemUtilities.spawnNewTask( () -> {
                     GameModPackManager.fetchModPackInfo();
-                    populateModpackDropdown();
-                    MCLauncherGuiController.goToGui( this );
+                    try {
+                        MCLauncherGuiController.goToMainGui();
+                    }
+                    catch ( Exception e ) {
+                        Logger.logError( "Oops! Unable to refresh." );
+                        Logger.logThrowable( e );
+                    }
                 } );
             }
         } );
+
+        // Populate list of modpacks
+        populateModpackDropdown();
     }
 
     /**
@@ -331,6 +339,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @Override
     void loadEnvironment() {
 
+    }
+
+    @Override
+    void afterShow() {
+        selectModpack( packSelection.getItems().get( 0 ) );
     }
 
     /**
@@ -353,7 +366,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     private final ChangeListener< Number > packSelectionChangeListener = ( observableValue, oldVal, newVal ) -> {
         // Get selected mod pack
         GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName(
-                packSelection.getValue() );
+                packSelection.getItems().get( packSelection.getSelectionModel().getSelectedIndex() ) );
 
         // Load modpack logo and set in GUI
         Image packLogoImg;
@@ -384,10 +397,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
     };
 
+    public void selectModpack( String modPack ) {
+        // Select supplied mod pack
+        packSelection.getSelectionModel().selectItem( modPack );
+    }
+
     public void selectModpack( GameModPack modPack ) {
-        // Select supplied modpack
-        packSelection.getSelectionModel().selectFirst();
-        packSelection.getSelectionModel().select( modPack.getFriendlyName() );
+        GUIUtilities.JFXPlatformRun( () -> selectModpack( modPack.getFriendlyName() ) );
     }
 
     /**
@@ -397,27 +413,23 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * @since 1.0
      */
     private void populateModpackDropdown() {
-        // Get list of modpack names
+        // Get list of mod pack names
         List< String > modpackList = GameModPackManager.getInstalledModPackFriendlyNames();
 
-        // Reset modpack selector
         GUIUtilities.JFXPlatformRun( () -> {
+            // Reset mod pack selector
+            packSelection.setDisable( false );
             packSelection.getSelectionModel().selectedIndexProperty().removeListener( packSelectionChangeListener );
             packSelection.getItems().clear();
-        } );
 
-        if ( modpackList.size() > 0 ) {
-            GUIUtilities.JFXPlatformRun( () -> {
-                packSelection.setDisable( false );
-                packSelection.getItems().addAll( modpackList );
+            // Populate mod packs dropdown
+            String noModPacksText = "No mod packs installed!";
+            if ( modpackList.size() > 0 ) {
+                packSelection.setItems( FXCollections.observableList( modpackList ) );
                 packSelection.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
-                packSelection.getSelectionModel().selectFirst();
-            } );
-        }
-        else {
-            GUIUtilities.JFXPlatformRun( () -> {
-                packSelection.getItems().add( "No modpacks installed!" );
-                packSelection.getSelectionModel().selectFirst();
+            }
+            else {
+                packSelection.setItems( FXCollections.singletonObservableList( noModPacksText ) );
                 packSelection.setDisable( true );
                 packLogo.setImage( new Image( GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE ) );
                 rootPane.setStyle( rootPane.getStyle() +
@@ -426,7 +438,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                            "');" );
                 rootPane.setStyle(
                         rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
-            } );
-        }
+            }
+        } );
     }
 }

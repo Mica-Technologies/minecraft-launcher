@@ -107,6 +107,8 @@ public abstract class MCLauncherAbstractGui
      */
     abstract void loadEnvironment();
 
+    abstract void afterShow();
+
     /**
      * Abstract method: This method returns a boolean indicating if a warning should be shown to the user before closing
      * the window while displaying the stage/GUI.
