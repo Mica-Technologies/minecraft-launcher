@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Mica Technologies
+ * Copyright (c) 2021 Mica Technologies
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -21,8 +21,6 @@ package com.micatechnologies.minecraft.launcher.utilities.objects;
  * Enum used to identify the supported game modes of the launcher, client and server.
  *
  * @author Mica Technologies
- * @editors hawka97
- * @creator hawka97
  * @version 1.0
  * @since 2.0
  */

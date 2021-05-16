@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Mica Technologies
+ * Copyright (c) 2021 Mica Technologies
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -25,8 +25,6 @@ package com.micatechnologies.minecraft.launcher.utilities.objects;
  *
  * @author Mica Technologies
  * @version 2.0
- * @editors hawka97
- * @creator hawka97
  * @since 1.0
  */
 public record Pair< T1, T2 >(T1 _1, T2 _2)

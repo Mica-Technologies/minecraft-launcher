@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Mica Technologies
+ * Copyright (c) 2021 Mica Technologies
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -43,8 +43,6 @@ import java.util.jar.JarFile;
  *
  * @author Mica Technologies
  * @version 1.1
- * @creator hawka97
- * @editors hawka97
  * @since 1.0
  */
 public class GameLibraryManifest extends ManagedGameFile
@@ -173,7 +171,6 @@ public class GameLibraryManifest extends ManagedGameFile
                 // Note: classifiers are additional libaries or
                 // sub-libraries associated with the parent library
                 // Note: logging classifiers are ignored.
-                // Please report to github.com/hawka97 if this causes issues.
                 if ( libManifestLibObj.getAsJsonObject(
                         ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ).has( "classifiers" ) ) {
                     // Create new library object to temporarily hold classifiers

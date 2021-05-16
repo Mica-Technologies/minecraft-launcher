@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Mica Technologies
+ * Copyright (c) 2021 Mica Technologies
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -45,8 +45,6 @@ import java.util.jar.JarFile;
  *
  * @author Mica Technologies
  * @version 1.0.1
- * @editors hawka97
- * @creator hawka97
  * @since 1.0
  */
 class GameModLoaderForge extends ManagedGameFile

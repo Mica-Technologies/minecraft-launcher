@@ -30,7 +30,6 @@ import java.net.URL;
 /**
  * Abstract class for JavaFX scenes in the Mica Minecraft Launcher
  *
- * @author Mica Technologies/ah
  * @since 2020.1
  */
 public abstract class MCLauncherAbstractGui
