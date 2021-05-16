@@ -95,6 +95,13 @@
 	-fx-background-radius: 8px;
 }
 
+/* Bottom Pane Styling */
+
+.bottomPane {
+    -fx-background-color: rgba(80, 80, 80, 0.85);
+    -fx-background-radius: 0;
+}
+
 
 /* Combo Box Styling */
 
