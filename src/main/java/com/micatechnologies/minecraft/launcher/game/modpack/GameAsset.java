@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Mica Technologies
+ * Copyright (c) 2021 Mica Technologies
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@ import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 /**
  * Class representing a Minecraft Forge Library/Asset
  *
- * @author Mica Technologies/hawka97
  * @version 1.0
  */
 class GameAsset extends ManagedGameFile

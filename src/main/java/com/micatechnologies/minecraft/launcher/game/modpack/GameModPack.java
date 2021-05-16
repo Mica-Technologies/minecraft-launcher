@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Mica Technologies
+ * Copyright (c) 2021 Mica Technologies
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -45,7 +45,6 @@ import org.apache.commons.io.FilenameUtils;
 /**
  * Class representation of a Forge mod pack with functionality to update mods, game libraries and start the game.
  *
- * @author Mica Technologies/hawka97
  * @version 1.1
  */
 public class GameModPack
