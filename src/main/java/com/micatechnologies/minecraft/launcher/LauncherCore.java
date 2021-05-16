@@ -396,6 +396,11 @@ public class LauncherCore
      */
     public static void cleanupApp() {
         Logger.logStd( LocalizationManager.PERFORMING_APP_CLEANUP_TEXT );
+        try {
+            Logger.shutdownLogSys();
+        }
+        catch ( IOException ignored ) {
+        }
         MCLauncherGuiController.exit();
         Logger.logStd( LocalizationManager.FINISHED_APP_CLEANUP_TEXT );
     }

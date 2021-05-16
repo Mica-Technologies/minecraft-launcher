@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
@@ -164,9 +165,9 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     public void setProgress( double progress ) {
         // Update progress bar
         GUIUtilities.JFXPlatformRun( () -> {
-                    progressBar.progressProperty().setValue( progress  );
-                    progressBar.setProgress( progress  );
-                } );
+            final double baseProgValue = progress / GameModPackProgressProvider.PROGRESS_PERCENT_BASE;
+            progressBar.setProgress( baseProgValue );
+        } );
 
         // Print progress to logs
         if ( upperLabel != null && lowerLabel != null ) {
