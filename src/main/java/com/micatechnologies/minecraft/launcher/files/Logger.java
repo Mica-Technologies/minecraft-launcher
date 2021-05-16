@@ -25,10 +25,10 @@ import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import javafx.stage.Stage;
 import org.apache.commons.io.output.TeeOutputStream;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Log management class for the Mica Forge Launcher application.
@@ -83,6 +83,15 @@ public class Logger
             LocalizationManager.LOG_DEBUG_PREFIX +
             "] ";
 
+    private static BufferedOutputStream fileBufferedOutputStream = null;
+
+    public static void shutdownLogSys() throws IOException {
+        if ( fileBufferedOutputStream != null ) {
+            fileBufferedOutputStream.flush();
+            fileBufferedOutputStream.close();
+        }
+    }
+
     /**
      * Initializes the logging system
      *
@@ -107,7 +116,17 @@ public class Logger
         /*
          * File print stream
          */
-        PrintStream file = new PrintStream( logFile );
+        FileOutputStream fileOutputStream = new FileOutputStream( logFile );
+        fileBufferedOutputStream = new BufferedOutputStream( fileOutputStream );
+        final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool( 1 );
+        scheduler.scheduleAtFixedRate( () -> {
+            try {
+                fileBufferedOutputStream.flush();
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to flush log stream to file!" );
+            }
+        }, 5, 5, TimeUnit.SECONDS );
 
         /*
          * Original console (System.out) print stream
@@ -120,8 +139,8 @@ public class Logger
         PrintStream consoleErr = System.err;
 
         // Create new tee print stream for System.out and System.err
-        PrintStream sysOut = new PrintStream( new TeeOutputStream( console, file ) );
-        PrintStream sysErr = new PrintStream( new TeeOutputStream( consoleErr, file ) );
+        PrintStream sysOut = new PrintStream( new TeeOutputStream( console, fileBufferedOutputStream ) );
+        PrintStream sysErr = new PrintStream( new TeeOutputStream( consoleErr, fileBufferedOutputStream ) );
 
         // Assign tee-d print streams
         System.setOut( sysOut );
