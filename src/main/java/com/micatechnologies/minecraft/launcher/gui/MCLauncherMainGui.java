@@ -152,6 +152,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     Label playerLabel;
 
     /**
+     * Mod pack website button. Opens the mod pack website.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton websiteBtn;
+
+    /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
      * controller.
      *
@@ -303,6 +312,21 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     LauncherCore.closeApp();
                 }
             } ) );
+        } ) );
+
+        // Configure website button
+        websiteBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+            GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
+                    packSelection.getSelectedValue() );
+            try {
+                Desktop.getDesktop().browse( URI.create( installedModPackByFriendlyName.getPackURL() ) );
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to open your browser. Please visit " +
+                                         installedModPackByFriendlyName.getPackURL() +
+                                         " to view the mod pack's website!" );
+                Logger.logThrowable( e );
+            }
         } ) );
 
         // Configure user label
