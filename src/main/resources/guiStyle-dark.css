@@ -122,3 +122,10 @@
 .dangerZone .mfx-button:focused .text {
 	-fx-fill: black;
 }
+
+/* Progress Bar Styling */
+
+.mfx-progress-bar > .bar,
+.mfx-progress-bar:indeterminate > .bar {
+    -fx-background-color: #477A1E;
+}
