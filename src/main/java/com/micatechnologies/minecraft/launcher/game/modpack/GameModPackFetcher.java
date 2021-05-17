@@ -49,6 +49,7 @@ public class GameModPackFetcher
         try {
             String manifestBody = IOUtils.toString( new URL( manifestUrl ), Charset.defaultCharset() );
             gameModPack = new Gson().fromJson( manifestBody, GameModPack.class );
+            gameModPack.prepareEnvironment();
             gameModPack.cacheImages();
         }
         catch ( Exception e ) {
