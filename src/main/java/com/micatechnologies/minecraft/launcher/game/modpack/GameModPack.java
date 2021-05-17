@@ -196,29 +196,6 @@ public class GameModPack
     }
 
     /**
-     * Get the URL to the modpack logo
-     *
-     * @return modpack logo URL
-     */
-    public String getPackLogoURL() {
-        return packLogoURL;
-    }
-
-    /**
-     * Get the URL to the modpack background
-     *
-     * @return modpack background URL
-     */
-    public String getPackBackgroundURL() {
-        if ( packBackgroundURL != null && !packBackgroundURL.equals( "" ) ) {
-            return packBackgroundURL;
-        }
-        else {
-            return ModPackConstants.MODPACK_DEFAULT_BG_URL;
-        }
-    }
-
-    /**
      * Get the Forge version of this modpack.
      *
      * @return modpack Forge version
@@ -667,14 +644,14 @@ public class GameModPack
         }
     }
 
-    public String getPackLogoFilepath() {
+    public synchronized String getPackLogoFilepath() {
         if ( !didCacheImages ) {
             cacheImages();
         }
         return getPackRootFolder() + File.separator + ModPackConstants.MODPACK_LOGO_LOCAL_FILE;
     }
 
-    public String getPackBackgroundFilepath() {
+    public synchronized String getPackBackgroundFilepath() {
         if ( !didCacheImages ) {
             cacheImages();
         }
@@ -690,7 +667,7 @@ public class GameModPack
      *
      * @throws ModpackException if unable to download/fetch logo
      */
-    private void fetchLatestModpackLogo() throws ModpackException {
+    private synchronized void fetchLatestModpackLogo() throws ModpackException {
         // Download latest logo
         try {
             String logoFilePath = getPackRootFolder() + File.separator + ModPackConstants.MODPACK_LOGO_LOCAL_FILE;
@@ -707,7 +684,7 @@ public class GameModPack
      *
      * @throws ModpackException if unable to download/fetch logo
      */
-    private void fetchLatestModpackBackground() throws ModpackException {
+    private synchronized void fetchLatestModpackBackground() throws ModpackException {
         // Download latest background
         try {
             String backgroundFilePath = getPackRootFolder() +
@@ -722,7 +699,7 @@ public class GameModPack
         }
     }
 
-    public void cacheImages() {
+    public synchronized void cacheImages() {
         try {
             fetchLatestModpackLogo();
             fetchLatestModpackBackground();

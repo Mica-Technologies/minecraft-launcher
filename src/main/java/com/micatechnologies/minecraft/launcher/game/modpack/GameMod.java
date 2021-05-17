@@ -56,6 +56,7 @@ public class GameMod extends ManagedGameFile
      *
      * @since 1.0
      */
+    @SuppressWarnings( "unused" )
     public GameMod( String modName,
                     String modURL,
                     String modSHA1,

@@ -35,20 +35,11 @@ import io.github.palexdev.materialfx.controls.MFXComboBox;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.awt.*;
@@ -414,8 +405,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 if ( selectedGameModPack != null ) {
                     rootPane.setStyle( rootPane.getStyle() +
                                                "-fx-background-image: url('" +
-                                               new File( selectedGameModPack.getPackBackgroundFilepath() ).toURI()
-                                                                                                          .toString() +
+                                               new File( selectedGameModPack.getPackBackgroundFilepath() ).toURI() +
                                                "');" );
                 }
                 else {
