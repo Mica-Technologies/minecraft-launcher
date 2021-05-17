@@ -108,19 +108,19 @@ public class RuntimeManager
             Logger.logDebug( LocalizationManager.CREATED_FOLDER_RUNTIME_TEXT );
         }
         else {
-            Logger.logDebug( LocalizationManager.DIDNT_CREATE_FOLDER_RUNTIME_TEXT );
+            Logger.logDebug( LocalizationManager.DID_NOT_CREATE_FOLDER_RUNTIME_TEXT );
         }
         if ( readable ) {
             Logger.logDebug( LocalizationManager.RUNTIME_FOLDER_SET_READABLE_TEXT );
         }
         else {
-            Logger.logDebug( LocalizationManager.DIDNT_SET_RUNTIME_FOLDER_READABLE_TEXT );
+            Logger.logDebug( LocalizationManager.DID_NOT_SET_RUNTIME_FOLDER_READABLE_TEXT );
         }
         if ( writable ) {
             Logger.logDebug( LocalizationManager.RUNTIME_FOLDER_SET_WRITABLE_TEXT );
         }
         else {
-            Logger.logDebug( LocalizationManager.DIDNT_SET_RUNTIME_FOLDER_WRITABLE_TEXT );
+            Logger.logDebug( LocalizationManager.DID_NOT_SET_RUNTIME_FOLDER_WRITABLE_TEXT );
         }
 
         // Get proper URLs and archive format information for specific OS

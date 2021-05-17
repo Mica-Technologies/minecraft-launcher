@@ -202,8 +202,8 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DIDNT_CREATE_FOLDER_RUNTIME_TEXT = localResourceBundle.getString(
-            "DIDNT_CREATE_FOLDER_RUNTIME_TEXT" );
+    public static final String DID_NOT_CREATE_FOLDER_RUNTIME_TEXT = localResourceBundle.getString(
+            "DID_NOT_CREATE_FOLDER_RUNTIME_TEXT" );
 
     /**
      * Message shown when the runtime folder has been set as readable.
@@ -218,8 +218,8 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DIDNT_SET_RUNTIME_FOLDER_READABLE_TEXT = localResourceBundle.getString(
-            "DIDNT_SET_RUNTIME_FOLDER_READABLE_TEXT" );
+    public static final String DID_NOT_SET_RUNTIME_FOLDER_READABLE_TEXT = localResourceBundle.getString(
+            "DID_NOT_SET_RUNTIME_FOLDER_READABLE_TEXT" );
 
     /**
      * Message shown when the runtime folder has been set as writable.
@@ -234,8 +234,8 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DIDNT_SET_RUNTIME_FOLDER_WRITABLE_TEXT = localResourceBundle.getString(
-            "DIDNT_SET_RUNTIME_FOLDER_WRITABLE_TEXT" );
+    public static final String DID_NOT_SET_RUNTIME_FOLDER_WRITABLE_TEXT = localResourceBundle.getString(
+            "DID_NOT_SET_RUNTIME_FOLDER_WRITABLE_TEXT" );
 
     /**
      * Status message shown when gathering information about the runtime.

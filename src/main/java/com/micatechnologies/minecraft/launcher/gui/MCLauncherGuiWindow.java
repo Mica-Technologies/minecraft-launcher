@@ -55,7 +55,7 @@ public class MCLauncherGuiWindow extends Application
 
         // Set application icon
         try {
-            InputStream iconStream = getClass().getClassLoader().getResourceAsStream( "micaforgelauncher.png" );
+            InputStream iconStream = getClass().getClassLoader().getResourceAsStream( "micaminecraftlauncher.png" );
             if ( iconStream != null ) {
                 Image icon = new Image( iconStream );
                 stage.getIcons().add( icon );
