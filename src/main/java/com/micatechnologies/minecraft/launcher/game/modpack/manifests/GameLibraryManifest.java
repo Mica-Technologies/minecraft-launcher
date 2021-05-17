@@ -168,7 +168,7 @@ public class GameLibraryManifest extends ManagedGameFile
                 }
 
                 // Check for and process library classifiers
-                // Note: classifiers are additional libaries or
+                // Note: classifiers are additional libraries or
                 // sub-libraries associated with the parent library
                 // Note: logging classifiers are ignored.
                 if ( libManifestLibObj.getAsJsonObject(

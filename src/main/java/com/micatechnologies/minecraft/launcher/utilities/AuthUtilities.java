@@ -99,7 +99,7 @@ public class AuthUtilities
             dataOutputStream.flush();
         }
         catch ( IOException e ) {
-            throw new AuthException( "Error while flusing connection content stream.", e );
+            throw new AuthException( "Error while flushing connection content stream.", e );
         }
         try {
             dataOutputStream.close();

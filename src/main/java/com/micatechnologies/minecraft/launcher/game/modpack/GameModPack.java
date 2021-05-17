@@ -233,7 +233,7 @@ public class GameModPack
      */
     public String buildModpackClasspath() throws ModpackException {
         if ( progressProvider != null ) {
-            progressProvider.setCurrText( "Building modpack classpath enviornment" );
+            progressProvider.setCurrText( "Building modpack classpath environment" );
         }
 
         // Verify local Forge mods
@@ -434,7 +434,7 @@ public class GameModPack
             SystemUtilities.executeStringCommand( minecraftArgs, getPackRootFolder() );
         }
         catch ( IOException | InterruptedException e ) {
-            throw new ModpackException( "Unable to execute modpack game.", e );
+            throw new ModpackException( "Unable to execute mod pack game.", e );
         }
     }
 
@@ -472,7 +472,7 @@ public class GameModPack
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's mods and repair/download/update as necessary.
+     * Verifies the integrity of local copies of this mod pack's mods and repair/download/update as necessary.
      *
      * @throws ModpackException if unable to fetch latest mods
      */
@@ -513,7 +513,7 @@ public class GameModPack
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's configs and repair/download/update as necessary.
+     * Verifies the integrity of local copies of this mod pack's configs and repair/download/update as necessary.
      *
      * @throws ModpackException if unable to fetch latest configs
      */
@@ -544,7 +544,7 @@ public class GameModPack
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's resource packs and repair/download/update as necessary.
+     * Verifies the integrity of local copies of this mod pack's resource packs and repair/download/update as necessary.
      *
      * @throws ModpackException if unable to fetch latest resource packs
      */
@@ -580,7 +580,7 @@ public class GameModPack
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's shader packs and repair/download/update as necessary.
+     * Verifies the integrity of local copies of this mod pack's shader packs and repair/download/update as necessary.
      *
      * @throws ModpackException if unable to fetch latest shader packs
      */
@@ -616,7 +616,7 @@ public class GameModPack
     }
 
     /**
-     * Verifies the integrity of local copies of this modpack's initial files and repair/download/updated as necessary.
+     * Verifies the integrity of local copies of this mod pack's initial files and repair/download/updated as necessary.
      *
      * @throws ModpackException if unable to fetch latest initial files
      */
@@ -663,7 +663,7 @@ public class GameModPack
     }
 
     /**
-     * Download the modpack's logo from the URL specified in the manifest
+     * Download the mod pack's logo from the URL specified in the manifest
      *
      * @throws ModpackException if unable to download/fetch logo
      */
@@ -680,7 +680,7 @@ public class GameModPack
     }
 
     /**
-     * Download the modpack's logo from the URL specified in the manifest
+     * Download the mod pack's logo from the URL specified in the manifest
      *
      * @throws ModpackException if unable to download/fetch logo
      */
