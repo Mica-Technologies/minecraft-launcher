@@ -126,133 +126,102 @@ public class MCLauncherGuiWindow extends Application
                 if ( detector != null ) {
                     if ( detector.isDark() ) {
                         // The OS switched to a dark theme
-                        GUIUtilities.JFXPlatformRun( () -> {
-                            gui.rootPane.getStylesheets()
-                                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
-                                                        .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                                        .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) )
-                                                        .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .add( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                                     .toExternalForm() );
-                        } );
+                        switchToDarkTheme();
                     }
                     else {
                         // The OS switched to a light theme
-                        GUIUtilities.JFXPlatformRun( () -> {
-                            gui.rootPane.getStylesheets()
-                                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                                        .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                                        .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) )
-                                                        .toExternalForm() );
-                            gui.rootPane.getStylesheets()
-                                        .add( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
-                                                     .toExternalForm() );
-                        } );
+                        switchToLightTheme();
                     }
                 }
                 break;
             case ConfigConstants.THEME_LIGHT:
-                // The OS switched to a light theme
-                GUIUtilities.JFXPlatformRun( () -> {
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .add( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
-                                             .toExternalForm() );
-                } );
+                switchToLightTheme();
                 break;
             case ConfigConstants.THEME_DARK:
-                // The OS switched to a dark theme
-                GUIUtilities.JFXPlatformRun( () -> {
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .add( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                             .toExternalForm() );
-                } );
+                switchToDarkTheme();
                 break;
             case ConfigConstants.THEME_BLUE_GRAY:
-                // The OS switched to a dark theme
-                GUIUtilities.JFXPlatformRun( () -> {
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .add( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) )
-                                             .toExternalForm() );
-                } );
+                switchToBlueGrayTheme();
                 break;
             case ConfigConstants.THEME_ORANGE_PURPLE:
-                // The OS switched to a dark theme
-                GUIUtilities.JFXPlatformRun( () -> {
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .remove( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                                .toExternalForm() );
-                    gui.rootPane.getStylesheets()
-                                .add( Objects.requireNonNull(
-                                        getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                             .toExternalForm() );
-                } );
+                switchToOrangePurpleTheme();
                 break;
         }
+    }
+
+    private void switchToLightTheme() {
+        GUIUtilities.JFXPlatformRun( () -> {
+            gui.rootPane.getStylesheets()
+                        .remove(
+                                Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
+                                       .toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
+                                        .toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) ).toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .add( Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
+                                     .toExternalForm() );
+        } );
+    }
+
+    private void switchToDarkTheme() {
+        GUIUtilities.JFXPlatformRun( () -> {
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) ).toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
+                                        .toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) ).toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .add( Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
+                                     .toExternalForm() );
+        } );
+    }
+
+    private void switchToBlueGrayTheme() {
+        GUIUtilities.JFXPlatformRun( () -> {
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) ).toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
+                                        .toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .remove(
+                                Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
+                                       .toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .add( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) ).toExternalForm() );
+        } );
+    }
+
+    private void switchToOrangePurpleTheme() {
+        GUIUtilities.JFXPlatformRun( () -> {
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) ).toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .remove( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) ).toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .remove(
+                                Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
+                                       .toExternalForm() );
+            gui.rootPane.getStylesheets()
+                        .add( Objects.requireNonNull(
+                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
+                                     .toExternalForm() );
+        } );
     }
 }
 
