@@ -49,7 +49,7 @@ public class ManifestConstants
      *
      * @since 1.0
      */
-    public static final String MINECRAFT_ASSET_SERVER_URL_TEMPLATE = "http://resources.download.minecraft.net/" +
+    public static final String MINECRAFT_ASSET_SERVER_URL_TEMPLATE = "https://resources.download.minecraft.net/" +
             MINECRAFT_ASSET_SERVER_URL_FOLDER_KEY +
             "/" +
             MINECRAFT_ASSET_SERVER_URL_HASH_KEY;
