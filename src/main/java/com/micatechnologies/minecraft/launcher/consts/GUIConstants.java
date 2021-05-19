@@ -41,7 +41,7 @@ public class GUIConstants
      *
      * @since 1.0
      */
-    public final static String URL_MINECRAFT_USER_ICONS = "http://minotar.net/armor/bust/" +
+    public final static String URL_MINECRAFT_USER_ICONS = "https://minotar.net/armor/bust/" +
             URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY +
             "/100.png";
 
