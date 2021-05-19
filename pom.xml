@@ -30,11 +30,7 @@
 
     <!-- PROJECT AND CUSTOM PROPERTIES -->
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <main.class>com.micatechnologies.minecraft.launcher.LauncherCore</main.class>
-        <app.name>Mica Minecraft Launcher</app.name>
-        <info.vmargs>-Djava.net.preferIPv4Stack=true</info.vmargs>
-        <izpack.staging>${project.build.directory}${file.separator}windows-installer</izpack.staging>
         <timestamp>${maven.build.timestamp}</timestamp>
         <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
         <dependency.locations.enabled>false</dependency.locations.enabled>
@@ -118,7 +114,7 @@
                     <replacements>
                         <replacement>
                             <token>LAUNCHER_APPLICATION_NAME = ".*"</token>
-                            <value>LAUNCHER_APPLICATION_NAME = "${app.name}"</value>
+                            <value>LAUNCHER_APPLICATION_NAME = "${project.name}"</value>
                         </replacement>
                         <replacement>
                             <token>LAUNCHER_APPLICATION_VERSION = ".*"</token>
