@@ -66,52 +66,7 @@ public class AuthService
         // Perform HTTP Post Call to Mojang Endpoint
         String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_PASSWORD_ENDPOINT, root.toString() );
 
-        // Convert response to Json Object
-        JsonObject responseObject = JSONUtilities.stringToObject( response );
-
-        // Process response only if error or error message not present
-        if ( !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) &&
-                !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG ) ) {
-            // Read and save acquired access token
-            if ( responseObject.has( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ) ) {
-                account.setLastAccessToken(
-                        responseObject.get( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ).getAsString() );
-            }
-            else {
-                throw new AuthException( LocalizationManager.AUTH_RESPONSE_NO_ACCESS_TOKEN_TEXT );
-            }
-
-            // Read and save profile name and id, if present
-            // If not present, method will continue
-            if ( responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ) ) {
-                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
-                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME ) ) {
-                    account.setFriendlyName(
-                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
-                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME )
-                                          .getAsString() );
-                }
-                else {
-                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_NAME_TEXT );
-                }
-                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
-                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ) ) {
-                    account.setUserIdentifier(
-                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
-                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID )
-                                          .getAsString() );
-                }
-                else {
-                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_ID_TEXT );
-                }
-            }
-        }
-        else {
-            return false;
-        }
-
-        // Return true on success
-        return true;
+        return parseAuthResponse( account, response );
     }
 
     /**
@@ -141,52 +96,7 @@ public class AuthService
         // Perform HTTP Post Call to Mojang Endpoint
         String response = AuthUtilities.doHTTPPOST( AuthConstants.AUTH_REFRESH_TOKEN_ENDPOINT, root.toString() );
 
-        // Convert response to Json Object
-        JsonObject responseObject = JSONUtilities.stringToObject( response );
-
-        // Process response only if error or error message not present
-        if ( !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) &&
-                !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG ) ) {
-            // Read and save acquired access token
-            if ( responseObject.has( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ) ) {
-                account.setLastAccessToken(
-                        responseObject.get( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ).getAsString() );
-            }
-            else {
-                throw new AuthException( LocalizationManager.AUTH_RESPONSE_NO_ACCESS_TOKEN_TEXT );
-            }
-
-            // Read and save profile name and id, if present
-            // If not present, method will continue
-            if ( responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ) ) {
-                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
-                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME ) ) {
-                    account.setFriendlyName(
-                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
-                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME )
-                                          .getAsString() );
-                }
-                else {
-                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_NAME_TEXT );
-                }
-                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
-                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ) ) {
-                    account.setUserIdentifier(
-                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
-                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID )
-                                          .getAsString() );
-                }
-                else {
-                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_ID_TEXT );
-                }
-            }
-        }
-        else {
-            return false;
-        }
-
-        // Return true on success
-        return true;
+        return parseAuthResponse( account, response );
     }
 
     /**
@@ -225,5 +135,54 @@ public class AuthService
             account.setLastAccessToken( null );
         }
         return isSuccess;
+    }
+
+    private static boolean parseAuthResponse( AuthAccountMojang authAccount, String response ) throws AuthException {
+        // Convert response to Json Object
+        JsonObject responseObject = JSONUtilities.stringToObject( response );
+
+        // Process response only if error or error message not present
+        if ( !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR ) &&
+                !responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_ERROR_MSG ) ) {
+            // Read and save acquired access token
+            if ( responseObject.has( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ) ) {
+                authAccount.setLastAccessToken(
+                        responseObject.get( AuthConstants.AUTH_ENDPOINT_KEY_ACCESS_TOKEN ).getAsString() );
+            }
+            else {
+                throw new AuthException( LocalizationManager.AUTH_RESPONSE_NO_ACCESS_TOKEN_TEXT );
+            }
+
+            // Read and save profile name and id, if present
+            // If not present, method will continue
+            if ( responseObject.has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE ) ) {
+                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME ) ) {
+                    authAccount.setFriendlyName(
+                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_NAME )
+                                          .getAsString() );
+                }
+                else {
+                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_NAME_TEXT );
+                }
+                if ( responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                   .has( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID ) ) {
+                    authAccount.setUserIdentifier(
+                            responseObject.getAsJsonObject( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE )
+                                          .get( AuthConstants.AUTH_RESPONSE_KEY_SELECTED_PROFILE_ID )
+                                          .getAsString() );
+                }
+                else {
+                    Logger.logDebug( LocalizationManager.AUTH_RESPONSE_NO_PROFILE_ID_TEXT );
+                }
+            }
+        }
+        else {
+            return false;
+        }
+
+        // Return true on success
+        return true;
     }
 }
