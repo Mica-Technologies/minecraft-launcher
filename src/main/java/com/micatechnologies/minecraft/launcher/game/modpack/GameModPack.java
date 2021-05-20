@@ -627,7 +627,7 @@ public class GameModPack
         // Check if initial files supplied
         if ( packInitialFiles == null ) {
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No configs to handle", 100 );
+                progressProvider.submitProgress( "No initial files to handle", 100 );
             }
             return;
         }
