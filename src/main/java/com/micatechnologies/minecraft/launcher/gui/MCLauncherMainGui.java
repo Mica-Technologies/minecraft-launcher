@@ -403,6 +403,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
                 // Set modpack background image on root pane
                 if ( selectedGameModPack != null ) {
+                    // noinspection All
                     rootPane.setStyle( rootPane.getStyle() +
                                                "-fx-background-image: url('" +
                                                new File( selectedGameModPack.getPackBackgroundFilepath() ).toURI() +
