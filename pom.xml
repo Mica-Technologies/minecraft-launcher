@@ -231,7 +231,7 @@
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
-                <version>1.6.0-SNAPSHOT</version>
+                <version>1.5.1</version>
                 <configuration>
                     <mainClass>${main.class}</mainClass>
                     <bundleJre>true</bundleJre>
@@ -255,7 +255,7 @@
                     </macConfig>
                 </configuration>
                 <executions>
-                    <execution>
+                    <!--<execution>
                         <id>bundling-for-windows</id>
                         <phase>package</phase>
                         <goals>
@@ -264,10 +264,10 @@
                         <configuration>
                             <platform>windows</platform>
                             <createZipball>true</createZipball>
-                            <!--suppress UnresolvedMavenProperty -->
+                            --><!--suppress UnresolvedMavenProperty --><!--
                             <jdkPath>${jlink.win.jdk.path}</jdkPath>
                         </configuration>
-                    </execution>
+                    </execution>-->
                     <execution>
                         <id>bundling-for-linux</id>
                         <phase>package</phase>
