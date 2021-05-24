@@ -35,7 +35,7 @@ import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import com.micatechnologies.minecraft.launcher.game.auth.AuthManager;
+import com.micatechnologies.minecraft.launcher.game.auth.old.AuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;

@@ -15,7 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.micatechnologies.minecraft.launcher.game.auth;
+package com.micatechnologies.minecraft.launcher.game.auth.old;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.AuthConstants;
