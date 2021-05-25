@@ -159,6 +159,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     }
 
     /**
+     * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
+     * controller.
+     *
+     * @throws IOException if unable to load FXML file specified
+     */
+    public MCLauncherMainGui( Stage stage, double width, double height ) throws IOException {
+        super( stage, width, height );
+    }
+
+    /**
      * Abstract method: This method must return the resource path for the JavaFX scene FXML file.
      *
      * @return JavaFX scene FXML resource path
@@ -319,7 +329,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         // Configure user label
         playerLabel.setText( TimeUtilities.getFriendlyTimeBasedGreeting() +
-                                     ", " +
+                                     ",\n" +
                                      AuthManager.getLoggedInAccount().getFriendlyName() );
 
         // Configure user image

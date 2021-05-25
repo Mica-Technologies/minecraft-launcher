@@ -102,6 +102,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     /**
+     * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
+     * controller.
+     *
+     * @throws IOException if unable to load FXML file specified
+     */
+    public MCLauncherSettingsGui( Stage stage, double width, double height ) throws IOException {
+        super( stage, width, height );
+    }
+
+    /**
      * Abstract method: This method must return the resource path for the JavaFX scene FXML file.
      *
      * @return JavaFX scene FXML resource path
