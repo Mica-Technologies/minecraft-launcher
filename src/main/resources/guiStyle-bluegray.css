@@ -19,14 +19,14 @@
 /* Root Pane Styling */
 
 .rootPane {
-	-fx-background-color: #15171D;
+    -fx-background-color: #15171D;
 }
 
 
 /* Label Styling */
 
 .label {
-	-fx-text-fill: white;
+    -fx-text-fill: white;
 }
 
 
@@ -36,26 +36,46 @@
 .mfx-button:hover,
 .mfx-button:focused,
 .mfx-button {
-	-mfx-button-type: RAISED;
-	-mfx-depth-level: Level3;
+    -mfx-button-type: RAISED;
+    -mfx-depth-level: Level3;
 }
 
 .mfx-button,
 .mfx-button:armed,
 .mfx-button:focused {
-	-fx-background-color: #3074ED;
+    -fx-background-color: #3074ED;
 }
 
 .mfx-button .ripple-generator,
 .mfx-button:armed .ripple-generator,
 .mfx-button:focused .ripple-generator {
-	-mfx-ripple-color: #4783EE;
+    -mfx-ripple-color: #4783EE;
 }
 
 .mfx-button .text,
 .mfx-button:armed .text,
 .mfx-button:focused .text {
-	-fx-fill: white;
+    -fx-fill: white;
+}
+
+/* Logout Button Styling */
+
+.logoutBtn.mfx-button,
+.logoutBtn.mfx-button:armed,
+.logoutBtn.mfx-button:focused {
+    -fx-background-color: #3074ED;
+}
+
+.logoutBtn.mfx-button .ripple-generator,
+.logoutBtn.mfx-button:armed .ripple-generator,
+.logoutBtn.mfx-button:focused .ripple-generator {
+    -mfx-ripple-color: #4783EE;
+}
+
+.logoutBtn.mfx-button .text,
+.logoutBtn.mfx-button:armed .text,
+.logoutBtn.mfx-button:focused .text {
+    -fx-fill: white;
 }
 
 
@@ -67,7 +87,7 @@
 .mfx-toggle-button:focused,
 .mfx-toggle-button:selected,
 .mfx-toggle-button:focused:selected {
-	-mfx-toggle-color: #3074ED;
+    -mfx-toggle-color: #3074ED;
 }
 
 .mfx-toggle-button .text,
@@ -76,7 +96,7 @@
 .mfx-toggle-button:focused .text,
 .mfx-toggle-button:selected .text,
 .mfx-toggle-button:focused:selected .text {
-	-fx-fill: white;
+    -fx-fill: white;
 }
 
 /* Text Field Styling */
@@ -91,13 +111,13 @@
 /* Center Pane Styling */
 
 .centerPane {
-	-fx-background-color: rgba(34, 36, 43, 0.98);
+    -fx-background-color: rgba(34, 36, 43, 0.98);
     -fx-background-radius: 0;
 }
 
-/* Bottom Pane Styling */
+/* Strip Pane Styling */
 
-.bottomPane {
+.stripPane {
     -fx-background-color: rgba(34, 36, 43, 0.98);
     -fx-background-radius: 0;
 }
@@ -107,44 +127,44 @@
 
 .mfx-combo-box {
     -fx-background-color: TRANSPARENT;
-	-mfx-line-color: #3074ED;
+    -mfx-line-color: #3074ED;
 }
 
 .mfx-combo-box .mfx-icon-wrapper .ripple-generator {
-	-mfx-ripple-color: #bbb !important;
+    -mfx-ripple-color: #bbb !important;
 }
 
 .mfx-combo-box:focused .mfx-icon-wrapper .mfx-font-icon {
-	-mfx-color: #3074ED !important;
+    -mfx-color: #3074ED !important;
 }
 
 .mfx-combo-box:editor .mfx-icon-wrapper .mfx-font-icon {
-	-mfx-color: white !important;
+    -mfx-color: white !important;
 }
 
 
 /* Settings Window Danger Zone Styling */
 
 .dangerZone {
-	-fx-background-color: #C22C33;
+    -fx-background-color: #C22C33;
 }
 
 .dangerZone .mfx-button,
 .dangerZone .mfx-button:armed,
 .dangerZone .mfx-button:focused {
-	-fx-background-color: #FF6C6C;
+    -fx-background-color: #FF6C6C;
 }
 
 .dangerZone .mfx-button .ripple-generator,
 .dangerZone .mfx-button:armed .ripple-generator,
 .dangerZone .mfx-button:focused .ripple-generator {
-	-mfx-ripple-color: #bbb;
+    -mfx-ripple-color: #bbb;
 }
 
 .dangerZone .mfx-button .text,
 .dangerZone .mfx-button:armed .text,
 .dangerZone .mfx-button:focused .text {
-	-fx-fill: #fff;
+    -fx-fill: #fff;
 }
 
 /* Progress Bar Styling */

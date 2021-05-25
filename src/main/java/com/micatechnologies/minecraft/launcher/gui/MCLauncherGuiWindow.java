@@ -47,8 +47,8 @@ public class MCLauncherGuiWindow extends Application
         this.stage = stage;
 
         // Configure stage
-        stage.setMinHeight( 400 );
-        stage.setMinWidth( 400 );
+        stage.setMinHeight( 450 );
+        stage.setMinWidth( 750 );
 
         // Set resizable property
         stage.setResizable( ConfigManager.getResizableWindows() );
