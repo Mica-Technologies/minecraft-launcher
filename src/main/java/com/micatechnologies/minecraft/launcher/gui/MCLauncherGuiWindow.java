@@ -28,27 +28,31 @@ import javafx.application.Application;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
+import java.awt.*;
 import java.io.InputStream;
 import java.util.Objects;
 
 public class MCLauncherGuiWindow extends Application
 {
-    private Stage                 stage;
-    private MCLauncherAbstractGui gui;
+
+    private static final double                MIN_WIDTH  = 750.0;
+    private static final double                MIN_HEIGHT = 550.0;
+    private              Stage                 stage;
+    private              MCLauncherAbstractGui gui;
 
     private OsThemeDetector detector = null;
 
     @Override
     public void start( Stage stage ) throws Exception {
         // Initialize default scene/GUI
-        MCLauncherProgressGui progressGui = new MCLauncherProgressGui( stage );
+        MCLauncherProgressGui progressGui = new MCLauncherProgressGui( stage, MIN_WIDTH, MIN_HEIGHT );
 
         // Save stage
         this.stage = stage;
 
         // Configure stage
-        stage.setMinHeight( 450 );
-        stage.setMinWidth( 750 );
+        stage.setMinHeight( MIN_HEIGHT );
+        stage.setMinWidth( MIN_WIDTH );
 
         // Set resizable property
         stage.setResizable( ConfigManager.getResizableWindows() );

@@ -111,6 +111,16 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     }
 
     /**
+     * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
+     * controller.
+     *
+     * @throws IOException if unable to load FXML file specified
+     */
+    public MCLauncherEditModPacksGui( Stage stage, double width, double height ) throws IOException {
+        super( stage, width, height );
+    }
+
+    /**
      * Custom {@link ListCell <String>} implementation that includes a button to remove the affiliated item from the
      * parent list.
      *

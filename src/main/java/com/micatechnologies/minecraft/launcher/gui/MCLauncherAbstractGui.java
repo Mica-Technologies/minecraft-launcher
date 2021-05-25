@@ -70,6 +70,26 @@ public abstract class MCLauncherAbstractGui
         this.stage = stage;
     }
 
+    /**
+     * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
+     * controller.
+     *
+     * @throws IOException if unable to load FXML file specified
+     */
+    public MCLauncherAbstractGui( Stage stage, double width, double height ) throws IOException {
+        FXMLLoader fxmlLoader = new FXMLLoader();
+        URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
+        fxmlLoader.setLocation( resource );
+        fxmlLoader.setController( this );
+        if ( stage.getScene() != null ) {
+            scene = new Scene( fxmlLoader.load(), width, height );
+        }
+        else {
+            scene = new Scene( fxmlLoader.load() );
+        }
+        this.stage = stage;
+    }
+
     public void hideStage() {
         GUIUtilities.JFXPlatformRun( stage::hide );
     }
