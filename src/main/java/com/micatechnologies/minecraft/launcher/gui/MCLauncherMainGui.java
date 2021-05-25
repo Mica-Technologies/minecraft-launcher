@@ -26,10 +26,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.old.AuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
-import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.UpdateCheckUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.*;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
 import javafx.application.Platform;
@@ -321,7 +318,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } ) );
 
         // Configure user label
-        playerLabel.setText( AuthManager.getLoggedInAccount().getFriendlyName() );
+        playerLabel.setText( TimeUtilities.getFriendlyTimeBasedGreeting() +
+                                     ", " +
+                                     AuthManager.getLoggedInAccount().getFriendlyName() );
 
         // Configure user image
         userImage.setImage( new Image(
