@@ -230,13 +230,19 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 return;
             }
 
-            MCLauncherAuthManager.logout();
+            try {
+                LauncherCore.cleanupApp();
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Unable to cleanup launcher systems before resetting the launcher. Some " +
+                                                 "files may not be removed or reset!" );
+            }
             try {
                 FileUtils.deleteDirectory(
                         SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLocalPath() ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "An error occurred while resetting the launcher. Will continue to attempt!" );
+                Logger.logError( "An error prevented some or all of the launcher files from being removed or reset!" );
             }
             finally {
                 LauncherCore.restartApp();

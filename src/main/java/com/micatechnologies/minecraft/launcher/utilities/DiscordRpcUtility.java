@@ -64,7 +64,6 @@ public class DiscordRpcUtility
     {
         // Init if required
         if ( discordRpcClient == null ) {
-
             init();
         }
 
@@ -83,6 +82,12 @@ public class DiscordRpcUtility
                 Logger.logWarningSilent( "Unable to update Discord rich presence!" );
                 Logger.logThrowable( e );
             }
+        }
+    }
+
+    public static void exit() {
+        if ( discordRpcClient != null ) {
+            discordRpcClient.close();
         }
     }
 }
