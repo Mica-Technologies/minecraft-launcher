@@ -53,6 +53,4 @@ public class JSONUtilities
     public static String objectToString( JsonObject object ) {
         return new Gson().toJson( object );
     }
-
-
 }

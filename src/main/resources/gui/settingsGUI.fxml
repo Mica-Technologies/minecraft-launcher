@@ -35,93 +35,123 @@
     <rowConstraints>
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
-   <GridPane maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-      <columnConstraints>
-         <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875" />
-      </columnConstraints>
-      <rowConstraints>
-         <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="250.0" vgrow="SOMETIMES" />
-      </rowConstraints>
-      <children>
-          <GridPane maxHeight="400.0" minHeight="400.0" prefHeight="400.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-              <columnConstraints>
-                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="25.0" prefWidth="100.0" />
-                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="25.0" prefWidth="100.0" />
-                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="25.0" prefWidth="100.0" />
-                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="25.0" prefWidth="100.0" />
-              </columnConstraints>
-              <rowConstraints>
-                  <RowConstraints maxHeight="1.7976931348623157E308" minHeight="62.0" percentHeight="6.0" prefHeight="62.0" vgrow="SOMETIMES" />
-                  <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="10.0" prefHeight="62.0" vgrow="SOMETIMES" />
-               <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="10.0" prefHeight="62.0" vgrow="SOMETIMES" />
-               <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="6.0" prefHeight="30.0" vgrow="SOMETIMES" />
-               <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                  <RowConstraints maxHeight="1.7976931348623157E308" percentHeight="16.0" vgrow="SOMETIMES" />
-                  <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="18.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                  <RowConstraints maxHeight="1.7976931348623157E308" minHeight="48.66668701171875" percentHeight="12.0" prefHeight="54.66668701171875" vgrow="SOMETIMES" />
-                  <RowConstraints maxHeight="1.7976931348623157E308" minHeight="48.33331298828125" percentHeight="12.0" prefHeight="48.33331298828125" vgrow="SOMETIMES" />
-              </rowConstraints>
+    <GridPane maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane" GridPane.halignment="CENTER"
+              GridPane.valignment="CENTER">
+        <columnConstraints>
+            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="250.0"
+                            vgrow="SOMETIMES"/>
+        </rowConstraints>
+        <GridPane maxHeight="400.0" minHeight="400.0" prefHeight="400.0" GridPane.halignment="CENTER"
+                  GridPane.valignment="CENTER">
+            <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="25.0" prefWidth="100.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="25.0" prefWidth="100.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="25.0" prefWidth="100.0"/>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" percentWidth="25.0" prefWidth="100.0"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="62.0" percentHeight="6.0"
+                                prefHeight="62.0" vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="10.0"
+                                prefHeight="62.0" vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="10.0"
+                                prefHeight="62.0" vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="6.0"
+                                prefHeight="30.0" vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="10.0"
+                                prefHeight="30.0" vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="1.7976931348623157E308" percentHeight="16.0" vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="18.0"
+                                prefHeight="30.0" vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="48.66668701171875" percentHeight="12.0"
+                                prefHeight="54.66668701171875" vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="48.33331298828125" percentHeight="12.0"
+                                prefHeight="48.33331298828125" vgrow="SOMETIMES"/>
+            </rowConstraints>
+            <GridPane.margin>
+                <Insets/>
+            </GridPane.margin>
+            <padding>
+                <Insets left="15.0" right="15.0"/>
+            </padding>
+            <Label text="Minimum RAM (GB)" GridPane.columnSpan="2" GridPane.halignment="CENTER"
+                   GridPane.valignment="CENTER"/>
+          <Spinner fx:id="minRamGb" editable="true" prefWidth="75.0" GridPane.columnSpan="2"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER"/>
+            <Label text="Maximum RAM (GB)" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER"
+                   GridPane.valignment="CENTER"/>
+          <Spinner fx:id="maxRamGb" editable="true" prefWidth="75.0" GridPane.columnIndex="2" GridPane.columnSpan="2"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER"/>
+            <GridPane fx:id="settingsDangerZone" styleClass="dangerZone" GridPane.columnSpan="4"
+                      GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" percentWidth="50.0"/>
+                    <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" percentWidth="50.0"/>
+                </columnConstraints>
+                <rowConstraints>
+                    <RowConstraints minHeight="10.0" percentHeight="100.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+                </rowConstraints>
+                <GridPane.margin>
+                    <Insets bottom="5.0" left="10.0" right="10.0" top="5.0"/>
+                </GridPane.margin>
+                <MFXButton fx:id="resetLauncherBtn" prefHeight="30.0" prefWidth="110.0" text="Reset Launcher"
+                           GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                    <font>
+                        <Font size="11.0"/>
+                    </font>
+                </MFXButton>
+                <MFXButton fx:id="resetRuntimeBtn" layoutX="24.0" layoutY="19.0" prefHeight="30.0" prefWidth="110.0"
+                           text="Reset Runtime" GridPane.columnIndex="1" GridPane.halignment="CENTER"
+                           GridPane.valignment="CENTER">
+                    <font>
+                        <Font size="11.0"/>
+                    </font>
+                </MFXButton>
+            </GridPane>
+            <Label fx:id="versionLabel" alignment="CENTER" prefHeight="12.0" prefWidth="207.0"
+                   text="Launcher Version: ERR_UNK" textAlignment="CENTER" GridPane.columnSpan="4"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="7" GridPane.valignment="CENTER">
+                <font>
+                    <Font size="11.0"/>
+                </font>
+          </Label>
+          <MFXButton fx:id="saveBtn" prefHeight="25.0" prefWidth="70.0" text="Save" GridPane.columnSpan="2"
+                     GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER"/>
+          <MFXButton fx:id="returnBtn" prefHeight="25.0" prefWidth="70.0" text="Return" GridPane.columnIndex="2"
+                     GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="8"
+                     GridPane.valignment="CENTER"/>
+          <MFXToggleButton fx:id="debugCheckBox" text="Debug Mode" GridPane.columnSpan="2"
+                           GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
               <GridPane.margin>
-                  <Insets />
+                  <Insets/>
               </GridPane.margin>
-              <padding>
-                  <Insets left="15.0" right="15.0" />
-              </padding>
-              <Label text="Minimum RAM (GB)" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
-            <Spinner fx:id="minRamGb" editable="true" prefWidth="75.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
-              <Label text="Maximum RAM (GB)" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
-            <Spinner fx:id="maxRamGb" editable="true" prefWidth="75.0" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
-              <GridPane fx:id="settingsDangerZone" styleClass="dangerZone" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER">
-                  <columnConstraints>
-                      <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" percentWidth="50.0" />
-                      <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" percentWidth="50.0" />
-                  </columnConstraints>
-                  <rowConstraints>
-                      <RowConstraints minHeight="10.0" percentHeight="100.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                  </rowConstraints>
-                  <GridPane.margin>
-                      <Insets bottom="5.0" left="10.0" right="10.0" top="5.0" />
-                  </GridPane.margin>
-               <MFXButton fx:id="resetLauncherBtn" prefHeight="30.0" prefWidth="110.0" text="Reset Launcher" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-                  <font>
-                     <Font size="11.0" />
-                  </font>
-               </MFXButton>
-               <MFXButton fx:id="resetRuntimeBtn" layoutX="24.0" layoutY="19.0" prefHeight="30.0" prefWidth="110.0" text="Reset Runtime" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-                  <font>
-                     <Font size="11.0" />
-                  </font>
-               </MFXButton>
-              </GridPane>
-              <Label fx:id="versionLabel" alignment="CENTER" prefHeight="12.0" prefWidth="207.0" text="Launcher Version: ERR_UNK" textAlignment="CENTER" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="7" GridPane.valignment="CENTER">
-               <font>
-                  <Font size="11.0" />
-               </font>
-            </Label>
-            <MFXButton fx:id="saveBtn" prefHeight="25.0" prefWidth="70.0" text="Save" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER" />
-            <MFXButton fx:id="returnBtn" prefHeight="25.0" prefWidth="70.0" text="Return" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER" />
-            <MFXToggleButton fx:id="debugCheckBox" text="Debug Mode" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-               <GridPane.margin>
-                  <Insets />
-               </GridPane.margin>
-            </MFXToggleButton>
-            <MFXToggleButton fx:id="windowResizeCheckBox" text="Window Resizing" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-               <font>
-                  <Font size="11.0" />
-               </font>
-            </MFXToggleButton>
-            <Label fx:id="sysRamLabel" alignment="CENTER" prefHeight="27.0" prefWidth="340.0" text="You have X GB RAM. You're currently using X GB." textAlignment="CENTER" wrapText="true" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="TOP">
-               <font>
-                  <Font size="11.0" />
-               </font>
-            </Label>
-            <MFXComboBox fx:id="themeSelection" maxHeight="25.0" maxWidth="200.0" minHeight="25.0" minWidth="200.0" prefHeight="25.0" prefWidth="200.0" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="TOP">
-               <GridPane.margin>
-                  <Insets top="2.0" />
-               </GridPane.margin>
-            </MFXComboBox>
-            <Label text="Theme" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="BOTTOM" />
-          </GridPane>
-      </children>
-   </GridPane>
+          </MFXToggleButton>
+          <MFXToggleButton fx:id="windowResizeCheckBox" text="Window Resizing" GridPane.columnIndex="2"
+                           GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="5"
+                           GridPane.valignment="CENTER">
+              <font>
+                  <Font size="11.0"/>
+              </font>
+          </MFXToggleButton>
+          <Label fx:id="sysRamLabel" alignment="CENTER" prefHeight="27.0" prefWidth="340.0"
+                 text="You have X GB RAM. You're currently using X GB." textAlignment="CENTER" wrapText="true"
+                 GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="TOP">
+              <font>
+                  <Font size="11.0"/>
+              </font>
+          </Label>
+          <MFXComboBox fx:id="themeSelection" maxHeight="25.0" maxWidth="200.0" minHeight="25.0" minWidth="200.0"
+                       prefHeight="25.0" prefWidth="200.0" GridPane.columnSpan="4" GridPane.halignment="CENTER"
+                       GridPane.rowIndex="4" GridPane.valignment="TOP">
+              <GridPane.margin>
+                  <Insets top="2.0"/>
+              </GridPane.margin>
+          </MFXComboBox>
+          <Label text="Theme" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="3"
+                 GridPane.valignment="BOTTOM"/>
+        </GridPane>
+    </GridPane>
 </GridPane>

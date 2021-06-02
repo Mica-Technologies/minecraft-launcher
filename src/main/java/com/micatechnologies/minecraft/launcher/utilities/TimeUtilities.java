@@ -27,14 +27,17 @@ public class TimeUtilities
     private static final LocalTime NIGHT_TIME_RANGE     = LocalTime.of( 21, 0, 0 );
 
     public static String getFriendlyTimeBasedGreeting() {
-        String returnString = "";
+        String returnString;
         if ( isTimeInRange( MORNING_TIME_RANGE, AFTERNOON_TIME_RANGE ) ) {
             returnString = "Good Morning";
-        } else if ( isTimeInRange( AFTERNOON_TIME_RANGE, EVENING_TIME_RANGE ) ) {
+        }
+        else if ( isTimeInRange( AFTERNOON_TIME_RANGE, EVENING_TIME_RANGE ) ) {
             returnString = "Good Afternoon";
-        } else if ( isTimeInRange( EVENING_TIME_RANGE, NIGHT_TIME_RANGE ) ) {
+        }
+        else if ( isTimeInRange( EVENING_TIME_RANGE, NIGHT_TIME_RANGE ) ) {
             returnString = "Good Evening";
-        } else {
+        }
+        else {
             returnString = "Good Night";
         }
         return returnString;

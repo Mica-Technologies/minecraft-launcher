@@ -18,7 +18,6 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.game.auth.old.AuthManager;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
@@ -53,8 +52,12 @@ public class GUIUtilities
      *
      * @since 1.0
      */
-    public static int showQuestionMessage( String title, String headerText, String contentText, String button1,
-                                           String button2, Stage owner )
+    public static int showQuestionMessage( String title,
+                                           String headerText,
+                                           String contentText,
+                                           String button1,
+                                           String button2,
+                                           Stage owner )
     {
         // Create a question dialog with the specified and created information/messages
         CountDownLatch waitForResponse = new CountDownLatch( 1 );
@@ -97,9 +100,7 @@ public class GUIUtilities
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText(
-                        "A question message latch was interrupted before handling completed." + "\n" +
-                                "Client Token: " + AuthManager.getClientToken() );
+                errorAlert.setContentText( "A question message latch was interrupted before handling completed." );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initOwner( owner );
@@ -126,7 +127,7 @@ public class GUIUtilities
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
             errorAlert.setTitle( "Oops" );
             errorAlert.setHeaderText( "Error" );
-            errorAlert.setContentText( contentText + "\nClient Token: " + AuthManager.getClientToken() );
+            errorAlert.setContentText( contentText );
             errorAlert.initModality( Modality.WINDOW_MODAL );
             errorAlert.initStyle( StageStyle.UTILITY );
             errorAlert.initOwner( owner );
@@ -148,9 +149,7 @@ public class GUIUtilities
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
                 errorAlert.setTitle( "Something's Wrong" );
                 errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText(
-                        "An error message latch was interrupted before handling completed." + "\n" + "Client Token: " +
-                                AuthManager.getClientToken() );
+                errorAlert.setContentText( "An error message latch was interrupted before handling completed." );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initOwner( owner );
@@ -197,9 +196,7 @@ public class GUIUtilities
                 Alert warningAlert = new Alert( Alert.AlertType.ERROR );
                 warningAlert.setTitle( "Something's Wrong" );
                 warningAlert.setHeaderText( "Application Error" );
-                warningAlert.setContentText(
-                        "A warning message latch was interrupted before handling completed." + "\n" + "Client Token: " +
-                                AuthManager.getClientToken() );
+                warningAlert.setContentText( "A warning message latch was interrupted before handling completed." );
                 warningAlert.initModality( Modality.WINDOW_MODAL );
                 warningAlert.initStyle( StageStyle.UTILITY );
                 warningAlert.initOwner( owner );

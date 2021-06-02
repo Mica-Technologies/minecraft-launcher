@@ -323,23 +323,6 @@ public class LocalizationManager
     public static final String COMPLETED_TEXT = localResourceBundle.getString( "COMPLETED_TEXT" );
 
     /**
-     * Message shown when a user account is not logged in and the application is going to check for a remembered user
-     * account on persistent storage.
-     *
-     * @since 1.0
-     */
-    public static final String NO_LOGIN_CHECKING_FOR_SAVED_TEXT = localResourceBundle.getString(
-            "NO_LOGIN_CHECKING_FOR_SAVED_TEXT" );
-
-    /**
-     * Message shown when a user account was not remembered or could not be found on persistent storage.
-     *
-     * @since 1.0
-     */
-    public static final String NO_REMEMBERED_ACCOUNT_TEXT = localResourceBundle.getString(
-            "NO_REMEMBERED_ACCOUNT_TEXT" );
-
-    /**
      * Message prefix shown when a user account was loaded from persistent storage.
      *
      * @since 1.0
@@ -364,28 +347,12 @@ public class LocalizationManager
             "REMEMBERED_USER_WRITE_FINISHED_TEXT" );
 
     /**
-     * Message shown when the access token of a user account could not be invalidated.
-     *
-     * @since 1.0
-     */
-    public static final String UNABLE_TO_INVALIDATE_LOGIN_TEXT = localResourceBundle.getString(
-            "UNABLE_TO_INVALIDATE_LOGIN_TEXT" );
-
-    /**
      * Message shown when the saved user account file cannot be deleted from disk.
      *
      * @since 1.0
      */
     public static final String UNABLE_REMOVE_USER_FROM_DISK_TEXT = localResourceBundle.getString(
             "UNABLE_REMOVE_USER_FROM_DISK_TEXT" );
-
-    /**
-     * Message shown when a saved user account is not present on the disk, and loading one will be skipped.
-     *
-     * @since 1.0
-     */
-    public static final String NO_USER_ON_DISK_SKIPPING_TEXT = localResourceBundle.getString(
-            "NO_USER_ON_DISK_SKIPPING_TEXT" );
 
     /**
      * Message shown when a problem prevents a saved user account from being read from the disk.
@@ -447,30 +414,6 @@ public class LocalizationManager
      * @since 1.0
      */
     public static final String LOADED_CLIENT_TOKEN_TEXT = localResourceBundle.getString( "LOADED_CLIENT_TOKEN_TEXT" );
-
-    /**
-     * Message shown when an access token could not be found in an authentication response.
-     *
-     * @since 1.0
-     */
-    public static final String AUTH_RESPONSE_NO_ACCESS_TOKEN_TEXT = localResourceBundle.getString(
-            "AUTH_RESPONSE_NO_ACCESS_TOKEN_TEXT" );
-
-    /**
-     * Message shown when an authentication response did not include a game/user profile name.
-     *
-     * @since 1.0
-     */
-    public static final String AUTH_RESPONSE_NO_PROFILE_NAME_TEXT = localResourceBundle.getString(
-            "AUTH_RESPONSE_NO_PROFILE_NAME_TEXT" );
-
-    /**
-     * Message shown when an authentication response did not include a game/user profile ID.
-     *
-     * @since 1.0
-     */
-    public static final String AUTH_RESPONSE_NO_PROFILE_ID_TEXT = localResourceBundle.getString(
-            "AUTH_RESPONSE_NO_PROFILE_ID_TEXT" );
 
     /**
      * Message shown when unable to install the specified item.
@@ -782,13 +725,6 @@ public class LocalizationManager
      */
     public static final String UNABLE_WAIT_PENDING_LOGIN_TEXT = localResourceBundle.getString(
             "UNABLE_WAIT_PENDING_LOGIN_TEXT" );
-
-    /**
-     * Message shown when the authentication of the loaded user account could not be refreshed.
-     *
-     * @since 1.0
-     */
-    public static final String AUTH_NOT_REFRESHED_TEXT = localResourceBundle.getString( "AUTH_NOT_REFRESHED_TEXT" );
 
     /**
      * Message shown when the authentication of the loaded user account was unable to be refreshed due to an exception.

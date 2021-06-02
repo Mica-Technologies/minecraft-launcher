@@ -25,7 +25,6 @@ import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import com.micatechnologies.minecraft.launcher.game.auth.old.AuthManager;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
@@ -107,6 +106,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
+    @SuppressWarnings( "unused" )
     public MCLauncherSettingsGui( Stage stage, double width, double height ) throws IOException {
         super( stage, width, height );
     }
@@ -230,7 +230,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 return;
             }
 
-            AuthManager.logout();
+            MCLauncherAuthManager.logout();
             try {
                 FileUtils.deleteDirectory(
                         SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLocalPath() ) );

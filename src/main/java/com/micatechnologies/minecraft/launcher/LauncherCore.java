@@ -20,13 +20,11 @@ package com.micatechnologies.minecraft.launcher;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import com.micatechnologies.minecraft.launcher.game.auth.old.AuthAccountMojang;
-import com.micatechnologies.minecraft.launcher.game.auth.old.AuthService;
-import com.micatechnologies.minecraft.launcher.game.auth.old.AuthManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
-import com.micatechnologies.minecraft.launcher.exceptions.AuthException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -37,10 +35,10 @@ import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
+import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
-import javafx.application.Platform;
 import org.apache.log4j.BasicConfigurator;
 
 import java.io.File;
@@ -283,11 +281,8 @@ public class LauncherCore
      * @since 2.0
      */
     public static void performClientLogin() {
-        // Check for and load saved user from disk
-        AuthAccountMojang authAccountMojang = AuthManager.getLoggedInAccount();
-
         // If no saved account, show message and login screen, otherwise continue.
-        if ( authAccountMojang == null ) {
+        if ( !MCLauncherAuthManager.hasExistingLogin() ) {
             Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
 
             // Show login screen
@@ -310,28 +305,26 @@ public class LauncherCore
                 Logger.logThrowable( e );
                 closeApp();
             }
-
         }
         else {
-            // Renew token of saved account
-            try {
-                boolean authRefreshed = AuthService.refreshAuth( authAccountMojang );
-                AuthManager.writeAccountToDiskIfRemembered();
-                if ( !authRefreshed ) {
-                    Logger.logError( LocalizationManager.AUTH_NOT_REFRESHED_TEXT );
-                }
+            // Attempt to load/renew saved user account
+            MCLauncherAuthResult authResult = MCLauncherAuthManager.renewExistingLogin();
+
+            // Check login renewal result
+            boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
+
+            if ( authSuccess ) {
+                Logger.logStd( "[" +
+                                       authResult.getMinecraftUser().getName() +
+                                       "] " +
+                                       LocalizationManager.WAS_LOGGED_IN_TO_LAUNCHER_TEXT );
             }
-            catch ( AuthException e1 ) {
+            else {
                 Logger.logError( LocalizationManager.AUTH_UNABLE_TO_REFRESH_TEXT );
-                Logger.logThrowable( e1 );
-                AuthManager.logout();
+                MCLauncherAuthManager.logout();
                 restartFlag = true;
                 restartApp();
             }
-            Logger.logStd( "[" +
-                                   authAccountMojang.getFriendlyName() +
-                                   "] " +
-                                   LocalizationManager.WAS_LOGGED_IN_TO_LAUNCHER_TEXT );
         }
     }
 
