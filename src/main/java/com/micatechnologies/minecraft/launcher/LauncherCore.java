@@ -36,14 +36,17 @@ import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import org.apache.log4j.BasicConfigurator;
+import org.checkerframework.checker.units.qual.C;
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Launcher core class. This class is the main entry point of the Mica Forge Launcher, and handles the main processes
@@ -63,6 +66,8 @@ public class LauncherCore
      */
     private static boolean restartFlag = true;
 
+    private static CountDownLatch exitLatch;
+
     /**
      * Launcher application main method/entry point.
      *
@@ -74,6 +79,7 @@ public class LauncherCore
         while ( restartFlag ) {
             // Reset restart flag to false
             restartFlag = false;
+            exitLatch = new CountDownLatch( 1 );
 
             /*
              * Parse launcher args and set game mode from parameters if present,
@@ -111,6 +117,16 @@ public class LauncherCore
 
             // Show main (mod pack selection) window
             doModpackSelection( initialModPackSelection );
+
+            // Wait for exit latch
+            try {
+                exitLatch.await();
+            }
+            catch ( InterruptedException e ) {
+                Logger.logError( "The main thread was interrupted before receiving an exit signal. The application " +
+                                         "will be unable to restart!" );
+                Logger.logThrowable( e );
+            }
         }
     }
 
@@ -390,11 +406,12 @@ public class LauncherCore
     public static void cleanupApp() {
         Logger.logStd( LocalizationManager.PERFORMING_APP_CLEANUP_TEXT );
         try {
+            DiscordRpcUtility.exit();
+            MCLauncherGuiController.exit();
             Logger.shutdownLogSys();
         }
-        catch ( IOException ignored ) {
+        catch ( Exception ignored ) {
         }
-        MCLauncherGuiController.exit();
         Logger.logStd( LocalizationManager.FINISHED_APP_CLEANUP_TEXT );
     }
 
@@ -407,6 +424,7 @@ public class LauncherCore
     public static void restartApp() {
         restartFlag = true;
         cleanupApp();
+        exitLatch.countDown();
     }
 
     /**
@@ -416,8 +434,8 @@ public class LauncherCore
      * @since 1.1
      */
     public static void closeApp() {
-        Platform.setImplicitExit( true );
         cleanupApp();
+        exitLatch.countDown();
         Logger.logStd( LocalizationManager.SEE_YOU_SOON_TEXT );
         System.exit( LauncherConstants.EXIT_STATUS_CODE_GOOD );
     }
