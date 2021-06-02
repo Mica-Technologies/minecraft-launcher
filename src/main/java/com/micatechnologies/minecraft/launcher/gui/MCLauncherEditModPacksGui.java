@@ -116,6 +116,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
+    @SuppressWarnings( "unused" )
     public MCLauncherEditModPacksGui( Stage stage, double width, double height ) throws IOException {
         super( stage, width, height );
     }

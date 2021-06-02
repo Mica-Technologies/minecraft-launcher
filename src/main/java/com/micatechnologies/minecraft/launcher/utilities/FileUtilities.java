@@ -66,20 +66,6 @@ public class FileUtilities
     }
 
     /**
-     * Reads the contents of the specified file as JSON and returns the resulting {@link JsonObject}.
-     *
-     * @param f file to read
-     *
-     * @return file contents as a {@link JsonObject}
-     *
-     * @throws IOException if unable to access or read file
-     * @since 1.0
-     */
-    public static JsonObject readAsJsonObject( File f ) throws IOException {
-        return JSONUtilities.stringToObject( readAsString( f ) );
-    }
-
-    /**
      * Writes the specified {@link JsonObject} to the specified file on persistent storage.
      *
      * @param j {@link JsonObject} to write
@@ -93,38 +79,16 @@ public class FileUtilities
     }
 
     /**
-     * Reads the contents of the specified file as a Java object and returns the resulting {@link Object}.
+     * Reads the contents of the specified file as JSON and returns the resulting {@link JsonObject}.
      *
      * @param f file to read
      *
-     * @return file contents as an {@link Object}
+     * @return file contents as a {@link JsonObject}
      *
      * @throws IOException if unable to access or read file
      * @since 1.0
      */
-    public static Object readAsObject( File f ) throws IOException, ClassNotFoundException {
-        // Create saved account file stream
-        FileInputStream fileInputStream = new FileInputStream( f );
-
-        // Create object input stream from created file input stream and return saved account
-        ObjectInputStream objectInputStream = new ObjectInputStream( fileInputStream );
-        return objectInputStream.readObject();
-    }
-
-    /**
-     * Writes the specified {@link Object} to the specified file on persistent storage.
-     *
-     * @param o {@link Object} to write
-     * @param f file to write to
-     *
-     * @throws IOException if unable to access or write to file
-     * @since 1.0
-     */
-    public static void writeFromObject( Object o, File f ) throws IOException {
-        FileOutputStream fileOutputStream = new FileOutputStream( f );
-
-        // Create object output stream from created file object stream and save account to file via stream
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream( fileOutputStream );
-        objectOutputStream.writeObject( o );
+    public static JsonObject readAsJsonObject( File f ) throws IOException {
+        return JSONUtilities.stringToObject( readAsString( f ) );
     }
 }

@@ -107,5 +107,5 @@ public class LauncherConstants
      * @since 1.1
      */
     public static final Map< String, String > JVM_PROPERTIES = Map.of( "prism.lcdtext", "false", "prism.text", "t2k",
-                                                                       "prism.order", "sw" );
+                                                                       "prism.order", "sw","sun.net.http.allowRestrictedHeaders","true" );
 }

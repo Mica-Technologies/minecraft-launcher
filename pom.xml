@@ -65,6 +65,12 @@
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
+
+        <!-- Minecraft Authenticator MAVEN REPO -->
+        <repository>
+            <id>repo.u-team.info</id>
+            <url>https://repo.u-team.info</url>
+        </repository>
     </repositories>
 
     <build>
@@ -486,6 +492,11 @@
             <groupId>net.sourceforge.argparse4j</groupId>
             <artifactId>argparse4j</artifactId>
             <version>0.9.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.hycrafthd</groupId>
+            <artifactId>minecraft_authenticator</artifactId>
+            <version>1.0.0</version>
         </dependency>
     </dependencies>
 </project>

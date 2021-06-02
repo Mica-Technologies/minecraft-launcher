@@ -20,12 +20,16 @@ package com.micatechnologies.minecraft.launcher.utilities;
 import java.io.*;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
+import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import org.apache.commons.io.FileUtils;
 
 /**
  * Class containing utility methods and other functionality that pertains to the executing system and/or operating
@@ -37,6 +41,13 @@ import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
  */
 public class SystemUtilities
 {
+
+    /**
+     * Variable containing the client token for the current installation.
+     *
+     * @since 1.0
+     */
+    private static String clientToken = null;
 
     /**
      * Executes the specified string command in the specified working directory.
@@ -206,5 +217,52 @@ public class SystemUtilities
         }
 
         return 0;
+    }
+
+    /**
+     * Gets the client token that is applicable for the current installation.
+     *
+     * @return client token
+     *
+     * @since 1.0
+     */
+    public static String getClientToken() {
+        if ( clientToken == null ) {
+            Logger.logDebug( LocalizationManager.CLIENT_TOKEN_CHECKING_TEXT );
+
+            // Attempt to read client token from saved file
+            final File clientTokenFile = SynchronizedFileManager.getSynchronizedFile(
+                    LocalPathManager.getClientTokenFilePath() );
+            if ( clientTokenFile.isFile() ) {
+                try {
+                    clientToken = FileUtils.readFileToString( clientTokenFile, FileUtilities.persistenceCharset );
+                }
+                catch ( Exception e ) {
+                    clientToken = null;
+                    Logger.logError( LocalizationManager.UNABLE_READ_STORED_CLIENT_TOKEN_TEXT );
+                    Logger.logThrowable( e );
+                }
+            }
+
+            // Generate new client token if unable to load from saved file and save to file
+            if ( clientToken == null ) {
+                clientToken = UUID.randomUUID().toString();
+                Logger.logStd( LocalizationManager.NEW_CLIENT_TOKEN_TEXT + " " + clientToken );
+                try {
+                    FileUtils.writeStringToFile( clientTokenFile, clientToken, FileUtilities.persistenceCharset );
+                    Logger.logDebug( LocalizationManager.STORED_CLIENT_TOKEN_TEXT );
+                }
+                catch ( Exception e ) {
+                    Logger.logError( LocalizationManager.UNABLE_SAVE_CLIENT_TOKEN_TEXT );
+                    Logger.logThrowable( e );
+                }
+            }
+
+            if ( clientToken != null ) {
+                Logger.logDebug( LocalizationManager.LOADED_CLIENT_TOKEN_TEXT + " " + clientToken );
+            }
+        }
+
+        return clientToken;
     }
 }

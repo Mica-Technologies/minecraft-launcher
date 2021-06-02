@@ -23,7 +23,7 @@ import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.game.auth.old.AuthManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
@@ -164,6 +164,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @throws IOException if unable to load FXML file specified
      */
+    @SuppressWarnings( "unused" )
     public MCLauncherMainGui( Stage stage, double width, double height ) throws IOException {
         super( stage, width, height );
     }
@@ -284,7 +285,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         // Configure logout button
         logoutBtn.setOnAction( actionEvent -> {
-            AuthManager.logout();
+            MCLauncherAuthManager.logout();
             LauncherCore.restartApp();
         } );
 
@@ -330,13 +331,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure user label
         playerLabel.setText( TimeUtilities.getFriendlyTimeBasedGreeting() +
                                      ",\n" +
-                                     AuthManager.getLoggedInAccount().getFriendlyName() );
+                                     MCLauncherAuthManager.getLoggedInUser().getName() );
 
         // Configure user image
         userImage.setImage( new Image(
                 GUIConstants.URL_MINECRAFT_USER_ICONS.replace( GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
-                                                               AuthManager.getLoggedInAccount()
-                                                                          .getUserIdentifier() ) ) );
+                                                               MCLauncherAuthManager.getLoggedInUser().getUuid() ) ) );
 
         // Configure ENTER key to press play button
         scene.setOnKeyPressed( keyEvent -> {
