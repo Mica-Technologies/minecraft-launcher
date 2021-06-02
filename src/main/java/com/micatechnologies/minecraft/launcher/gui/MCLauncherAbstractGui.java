@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -37,7 +38,7 @@ public abstract class MCLauncherAbstractGui
     /**
      * The JavaFX scene object which is created from the FXML file specified by {@link #getSceneFxmlPath()}.
      */
-    final Scene scene;
+    Scene scene = null;
 
     final Stage stage;
 
@@ -57,17 +58,30 @@ public abstract class MCLauncherAbstractGui
      * @throws IOException if unable to load FXML file specified
      */
     public MCLauncherAbstractGui( Stage stage ) throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader();
-        URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
-        fxmlLoader.setLocation( resource );
-        fxmlLoader.setController( this );
-        if ( stage.getScene() != null ) {
-            scene = new Scene( fxmlLoader.load(), stage.getScene().getWidth(), stage.getScene().getHeight() );
-        }
-        else {
-            scene = new Scene( fxmlLoader.load() );
-        }
+        GUIUtilities.JFXPlatformRun( () -> {
+            try {
+                FXMLLoader fxmlLoader = new FXMLLoader();
+                URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
+                fxmlLoader.setLocation( resource );
+                fxmlLoader.setController( this );
+                if ( stage.getScene() != null ) {
+                    scene = new Scene( fxmlLoader.load(), stage.getScene().getWidth(), stage.getScene().getHeight() );
+                }
+                else {
+                    scene = new Scene( fxmlLoader.load() );
+                }
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Unable to build FXML loader for the application GUI." );
+                Logger.logThrowable( e );
+                scene = null;
+            }
+        } );
         this.stage = stage;
+
+        if ( scene == null ) {
+            throw new IOException( "The internal GUI scene object was null due to an initialization failure!" );
+        }
     }
 
     /**
@@ -77,17 +91,30 @@ public abstract class MCLauncherAbstractGui
      * @throws IOException if unable to load FXML file specified
      */
     public MCLauncherAbstractGui( Stage stage, double width, double height ) throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader();
-        URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
-        fxmlLoader.setLocation( resource );
-        fxmlLoader.setController( this );
-        if ( stage.getScene() != null ) {
-            scene = new Scene( fxmlLoader.load(), width, height );
-        }
-        else {
-            scene = new Scene( fxmlLoader.load() );
-        }
+        GUIUtilities.JFXPlatformRun( () -> {
+            try {
+                FXMLLoader fxmlLoader = new FXMLLoader();
+                URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
+                fxmlLoader.setLocation( resource );
+                fxmlLoader.setController( this );
+                if ( stage.getScene() != null ) {
+                    scene = new Scene( fxmlLoader.load(), width, height );
+                }
+                else {
+                    scene = new Scene( fxmlLoader.load() );
+                }
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Unable to build FXML loader for the application GUI." );
+                Logger.logThrowable( e );
+                scene = null;
+            }
+        } );
         this.stage = stage;
+
+        if ( scene == null ) {
+            throw new IOException( "The internal GUI scene object was null due to an initialization failure!" );
+        }
     }
 
     public void hideStage() {
