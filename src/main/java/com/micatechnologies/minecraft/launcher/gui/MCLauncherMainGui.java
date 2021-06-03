@@ -204,7 +204,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         SystemUtilities.spawnNewTask(
                 () -> DiscordRpcUtility.setRichPresence( "In Menus", "Selecting a Mod Pack", OffsetDateTime.now(),
                                                          "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                                         "mica_minecraft_launcher", "Mica Minecraft Launcher" ) );
+                                                         "clipboard", "Selecting a Mod Pack" ) );
 
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
@@ -257,8 +257,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 SystemUtilities.spawnNewTask(
                         () -> DiscordRpcUtility.setRichPresence( "In Menus", "Settings", OffsetDateTime.now(),
                                                                  "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                                                 "mica_minecraft_launcher",
-                                                                 "Mica Minecraft Launcher" ) );
+                                                                 "settings", "Settings" ) );
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to load settings GUI due to an incomplete response from the GUI subsystem." );
@@ -273,8 +272,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 SystemUtilities.spawnNewTask(
                         () -> DiscordRpcUtility.setRichPresence( "In Menus", "Editing Mod Packs", OffsetDateTime.now(),
                                                                  "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                                                 "mica_minecraft_launcher",
-                                                                 "Mica Minecraft Launcher" ) );
+                                                                 "download", "Editing Mod Packs" ) );
             }
             catch ( IOException e ) {
                 Logger.logError(
@@ -296,9 +294,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     packSelection.getSelectedValue() );
             SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)", "Mod Pack: " +
                                                                                            installedModPackByFriendlyName.getPackName(), OffsetDateTime.now(), "mica_minecraft_launcher",
-                                                                                   "Mica Minecraft Launcher",
-                                                                                   "mica_minecraft_launcher",
-                                                                                   "Mica Minecraft Launcher" ) );
+                                                                                   "Mica Minecraft Launcher", "game",
+                                                                                   "In Game" ) );
             LauncherCore.play( installedModPackByFriendlyName, () -> GUIUtilities.JFXPlatformRun( () -> {
                 try {
                     Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
