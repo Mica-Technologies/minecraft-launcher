@@ -87,7 +87,14 @@ public class DiscordRpcUtility
 
     public static void exit() {
         if ( discordRpcClient != null ) {
-            discordRpcClient.close();
+            try {
+                discordRpcClient.close();
+                discordRpcClient = null;
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "An exception occurred while exiting the Discord rich presence client!" );
+                Logger.logThrowable( e );
+            }
         }
     }
 }
