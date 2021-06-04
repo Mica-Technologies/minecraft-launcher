@@ -60,7 +60,7 @@ __Basic Example__:
     "packURL": "www.example.com",
     "packLogoURL": "https://image.shutterstock.com/image-vector/example-signlabel-features-speech-bubble-260nw-1223219848.jpg",
     "packMinRAMGB": "4",
-    "packForgeURL": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.12.2-14.23.5.2847/forge-1.12.2-14.23.5.2847-universal.jar",
+    "packForgeURL": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.12.2-14.23.5.2847/forge-1.12.2-14.23.5.2847-installer.jar",
     "packForgeHash": "c15dbf708064a9db9a9d66dd84688b9f31b6006e",
     "packMods": [{
             "name": "Journey Map",
@@ -93,7 +93,7 @@ __Full Example__:
     "packLogoURL": "https://image.shutterstock.com/image-vector/example-signlabel-features-speech-bubble-260nw-1223219848.jpg",
     "packBackgroundURL": "https://wallpaperstock.net/minecraft-wallpapers_27410_1600x1200.jpg",
     "packMinRAMGB": "4",
-    "packForgeURL": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.12.2-14.23.5.2847/forge-1.12.2-14.23.5.2847-universal.jar",
+    "packForgeURL": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.12.2-14.23.5.2847/forge-1.12.2-14.23.5.2847-installer.jar",
     "packForgeHash": "c15dbf708064a9db9a9d66dd84688b9f31b6006e",
     "packMods": [{
             "name": "Journey Map",
