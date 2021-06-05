@@ -34,7 +34,7 @@
         <timestamp>${maven.build.timestamp}</timestamp>
         <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
         <dependency.locations.enabled>false</dependency.locations.enabled>
-        <jna.version>5.8.0</jna.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javafx.version>16</javafx.version>
     </properties>
 
@@ -45,19 +45,6 @@
             <id>jcenter</id>
             <url>https://jcenter.bintray.com</url>
             <name>jcenter-bintray</name>
-        </repository>
-
-        <!-- CyberDuck MAVEN REPOSITORY -->
-        <repository>
-            <id>maven.cyberduck.io-release</id>
-            <url>http://repo.maven.cyberduck.io.s3.amazonaws.com/releases/</url>
-            <layout>default</layout>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
         </repository>
 
         <!-- GitHub BASED MAVEN REPOS -->
@@ -84,6 +71,10 @@
                     <filesets>
                         <fileset>
                             <directory>target</directory>
+                            <followSymlinks>false</followSymlinks>
+                        </fileset>
+                        <fileset>
+                            <directory>packaging</directory>
                             <followSymlinks>false</followSymlinks>
                         </fileset>
                     </filesets>
@@ -171,15 +162,15 @@
                 </executions>
             </plugin>
 
-            <!-- DOWNLOAD JAVA RUNTIMES -->
+            <!-- DOWNLOAD JAVA RUNTIME -->
             <plugin>
                 <groupId>com.igormaznitsa</groupId>
                 <artifactId>mvn-jlink-wrapper</artifactId>
                 <version>1.0.5</version>
                 <executions>
-                    <!-- CACHE MAC JDK -->
+                    <!-- CACHE JDK -->
                     <execution>
-                        <id>cache-jdk-mac</id>
+                        <id>cache-jdk</id>
                         <goals>
                             <goal>cache-jdk</goal>
                         </goals>
@@ -189,46 +180,9 @@
                                 <type>jdk</type>
                                 <version>16.0.1+9</version>
                                 <arch>amd64-full</arch>
-                                <os>macos</os>
                             </providerConfig>
-                            <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}mac</jdkCachePath>
-                            <jdkPathProperty>jlink.mac.jdk.path</jdkPathProperty>
-                        </configuration>
-                    </execution>
-                    <!-- CACHE WIN JDK -->
-                    <execution>
-                        <id>cache-jdk-win</id>
-                        <goals>
-                            <goal>cache-jdk</goal>
-                        </goals>
-                        <configuration>
-                            <provider>BELLSOFT</provider>
-                            <providerConfig>
-                                <type>jdk</type>
-                                <version>16.0.1+9</version>
-                                <arch>amd64-full</arch>
-                                <os>windows</os>
-                            </providerConfig>
-                            <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}win</jdkCachePath>
-                            <jdkPathProperty>jlink.win.jdk.path</jdkPathProperty>
-                        </configuration>
-                    </execution>
-                    <!-- CACHE LINUX JDK -->
-                    <execution>
-                        <id>cache-jdk-lin</id>
-                        <goals>
-                            <goal>cache-jdk</goal>
-                        </goals>
-                        <configuration>
-                            <provider>BELLSOFT</provider>
-                            <providerConfig>
-                                <type>jdk</type>
-                                <version>16.0.1+9</version>
-                                <arch>amd64-full</arch>
-                                <os>linux</os>
-                            </providerConfig>
-                            <jdkCachePath>${project.basedir}${file.separator}jre${file.separator}lin</jdkCachePath>
-                            <jdkPathProperty>jlink.lin.jdk.path</jdkPathProperty>
+                            <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
+                            <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
                 </executions>
@@ -237,7 +191,7 @@
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
-                <version>1.5.1</version>
+                <version>1.6.0-SNAPSHOT</version>
                 <configuration>
                     <mainClass>${main.class}</mainClass>
                     <bundleJre>true</bundleJre>
@@ -249,6 +203,9 @@
                         ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
                     </runnableJar>
                     <copyDependencies>false</copyDependencies>
+                    <outputDirectory>${project.basedir}${file.separator}packaging</outputDirectory>
+                    <!--suppress UnresolvedMavenProperty -->
+                    <jdkPath>${jlink.jdk.path}</jdkPath>
                     <additionalResources>
                         <additionalResource>
                             ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
@@ -262,49 +219,16 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>bundling-for-windows</id>
+                        <id>bundling</id>
                         <phase>package</phase>
                         <goals>
                             <goal>package</goal>
                         </goals>
-                        <configuration>
-                            <platform>windows</platform>
-                            <createZipball>true</createZipball>
-                            <!--suppress UnresolvedMavenProperty -->
-                            <jdkPath>${jlink.win.jdk.path}</jdkPath>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>bundling-for-linux</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>package</goal>
-                        </goals>
-                        <configuration>
-                            <platform>linux</platform>
-                            <createTarball>true</createTarball>
-                            <!--suppress UnresolvedMavenProperty -->
-                            <jdkPath>${jlink.lin.jdk.path}</jdkPath>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>bundling-for-mac</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>package</goal>
-                        </goals>
-                        <configuration>
-                            <platform>mac</platform>
-                            <createTarball>true</createTarball>
-                            <!--suppress UnresolvedMavenProperty -->
-                            <jdkPath>${jlink.mac.jdk.path}</jdkPath>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
     </build>
-
 
     <dependencies>
         <dependency>

@@ -1,0 +1,125 @@
+name: Build Packages
+
+on: [ push ]
+
+jobs:
+  pkg_win:
+    name: Build Windows Package(s)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v1
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+          java-package: jdk+fx
+      - name: Set up Maven caching
+        uses: actions/cache@v2.1.4
+        with:
+          path: |
+            ~/.m2
+            jdk
+          key: '${{ runner.os }}-m2-${{ hashFiles(''**/pom.xml'') }}'
+          restore-keys: '${{ runner.os }}-m2'
+      - name: (PATCH) Install Java packager SNAPSHOT version
+        run: |
+          git clone https://github.com/fvarrui/JavaPackager.git
+          cd JavaPackager
+          ./gradlew publishToMavenLocal
+      - name: Set path for Wix Toolset
+        env:
+          WIX_PATH: ${{ env.wix }}
+        run: echo "$env:WIX_PATH\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Set up JDK 16
+        uses: actions/setup-java@v1
+        with:
+          java-version: 16
+          java-package: jdk+fx
+      - name: Build and package with Maven
+        run: mvn -B package --file pom.xml
+      - name: Upload Windows package(s) as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: windows-pkg-output
+          path: |
+            packaging
+            !packaging/assets
+  pkg_mac:
+    name: Build macOS Package(s)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v1
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+          java-package: jdk+fx
+      - name: Set up Maven caching
+        uses: actions/cache@v2.1.4
+        with:
+          path: |
+            ~/.m2
+            jdk
+          key: '${{ runner.os }}-m2-${{ hashFiles(''**/pom.xml'') }}'
+          restore-keys: '${{ runner.os }}-m2'
+      - name: (PATCH) Install Java packager SNAPSHOT version
+        run: |
+          git clone https://github.com/fvarrui/JavaPackager.git
+          cd JavaPackager
+          ./gradlew publishToMavenLocal
+      - name: Set up JDK 16
+        uses: actions/setup-java@v1
+        with:
+          java-version: 16
+          java-package: jdk+fx
+      - name: Build and package with Maven
+        run: mvn -B package --file pom.xml
+      - name: Upload macOS package(s) as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: mac-pkg-output
+          path: |
+            packaging
+            !packaging/assets
+  pkg_lnx:
+    name: Build Linux Package(s)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v1
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+          java-package: jdk+fx
+      - name: Download build tools
+        run: sudo apt install -y dpkg rpm
+      - name: Set up Maven caching
+        uses: actions/cache@v2.1.4
+        with:
+          path: |
+            ~/.m2
+            jdk
+          key: '${{ runner.os }}-m2-${{ hashFiles(''**/pom.xml'') }}'
+          restore-keys: '${{ runner.os }}-m2'
+      - name: (PATCH) Install Java packager SNAPSHOT version
+        run: |
+          git clone https://github.com/fvarrui/JavaPackager.git
+          cd JavaPackager
+          ./gradlew publishToMavenLocal
+      - name: Set up JDK 16
+        uses: actions/setup-java@v1
+        with:
+          java-version: 16
+          java-package: jdk+fx
+      - name: Build and package with Maven
+        run: mvn -B package --file pom.xml
+      - name: Upload Linux package(s) as artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: linux-pkg-output
+          path: |
+            packaging
+            !packaging/assets
