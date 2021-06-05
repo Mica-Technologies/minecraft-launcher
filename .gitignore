@@ -44,7 +44,7 @@ buildNumber.properties
 Thumbs.db
 
 # Local JDK Ignore
-jre/
+jdk/
 
 ## IntelliJ/Jetbrains GitIgnore
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
@@ -118,3 +118,6 @@ fabric.properties
 
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
+
+# Packaging files
+packaging/
