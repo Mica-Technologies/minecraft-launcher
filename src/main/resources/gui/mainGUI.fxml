@@ -121,23 +121,23 @@
             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
             </columnConstraints>
             <rowConstraints>
-            <RowConstraints fillHeight="false" maxHeight="45.0" minHeight="45.0" prefHeight="45.0" />
-                <RowConstraints maxHeight="45.0" minHeight="45.0" prefHeight="45.0" />
-            <RowConstraints maxHeight="45.0" minHeight="45.0" prefHeight="45.0" vgrow="SOMETIMES" />
+            <RowConstraints maxHeight="45.0" minHeight="45.0" prefHeight="45.0" />
+                <RowConstraints maxHeight="50.0" minHeight="50.0" prefHeight="50.0" />
+            <RowConstraints maxHeight="50.0" minHeight="50.0" prefHeight="50.0" />
             </rowConstraints>
-            <MFXButton fx:id="settingsBtn" prefHeight="25.0" prefWidth="80.0" text="Settings" GridPane.halignment="RIGHT" GridPane.rowIndex="1" GridPane.valignment="CENTER">
-                <GridPane.margin>
-                    <Insets right="12.0" />
-                </GridPane.margin>
-            </MFXButton>
-            <MFXButton fx:id="exitBtn" prefHeight="25.0" prefWidth="80.0" text="Exit" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+            <MFXButton fx:id="settingsBtn" prefHeight="25.0" prefWidth="80.0" text="Settings" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
                 <GridPane.margin>
                     <Insets />
                 </GridPane.margin>
             </MFXButton>
-         <MFXButton fx:id="logoutBtn" alignment="CENTER" prefHeight="25.0" prefWidth="80.0" styleClass="logoutBtn" text="Log Out" GridPane.columnIndex="1" GridPane.halignment="LEFT" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+            <MFXButton fx:id="exitBtn" prefHeight="25.0" prefWidth="80.0" text="Exit" GridPane.columnIndex="1" GridPane.halignment="LEFT" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+                <GridPane.margin>
+                    <Insets left="20.0" />
+                </GridPane.margin>
+            </MFXButton>
+         <MFXButton fx:id="logoutBtn" alignment="CENTER" prefHeight="25.0" prefWidth="80.0" styleClass="logoutBtn" text="Log Out" GridPane.halignment="RIGHT" GridPane.rowIndex="2" GridPane.valignment="CENTER">
              <GridPane.margin>
-                 <Insets left="12.0" />
+                 <Insets right="20.0" />
              </GridPane.margin>
          </MFXButton>
            <ImageView fx:id="updateImgView" fitHeight="36.0" fitWidth="26.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
