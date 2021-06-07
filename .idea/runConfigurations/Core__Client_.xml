@@ -4,6 +4,7 @@
     <option name="MAIN_CLASS_NAME" value="com.micatechnologies.minecraft.launcher.LauncherCore" />
     <module name="launcher" />
     <option name="PROGRAM_PARAMETERS" value="-c" />
+    <option name="VM_PARAMETERS" value="--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="com.micatechnologies.minecraft.launcher.*" />

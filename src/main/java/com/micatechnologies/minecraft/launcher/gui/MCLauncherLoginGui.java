@@ -347,6 +347,11 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
                                                          "Logging In" ) );
     }
 
+    @Override
+    void cleanup() {
+
+    }
+
     /**
      * Method to handle the processing of a bad login. This method should show a warning to the end-user, and reset the
      * password field.

@@ -301,6 +301,11 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
 
     }
 
+    @Override
+    void cleanup() {
+
+    }
+
     /**
      * Populates the installed mod pack list and installable mod pack lists.
      *
