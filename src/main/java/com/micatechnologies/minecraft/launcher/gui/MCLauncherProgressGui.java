@@ -139,7 +139,7 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         // Set filler display information
         setUpperLabelText( INITIAL_UPPER_LABEL_TEXT );
         setLowerLabelText( INITIAL_LOWER_LABEL_TEXT );
-        setProgress( MFXProgressBar.INDETERMINATE_PROGRESS );
+        setProgress( 0.0 );
     }
 
     @Override

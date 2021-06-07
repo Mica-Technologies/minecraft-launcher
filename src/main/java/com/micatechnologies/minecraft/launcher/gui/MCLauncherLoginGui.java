@@ -26,6 +26,7 @@ import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXPasswordField;
 import io.github.palexdev.materialfx.controls.MFXTextField;
 import io.github.palexdev.materialfx.controls.MFXToggleButton;
 import javafx.fxml.FXML;
@@ -68,7 +69,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXTextField passwordField;
+    MFXPasswordField passwordField;
 
     /**
      * Account remember me option check box. If checked, this enabled saving of the account on persistent storage so it
@@ -211,7 +212,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
             // Get login information from fields
             String email = emailField.getText();
-            String password = passwordField.getText();
+            String password = passwordField.getPassword();
 
             // Attempt login
             MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMojangAccount( email, password,
