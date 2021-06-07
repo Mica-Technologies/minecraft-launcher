@@ -27,6 +27,12 @@
 
 .label {
     -fx-text-fill: #fff;
+    -mfx-text-fill: #fff;
+}
+
+.mfx-label {
+    -fx-text-fill: #fff;
+    -mfx-text-fill: #fff;
 }
 
 
