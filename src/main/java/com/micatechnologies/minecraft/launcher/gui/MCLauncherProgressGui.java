@@ -21,6 +21,8 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
+import com.nativejavafx.taskbar.TaskbarProgressbar;
+import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -73,6 +75,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      */
     private static final String INITIAL_LOWER_LABEL_TEXT = "Fetching progress information...";
 
+    private TaskbarProgressbar taskbarProgressbar = null;
+
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
      * controller.
@@ -118,21 +122,34 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      */
     @Override
     void setup() {
-        // Set filler display information
-        setUpperLabelText( INITIAL_UPPER_LABEL_TEXT );
-        setLowerLabelText( INITIAL_LOWER_LABEL_TEXT );
-        setProgress( MFXProgressBar.INDETERMINATE_PROGRESS );
-
         // Configure window close
         stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();
             LauncherCore.closeApp();
         } );
+
+        // Setup taskbar progress bar
+        if ( TaskbarProgressbar.isSupported() ) {
+            taskbarProgressbar = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
+        }
     }
 
     @Override
     void afterShow() {
+        // Set filler display information
+        setUpperLabelText( INITIAL_UPPER_LABEL_TEXT );
+        setLowerLabelText( INITIAL_LOWER_LABEL_TEXT );
+        setProgress( MFXProgressBar.INDETERMINATE_PROGRESS );
+    }
 
+    @Override
+    void cleanup() {
+        if ( taskbarProgressbar != null ) {
+            GUIUtilities.JFXPlatformRun( () -> {
+                taskbarProgressbar.stopProgress();
+                taskbarProgressbar.closeOperations();
+            } );
+        }
     }
 
     /**
@@ -172,10 +189,31 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      * @since 1.0
      */
     public void setProgress( double progress ) {
+        // Calculate proper value
+        final double baseProgValue = ( progress == MFXProgressBar.INDETERMINATE_PROGRESS ) ?
+                                     ( progress ) :
+                                     ( progress / GameModPackProgressProvider.PROGRESS_PERCENT_BASE );
+
         // Update progress bar
         GUIUtilities.JFXPlatformRun( () -> {
-            final double baseProgValue = progress / GameModPackProgressProvider.PROGRESS_PERCENT_BASE;
+            // Update GUI progress bar
             progressBar.setProgress( baseProgValue );
+
+            // Update taskbar progress bar
+            try {
+                if ( taskbarProgressbar != null ) {
+                    if ( baseProgValue == MFXProgressBar.INDETERMINATE_PROGRESS ) {
+                        taskbarProgressbar.showIndeterminateProgress();
+                    }
+                    else {
+                        taskbarProgressbar.showCustomProgress( baseProgValue, TaskbarProgressbar.Type.NORMAL );
+                    }
+                }
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Failed to update progress bar on taskbar icon!" );
+                Logger.logThrowable( e );
+            }
         } );
 
         // Print progress to logs

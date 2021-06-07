@@ -381,6 +381,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
     }
 
+    @Override
+    void cleanup() {
+
+    }
+
     /**
      * Custom change listener for handling a change in the selection of the mod pack list. Updates the mod pack logo and
      * information for the newly selected mod pack.

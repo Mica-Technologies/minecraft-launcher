@@ -377,6 +377,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                       .addListener( ( observable, oldValue, newValue ) -> setEdited( true ) );
     }
 
+    @Override
+    void cleanup() {
+
+    }
+
     private void setEdited( boolean edited ) {
         dirty = edited;
     }

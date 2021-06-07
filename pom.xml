@@ -36,6 +36,7 @@
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javafx.version>16</javafx.version>
+        <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED</jfxtaskbarprogressbar.export>
     </properties>
 
     <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
@@ -130,6 +131,10 @@
                     <source>16</source>
                     <target>16</target>
                     <encoding>UTF-8</encoding>
+                    <parameters>true</parameters>
+                    <compilerArgs>
+                        <arg>${jfxtaskbarprogressbar.export}</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
 
@@ -217,6 +222,9 @@
                             ${project.basedir}${file.separator}assets${file.separator}mac${file.separator}micaforgelauncher.entitlements
                         </entitlements>
                     </macConfig>
+                    <vmArgs>
+                        <vmArg>${jfxtaskbarprogressbar.export}</vmArg>
+                    </vmArgs>
                 </configuration>
                 <executions>
                     <execution>
@@ -311,6 +319,11 @@
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
             <version>3.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.Dansoftowner</groupId>
+            <artifactId>FXTaskbarProgressBar</artifactId>
+            <version>v11.4</version>
         </dependency>
     </dependencies>
 </project>

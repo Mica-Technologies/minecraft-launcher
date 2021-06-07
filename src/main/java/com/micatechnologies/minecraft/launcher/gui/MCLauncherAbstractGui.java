@@ -138,9 +138,10 @@ public abstract class MCLauncherAbstractGui
     /**
      * Abstract method: This method must perform initialization and setup of the scene and @FXML components.
      */
-    @FXML
     abstract void setup();
 
     abstract void afterShow();
+
+    abstract void cleanup();
 }
 

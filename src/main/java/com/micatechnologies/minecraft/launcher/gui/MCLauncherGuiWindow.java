@@ -85,6 +85,12 @@ public class MCLauncherGuiWindow extends Application
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
+        // Cleanup previous GUI, if present
+        if ( this.gui != null ) {
+            this.gui.cleanup();
+        }
+
+        // Store new GUI and set it up
         this.gui = gui;
         GUIUtilities.JFXPlatformRun( () -> {
             // Prepare scene environment
