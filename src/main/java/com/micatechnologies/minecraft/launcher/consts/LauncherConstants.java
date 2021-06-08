@@ -43,7 +43,7 @@ public class LauncherConstants
      *
      * @since 1.0
      */
-    public final static String LAUNCHER_APPLICATION_VERSION = "99.9.2021.2";
+    public final static String LAUNCHER_APPLICATION_VERSION = "2021.2";
 
     /**
      * Launcher application name without spaces.

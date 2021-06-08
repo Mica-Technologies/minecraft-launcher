@@ -24,7 +24,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>launcher</artifactId>
-    <version>99.9.2021.2</version>
+    <version>2021.2</version>
     <name>Mica Minecraft Launcher</name>
     <packaging>jar</packaging>
 
