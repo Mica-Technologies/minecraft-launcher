@@ -2,9 +2,9 @@
 
 Please consider the following items prior to completing the rest of this issue form.
 
-- [ ] Are you running the latest launcher version?  (See: http://www.github.com/Mica-Technologies/Minecraft-Forge-Launcher/releases/latest)
-- [ ] Did you check the launcher documentation? (See: http://www.github.com/Mica-Technologies/Minecraft-Forge-Launcher/README.md)
-- [ ] Has the issue has been reported already? (See: http://www.github.com/Mica-Technologies/Minecraft-Forge-Launcher/issues)
+- [ ] Are you running the latest launcher version?  (See: http://www.github.com/Mica-Technologies/minecraft-launcher/releases/latest)
+- [ ] Did you check the launcher documentation? (See: http://www.github.com/Mica-Technologies/minecraft-launcher/README.md)
+- [ ] Has the issue has been reported already? (See: http://www.github.com/Mica-Technologies/minecraft-launcher/issues)
 
 # EXPECTED BEHAVIOR
 
@@ -37,4 +37,4 @@ Please provide any relevant information about your setup/system. This is importa
 
 ## LOGS
 
-Please include any relevant logs or other output here. Launcher logs can be found in your user directory, in the .MicaForgeLauncher/logs folder.
+Please include any relevant logs or other output here. Launcher logs can be found in your user directory, in the .MicaMinecraftLauncher/logs folder.
