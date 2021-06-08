@@ -1,12 +1,14 @@
 # DESCRIPTION
 
-Fixes issue #(number here)
+Please include a summary of the change and which issue is fixed. Please also include any additional information relevant
+ to this pull request. Also, include any issues which are resolved by this pull request below. If none are included, you
+  can remove `Fixes #(issue number here)`
 
-Please include a summary of the change and which issue is fixed. Please also include any additional information relevant to this pull request.
+Fixes #(issue number here)
 
 ## TYPE
 
-Please mark or select all that apply to this pull request. Documentation changes shall be completed in separate pull requests from code.
+Please mark or select all that apply to this pull request.
 
 - [ ] BUG FIX (fixes an issue or bug)
 - [ ] NEW FEATURE (add new functionality or a new feature)
