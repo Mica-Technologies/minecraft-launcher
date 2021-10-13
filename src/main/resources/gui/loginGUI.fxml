@@ -32,7 +32,9 @@
   ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0" prefHeight="550.0" prefWidth="750.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
+<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
+          prefHeight="625.0" prefWidth="750.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css"
+          xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
     </columnConstraints>
