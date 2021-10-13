@@ -67,6 +67,13 @@ public class ConfigConstants
     public static final boolean LOG_DEBUG_ENABLE_DEFAULT = false;
 
     /**
+     * The default value for Discord RPC being enabled.
+     *
+     * @since 1.0
+     */
+    public static final boolean DISCORD_RPC_ENABLE_DEFAULT = true;
+
+    /**
      * The default value for resizable windows being enabled.
      *
      * @since 1.0
@@ -136,6 +143,13 @@ public class ConfigConstants
      * @since 1.0
      */
     public static final String LOG_DEBUG_ENABLE_KEY = "debug";
+
+    /**
+     * Key for accessing the Discord RPC enable value.
+     *
+     * @since 1.0
+     */
+    public static final String DISCORD_RPC_ENABLE_KEY = "discordRpc";
 
     /**
      * Key for accessing the resizable windows enable value.

@@ -171,6 +171,48 @@ public class ConfigManager
     }
 
     /**
+     * Gets the configured state of Discord RPC for the application.
+     *
+     * @return true if Discord RPC enabled, otherwise false
+     *
+     * @since 2.0
+     */
+    public synchronized static boolean getDiscordRpcEnable() {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        if ( !configObject.has( ConfigConstants.DISCORD_RPC_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.DISCORD_RPC_ENABLE_KEY,
+                                      ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
+        }
+
+        // Get and return value of min RAM
+        return configObject.get( ConfigConstants.DISCORD_RPC_ENABLE_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Sets the configured state of Discord RPC for the application.
+     *
+     * @param discordRpcEnable true to enable Discord RPC, otherwise false
+     *
+     * @since 2.0
+     */
+    public synchronized static void setDiscordRpcEnable( boolean discordRpcEnable ) {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        // Set value of debug logging
+        configObject.addProperty( ConfigConstants.DISCORD_RPC_ENABLE_KEY, discordRpcEnable );
+
+        // Save configuration to disk
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Gets the configured state of resizable windows for the application.
      *
      * @return true if resizable windows enabled, otherwise false
@@ -395,6 +437,7 @@ public class ConfigManager
             setMinRam( ConfigConstants.MIN_RAM_MEGABYTES_DEFAULT );
             setMaxRam( ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT );
             setDebugLogging( ConfigConstants.LOG_DEBUG_ENABLE_DEFAULT );
+            setDiscordRpcEnable( ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
             setResizableWindows( ConfigConstants.RESIZE_WINDOWS_ENABLE_DEFAULT );
             setInstalledModPacks( ConfigConstants.MOD_PACKS_INSTALLED_DEFAULT );
             Logger.logStd( LocalizationManager.CONFIG_RESET_SUCCESS_TEXT );

@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 import com.jagrosh.discordipc.IPCClient;
 import com.jagrosh.discordipc.IPCListener;
 import com.jagrosh.discordipc.entities.RichPresence;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.time.OffsetDateTime;
@@ -30,27 +31,29 @@ public class DiscordRpcUtility
     private static       IPCClient discordRpcClient = null;
 
     private static void init() {
-        try {
-            discordRpcClient = new IPCClient( CLIENT_ID );
-            discordRpcClient.setListener( new IPCListener()
-            {
-                @Override
-                public void onReady( IPCClient client )
+        if ( ConfigManager.getDiscordRpcEnable() ) {
+            try {
+                discordRpcClient = new IPCClient( CLIENT_ID );
+                discordRpcClient.setListener( new IPCListener()
                 {
-                    RichPresence.Builder builder = new RichPresence.Builder();
-                    builder.setState( "In Menus" )
-                           .setDetails( "Loading" )
-                           .setStartTimestamp( OffsetDateTime.now() )
-                           .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
-                           .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
-                    client.sendRichPresence( builder.build() );
-                }
-            } );
-            discordRpcClient.connect();
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( "Unable to setup Discord rich presence!" );
-            Logger.logThrowable( e );
+                    @Override
+                    public void onReady( IPCClient client )
+                    {
+                        RichPresence.Builder builder = new RichPresence.Builder();
+                        builder.setState( "In Menus" )
+                               .setDetails( "Loading" )
+                               .setStartTimestamp( OffsetDateTime.now() )
+                               .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
+                               .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
+                        client.sendRichPresence( builder.build() );
+                    }
+                } );
+                discordRpcClient.connect();
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Unable to setup Discord rich presence!" );
+                Logger.logThrowable( e );
+            }
         }
     }
 
@@ -62,25 +65,27 @@ public class DiscordRpcUtility
                                         String smallImageKey,
                                         String smallImageText )
     {
-        // Init if required
-        if ( discordRpcClient == null ) {
-            init();
-        }
-
-        // Set rich presence if possible
-        if ( discordRpcClient != null ) {
-            try {
-                RichPresence.Builder builder = new RichPresence.Builder();
-                builder.setState( state )
-                       .setDetails( details )
-                       .setStartTimestamp( startTimestamp )
-                       .setLargeImage( largeImageKey, largeImageText )
-                       .setSmallImage( smallImageKey, smallImageText );
-                discordRpcClient.sendRichPresence( builder.build() );
+        if ( ConfigManager.getDiscordRpcEnable() ) {
+            // Init if required
+            if ( discordRpcClient == null ) {
+                init();
             }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to update Discord rich presence!" );
-                Logger.logThrowable( e );
+
+            // Set rich presence if possible
+            if ( discordRpcClient != null ) {
+                try {
+                    RichPresence.Builder builder = new RichPresence.Builder();
+                    builder.setState( state )
+                           .setDetails( details )
+                           .setStartTimestamp( startTimestamp )
+                           .setLargeImage( largeImageKey, largeImageText )
+                           .setSmallImage( smallImageKey, smallImageText );
+                    discordRpcClient.sendRichPresence( builder.build() );
+                }
+                catch ( Exception e ) {
+                    Logger.logWarningSilent( "Unable to update Discord rich presence!" );
+                    Logger.logThrowable( e );
+                }
             }
         }
     }
