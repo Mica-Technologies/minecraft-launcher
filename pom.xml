@@ -217,7 +217,6 @@
                         </additionalResource>
                     </additionalResources>
                     <macConfig>
-                        <codesignApp>false</codesignApp>
                         <entitlements>
                             ${project.basedir}${file.separator}assets${file.separator}mac${file.separator}micaforgelauncher.entitlements
                         </entitlements>
