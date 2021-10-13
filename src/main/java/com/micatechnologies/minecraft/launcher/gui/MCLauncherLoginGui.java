@@ -25,11 +25,9 @@ import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
-import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.materialfx.controls.MFXPasswordField;
-import io.github.palexdev.materialfx.controls.MFXTextField;
-import io.github.palexdev.materialfx.controls.MFXToggleButton;
+import io.github.palexdev.materialfx.controls.*;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.GridPane;
 import javafx.scene.web.WebView;
@@ -81,23 +79,17 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
     @FXML
     MFXToggleButton rememberMeCheckBox;
 
-    /**
-     * Login button. This button initiates the login process.
-     *
-     * @since 1.0
-     */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton loginBtn;
+    MFXButton loginMojangBtn;
 
-    /**
-     * MS (Microsoft) Login button. This button initiates the login process for a Microsoft account.
-     *
-     * @since 1.0
-     */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton msLoginBtn;
+    MFXButton backToMsLoginBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label switchToMojangLoginBtn;
 
     /**
      * Exit button. This button closes the window, but in most cases the result is the application closing as well.
@@ -205,7 +197,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         authWebView.getEngine().setUserAgent( "AppleWebKit/537.44" );
 
         // Configure login button
-        loginBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+        loginMojangBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             // Lock fields
             emailField.setDisable( true );
             passwordField.setDisable( true );
@@ -234,104 +226,31 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
             passwordField.setDisable( false );
         } ) );
 
-        // Hide Microsoft login area by default
-        msAuthPane.setVisible( false );
-        mainAuthPane.setVisible( true );
+        // Hide Mojang login area by default
+        msAuthPane.setVisible( true );
+        mainAuthPane.setVisible( false );
+
+        switchToMojangLoginBtn.setOnMouseClicked( actionEvent -> {
+            msAuthPane.setVisible( false );
+            mainAuthPane.setVisible( true );
+            rememberMeCheckBox.setSelected( msStayLoggedInCheckBox.isSelected() );
+        } );
 
         // Configure Microsoft login button
-        msLoginBtn.setOnAction( actionEvent -> {
+        backToMsLoginBtn.setOnAction( actionEvent -> {
             // Show MS login page
             msAuthPane.setVisible( true );
             mainAuthPane.setVisible( false );
             msStayLoggedInCheckBox.setSelected( rememberMeCheckBox.isSelected() );
 
-            // Load MS login website
-            CookieManager cookieManager = new CookieManager();
-            CookieHandler.setDefault( cookieManager );
-            authWebView.getEngine().load( MicrosoftService.oAuthLoginUrl().toString() );
-
-            // Set waiting on web view response flag to true
-            waitingOnWebViewResponse.set( true );
-
-            // Configure web view listener
-            authWebView.getEngine().getLoadWorker().stateProperty().addListener( ( observable, oldValue, newValue ) -> {
-                // Only run handler if expecting a response
-                if ( waitingOnWebViewResponse.get() ) {
-                    // Check if page is on callback/redirect URI
-                    String location = authWebView.getEngine().getLocation();
-                    if ( location.startsWith( Constants.MICROSOFT_OAUTH_REDIRECT_URL ) ) {
-                        // Set waiting on web view response flag to false
-                        waitingOnWebViewResponse.set( false );
-
-                        // Clear web view and return to regular login view
-                        authWebView.getEngine().load( "about:blank" );
-                        msAuthPane.setVisible( false );
-                        mainAuthPane.setVisible( true );
-
-                        SystemUtilities.spawnNewTask( () -> {
-                            // Split URL into parameters
-                            String locationParamsString = location.substring( location.indexOf( "?" ) + 1 );
-                            Map< String, List< String > > locationParamsList = Pattern.compile( "&" )
-                                                                                      .splitAsStream(
-                                                                                              locationParamsString )
-                                                                                      .map( s -> Arrays.copyOf(
-                                                                                              s.split( "=", 2 ), 2 ) )
-                                                                                      .collect( groupingBy(
-                                                                                              s -> URLDecoder.decode(
-                                                                                                      s[ 0 ],
-                                                                                                      Charset.defaultCharset() ),
-                                                                                              mapping(
-                                                                                                      s -> URLDecoder.decode(
-                                                                                                              s[ 1 ],
-                                                                                                              Charset.defaultCharset() ),
-                                                                                                      toList() ) ) );
-
-                            // Handle response and error, if applicable
-                            if ( !locationParamsList.containsKey( "error" ) &&
-                                    locationParamsList.containsKey( "code" ) ) {
-                                String authCode = locationParamsList.get( "code" ).get( 0 );
-
-                                // Attempt login
-                                MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMicrosoftAccount(
-                                        authCode, msStayLoggedInCheckBox.isSelected() );
-
-                                // Check login result
-                                boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
-
-                                // If successful, register login with app and save account if applicable
-                                if ( authSuccess ) {
-                                    loginSuccessLatch.countDown();
-                                }
-                                else {
-                                    handleBadLogin( 1 );
-                                }
-                            }
-                            else {
-                                // Get error description
-                                String errorDescription = "(Unknown)";
-                                if ( locationParamsList.containsKey( "error_description" ) ) {
-                                    errorDescription = locationParamsList.get( "error_description" ).get( 0 );
-                                }
-
-                                if ( errorDescription.contains( "user has denied access" ) ) {
-                                    Logger.logDebug(
-                                            "User cancelled or denied during the Microsoft authentication flow!" );
-                                }
-                                else {
-                                    Logger.logError( "A Microsoft account login error occurred: " + errorDescription );
-                                }
-                            }
-                        } );
-                    }
-                }
-            } );
+            loadMsAuthFrame();
         } );
 
         // Configure ENTER key to press login button
         scene.setOnKeyPressed( keyEvent -> {
             if ( keyEvent.getCode() == KeyCode.ENTER && ( emailField.isFocused() || passwordField.isFocused() ) ) {
                 keyEvent.consume();
-                loginBtn.fire();
+                loginMojangBtn.fire();
             }
         } );
 
@@ -341,6 +260,9 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
+        // Load MS auth
+        loadMsAuthFrame();
+
         // Set Discord rich presence
         SystemUtilities.spawnNewTask(
                 () -> DiscordRpcUtility.setRichPresence( "In Menus", "Logging In", OffsetDateTime.now(),
@@ -353,6 +275,86 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
     }
 
+    private void loadMsAuthFrame() {
+        // Load MS login website
+        CookieManager cookieManager = new CookieManager();
+        CookieHandler.setDefault( cookieManager );
+        authWebView.getEngine().load( MicrosoftService.oAuthLoginUrl().toString() );
+
+        // Set waiting on web view response flag to true
+        waitingOnWebViewResponse.set( true );
+
+        // Configure web view listener
+        authWebView.getEngine().getLoadWorker().stateProperty().addListener( ( observable, oldValue, newValue ) -> {
+            // Only run handler if expecting a response
+            if ( waitingOnWebViewResponse.get() ) {
+                // Check if page is on callback/redirect URI
+                String location = authWebView.getEngine().getLocation();
+                if ( location.startsWith( Constants.MICROSOFT_OAUTH_REDIRECT_URL ) ) {
+                    // Set waiting on web view response flag to false
+                    waitingOnWebViewResponse.set( false );
+
+                    // Clear web view and return to regular login view
+                    authWebView.getEngine().load( "about:blank" );
+                    msAuthPane.setVisible( false );
+                    mainAuthPane.setVisible( true );
+
+                    SystemUtilities.spawnNewTask( () -> {
+                        // Split URL into parameters
+                        String locationParamsString = location.substring( location.indexOf( "?" ) + 1 );
+                        Map< String, List< String > > locationParamsList = Pattern.compile( "&" )
+                                                                                  .splitAsStream( locationParamsString )
+                                                                                  .map( s -> Arrays.copyOf(
+                                                                                          s.split( "=", 2 ), 2 ) )
+                                                                                  .collect( groupingBy(
+                                                                                          s -> URLDecoder.decode(
+                                                                                                  s[ 0 ],
+                                                                                                  Charset.defaultCharset() ),
+                                                                                          mapping(
+                                                                                                  s -> URLDecoder.decode(
+                                                                                                          s[ 1 ],
+                                                                                                          Charset.defaultCharset() ),
+                                                                                                  toList() ) ) );
+
+                        // Handle response and error, if applicable
+                        if ( !locationParamsList.containsKey( "error" ) && locationParamsList.containsKey( "code" ) ) {
+                            String authCode = locationParamsList.get( "code" ).get( 0 );
+
+                            // Attempt login
+                            MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMicrosoftAccount( authCode,
+                                                                                                               msStayLoggedInCheckBox.isSelected() );
+
+                            // Check login result
+                            boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
+
+                            // If successful, register login with app and save account if applicable
+                            if ( authSuccess ) {
+                                loginSuccessLatch.countDown();
+                            }
+                            else {
+                                handleBadLogin( 1 );
+                            }
+                        }
+                        else {
+                            // Get error description
+                            String errorDescription = "(Unknown)";
+                            if ( locationParamsList.containsKey( "error_description" ) ) {
+                                errorDescription = locationParamsList.get( "error_description" ).get( 0 );
+                            }
+
+                            if ( errorDescription.contains( "user has denied access" ) ) {
+                                Logger.logDebug( "User cancelled or denied during the Microsoft authentication flow!" );
+                            }
+                            else {
+                                Logger.logError( "A Microsoft account login error occurred: " + errorDescription );
+                            }
+                        }
+                    } );
+                }
+            }
+        } );
+    }
+
     /**
      * Method to handle the processing of a bad login. This method should show a warning to the end-user, and reset the
      * password field.
@@ -363,7 +365,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         if ( index == 0 ) {
             // Show try again message
             GUIUtilities.JFXPlatformRun( () -> {
-                loginBtn.setText( "Try Again" );
+                loginMojangBtn.setText( "Try Again" );
                 passwordField.clear();
             } );
 
@@ -376,24 +378,12 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
                     Logger.logDebug( "An error occurred while waiting to reset the login button text from \"Try " +
                                              "Again\" to \"Log In\"." );
                 }
-                GUIUtilities.JFXPlatformRun( () -> loginBtn.setText( "Log In (Mojang)" ) );
+                GUIUtilities.JFXPlatformRun( () -> loginMojangBtn.setText( "Log In" ) );
             } );
         }
         else if ( index == 1 ) {
-            // Show try again message
-            GUIUtilities.JFXPlatformRun( () -> msLoginBtn.setText( "Try Again" ) );
-
-            // Reset log in button text in 5 seconds
-            SystemUtilities.spawnNewTask( () -> {
-                try {
-                    Thread.sleep( 5000 );
-                }
-                catch ( InterruptedException e ) {
-                    Logger.logDebug( "An error occurred while waiting to reset the login button text from \"Try " +
-                                             "Again\" to \"Log In\"." );
-                }
-                GUIUtilities.JFXPlatformRun( () -> msLoginBtn.setText( "Log In (Microsoft)" ) );
-            } );
+            Logger.logError( "Failed to login with Microsoft!" );
+            loadMsAuthFrame();
         }
     }
 
