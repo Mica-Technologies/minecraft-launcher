@@ -25,6 +25,7 @@ import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
@@ -59,6 +60,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton windowResizeCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXToggleButton discordCheckBox;
 
     @SuppressWarnings( "unused" )
     @FXML
@@ -192,6 +197,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             // Store debug mode to config
             ConfigManager.setDebugLogging( debugCheckBox.isSelected() );
 
+            // Store Discord RPC enable to config and stop Discord RPC if required
+            ConfigManager.setDiscordRpcEnable( discordCheckBox.isSelected() );
+            if ( !discordCheckBox.isSelected() ) {
+                DiscordRpcUtility.exit();
+            }
+
             // Store resizable windows to config
             ConfigManager.setResizableWindows( windowResizeCheckBox.isSelected() );
             GUIUtilities.JFXPlatformRun( () -> stage.setResizable( ConfigManager.getResizableWindows() ) );
@@ -304,6 +315,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Set and configure debug mode check box
         debugCheckBox.setSelected( ConfigManager.getDebugLogging() );
         debugCheckBox.setOnAction( actionEvent -> setEdited( true ) );
+
+        // Set and configure Discord RPC check box
+        discordCheckBox.setSelected( ConfigManager.getDiscordRpcEnable() );
+        discordCheckBox.setOnAction( actionEvent -> setEdited( true ) );
 
         // Populate theme selection dropdown
         themeSelection.getItems().clear();
