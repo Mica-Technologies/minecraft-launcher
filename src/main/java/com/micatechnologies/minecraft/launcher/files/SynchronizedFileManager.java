@@ -48,7 +48,7 @@ public class SynchronizedFileManager
      *
      * @since 1.0
      */
-    public static File getSynchronizedFile( String filePath ) {
+    public static synchronized File getSynchronizedFile( String filePath ) {
         // Search for existing object for desired file path
         File desiredSynchronizedFile = null;
         for ( File managedFile : managedFiles ) {
