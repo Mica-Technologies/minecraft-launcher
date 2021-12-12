@@ -35,8 +35,9 @@
         <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafx.version>17.0.1</javafx.version>
-        <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED</jfxtaskbarprogressbar.export>
+        <javafx.version>16</javafx.version>
+        <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
+        </jfxtaskbarprogressbar.export>
     </properties>
 
     <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
@@ -183,7 +184,7 @@
                             <provider>BELLSOFT</provider>
                             <providerConfig>
                                 <type>jdk</type>
-                                <version>17.0.1+12</version>
+                                <version>16.0.1+9</version>
                                 <arch>amd64-full</arch>
                             </providerConfig>
                             <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
