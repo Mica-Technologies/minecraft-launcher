@@ -29,6 +29,7 @@ import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
 
 /**
  * Class object representing a Minecraft game asset manifest. This class allows for the discovery and download of
@@ -97,7 +98,7 @@ public class GameAssetManifest extends ManagedGameFile
 
             // Build full asset URL
             String assetURL = ManifestConstants.MINECRAFT_ASSET_SERVER_URL_TEMPLATE.replaceAll(
-                    ManifestConstants.MINECRAFT_ASSET_SERVER_URL_FOLDER_KEY, assetFolder )
+                                                       ManifestConstants.MINECRAFT_ASSET_SERVER_URL_FOLDER_KEY, assetFolder )
                                                                                    .replaceAll(
                                                                                            ManifestConstants.MINECRAFT_ASSET_SERVER_URL_HASH_KEY,
                                                                                            assetHash );
@@ -116,22 +117,39 @@ public class GameAssetManifest extends ManagedGameFile
      * @throws ModpackException if unable to read manifest or update asset
      * @since 1.1
      */
-    public void downloadAssets( final GameModPackProgressProvider progressProvider ) throws ModpackException
+    public void downloadAssets( final GameModPackProgressProvider progressProvider )
+    throws ModpackException, InterruptedException, ExecutionException
     {
         // Update asset manifest first
         updateLocalFile();
 
         // Update each asset
         List< ManagedGameFile > assets = getAssets();
-        for ( ManagedGameFile asset : assets ) {
-            asset.updateLocalFile();
 
-            // Update progress provider if present
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress(
-                        LocalizationManager.VERIFIED_ASSET_PROGRESS_TEXT + " " + asset.getFileName(),
-                        ( 50.0 / ( double ) assets.size() ) );
-            }
+        // Build list of asset download threads
+        ExecutorService threadPool = Executors.newFixedThreadPool( assets.size() );
+        List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
+        for ( ManagedGameFile asset : assets ) {
+            Callable< Boolean > updateFileCallable = () -> {
+                boolean ret = asset.updateLocalFile();
+
+                // Update progress provider if present
+                if ( progressProvider != null ) {
+                    progressProvider.submitProgress(
+                            LocalizationManager.VERIFIED_ASSET_PROGRESS_TEXT + " " + asset.getFileName(),
+                            ( 50.0 / ( double ) assets.size() ) );
+                }
+                return ret;
+            };
+            Future< Boolean > future = threadPool.submit( updateFileCallable );
+            threadPoolFutures.add( future );
+        }
+        threadPool.shutdown();
+        threadPool.awaitTermination( Long.MAX_VALUE, TimeUnit.MILLISECONDS );
+
+        // Parse list of futures
+        for (Future< Boolean > threadPoolFuture : threadPoolFutures ) {
+            threadPoolFuture.get();
         }
     }
 }

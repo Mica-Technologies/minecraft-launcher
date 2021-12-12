@@ -25,11 +25,13 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.*;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -332,6 +334,9 @@ public class GameModPack
         // Add main class to arguments
         minecraftArgs = minecraftMainClass + " " + minecraftArgs;
 
+        // Add log4j patch
+        minecraftArgs = "-Dlog4j2.formatMsgNoLookups=true" + " " + minecraftArgs;
+
         // Add min and max RAM to arguments
         long SminRAMMB = ConfigManager.getMinRam();
         long SmaxRAMMB = ConfigManager.getMaxRam();
@@ -495,18 +500,45 @@ public class GameModPack
                 File.separator +
                 ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
-        // Update each mod if not already fully downloaded
+        // Build list of mod download threads
+        ExecutorService threadPool = Executors.newFixedThreadPool( packMods.size() );
+        List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
         for ( GameMod mod : packMods ) {
-            mod.setLocalPathPrefix( modLocalPathPrefix );
+            Callable< Boolean > updateFileCallable = () -> {
+                mod.setLocalPathPrefix( modLocalPathPrefix );
 
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verifying " + mod.name, ( 70.0 / ( double ) packMods.size() ) );
+                if ( progressProvider != null ) {
+                    progressProvider.submitProgress( "Verifying " + mod.name, ( 70.0 / ( double ) packMods.size() ) );
+                }
+
+                boolean ret = mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
+
+                if ( progressProvider != null ) {
+                    progressProvider.setCurrText( "Verified " + mod.name );
+                }
+                return ret;
+            };
+            Future< Boolean > future = threadPool.submit( updateFileCallable );
+            threadPoolFutures.add( future );
+        }
+        threadPool.shutdown();
+        try {
+            threadPool.awaitTermination( Long.MAX_VALUE, TimeUnit.MILLISECONDS );
+        }
+        catch ( InterruptedException e ) {
+            throw new ModpackException( "The download of Minecraft mods was interrupted before completion!", e );
+        }
+
+        // Parse list of futures
+        for ( Future< Boolean > threadPoolFuture : threadPoolFutures ) {
+            try {
+                threadPoolFuture.get();
             }
-
-            mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
-
-            if ( progressProvider != null ) {
-                progressProvider.setCurrText( "Verified " + mod.name );
+            catch ( InterruptedException e ) {
+                throw new ModpackException( "The download of Minecraft mods was interrupted before completion!", e );
+            }
+            catch ( ExecutionException e ) {
+                throw new ModpackException( "Unable to execute runner to retrieve Minecraft mods!", e );
             }
         }
     }

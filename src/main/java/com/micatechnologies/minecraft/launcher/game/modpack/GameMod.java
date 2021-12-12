@@ -79,10 +79,11 @@ public class GameMod extends ManagedGameFile
      *
      * @throws ModpackException if update fails
      */
-    void updateLocalFile( GameMode gameAppMode ) throws ModpackException
+    boolean updateLocalFile( GameMode gameAppMode ) throws ModpackException
     {
         if ( ( gameAppMode == GameMode.CLIENT && clientReq ) || ( gameAppMode == GameMode.SERVER && serverReq ) ) {
-            super.updateLocalFile();
+            return super.updateLocalFile();
         }
+        return true;
     }
 }
