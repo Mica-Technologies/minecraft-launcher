@@ -20,12 +20,12 @@ package com.micatechnologies.minecraft.launcher.utilities;
 import java.io.*;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
-import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
@@ -76,11 +76,16 @@ public class SystemUtilities
     /**
      * Extract the specified source JarFile to the specified destination path.
      *
-     * @param source      extract from
-     * @param destination extract to
+     * @param sourceName        extract from
+     * @param destination       extract to
+     * @param extractionExclude list of files and folder paths to exclude during extraction
      */
-    public static void extractJarFile( JarFile source, String destination ) throws ModpackException
+    public static void extractJarFile( String sourceName, String destination, List< String > extractionExclude )
+    throws IOException
     {
+        // TODO: Replace/refactor this method
+        JarFile source = new JarFile( sourceName );
+
         // Create an enumeration over JarFile entries
         Enumeration< JarEntry > jarFileFiles = source.entries();
 
@@ -89,59 +94,55 @@ public class SystemUtilities
             // Store current Jar file file
             JarEntry jarFileFile = jarFileFiles.nextElement();
 
-            // Skip META-INF file(s)
-            if ( jarFileFile.getName().contains( "META-INF" ) ) {
-                continue;
+            // Skip excluded files
+            boolean isExcluded = false;
+            for ( String extractionExcludedPath : extractionExclude ) {
+                if ( jarFileFile.getName().endsWith( File.separator ) &&
+                        jarFileFile.getName().startsWith( extractionExcludedPath ) ) {
+                    isExcluded = true;
+                }
+                else if ( !jarFileFile.getName().endsWith( File.separator ) &&
+                        jarFileFile.getName().equals( extractionExcludedPath ) ) {
+                    isExcluded = true;
+                }
             }
 
-            // Create extracted file File object
-            File extractedJarFileFile = SynchronizedFileManager.getSynchronizedFile(
-                    destination + File.separator + jarFileFile.getName() );
+            // Extract if not excluded
+            if ( !isExcluded ) {
+                // Create extracted file File object
+                File extractedJarFileFile = SynchronizedFileManager.getSynchronizedFile(
+                        destination + File.separator + jarFileFile.getName() );
 
-            // Create directory if expected
-            if ( extractedJarFileFile.isDirectory() ) {
+                // Create directory if expected
+                if ( extractedJarFileFile.isDirectory() ) {
+                    //noinspection ResultOfMethodCallIgnored
+                    extractedJarFileFile.mkdir();
+                    continue;
+                }
+
+                // Make sure the parent folders exist
                 //noinspection ResultOfMethodCallIgnored
-                extractedJarFileFile.mkdir();
-                continue;
-            }
+                extractedJarFileFile.getParentFile().mkdirs();
 
-            // Make sure the parent folders exist
-            //noinspection ResultOfMethodCallIgnored
-            extractedJarFileFile.getParentFile().mkdirs();
-
-            // Create file if doesn't exist
-            if ( !extractedJarFileFile.exists() ) {
-                try {
+                // Create file if doesn't exist
+                if ( !extractedJarFileFile.exists() ) {
                     //noinspection ResultOfMethodCallIgnored
                     extractedJarFileFile.createNewFile();
                 }
-                catch ( IOException e ) {
-                    throw new ModpackException(
-                            "Unable to create file for extraction. " + extractedJarFileFile.getPath(), e );
-                }
-            }
 
-            // Read file from jar to extracted file
-            InputStream inputStream;
-            FileOutputStream fileOutputStream;
-            try {
+                // Read file from jar to extracted file
+                InputStream inputStream;
+                FileOutputStream fileOutputStream;
                 inputStream = source.getInputStream( jarFileFile );
                 fileOutputStream = new FileOutputStream( extractedJarFileFile );
                 while ( inputStream.available() > 0 ) {
                     fileOutputStream.write( inputStream.read() );
                 }
-            }
-            catch ( IOException e ) {
-                throw new ModpackException( "Unable to read file from jar during extraction.", e );
-            }
 
-            // Close streams
-            try {
+                // Close streams
                 fileOutputStream.close();
                 inputStream.close();
-            }
-            catch ( IOException e ) {
-                System.err.println( "Unable to close streams after extracting JAR file." );
+
             }
         }
     }
