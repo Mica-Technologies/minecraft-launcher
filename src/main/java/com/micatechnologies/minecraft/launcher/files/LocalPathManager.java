@@ -20,6 +20,8 @@ package com.micatechnologies.minecraft.launcher.files;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 
+import java.io.File;
+
 /**
  * Class that manages the local paths used by the launcher for storing configuration, mod pack installations, and Java
  * runtimes.
@@ -121,13 +123,18 @@ public class LocalPathManager
     }
 
     /**
-     * Gets the local path to the Minecraft version manifest.
+     * Gets the local path to a file in the Minecraft version manifests folder.
      *
-     * @return Minecraft version manifest file path
+     * @param fileName name of file in the Minecraft version manifests folder
+     *
+     * @return Minecraft version manifests folder file path
      *
      * @since 1.0
      */
-    public static String getMinecraftVersionManifestFilePath() {
-        return getLauncherConfigFolderPath() + LocalPathConstants.MINECRAFT_VERSION_MANIFEST_FILE_NAME;
+    public static String getMinecraftVersionsManifestFilePath( String fileName ) {
+        return getLauncherConfigFolderPath() +
+                LocalPathConstants.MINECRAFT_VERSIONS_MANIFEST_FOLDER_NAME +
+                File.separator +
+                fileName;
     }
 }

@@ -118,9 +118,7 @@ public class LocalPathConstants
      *
      * @since 1.0
      */
-    public static final String MINECRAFT_VERSION_MANIFEST_FILE_NAME = File.separator +
-            "version" +
-            MINECRAFT_MANIFEST_LOCAL_FILE_EXTENSION;
+    public static final String MINECRAFT_VERSIONS_MANIFEST_FOLDER_NAME = File.separator + "versions";
 
     /**
      * The mod pack relative path where assets are stored.
