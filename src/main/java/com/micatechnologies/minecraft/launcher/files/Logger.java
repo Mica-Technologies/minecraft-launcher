@@ -31,7 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Log management class for the Mica Forge Launcher application.
+ * Class for managing the log output of the application at the applicable logging level.
  *
  * @author Mica Technologies
  * @version 1.1
@@ -83,16 +83,23 @@ public class Logger
             LocalizationManager.LOG_DEBUG_PREFIX +
             "] ";
 
-    private static BufferedOutputStream     fileBufferedOutputStream   = null;
-    private static ScheduledExecutorService fileBufferedWriteScheduler = null;
+    /**
+     * Buffered output stream used for writing to the log file.
+     *
+     * @since 1.1
+     */
+    private static BufferedOutputStream fileBufferedOutputStream = null;
 
+    /**
+     * Shuts down the logging system by flushing and closing any open {@link OutputStream}s.
+     *
+     * @throws IOException if unable to flush or close an {@link OutputStream}
+     * @since 1.1
+     */
     public static void shutdownLogSys() throws IOException {
         if ( fileBufferedOutputStream != null ) {
             fileBufferedOutputStream.flush();
             fileBufferedOutputStream.close();
-        }
-        if ( fileBufferedWriteScheduler != null ) {
-            fileBufferedWriteScheduler.shutdown();
         }
     }
 
@@ -122,8 +129,8 @@ public class Logger
          */
         FileOutputStream fileOutputStream = new FileOutputStream( logFile );
         fileBufferedOutputStream = new BufferedOutputStream( fileOutputStream );
-        fileBufferedWriteScheduler = Executors.newScheduledThreadPool( 1 );
-        fileBufferedWriteScheduler.scheduleAtFixedRate( () -> {
+        final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool( 1 );
+        scheduler.scheduleAtFixedRate( () -> {
             try {
                 fileBufferedOutputStream.flush();
             }
@@ -150,17 +157,6 @@ public class Logger
         System.setOut( sysOut );
         System.setErr( sysErr );
         Logger.logStd( LocalizationManager.LOG_SYSTEM_INITIALIZED_TEXT );
-    }
-
-    /**
-     * Log a throwable.
-     *
-     * @param throwable error to log
-     *
-     * @since 1.0
-     */
-    public static void logThrowable( Throwable throwable ) {
-        throwable.printStackTrace( System.err );
     }
 
     /**
@@ -192,6 +188,41 @@ public class Logger
     }
 
     /**
+     * Log a standard message with its prefix
+     *
+     * @param log message to log
+     *
+     * @since 1.0
+     */
+    public static void logStd( String log ) {
+        System.out.println( logStdPrefix + log );
+    }
+
+    /**
+     * Log a debug message with its prefix
+     *
+     * @param debugLog debug message to log
+     *
+     * @since 1.0
+     */
+    public static void logDebug( String debugLog ) {
+        if ( ConfigManager.getDebugLogging() ) {
+            System.out.println( logDebugPrefix + debugLog );
+        }
+    }
+
+    /**
+     * Log a throwable.
+     *
+     * @param throwable error to log
+     *
+     * @since 1.0
+     */
+    public static void logThrowable( Throwable throwable ) {
+        throwable.printStackTrace( System.err );
+    }
+
+    /**
      * Log a warning with its prefix.
      *
      * @param warningLog warning to log
@@ -217,29 +248,5 @@ public class Logger
      */
     public static void logWarningSilent( String warningLog ) {
         System.err.println( logWarnPrefix + warningLog );
-    }
-
-    /**
-     * Log a standard message with its prefix
-     *
-     * @param log message to log
-     *
-     * @since 1.0
-     */
-    public static void logStd( String log ) {
-        System.out.println( logStdPrefix + log );
-    }
-
-    /**
-     * Log a debug message with its prefix
-     *
-     * @param debugLog debug message to log
-     *
-     * @since 1.0
-     */
-    public static void logDebug( String debugLog ) {
-        if ( ConfigManager.getDebugLogging() ) {
-            System.out.println( logDebugPrefix + debugLog );
-        }
     }
 }
