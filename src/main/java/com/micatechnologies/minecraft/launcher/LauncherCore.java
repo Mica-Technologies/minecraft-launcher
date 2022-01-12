@@ -54,7 +54,7 @@ import java.util.concurrent.CountDownLatch;
  *
  * @author Mica Technologies
  * @version 2.0
- * @since START
+ * @since 1.0
  */
 public class LauncherCore
 {
@@ -276,8 +276,8 @@ public class LauncherCore
                                                                             GameModeManager.getCurrentGameMode()
                                                                                            .getStringName() +
                                                                             "_" +
-                                                                            LocalPathConstants.LOG_FILE_NAME_DATE_FORMAT
-                                                                                    .format( logTimeStamp ) +
+                                                                            LocalPathConstants.LOG_FILE_NAME_DATE_FORMAT.format(
+                                                                                    logTimeStamp ) +
                                                                             LocalPathConstants.LOG_FILE_EXTENSION );
         try {
             Logger.initLogSys( logFile );
