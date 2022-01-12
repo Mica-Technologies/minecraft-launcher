@@ -19,8 +19,8 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationResult;
 import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
@@ -207,8 +207,8 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
             String password = passwordField.getPassword();
 
             // Attempt login
-            MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMojangAccount( email, password,
-                                                                                            rememberMeCheckBox.isSelected() );
+            MCPlayerAuthenticationResult authResult = MCPlayerAuthenticationManager.loginWithMojangAccount( email, password,
+                                                                                                            rememberMeCheckBox.isSelected() );
 
             // Check login result
             boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
@@ -321,8 +321,9 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
                             String authCode = locationParamsList.get( "code" ).get( 0 );
 
                             // Attempt login
-                            MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMicrosoftAccount( authCode,
-                                                                                                               msStayLoggedInCheckBox.isSelected() );
+                            MCPlayerAuthenticationResult
+                                    authResult = MCPlayerAuthenticationManager.loginWithMicrosoftAccount( authCode,
+                                                                                                          msStayLoggedInCheckBox.isSelected() );
 
                             // Check login result
                             boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );

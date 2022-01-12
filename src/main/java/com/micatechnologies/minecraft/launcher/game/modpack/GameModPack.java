@@ -37,7 +37,7 @@ import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
@@ -393,7 +393,7 @@ public class GameModPack
         // Replace fillers with data
         if ( GameModeManager.isClient() ) {
             minecraftArgs = minecraftArgs.replace( "${auth_player_name}",
-                                                   MCLauncherAuthManager.getLoggedInUser().getName() );
+                                                   MCPlayerAuthenticationManager.getLoggedInUser().getName() );
             minecraftArgs = minecraftArgs.replace( "${version_name}", getForgeVersion() );
             if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
                 minecraftArgs = minecraftArgs.replace( "${game_directory}", "\"" + getPackRootFolder() + "\"" );
@@ -412,9 +412,9 @@ public class GameModPack
 
             minecraftArgs = minecraftArgs.replace( "${assets_index_name}",
                                                    getMinecraftLibraryManifest().getAssetIndexVersion() );
-            minecraftArgs = minecraftArgs.replace( "${auth_uuid}", MCLauncherAuthManager.getLoggedInUser().getUuid() );
+            minecraftArgs = minecraftArgs.replace( "${auth_uuid}", MCPlayerAuthenticationManager.getLoggedInUser().getUuid() );
             minecraftArgs = minecraftArgs.replace( "${auth_access_token}",
-                                                   MCLauncherAuthManager.getLoggedInUser().getAccessToken() );
+                                                   MCPlayerAuthenticationManager.getLoggedInUser().getAccessToken() );
             minecraftArgs = minecraftArgs.replace( "${user_type}", "mojang" );
 
             // Add title and icon to arguments

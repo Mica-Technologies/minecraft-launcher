@@ -20,8 +20,8 @@ package com.micatechnologies.minecraft.launcher;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationResult;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
@@ -297,7 +297,7 @@ public class LauncherCore
      */
     public static void performClientLogin() {
         // If no saved account, show message and login screen, otherwise continue.
-        if ( !MCLauncherAuthManager.hasExistingLogin() ) {
+        if ( !MCPlayerAuthenticationManager.hasExistingLogin() ) {
             Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
 
             // Show login screen
@@ -323,7 +323,7 @@ public class LauncherCore
         }
         else {
             // Attempt to load/renew saved user account
-            MCLauncherAuthResult authResult = MCLauncherAuthManager.renewExistingLogin();
+            MCPlayerAuthenticationResult authResult = MCPlayerAuthenticationManager.renewExistingLogin();
 
             // Check login renewal result
             boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
@@ -336,7 +336,7 @@ public class LauncherCore
             }
             else {
                 Logger.logError( LocalizationManager.AUTH_UNABLE_TO_REFRESH_TEXT );
-                MCLauncherAuthManager.logout();
+                MCPlayerAuthenticationManager.logout();
                 restartFlag = true;
                 restartApp();
             }

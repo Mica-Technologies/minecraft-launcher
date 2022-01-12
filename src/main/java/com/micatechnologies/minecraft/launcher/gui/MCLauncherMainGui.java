@@ -23,7 +23,7 @@ import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
@@ -283,7 +283,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         // Configure logout button
         logoutBtn.setOnAction( actionEvent -> {
-            MCLauncherAuthManager.logout();
+            MCPlayerAuthenticationManager.logout();
             LauncherCore.restartApp();
         } );
 
@@ -328,12 +328,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure user label
         playerLabel.setText( TimeUtilities.getFriendlyTimeBasedGreeting() +
                                      ",\n" +
-                                     MCLauncherAuthManager.getLoggedInUser().getName() );
+                                     MCPlayerAuthenticationManager.getLoggedInUser().getName() );
 
         // Configure user image
         userImage.setImage( new Image(
                 GUIConstants.URL_MINECRAFT_USER_ICONS.replace( GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
-                                                               MCLauncherAuthManager.getLoggedInUser().getUuid() ) ) );
+                                                               MCPlayerAuthenticationManager.getLoggedInUser().getUuid() ) ) );
 
         // Configure ENTER key to press play button
         scene.setOnKeyPressed( keyEvent -> {
