@@ -31,7 +31,6 @@ import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
-import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
