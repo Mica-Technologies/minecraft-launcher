@@ -91,4 +91,20 @@ public class FileUtilities
     public static JsonObject readAsJsonObject( File f ) throws IOException {
         return JSONUtilities.stringToObject( readAsString( f ) );
     }
+
+    /**
+     * Reads the contents of the specified file as JSON and returns the resulting {@link JsonObject}.
+     *
+     * @param f        file to read
+     * @param <T>      type of JSON object to return
+     * @param classOfT class of type of JSON object to return
+     *
+     * @return file contents as a {@link JsonObject}
+     *
+     * @throws IOException if unable to access or read file
+     * @since 1.0
+     */
+    public static < T > T readAsJsonObject( File f, Class< T > classOfT ) throws IOException {
+        return JSONUtilities.stringToObject( readAsString( f ), classOfT );
+    }
 }
