@@ -100,9 +100,11 @@ public class NetworkUtilities
      * @since 1.1
      */
     public static void downloadFileFromURL( URL source, File destination ) throws IOException {
-        URLConnection connection = source.openConnection();
-        connection.setUseCaches( false );
-        FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
+        synchronized ( destination ) {
+            URLConnection connection = source.openConnection();
+            connection.setUseCaches( false );
+            FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
+        }
     }
 
     /**
