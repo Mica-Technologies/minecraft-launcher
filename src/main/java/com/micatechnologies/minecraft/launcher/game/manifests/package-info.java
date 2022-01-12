@@ -16,9 +16,10 @@
  */
 
 /**
- * Package containing classes related to manifests required by the application's mod pack subsystem.
+ * Package containing classes and other utilities for the manifests associated with available Minecraft versions, and
+ * each specific version.
  *
- * @version 1.1
  * @author Mica Technologies
+ * @since 2022.1
  */
-package com.micatechnologies.minecraft.launcher.game.modpack.manifests;
+package com.micatechnologies.minecraft.launcher.game.manifests;
