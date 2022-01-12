@@ -18,13 +18,13 @@
 package com.micatechnologies.minecraft.launcher.files;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Class that manages access to files on the file system in a manner that only allows for one instance of a File object
  * for each file. This allows for consistent synchronization when writing, reading and otherwise interacting with files
- * in a multi-threaded environment.
+ * in a multithreaded environment.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -33,11 +33,11 @@ import java.util.List;
 public class SynchronizedFileManager
 {
     /**
-     * Internal list used to store file objects of files that have previously been accessed.
+     * Internal map used to store file objects of files that have previously been accessed.
      *
      * @since 1.0
      */
-    private static final List< File > managedFiles = new ArrayList<>();
+    private static final Map< String, File > managedFiles = new HashMap<>();
 
     /**
      * Gets the single file object for the specified file path
@@ -49,21 +49,18 @@ public class SynchronizedFileManager
      * @since 1.0
      */
     public static synchronized File getSynchronizedFile( String filePath ) {
-        // Search for existing object for desired file path
-        File desiredSynchronizedFile = null;
-        for ( File managedFile : managedFiles ) {
-            if ( managedFile.getAbsolutePath().equalsIgnoreCase( filePath ) ) {
-                desiredSynchronizedFile = managedFile;
-                break;
-            }
+        File synchronizedFileObject;
+
+        // Get existing file object if key (file path) is present
+        if ( managedFiles.containsKey( filePath ) ) {
+            synchronizedFileObject = managedFiles.get( filePath );
+        }
+        // Create file object and add to map if not present
+        else {
+            synchronizedFileObject = new File( filePath );
+            managedFiles.put( filePath, synchronizedFileObject );
         }
 
-        // If an object does not exist for desired file path, create it
-        if ( desiredSynchronizedFile == null ) {
-            desiredSynchronizedFile = new File( filePath );
-            managedFiles.add( desiredSynchronizedFile );
-        }
-
-        return desiredSynchronizedFile;
+        return synchronizedFileObject;
     }
 }
