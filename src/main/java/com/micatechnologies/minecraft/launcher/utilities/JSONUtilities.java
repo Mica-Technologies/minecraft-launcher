@@ -42,6 +42,21 @@ public class JSONUtilities
     }
 
     /**
+     * Converts the specified string to a JSON object of the specified type.
+     *
+     * @param json     JSON string
+     * @param <T>      type of JSON object to return
+     * @param classOfT class of type of JSON object to return
+     *
+     * @return JSON object of the specified type
+     *
+     * @since 1.0
+     */
+    public static < T > T stringToObject( String json, Class< T > classOfT ) {
+        return new Gson().fromJson( json, classOfT );
+    }
+
+    /**
      * Converts the specified JSON object to a string.
      *
      * @param object JSON object
