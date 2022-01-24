@@ -24,8 +24,6 @@ import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationManager;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
@@ -44,6 +42,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -290,7 +289,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure play button
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
-            GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
+            /*GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
                     packSelection.getSelectedValue() );
             SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)", "Mod Pack: " +
                                                                                            installedModPackByFriendlyName.getPackName(), OffsetDateTime.now(), "mica_minecraft_launcher",
@@ -307,12 +306,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     Logger.logThrowable( e );
                     LauncherCore.closeApp();
                 }
-            } ) );
+            } ) );*/
         } ) );
 
         // Configure website button
         websiteBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
+            /*GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
                     packSelection.getSelectedValue() );
             try {
                 Desktop.getDesktop().browse( URI.create( installedModPackByFriendlyName.getPackURL() ) );
@@ -322,7 +321,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                          installedModPackByFriendlyName.getPackURL() +
                                          " to view the mod pack's website!" );
                 Logger.logThrowable( e );
-            }
+            }*/
+            //TODO:
+            throw new IllegalStateException("Oops");
         } ) );
 
         // Configure user label
@@ -348,7 +349,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             if ( keyEvent.getCode() == KeyCode.F5 ) {
                 keyEvent.consume();
                 SystemUtilities.spawnNewTask( () -> {
-                    GameModPackManager.fetchModPackInfo();
+                    //GameModPackManager.fetchModPackInfo();
                     try {
                         MCLauncherGuiController.goToMainGui();
                     }
@@ -370,7 +371,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         String lastModPackSelected = ConfigManager.getLastModPackSelected();
 
         // Check if it exists/is installed
-        GameModPack lastGameModPack = GameModPackManager.getInstalledModPackByName( lastModPackSelected );
+        /*GameModPack lastGameModPack = GameModPackManager.getInstalledModPackByName( lastModPackSelected );
 
         // Select mod pack
         if ( lastGameModPack != null ) {
@@ -378,7 +379,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
         else {
             selectModpack( packSelection.getItems().get( 0 ) );
-        }
+        }*/
     }
 
     @Override
@@ -394,7 +395,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     private final ChangeListener< Number > packSelectionChangeListener = ( observableValue, oldVal, newVal ) -> {
         // Get selected mod pack
-        String selectedModPack = packSelection.getItems().get( packSelection.getSelectionModel().getSelectedIndex() );
+        /*String selectedModPack = packSelection.getItems().get( packSelection.getSelectionModel().getSelectedIndex() );
         GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName( selectedModPack );
         if ( selectedGameModPack != null ) {
             ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
@@ -430,7 +431,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 rootPane.setStyle(
                         rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
             } );
-        } );
+        } );*/
+        Logger.logWarning( "Oops, you should not have done that :(");
+        System.exit( -1 );
     };
 
     public void selectModpack( String modPack ) {
@@ -439,9 +442,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         packSelection.getSelectionModel().selectItem( modPack );
     }
 
-    public void selectModpack( GameModPack modPack ) {
-        GUIUtilities.JFXPlatformRun( () -> selectModpack( modPack.getFriendlyName() ) );
-    }
+    //public void selectModpack( GameModPack modPack ) {
+    //    GUIUtilities.JFXPlatformRun( () -> selectModpack( modPack.getFriendlyName() ) );
+   // }
 
     /**
      * Populates the contents of the mod pack dropdown list, or disables the pack selection list and displays a message
@@ -451,7 +454,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     private void populateModpackDropdown() {
         // Get list of mod pack names
-        List< String > modpackListNames = GameModPackManager.getInstalledModPackFriendlyNames();
+        List< String > modpackListNames = new ArrayList<>();//GameModPackManager.getInstalledModPackFriendlyNames();
 
         // Reset mod pack selector
         packSelection.setDisable( false );

@@ -17,8 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.game.auth;
 
+import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import net.hycrafthd.minecraft_authenticator.login.AuthenticationFile;
@@ -45,7 +45,7 @@ public class MCPlayerAuthenticationManager
      *
      * @since 1.0
      */
-    private static final Path SAVED_LOGIN_FILE_PATH = Path.of( LocalPathManager.getRememberedAccountFilePath() );
+    private static final Path SAVED_LOGIN_FILE_PATH = LocalPathConstants.SAVED_AUTH_ACCOUNT_FILE_PATH;
 
     /**
      * The currently logged-in user account.
@@ -180,7 +180,10 @@ public class MCPlayerAuthenticationManager
      *
      * @since 1.0
      */
-    public static MCPlayerAuthenticationResult loginWithMojangAccount( String username, String password, boolean save ) {
+    public static MCPlayerAuthenticationResult loginWithMojangAccount( String username,
+                                                                       String password,
+                                                                       boolean save )
+    {
         // Try to login with Yggdrasil
         try {
             // Perform authentication

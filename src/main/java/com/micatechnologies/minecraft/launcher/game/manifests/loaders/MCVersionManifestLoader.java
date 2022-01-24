@@ -18,7 +18,6 @@
 package com.micatechnologies.minecraft.launcher.game.manifests.loaders;
 
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.manifests.MCAvailableVersionsManifest;
 import com.micatechnologies.minecraft.launcher.game.manifests.MCVersionManifest;

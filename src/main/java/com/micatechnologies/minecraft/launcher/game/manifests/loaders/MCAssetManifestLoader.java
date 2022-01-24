@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.game.manifests.loaders;
 
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.manifests.MCAssetManifest;
 import com.micatechnologies.minecraft.launcher.game.manifests.MCVersionManifest;
@@ -26,6 +25,7 @@ import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * Utility for downloading the {@link MCAssetManifest} for the specified {@link MCVersionManifest}.
@@ -44,14 +44,13 @@ public class MCAssetManifestLoader
     private static final String ASSET_INDEX_URL_PREFIX = "https://launchermeta.mojang.com/v1/packages/";
 
     /**
-     * Downloads the {@link MCAssetManifest} for the specified {@link MCVersionManifest} using either the
-     * specified asset index URL, or alternatively a launcher meta URL based on the asset index ID and SHA-1 hash if the
-     * URL is not present.
+     * Downloads the {@link MCAssetManifest} for the specified {@link MCVersionManifest} using either the specified
+     * asset index URL, or alternatively a launcher meta URL based on the asset index ID and SHA-1 hash if the URL is
+     * not present.
      *
-     * @param MCVersionManifest the {@link MCVersionManifest} to download the {@link
-     *                                 MCAssetManifest} for.
-     * @param installFolder            the folder where the instance of Minecraft specified in the {@link
-     *                                 MCAssetManifest} is to be extracted.
+     * @param MCVersionManifest the {@link MCVersionManifest} to download the {@link MCAssetManifest} for.
+     * @param installFolder     the folder where the instance of Minecraft specified in the {@link MCAssetManifest} is
+     *                          to be extracted.
      *
      * @return {@link MCAssetManifest} for the specified {@link MCVersionManifest}
      *
@@ -59,8 +58,7 @@ public class MCAssetManifestLoader
      *                     MCVersionManifest}
      * @since 1.0
      */
-    public static MCAssetManifest download( MCVersionManifest MCVersionManifest,
-                                            String installFolder ) throws IOException
+    public static MCAssetManifest download( MCVersionManifest MCVersionManifest, Path installFolder ) throws IOException
     {
         // Get asset index information
         MCVersionManifest.AssetIndex assetIndex = MCVersionManifest.getAssetIndex();
@@ -77,13 +75,9 @@ public class MCAssetManifestLoader
         }
 
         // Download asset manifest file
-        File assetManifestFile = SynchronizedFileManager.getSynchronizedFile(
-                LocalPathManager.getMinecraftVersionsManifestFilePath( installFolder +
-                                                                               File.separator +
-                                                                               MCAssetLoader.MINECRAFT_ASSET_INDEXES_DOWNLOAD_FOLDER +
-                                                                               File.separator +
-                                                                               assetIndex.getId() +
-                                                                               ".json" ) );
+        Path assetManifestFilePath = installFolder.resolve( MCAssetLoader.MINECRAFT_ASSET_INDEXES_DOWNLOAD_FOLDER )
+                                                  .resolve( assetIndex.getId() + ".json" );
+        File assetManifestFile = SynchronizedFileManager.getSynchronizedFile( assetManifestFilePath );
         NetworkUtilities.downloadFileFromURL( assetIndexUrl, assetManifestFile );
         return FileUtilities.readAsJsonObject( assetManifestFile, MCAssetManifest.class );
     }

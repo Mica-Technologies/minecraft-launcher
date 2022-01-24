@@ -24,13 +24,14 @@ import com.micatechnologies.minecraft.launcher.game.manifests.MCAssetManifest;
 
 import java.io.File;
 import java.net.MalformedURLException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Utility for loading a list of valid assets for the specified {@link MCAssetManifest} in the desired
- * installation folder location.
+ * Utility for loading a list of valid assets for the specified {@link MCAssetManifest} in the desired installation
+ * folder location.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -43,14 +44,14 @@ public class MCAssetLoader
      *
      * @since 1.0
      */
-    public static final String MINECRAFT_ASSET_OBJECTS_DOWNLOAD_FOLDER = "assets" + File.separator + "objects";
+    public static final Path MINECRAFT_ASSET_OBJECTS_DOWNLOAD_FOLDER = Path.of( "assets", "objects" );
 
     /**
      * The folder within a Minecraft installation folder where downloaded or cached asset indexes are stored.
      *
      * @since 1.0
      */
-    public static final String MINECRAFT_ASSET_INDEXES_DOWNLOAD_FOLDER = "assets" + File.separator + "indexes";
+    public static final Path MINECRAFT_ASSET_INDEXES_DOWNLOAD_FOLDER = Path.of( "assets", "indexes" );
 
     /**
      * The remote URL for downloading Minecraft assets by their hash.
@@ -60,21 +61,20 @@ public class MCAssetLoader
     private static final String MINECRAFT_ASSET_DOWNLOAD_URL_PREFIX = "https://resources.download.minecraft.net/";
 
     /**
-     * Builds a list of valid (applicable) assets for the specified {@link MCAssetManifest} in the desired
-     * installation folder location.
+     * Builds a list of valid (applicable) assets for the specified {@link MCAssetManifest} in the desired installation
+     * folder location.
      *
      * @param installFolder installation folder location
      * @param assetManifest {@link MCAssetManifest} to get valid assets for
      *
-     * @return list of valid (applicable) assets for the specified {@link MCAssetManifest} in the desired *
-     *         installation folder location
+     * @return list of valid (applicable) assets for the specified {@link MCAssetManifest} in the desired * installation
+     *         folder location
      *
      * @throws MalformedURLException if an asset in the asset manifest does not have a properly formed URL and/or its
      *                               URL is missing and could not be interpreted
      * @since 1.0
      */
-    public List< ManagedRemoteFile > getValidAssetList( String installFolder,
-                                                        MCAssetManifest assetManifest )
+    public List< ManagedRemoteFile > getValidAssetList( String installFolder, MCAssetManifest assetManifest )
     throws MalformedURLException
     {
         // Get assets from asset manifest
@@ -97,10 +97,8 @@ public class MCAssetLoader
                     assetObject.getHash().substring( 0, 2 ) +
                     File.separator +
                     assetObject.getHash();
-            FileChecksum validAssetFileHash = new FileChecksumSHA1(
-                    assetObject.getHash() );
-            ManagedRemoteFile validAsset = new ManagedRemoteFile( validAssetFilePath,
-                                                                  validAssetRemoteUrl,
+            FileChecksum validAssetFileHash = new FileChecksumSHA1( assetObject.getHash() );
+            ManagedRemoteFile validAsset = new ManagedRemoteFile( validAssetFilePath, validAssetRemoteUrl,
                                                                   validAssetFileHash );
 
             // Add built object to list

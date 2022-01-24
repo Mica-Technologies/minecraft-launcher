@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher;
 
-import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationManager;
@@ -25,19 +24,12 @@ import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationR
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
-import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
-import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
-import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import org.apache.log4j.BasicConfigurator;
@@ -109,10 +101,10 @@ public class LauncherCore
             }
 
             // Load mod pack information
-            GameModPackManager.fetchModPackInfo();
+            //GameModPackManager.fetchModPackInfo();
 
             // Get local JDK
-            RuntimeManager.verifyJre8();
+            //RuntimeManager.verifyJre8();
 
             // Show main (mod pack selection) window
             doModpackSelection( initialModPackSelection );
@@ -136,7 +128,7 @@ public class LauncherCore
      *
      * @since 2.0
      */
-    public static void play( GameModPack gameModPack ) {
+    public static void play( Object gameModPack ) {
         play( gameModPack, null );
     }
 
@@ -147,8 +139,9 @@ public class LauncherCore
      *
      * @since 2.0
      */
-    public static void play( GameModPack gameModPack, Runnable after ) {
-        if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
+    public static void play( Object gameModPack, Runnable after ) {
+        // TODO: Not object type
+        /*if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
             MCLauncherProgressGui playProgressWindow = null;
             try {
                 if ( MCLauncherGuiController.shouldCreateGui() ) {
@@ -216,7 +209,7 @@ public class LauncherCore
                                      LocalizationManager.GB_OF_RAM_TEXT +
                                      ". " +
                                      LocalizationManager.MAX_RAM_SETTING_MUST_INCREASE_TEXT );
-        }
+        }*/
     }
 
     /**
@@ -230,12 +223,12 @@ public class LauncherCore
      */
     public static void doModpackSelection( String modPackName ) {
         // Create variable to store final resulting mod pack name
-        GameModPack finalGameModPack = GameModPackManager.getInstalledModPackByName( modPackName );
+        //GameModPack finalGameModPack = GameModPackManager.getInstalledModPackByName( modPackName );
 
         // Check if requested mod pack is installed
-        if ( modPackName.length() > 0 && finalGameModPack == null ) {
-            Logger.logError( modPackName + " " + LocalizationManager.PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT );
-        }
+       // if ( modPackName.length() > 0 && finalGameModPack == null ) {
+        //    Logger.logError( modPackName + " " + LocalizationManager.PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT );
+        //}
 
         // Show gui or start start
         if ( GameModeManager.isClient() ) {
@@ -247,17 +240,17 @@ public class LauncherCore
                 Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
-            if ( finalGameModPack != null && mainWindow != null ) {
-                mainWindow.selectModpack( finalGameModPack );
-            }
+            //if ( finalGameModPack != null && mainWindow != null ) {
+            //    mainWindow.selectModpack( finalGameModPack );
+            //}
         }
         else if ( GameModeManager.isServer() ) {
-            if ( finalGameModPack != null ) {
-                play( finalGameModPack );
-            }
-            else {
+            //if ( finalGameModPack != null ) {
+            //    play( finalGameModPack );
+           // }
+            //else {
                 Logger.logError( LocalizationManager.NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT );
-            }
+            //}
         }
     }
 

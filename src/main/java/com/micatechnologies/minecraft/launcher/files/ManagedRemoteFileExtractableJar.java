@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.nio.file.Path;
 import java.util.List;
 
 /**

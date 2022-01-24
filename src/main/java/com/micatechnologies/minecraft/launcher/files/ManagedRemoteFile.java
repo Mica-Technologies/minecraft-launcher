@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 
 /**
@@ -41,7 +42,7 @@ public class ManagedRemoteFile
      *
      * @since 1.0
      */
-    private final String localPath;
+    private final Path localPath;
 
     /**
      * The remote URL path for downloading the file.
@@ -58,8 +59,8 @@ public class ManagedRemoteFile
     private final FileChecksum hash;
 
     /**
-     * Constructor for creating a {@link ManagedRemoteFile} with the specified local file path, remote download
-     * URL path, and file hash.
+     * Constructor for creating a {@link ManagedRemoteFile} with the specified local file path, remote download URL
+     * path, and file hash.
      *
      * @param localPath  local file path for the downloaded file
      * @param remotePath remote URL path for downloading the file
@@ -69,10 +70,9 @@ public class ManagedRemoteFile
      * @throws MalformedURLException if unable to parse remote path as a URL
      * @since 1.0
      */
-    public ManagedRemoteFile( String localPath, String remotePath, FileChecksum hash )
-    throws MalformedURLException
+    public ManagedRemoteFile( String localPath, String remotePath, FileChecksum hash ) throws MalformedURLException
     {
-        this.localPath = localPath.replaceAll( "/", File.separator );
+        this.localPath = Path.of( localPath.replaceAll( "/", File.separator ) );
         this.remotePath = new URL( remotePath );
         this.hash = hash;
     }
@@ -133,7 +133,7 @@ public class ManagedRemoteFile
      *
      * @since 1.0
      */
-    public String getLocalPath() {
+    public Path getLocalPath() {
         return localPath;
     }
 

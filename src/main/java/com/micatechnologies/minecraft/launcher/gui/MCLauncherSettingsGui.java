@@ -21,9 +21,7 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
@@ -284,14 +282,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 return;
             }
 
-            try {
-                RuntimeManager.clearJre8();
-            }
+            //try {
+                //RuntimeManager.clearJre8();
+                throw new IllegalStateException();
+            /*}
             catch ( IOException e ) {
                 Logger.logError(
                         "The runtime could not be deleted due to an IO exception. Continuing runtime verification..." );
             }
-            RuntimeManager.verifyJre8();
+            //RuntimeManager.verifyJre8();
 
             //Return to the settings window
             try {
@@ -301,7 +300,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 Logger.logError( "Oops! Unable to reload settings GUI" );
                 Logger.logThrowable( e );
                 LauncherCore.closeApp();
-            }
+            }*/
         } ) );
 
         // Load version information

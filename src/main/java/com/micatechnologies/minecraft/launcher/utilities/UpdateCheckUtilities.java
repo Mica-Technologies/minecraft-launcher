@@ -19,7 +19,6 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.UpdateCheckConstants;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 

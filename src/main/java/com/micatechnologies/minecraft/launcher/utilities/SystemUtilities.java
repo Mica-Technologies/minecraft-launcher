@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
@@ -25,8 +26,8 @@ import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import org.apache.commons.io.FileUtils;
@@ -66,7 +67,8 @@ public class SystemUtilities
         ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO()
                                                                                   .directory(
                                                                                           SynchronizedFileManager.getSynchronizedFile(
-                                                                                                  workingDirectory ) );
+                                                                                                  Path.of(
+                                                                                                          workingDirectory ) ) );
 
         // Start process and wait for finish
         Logger.logStd( "Executing command: " + command );
@@ -80,11 +82,11 @@ public class SystemUtilities
      * @param destination       extract to
      * @param extractionExclude list of files and folder paths to exclude during extraction
      */
-    public static void extractJarFile( String sourceName, String destination, List< String > extractionExclude )
+    public static void extractJarFile( Path sourceName, String destination, List< String > extractionExclude )
     throws IOException
     {
         // TODO: Replace/refactor this method
-        JarFile source = new JarFile( sourceName );
+        JarFile source = new JarFile( sourceName.toFile() );
 
         // Create an enumeration over JarFile entries
         Enumeration< JarEntry > jarFileFiles = source.entries();
@@ -111,7 +113,7 @@ public class SystemUtilities
             if ( !isExcluded ) {
                 // Create extracted file File object
                 File extractedJarFileFile = SynchronizedFileManager.getSynchronizedFile(
-                        destination + File.separator + jarFileFile.getName() );
+                        Path.of( destination + File.separator + jarFileFile.getName() ) );
 
                 // Create directory if expected
                 if ( extractedJarFileFile.isDirectory() ) {
@@ -233,7 +235,7 @@ public class SystemUtilities
 
             // Attempt to read client token from saved file
             final File clientTokenFile = SynchronizedFileManager.getSynchronizedFile(
-                    LocalPathManager.getClientTokenFilePath() );
+                    LocalPathConstants.CLIENT_TOKEN_FILE_PATH );
             if ( clientTokenFile.isFile() ) {
                 try {
                     clientToken = FileUtils.readFileToString( clientTokenFile, FileUtilities.persistenceCharset );
