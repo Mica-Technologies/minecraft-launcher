@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.files;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,10 +38,10 @@ public class SynchronizedFileManager
      *
      * @since 1.0
      */
-    private static final Map< String, File > managedFiles = new HashMap<>();
+    private static final Map< Path, File > managedFiles = new HashMap<>();
 
     /**
-     * Gets the single file object for the specified file path
+     * Gets the single, synchronize-able file object for the specified file path
      *
      * @param filePath file path
      *
@@ -48,7 +49,7 @@ public class SynchronizedFileManager
      *
      * @since 1.0
      */
-    public static synchronized File getSynchronizedFile( String filePath ) {
+    public static synchronized File getSynchronizedFile( Path filePath ) {
         File synchronizedFileObject;
 
         // Get existing file object if key (file path) is present
@@ -57,7 +58,7 @@ public class SynchronizedFileManager
         }
         // Create file object and add to map if not present
         else {
-            synchronizedFileObject = new File( filePath );
+            synchronizedFileObject = filePath.toFile();
             managedFiles.put( filePath, synchronizedFileObject );
         }
 
