@@ -27,8 +27,41 @@ import java.time.OffsetDateTime;
 
 public class DiscordRpcUtility
 {
-    private static final long      CLIENT_ID        = 841860482029846528L;
+    private static final long      CLIENT_ID        = 933830087336403004L;
     private static       IPCClient discordRpcClient = null;
+
+    public static void setRichPresence( String state,
+                                        String details,
+                                        OffsetDateTime startTimestamp,
+                                        String largeImageKey,
+                                        String largeImageText,
+                                        String smallImageKey,
+                                        String smallImageText )
+    {
+        if ( ConfigManager.getDiscordRpcEnable() ) {
+            // Init if required
+            if ( discordRpcClient == null ) {
+                init();
+            }
+
+            // Set rich presence if possible
+            if ( discordRpcClient != null ) {
+                try {
+                    RichPresence.Builder builder = new RichPresence.Builder();
+                    builder.setState( "DEV_BUILD" )//state )
+                           .setDetails( "DEV_BUILD" )//details )
+                           .setStartTimestamp( startTimestamp )
+                           .setLargeImage( largeImageKey, largeImageText )
+                           .setSmallImage( smallImageKey, smallImageText );
+                    discordRpcClient.sendRichPresence( builder.build() );
+                }
+                catch ( Exception e ) {
+                    Logger.logWarningSilent( "Unable to update Discord rich presence!" );
+                    Logger.logThrowable( e );
+                }
+            }
+        }
+    }
 
     private static void init() {
         if ( ConfigManager.getDiscordRpcEnable() ) {
@@ -53,39 +86,6 @@ public class DiscordRpcUtility
             catch ( Exception e ) {
                 Logger.logWarningSilent( "Unable to setup Discord rich presence!" );
                 Logger.logThrowable( e );
-            }
-        }
-    }
-
-    public static void setRichPresence( String state,
-                                        String details,
-                                        OffsetDateTime startTimestamp,
-                                        String largeImageKey,
-                                        String largeImageText,
-                                        String smallImageKey,
-                                        String smallImageText )
-    {
-        if ( ConfigManager.getDiscordRpcEnable() ) {
-            // Init if required
-            if ( discordRpcClient == null ) {
-                init();
-            }
-
-            // Set rich presence if possible
-            if ( discordRpcClient != null ) {
-                try {
-                    RichPresence.Builder builder = new RichPresence.Builder();
-                    builder.setState( state )
-                           .setDetails( details )
-                           .setStartTimestamp( startTimestamp )
-                           .setLargeImage( largeImageKey, largeImageText )
-                           .setSmallImage( smallImageKey, smallImageText );
-                    discordRpcClient.sendRichPresence( builder.build() );
-                }
-                catch ( Exception e ) {
-                    Logger.logWarningSilent( "Unable to update Discord rich presence!" );
-                    Logger.logThrowable( e );
-                }
             }
         }
     }
