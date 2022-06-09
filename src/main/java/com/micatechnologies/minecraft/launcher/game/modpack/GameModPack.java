@@ -335,7 +335,9 @@ public class GameModPack
         minecraftArgs = minecraftMainClass + " " + minecraftArgs;
 
         // Add log4j patch
-        minecraftArgs = "-Dlog4j2.formatMsgNoLookups=true" + " " + minecraftArgs;
+        minecraftArgs = "-Dlog4j2.formatMsgNoLookups=true -Dlog4j.configurationFile=log4j2_112-116.xml" +
+                " " +
+                minecraftArgs;
 
         // Add min and max RAM to arguments
         long SminRAMMB = ConfigManager.getMinRam();
@@ -656,6 +658,14 @@ public class GameModPack
     private void fetchLatestInitialFiles() throws ModpackException {
         // Get full path to configs folder
         String initFilesLocalPathPrefix = getPackRootFolder();
+
+        // Check for log4j XML patch
+        GameAsset log4jPatch = new GameAsset(
+                "https://launcher.mojang.com/v1/objects/02937d122c86ce73319ef9975b58896fc1b491d1/log4j2_112-116.xml",
+                "log4j2_112-116.xml", "02937d122c86ce73319ef9975b58896fc1b491d1", true, true );
+        log4jPatch.setLocalPathPrefix( initFilesLocalPathPrefix );
+        log4jPatch.updateLocalFile( GameModeManager.getCurrentGameMode() );
+
 
         // Check if initial files supplied
         if ( packInitialFiles == null ) {
