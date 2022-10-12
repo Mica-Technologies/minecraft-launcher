@@ -291,9 +291,9 @@
             <version>1.7.32</version>
         </dependency>
         <dependency>
-            <groupId>com.jagrosh</groupId>
+            <groupId>io.github.CDAGaming</groupId>
             <artifactId>DiscordIPC</artifactId>
-            <version>0.4</version>
+            <version>0.6.0</version>
         </dependency>
         <dependency>
             <groupId>com.github.Dansoftowner</groupId>

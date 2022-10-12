@@ -17,9 +17,12 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.google.gson.JsonObject;
 import com.jagrosh.discordipc.IPCClient;
 import com.jagrosh.discordipc.IPCListener;
+import com.jagrosh.discordipc.entities.Packet;
 import com.jagrosh.discordipc.entities.RichPresence;
+import com.jagrosh.discordipc.entities.User;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
@@ -37,15 +40,49 @@ public class DiscordRpcUtility
                 discordRpcClient.setListener( new IPCListener()
                 {
                     @Override
+                    public void onPacketSent( IPCClient ipcClient, Packet packet ) {
+
+                    }
+
+                    @Override
+                    public void onPacketReceived( IPCClient ipcClient, Packet packet ) {
+
+                    }
+
+                    @Override
+                    public void onActivityJoin( IPCClient ipcClient, String s ) {
+
+                    }
+
+                    @Override
+                    public void onActivitySpectate( IPCClient ipcClient, String s ) {
+                    }
+
+                    @Override
+                    public void onActivityJoinRequest( IPCClient ipcClient, String s, User user ) {
+
+                    }
+
+                    @Override
                     public void onReady( IPCClient client )
                     {
                         RichPresence.Builder builder = new RichPresence.Builder();
                         builder.setState( "In Menus" )
                                .setDetails( "Loading" )
-                               .setStartTimestamp( OffsetDateTime.now() )
+                               .setStartTimestamp( OffsetDateTime.now().toEpochSecond() )
                                .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
                                .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
                         client.sendRichPresence( builder.build() );
+                    }
+
+                    @Override
+                    public void onClose( IPCClient ipcClient, JsonObject jsonObject ) {
+
+                    }
+
+                    @Override
+                    public void onDisconnect( IPCClient ipcClient, Throwable throwable ) {
+
                     }
                 } );
                 discordRpcClient.connect();
@@ -77,7 +114,7 @@ public class DiscordRpcUtility
                     RichPresence.Builder builder = new RichPresence.Builder();
                     builder.setState( state )
                            .setDetails( details )
-                           .setStartTimestamp( startTimestamp )
+                           .setStartTimestamp( startTimestamp.toEpochSecond() )
                            .setLargeImage( largeImageKey, largeImageText )
                            .setSmallImage( smallImageKey, smallImageText );
                     discordRpcClient.sendRichPresence( builder.build() );
