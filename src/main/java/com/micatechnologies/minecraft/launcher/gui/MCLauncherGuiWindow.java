@@ -34,8 +34,10 @@ import java.util.Objects;
 public class MCLauncherGuiWindow extends Application
 {
 
-    private static final double                MIN_WIDTH  = 750.0;
-    private static final double                MIN_HEIGHT = 550.0;
+    private static final double                PREF_WIDTH  = 1000.0;
+    private static final double                PREF_HEIGHT = 800.0;
+    private static final double                MIN_WIDTH   = 750.0;
+    private static final double                MIN_HEIGHT  = 475.0;
     private              Stage                 stage;
     private              MCLauncherAbstractGui gui;
 
@@ -44,7 +46,7 @@ public class MCLauncherGuiWindow extends Application
     @Override
     public void start( Stage stage ) throws Exception {
         // Initialize default scene/GUI
-        MCLauncherProgressGui progressGui = new MCLauncherProgressGui( stage, MIN_WIDTH, MIN_HEIGHT );
+        MCLauncherProgressGui progressGui = new MCLauncherProgressGui( stage, PREF_WIDTH, PREF_HEIGHT );
 
         // Save stage
         this.stage = stage;
@@ -166,7 +168,7 @@ public class MCLauncherGuiWindow extends Application
                                        .toExternalForm() );
             gui.rootPane.getStylesheets()
                         .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
+                                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
                                         .toExternalForm() );
             gui.rootPane.getStylesheets()
                         .remove( Objects.requireNonNull(
@@ -184,7 +186,7 @@ public class MCLauncherGuiWindow extends Application
                                 getClass().getClassLoader().getResource( "guiStyle-light.css" ) ).toExternalForm() );
             gui.rootPane.getStylesheets()
                         .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
+                                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
                                         .toExternalForm() );
             gui.rootPane.getStylesheets()
                         .remove( Objects.requireNonNull(
@@ -202,7 +204,7 @@ public class MCLauncherGuiWindow extends Application
                                 getClass().getClassLoader().getResource( "guiStyle-light.css" ) ).toExternalForm() );
             gui.rootPane.getStylesheets()
                         .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
+                                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
                                         .toExternalForm() );
             gui.rootPane.getStylesheets()
                         .remove(
@@ -228,7 +230,7 @@ public class MCLauncherGuiWindow extends Application
                                        .toExternalForm() );
             gui.rootPane.getStylesheets()
                         .add( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
+                                             getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
                                      .toExternalForm() );
         } );
     }
