@@ -20,12 +20,12 @@ package com.micatechnologies.minecraft.launcher.game.auth;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import net.hycrafthd.minecraft_authenticator.login.AuthenticationFile;
 import net.hycrafthd.minecraft_authenticator.login.Authenticator;
 import net.hycrafthd.minecraft_authenticator.login.User;
-import net.hycrafthd.minecraft_authenticator.util.AuthenticationUtil;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,24 +59,39 @@ public class MCLauncherAuthManager
 
     public static MCLauncherAuthResult renewExistingLogin() {
         // Try to read and renew login for saved account
+        FileInputStream authFileInputStream = null;
         try {
             // Get previous authentication file
-            final AuthenticationFile previousAuthFile = AuthenticationUtil.readAuthenticationFile(
-                    SAVED_LOGIN_FILE_PATH );
+            authFileInputStream = new FileInputStream( SAVED_LOGIN_FILE_PATH.toFile() );
+            final AuthenticationFile previousAuthFile = AuthenticationFile.readCompressed( authFileInputStream );
+            authFileInputStream.close();
             Logger.logDebug( LocalizationManager.REMEMBERED_USER_LOADED_TEXT );
 
             // Update authentication
-            final Authenticator authenticator = Authenticator.of( previousAuthFile ).shouldAuthenticate().run();
+            final Authenticator authenticator = Authenticator.of( previousAuthFile ).shouldAuthenticate().build();
+            authenticator.run();
 
-            // Get new authentication file and write to disk
-            handleAuthFile( authenticator.getResultFile(), true );
+            if ( authenticator.getResultFile() != null ) {
+                // Get new authentication file and write to disk
+                handleAuthFile( authenticator.getResultFile(), true );
 
-            // Store logged in user (fallback to null if no user)
-            loggedIn = authenticator.getUser().orElse( null );
+                // Store logged in user (fallback to null if no user)
+                loggedIn = authenticator.getUser().orElse( null );
+            }
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( LocalizationManager.PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT );
             Logger.logThrowable( e );
+            if ( authFileInputStream != null ) {
+                try {
+                    authFileInputStream.close();
+                }
+                catch ( IOException ex ) {
+                    Logger.logWarningSilent( "An error occurred while closing an input stream for reading the saved " +
+                                                     "user account file!" );
+                    Logger.logThrowable( e );
+                }
+            }
             return MCLauncherAuthResult.ERROR_OTHER;
         }
 
@@ -92,46 +107,20 @@ public class MCLauncherAuthManager
         return result;
     }
 
-    public static MCLauncherAuthResult loginWithMojangAccount( String username, String password, boolean save ) {
-        // Try to login with Yggdrasil
-        try {
-            // Perform authentication
-            final Authenticator authenticator = Authenticator.ofYggdrasil( SystemUtilities.getClientToken(), username,
-                                                                           password ).shouldAuthenticate().run();
-
-            // Get new authentication file and write to disk if enabled
-            handleAuthFile( authenticator.getResultFile(), save );
-
-            // Store logged in user (fallback to null if no user)
-            loggedIn = authenticator.getUser().orElse( null );
-        }
-        catch ( Exception e ) {
-            return processAuthException( e );
-        }
-
-        // Ensure loggedIn was populated as expected and return result
-        MCLauncherAuthResult result;
-        if ( loggedIn == null ) {
-            result = MCLauncherAuthResult.ERROR_BAD_USERNAME_PASSWORD;
-        }
-        else {
-            result = new MCLauncherAuthResult( loggedIn );
-        }
-
-        return result;
-    }
-
     public static MCLauncherAuthResult loginWithMicrosoftAccount( String authCode, boolean save ) {
         // Try to login with Microsoft
         try {
             // Perform authentication
-            final Authenticator authenticator = Authenticator.ofMicrosoft( authCode ).shouldAuthenticate().run();
+            final Authenticator authenticator = Authenticator.ofMicrosoft( authCode ).shouldAuthenticate().build();
+            authenticator.run();
 
-            /// Get new authentication file and write to disk if enabled
-            handleAuthFile( authenticator.getResultFile(), save );
+            if ( authenticator.getResultFile() != null ) {
+                // Get new authentication file and write to disk if enabled
+                handleAuthFile( authenticator.getResultFile(), save );
 
-            // Store logged in user (fallback to null if no user)
-            loggedIn = authenticator.getUser().orElse( null );
+                // Store logged in user (fallback to null if no user)
+                loggedIn = authenticator.getUser().orElse( null );
+            }
         }
         catch ( Exception e ) {
             return processAuthException( e );
@@ -153,7 +142,9 @@ public class MCLauncherAuthManager
         if ( save ) {
             try {
                 Logger.logDebug( LocalizationManager.REMEMBERED_USER_WRITING_TEXT );
-                AuthenticationUtil.writeAuthenticationFile( authFile, SAVED_LOGIN_FILE_PATH );
+                FileOutputStream authFileOutputStream = new FileOutputStream( SAVED_LOGIN_FILE_PATH.toFile() );
+                authFile.writeCompressed( authFileOutputStream );
+                authFileOutputStream.close();
                 Logger.logDebug( LocalizationManager.REMEMBERED_USER_WRITE_FINISHED_TEXT );
             }
             catch ( Exception e ) {

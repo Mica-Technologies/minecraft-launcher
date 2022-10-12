@@ -328,12 +328,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure user label
         playerLabel.setText( TimeUtilities.getFriendlyTimeBasedGreeting() +
                                      ",\n" +
-                                     MCLauncherAuthManager.getLoggedInUser().getName() );
+                                     MCLauncherAuthManager.getLoggedInUser().name() );
 
         // Configure user image
         userImage.setImage( new Image(
                 GUIConstants.URL_MINECRAFT_USER_ICONS.replace( GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
-                                                               MCLauncherAuthManager.getLoggedInUser().getUuid() ) ) );
+                                                               MCLauncherAuthManager.getLoggedInUser().uuid() ) ) );
 
         // Configure ENTER key to press play button
         scene.setOnKeyPressed( keyEvent -> {
