@@ -502,44 +502,48 @@ public class GameModPack
                 ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
         // Build list of mod download threads
-        ExecutorService threadPool = Executors.newFixedThreadPool( packMods.size() );
-        List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
-        for ( GameMod mod : packMods ) {
-            Callable< Boolean > updateFileCallable = () -> {
-                mod.setLocalPathPrefix( modLocalPathPrefix );
+        if ( packMods.size() > 1 ) {
+            ExecutorService threadPool = Executors.newFixedThreadPool( packMods.size() );
+            List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
+            for ( GameMod mod : packMods ) {
+                Callable< Boolean > updateFileCallable = () -> {
+                    mod.setLocalPathPrefix( modLocalPathPrefix );
 
-                if ( progressProvider != null ) {
-                    progressProvider.submitProgress( "Verifying " + mod.name, ( 70.0 / ( double ) packMods.size() ) );
-                }
+                    if ( progressProvider != null ) {
+                        progressProvider.submitProgress( "Verifying " + mod.name,
+                                                         ( 70.0 / ( double ) packMods.size() ) );
+                    }
 
-                boolean ret = mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
+                    boolean ret = mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
-                if ( progressProvider != null ) {
-                    progressProvider.setCurrText( "Verified " + mod.name );
-                }
-                return ret;
-            };
-            Future< Boolean > future = threadPool.submit( updateFileCallable );
-            threadPoolFutures.add( future );
-        }
-        threadPool.shutdown();
-        try {
-            threadPool.awaitTermination( Long.MAX_VALUE, TimeUnit.MILLISECONDS );
-        }
-        catch ( InterruptedException e ) {
-            throw new ModpackException( "The download of Minecraft mods was interrupted before completion!", e );
-        }
-
-        // Parse list of futures
-        for ( Future< Boolean > threadPoolFuture : threadPoolFutures ) {
+                    if ( progressProvider != null ) {
+                        progressProvider.setCurrText( "Verified " + mod.name );
+                    }
+                    return ret;
+                };
+                Future< Boolean > future = threadPool.submit( updateFileCallable );
+                threadPoolFutures.add( future );
+            }
+            threadPool.shutdown();
             try {
-                threadPoolFuture.get();
+                threadPool.awaitTermination( Long.MAX_VALUE, TimeUnit.MILLISECONDS );
             }
             catch ( InterruptedException e ) {
                 throw new ModpackException( "The download of Minecraft mods was interrupted before completion!", e );
             }
-            catch ( ExecutionException e ) {
-                throw new ModpackException( "Unable to execute runner to retrieve Minecraft mods!", e );
+
+            // Parse list of futures
+            for ( Future< Boolean > threadPoolFuture : threadPoolFutures ) {
+                try {
+                    threadPoolFuture.get();
+                }
+                catch ( InterruptedException e ) {
+                    throw new ModpackException( "The download of Minecraft mods was interrupted before completion!",
+                                                e );
+                }
+                catch ( ExecutionException e ) {
+                    throw new ModpackException( "Unable to execute runner to retrieve Minecraft mods!", e );
+                }
             }
         }
     }
@@ -665,7 +669,6 @@ public class GameModPack
                 ManagedGameFile.ManagedGameFileHashType.MD5, true, true );
         log4jPatch.setLocalPathPrefix( initFilesLocalPathPrefix );
         log4jPatch.updateLocalFile( GameModeManager.getCurrentGameMode() );
-
 
         // Check if initial files supplied
         if ( packInitialFiles == null ) {

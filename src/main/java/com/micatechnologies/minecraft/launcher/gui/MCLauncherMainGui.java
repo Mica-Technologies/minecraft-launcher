@@ -28,12 +28,13 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.materialfx.controls.MFXComboBox;
+import io.github.palexdev.materialfx.controls.MFXListView;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -59,13 +60,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     ImageView packLogo;
 
     /**
-     * Installed mod pack selection list.
+     * Installed mod pack select list.
      *
-     * @since 1.0
+     * @since 3.0
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXComboBox< String > packSelection;
+    MFXListView< String > packSelectionList;
 
     /**
      * Play button. Starts the current selected mod pack.
@@ -291,7 +292,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
             GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelection.getSelectedValue() );
+                    packSelectionList.getSelectionModel().getSelectedItem() );
             SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)", "Mod Pack: " +
                                                                                            installedModPackByFriendlyName.getPackName(), OffsetDateTime.now(), "mica_minecraft_launcher",
                                                                                    "Mica Minecraft Launcher", "game",
@@ -313,7 +314,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure website button
         websiteBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelection.getSelectedValue() );
+                    packSelectionList.getSelectionModel().getSelectedItem() );
             try {
                 Desktop.getDesktop().browse( URI.create( installedModPackByFriendlyName.getPackURL() ) );
             }
@@ -326,9 +327,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } ) );
 
         // Configure user label
-        playerLabel.setText( TimeUtilities.getFriendlyTimeBasedGreeting() +
-                                     ",\n" +
-                                     MCLauncherAuthManager.getLoggedInUser().name() );
+        playerLabel.setText(
+                TimeUtilities.getFriendlyTimeBasedGreeting() + ",\n" + MCLauncherAuthManager.getLoggedInUser().name() );
 
         // Configure user image
         userImage.setImage( new Image(
@@ -377,7 +377,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             selectModpack( lastGameModPack.getFriendlyName() );
         }
         else {
-            selectModpack( packSelection.getItems().get( 0 ) );
+            selectModpack( packSelectionList.getItems().get( 0 ) );
         }
     }
 
@@ -394,7 +394,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     private final ChangeListener< Number > packSelectionChangeListener = ( observableValue, oldVal, newVal ) -> {
         // Get selected mod pack
-        String selectedModPack = packSelection.getItems().get( packSelection.getSelectionModel().getSelectedIndex() );
+        String selectedModPack = packSelectionList.getItems().get( newVal.intValue() );
         GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName( selectedModPack );
         if ( selectedGameModPack != null ) {
             ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
@@ -435,8 +435,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     public void selectModpack( String modPack ) {
         // Select supplied mod pack
-        packSelection.setSelectedValue( modPack );
-        packSelection.getSelectionModel().selectItem( modPack );
+        packSelectionList.getSelectionModel().select( modPack );
     }
 
     public void selectModpack( GameModPack modPack ) {
@@ -454,19 +453,20 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         List< String > modpackListNames = GameModPackManager.getInstalledModPackFriendlyNames();
 
         // Reset mod pack selector
-        packSelection.setDisable( false );
-        packSelection.getSelectionModel().selectedIndexProperty().removeListener( packSelectionChangeListener );
-        packSelection.getItems().clear();
+        packSelectionList.setDisable( false );
+        packSelectionList.getSelectionModel().selectionModeProperty().set( SelectionMode.SINGLE );
+        packSelectionList.getSelectionModel().selectedIndexProperty().removeListener( packSelectionChangeListener );
+        packSelectionList.getItems().clear();
 
         // Populate mod packs dropdown
         String noModPacksText = "No mod packs installed!";
         if ( modpackListNames.size() > 0 ) {
-            packSelection.setItems( FXCollections.observableList( modpackListNames ) );
-            packSelection.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
+            packSelectionList.setItems( FXCollections.observableList( modpackListNames ) );
+            packSelectionList.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
         }
         else {
-            packSelection.setItems( FXCollections.singletonObservableList( noModPacksText ) );
-            packSelection.setDisable( true );
+            packSelectionList.setItems( FXCollections.singletonObservableList( noModPacksText ) );
+            packSelectionList.setDisable( true );
             packLogo.setImage( new Image( GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE ) );
             rootPane.setStyle( rootPane.getStyle() +
                                        "-fx-background-image: url('" +
