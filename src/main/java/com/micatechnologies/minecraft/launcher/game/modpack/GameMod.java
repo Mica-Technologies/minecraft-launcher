@@ -45,11 +45,12 @@ public class GameMod extends ManagedGameFile
     final boolean serverReq;
 
     /**
-     * Create a Forge Mod object with using the specified remote URL, local file path and SHA-1 * hash.
+     * Create a Forge Mod object with using the specified remote URL, local file path and hash.
      *
      * @param modName      name of mod
      * @param modURL       URL of mod
-     * @param modSHA1      SHA-1 hash of mod
+     * @param modHash      hash of mod
+     * @param modHashType  hash type of mod
      * @param modLocalFile file location of mod on disk
      * @param clientReq    flag if required on client
      * @param serverReq    flag if required on server
@@ -59,12 +60,13 @@ public class GameMod extends ManagedGameFile
     @SuppressWarnings( "unused" )
     public GameMod( String modName,
                     String modURL,
-                    String modSHA1,
+                    String modHash,
+                    ManagedGameFileHashType modHashType,
                     String modLocalFile,
                     boolean clientReq,
                     boolean serverReq )
     {
-        super( modURL, modLocalFile, modSHA1 );
+        super( modURL, modLocalFile, modHash, modHashType );
 
         // Store mod information
         this.name = modName;

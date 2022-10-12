@@ -100,7 +100,7 @@ class GameModLoaderForge extends ManagedGameFile
     {
         // Populate remote file information/configuration
         super( remoteURL, SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
-                                                         ModPackConstants.MODPACK_FORGE_JAR_LOCAL_PATH ), sha1Hash );
+                                                         ModPackConstants.MODPACK_FORGE_JAR_LOCAL_PATH ), sha1Hash, ManagedGameFileHashType.SHA1 );
 
         // Store parent mod pack
         this.parentModPack = parentModPack;
@@ -324,7 +324,9 @@ class GameModLoaderForge extends ManagedGameFile
 
             // Build Forge Asset Object and Add to List of Assets
             if ( sha1 != null ) {
-                forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, sha1, clientReq, serverReq ) );
+                forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, sha1,
+                                                ManagedGameFileHashType.SHA1, clientReq,
+                                                serverReq ) );
             }
             else {
                 forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
