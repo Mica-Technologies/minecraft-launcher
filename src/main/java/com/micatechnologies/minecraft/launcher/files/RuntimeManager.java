@@ -157,7 +157,7 @@ public class RuntimeManager
         }
         else {
             if ( !SystemUtils.IS_OS_LINUX ) {
-                Logger.logWarning( LocalizationManager.UNIDENTIFIED_OS_RUNTIME_TEXT );
+                Logger.logWarningSilent( LocalizationManager.UNIDENTIFIED_OS_RUNTIME_TEXT );
             }
             jreArchiveFormat = ArchiveFormat.TAR;
             jreArchiveCompressionType = CompressionType.GZIP;
