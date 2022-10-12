@@ -55,18 +55,20 @@ public class GameLibrary extends ManagedGameFile
      *
      * @param remoteURL      library remote URL
      * @param localPath      library local path
-     * @param sha1Hash       library SHA-1 hash
+     * @param hash       library hash
+     * @param hashType   library hash type
      * @param strictOSCheck  strict OS checking flag
      * @param applicableOSes strict OS list
      * @param isNativeLib    native library flag
      *
      * @since 1.0
      */
-    public GameLibrary( String remoteURL, String localPath, String sha1Hash, boolean strictOSCheck,
+    public GameLibrary( String remoteURL, String localPath, String hash,
+                        ManagedGameFileHashType hashType, boolean strictOSCheck,
                         ArrayList< String > applicableOSes, boolean isNativeLib )
     {
         // Setup remote file configuration
-        super( remoteURL, localPath, sha1Hash );
+        super( remoteURL, localPath, hash,hashType );
 
         // Store applicability information
         this.strictOSCheck = strictOSCheck;

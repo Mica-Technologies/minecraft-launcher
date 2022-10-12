@@ -30,7 +30,7 @@ import java.security.NoSuchAlgorithmException;
  * Class that provides utility methods and functionality for file hashing with SHA-1 and SHA-256.
  *
  * @author Mica Technologies
- * @version 1.0
+ * @version 1.1
  * @since 2.0
  */
 public class HashUtilities
@@ -87,9 +87,9 @@ public class HashUtilities
             e.printStackTrace();
         }
         catch ( NoSuchAlgorithmException e ) {
-            Logger.logError(
-                    "The SHA-1 algorithm is not available to calculate the checksum of " + file.getAbsolutePath() +
-                            "!" );
+            Logger.logError( "The SHA-1 algorithm is not available to calculate the checksum of " +
+                                     file.getAbsolutePath() +
+                                     "!" );
             e.printStackTrace();
         }
         return checksum;
@@ -114,9 +114,35 @@ public class HashUtilities
             e.printStackTrace();
         }
         catch ( NoSuchAlgorithmException e ) {
+            Logger.logError( "The SHA-256 algorithm is not available to calculate the checksum of " +
+                                     file.getAbsolutePath() +
+                                     "!" );
+            e.printStackTrace();
+        }
+        return checksum;
+    }
+
+    /**
+     * Gets the MD5 checksum of the specified file.
+     *
+     * @param file file to get checksum
+     *
+     * @return file MD5 checksum
+     *
+     * @since 1.1
+     */
+    public static String getFileMD5( File file ) {
+        String checksum = null;
+        try {
+            checksum = getFileChecksum( MessageDigest.getInstance( "MD5" ), file );
+        }
+        catch ( IOException e ) {
+            Logger.logError( "Unable to calculate the MD5 sum of " + file.getAbsolutePath() + "!" );
+            e.printStackTrace();
+        }
+        catch ( NoSuchAlgorithmException e ) {
             Logger.logError(
-                    "The SHA-256 algorithm is not available to calculate the checksum of " + file.getAbsolutePath() +
-                            "!" );
+                    "The MD5 algorithm is not available to calculate the checksum of " + file.getAbsolutePath() + "!" );
             e.printStackTrace();
         }
         return checksum;
@@ -159,6 +185,27 @@ public class HashUtilities
         if ( file.isFile() ) {
             String fileSha = getFileSHA256( file );
             matches = fileSha.equalsIgnoreCase( validSha );
+        }
+
+        return matches;
+    }
+
+    /**
+     * Gets the MD5 checksum of the specified file and returns true if it matches the specified checksum.
+     *
+     * @param file     file to compare checksum
+     * @param validMd5 checksum to compare with
+     *
+     * @return true if checksums match
+     *
+     * @since 1.1
+     */
+    public static boolean verifyMD5( File file, String validMd5 ) {
+        boolean matches = false;
+
+        if ( file.isFile() ) {
+            String fileMda5 = getFileMD5( file );
+            matches = fileMda5.equalsIgnoreCase( validMd5 );
         }
 
         return matches;

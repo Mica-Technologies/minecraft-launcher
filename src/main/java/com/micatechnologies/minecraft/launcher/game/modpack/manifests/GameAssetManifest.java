@@ -102,7 +102,7 @@ public class GameAssetManifest extends ManagedGameFile
                                                                                    .replaceAll(
                                                                                            ManifestConstants.MINECRAFT_ASSET_SERVER_URL_HASH_KEY,
                                                                                            assetHash );
-            assets.add( new ManagedGameFile( assetURL, assetPath, assetHash ) );
+            assets.add( new ManagedGameFile( assetURL, assetPath, assetHash, ManagedGameFileHashType.SHA1 ) );
         }
 
         // Return list

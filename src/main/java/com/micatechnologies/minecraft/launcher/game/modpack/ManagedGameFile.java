@@ -34,7 +34,7 @@ import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
  * A Java class representation of a remote file that should be kept locally in sync.
  *
  * @author Mica Technologies
- * @version 1.1
+ * @version 2.0
  * @since 1.0
  */
 public class ManagedGameFile
@@ -62,6 +62,13 @@ public class ManagedGameFile
     private final String sha1;
 
     /**
+     * The MD5 hash of the file
+     *
+     * @since 2.0
+     */
+    private final String md5;
+
+    /**
      * The prefix added to the local file path in {@link #local}.
      *
      * @since 1.0
@@ -87,21 +94,24 @@ public class ManagedGameFile
         }
 
         this.local = localTemp;
-        this.sha1 = "-1";
         this.remote = remote;
+
+        this.sha1 = "-1";
+        this.md5 = "-1";
     }
 
     /**
      * Create an MCRemoteFile object with hash checking enabled, using the specified remote URL, local file path and
-     * SHA-1 hash.
+     * hash configuration.
      *
-     * @param remote remote file URL
-     * @param local  local file path
-     * @param sha1   file SHA-1 hash
+     * @param remote   remote file URL
+     * @param local    local file path
+     * @param hash     file hash
+     * @param hashType file hash type
      *
      * @since 1.0
      */
-    public ManagedGameFile( String remote, String local, String sha1 ) {
+    public ManagedGameFile( String remote, String local, String hash, ManagedGameFileHashType hashType ) {
         String localTemp;
         try {
             localTemp = local.replaceAll( "/", File.separator );
@@ -111,8 +121,20 @@ public class ManagedGameFile
         }
 
         this.local = localTemp;
-        this.sha1 = sha1;
         this.remote = remote;
+
+        if ( hashType == ManagedGameFileHashType.SHA1 ) {
+            this.sha1 = hash;
+            this.md5 = "-1";
+        }
+        else if ( hashType == ManagedGameFileHashType.MD5 ) {
+            this.sha1 = "-1";
+            this.md5 = hash;
+        }
+        else {
+            this.sha1 = "-1";
+            this.md5 = "-1";
+        }
     }
 
     /**
@@ -137,13 +159,17 @@ public class ManagedGameFile
         // Create File instance
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
 
-        // Hash Checking Disabled: Return true if file exists and is file (not folder)
-        if ( this.sha1.equals( "-1" ) ) {
-            return localFile.exists() && localFile.isFile();
-        }
-        // Hash Checking Enabled: Return true if file exists, is not a folder, and hashes match
-        else {
+        // Hash Checking Enabled (SHA1): Return true if file exists, is not a folder, and hashes match
+         if (this.sha1 != null && !this.sha1.equals( "-1" )) {
             return HashUtilities.verifySHA1( localFile, sha1 );
+        }
+        // Hash Checking Enabled (MD5): Return true if file exists, is not a folder, and hashes match
+        else if (this.md5 != null && !this.md5.equals( "-1" )) {
+            return HashUtilities.verifyMD5( localFile, md5 );
+        }
+        // Hash Checking Disabled: Return true if file exists and is file (not folder)
+        else{
+            return localFile.exists() && localFile.isFile();
         }
     }
 
@@ -248,5 +274,15 @@ public class ManagedGameFile
         catch ( IOException e ) {
             throw new ModpackException( LocalizationManager.UNABLE_READ_LOCAL_FILE_TO_JSON_EXCEPTION_TEXT, e );
         }
+    }
+
+    /**
+     * The enum with values indicating the type of hash supplied to the {@link ManagedGameFile}.
+     *
+     * @since 2.0
+     */
+    public enum ManagedGameFileHashType
+    {
+        SHA1, MD5
     }
 }

@@ -60,8 +60,14 @@ class GameAsset extends ManagedGameFile
      *
      * @since 1.0
      */
-    GameAsset( String remote, String local, String sha1, boolean clientReq, boolean serverReq ) {
-        super( remote, local, sha1 );
+    GameAsset( String remote,
+               String local,
+               String hash,
+               ManagedGameFileHashType hashType,
+               boolean clientReq,
+               boolean serverReq )
+    {
+        super( remote, local, hash, hashType );
         this.clientReq = clientReq;
         this.serverReq = serverReq;
     }

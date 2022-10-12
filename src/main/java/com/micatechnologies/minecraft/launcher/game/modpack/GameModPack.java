@@ -662,7 +662,8 @@ public class GameModPack
         // Check for log4j XML patch
         GameAsset log4jPatch = new GameAsset(
                 "https://launcher.mojang.com/v1/objects/02937d122c86ce73319ef9975b58896fc1b491d1/log4j2_112-116.xml",
-                "log4j2_112-116.xml", "02937d122c86ce73319ef9975b58896fc1b491d1", true, true );
+                "log4j2_112-116.xml", "02937d122c86ce73319ef9975b58896fc1b491d1",
+                ManagedGameFile.ManagedGameFileHashType.MD5, true, true );
         log4jPatch.setLocalPathPrefix( initFilesLocalPathPrefix );
         log4jPatch.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
