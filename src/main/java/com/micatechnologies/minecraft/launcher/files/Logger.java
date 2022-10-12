@@ -83,12 +83,16 @@ public class Logger
             LocalizationManager.LOG_DEBUG_PREFIX +
             "] ";
 
-    private static BufferedOutputStream fileBufferedOutputStream = null;
+    private static BufferedOutputStream     fileBufferedOutputStream   = null;
+    private static ScheduledExecutorService fileBufferedWriteScheduler = null;
 
     public static void shutdownLogSys() throws IOException {
         if ( fileBufferedOutputStream != null ) {
             fileBufferedOutputStream.flush();
             fileBufferedOutputStream.close();
+        }
+        if ( fileBufferedWriteScheduler != null ) {
+            fileBufferedWriteScheduler.shutdown();
         }
     }
 
@@ -118,8 +122,8 @@ public class Logger
          */
         FileOutputStream fileOutputStream = new FileOutputStream( logFile );
         fileBufferedOutputStream = new BufferedOutputStream( fileOutputStream );
-        final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool( 1 );
-        scheduler.scheduleAtFixedRate( () -> {
+        fileBufferedWriteScheduler = Executors.newScheduledThreadPool( 1 );
+        fileBufferedWriteScheduler.scheduleAtFixedRate( () -> {
             try {
                 fileBufferedOutputStream.flush();
             }
@@ -173,6 +177,17 @@ public class Logger
             GUIUtilities.showErrorMessage( errorLog, jfxStage );
         }
 
+        logErrorSilent( errorLog );
+    }
+
+    /**
+     * Log a silent error with its prefix.
+     *
+     * @param errorLog silent error to log
+     *
+     * @since 1.0
+     */
+    public static void logErrorSilent( String errorLog ) {
         System.err.println( logErrorPrefix + errorLog );
     }
 
