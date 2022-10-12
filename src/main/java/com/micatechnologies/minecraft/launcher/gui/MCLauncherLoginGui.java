@@ -23,13 +23,9 @@ import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
 import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.*;
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.input.KeyCode;
-import javafx.scene.layout.GridPane;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import net.hycrafthd.minecraft_authenticator.Constants;
@@ -51,47 +47,6 @@ import static java.util.stream.Collectors.*;
 public class MCLauncherLoginGui extends MCLauncherAbstractGui
 {
     /**
-     * Mojang/Minecraft account username. For Mojang accounts, this is the account email address. For old Minecraft
-     * accounts, this is the player's username.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXTextField emailField;
-
-    /**
-     * Mojang/Minecraft account password.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXPasswordField passwordField;
-
-    /**
-     * Account remember me option check box. If checked, this enabled saving of the account on persistent storage so it
-     * can be used automatically.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXToggleButton rememberMeCheckBox;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton loginMojangBtn;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton backToMsLoginBtn;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label switchToMojangLoginBtn;
-
-    /**
      * Exit button. This button closes the window, but in most cases the result is the application closing as well.
      *
      * @since 1.0
@@ -108,24 +63,6 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     WebView authWebView;
-
-    /**
-     * Main authentication pane.
-     *
-     * @since 2021.2
-     */
-    @FXML
-    @SuppressWarnings( "unused" )
-    GridPane mainAuthPane;
-
-    /**
-     * Microsoft authentication pane.
-     *
-     * @since 2021.2
-     */
-    @FXML
-    @SuppressWarnings( "unused" )
-    GridPane msAuthPane;
 
     /**
      * Microsoft Account stay logged in option check box. If checked, this enabled saving of the account on persistent
@@ -196,64 +133,6 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         authWebView.getEngine().setJavaScriptEnabled( true );
         authWebView.getEngine().setUserAgent( "AppleWebKit/537.44" );
 
-        // Configure login button
-        loginMojangBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            // Lock fields
-            emailField.setDisable( true );
-            passwordField.setDisable( true );
-
-            // Get login information from fields
-            String email = emailField.getText();
-            String password = passwordField.getPassword();
-
-            // Attempt login
-            MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMojangAccount( email, password,
-                                                                                            rememberMeCheckBox.isSelected() );
-
-            // Check login result
-            boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
-
-            // If successful, register login with app and save account if applicable
-            if ( authSuccess ) {
-                loginSuccessLatch.countDown();
-            }
-            else {
-                handleBadLogin( 0 );
-            }
-
-            // Unlock fields
-            emailField.setDisable( false );
-            passwordField.setDisable( false );
-        } ) );
-
-        // Hide Mojang login area by default
-        msAuthPane.setVisible( true );
-        mainAuthPane.setVisible( false );
-
-        switchToMojangLoginBtn.setOnMouseClicked( actionEvent -> {
-            msAuthPane.setVisible( false );
-            mainAuthPane.setVisible( true );
-            rememberMeCheckBox.setSelected( msStayLoggedInCheckBox.isSelected() );
-        } );
-
-        // Configure Microsoft login button
-        backToMsLoginBtn.setOnAction( actionEvent -> {
-            // Show MS login page
-            msAuthPane.setVisible( true );
-            mainAuthPane.setVisible( false );
-            msStayLoggedInCheckBox.setSelected( rememberMeCheckBox.isSelected() );
-
-            loadMsAuthFrame();
-        } );
-
-        // Configure ENTER key to press login button
-        scene.setOnKeyPressed( keyEvent -> {
-            if ( keyEvent.getCode() == KeyCode.ENTER && ( emailField.isFocused() || passwordField.isFocused() ) ) {
-                keyEvent.consume();
-                loginMojangBtn.fire();
-            }
-        } );
-
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
     }
@@ -296,8 +175,6 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
                     // Clear web view and return to regular login view
                     authWebView.getEngine().load( "about:blank" );
-                    msAuthPane.setVisible( false );
-                    mainAuthPane.setVisible( true );
 
                     SystemUtilities.spawnNewTask( () -> {
                         // Split URL into parameters
@@ -332,7 +209,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
                                 loginSuccessLatch.countDown();
                             }
                             else {
-                                handleBadLogin( 1 );
+                                handleBadLogin();
                             }
                         }
                         else {
@@ -361,30 +238,9 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
-    private void handleBadLogin( int index ) {
-        if ( index == 0 ) {
-            // Show try again message
-            GUIUtilities.JFXPlatformRun( () -> {
-                loginMojangBtn.setText( "Try Again" );
-                passwordField.clear();
-            } );
-
-            // Reset log in button text in 5 seconds
-            SystemUtilities.spawnNewTask( () -> {
-                try {
-                    Thread.sleep( 5000 );
-                }
-                catch ( InterruptedException e ) {
-                    Logger.logDebug( "An error occurred while waiting to reset the login button text from \"Try " +
-                                             "Again\" to \"Log In\"." );
-                }
-                GUIUtilities.JFXPlatformRun( () -> loginMojangBtn.setText( "Log In" ) );
-            } );
-        }
-        else if ( index == 1 ) {
-            Logger.logError( "Failed to login with Microsoft!" );
-            loadMsAuthFrame();
-        }
+    private void handleBadLogin() {
+        Logger.logError( "Failed to login with Microsoft!" );
+        loadMsAuthFrame();
     }
 
     /**

@@ -1,18 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
-<?import io.github.palexdev.materialfx.controls.MFXPasswordField?>
-<?import io.github.palexdev.materialfx.controls.MFXTextField?>
 <?import io.github.palexdev.materialfx.controls.MFXToggleButton?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.image.Image?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.text.Font?>
 <?import javafx.scene.web.WebView?>
 
 <!--
@@ -32,83 +25,32 @@
   ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
-          prefHeight="625.0" prefWidth="750.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css"
-          xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
+<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0" prefHeight="625.0" prefWidth="750.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
     </columnConstraints>
     <rowConstraints>
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
-    <StackPane GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS">
-        <GridPane fx:id="mainAuthPane" maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875" />
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="250.0" vgrow="SOMETIMES" />
-            </rowConstraints>
-            <GridPane fx:id="authFieldView">
-                <columnConstraints>
-                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                    <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                </columnConstraints>
-                <rowConstraints>
-                    <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" percentHeight="25.0" />
-                    <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                    <RowConstraints maxHeight="1.7976931348623157E308" percentHeight="12.0" vgrow="SOMETIMES" />
-                    <RowConstraints maxHeight="1.7976931348623157E308" percentHeight="12.0" vgrow="SOMETIMES" />
-                    <RowConstraints maxHeight="1.7976931348623157E308" percentHeight="13.0" vgrow="SOMETIMES" />
-                    <RowConstraints maxHeight="1.7976931348623157E308" percentHeight="17.0" vgrow="SOMETIMES" />
-                    <RowConstraints maxHeight="1.7976931348623157E308" minHeight="10.0" percentHeight="11.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                </rowConstraints>
-                <ImageView fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-                    <Image url="@../micaminecraftlauncher.png" />
-                </ImageView>
-                <Label text="Login to Minecraft" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
-                    <font>
-                        <Font size="18.0" />
-                    </font>
-                </Label>
-                <MFXTextField fx:id="emailField" prefHeight="25.0" prefWidth="250.0" promptText="Email" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
-            <MFXPasswordField fx:id="passwordField" prefHeight="25.0" prefWidth="250.0" promptText="Password" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
-                <MFXToggleButton fx:id="rememberMeCheckBox" prefWidth="149.0" text="Remember Me" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER" />
-                <MFXButton fx:id="loginMojangBtn" maxHeight="25.0" maxWidth="120.0" minHeight="25.0" minWidth="102.0" prefHeight="25.0" prefWidth="102.0" text="Log In" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-                    <GridPane.margin>
-                        <Insets />
-                    </GridPane.margin>
-                </MFXButton>
-                <MFXButton fx:id="backToMsLoginBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="&lt; Back" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER">
-                    <GridPane.margin>
-                        <Insets left="10.0" />
-                    </GridPane.margin>
-                </MFXButton>
-                <MFXButton fx:id="exitBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Exit" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER">
-                    <GridPane.margin>
-                        <Insets />
-                    </GridPane.margin>
-                </MFXButton>
-                <padding>
-                    <Insets left="15.0" right="15.0" />
-                </padding>
-            </GridPane>
-        </GridPane>
-        <GridPane fx:id="msAuthPane" maxWidth="550.0" minWidth="400.0" prefWidth="450.0" styleClass="stripPane">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875" />
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="469.33331298828125" vgrow="ALWAYS" />
-                <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="38.666636149088504" prefHeight="56.33332316080731" vgrow="SOMETIMES" />
-            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="21.333343505859375" prefHeight="25.333343505859375" vgrow="SOMETIMES" />
-            </rowConstraints>
-            <WebView fx:id="authWebView" prefHeight="500.0" prefWidth="500.0" GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS" />
-            <MFXToggleButton fx:id="msStayLoggedInCheckBox" text="Stay Logged In" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
-         <Label fx:id="switchToMojangLoginBtn" opacity="0.5" text="Using an outdated Mojang account? Click here to log in." textAlignment="CENTER" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
-            <font>
-               <Font size="10.0" />
-            </font></Label>
-        </GridPane>
-    </StackPane>
+     <GridPane fx:id="msAuthPane" maxWidth="550.0" minWidth="400.0" prefWidth="450.0" styleClass="stripPane" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+         <columnConstraints>
+             <ColumnConstraints fillWidth="false" halignment="LEFT" hgrow="SOMETIMES" />
+         <ColumnConstraints halignment="RIGHT" hgrow="ALWAYS" />
+         </columnConstraints>
+         <rowConstraints>
+             <RowConstraints maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="469.33331298828125" vgrow="ALWAYS" />
+             <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="38.666636149088504" prefHeight="56.33332316080731" vgrow="SOMETIMES" />
+         </rowConstraints>
+         <WebView fx:id="authWebView" prefHeight="500.0" prefWidth="550.0" GridPane.columnSpan="2" GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS" />
+         <MFXToggleButton fx:id="msStayLoggedInCheckBox" text="Stay Logged In" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+         <GridPane.margin>
+            <Insets left="20.0" />
+         </GridPane.margin>
+      </MFXToggleButton>
+          <MFXButton fx:id="exitBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Exit" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+              <GridPane.margin>
+                  <Insets right="20.0" />
+              </GridPane.margin>
+          </MFXButton>
+     </GridPane>
 </GridPane>

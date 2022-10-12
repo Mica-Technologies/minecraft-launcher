@@ -31,7 +31,6 @@ import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
-import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -395,7 +394,7 @@ public class GameModPack
         // Replace fillers with data
         if ( GameModeManager.isClient() ) {
             minecraftArgs = minecraftArgs.replace( "${auth_player_name}",
-                                                   MCLauncherAuthManager.getLoggedInUser().getName() );
+                                                   MCLauncherAuthManager.getLoggedInUser().name() );
             minecraftArgs = minecraftArgs.replace( "${version_name}", getForgeVersion() );
             if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
                 minecraftArgs = minecraftArgs.replace( "${game_directory}", "\"" + getPackRootFolder() + "\"" );
@@ -414,9 +413,9 @@ public class GameModPack
 
             minecraftArgs = minecraftArgs.replace( "${assets_index_name}",
                                                    getMinecraftLibraryManifest().getAssetIndexVersion() );
-            minecraftArgs = minecraftArgs.replace( "${auth_uuid}", MCLauncherAuthManager.getLoggedInUser().getUuid() );
+            minecraftArgs = minecraftArgs.replace( "${auth_uuid}", MCLauncherAuthManager.getLoggedInUser().uuid() );
             minecraftArgs = minecraftArgs.replace( "${auth_access_token}",
-                                                   MCLauncherAuthManager.getLoggedInUser().getAccessToken() );
+                                                   MCLauncherAuthManager.getLoggedInUser().accessToken() );
             minecraftArgs = minecraftArgs.replace( "${user_type}", "mojang" );
 
             // Add title and icon to arguments
