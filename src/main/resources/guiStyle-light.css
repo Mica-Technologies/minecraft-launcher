@@ -126,6 +126,28 @@
     -fx-prompt-text-fill: #000;
     -fx-text-fill: #000;
     -mfx-line-color: #477A1E;
+    -fx-background-color: transparent;
+    -fx-border-color: gray !important;
+}
+
+.mfx-text-field:floating .floating-text {
+    -fx-background-color: transparent;
+}
+
+.mfx-text-field:floating:focus-within .floating-text {
+    -fx-background-color: #477A1E;
+}
+
+.mfx-text-field:floating .floating-text .text {
+    -fx-fill: #000;
+}
+
+.mfx-text-field:floating:focus-within .floating-text .text {
+    -fx-fill: #fff;
+}
+
+.mfx-text-field .floating-text .text {
+    -fx-fill: #000;
 }
 
 .mfx-text-field:focus-within {

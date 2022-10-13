@@ -126,6 +126,23 @@
     -fx-prompt-text-fill: #fff;
     -fx-text-fill: #fff;
     -mfx-line-color: #3074ED;
+    -fx-background-color: transparent;
+}
+
+.mfx-text-field:floating .floating-text {
+    -fx-background-color: transparent;
+}
+
+.mfx-text-field:floating:focus-within .floating-text {
+    -fx-background-color: #3074ED;
+}
+
+.mfx-text-field:floating .floating-text .text {
+    -fx-fill: #fff;
+}
+
+.mfx-text-field .floating-text .text {
+    -fx-fill: #fff;
 }
 
 .mfx-text-field:focus-within {
