@@ -126,6 +126,23 @@
     -fx-prompt-text-fill: #fff;
     -fx-text-fill: #fff;
     -mfx-line-color: #632748;
+    -fx-background-color: transparent;
+}
+
+.mfx-text-field:floating .floating-text {
+    -fx-background-color: transparent;
+}
+
+.mfx-text-field:floating:focus-within .floating-text {
+    -fx-background-color: #632748;
+}
+
+.mfx-text-field:floating .floating-text .text {
+    -fx-fill: #fff;
+}
+
+.mfx-text-field .floating-text .text {
+    -fx-fill: #fff;
 }
 
 .mfx-text-field:focus-within {
@@ -233,7 +250,7 @@
 
 .mfx-list-cell {
     -fx-background-color: rgb(233, 233, 233);
-    -fx-text-fill: white;
+    -fx-text-fill: black;
     -fx-padding: 10;
     -fx-border-width: 0;
 }
@@ -243,7 +260,7 @@
 }
 
 .mfx-list-cell:hover {
-    -fx-background-color: #fff;
+    -fx-background-color: #E25E00;
 }
 
 .mfx-list-cell:selected {
@@ -261,4 +278,29 @@
 
 .mfx-list-cell .mfx-ripple-generator {
     -mfx-ripple-color: #fff;
+}
+
+.mfx-list-cell .packName {
+    -fx-font-size: 16;
+    -fx-padding: 0 0 0 6;
+}
+
+.mfx-list-cell .packVersion {
+    -fx-font-size: 10;
+    -fx-font-style: italic;
+    -fx-padding: 0 0 0 6;
+}
+
+.mfx-list-cell .packName,
+.mfx-list-cell .packVersion {
+    -fx-text-fill: black;
+    -fx-fill: black;
+}
+
+.mfx-list-cell:hover .packName,
+.mfx-list-cell:hover .packVersion,
+.mfx-list-cell:selected .packName,
+.mfx-list-cell:selected .packVersion {
+    -fx-text-fill: white;
+    -fx-fill: white;
 }

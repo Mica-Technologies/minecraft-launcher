@@ -24,6 +24,7 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
+import io.github.palexdev.materialfx.controls.MFXListView;
 import io.github.palexdev.materialfx.controls.MFXTextField;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -49,7 +50,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    ListView< String > modpackList;
+    MFXListView< String > modpackList;
 
     /**
      * Add mod pack by URL button. This button processes the value in {@link #urlAddBox}.
@@ -98,6 +99,15 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     @FXML
     MFXButton returnBtn;
 
+    /**
+     * Remove selected mod packs button
+     *
+     * @since 2.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton removeSelectedBtn;
+
     private static final String UNAVAILABLE_PREFIX = "(Unavailable) ";
 
     /**
@@ -119,92 +129,6 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     public MCLauncherEditModPacksGui( Stage stage, double width, double height ) throws IOException {
         super( stage, width, height );
-    }
-
-    /**
-     * Custom {@link ListCell <String>} implementation that includes a button to remove the affiliated item from the
-     * parent list.
-     *
-     * @version 1.0
-     * @since 1.0
-     */
-    class XCell extends ListCell< String >
-    {
-        /**
-         * Layout container for list cell.
-         *
-         * @since 1.0
-         */
-        final HBox hbox = new HBox();
-
-        /**
-         * Label for list cell value (string).
-         *
-         * @since 1.0
-         */
-        final Label label = new Label( "" );
-
-        /**
-         * Pane for separation between list cell value (string) and added button.
-         *
-         * @since 1.0
-         */
-        final Pane   pane   = new Pane();
-        /**
-         * Added button for removing the associated item in the list.
-         *
-         * @since 1.0
-         */
-        final Button button = new Button( "X" );
-
-        /**
-         * Constructor for custom list cell implementation that populates and styles each element.
-         *
-         * @since 1.0
-         */
-        public XCell() {
-            super();
-
-            pane.setPrefWidth( 10 );
-            label.setStyle( "-fx-text-fill:black!important;" );
-            button.setStyle( "-fx-text-fill:red!important;-fx-font-size:8;" );
-            hbox.getChildren().addAll( label, pane, button );
-            HBox.setHgrow( pane, Priority.ALWAYS );
-            button.setOnAction( event -> {
-                String eventItem = getItem();
-                getListView().getItems().remove( eventItem );
-                SystemUtilities.spawnNewTask( () -> {
-                    boolean isUnavailable = eventItem.contains( UNAVAILABLE_PREFIX );
-                    String preppedEventItem = eventItem;
-                    if ( isUnavailable ) {
-                        preppedEventItem = eventItem.substring(
-                                eventItem.indexOf( UNAVAILABLE_PREFIX ) + UNAVAILABLE_PREFIX.length() );
-                    }
-                    uninstallModPack( preppedEventItem, isUnavailable );
-                } );
-            } );
-        }
-
-        /**
-         * Overridden method for handling updates to the item in the list cell.
-         *
-         * @param item  new list cell value (string)
-         * @param empty true if list cell should be empty
-         *
-         * @since 1.0
-         */
-        @Override
-        protected void updateItem( String item, boolean empty ) {
-            super.updateItem( item, empty );
-            setText( null );
-            setGraphic( null );
-
-            if ( item != null && !empty ) {
-                label.setText( item );
-                label.setPrefHeight( button.getPrefHeight() );
-                setGraphic( hbox );
-            }
-        }
     }
 
     /**
@@ -292,6 +216,24 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
             }
         } ) );
 
+        // Configure remove selected button
+        removeSelectedBtn.setOnAction( actionEvent -> {
+            List< String > selectedItems = modpackList.getSelectionModel().getSelectedValues();
+            for ( String selectedItem : selectedItems ) {
+                modpackList.getItems().remove( selectedItem );
+                SystemUtilities.spawnNewTask( () -> {
+                    boolean isUnavailable = selectedItem.contains( UNAVAILABLE_PREFIX );
+                    String preppedEventItem = selectedItem;
+                    if ( isUnavailable ) {
+                        preppedEventItem = selectedItem.substring(
+                                selectedItem.indexOf( UNAVAILABLE_PREFIX ) + UNAVAILABLE_PREFIX.length() );
+                    }
+                    uninstallModPack( preppedEventItem, isUnavailable );
+                } );
+            }
+
+        } );
+
         // Loads lists
         loadModPackList();
     }
@@ -334,9 +276,6 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
                 installedModPackFriendlyNames.add( UNAVAILABLE_PREFIX + modPackUrl );
             }
         }
-
-        // Set installed mod pack list cell factory
-        modpackList.setCellFactory( stringListView -> new MCLauncherEditModPacksGui.XCell() );
 
         // Add installed mod packs to list
         modpackList.setItems( FXCollections.observableList( installedModPackFriendlyNames ) );
