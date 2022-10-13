@@ -590,4 +590,20 @@ public class GameModPackManager
         // Save installed mod packs to configuration
         ConfigManager.setInstalledModPacks( getInstalledModPackURLs() );
     }
+
+    /**
+     * Gets and returns a list of the mod packs that are installed.
+     *
+     * @return list of installed mod packs
+     *
+     * @since 1.1
+     */
+    public synchronized static List< GameModPack > getInstalledModPacks() {
+        // Populate lists if not already done
+        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+            fetchModPackInfo();
+        }
+
+        return installedGameModPacks;
+    }
 }
