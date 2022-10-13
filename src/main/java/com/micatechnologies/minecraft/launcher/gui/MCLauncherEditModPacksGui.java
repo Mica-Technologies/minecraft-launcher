@@ -281,7 +281,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
 
         // Configure add by List button
         listAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            GameModPackManager.installModPackByFriendlyName( listAddBox.getSelectedValue() );
+            GameModPackManager.installModPackByFriendlyName( listAddBox.getSelectedItem() );
             try {
                 MCLauncherGuiController.goToEditModpacksGui();
             }

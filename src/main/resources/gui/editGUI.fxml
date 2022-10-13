@@ -28,9 +28,7 @@
   ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
-          prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css"
-          xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
+<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0" prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
       <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
     </columnConstraints>
@@ -39,69 +37,48 @@
     </rowConstraints>
     <GridPane maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane" GridPane.halignment="CENTER">
         <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875"/>
+            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875" />
         </columnConstraints>
         <rowConstraints>
-            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="250.0"
-                            vgrow="SOMETIMES"/>
+            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="250.0" vgrow="SOMETIMES" />
         </rowConstraints>
         <GridPane.margin>
-            <Insets/>
+            <Insets />
         </GridPane.margin>
         <GridPane minHeight="450.0" prefHeight="450.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
             <columnConstraints>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="277.0" minWidth="0.0" percentWidth="33.0"
-                                   prefWidth="146.0"/>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="277.0" minWidth="10.0" percentWidth="34.0"
-                                   prefWidth="146.0"/>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="295.3333333333333" minWidth="10.0" percentWidth="33.0"
-                                   prefWidth="149.33333333333331"/>
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="277.0" minWidth="0.0" percentWidth="33.0" prefWidth="146.0" />
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="277.0" minWidth="10.0" percentWidth="34.0" prefWidth="146.0" />
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="295.3333333333333" minWidth="10.0" percentWidth="33.0" prefWidth="149.33333333333331" />
             </columnConstraints>
             <rowConstraints>
-                <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="10.0" vgrow="SOMETIMES"/>
-                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="73.0" prefHeight="222.0"
-                                vgrow="SOMETIMES"/>
-                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="26.0" prefHeight="37.0"
-                                vgrow="SOMETIMES"/>
-                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="26.0" prefHeight="37.0"
-                                vgrow="SOMETIMES"/>
-                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="26.0" prefHeight="37.0"
-                                vgrow="SOMETIMES"/>
+                <RowConstraints maxHeight="40.0" minHeight="10.0" prefHeight="10.0" vgrow="SOMETIMES" />
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="73.0" prefHeight="222.0" vgrow="SOMETIMES" />
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="26.0" prefHeight="37.0" vgrow="SOMETIMES" />
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="26.0" prefHeight="37.0" vgrow="SOMETIMES" />
+                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="26.0" prefHeight="37.0" vgrow="SOMETIMES" />
             </rowConstraints>
             <GridPane.margin>
-                <Insets/>
+                <Insets />
             </GridPane.margin>
             <padding>
-                <Insets left="15.0" right="15.0"/>
+                <Insets left="15.0" right="15.0" />
             </padding>
-            <Label fx:id="upperLabel" alignment="CENTER" prefHeight="23.0" prefWidth="111.0" text="Modpacks"
-                   textAlignment="CENTER" GridPane.columnSpan="3" GridPane.halignment="CENTER"
-                   GridPane.valignment="CENTER">
+            <Label fx:id="upperLabel" alignment="CENTER" prefHeight="23.0" prefWidth="111.0" text="Modpacks" textAlignment="CENTER" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
                 <font>
-                    <Font size="18.0"/>
+                    <Font size="18.0" />
                 </font>
             </Label>
-          <ListView fx:id="modpackList" prefHeight="200.0" prefWidth="200.0" GridPane.columnSpan="3"
-                    GridPane.rowIndex="1"/>
-          <MFXTextField fx:id="urlAddBox" maxHeight="26.0" maxWidth="245.0" minHeight="26.0" minWidth="245.0"
-                        prefHeight="26.0" prefWidth="245.0" promptText="Mod Pack URL" GridPane.columnSpan="2"
-                        GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+          <ListView fx:id="modpackList" prefHeight="200.0" prefWidth="200.0" GridPane.columnSpan="3" GridPane.rowIndex="1" />
+          <MFXTextField fx:id="urlAddBox" alignment="TOP_LEFT" maxHeight="26.0" maxWidth="245.0" minHeight="26.0" minWidth="245.0" prefHeight="26.0" prefWidth="245.0" promptText="Mod Pack URL" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
               <padding>
-                  <Insets left="6.0"/>
+                  <Insets left="6.0" />
               </padding>
           </MFXTextField>
-          <MFXComboBox fx:id="listAddBox" maxHeight="26.0" maxWidth="245.0" minHeight="26.0" minWidth="245.0"
-                       prefHeight="26.0" prefWidth="245.0" GridPane.columnSpan="2" GridPane.halignment="CENTER"
-                       GridPane.rowIndex="3" GridPane.valignment="CENTER"/>
-          <MFXButton fx:id="urlAddBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0"
-                     prefHeight="25.0" prefWidth="80.0" text="Add (URL)" GridPane.columnIndex="2"
-                     GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER"/>
-          <MFXButton fx:id="listAddBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0"
-                     prefHeight="25.0" prefWidth="80.0" text="Add (List)" GridPane.columnIndex="2"
-                     GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER"/>
-          <MFXButton fx:id="returnBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0"
-                     prefHeight="25.0" prefWidth="80.0" text="Return" GridPane.columnIndex="1"
-                     GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER"/>
+          <MFXComboBox fx:id="listAddBox" maxHeight="26.0" maxWidth="245.0" minHeight="26.0" minWidth="245.0" prefHeight="26.0" prefWidth="245.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
+          <MFXButton fx:id="urlAddBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Add (URL)" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
+          <MFXButton fx:id="listAddBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Add (List)" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
+          <MFXButton fx:id="returnBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Return" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER" />
         </GridPane>
     </GridPane>
 </GridPane>

@@ -208,8 +208,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             GUIUtilities.JFXPlatformRun( () -> stage.setResizable( ConfigManager.getResizableWindows() ) );
 
             // Store theme selection
-            if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedValue() ) ) {
-                ConfigManager.setTheme( themeSelection.getSelectedValue() );
+            if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
+                ConfigManager.setTheme( themeSelection.getSelectedItem() );
                 MCLauncherGuiController.forceThemeRefresh();
             }
 
@@ -383,7 +383,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             ConfigManager.setTheme( ConfigConstants.THEME_AUTOMATIC );
         }
 
-        themeSelection.setSelectedValue( safeCurrentConfigTheme );
+        themeSelection.selectItem( safeCurrentConfigTheme );
         themeSelection.getSelectionModel().selectItem( safeCurrentConfigTheme );
 
         // Add theme selection change listener

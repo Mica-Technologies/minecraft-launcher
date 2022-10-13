@@ -72,6 +72,10 @@
             <Insets />
          </GridPane.margin>
         </GridPane>
+      <MFXListView fx:id="packSelectionList" maxWidth="1.7976931348623157E308" GridPane.halignment="CENTER" GridPane.hgrow="SOMETIMES" GridPane.rowIndex="1" GridPane.valignment="CENTER" GridPane.vgrow="SOMETIMES">
+         <GridPane.margin>
+            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
+         </GridPane.margin></MFXListView>
         <GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" GridPane.rowIndex="2">
             <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" minWidth="-Infinity" />
@@ -113,13 +117,9 @@
             <Insets />
          </GridPane.margin>
         </GridPane>
-      <MFXListView fx:id="packSelectionList" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" GridPane.halignment="CENTER" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" GridPane.valignment="CENTER" GridPane.vgrow="ALWAYS" />
       <GridPane.margin>
          <Insets />
       </GridPane.margin>
-      <padding>
-         <Insets bottom="16.0" top="16.0" />
-      </padding>
     </GridPane>
     <GridPane fx:id="centerPane" maxHeight="300.0" maxWidth="300.0" minHeight="300.0" minWidth="300.0" prefHeight="300.0" prefWidth="300.0" styleClass="centerPane" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
         <columnConstraints>

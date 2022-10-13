@@ -31,7 +31,9 @@ import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXListView;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableMap;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
@@ -292,7 +294,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
             GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelectionList.getSelectionModel().getSelectedItem() );
+                    packSelectionList.getSelectionModel().getSelectedValues().get( 0 ) );
             SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)", "Mod Pack: " +
                                                                                            installedModPackByFriendlyName.getPackName(), OffsetDateTime.now(), "mica_minecraft_launcher",
                                                                                    "Mica Minecraft Launcher", "game",
@@ -314,7 +316,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure website button
         websiteBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelectionList.getSelectionModel().getSelectedItem() );
+                    packSelectionList.getSelectionModel().getSelectedValues().get( 0 ) );
             try {
                 Desktop.getDesktop().browse( URI.create( installedModPackByFriendlyName.getPackURL() ) );
             }
@@ -392,9 +394,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
-    private final ChangeListener< Number > packSelectionChangeListener = ( observableValue, oldVal, newVal ) -> {
+    private final ChangeListener< ObservableMap< Integer, String > > packSelectionChangeListener
+                                                                                                    = ( ObservableValue< ? extends ObservableMap< Integer, String > > observable, ObservableMap< Integer, String > oldValue, ObservableMap< Integer, String > newValue ) -> {
         // Get selected mod pack
-        String selectedModPack = packSelectionList.getItems().get( newVal.intValue() );
+        String selectedModPack = packSelectionList.getSelectionModel().getSelectedValues().get( 0 );
         GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName( selectedModPack );
         if ( selectedGameModPack != null ) {
             ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
@@ -435,7 +438,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     public void selectModpack( String modPack ) {
         // Select supplied mod pack
-        packSelectionList.getSelectionModel().select( modPack );
+        packSelectionList.getSelectionModel().selectItem( modPack );
     }
 
     public void selectModpack( GameModPack modPack ) {
@@ -454,15 +457,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         // Reset mod pack selector
         packSelectionList.setDisable( false );
-        packSelectionList.getSelectionModel().selectionModeProperty().set( SelectionMode.SINGLE );
-        packSelectionList.getSelectionModel().selectedIndexProperty().removeListener( packSelectionChangeListener );
+        packSelectionList.getSelectionModel().setAllowsMultipleSelection( false );
+        packSelectionList.getSelectionModel().selectionProperty().removeListener( packSelectionChangeListener );
         packSelectionList.getItems().clear();
 
         // Populate mod packs dropdown
         String noModPacksText = "No mod packs installed!";
         if ( modpackListNames.size() > 0 ) {
             packSelectionList.setItems( FXCollections.observableList( modpackListNames ) );
-            packSelectionList.getSelectionModel().selectedIndexProperty().addListener( packSelectionChangeListener );
+            packSelectionList.getSelectionModel().selectionProperty().addListener( packSelectionChangeListener );
         }
         else {
             packSelectionList.setItems( FXCollections.singletonObservableList( noModPacksText ) );
@@ -474,5 +477,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                        "');" );
             rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
         }
+        packSelectionList.setPrefHeight( packSelectionList.getItems().size() * 32 );
     }
 }
