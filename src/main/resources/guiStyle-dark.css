@@ -93,16 +93,31 @@
 .mfx-toggle-button:focused,
 .mfx-toggle-button:selected,
 .mfx-toggle-button:focused:selected {
-    -mfx-toggle-color: #477A1E;
+    -fx-text-fill: white;
 }
 
-.mfx-toggle-button .text,
-.mfx-toggle-button:armed .text,
-.mfx-toggle-button:hover .text,
-.mfx-toggle-button:focused .text,
-.mfx-toggle-button:selected .text,
-.mfx-toggle-button:focused:selected .text {
+.mfx-toggle-button .circle {
     -fx-fill: white;
+}
+
+.mfx-toggle-button:selected .circle {
+    -fx-fill: #477A1E;
+}
+
+.mfx-toggle-button .line {
+    -fx-stroke: lightgray;
+}
+
+.mfx-toggle-button:selected .line {
+    -fx-stroke: #3c6719;
+}
+
+.mfx-toggle-button .mfx-ripple-generator {
+    -mfx-ripple-color: lightgray;
+}
+
+.mfx-toggle-button:selected .mfx-ripple-generator {
+    -mfx-ripple-color: #3c6719;
 }
 
 /* Text Field Styling */
@@ -110,7 +125,10 @@
 .mfx-text-field {
     -fx-prompt-text-fill: #fff;
     -fx-text-fill: #fff;
-    -mfx-line-color: #477A1E;
+}
+
+.mfx-text-field:focus-within {
+    -fx-border-color: #477A1E !important;
 }
 
 
@@ -133,21 +151,38 @@
 
 .mfx-combo-box {
     -fx-background-color: TRANSPARENT;
-    -mfx-line-color: #477A1E;
 }
 
-.mfx-combo-box .mfx-icon-wrapper .ripple-generator {
-    -mfx-ripple-color: rgba(71, 122, 30, 0.3) !important;
+.mfx-combo-box .caret .mfx-font-icon {
+    -mfx-color: white !important;
 }
 
-.mfx-combo-box:focused .mfx-icon-wrapper .mfx-font-icon {
-    -mfx-color: rgb(71, 122, 30) !important;
+.mfx-combo-box:focus-within .caret .mfx-font-icon {
+    -mfx-color: #477A1E !important;
 }
 
-.mfx-combo-box:editor .mfx-icon-wrapper .mfx-font-icon {
-    -mfx-color: rgb(71, 122, 30) !important;
+.mfx-combo-box .caret .mfx-ripple-generator {
+    -mfx-ripple-color: #3c6719 !important;
 }
 
+.mfx-combo-box:focus-within {
+    -fx-border-color: #477A1E !important;
+}
+
+.mfx-combo-box-cell {
+    -mfx-hover: #3c6719;
+    -mfx-selected: #477A1E;
+    -fx-background-radius: 0 !important;
+}
+
+.mfx-combo-box-cell .data-label {
+    -fx-text-fill: black;
+}
+
+.mfx-combo-box-cell:hover .data-label,
+.mfx-combo-box-cell:selected .data-label {
+    -fx-text-fill: white;
+}
 
 /* Settings Window Danger Zone Styling */
 
@@ -179,4 +214,45 @@
 .mfx-progress-bar > .bar,
 .mfx-progress-bar:indeterminate > .bar {
     -fx-background-color: #477A1E;
+}
+
+/* Mod Pack List Styling */
+.mfx-list-view {
+    -mfx-track-color: rgb(230, 230, 230);
+    -mfx-thumb-color: rgb(137, 137, 137);
+    -mfx-thumb-hover-color: rgb(89, 88, 91);
+    -mfx-border-width: 0;
+    -fx-background-color: transparent;
+}
+
+.mfx-list-view .virtual-flow {
+    -fx-background-color: transparent;
+}
+
+.mfx-list-cell {
+    -fx-background-color: rgb(80, 80, 80);
+    -fx-text-fill: white;
+    -fx-padding: 10;
+    -fx-border-width: 0;
+}
+
+.mfx-list-cell .data-label {
+    -fx-text-fill: white;
+}
+
+.mfx-list-cell:hover {
+    -fx-background-color: #3c6719;
+}
+
+.mfx-list-cell:selected {
+    -fx-background-color: #477A1E;
+    -fx-border-color: #3c6719;
+}
+
+.mfx-list-cell:empty {
+    -fx-background-color: transparent;
+}
+
+.mfx-list-cell .mfx-ripple-generator {
+    -mfx-ripple-color: #3c6719;
 }
