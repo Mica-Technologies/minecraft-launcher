@@ -29,6 +29,7 @@ import java.util.concurrent.*;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
+import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
@@ -827,5 +828,13 @@ public class GameModPack
         return getPackName() != null ?
                String.format( ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, getPackName(), getPackVersion() ) :
                null;
+    }
+
+    public static GameModPack NULL_MODPACK() {
+        GameModPack nullModPack = new GameModPack();
+        nullModPack.packName = "No mod packs installed!";
+        nullModPack.packVersion = "N/A";
+        nullModPack.packLogoURL = GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE;
+        return nullModPack;
     }
 }

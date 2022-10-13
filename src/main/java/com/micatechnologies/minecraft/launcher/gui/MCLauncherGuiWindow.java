@@ -37,7 +37,7 @@ public class MCLauncherGuiWindow extends Application
     private static final double                PREF_WIDTH  = 1000.0;
     private static final double                PREF_HEIGHT = 800.0;
     private static final double                MIN_WIDTH   = 750.0;
-    private static final double                MIN_HEIGHT  = 475.0;
+    private static final double                MIN_HEIGHT  = 600.0;
     private              Stage                 stage;
     private              MCLauncherAbstractGui gui;
 

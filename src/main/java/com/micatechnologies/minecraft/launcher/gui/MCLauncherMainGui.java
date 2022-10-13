@@ -29,17 +29,20 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXListView;
+import io.github.palexdev.materialfx.controls.cell.MFXListCell;
+import io.github.palexdev.materialfx.utils.others.FunctionalStringConverter;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.control.SelectionMode;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
 import java.awt.*;
@@ -53,22 +56,13 @@ import java.util.Objects;
 public class MCLauncherMainGui extends MCLauncherAbstractGui
 {
     /**
-     * Mod pack logo image.
-     *
-     * @since 2.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    ImageView packLogo;
-
-    /**
      * Installed mod pack select list.
      *
      * @since 3.0
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXListView< String > packSelectionList;
+    MFXListView< GameModPack > packSelectionList;
 
     /**
      * Play button. Starts the current selected mod pack.
@@ -293,8 +287,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure play button
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
-            GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelectionList.getSelectionModel().getSelectedValues().get( 0 ) );
+            GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
+                                                                          .getSelectedValues()
+                                                                          .get( 0 );
             SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)", "Mod Pack: " +
                                                                                            installedModPackByFriendlyName.getPackName(), OffsetDateTime.now(), "mica_minecraft_launcher",
                                                                                    "Mica Minecraft Launcher", "game",
@@ -315,8 +310,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         // Configure website button
         websiteBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            GameModPack installedModPackByFriendlyName = GameModPackManager.getInstalledModPackByFriendlyName(
-                    packSelectionList.getSelectionModel().getSelectedValues().get( 0 ) );
+            GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
+                                                                          .getSelectedValues()
+                                                                          .get( 0 );
             try {
                 Desktop.getDesktop().browse( URI.create( installedModPackByFriendlyName.getPackURL() ) );
             }
@@ -362,6 +358,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } );
 
+        // Configure mod pack list
+        packSelectionList.setCellFactory( modpack -> new ModPackCellFactory( packSelectionList, modpack ) );
+        packSelectionList.setConverter( FunctionalStringConverter.to( gameModPack -> "" ) );
+
         // Populate list of modpacks
         populateModpackDropdown();
     }
@@ -394,11 +394,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
-    private final ChangeListener< ObservableMap< Integer, String > > packSelectionChangeListener
-                                                                                                    = ( ObservableValue< ? extends ObservableMap< Integer, String > > observable, ObservableMap< Integer, String > oldValue, ObservableMap< Integer, String > newValue ) -> {
+    private final ChangeListener< ObservableMap< Integer, GameModPack > > packSelectionChangeListener
+            = ( ObservableValue< ? extends ObservableMap< Integer, GameModPack > > observable, ObservableMap< Integer, GameModPack > oldValue, ObservableMap< Integer, GameModPack > newValue ) -> {
         // Get selected mod pack
-        String selectedModPack = packSelectionList.getSelectionModel().getSelectedValues().get( 0 );
-        GameModPack selectedGameModPack = GameModPackManager.getInstalledModPackByFriendlyName( selectedModPack );
+        GameModPack selectedGameModPack = packSelectionList.getSelectionModel().getSelectedValues().get( 0 );
         if ( selectedGameModPack != null ) {
             ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
         }
@@ -413,8 +412,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 packLogoImg = new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
             }
             GUIUtilities.JFXPlatformRun( () -> {
-                packLogo.setImage( packLogoImg );
-
                 // Set modpack background image on root pane
                 if ( selectedGameModPack != null ) {
                     // noinspection All
@@ -438,7 +435,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     public void selectModpack( String modPack ) {
         // Select supplied mod pack
-        packSelectionList.getSelectionModel().selectItem( modPack );
+        packSelectionList.getSelectionModel()
+                         .selectItem( packSelectionList.getItems()
+                                                       .filtered( mp -> mp.getFriendlyName().equals( modPack ) )
+                                                       .get( 0 ) );
     }
 
     public void selectModpack( GameModPack modPack ) {
@@ -462,21 +462,62 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         packSelectionList.getItems().clear();
 
         // Populate mod packs dropdown
-        String noModPacksText = "No mod packs installed!";
         if ( modpackListNames.size() > 0 ) {
-            packSelectionList.setItems( FXCollections.observableList( modpackListNames ) );
+            packSelectionList.setItems( FXCollections.observableList( GameModPackManager.getInstalledModPacks() ) );
             packSelectionList.getSelectionModel().selectionProperty().addListener( packSelectionChangeListener );
         }
         else {
-            packSelectionList.setItems( FXCollections.singletonObservableList( noModPacksText ) );
+            packSelectionList.setItems( FXCollections.singletonObservableList( GameModPack.NULL_MODPACK() ) );
             packSelectionList.setDisable( true );
-            packLogo.setImage( new Image( GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE ) );
             rootPane.setStyle( rootPane.getStyle() +
                                        "-fx-background-image: url('" +
                                        ModPackConstants.MODPACK_DEFAULT_BG_URL +
                                        "');" );
             rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
         }
-        packSelectionList.setPrefHeight( packSelectionList.getItems().size() * 32 );
+        packSelectionList.setPrefHeight( packSelectionList.getItems().size() * 52 );
+    }
+
+    private static class ModPackCellFactory extends MFXListCell< GameModPack >
+    {
+        private final GridPane gridPane;
+
+        public ModPackCellFactory( MFXListView< GameModPack > listView, GameModPack cell )
+        {
+            super( listView, cell );
+            setPrefHeight( 52 );
+
+            String packLogoFilepath = cell.getPackLogoFilepath() != null ?
+                                      cell.getPackLogoFilepath() :
+                                      ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
+            ImageView packLogo = new ImageView( packLogoFilepath );
+            packLogo.setFitHeight( 40 );
+            packLogo.setPreserveRatio( true );
+            packLogo.getStyleClass().add( "packLogo" );
+            Label packName = new Label( cell.getPackName() );
+            packName.setAlignment( Pos.CENTER_LEFT );
+            packName.getStyleClass().add( "packName" );
+            Label packVersion = new Label( "Version: " + cell.getPackVersion() );
+            packVersion.setAlignment( Pos.CENTER_LEFT );
+            packVersion.getStyleClass().add( "packVersion" );
+
+            // Add components to grid pane 2x2 (logo takes entire left column)
+            gridPane = new GridPane();
+            gridPane.getStyleClass().add( "packPane" );
+            //gridPane.setAlignment( Pos.CENTER );
+            gridPane.add( packLogo, 0, 0, 1, 2 );
+            gridPane.add( packName, 1, 0 );
+            gridPane.add( packVersion, 1, 1 );
+
+            render( cell );
+        }
+
+        @Override
+        protected void render( GameModPack cell ) {
+            super.render( cell );
+            if ( gridPane != null ) {
+                getChildren().add( 0, gridPane );
+            }
+        }
     }
 }

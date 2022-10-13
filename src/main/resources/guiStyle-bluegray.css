@@ -274,3 +274,14 @@
 .mfx-list-cell .mfx-ripple-generator {
     -mfx-ripple-color: #4783EE;
 }
+
+.mfx-list-cell .packName {
+    -fx-font-size: 16;
+    -fx-padding: 0 0 0 6;
+}
+
+.mfx-list-cell .packVersion {
+    -fx-font-size: 10;
+    -fx-font-style: italic;
+    -fx-padding: 0 0 0 6;
+}
