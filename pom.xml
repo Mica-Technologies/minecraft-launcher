@@ -222,6 +222,8 @@
                         <entitlements>
                             ${project.basedir}${file.separator}assets${file.separator}mac${file.separator}micaforgelauncher.entitlements
                         </entitlements>
+                        <macStartup>UNIVERSAL</macStartup>
+                        <codesignApp>false</codesignApp>
                     </macConfig>
                     <vmArgs>
                         <vmArg>${jfxtaskbarprogressbar.export}</vmArg>
