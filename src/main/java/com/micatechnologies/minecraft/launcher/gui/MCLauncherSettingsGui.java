@@ -25,6 +25,7 @@ import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
@@ -35,6 +36,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.layout.RowConstraints;
 import javafx.stage.Stage;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
@@ -92,6 +94,24 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > themeSelection;
+
+    /**
+     * Announcement banner.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label announcement;
+
+    /**
+     * Announcement banner row constraints.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    RowConstraints announcementRow;
 
     boolean dirty = false;
 
@@ -303,6 +323,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 LauncherCore.closeApp();
             }
         } ) );
+
+        // Display announcements if present
+        String announcementText = AnnouncementManager.getAnnouncementConfig();
+        if ( announcementText.length() > 0 ) {
+            announcement.setText( announcementText );
+            announcement.setMinHeight( 30 );
+            announcementRow.setMinHeight( 30 );
+        }
+        else {
+            announcement.setMaxHeight( 0 );
+            announcementRow.setMaxHeight( 0 );
+        }
 
         // Load version information
         String v = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
