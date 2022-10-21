@@ -43,6 +43,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.RowConstraints;
 import javafx.stage.Stage;
 
 import java.awt.*;
@@ -146,6 +147,24 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     MFXButton websiteBtn;
 
     /**
+     * Announcement banner.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label announcement;
+
+    /**
+     * Announcement banner row constraints.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    RowConstraints announcementRow;
+
+    /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
      * controller.
      *
@@ -247,6 +266,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } );
 
+        // Display announcements if present
+        String announcementText = AnnouncementManager.getAnnouncementHome();
+        if ( announcementText.length() > 0 ) {
+            announcement.setText( announcementText );
+            announcement.setMinHeight( 30 );
+            announcementRow.setMinHeight( 30 );
+        }
+        else {
+            announcement.setMaxHeight( 0 );
+            announcementRow.setMaxHeight( 0 );
+        }
+
         // Configure settings button
         settingsBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
@@ -346,6 +377,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             if ( keyEvent.getCode() == KeyCode.F5 ) {
                 keyEvent.consume();
                 SystemUtilities.spawnNewTask( () -> {
+                    AnnouncementManager.checkAnnouncements();
                     GameModPackManager.fetchModPackInfo();
                     try {
                         MCLauncherGuiController.goToMainGui();

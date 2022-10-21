@@ -28,14 +28,15 @@
   ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0" prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
+<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0" prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
       <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
     </columnConstraints>
     <rowConstraints>
+      <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0" />
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
-    <GridPane maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+    <GridPane maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875" />
         </columnConstraints>
@@ -124,4 +125,5 @@
          <MFXToggleButton fx:id="discordCheckBox" prefHeight="48.0" prefWidth="206.0" text="Discord Rich Presence" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER" />
         </GridPane>
     </GridPane>
+   <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" style="-fx-background-color: #8b0000;" text="--" wrapText="true" />
 </GridPane>

@@ -21,6 +21,7 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
+import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
@@ -35,6 +36,8 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.RowConstraints;
+import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -108,6 +111,24 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     @FXML
     MFXButton removeSelectedBtn;
 
+    /**
+     * Announcement banner.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label announcement;
+
+    /**
+     * Announcement banner row constraints.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    RowConstraints announcementRow;
+
     private static final String UNAVAILABLE_PREFIX = "(Unavailable) ";
 
     /**
@@ -178,6 +199,18 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
             windowEvent.consume();
             returnBtn.fire();
         } );
+
+        // Display announcements if present
+        String announcementText = AnnouncementManager.getAnnouncementModpacksEdit();
+        if ( announcementText.length() > 0 ) {
+            announcement.setText( announcementText );
+            announcement.setMinHeight( 30 );
+            announcementRow.setMinHeight( 30 );
+        }
+        else {
+            announcement.setMaxHeight( 0 );
+            announcementRow.setMaxHeight( 0 );
+        }
 
         // Configure return button and window close
         returnBtn.setOnAction( actionEvent -> {

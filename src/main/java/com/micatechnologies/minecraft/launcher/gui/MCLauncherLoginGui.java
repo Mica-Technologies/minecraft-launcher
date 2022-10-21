@@ -21,11 +21,14 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
+import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.*;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.layout.RowConstraints;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import net.hycrafthd.minecraft_authenticator.Constants;
@@ -73,6 +76,24 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton msStayLoggedInCheckBox;
+
+    /**
+     * Announcement banner.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label announcement;
+
+    /**
+     * Announcement banner row constraints.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    RowConstraints announcementRow;
 
     private final CountDownLatch loginSuccessLatch        = new CountDownLatch( 1 );
     private final AtomicBoolean  waitingOnWebViewResponse = new AtomicBoolean( false );
@@ -132,6 +153,18 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         // Setup auth web view engine
         authWebView.getEngine().setJavaScriptEnabled( true );
         authWebView.getEngine().setUserAgent( "AppleWebKit/537.44" );
+
+        // Display announcements if present
+        String announcementText = AnnouncementManager.getAnnouncementLogin();
+        if ( announcementText.length() > 0 ) {
+            announcement.setText( announcementText );
+            announcement.setMinHeight( 30 );
+            announcementRow.setMinHeight( 30 );
+        }
+        else {
+            announcement.setMaxHeight( 0 );
+            announcementRow.setMaxHeight( 0 );
+        }
 
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );

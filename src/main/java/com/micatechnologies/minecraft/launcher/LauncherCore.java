@@ -35,11 +35,8 @@ import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
-import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
-import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
-import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 
 import java.io.File;
 import java.io.IOException;
@@ -113,6 +110,9 @@ public class LauncherCore
             else {
                 Logger.logDebug( LocalizationManager.LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT );
             }
+
+            // Load announcements
+            AnnouncementManager.checkAnnouncements();
 
             // Load mod pack information
             GameModPackManager.fetchModPackInfo();
