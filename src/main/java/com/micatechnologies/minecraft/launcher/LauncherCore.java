@@ -95,6 +95,12 @@ public class LauncherCore
             // Configure logging
             configureLogger();
 
+            // Log startup
+            Logger.logDebug( "Logging configured. Application arguments parsed: " );
+            for ( String arg : args ) {
+                Logger.logDebug( "  " + arg );
+            }
+
             // Check for internet connection. Close if unable to connect
             if ( !NetworkUtilities.isMojangAuthReachable() ) {
                 Logger.logError( LocalizationManager.UNABLE_TO_REACH_MOJANG_CANT_START_TEXT );
