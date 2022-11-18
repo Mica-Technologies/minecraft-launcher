@@ -114,7 +114,7 @@ public class Logger
     public static void initLogSys( File logFile ) throws IOException {
         // Create parent directory(ies) if necessary
         final var mkdirs = logFile.getParentFile().mkdirs();
-        if ( !mkdirs ) {
+        if ( !mkdirs && !logFile.getParentFile().exists()) {
             Logger.logDebug( LocalizationManager.LOG_FILE_DIR_NOT_CREATED_TEXT );
         }
 
