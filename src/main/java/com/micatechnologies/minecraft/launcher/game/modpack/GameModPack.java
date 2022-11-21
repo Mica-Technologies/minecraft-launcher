@@ -458,8 +458,10 @@ public class GameModPack
         // Build list of valid mods
         ArrayList< String > validModPaths = new ArrayList<>();
         for ( GameMod mod : packMods ) {
-            mod.setLocalPathPrefix( modLocalPathPrefix );
-            validModPaths.add( mod.getFullLocalFilePath() );
+            if ( ( GameModeManager.isClient() && mod.clientReq ) || ( GameModeManager.isServer() && mod.serverReq ) ) {
+                mod.setLocalPathPrefix( modLocalPathPrefix );
+                validModPaths.add( mod.getFullLocalFilePath() );
+            }
         }
 
         // Loop through files in mods folder and remove unwanted
