@@ -267,7 +267,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
 
         // Display announcements if present
-        String announcementText = AnnouncementManager.getAnnouncementHome();
+        String announcementText;
+        if ( LauncherConstants.LAUNCHER_IS_DEV ) {
+            announcementText =
+                    "[DEVELOPMENT MODE: Bugs may be present and not all features may function as intended]\n" +
+                            AnnouncementManager.getAnnouncementHome();
+        }
+        else {
+            announcementText = AnnouncementManager.getAnnouncementHome();
+        }
         if ( announcementText.length() > 0 ) {
             announcement.setText( announcementText );
             announcement.setMinHeight( 30 );

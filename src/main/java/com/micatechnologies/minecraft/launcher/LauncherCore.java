@@ -101,6 +101,12 @@ public class LauncherCore
                 Logger.logDebug( "  " + arg );
             }
 
+            // Log development mode
+            if ( LauncherConstants.LAUNCHER_IS_DEV ) {
+                Logger.logDebug( "[NOTICE] Development Mode is Enabled! Bugs may be present and not all features " +
+                                         "may function as intended." );
+            }
+
             // Check for internet connection. Close if unable to connect
             if ( !NetworkUtilities.isMojangAuthReachable() ) {
                 Logger.logError( LocalizationManager.UNABLE_TO_REACH_MOJANG_CANT_START_TEXT );

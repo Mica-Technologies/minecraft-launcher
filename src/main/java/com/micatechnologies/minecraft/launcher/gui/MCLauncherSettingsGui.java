@@ -337,8 +337,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
 
         // Load version information
-        String v = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
-        versionLabel.setText( "Software Version: " + v );
+        if ( LauncherConstants.LAUNCHER_IS_DEV ) {
+            versionLabel.setText( "Software Version: DEVELOPMENT MODE" );
+        }
+        else {
+            versionLabel.setText( "Software Version: " + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+        }
 
         // Set and configure resizable windows check box
         windowResizeCheckBox.setSelected( ConfigManager.getResizableWindows() );
@@ -347,10 +351,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Set and configure debug mode check box
         debugCheckBox.setSelected( ConfigManager.getDebugLogging() );
         debugCheckBox.setOnAction( actionEvent -> setEdited( true ) );
+        debugCheckBox.setDisable( LauncherConstants.LAUNCHER_IS_DEV );
 
         // Set and configure Discord RPC check box
         discordCheckBox.setSelected( ConfigManager.getDiscordRpcEnable() );
         discordCheckBox.setOnAction( actionEvent -> setEdited( true ) );
+        discordCheckBox.setDisable( LauncherConstants.LAUNCHER_IS_DEV );
 
         // Populate theme selection dropdown
         themeSelection.getItems().clear();

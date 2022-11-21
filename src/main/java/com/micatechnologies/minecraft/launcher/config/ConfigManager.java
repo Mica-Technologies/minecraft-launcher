@@ -21,6 +21,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
@@ -136,7 +137,7 @@ public class ConfigManager
     /**
      * Gets the configured state of debug logging for the application.
      *
-     * @return true if debug logging enabled, otherwise false
+     * @return true if debug logging enabled, otherwise false. Always returns true if development mode is enabled.
      *
      * @since 2.0
      */
@@ -146,8 +147,9 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        // Get and return value of min RAM
-        return configObject.get( ConfigConstants.LOG_DEBUG_ENABLE_KEY ).getAsBoolean();
+        // Get and return value of min RAM (or true if dev mode)
+        return LauncherConstants.LAUNCHER_IS_DEV ||
+                configObject.get( ConfigConstants.LOG_DEBUG_ENABLE_KEY ).getAsBoolean();
     }
 
     /**
@@ -173,7 +175,7 @@ public class ConfigManager
     /**
      * Gets the configured state of Discord RPC for the application.
      *
-     * @return true if Discord RPC enabled, otherwise false
+     * @return true if Discord RPC enabled, otherwise false. Always returns false if development mode is enabled.
      *
      * @since 2.0
      */
@@ -188,8 +190,9 @@ public class ConfigManager
                                       ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
         }
 
-        // Get and return value of min RAM
-        return configObject.get( ConfigConstants.DISCORD_RPC_ENABLE_KEY ).getAsBoolean();
+        // Get and return value of min RAM (or false if in dev mode)
+        return !LauncherConstants.LAUNCHER_IS_DEV &&
+                configObject.get( ConfigConstants.DISCORD_RPC_ENABLE_KEY ).getAsBoolean();
     }
 
     /**
