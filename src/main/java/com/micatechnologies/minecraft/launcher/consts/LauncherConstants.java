@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.consts;
 
+import com.micatechnologies.minecraft.launcher.LauncherCore;
+
 import java.util.Map;
 
 /**
@@ -36,14 +38,27 @@ public class LauncherConstants
      *
      * @since 1.0
      */
-    public final static String LAUNCHER_APPLICATION_NAME = "Mica Minecraft Launcher";
+    public final static String LAUNCHER_APPLICATION_NAME = LauncherCore.class.getPackage().getImplementationTitle() !=
+                                                                   null ?
+                                                           LauncherCore.class.getPackage().getImplementationTitle() :
+                                                           "Mica Minecraft Launcher DEV";
 
     /**
      * Launcher application version. Leave blank, this is auto-filled in.
      *
      * @since 1.0
      */
-    public final static String LAUNCHER_APPLICATION_VERSION = "2022.1";
+    public final static String LAUNCHER_APPLICATION_VERSION = LauncherCore.class.getPackage()
+                                                                                .getImplementationVersion() != null ?
+                                                              LauncherCore.class.getPackage()
+                                                                                .getImplementationVersion() :
+                                                              "0.0.1";
+
+    /**
+     * Launcher boolean indicating if the application is in development mode. This is determined by the package
+     * implementation version string being null.
+     */
+    public final static boolean LAUNCHER_IS_DEV = LauncherCore.class.getPackage().getImplementationVersion() == null;
 
     /**
      * Launcher application name without spaces.

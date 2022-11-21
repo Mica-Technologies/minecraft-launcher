@@ -145,5 +145,5 @@
       </MFXButton>
       <MFXButton fx:id="websiteBtn" prefHeight="25.0" prefWidth="80.0" text="Website" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.valignment="CENTER" />
     </GridPane>
-   <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" style="-fx-background-color: #8b0000;" text="--" wrapText="true" GridPane.columnSpan="2" />
+   <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" style="-fx-background-color: #8b0000;" text="--" textAlignment="CENTER" wrapText="true" GridPane.columnSpan="2" />
 </GridPane>
