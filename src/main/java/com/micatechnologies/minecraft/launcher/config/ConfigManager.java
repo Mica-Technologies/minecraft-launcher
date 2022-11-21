@@ -22,13 +22,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
 
 /**
@@ -417,9 +418,10 @@ public class ConfigManager
      * @since 1.0
      */
     private synchronized static void readConfigurationFromDisk() {
+        //TODO: Refactor
         // Get file path and file object for config file
-        String configFilePath = LocalPathManager.getLauncherConfigFolderPath() + ConfigConstants.CONFIG_FILE_NAME;
-        File configFile = SynchronizedFileManager.getSynchronizedFile( configFilePath );
+        String configFilePath = LocalPathConstants.CONFIG_FOLDER_PATH + ConfigConstants.CONFIG_FILE_NAME;
+        File configFile = SynchronizedFileManager.getSynchronizedFile( Paths.get( configFilePath ) );
 
         // Check if file exists (and is file), and attempt to read
         boolean read = configFile.isFile();
@@ -460,8 +462,8 @@ public class ConfigManager
         }
 
         // Get file path and file object for config file
-        String configFilePath = LocalPathManager.getLauncherConfigFolderPath() + ConfigConstants.CONFIG_FILE_NAME;
-        File configFile = SynchronizedFileManager.getSynchronizedFile( configFilePath );
+        String configFilePath = LocalPathConstants.CONFIG_FOLDER_PATH + ConfigConstants.CONFIG_FILE_NAME;
+        File configFile = SynchronizedFileManager.getSynchronizedFile( Paths.get( configFilePath ) );
 
         try {
             FileUtilities.writeFromJson( configObject, configFile );

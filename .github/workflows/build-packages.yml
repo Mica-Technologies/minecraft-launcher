@@ -1,6 +1,9 @@
 name: Build Packages
 
-on: [ push ]
+on:
+  push:
+    branches-ignore:
+      - 'launcher_rewrite_work'
 
 jobs:
 

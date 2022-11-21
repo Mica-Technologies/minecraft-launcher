@@ -19,11 +19,10 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationResult;
+import com.micatechnologies.minecraft.launcher.social.DiscordRichPresence;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
-import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.*;
 import javafx.fxml.FXML;
@@ -177,9 +176,9 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
         // Set Discord rich presence
         SystemUtilities.spawnNewTask(
-                () -> DiscordRpcUtility.setRichPresence( "In Menus", "Logging In", OffsetDateTime.now(),
-                                                         "mica_minecraft_launcher", "Mica Minecraft Launcher", "auth",
-                                                         "Logging In" ) );
+                () -> DiscordRichPresence.setRichPresence( "In Menus", "Logging In", OffsetDateTime.now(),
+                                                           "mica_minecraft_launcher", "Mica Minecraft Launcher", "auth",
+                                                           "Logging In" ) );
     }
 
     @Override
@@ -231,11 +230,12 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
                             String authCode = locationParamsList.get( "code" ).get( 0 );
 
                             // Attempt login
-                            MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMicrosoftAccount( authCode,
-                                                                                                               msStayLoggedInCheckBox.isSelected() );
+                            MCPlayerAuthenticationResult authResult
+                                    = MCPlayerAuthenticationManager.loginWithMicrosoftAccount( authCode,
+                                                                                               msStayLoggedInCheckBox.isSelected() );
 
                             // Check login result
-                            boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
+                            boolean authSuccess = MCPlayerAuthenticationManager.checkAuthResponse( authResult );
 
                             // If successful, register login with app and save account if applicable
                             if ( authSuccess ) {

@@ -19,7 +19,6 @@ package com.micatechnologies.minecraft.launcher.config;
 
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 
 import java.awt.*;
 
@@ -85,7 +84,7 @@ public class GameModeManager
      *
      * @since 1.0
      */
-    public synchronized static boolean isClient() {
+    public static boolean isClient() {
         return getCurrentGameMode() == GameMode.CLIENT;
     }
 
@@ -96,7 +95,61 @@ public class GameModeManager
      *
      * @since 1.0
      */
-    public synchronized static boolean isServer() {
+    public static boolean isServer() {
         return getCurrentGameMode() == GameMode.SERVER;
     }
+
+    /**
+     * Enum used to identify the supported game modes of the launcher, client and server.
+     *
+     * @author Mica Technologies
+     * @version 1.0
+     * @since 2.0
+     */
+    public enum GameMode
+    {
+        /**
+         * Client game mode enum
+         *
+         * @since 1.0
+         */
+        CLIENT( "CLIENT" ),
+
+        /**
+         * Server game mode enum
+         *
+         * @since 1.0
+         */
+        SERVER( "SERVER" );
+
+        /**
+         * Stored string name value of the game mode. Value is returned by {@link #getStringName()}.
+         *
+         * @since 1.0
+         */
+        private final String gameModeString;
+
+        /**
+         * Constructor for a game mode Enum object with specified game mode string value
+         *
+         * @param gameModeString game mode string value
+         *
+         * @since 1.0
+         */
+        GameMode( String gameModeString ) {
+            this.gameModeString = gameModeString;
+        }
+
+        /**
+         * Gets the game mode string name value
+         *
+         * @return game mode string name
+         *
+         * @since 1.0
+         */
+        public String getStringName() {
+            return gameModeString;
+        }
+    }
+
 }

@@ -41,19 +41,6 @@ public class SynchronizedFileManager
     private static final Map< Path, File > managedFiles = new HashMap<>();
 
     /**
-     * Gets the single, synchronize-able file object for the specified string file path.
-     *
-     * @param filePath string file path
-     *
-     * @return single file object
-     *
-     * @since 1.0
-     */
-    public static synchronized File getSynchronizedFile( String filePath ) {
-        return getSynchronizedFile( Path.of( filePath ) );
-    }
-
-    /**
      * Gets the single, synchronize-able file object for the specified {@link Path}.
      *
      * @param filePath string file path

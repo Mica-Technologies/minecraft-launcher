@@ -20,11 +20,8 @@ package com.micatechnologies.minecraft.launcher.utilities;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import org.apache.commons.io.IOUtils;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 

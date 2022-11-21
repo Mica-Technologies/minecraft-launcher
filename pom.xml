@@ -38,6 +38,7 @@
         <javafx.version>19</javafx.version>
         <jdk.major.version>19</jdk.major.version>
         <jlink.jdk.version>19+37</jlink.jdk.version>
+        <scala.version>3.2.1</scala.version>
         <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
         </jfxtaskbarprogressbar.export>
     </properties>
@@ -115,6 +116,30 @@
                             <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
                             <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- CONFIGURE SCALA COMPILER -->
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <version>4.7.2</version>
+                <executions>
+                    <execution>
+                        <id>scala-compile-first</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>scala-test-compile</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
@@ -209,6 +234,39 @@
                         <goals>
                             <goal>package</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- CONFIGURE SCALA SOURCE FOLDERS -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/main/scala</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-test-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/test/scala</source>
+                            </sources>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -345,6 +403,12 @@
                     <artifactId>annotations</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <!-- scala-maven-plugin determines the Scala version to use from this dependency -->
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala3-library_3</artifactId>
+            <version>${scala.version}</version>
         </dependency>
     </dependencies>
 </project>

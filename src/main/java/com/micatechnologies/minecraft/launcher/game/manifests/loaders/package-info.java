@@ -16,10 +16,10 @@
  */
 
 /**
- * Package containing classes and other utilities that are used to perform and manage authentication to the
- * Microsoft/Mojang authentication and login server(s).
+ * Package containing classes and other utilities that are used for loading and/or parsing the manifests in the {@link
+ * com.micatechnologies.minecraft.launcher.game.manifests} package.
  *
  * @author Mica Technologies
- * @since 2021.4
+ * @since 2022.1
  */
-package com.micatechnologies.minecraft.launcher.game.auth;
+package com.micatechnologies.minecraft.launcher.game.manifests.loaders;

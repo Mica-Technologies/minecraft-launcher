@@ -114,7 +114,7 @@ public class Logger
     public static void initLogSys( File logFile ) throws IOException {
         // Create parent directory(ies) if necessary
         final var mkdirs = logFile.getParentFile().mkdirs();
-        if ( !mkdirs && !logFile.getParentFile().exists()) {
+        if ( !mkdirs ) {
             Logger.logDebug( LocalizationManager.LOG_FILE_DIR_NOT_CREATED_TEXT );
         }
 
@@ -173,17 +173,6 @@ public class Logger
             GUIUtilities.showErrorMessage( errorLog, jfxStage );
         }
 
-        logErrorSilent( errorLog );
-    }
-
-    /**
-     * Log a silent error with its prefix.
-     *
-     * @param errorLog silent error to log
-     *
-     * @since 1.0
-     */
-    public static void logErrorSilent( String errorLog ) {
         System.err.println( logErrorPrefix + errorLog );
     }
 

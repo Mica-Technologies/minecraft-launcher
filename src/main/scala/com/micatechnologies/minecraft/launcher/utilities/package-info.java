@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Mica Technologies
+ * Copyright (c) 2022 Mica Technologies
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
  */
 
 /**
- * Package containing classes and other utilities that are used to perform and manage authentication to the
- * Microsoft/Mojang authentication and login server(s).
+ * Package containing utility classes and methods for the launcher.
  *
  * @author Mica Technologies
- * @since 2021.4
+ * @since 2023.1
  */
-package com.micatechnologies.minecraft.launcher.game.auth;
+package com.micatechnologies.minecraft.launcher.utilities;

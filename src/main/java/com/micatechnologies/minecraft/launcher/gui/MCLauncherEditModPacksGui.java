@@ -19,13 +19,9 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
-import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
-import io.github.palexdev.materialfx.controls.MFXListView;
 import io.github.palexdev.materialfx.controls.MFXTextField;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -36,8 +32,6 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.RowConstraints;
-import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -46,6 +40,7 @@ import java.util.List;
 
 public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
 {
+    private static final String UNAVAILABLE_PREFIX = "(Unavailable) ";
     /**
      * List view of currently installed mod packs.
      *
@@ -53,8 +48,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXListView< String > modpackList;
-
+    ListView< String >    modpackList;
     /**
      * Add mod pack by URL button. This button processes the value in {@link #urlAddBox}.
      *
@@ -62,8 +56,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton urlAddBtn;
-
+    MFXButton             urlAddBtn;
     /**
      * Add mod pack by list button. This button processes the selected combo box entry of {@link #listAddBox}.
      *
@@ -71,8 +64,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton listAddBtn;
-
+    MFXButton             listAddBtn;
     /**
      * Add mod pack by URL text field. This text field accepts entries for URLs that are to be added to the list of
      * installed mod packs.
@@ -81,8 +73,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXTextField urlAddBox;
-
+    MFXTextField          urlAddBox;
     /**
      * Add mod pack by list dropdown box. This combo box lists mod packs that are approved and available for easy
      * install that have not already been installed.
@@ -92,7 +83,6 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > listAddBox;
-
     /**
      * Return to main window button
      *
@@ -100,36 +90,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton returnBtn;
-
-    /**
-     * Remove selected mod packs button
-     *
-     * @since 2.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton removeSelectedBtn;
-
-    /**
-     * Announcement banner.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label announcement;
-
-    /**
-     * Announcement banner row constraints.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    RowConstraints announcementRow;
-
-    private static final String UNAVAILABLE_PREFIX = "(Unavailable) ";
+    MFXButton             returnBtn;
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
@@ -172,23 +133,6 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
         return "Edit Mod Packs";
     }
 
-    void uninstallModPack( String name, boolean byUrl ) {
-        if ( byUrl ) {
-            GameModPackManager.uninstallModPackByURL( name );
-        }
-        else {
-            GameModPackManager.uninstallModPackByFriendlyName( name );
-        }
-        try {
-            MCLauncherGuiController.goToEditModpacksGui();
-        }
-        catch ( IOException e ) {
-            Logger.logError( "Oops! Unable to reload edit mod packs GUI" );
-            Logger.logThrowable( e );
-            LauncherCore.closeApp();
-        }
-    }
-
     /**
      * Abstract method: This method must perform initialization and setup of the scene and @FXML components.
      */
@@ -199,18 +143,6 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
             windowEvent.consume();
             returnBtn.fire();
         } );
-
-        // Display announcements if present
-        String announcementText = AnnouncementManager.getAnnouncementModpacksEdit();
-        if ( announcementText.length() > 0 ) {
-            announcement.setText( announcementText );
-            announcement.setMinHeight( 30 );
-            announcementRow.setMinHeight( 30 );
-        }
-        else {
-            announcement.setMaxHeight( 0 );
-            announcementRow.setMaxHeight( 0 );
-        }
 
         // Configure return button and window close
         returnBtn.setOnAction( actionEvent -> {
@@ -225,7 +157,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
 
         // Configure add by URL button
         urlAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            GameModPackManager.installModPackByURL( urlAddBox.getText() );
+            //TODO:GameModPackManager.installModPackByURL( urlAddBox.getText() );
             try {
                 MCLauncherGuiController.goToEditModpacksGui();
             }
@@ -238,7 +170,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
 
         // Configure add by List button
         listAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            GameModPackManager.installModPackByFriendlyName( listAddBox.getSelectedItem() );
+            //TODO:GameModPackManager.installModPackByFriendlyName( listAddBox.getSelectedValue() );
             try {
                 MCLauncherGuiController.goToEditModpacksGui();
             }
@@ -248,24 +180,6 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
                 LauncherCore.closeApp();
             }
         } ) );
-
-        // Configure remove selected button
-        removeSelectedBtn.setOnAction( actionEvent -> {
-            List< String > selectedItems = modpackList.getSelectionModel().getSelectedValues();
-            for ( String selectedItem : selectedItems ) {
-                modpackList.getItems().remove( selectedItem );
-                SystemUtilities.spawnNewTask( () -> {
-                    boolean isUnavailable = selectedItem.contains( UNAVAILABLE_PREFIX );
-                    String preppedEventItem = selectedItem;
-                    if ( isUnavailable ) {
-                        preppedEventItem = selectedItem.substring(
-                                selectedItem.indexOf( UNAVAILABLE_PREFIX ) + UNAVAILABLE_PREFIX.length() );
-                    }
-                    uninstallModPack( preppedEventItem, isUnavailable );
-                } );
-            }
-
-        } );
 
         // Loads lists
         loadModPackList();
@@ -288,8 +202,10 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     private void loadModPackList() {
         // Get information before locking and updating GUI
-        final List< String > installedModPackURLS = GameModPackManager.getInstalledModPackURLs();
-        final List< String > availableModPackFriendlyNames = GameModPackManager.getAvailableModPackFriendlyNames();
+        final List< String > installedModPackURLS = new ArrayList<>(); //TODO: GameModPackManager
+        // .getInstalledModPackURLs();
+        final List< String > availableModPackFriendlyNames
+                = new ArrayList<>(); //TODO: GameModPackManager.getAvailableModPackFriendlyNames();
 
         // Lock window during load
         modpackList.setDisable( true );
@@ -301,14 +217,17 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
         // Build list of installed mod packs to show (including unavailable)
         List< String > installedModPackFriendlyNames = new ArrayList<>();
         for ( String modPackUrl : installedModPackURLS ) {
-            GameModPack modPackFromUrl = GameModPackManager.getInstalledModPackByURL( modPackUrl );
-            if ( modPackFromUrl != null && modPackFromUrl.getFriendlyName() != null ) {
-                installedModPackFriendlyNames.add( modPackFromUrl.getFriendlyName() );
-            }
-            else {
+            //GameModPack modPackFromUrl = GameModPackManager.getInstalledModPackByURL( modPackUrl );
+            //if ( modPackFromUrl != null && modPackFromUrl.getFriendlyName() != null ) {
+            //    installedModPackFriendlyNames.add( modPackFromUrl.getFriendlyName() );
+            //}
+            //else {
                 installedModPackFriendlyNames.add( UNAVAILABLE_PREFIX + modPackUrl );
-            }
+           //}
         }
+
+        // Set installed mod pack list cell factory
+        modpackList.setCellFactory( stringListView -> new MCLauncherEditModPacksGui.XCell() );
 
         // Add installed mod packs to list
         modpackList.setItems( FXCollections.observableList( installedModPackFriendlyNames ) );
@@ -322,5 +241,110 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
         listAddBox.setDisable( false );
         listAddBtn.setDisable( false );
         returnBtn.setDisable( false );
+    }
+
+    void uninstallModPack( String name, boolean byUrl ) {
+        if ( byUrl ) {
+            //GameModPackManager.uninstallModPackByURL( name );
+            // TODO: Fix me and below
+        }
+        else {
+            //GameModPackManager.uninstallModPackByFriendlyName( name );
+            throw new IllegalAccessError( "OOPS" );
+        }
+        try {
+            MCLauncherGuiController.goToEditModpacksGui();
+        }
+        catch ( IOException e ) {
+            Logger.logError( "Oops! Unable to reload edit mod packs GUI" );
+            Logger.logThrowable( e );
+            LauncherCore.closeApp();
+        }
+    }
+
+    /**
+     * Custom {@link ListCell <String>} implementation that includes a button to remove the affiliated item from the
+     * parent list.
+     *
+     * @version 1.0
+     * @since 1.0
+     */
+    class XCell extends ListCell< String >
+    {
+        /**
+         * Layout container for list cell.
+         *
+         * @since 1.0
+         */
+        final HBox hbox = new HBox();
+
+        /**
+         * Label for list cell value (string).
+         *
+         * @since 1.0
+         */
+        final Label label = new Label( "" );
+
+        /**
+         * Pane for separation between list cell value (string) and added button.
+         *
+         * @since 1.0
+         */
+        final Pane   pane   = new Pane();
+        /**
+         * Added button for removing the associated item in the list.
+         *
+         * @since 1.0
+         */
+        final Button button = new Button( "X" );
+
+        /**
+         * Constructor for custom list cell implementation that populates and styles each element.
+         *
+         * @since 1.0
+         */
+        public XCell() {
+            super();
+
+            pane.setPrefWidth( 10 );
+            label.setStyle( "-fx-text-fill:black!important;" );
+            button.setStyle( "-fx-text-fill:red!important;-fx-font-size:8;" );
+            hbox.getChildren().addAll( label, pane, button );
+            HBox.setHgrow( pane, Priority.ALWAYS );
+            button.setOnAction( event -> {
+                String eventItem = getItem();
+                getListView().getItems().remove( eventItem );
+                SystemUtilities.spawnNewTask( () -> {
+                    boolean isUnavailable = eventItem.contains( UNAVAILABLE_PREFIX );
+                    String preppedEventItem = eventItem;
+                    if ( isUnavailable ) {
+                        preppedEventItem = eventItem.substring(
+                                eventItem.indexOf( UNAVAILABLE_PREFIX ) + UNAVAILABLE_PREFIX.length() );
+                    }
+                    uninstallModPack( preppedEventItem, isUnavailable );
+                } );
+            } );
+        }
+
+        /**
+         * Overridden method for handling updates to the item in the list cell.
+         *
+         * @param item  new list cell value (string)
+         * @param empty true if list cell should be empty
+         *
+         * @since 1.0
+         */
+        @Override
+        protected void updateItem( String item, boolean empty ) {
+            super.updateItem( item, empty );
+            setText( null );
+            setGraphic( null );
+
+            if ( item != null && !empty ) {
+                label.setText( item );
+                label.setPrefHeight( button.getPrefHeight() );
+                setGraphic( hbox );
+            }
+        }
     }
 }

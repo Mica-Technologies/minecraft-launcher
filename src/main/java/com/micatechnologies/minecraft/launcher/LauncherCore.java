@@ -17,26 +17,19 @@
 
 package com.micatechnologies.minecraft.launcher;
 
-import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
-import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationManager;
+import com.micatechnologies.minecraft.launcher.game.auth.MCPlayerAuthenticationResult;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
-import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
-import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
-import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
-import com.micatechnologies.minecraft.launcher.utilities.*;
-import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
+import com.micatechnologies.minecraft.launcher.social.DiscordRichPresence;
+import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,7 +43,7 @@ import java.util.concurrent.CountDownLatch;
  *
  * @author Mica Technologies
  * @version 2.0
- * @since START
+ * @since 1.0
  */
 public class LauncherCore
 {
@@ -60,11 +53,6 @@ public class LauncherCore
      * the launcher closes, it will restart.
      */
     private static boolean restartFlag = true;
-
-    /**
-     * String error reason for the application restarting. Null if there is no error.
-     */
-    private static String restartError = null;
 
     private static CountDownLatch exitLatch;
 
@@ -78,9 +66,7 @@ public class LauncherCore
     public static void main( String[] args ) {
         while ( restartFlag ) {
             // Reset restart flag to false
-            String previousRestartError = restartError;
             restartFlag = false;
-            restartError = null;
             exitLatch = new CountDownLatch( 1 );
 
             /*
@@ -114,26 +100,23 @@ public class LauncherCore
             }
 
             // If client, do login
-            if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
+            if ( GameModeManager.getCurrentGameMode() == GameModeManager.GameMode.CLIENT ) {
                 Logger.logDebug( LocalizationManager.LAUNCHER_CLIENT_MODE_STARTING_LOGIN_TEXT );
-                performClientLogin( previousRestartError );
+                performClientLogin();
                 Logger.logDebug( LocalizationManager.LOGIN_PROCESS_FINISHED_TEXT );
             }
             else {
                 Logger.logDebug( LocalizationManager.LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT );
             }
 
-            // Load announcements
-            AnnouncementManager.checkAnnouncements();
-
             // Load mod pack information
-            GameModPackManager.fetchModPackInfo();
+            //GameModPackManager.fetchModPackInfo();
 
             // Get local JDK
-            RuntimeManager.verifyJre8();
+            //RuntimeManager.verifyJre8();
 
             // Show main (mod pack selection) window
-            doModpackSelection( initialModPackSelection, previousRestartError );
+            doModpackSelection( initialModPackSelection );
 
             // Wait for exit latch
             try {
@@ -154,7 +137,7 @@ public class LauncherCore
      *
      * @since 2.0
      */
-    public static void play( GameModPack gameModPack ) {
+    public static void play( Object gameModPack ) {
         play( gameModPack, null );
     }
 
@@ -165,8 +148,9 @@ public class LauncherCore
      *
      * @since 2.0
      */
-    public static void play( GameModPack gameModPack, Runnable after ) {
-        if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
+    public static void play( Object gameModPack, Runnable after ) {
+        // TODO: Not object type
+        /*if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
             MCLauncherProgressGui playProgressWindow = null;
             try {
                 if ( MCLauncherGuiController.shouldCreateGui() ) {
@@ -234,7 +218,7 @@ public class LauncherCore
                                      LocalizationManager.GB_OF_RAM_TEXT +
                                      ". " +
                                      LocalizationManager.MAX_RAM_SETTING_MUST_INCREASE_TEXT );
-        }
+        }*/
     }
 
     /**
@@ -246,14 +230,14 @@ public class LauncherCore
      *
      * @since 1.0
      */
-    public static void doModpackSelection( String modPackName, String initialErrorMessage ) {
+    public static void doModpackSelection( String modPackName ) {
         // Create variable to store final resulting mod pack name
-        GameModPack finalGameModPack = GameModPackManager.getInstalledModPackByName( modPackName );
+        //GameModPack finalGameModPack = GameModPackManager.getInstalledModPackByName( modPackName );
 
         // Check if requested mod pack is installed
-        if ( modPackName.length() > 0 && finalGameModPack == null ) {
-            Logger.logError( modPackName + " " + LocalizationManager.PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT );
-        }
+        // if ( modPackName.length() > 0 && finalGameModPack == null ) {
+        //    Logger.logError( modPackName + " " + LocalizationManager.PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT );
+        //}
 
         // Show gui or start start
         if ( GameModeManager.isClient() ) {
@@ -265,24 +249,17 @@ public class LauncherCore
                 Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
-            if ( finalGameModPack != null && mainWindow != null ) {
-                mainWindow.selectModpack( finalGameModPack );
-            }
-
-            if ( initialErrorMessage != null && initialErrorMessage.length() > 0 ) {
-                Logger.logError( initialErrorMessage );
-            }
+            //if ( finalGameModPack != null && mainWindow != null ) {
+            //    mainWindow.selectModpack( finalGameModPack );
+            //}
         }
         else if ( GameModeManager.isServer() ) {
-            if ( initialErrorMessage != null && initialErrorMessage.length() > 0 ) {
-                Logger.logErrorSilent( initialErrorMessage );
-            }
-            if ( finalGameModPack != null ) {
-                play( finalGameModPack );
-            }
-            else {
-                Logger.logError( LocalizationManager.NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT );
-            }
+            //if ( finalGameModPack != null ) {
+            //    play( finalGameModPack );
+            // }
+            //else {
+            Logger.logError( LocalizationManager.NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT );
+            //}
         }
     }
 
@@ -293,16 +270,13 @@ public class LauncherCore
      */
     public static void configureLogger() {
         Timestamp logTimeStamp = new Timestamp( System.currentTimeMillis() );
-        File logFile = SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLogFolderPath() +
-                                                                            File.separator +
-                                                                            LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED +
-                                                                            "_" +
-                                                                            GameModeManager.getCurrentGameMode()
-                                                                                           .getStringName() +
-                                                                            "_" +
-                                                                            LocalPathConstants.LOG_FILE_NAME_DATE_FORMAT.format(
-                                                                                    logTimeStamp ) +
-                                                                            LocalPathConstants.LOG_FILE_EXTENSION );
+        File logFile = SynchronizedFileManager.getSynchronizedFile( LocalPathConstants.LOGS_FOLDER_PATH.resolve(
+                LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED +
+                        "_" +
+                        GameModeManager.getCurrentGameMode().getStringName() +
+                        "_" +
+                        LocalPathConstants.LOG_FILE_NAME_DATE_FORMAT.format( logTimeStamp ) +
+                        LocalPathConstants.LOG_FILE_EXTENSION ) );
         try {
             Logger.initLogSys( logFile );
         }
@@ -319,19 +293,15 @@ public class LauncherCore
      *
      * @since 2.0
      */
-    public static void performClientLogin( String initialErrorMessage ) {
+    public static void performClientLogin() {
         // If no saved account, show message and login screen, otherwise continue.
-        if ( !MCLauncherAuthManager.hasExistingLogin() ) {
+        if ( !MCPlayerAuthenticationManager.hasExistingLogin() ) {
             Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
 
             // Show login screen
             MCLauncherLoginGui loginWindow;
             try {
                 loginWindow = MCLauncherGuiController.goToLoginGui();
-
-                if ( initialErrorMessage != null && initialErrorMessage.length() > 0 ) {
-                    Logger.logError( initialErrorMessage );
-                }
 
                 // Wait for login screen to complete
                 try {
@@ -351,10 +321,10 @@ public class LauncherCore
         }
         else {
             // Attempt to load/renew saved user account
-            MCLauncherAuthResult authResult = MCLauncherAuthManager.renewExistingLogin();
+            MCPlayerAuthenticationResult authResult = MCPlayerAuthenticationManager.renewExistingLogin();
 
             // Check login renewal result
-            boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
+            boolean authSuccess = MCPlayerAuthenticationManager.checkAuthResponse( authResult );
 
             if ( authSuccess ) {
                 Logger.logStd( "[" +
@@ -363,9 +333,10 @@ public class LauncherCore
                                        LocalizationManager.WAS_LOGGED_IN_TO_LAUNCHER_TEXT );
             }
             else {
-                MCLauncherAuthManager.logout();
+                Logger.logError( LocalizationManager.AUTH_UNABLE_TO_REFRESH_TEXT );
+                MCPlayerAuthenticationManager.logout();
                 restartFlag = true;
-                restartAppWithError( LocalizationManager.AUTH_UNABLE_TO_REFRESH_TEXT );
+                restartApp();
             }
         }
     }
@@ -385,20 +356,20 @@ public class LauncherCore
             GameModeManager.inferGameMode();
         }
         else if ( args.length == 1 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_CLIENT_MODE ) ) {
-            GameModeManager.setCurrentGameMode( GameMode.CLIENT );
+            GameModeManager.setCurrentGameMode( GameModeManager.GameMode.CLIENT );
         }
         else if ( args.length == 1 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_SERVER_MODE ) ) {
-            GameModeManager.setCurrentGameMode( GameMode.SERVER );
+            GameModeManager.setCurrentGameMode( GameModeManager.GameMode.SERVER );
         }
         else if ( args.length == 1 ) {
             initialModPackSelection = args[ 0 ];
         }
         else if ( args.length == 2 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_CLIENT_MODE ) ) {
-            GameModeManager.setCurrentGameMode( GameMode.CLIENT );
+            GameModeManager.setCurrentGameMode( GameModeManager.GameMode.CLIENT );
             initialModPackSelection = args[ 1 ];
         }
         else if ( args.length == 2 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_SERVER_MODE ) ) {
-            GameModeManager.setCurrentGameMode( GameMode.SERVER );
+            GameModeManager.setCurrentGameMode( GameModeManager.GameMode.SERVER );
             initialModPackSelection = args[ 1 ];
         }
         else {
@@ -432,7 +403,7 @@ public class LauncherCore
     public static void cleanupApp() {
         Logger.logStd( LocalizationManager.PERFORMING_APP_CLEANUP_TEXT );
         try {
-            DiscordRpcUtility.exit();
+            DiscordRichPresence.exit();
             MCLauncherGuiController.exit();
             Logger.shutdownLogSys();
         }
@@ -449,20 +420,6 @@ public class LauncherCore
      */
     public static void restartApp() {
         restartFlag = true;
-        restartError = null;
-        cleanupApp();
-        exitLatch.countDown();
-    }
-
-    /**
-     * Performs launcher closing tasks and the restarts the launcher application with the specified error reason. This
-     * method must be able to be called and complete without waiting at all times.
-     *
-     * @since 2.0
-     */
-    public static void restartAppWithError( String restartErrorString ) {
-        restartFlag = true;
-        restartError = restartErrorString;
         cleanupApp();
         exitLatch.countDown();
     }
