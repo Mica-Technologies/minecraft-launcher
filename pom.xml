@@ -36,7 +36,8 @@
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javafx.version>19</javafx.version>
-        <jdk.version>19+37</jdk.version>
+        <jdk.major.version>19</jdk.major.version>
+        <jlink.jdk.version>19+37</jlink.jdk.version>
         <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
         </jfxtaskbarprogressbar.export>
     </properties>
@@ -92,19 +93,49 @@
                 </executions>
             </plugin>
 
+            <!-- DOWNLOAD JAVA RUNTIME -->
+            <plugin>
+                <groupId>com.igormaznitsa</groupId>
+                <artifactId>mvn-jlink-wrapper</artifactId>
+                <version>1.2.0</version>
+                <executions>
+                    <!-- CACHE JDK -->
+                    <execution>
+                        <id>cache-jdk</id>
+                        <goals>
+                            <goal>cache-jdk</goal>
+                        </goals>
+                        <configuration>
+                            <provider>BELLSOFT</provider>
+                            <providerConfig>
+                                <type>jdk</type>
+                                <version>${jlink.jdk.version}</version>
+                                <arch>amd64-full</arch>
+                            </providerConfig>
+                            <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
+                            <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- COMPILE CODE -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <source>16</source>
-                    <target>16</target>
+                    <target>${jdk.major.version}</target>
+                    <source>${jdk.major.version}</source>
                     <encoding>UTF-8</encoding>
                     <parameters>true</parameters>
                     <compilerArgs>
                         <arg>${jfxtaskbarprogressbar.export}</arg>
                     </compilerArgs>
+                    <!--suppress UnresolvedMavenProperty -->
+                    <executable>${jlink.jdk.path}${file.separator}bin${file.separator}javac</executable>
+                    <fork>true</fork>
+                    <verbose>true</verbose>
                 </configuration>
             </plugin>
 
@@ -137,32 +168,6 @@
                 </executions>
             </plugin>
 
-            <!-- DOWNLOAD JAVA RUNTIME -->
-            <plugin>
-                <groupId>com.igormaznitsa</groupId>
-                <artifactId>mvn-jlink-wrapper</artifactId>
-                <version>1.2.0</version>
-                <executions>
-                    <!-- CACHE JDK -->
-                    <execution>
-                        <id>cache-jdk</id>
-                        <goals>
-                            <goal>cache-jdk</goal>
-                        </goals>
-                        <configuration>
-                            <provider>BELLSOFT</provider>
-                            <providerConfig>
-                                <type>jdk</type>
-                                <version>${jdk.version}</version>
-                                <arch>amd64-full</arch>
-                            </providerConfig>
-                            <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
-                            <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
@@ -171,7 +176,7 @@
                     <mainClass>${main.class}</mainClass>
                     <bundleJre>true</bundleJre>
                     <customizedJre>false</customizedJre>
-                    <jreMinVersion>16</jreMinVersion>
+                    <jreMinVersion>${jdk.major.version}</jreMinVersion>
                     <generateInstaller>true</generateInstaller>
                     <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
                     <runnableJar>
