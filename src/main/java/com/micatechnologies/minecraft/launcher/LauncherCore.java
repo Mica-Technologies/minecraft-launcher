@@ -283,6 +283,7 @@ public class LauncherCore
             else {
                 Logger.logError( LocalizationManager.NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT );
             }
+            closeApp();
         }
     }
 
