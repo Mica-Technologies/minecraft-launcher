@@ -2,7 +2,7 @@
   <configuration default="false" name="Core (Automatic)" type="Application" factoryName="Application">
     <option name="ALTERNATIVE_JRE_PATH" value="liberica-16" />
     <option name="MAIN_CLASS_NAME" value="com.micatechnologies.minecraft.launcher.LauncherCore" />
-    <module name="launcher" />
+    <module name="minecraft-launcher" />
     <option name="VM_PARAMETERS" value="--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED" />
     <extension name="coverage">
       <pattern>
