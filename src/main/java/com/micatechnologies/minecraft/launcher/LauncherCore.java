@@ -37,6 +37,9 @@ import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
+import com.sun.jna.WString;
+import com.sun.jna.platform.win32.Shell32;
+import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -422,6 +425,24 @@ public class LauncherCore
      */
     public static void applySystemProperties() {
         LauncherConstants.JVM_PROPERTIES.forEach( System::setProperty );
+
+        // Initialize user model ID
+        try {
+            if ( SystemUtils.IS_OS_WINDOWS ) {
+                String appUserModelId = LauncherConstants.LAUNCHER_IS_DEV ?
+                                        LauncherCore.class.getCanonicalName() + "DEV" :
+                                        LauncherCore.class.getCanonicalName();
+                Logger.logDebug( "Setting app user model ID: " + appUserModelId );
+                WString appUserModelIdWString = new WString( appUserModelId );
+                Shell32.INSTANCE.SetCurrentProcessExplicitAppUserModelID( appUserModelIdWString );
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logErrorSilent( "Unable to set up user model ID for application. If you are using Windows, this " +
+                                           "may result in your taskbar showing a separate icon for the launcher than " +
+                                           "the currently pinned icon, if present." );
+            Logger.logThrowable( e );
+        }
     }
 
     /**
