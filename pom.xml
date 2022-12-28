@@ -27,6 +27,10 @@
     <version>2022.1.1</version>
     <name>Mica Minecraft Launcher</name>
     <packaging>jar</packaging>
+    <organization>
+        <name>Mica Technologies | Minecraft</name>
+        <url>https://minecraft.micatechnologies.com</url>
+    </organization>
 
     <!-- PROJECT AND CUSTOM PROPERTIES -->
     <properties>
@@ -169,6 +173,7 @@
                 <version>1.6.7</version>
                 <configuration>
                     <mainClass>${main.class}</mainClass>
+                    <assetsDir>${project.basedir}${file.separator}deploy</assetsDir>
                     <bundleJre>true</bundleJre>
                     <customizedJre>false</customizedJre>
                     <jreMinVersion>16</jreMinVersion>
