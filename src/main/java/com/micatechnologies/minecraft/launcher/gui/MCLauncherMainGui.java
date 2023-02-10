@@ -528,7 +528,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             setPrefHeight( 52 );
 
             String packLogoFilepath = cell.getPackLogoFilepath() != null ?
-                                      cell.getPackLogoFilepath() :
+                                      new File( cell.getPackLogoFilepath() ).toURI().toString() :
                                       ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
             ImageView packLogo = new ImageView( packLogoFilepath );
             packLogo.setFitHeight( 40 );
