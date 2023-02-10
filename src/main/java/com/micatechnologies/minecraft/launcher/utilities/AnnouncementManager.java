@@ -111,7 +111,7 @@ public class AnnouncementManager
         // Download announcements JSON from launcher repository
         JsonObject announcementJson = null;
         try {
-            String manifestBody = IOUtils.toString( new URL( ANNOUNCEMENT_URL ), Charset.defaultCharset() );
+            String manifestBody = NetworkUtilities.downloadFileFromURL( ANNOUNCEMENT_URL );
             announcementJson = new Gson().fromJson( manifestBody, JsonObject.class );
         }
         catch ( Exception e ) {

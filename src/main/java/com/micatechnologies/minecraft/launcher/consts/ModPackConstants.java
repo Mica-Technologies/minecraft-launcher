@@ -152,7 +152,7 @@ public class ModPackConstants
      * @since 1.0
      */
     public static final String AVAILABLE_PACKS_MANIFEST_URL
-            = "https://raw.githubusercontent.com/Mica-Technologies/minecraft-launcher-modpacks/main/installable.json";
+            = "https://micauseaststorage.blob.core.windows.net/mc-launcher-api/installable.json";
 
     /**
      * The key that identifies the list of installable mod pack manifest URLs in the available mod packs manifest.
