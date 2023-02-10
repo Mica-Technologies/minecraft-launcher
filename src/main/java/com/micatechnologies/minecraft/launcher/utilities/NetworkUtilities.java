@@ -19,11 +19,13 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.consts.AuthConstants;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.Charset;
 
 /**
  * Class containing utility methods and other functionality that pertains to the network and/or network connections in
@@ -126,5 +128,77 @@ public class NetworkUtilities
         connection.setDoOutput( true );
         connection.setRequestProperty( "Accept", responseContentType );
         FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
+    }
+
+    /**
+     * Downloads the file from the specified URL (as string) and returns it as a string.
+     *
+     * @param source source URL (as string)
+     *
+     * @return file contents as string
+     *
+     * @throws IOException if unable to download file
+     * @since 1.1
+     */
+    public static String downloadFileFromURL( String source ) throws IOException {
+        return IOUtils.toString( new URL( source ), Charset.defaultCharset() );
+    }
+
+    /**
+     * Downloads the file from the specified URL (as string) and returns it as a string.
+     *
+     * @param source              source URL (as string)
+     * @param responseContentType content type of response
+     *
+     * @return file contents as string
+     *
+     * @throws IOException if unable to download or save file
+     * @since 1.1
+     */
+    public static String downloadFileFromURL( String source, String responseContentType ) throws IOException
+    {
+        URLConnection connection = new URL( source ).openConnection();
+        connection.setUseCaches( false );
+        connection.setDoInput( true );
+        connection.setDoOutput( true );
+        connection.setRequestProperty( "Accept", responseContentType );
+        return IOUtils.toString( connection.getInputStream(), Charset.defaultCharset() );
+    }
+
+    /**
+     * Downloads the file from the specified URL and returns it as a string.
+     *
+     * @param source source URL
+     *
+     * @return file contents as string
+     *
+     * @throws IOException if unable to download or save file
+     * @since 1.1
+     */
+    public static String downloadFileFromURL( URL source ) throws IOException {
+        URLConnection connection = source.openConnection();
+        connection.setUseCaches( false );
+        return IOUtils.toString( connection.getInputStream(), Charset.defaultCharset() );
+    }
+
+    /**
+     * Downloads the file from the specified URL and returns it as a string.
+     *
+     * @param source              source URL
+     * @param responseContentType content type of response
+     *
+     * @return file contents as string
+     *
+     * @throws IOException if unable to download or save file
+     * @since 1.1
+     */
+    public static String downloadFileFromURL( URL source, String responseContentType ) throws IOException
+    {
+        URLConnection connection = source.openConnection();
+        connection.setUseCaches( false );
+        connection.setDoInput( true );
+        connection.setDoOutput( true );
+        connection.setRequestProperty( "Accept", responseContentType );
+        return IOUtils.toString( connection.getInputStream(), Charset.defaultCharset() );
     }
 }

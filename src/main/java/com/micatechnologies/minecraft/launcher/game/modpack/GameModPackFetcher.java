@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.google.gson.Gson;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import org.apache.commons.io.IOUtils;
 
 import java.net.URL;
@@ -37,20 +38,23 @@ public class GameModPackFetcher
     /**
      * Fetches the mod pack object from the specified manifest URL.
      *
-     * @param manifestUrl mod pack manifest URL
+     * @param manifestUrl       mod pack manifest URL
+     * @param createEnvironment whether to create the mod pack environment
      *
      * @return mod pack object
      *
      * @since 1.0
      */
-    public static GameModPack get( String manifestUrl ) {
+    public static GameModPack get( String manifestUrl, boolean createEnvironment ) {
         // Fetch contents of available mod pack manifest
         GameModPack gameModPack;
         try {
-            String manifestBody = IOUtils.toString( new URL( manifestUrl ), Charset.defaultCharset() );
+            String manifestBody = NetworkUtilities.downloadFileFromURL( manifestUrl );
             gameModPack = new Gson().fromJson( manifestBody, GameModPack.class );
-            gameModPack.prepareEnvironment();
-            gameModPack.cacheImages();
+            if (createEnvironment) {
+                gameModPack.prepareEnvironment();
+                gameModPack.cacheImages();
+            }
         }
         catch ( Exception e ) {
             Logger.logError( "The following installed mod pack could not be loaded: " + manifestUrl );

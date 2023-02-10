@@ -26,6 +26,7 @@ import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationM
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -82,8 +83,8 @@ public class GameModPackManager
         // Fetch contents of available mod pack manifest
         String availableModPackManifestBody;
         try {
-            availableModPackManifestBody = IOUtils.toString( new URL( ModPackConstants.AVAILABLE_PACKS_MANIFEST_URL ),
-                                                             Charset.defaultCharset() );
+            availableModPackManifestBody = NetworkUtilities.downloadFileFromURL(
+                    ModPackConstants.AVAILABLE_PACKS_MANIFEST_URL );
         }
         catch ( IOException e ) {
             e.printStackTrace();
@@ -108,7 +109,7 @@ public class GameModPackManager
                 ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY ) ) {
             final String manifestUrlVal = manifestUrl.getAsString();
             if ( !installedModPackManifestUrls.contains( manifestUrlVal ) ) {
-                GameModPack gameModPack = GameModPackFetcher.get( manifestUrlVal );
+                GameModPack gameModPack = GameModPackFetcher.get( manifestUrlVal,false );
                 if ( gameModPack.getFriendlyName() != null ) {
                     availableGameModPacks.add( gameModPack );
 
@@ -198,7 +199,7 @@ public class GameModPackManager
         // For each mod pack, get object from latest manifest
         for ( String manifestUrl : installedModPackManifestUrls ) {
             try {
-                GameModPack gameModPack = GameModPackFetcher.get( manifestUrl );
+                GameModPack gameModPack = GameModPackFetcher.get( manifestUrl,true );
                 installedGameModPacks.add( gameModPack );
 
                 // Update progress window
@@ -575,9 +576,9 @@ public class GameModPackManager
         }
 
         // Add mod pack
-        GameModPack modPack = GameModPackFetcher.get( url );
+        GameModPack modPack = GameModPackFetcher.get( url,true );
         if ( modPack.getFriendlyName() != null ) {
-            installModPack( GameModPackFetcher.get( url ) );
+            installModPack( modPack );
         }
     }
 
