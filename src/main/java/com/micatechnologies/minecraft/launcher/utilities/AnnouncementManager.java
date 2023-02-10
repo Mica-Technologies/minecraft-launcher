@@ -43,7 +43,7 @@ public class AnnouncementManager
      * @since 1.0
      */
     private static final String ANNOUNCEMENT_URL
-            = "https://raw.githubusercontent.com/Mica-Technologies/minecraft-launcher-modpacks/main/launcher-remote-config/announce.json";
+            = "https://micauseaststorage.blob.core.windows.net/mc-launcher-api/launcher-remote-config/announce.json";
 
     /**
      * The key used to access the JSON value for the announcement shown to the user on the login screen.
