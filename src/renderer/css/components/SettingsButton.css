@@ -1,0 +1,38 @@
+/*
+ * @NOTE: Prepend a `~` to css file paths that are in your node_modules
+ *        See https://github.com/webpack-contrib/sass-loader#imports
+ */
+.playerDisplayContainer {
+  border-radius: 6px;
+  padding: 8px 5px 8px 10px;
+}
+
+.playerDisplayContainer:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.playerMenu {
+  width: 320px;
+  height: 400px !important;
+  max-width: 90%;
+  padding: 20px 24px;
+}
+
+.settingsMenuStack {
+  overflow: hidden;
+}
+
+.settingsMenuStackHeader {
+  padding: 0;
+  margin: 0 0 10px 0;
+}
+
+.settingsMenuButton {
+  margin: 10px !important;
+  height: 80px !important;
+  width: 220px !important;
+}
+
+.playerDisplay {
+  -webkit-user-select: none;
+}

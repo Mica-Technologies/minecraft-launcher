@@ -1,0 +1,18 @@
+/*
+ * @NOTE: Prepend a `~` to css file paths that are in your node_modules
+ *        See https://github.com/webpack-contrib/sass-loader#imports
+ */
+.titleBar {
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  vertical-align: center;
+}
+
+.titleBarTitle {
+  margin: 0;
+  padding: 0 20px;
+}

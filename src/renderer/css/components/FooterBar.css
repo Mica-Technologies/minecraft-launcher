@@ -1,0 +1,14 @@
+/*
+ * @NOTE: Prepend a `~` to css file paths that are in your node_modules
+ *        See https://github.com/webpack-contrib/sass-loader#imports
+ */
+.footerBar {
+  width: 100%;
+  margin: 0;
+  padding: 15px 0;
+  text-align: center;
+}
+
+.footerBarStack {
+  margin: 0 15px;
+}

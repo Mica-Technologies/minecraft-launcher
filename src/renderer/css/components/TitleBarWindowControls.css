@@ -1,0 +1,20 @@
+/*
+ * @NOTE: Prepend a `~` to css file paths that are in your node_modules
+ *        See https://github.com/webpack-contrib/sass-loader#imports
+ */
+.titleBarWindowControls {
+  -webkit-app-region: no-drag;
+  -webkit-user-select: none;
+}
+
+.titleBarWindowControl {
+  -webkit-user-select: auto;
+  width: 45px !important;
+  max-width: 45px !important;
+  font-size: 12px;
+  border-radius: 0;
+}
+
+.titleBarWindowControlClose:hover {
+  background-color: red !important;
+}

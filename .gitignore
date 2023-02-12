@@ -1,52 +1,32 @@
-# Compiled class file
-*.class
-
-# Log file
+# Logs
+logs
 *.log
 
-# BlueJ files
-*.ctxt
+# Runtime data
+pids
+*.pid
+*.seed
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
+# Coverage directory used by tools like istanbul
+coverage
+.eslintcache
 
-# Package Files
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-*.exe
-*.dmg
-*.iso
+# Dependency directory
+# https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git
+node_modules
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-
-# Maven 
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
-
-# Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
-!/.mvn/wrapper/maven-wrapper.jar
-
-# File Explorer/Finder Files
+# OSX
 .DS_Store
-Thumbs.db
 
-# Local JDK Ignore
-jdk/
+release/app/dist
+release/build
+.erb/dll
 
-## IntelliJ/Jetbrains GitIgnore
+npm-debug.log.*
+*.css.d.ts
+*.sass.d.ts
+*.scss.d.ts
+
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
 
@@ -56,6 +36,9 @@ jdk/
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
+
+# AWS User-specific
+.idea/**/aws.xml
 
 # Generated files
 .idea/**/contentModel.xml
@@ -77,14 +60,14 @@ jdk/
 # When using Gradle or Maven with auto-import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using
 # auto-import.
-.idea/artifacts
-.idea/compiler.xml
-.idea/jarRepositories.xml
-.idea/modules.xml
-.idea/*.iml
-.idea/modules
-*.iml
-*.ipr
+# .idea/artifacts
+# .idea/compiler.xml
+# .idea/jarRepositories.xml
+# .idea/modules.xml
+# .idea/*.iml
+# .idea/modules
+# *.iml
+# *.ipr
 
 # CMake
 cmake-build-*/
@@ -107,6 +90,9 @@ atlassian-ide-plugin.xml
 # Cursive Clojure plugin
 .idea/replstate.xml
 
+# SonarLint plugin
+.idea/sonarlint/
+
 # Crashlytics plugin (for Android Studio and IntelliJ)
 com_crashlytics_export_strings.xml
 crashlytics.properties
@@ -118,6 +104,3 @@ fabric.properties
 
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
-
-# Packaging files
-packaging/
