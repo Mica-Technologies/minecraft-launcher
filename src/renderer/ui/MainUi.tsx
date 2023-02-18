@@ -32,14 +32,15 @@ export default function MainUi() {
 
   let centerPaneContent: React.ReactNode;
   switch (windowSelection) {
-    case WindowSelection.modPacks:
-      centerPaneContent = <ModPacksPane />;
-      break;
     case WindowSelection.launcherSettings:
       centerPaneContent = <SettingsPane />;
       break;
     case WindowSelection.modPacksSettings:
       centerPaneContent = <ModPacksSettingsPane />;
+      break;
+    case WindowSelection.modPacks:
+    default:
+      centerPaneContent = <ModPacksPane />;
       break;
   }
 
