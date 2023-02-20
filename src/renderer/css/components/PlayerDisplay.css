@@ -22,11 +22,6 @@
   overflow: hidden;
 }
 
-.playerMenuStackHeader {
-  padding: 0;
-  margin: 0 0 10px 0;
-}
-
 .playerMenuButton {
   margin: 10px !important;
   height: 80px !important;

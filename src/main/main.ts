@@ -9,12 +9,21 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import * as os from 'os';
+import { AccountsStorage } from 'minecraft-auth/dist/AccountStorage';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+import ipcInit from './ipc/ipcInit';
+import {
+  fileExistsSync,
+  readFileSync,
+  writeFileSync,
+} from './file/fileOperations';
+import { launcherAuthCacheFile } from './file/filePathConstants';
+import LauncherConfig from '../common/config/LauncherConfig';
 
 class AppUpdater {
   constructor() {
@@ -25,40 +34,11 @@ class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
-
-ipcMain.on('windowMinimize', () => {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    } else {
-      mainWindow.minimize();
-    }
-  }
-});
-
-ipcMain.on('windowMaximize', () => {
-  if (mainWindow) {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow.maximize();
-    }
-  }
-});
-
-ipcMain.on('windowClose', () => {
-  if (mainWindow) {
-    mainWindow.close();
-  }
-});
-
-ipcMain.on('ipc-example', async (event, arg) => {
-  const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  console.log(msgTemplate(arg));
-  event.reply('ipc-example', msgTemplate('pong'));
-});
+let accountsStorage: AccountsStorage;
+let launcherConfig: LauncherConfig;
 
 if (process.env.NODE_ENV === 'production') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const sourceMapSupport = require('source-map-support');
   sourceMapSupport.install();
 }
@@ -67,10 +47,12 @@ const isDebug =
   process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true';
 
 if (isDebug) {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   require('electron-debug')();
 }
 
 const installExtensions = async () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const installer = require('electron-devtools-installer');
   const forceDownload = !!process.env.UPGRADE_EXTENSIONS;
   const extensions = ['REACT_DEVELOPER_TOOLS'];
@@ -145,9 +127,15 @@ const createWindow = async () => {
     return { action: 'deny' };
   });
 
+  // Initialize MSAL
+  // authProvider = new AuthProvider(authConfig);
+
   // Remove this if your app does not use auto updates
   // eslint-disable-next-line
   new AppUpdater();
+
+  // Configure the ipcMain events
+  ipcInit({ mainWindow, accountsStorage });
 };
 
 /**
@@ -155,6 +143,11 @@ const createWindow = async () => {
  */
 
 app.on('window-all-closed', () => {
+  // Save the accounts to the storage
+  if (accountsStorage) {
+    writeFileSync(launcherAuthCacheFile, accountsStorage.serialize());
+  }
+
   // Respect the OSX convention of having the application in memory even
   // after all windows have been closed
   if (process.platform !== 'darwin') {
@@ -165,6 +158,31 @@ app.on('window-all-closed', () => {
 app
   .whenReady()
   .then(() => {
+    // Load the accounts from the storage
+    if (fileExistsSync(launcherAuthCacheFile)) {
+      try {
+        const serialized = readFileSync(launcherAuthCacheFile);
+        accountsStorage = AccountsStorage.deserialize(serialized);
+        accountsStorage.accountList.forEach((account) => {
+          account.getProfile();
+          account
+            .checkOwnership()
+            .then(() => {
+              console.log(
+                `User ${account.profile?.name} logged in and ready to use!`
+              );
+            })
+            .catch(console.log);
+        });
+      } catch (e) {
+        console.log('Error while loading accounts from storage. Resetting...');
+        console.log(e);
+        accountsStorage = new AccountsStorage();
+      }
+    } else {
+      accountsStorage = new AccountsStorage();
+    }
+
     createWindow();
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the

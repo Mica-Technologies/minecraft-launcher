@@ -4,12 +4,20 @@ import * as React from 'react';
 import {
   Button,
   CompoundButton,
+  Dropdown,
+  Label,
+  OptionGroup,
+  Option,
   Persona,
   Popover,
   PopoverSurface,
   PopoverTrigger,
   PresenceBadgeStatus,
   Title3,
+  useId,
+  Tooltip,
+  Divider,
+  Text,
 } from '@fluentui/react-components';
 import {
   PersonKeyRegular,
@@ -17,21 +25,25 @@ import {
   PlugDisconnectedRegular,
   SignOutRegular,
 } from '@fluentui/react-icons';
+import ipcMessages from '../../../main/ipc/ipcMessageNames';
+import { Account, MojangAPI } from '../../../main/api/auth/authLib';
 
 type PlayerDisplayProps = {
   isInternetAvailable: boolean;
-  isLoggedIn: boolean;
-  isOfflineMode: boolean;
+  storedAccounts: Account[];
+  selectedAccount: Account | null;
   // eslint-disable-next-line no-unused-vars
-  setIsOfflineMode: (isOfflineMode: boolean) => void;
+  setSelectedAccount: (setSelectedAccount: Account | null) => void;
 };
 
 export default function PlayerDisplay({
   isInternetAvailable,
-  isLoggedIn,
-  isOfflineMode,
-  setIsOfflineMode,
+  storedAccounts,
+  selectedAccount,
+  setSelectedAccount,
 }: PlayerDisplayProps) {
+  const dropdownId = useId('dropdown-grouped');
+
   // Generate persona information
   let personaStatus: PresenceBadgeStatus;
   let personaText: string;
@@ -39,38 +51,22 @@ export default function PlayerDisplay({
     personaStatus = 'offline';
     personaText = 'Disconnected';
   } else {
-    personaStatus = isOfflineMode ? 'blocked' : 'available';
-    personaText = isOfflineMode ? 'Offline Mode' : 'Connected';
+    personaStatus = selectedAccount === null ? 'blocked' : 'available';
+    personaText = selectedAccount === null ? 'Disconnected' : 'Connected';
   }
 
   // Generate sign in/out button secondary text
   let signInOutSecondaryText: string;
   let signInOutEnabled: boolean;
-  if (!isLoggedIn && !isInternetAvailable) {
+  if (selectedAccount === null && !isInternetAvailable) {
     signInOutSecondaryText = 'Unavailable When Disconnected';
     signInOutEnabled = false;
-  } else if (!isLoggedIn && isOfflineMode) {
-    signInOutSecondaryText = 'Unavailable When Offline';
-    signInOutEnabled = false;
   } else {
-    signInOutSecondaryText = isLoggedIn
-      ? 'Remove Sign-In Information'
-      : 'Using Your Microsoft Account';
+    signInOutSecondaryText =
+      selectedAccount === null
+        ? 'Using Your Microsoft Account'
+        : 'Remove Sign-In Information';
     signInOutEnabled = true;
-  }
-
-  // Generate online/offline mode button secondary text
-  let onlineOfflineModeSecondaryText: string;
-  let onlineOfflineModeEnabled: boolean;
-  if (!isInternetAvailable) {
-    onlineOfflineModeSecondaryText = 'Unavailable When Disconnected';
-    onlineOfflineModeEnabled = false;
-  } else {
-    onlineOfflineModeSecondaryText =
-      isOfflineMode || !isInternetAvailable
-        ? 'Play With Internet Connection'
-        : 'Play Without Internet Connection';
-    onlineOfflineModeEnabled = true;
   }
 
   return (
@@ -78,13 +74,21 @@ export default function PlayerDisplay({
       <PopoverTrigger disableButtonEnhancement>
         <Button appearance="transparent">
           <Persona
-            name="Logged Out"
-            avatar={isLoggedIn ? 'https://i.imgur.com/4ZQ9Z0E.png' : ''}
+            name={
+              selectedAccount !== null ? selectedAccount.username : 'Logged Out'
+            }
+            avatar={{
+              image: {
+                src:
+                  selectedAccount !== null
+                    ? `https://minotar.net/armor/bust/${selectedAccount.username}/100.png`
+                    : 'https://minotar.net/armor/bust/MHF_Steve/100.png',
+              },
+            }}
             secondaryText={personaText}
             size="medium"
             presence={{ status: personaStatus }}
             className="playerDisplay"
-            color={isOfflineMode ? 'black' : 'white'}
           />
         </Button>
       </PopoverTrigger>
@@ -95,32 +99,136 @@ export default function PlayerDisplay({
           horizontalAlign="center"
           tokens={{ childrenGap: 10 }}
         >
-          <Title3 className="playerMenuStackHeader">Player Menu</Title3>
-          <CompoundButton
-            secondaryContent={signInOutSecondaryText}
-            className="playerMenuButton"
-            icon={isLoggedIn ? <SignOutRegular /> : <PersonKeyRegular />}
-            disabled={!signInOutEnabled}
-          >
-            {isLoggedIn ? 'Sign Out' : 'Sign In'}
-          </CompoundButton>
-          <CompoundButton
-            secondaryContent={onlineOfflineModeSecondaryText}
-            className="playerMenuButton"
-            icon={
-              isOfflineMode || !isInternetAvailable ? (
-                <PlugDisconnectedRegular />
-              ) : (
-                <PlugConnectedCheckmarkRegular />
-              )
-            }
-            onClick={() => setIsOfflineMode(!isOfflineMode)}
-            disabled={!onlineOfflineModeEnabled}
-          >
-            {isOfflineMode || !isInternetAvailable
-              ? 'Disable Offline Mode'
-              : 'Enable Offline Mode'}
-          </CompoundButton>
+          <Stack.Item hidden={!selectedAccount}>
+            <Divider>Account Information</Divider>
+          </Stack.Item>
+          <Stack.Item hidden={!selectedAccount}>
+            <Text size={200}>Profile Name</Text>
+          </Stack.Item>
+          <Stack.Item hidden={!selectedAccount}>
+            <Text size={100}>{selectedAccount?.profile.name}</Text>
+          </Stack.Item>
+          <Stack.Item hidden={!selectedAccount}>
+            <Text size={200}>Profile ID</Text>
+          </Stack.Item>
+          <Stack.Item hidden={!selectedAccount}>
+            <Text size={100}>{selectedAccount?.profile.id}</Text>
+          </Stack.Item>
+          <Stack.Item hidden={!selectedAccount}>
+            <Text size={200}>Game Ownership</Text>
+          </Stack.Item>
+          <Stack.Item hidden={!selectedAccount}>
+            <Text size={100}>
+              {selectedAccount?.ownership === undefined
+                ? 'Unknown'
+                : selectedAccount?.ownership.toString()}
+            </Text>
+          </Stack.Item>
+          <Stack.Item>
+            {selectedAccount && <br />}
+            <Divider id={dropdownId}>Account Selection</Divider>
+          </Stack.Item>
+          <Stack.Item>
+            <Dropdown
+              aria-labelledby={dropdownId}
+              placeholder={
+                storedAccounts.length === 0
+                  ? 'Add an account'
+                  : 'Select an account'
+              }
+              defaultValue={selectedAccount ? selectedAccount.uuid : ''}
+              defaultSelectedOptions={
+                selectedAccount ? [selectedAccount.uuid] : []
+              }
+              value={selectedAccount ? selectedAccount.username : ''}
+              selectedOptions={selectedAccount ? [selectedAccount.uuid] : []}
+              onOptionSelect={(ev, data) => {
+                if (data.optionValue === 'microsoft-add') {
+                  window.electron.ipcRenderer.sendMessage(
+                    ipcMessages.LOGIN_MS,
+                    []
+                  );
+                } else {
+                  const newSelectedAccount = storedAccounts.find(
+                    (account) => account.uuid === data.optionValue
+                  );
+                  if (newSelectedAccount) {
+                    setSelectedAccount(newSelectedAccount);
+                  }
+                }
+              }}
+            >
+              <OptionGroup label="Microsoft Accounts">
+                {storedAccounts.map((account) => (
+                  <Option
+                    key={account.uuid}
+                    text={account.username}
+                    value={account.uuid}
+                  >
+                    <Stack
+                      horizontal
+                      horizontalAlign="space-between"
+                      verticalAlign="center"
+                      style={{ width: '100%' }}
+                    >
+                      <Stack.Item>
+                        <Persona
+                          name={account.username}
+                          avatar={{
+                            image: {
+                              src: `https://minotar.net/armor/bust/${account.username}/100.png`,
+                            },
+                          }}
+                          secondaryText={
+                            account.uuid === selectedAccount?.uuid
+                              ? 'Active'
+                              : 'Inactive'
+                          }
+                          size="medium"
+                          presence={{
+                            status:
+                              account.uuid === selectedAccount?.uuid
+                                ? 'available'
+                                : 'away',
+                          }}
+                          className="playerDisplay"
+                        />
+                      </Stack.Item>
+                      <Stack.Item>
+                        <Tooltip
+                          content={`Sign Out of ${account.username}`}
+                          relationship="label"
+                        >
+                          <Button
+                            size="small"
+                            icon={<SignOutRegular />}
+                            onClick={() => {
+                              window.electron.ipcRenderer.sendMessage(
+                                ipcMessages.LOGOUT,
+                                [account.uuid]
+                              );
+                            }}
+                          />
+                        </Tooltip>
+                      </Stack.Item>
+                    </Stack>
+                  </Option>
+                ))}
+                <Option
+                  key="microsoft-add"
+                  value="microsoft-add"
+                  text="Add Account"
+                >
+                  + Add Microsoft Account
+                </Option>
+              </OptionGroup>
+              <OptionGroup label="Mojang Accounts">
+                <Option key="mojang-disabled" value="mojang-disabled" disabled>
+                  Not Supported Yet
+                </Option>
+              </OptionGroup>
+            </Dropdown>
+          </Stack.Item>
         </Stack>
       </PopoverSurface>
     </Popover>

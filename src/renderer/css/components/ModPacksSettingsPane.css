@@ -4,3 +4,7 @@
  */
 .modPacksSettingsPane {
 }
+
+.modPackSettingsPaneArea {
+  border-radius: 10px;
+}

@@ -3,3 +3,5 @@ export enum WindowSelection {
   'launcherSettings',
   'modPacksSettings',
 }
+
+export default WindowSelection;

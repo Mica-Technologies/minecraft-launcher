@@ -11,24 +11,58 @@ import SettingsPane from './components/SettingsPane';
 import ModPacksSettingsPane from './components/ModPacksSettingsPane';
 import ModPacksPane from './components/ModPacksPane';
 import { WindowSelection } from './utils/WindowSelection';
+import { Account } from '../../main/api/auth/authLib';
+import ipcMessages from '../../main/ipc/ipcMessageNames';
 
 export default function MainUi() {
-  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [storedAccounts, setStoredAccounts] = React.useState<Account[]>([]);
+  const [selectedAccount, setSelectedAccount] = React.useState<Account | null>(
+    null
+  );
   const [isInternetAvailable, setIsInternetAvailable] = React.useState(
     navigator.onLine
   );
-  const [isOfflineMode, setIsOfflineMode] = React.useState(false);
   const [windowSelection, setWindowSelection] = React.useState(
     WindowSelection.modPacks
   );
 
-  // Configure internet availability listeners
-  window.addEventListener('online', () =>
-    setIsInternetAvailable(navigator.onLine)
-  );
-  window.addEventListener('offline', () =>
-    setIsInternetAvailable(navigator.onLine)
-  );
+  // Configure listeners
+  React.useEffect(() => {
+    // Configure internet availability listeners
+    window.addEventListener('online', () =>
+      setIsInternetAvailable(navigator.onLine)
+    );
+    window.addEventListener('offline', () =>
+      setIsInternetAvailable(navigator.onLine)
+    );
+
+    // Configure account login listeners
+    window.electron.ipcRenderer.onStoredAccountsChange(
+      (newStoredAccounts: Account[]) => {
+        setStoredAccounts(newStoredAccounts);
+        if (newStoredAccounts.length > 0 && selectedAccount === null) {
+          setSelectedAccount(newStoredAccounts[0]);
+        } else if (newStoredAccounts.length === 0) {
+          setSelectedAccount(null);
+        } else if (
+          selectedAccount !== null &&
+          !newStoredAccounts.some(
+            (account) => account.uuid === selectedAccount.uuid
+          )
+        ) {
+          setSelectedAccount(newStoredAccounts[0]);
+        }
+      }
+    );
+  });
+
+  // Configure account storage loading
+  React.useEffect(() => {
+    window.electron.ipcRenderer.sendMessage(
+      ipcMessages.GET_STORED_ACCOUNTS,
+      []
+    );
+  }, []);
 
   let centerPaneContent: React.ReactNode;
   switch (windowSelection) {
@@ -51,9 +85,9 @@ export default function MainUi() {
       <FooterBar>
         <PlayerDisplay
           isInternetAvailable={isInternetAvailable}
-          isOfflineMode={isOfflineMode}
-          isLoggedIn={isLoggedIn}
-          setIsOfflineMode={setIsOfflineMode}
+          storedAccounts={storedAccounts}
+          selectedAccount={selectedAccount}
+          setSelectedAccount={setSelectedAccount}
         />
         <SettingsButton
           windowSelection={windowSelection}

@@ -12,7 +12,7 @@ export default function TitleBar() {
   return (
     <Stack.Item
       className="titleBar"
-      style={{ height: 'env(titlebar-area-height)' }}
+      style={{ height: 'env(titlebar-area-height)', minHeight: '36px' }}
     >
       <Stack
         verticalFill

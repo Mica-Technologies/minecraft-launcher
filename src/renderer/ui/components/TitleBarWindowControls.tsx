@@ -7,6 +7,7 @@ import {
   Square12Regular,
   Subtract12Regular,
 } from '@fluentui/react-icons';
+import ipcMessages from 'main/ipc/ipcMessageNames';
 
 interface TitleBarWindowControlsParams {
   hidden: boolean;
@@ -26,7 +27,10 @@ export default function TitleBarWindowControls({
           appearance="subtle"
           shape="square"
           onClick={() => {
-            window.electron.ipcRenderer.sendMessage('windowMinimize', []);
+            window.electron.ipcRenderer.sendMessage(
+              ipcMessages.WINDOW_MINIMIZE,
+              []
+            );
           }}
         />
         <Button
@@ -37,7 +41,10 @@ export default function TitleBarWindowControls({
           appearance="subtle"
           shape="square"
           onClick={() => {
-            window.electron.ipcRenderer.sendMessage('windowMaximize', []);
+            window.electron.ipcRenderer.sendMessage(
+              ipcMessages.WINDOW_MAXIMIZE,
+              []
+            );
           }}
         />
         <Button
@@ -48,7 +55,10 @@ export default function TitleBarWindowControls({
           appearance="subtle"
           shape="square"
           onClick={() => {
-            window.electron.ipcRenderer.sendMessage('windowClose', []);
+            window.electron.ipcRenderer.sendMessage(
+              ipcMessages.WINDOW_CLOSE,
+              []
+            );
           }}
         />
       </Stack>
