@@ -94,7 +94,7 @@
                     </font>
                 </MFXButton>
             </GridPane>
-            <Label fx:id="versionLabel" alignment="CENTER" prefHeight="12.0" prefWidth="207.0" text="Launcher Version: ERR_UNK" textAlignment="CENTER" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER">
+            <Label fx:id="versionLabel" alignment="CENTER" prefHeight="40.0" prefWidth="250.0" text="Launcher Version: ERR_UNK" textAlignment="CENTER" GridPane.columnSpan="4" GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER">
                 <font>
                     <Font size="11.0" />
                 </font>

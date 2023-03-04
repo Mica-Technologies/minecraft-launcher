@@ -337,11 +337,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
 
         // Load version information
+        String jreVersionInfo = "Game JRE Version: "+RuntimeManager.getJre8Version();
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            versionLabel.setText( "Software Version: DEVELOPMENT MODE" );
+            versionLabel.setText( "Software Version: DEVELOPMENT MODE\n"+jreVersionInfo );
         }
         else {
-            versionLabel.setText( "Software Version: " + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+            versionLabel.setText( "Software Version: " + LauncherConstants.LAUNCHER_APPLICATION_VERSION+"\n"+jreVersionInfo );
         }
 
         // Set and configure resizable windows check box

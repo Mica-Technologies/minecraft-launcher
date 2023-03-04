@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.files;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
@@ -54,6 +56,12 @@ public class RuntimeManager
     private static String jre8VerifiedPath = null;
 
     /**
+     * The version of the downloaded and verified JRE 8 installation. This value is <code>null</code> until populated by
+     * verifying the JRE 8 with {@link #verifyJre8()}.
+     */
+    private static String jre8VerifiedVersion = null;
+
+    /**
      * Verifies the integrity of the local JRE 8 installation, and downloads or replaces files as necessary. This method
      * must be called before calling {@link #getJre8Path()}.
      *
@@ -79,16 +87,9 @@ public class RuntimeManager
 
         // Create runtime folder and file objects
         String runtimeFolderPath = LocalPathManager.getLauncherRuntimeFolderPath();
-        String extractedJreFolder = SystemUtilities.buildFilePath( LocalPathManager.getLauncherRuntimeFolderPath(),
-                                                                   RuntimeConstants.JRE_8_EXTRACTED_FOLDER_NAME );
+
         File runtimeFolderFile = SynchronizedFileManager.getSynchronizedFile(
                 SystemUtilities.buildFilePath( runtimeFolderPath ) );
-        File extractedJreFolderFile = SynchronizedFileManager.getSynchronizedFile( extractedJreFolder );
-
-        File jreArchiveFile = SynchronizedFileManager.getSynchronizedFile(
-                SystemUtilities.buildFilePath( runtimeFolderPath, RuntimeConstants.JRE_8_ARCHIVE_FILE_NAME ) );
-        File jreArchiveHashFile = SynchronizedFileManager.getSynchronizedFile(
-                SystemUtilities.buildFilePath( runtimeFolderPath, RuntimeConstants.JRE_8_HASH_FILE_NAME ) );
 
         // Verify runtime folder exists and is valid
         if ( progressWindow != null ) {
@@ -123,7 +124,7 @@ public class RuntimeManager
             Logger.logDebug( LocalizationManager.DID_NOT_SET_RUNTIME_FOLDER_WRITABLE_TEXT );
         }
 
-        // Get proper URLs and archive format information for specific OS
+        // Get proper URLs and archive information for specific OS
         if ( progressWindow != null ) {
             progressWindow.setLowerLabelText( LocalizationManager.GATHERING_RUNTIME_INFO_TEXT );
             progressWindow.setProgress( 20 );
@@ -134,40 +135,9 @@ public class RuntimeManager
                                    LocalizationManager.GATHERING_RUNTIME_INFO_TEXT +
                                    " (20%)" );
         }
-        String jreArchiveDownloadURL;
-        String jreArchiveHashDownloadURL;
-        ArchiveFormat jreArchiveFormat;
-        CompressionType jreArchiveCompressionType;
-        String newJavaPath;
-        if ( SystemUtils.IS_OS_WINDOWS ) {
-            jreArchiveFormat = ArchiveFormat.ZIP;
-            jreArchiveCompressionType = null;
-            jreArchiveDownloadURL = RuntimeConstants.JRE_8_WIN_URL;
-            jreArchiveHashDownloadURL = RuntimeConstants.JRE_8_WIN_HASH_URL;
-            newJavaPath = SystemUtilities.buildFilePath( extractedJreFolder,
-                                                         RuntimeConstants.JRE_8_WIN_JAVA_EXEC_PATH );
-        }
-        else if ( SystemUtils.IS_OS_MAC ) {
-            jreArchiveFormat = ArchiveFormat.TAR;
-            jreArchiveCompressionType = CompressionType.GZIP;
-            jreArchiveDownloadURL = RuntimeConstants.JRE_8_MAC_URL;
-            jreArchiveHashDownloadURL = RuntimeConstants.JRE_8_MAC_HASH_URL;
-            newJavaPath = SystemUtilities.buildFilePath( extractedJreFolder,
-                                                         RuntimeConstants.JRE_8_MAC_JAVA_EXEC_PATH );
-        }
-        else {
-            if ( !SystemUtils.IS_OS_LINUX ) {
-                Logger.logWarningSilent( LocalizationManager.UNIDENTIFIED_OS_RUNTIME_TEXT );
-            }
-            jreArchiveFormat = ArchiveFormat.TAR;
-            jreArchiveCompressionType = CompressionType.GZIP;
-            jreArchiveDownloadURL = RuntimeConstants.JRE_8_LNX_URL;
-            jreArchiveHashDownloadURL = RuntimeConstants.JRE_8_LNX_HASH_URL;
-            newJavaPath = SystemUtilities.buildFilePath( extractedJreFolder,
-                                                         RuntimeConstants.JRE_8_LNX_JAVA_EXEC_PATH );
-        }
+        String latestJre8InfoApiUrlForOs = getLatestJre8InfoUrlForOs();
 
-        // Download archive hash
+        // Download archive information
         if ( progressWindow != null ) {
             progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADING_RUNTIME_CHECKSUM_TEXT );
             progressWindow.setProgress( 25 );
@@ -178,13 +148,48 @@ public class RuntimeManager
                                    LocalizationManager.DOWNLOADING_RUNTIME_CHECKSUM_TEXT +
                                    " (25%)" );
         }
-
+        ArchiveFormat jreArchiveFormat = null;
+        CompressionType jreArchiveCompressionType = null;
+        JsonObject jreLatestInformationObject = null;
+        String extractedJreFolderName1 = null;
+        String extractedJreFolderName2 = null;
+        File extractedJreFolderFile1 = null;
+        File extractedJreFolderFile2 = null;
+        String newJavaPath = null;
+        String newJavaVersion = null;
         try {
-            NetworkUtilities.downloadFileFromURL( jreArchiveHashDownloadURL, jreArchiveHashFile );
+            JsonArray jreLatestInformation = downloadLatestJre8Info( latestJre8InfoApiUrlForOs );
+            if ( jreLatestInformation == null ) {
+                throw new Exception( "Unable to download JRE 8 information." );
+            }
+            else if ( jreLatestInformation.size() == 0 ) {
+                throw new Exception( "No JRE 8 information available." );
+            }
+            jreLatestInformationObject = jreLatestInformation.get( 0 ).getAsJsonObject();
+            jreArchiveFormat = jreLatestInformationObject.get( "packageType" ).getAsString().equals( "tar.gz" ) ?
+                               ArchiveFormat.TAR :
+                               ArchiveFormat.ZIP;
+            jreArchiveCompressionType = jreLatestInformationObject.get( "packageType" )
+                                                                  .getAsString()
+                                                                  .equals( "tar.gz" ) ? CompressionType.GZIP : null;
+            newJavaVersion = jreLatestInformationObject.get( "version" ).getAsString();
+
+            extractedJreFolderName1 = jreLatestInformationObject.get( "bundleType" ).getAsString() +
+                    jreLatestInformationObject.get( "featureVersion" ).getAsInt() +
+                    "u" +
+                    jreLatestInformationObject.get( "updateVersion" ).getAsInt();
+            extractedJreFolderName2 = extractedJreFolderName1 +
+                    "." +
+                    jreLatestInformationObject.get( "bundleType" ).getAsString();
+            extractedJreFolderFile1 = SynchronizedFileManager.getSynchronizedFile(
+                    SystemUtilities.buildFilePath( runtimeFolderPath, extractedJreFolderName1 ) );
+            extractedJreFolderFile2 = SynchronizedFileManager.getSynchronizedFile(
+                    SystemUtilities.buildFilePath( runtimeFolderPath, extractedJreFolderName2 ) );
         }
         catch ( Exception e ) {
             Logger.logError( LocalizationManager.RUNTIME_CHECKSUM_DOWNLOAD_FAIL_TEXT );
             newJavaPath = "java";
+            newJavaVersion = "Unknown (System Java)";
         }
 
         // Verify and download runtime locally
@@ -199,71 +204,100 @@ public class RuntimeManager
                                    " (30%)" );
         }
         try {
-            String jreArchiveHash = FileUtilities.readAsString( jreArchiveHashFile ).split( " " )[ 0 ];
-            boolean isExistingValid = HashUtilities.verifySHA256( jreArchiveFile, jreArchiveHash );
-            if ( !isExistingValid ) {
-                // Download archive from URL
-                if ( progressWindow != null ) {
-                    progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADING_RUNTIME_TEXT );
-                    progressWindow.setProgress( MFXProgressBar.INDETERMINATE_PROGRESS );
+            if ( jreLatestInformationObject == null ) {
+                throw new Exception( "Unable to download JRE 8 information." );
+            }
+            else {
+                String jreArchiveHash = jreLatestInformationObject.get( "sha1" ).getAsString();
+                File jreArchiveFile = SynchronizedFileManager.getSynchronizedFile(
+                        SystemUtilities.buildFilePath( runtimeFolderPath,
+                                                       jreLatestInformationObject.get( "filename" ).getAsString() ) );
+                boolean isExistingValid = HashUtilities.verifySHA1( jreArchiveFile, jreArchiveHash );
+                if ( !isExistingValid ) {
+                    // Download archive from URL
+                    if ( progressWindow != null ) {
+                        progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADING_RUNTIME_TEXT );
+                        progressWindow.setProgress( MFXProgressBar.INDETERMINATE_PROGRESS );
 
-                }
-                else {
-                    Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                           ": " +
-                                           LocalizationManager.DOWNLOADING_RUNTIME_TEXT );
-                }
-                NetworkUtilities.downloadFileFromURL( jreArchiveDownloadURL, jreArchiveFile );
-                if ( progressWindow != null ) {
-                    progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADED_RUNTIME_SUCCESS_TEXT );
-                    progressWindow.setProgress( 65 );
-                }
-                else {
-                    Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                           ": " +
-                                           LocalizationManager.DOWNLOADED_RUNTIME_SUCCESS_TEXT +
-                                           " (65%)" );
+                    }
+                    else {
+                        Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
+                                               ": " +
+                                               LocalizationManager.DOWNLOADING_RUNTIME_TEXT );
+                    }
+                    NetworkUtilities.downloadFileFromURL( jreLatestInformationObject.get( "downloadUrl" ).getAsString(),
+                                                          jreArchiveFile );
+                    if ( progressWindow != null ) {
+                        progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADED_RUNTIME_SUCCESS_TEXT );
+                        progressWindow.setProgress( 65 );
+                    }
+                    else {
+                        Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
+                                               ": " +
+                                               LocalizationManager.DOWNLOADED_RUNTIME_SUCCESS_TEXT +
+                                               " (65%)" );
+                    }
+
+                    // Delete previous extracted JRE
+                    if ( progressWindow != null ) {
+                        progressWindow.setLowerLabelText( LocalizationManager.CLEANING_RUNTIME_ENV_TEXT );
+                        progressWindow.setProgress( 70 );
+                    }
+                    else {
+                        Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
+                                               ": " +
+                                               LocalizationManager.CLEANING_RUNTIME_ENV_TEXT +
+                                               " (70%)" );
+                    }
+                    if ( extractedJreFolderFile1 != null && extractedJreFolderFile1.exists() ) {
+                        FileUtils.deleteDirectory( extractedJreFolderFile1 );
+                    }
+                    if ( extractedJreFolderFile2 != null && extractedJreFolderFile2.exists() ) {
+                        FileUtils.deleteDirectory( extractedJreFolderFile2 );
+                    }
+
+                    // Extract downloaded JRE
+                    if ( progressWindow != null ) {
+                        progressWindow.setLowerLabelText( LocalizationManager.EXTRACTING_RUNTIME_TO_ENV_TEXT );
+                        progressWindow.setProgress( 75 );
+                    }
+                    else {
+                        Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
+                                               ": " +
+                                               LocalizationManager.EXTRACTING_RUNTIME_TO_ENV_TEXT +
+                                               " (75%)" );
+                    }
+                    Archiver archiver;
+                    if ( jreArchiveCompressionType == null ) {
+                        archiver = ArchiverFactory.createArchiver( jreArchiveFormat );
+                    }
+                    else {
+                        archiver = ArchiverFactory.createArchiver( jreArchiveFormat, jreArchiveCompressionType );
+                    }
+                    archiver.extract( jreArchiveFile, runtimeFolderFile );
                 }
 
-                // Delete previous extracted JRE
-                if ( progressWindow != null ) {
-                    progressWindow.setLowerLabelText( LocalizationManager.CLEANING_RUNTIME_ENV_TEXT );
-                    progressWindow.setProgress( 70 );
+                // Set java path if not already set by an error
+                if ( newJavaPath == null && extractedJreFolderFile1 != null && extractedJreFolderFile1.exists() ) {
+                    newJavaPath = SystemUtilities.buildFilePath( extractedJreFolderFile1.getAbsolutePath(),
+                                                                 getJreExecutablePathForOs() );
+                }
+                else if ( newJavaPath == null && extractedJreFolderFile2 != null && extractedJreFolderFile2.exists() ) {
+                    newJavaPath = SystemUtilities.buildFilePath( extractedJreFolderFile2.getAbsolutePath(),
+                                                                 getJreExecutablePathForOs() );
                 }
                 else {
-                    Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                           ": " +
-                                           LocalizationManager.CLEANING_RUNTIME_ENV_TEXT +
-                                           " (70%)" );
+                    Logger.logDebug( "Unable to find Java executable in successfully downloaded JRE!" );
+                    Logger.logError( LocalizationManager.UNABLE_DOWNLOAD_RUNTIME_TEXT );
+                    newJavaPath = "java";
+                    newJavaVersion = "Unknown (System Java)";
                 }
-                if ( extractedJreFolderFile.exists() ) {
-                    FileUtils.deleteDirectory( extractedJreFolderFile );
-                }
-
-                // Extract downloaded JRE
-                if ( progressWindow != null ) {
-                    progressWindow.setLowerLabelText( LocalizationManager.EXTRACTING_RUNTIME_TO_ENV_TEXT );
-                    progressWindow.setProgress( 75 );
-                }
-                else {
-                    Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                           ": " +
-                                           LocalizationManager.EXTRACTING_RUNTIME_TO_ENV_TEXT +
-                                           " (75%)" );
-                }
-                Archiver archiver;
-                if ( jreArchiveCompressionType == null ) {
-                    archiver = ArchiverFactory.createArchiver( jreArchiveFormat );
-                }
-                else {
-                    archiver = ArchiverFactory.createArchiver( jreArchiveFormat, jreArchiveCompressionType );
-                }
-                archiver.extract( jreArchiveFile, runtimeFolderFile );
             }
         }
         catch ( Exception e ) {
             Logger.logError( LocalizationManager.UNABLE_DOWNLOAD_RUNTIME_TEXT );
             newJavaPath = "java";
+            newJavaVersion = "Unknown (System Java)";
         }
         // Close progress window if applicable
         if ( progressWindow != null ) {
@@ -279,6 +313,7 @@ public class RuntimeManager
 
         // Store new Java path
         jre8VerifiedPath = newJavaPath;
+        jre8VerifiedVersion = newJavaVersion;
     }
 
     /**
@@ -304,5 +339,80 @@ public class RuntimeManager
             verifyJre8();
         }
         return jre8VerifiedPath;
+    }
+
+    /**
+     * Gets the version of the local JRE 8 that has been verified.
+     *
+     * @return JRE 8 version
+     *
+     * @since 1.0
+     */
+    public static String getJre8Version() {
+        return jre8VerifiedVersion;
+    }
+
+    /**
+     * Gets the API URL for the latest JRE 8 information for the current OS.
+     *
+     * @return API URL for the latest JRE 8 information for the current OS.
+     *
+     * @since 1.1
+     */
+    public static String getLatestJre8InfoUrlForOs() {
+        String apiUrl;
+        if ( SystemUtils.IS_OS_WINDOWS ) {
+            apiUrl = RuntimeConstants.JRE_8_WIN_API_URL;
+        }
+        else if ( SystemUtils.IS_OS_MAC ) {
+            apiUrl = RuntimeConstants.JRE_8_MAC_API_URL;
+        }
+        else if ( SystemUtils.IS_OS_LINUX ) {
+            return RuntimeConstants.JRE_8_LNX_API_URL;
+        }
+        else {
+            Logger.logError( "Unable to determine JRE API URL for OS: " +
+                                     SystemUtils.OS_NAME +
+                                     ". Using Linux API URL" +
+                                     "..." );
+            apiUrl = RuntimeConstants.JRE_8_LNX_API_URL;
+        }
+        return apiUrl;
+    }
+
+    /**
+     * Downloads the latest JRE 8 information from the API for the current OS.
+     *
+     * @param apiUrl the API URL to use
+     *
+     * @return latest JRE 8 information from the API for the current OS
+     *
+     * @throws Exception if an error occurs while downloading the API data file or reading it as a JSON object
+     * @since 1.1
+     */
+    public static JsonArray downloadLatestJre8Info( String apiUrl ) throws Exception {
+        File jre8InfoFile = SynchronizedFileManager.getSynchronizedFile(
+                SystemUtilities.buildFilePath( LocalPathManager.getLauncherRuntimeFolderPath(),
+                                               RuntimeConstants.JRE_8_API_DATA_FILE_NAME ) );
+        NetworkUtilities.downloadFileFromURL( apiUrl, jre8InfoFile, "application/json" );
+        return FileUtilities.readAsJsonArray( jre8InfoFile );
+    }
+
+    private static String getJreExecutablePathForOs() {
+        if ( SystemUtils.IS_OS_WINDOWS ) {
+            return RuntimeConstants.JRE_8_WIN_JAVA_EXEC_PATH;
+        }
+        else if ( SystemUtils.IS_OS_MAC ) {
+            return RuntimeConstants.JRE_8_MAC_JAVA_EXEC_PATH;
+        }
+        else if ( SystemUtils.IS_OS_LINUX ) {
+            return RuntimeConstants.JRE_8_LNX_JAVA_EXEC_PATH;
+        }
+        else {
+            Logger.logError( "Unable to determine JRE executable path for OS: " +
+                                     SystemUtils.OS_NAME +
+                                     ". Using Linux executable path..." );
+            return RuntimeConstants.JRE_8_LNX_JAVA_EXEC_PATH;
+        }
     }
 }

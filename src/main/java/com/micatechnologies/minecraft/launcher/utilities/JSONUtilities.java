@@ -42,6 +42,19 @@ public class JSONUtilities
     }
 
     /**
+     * Converts the specified string to a JSON array.
+     *
+     * @param json JSON string
+     *
+     * @return JSON array
+     *
+     * @since 1.0
+     */
+    public static JsonArray stringToArray( String json ) {
+        return new Gson().fromJson( json, JsonArray.class );
+    }
+
+    /**
      * Converts the specified JSON object to a string.
      *
      * @param object JSON object
@@ -52,5 +65,18 @@ public class JSONUtilities
      */
     public static String objectToString( JsonObject object ) {
         return new Gson().toJson( object );
+    }
+
+    /**
+     * Converts the specified JSON array to a string.
+     *
+     * @param array JSON array
+     *
+     * @return JSON string
+     *
+     * @since 1.0
+     */
+    public static String arrayToString( JsonArray array ) {
+        return new Gson().toJson( array );
     }
 }
