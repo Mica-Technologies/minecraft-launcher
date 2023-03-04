@@ -17,6 +17,11 @@
 
 package com.micatechnologies.minecraft.launcher.consts;
 
+import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
+import org.apache.commons.lang3.SystemUtils;
+
 import java.io.File;
 
 /**
@@ -26,76 +31,42 @@ import java.io.File;
  * stored and retrieved using {@link com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager}.
  *
  * @author Mica Technologies
- * @version 1.0
+ * @version 1.1
  * @since 2.0
  */
 public class RuntimeConstants
 {
     /**
-     * Download URL for version of JRE 8 that is compatible with Windows.
+     * URL for the API providing the latest JRE information for Windows OSes.
      *
-     * @since 1.0
+     * @since 1.1
      */
-    public static final String JRE_8_WIN_URL
-            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u282-b08/OpenJDK8U-jre_x64_windows_hotspot_8u282b08.zip";
+    public static final String JRE_8_WIN_API_URL
+            = "https://api.bell-sw.com/v1/liberica/releases?version-feature=8&version-modifier=latest&bitness=64&installation-type=archive&os=windows&arch=x86&bundle-type=jre";
 
     /**
-     * Download URL for version of JRE 8 that is compatible with macOS.
+     * URL for the API providing the latest JRE information for macOS OSes.
      *
-     * @since 1.0
+     * @since 1.1
      */
-    public static final String JRE_8_MAC_URL
-            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u282-b08/OpenJDK8U-jre_x64_mac_hotspot_8u282b08.tar.gz";
+    public static final String JRE_8_MAC_API_URL
+            = "https://api.bell-sw.com/v1/liberica/releases?version-feature=8&version-modifier=latest&bitness=64&installation-type=archive&os=macos&arch=x86&bundle-type=jre";
 
     /**
-     * Download URL for version of JRE 8 that is compatible with Linux.
+     * URL for the API providing the latest JRE information for Linux OSes.
      *
-     * @since 1.0
+     * @since 1.1
      */
-    public static final String JRE_8_LNX_URL
-            = "https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u282-b08/OpenJDK8U-jre_x64_linux_hotspot_8u282b08.tar.gz";
+    public static final String JRE_8_LNX_API_URL
+            = "https://api.bell-sw.com/v1/liberica/releases?version-feature=8&version-modifier=latest&bitness=64&installation-type=archive&os=linux&arch=x86&bundle-type=jre";
 
     /**
-     * Download URL for SHA-256 hash of JRE 8 that is compatible with Windows.
+     * The name of the file containing the latest JRE 8 API data.
      *
-     * @since 1.0
+     * @since 1.1
      */
-    public static final String JRE_8_WIN_HASH_URL = JRE_8_WIN_URL + ".sha256.txt";
+    public static final String JRE_8_API_DATA_FILE_NAME = "jre8.api.latest.json";
 
-    /**
-     * Download URL for SHA-256 hash of JRE 8 that is compatible with macOS.
-     *
-     * @since 1.0
-     */
-    public static final String JRE_8_MAC_HASH_URL = JRE_8_MAC_URL + ".sha256.txt";
-
-    /**
-     * Download URL for SHA-256 hash of JRE 8 that is compatible with Linux.
-     *
-     * @since 1.0
-     */
-    public static final String JRE_8_LNX_HASH_URL = JRE_8_LNX_URL + ".sha256.txt";
-
-    /**
-     * The name of the resulting JRE 8 folder on extraction from its archive.
-     *
-     * @since 1.0
-     */
-    public static final String JRE_8_EXTRACTED_FOLDER_NAME = "jdk8u282-b08-jre";
-
-    /**
-     * The file name of the downloaded JRE 8 archive file.
-     *
-     * @since 1.0
-     */
-    public static final String JRE_8_ARCHIVE_FILE_NAME = "jre.8";
-
-    /**
-     * The file name of the SHA-256 hash of the downloaded JRE 8 archive file.
-     *
-     * @since 1.0
-     */
-    public static final String JRE_8_HASH_FILE_NAME = "hash.jre.8";
 
     /**
      * The file path to the Java executable in an extracted JRE 8 install for Windows.
@@ -109,13 +80,7 @@ public class RuntimeConstants
      *
      * @since 1.0
      */
-    public static final String JRE_8_MAC_JAVA_EXEC_PATH = "Contents" +
-            File.separator +
-            "Home" +
-            File.separator +
-            "bin" +
-            File.separator +
-            "java";
+    public static final String JRE_8_MAC_JAVA_EXEC_PATH = "bin" + File.separator + "java";
 
     /**
      * The file path to the Java executable in an extracted JRE 8 install for Linux.
@@ -123,5 +88,4 @@ public class RuntimeConstants
      * @since 1.0
      */
     public static final String JRE_8_LNX_JAVA_EXEC_PATH = "bin" + File.separator + "java";
-
 }
