@@ -23,6 +23,7 @@ import org.apache.commons.io.IOUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
@@ -46,21 +47,25 @@ public class NetworkUtilities
      * @since 1.0
      */
     public static boolean isMojangAuthReachable() {
+        boolean success = false;
         try {
             // Attempt connection to auth server
             URL url = new URL( AuthConstants.AUTH_SERVER_URL );
-            URLConnection connection = url.openConnection();
+            HttpURLConnection connection = ( HttpURLConnection ) url.openConnection();
+            connection.setConnectTimeout( 5000 );
+            connection.setReadTimeout( 5000 );
+            connection.getContent();
 
-            // Return true/success if content not empty
-            if ( connection.getContentLength() != -1 ) {
-                return true;
+            // Check response code
+            if ( connection.getResponseCode() == HttpURLConnection.HTTP_OK ) {
+                success = true;
             }
         }
         catch ( Exception ignored ) {
         }
 
         // Return false if did not meet connection criteria
-        return false;
+        return success;
     }
 
     /**
