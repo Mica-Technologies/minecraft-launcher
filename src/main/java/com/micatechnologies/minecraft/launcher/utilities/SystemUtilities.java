@@ -62,15 +62,76 @@ public class SystemUtilities
     public static void executeStringCommand( String command, String workingDirectory )
     throws IOException, InterruptedException
     {
-        // Build process call
-        ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO()
-                                                                                  .directory(
-                                                                                          SynchronizedFileManager.getSynchronizedFile(
-                                                                                                  workingDirectory ) );
+        boolean retry = true;
+        int retryNumber = 0;
 
-        // Start process and wait for finish
-        Logger.logStd( "Executing command: " + command );
-        processBuilder.start().waitFor();
+        while ( retry ) {
+            // Reset retry flag
+            retry = false;
+
+            // Build process call
+            ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO()
+                                                                                      .directory(
+                                                                                              SynchronizedFileManager.getSynchronizedFile(
+                                                                                                      workingDirectory ) );
+
+            // Start process and wait for finish
+            if ( retryNumber > 0 ) {
+                Logger.logStd( "Executing command (retry " + retryNumber + "): " + command );
+            }
+            else {
+                Logger.logStd( "Executing command: " + command );
+            }
+            Process mcProcess = processBuilder.start();
+
+            // Read output stream
+            Thread outThread = new Thread( () -> {
+                try {
+                    BufferedReader outReader = new BufferedReader(
+                            new InputStreamReader( mcProcess.getInputStream() ) );
+                    String line;
+                    while ( ( line = outReader.readLine() ) != null ) {
+                        Logger.logStd( line );
+                    }
+                }
+                catch ( IOException e ) {
+                    Logger.logErrorSilent( "Unable to read output stream from Minecraft process." );
+                }
+            } );
+            outThread.start();
+
+            // Read error stream
+            Thread errThread = new Thread( () -> {
+                try {
+                    BufferedReader errReader = new BufferedReader(
+                            new InputStreamReader( mcProcess.getErrorStream() ) );
+                    String line;
+                    while ( ( line = errReader.readLine() ) != null ) {
+                        Logger.logErrorSilent( line );
+                    }
+                }
+                catch ( IOException e ) {
+                    Logger.logErrorSilent( "Unable to read error stream from Minecraft process." );
+                }
+            } );
+            errThread.start();
+
+            // Wait for process to finish
+            int returnCode = mcProcess.waitFor();
+            outThread.join();
+            errThread.join();
+
+            // Check return code
+            if ( returnCode != 0 ) {
+                retry = Logger.logErrorConfirmRetry(
+                        "Oops - The game has crashed! Try again, and check the log files if the issue persists.",
+                        "Reload" );
+            }
+
+            if ( retry ) {
+                retryNumber++;
+            }
+        }
     }
 
     /**
