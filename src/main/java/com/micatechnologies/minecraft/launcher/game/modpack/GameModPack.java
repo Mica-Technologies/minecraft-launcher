@@ -375,21 +375,14 @@ public class GameModPack
         }
 
         // Add natives path to arguments
+        String nativesFolder = getPackRootFolder() +
+                File.separator +
+                ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
         if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-            minecraftArgs = "-Djava.library.path=\"" +
-                    getPackRootFolder() +
-                    File.separator +
-                    ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER +
-                    "\" " +
-                    minecraftArgs;
+            minecraftArgs = "-Djava.library.path=\"" + nativesFolder + "\" " + minecraftArgs;
         }
         else {
-            minecraftArgs = "-Djava.library.path=" +
-                    getPackRootFolder() +
-                    File.separator +
-                    ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER +
-                    " " +
-                    minecraftArgs;
+            minecraftArgs = "-Djava.library.path=" + nativesFolder + " " + minecraftArgs;
         }
 
         // Replace fillers with data

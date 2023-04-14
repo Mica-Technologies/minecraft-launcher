@@ -28,6 +28,7 @@ import javafx.stage.StageStyle;
 
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -158,6 +159,72 @@ public class GUIUtilities
                 errorAlert.showAndWait();
             } );
         }
+    }
+
+    /**
+     * Show an error message dialog to user with specified information and retry option.
+     *
+     * @param contentText dialog content/error text
+     *
+     * @return true if retry, false if not
+     *
+     * @since 1.0
+     */
+    public static boolean showErrorMessageRetry( String contentText, Stage owner, String retryText ) {
+        // Create an error with the specified and created information/messages
+        CountDownLatch waitForError = new CountDownLatch( 1 );
+        AtomicBoolean retry = new AtomicBoolean( false );
+        JFXPlatformRun( () -> {
+            Alert errorAlert = new Alert( Alert.AlertType.ERROR );
+            errorAlert.setTitle( "Oops" );
+            errorAlert.setHeaderText( "Error" );
+            errorAlert.setContentText( contentText );
+            errorAlert.initModality( Modality.WINDOW_MODAL );
+            errorAlert.initStyle( StageStyle.UTILITY );
+            errorAlert.initOwner( owner );
+
+            ButtonType btn1 = new ButtonType( retryText, ButtonBar.ButtonData.BACK_PREVIOUS );
+            ButtonType btnC = new ButtonType( "Cancel", ButtonBar.ButtonData.CANCEL_CLOSE );
+
+            errorAlert.getButtonTypes().setAll( btn1, btnC );
+
+            // Show the created error dialog
+            boolean ownerNotShowing = !owner.isShowing();
+            if (ownerNotShowing) {
+                owner.show();
+            }
+            Optional< ButtonType > opt = errorAlert.showAndWait();
+            if ( opt.isPresent() && opt.get() == btn1 ) {
+                retry.set( true );
+            }
+            if (ownerNotShowing) {
+                owner.hide();
+            }
+
+            // Release code from waiting
+            waitForError.countDown();
+        } );
+
+        // Wait for error to be acknowledged
+        try {
+            waitForError.await();
+        }
+        catch ( InterruptedException e ) {
+            // Show error for unable to wait for error acknowledge
+            JFXPlatformRun( () -> {
+                Alert errorAlert = new Alert( Alert.AlertType.ERROR );
+                errorAlert.setTitle( "Something's Wrong" );
+                errorAlert.setHeaderText( "Application Error" );
+                errorAlert.setContentText( "An error message latch was interrupted before handling completed." );
+                errorAlert.initModality( Modality.WINDOW_MODAL );
+                errorAlert.initStyle( StageStyle.UTILITY );
+                errorAlert.initOwner( owner );
+
+                // Show the created error
+                errorAlert.showAndWait();
+            } );
+        }
+        return retry.get();
     }
 
     /**

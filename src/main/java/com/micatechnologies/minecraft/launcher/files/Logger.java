@@ -114,7 +114,7 @@ public class Logger
     public static void initLogSys( File logFile ) throws IOException {
         // Create parent directory(ies) if necessary
         final var mkdirs = logFile.getParentFile().mkdirs();
-        if ( !mkdirs && !logFile.getParentFile().exists()) {
+        if ( !mkdirs && !logFile.getParentFile().exists() ) {
             Logger.logDebug( LocalizationManager.LOG_FILE_DIR_NOT_CREATED_TEXT );
         }
 
@@ -128,16 +128,6 @@ public class Logger
          * File print stream
          */
         FileOutputStream fileOutputStream = new FileOutputStream( logFile );
-        fileBufferedOutputStream = new BufferedOutputStream( fileOutputStream );
-        final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool( 1 );
-        scheduler.scheduleAtFixedRate( () -> {
-            try {
-                fileBufferedOutputStream.flush();
-            }
-            catch ( IOException e ) {
-                Logger.logError( "Unable to flush log stream to file!" );
-            }
-        }, 5, 5, TimeUnit.SECONDS );
 
         /*
          * Original console (System.out) print stream
@@ -150,8 +140,8 @@ public class Logger
         PrintStream consoleErr = System.err;
 
         // Create new tee print stream for System.out and System.err
-        PrintStream sysOut = new PrintStream( new TeeOutputStream( console, fileBufferedOutputStream ) );
-        PrintStream sysErr = new PrintStream( new TeeOutputStream( consoleErr, fileBufferedOutputStream ) );
+        PrintStream sysOut = new PrintStream( new TeeOutputStream( console, fileOutputStream ) );
+        PrintStream sysErr = new PrintStream( new TeeOutputStream( consoleErr, fileOutputStream ) );
 
         // Assign tee-d print streams
         System.setOut( sysOut );
@@ -174,6 +164,27 @@ public class Logger
         }
 
         logErrorSilent( errorLog );
+    }
+
+    /**
+     * Log an error with its prefix and confirm for retry.
+     *
+     * @param errorLog error to log
+     *
+     * @return true if retry, false otherwise
+     *
+     * @since 1.0
+     */
+    public static boolean logErrorConfirmRetry( String errorLog, String retryText ) {
+        // Show error on GUI, if GUI available
+        Stage jfxStage = MCLauncherGuiController.getTopStageOrNull();
+        boolean retry = false;
+        if ( jfxStage != null ) {
+            retry = GUIUtilities.showErrorMessageRetry( errorLog, jfxStage, retryText );
+        }
+
+        logErrorSilent( errorLog );
+        return retry;
     }
 
     /**
