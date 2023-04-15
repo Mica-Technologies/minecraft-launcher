@@ -253,6 +253,52 @@ public class ConfigManager
     }
 
     /**
+     * Gets the configured state of enhanced logging for the application.
+     *
+     * @return true if enhanced logging enabled, otherwise false
+     *
+     * @since 2.0
+     */
+    public synchronized static boolean getEnhancedLogging() {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        // Check for presence of field, and create default if does not exist
+        if ( !configObject.has( ConfigConstants.LOG_ENHANCED_ENABLE_KEY ) ) {
+            // Add property with default value
+            configObject.addProperty( ConfigConstants.LOG_ENHANCED_ENABLE_KEY, true );
+
+            // Save configuration to disk
+            writeConfigurationToDisk();
+        }
+
+        // Get and return value
+        return configObject.get( ConfigConstants.LOG_ENHANCED_ENABLE_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Sets the configured state of enhanced logging for the application.
+     *
+     * @param enhancedLogging true to enable enhanced logging, otherwise false
+     *
+     * @since 2.0
+     */
+    public synchronized static void setEnhancedLogging( boolean enhancedLogging ) {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        // Set value
+        configObject.addProperty( ConfigConstants.LOG_ENHANCED_ENABLE_KEY, enhancedLogging );
+
+        // Save configuration to disk
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Gets the configured custom JVM launch arguments for the application.
      *
      * @return custom JVM launch arguments

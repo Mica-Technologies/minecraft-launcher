@@ -24,6 +24,7 @@ import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
@@ -85,41 +86,49 @@ public class SystemUtilities
             Process mcProcess = processBuilder.start();
 
             // Read output stream
-            Thread outThread = new Thread( () -> {
-                try {
-                    BufferedReader outReader = new BufferedReader(
-                            new InputStreamReader( mcProcess.getInputStream() ) );
-                    String line;
-                    while ( ( line = outReader.readLine() ) != null ) {
-                        Logger.logStd( line );
+            Thread outThread = null;
+            Thread errThread = null;
+            if ( ConfigManager.getEnhancedLogging() ) {
+                outThread = new Thread( () -> {
+                    try {
+                        BufferedReader outReader = new BufferedReader(
+                                new InputStreamReader( mcProcess.getInputStream() ) );
+                        String line;
+                        while ( ( line = outReader.readLine() ) != null ) {
+                            Logger.logStd( line );
+                        }
                     }
-                }
-                catch ( IOException e ) {
-                    Logger.logErrorSilent( "Unable to read output stream from Minecraft process." );
-                }
-            } );
-            outThread.start();
+                    catch ( IOException e ) {
+                        Logger.logErrorSilent( "Unable to read output stream from Minecraft process." );
+                    }
+                } );
+                outThread.start();
 
-            // Read error stream
-            Thread errThread = new Thread( () -> {
-                try {
-                    BufferedReader errReader = new BufferedReader(
-                            new InputStreamReader( mcProcess.getErrorStream() ) );
-                    String line;
-                    while ( ( line = errReader.readLine() ) != null ) {
-                        Logger.logErrorSilent( line );
+                // Read error stream
+                errThread = new Thread( () -> {
+                    try {
+                        BufferedReader errReader = new BufferedReader(
+                                new InputStreamReader( mcProcess.getErrorStream() ) );
+                        String line;
+                        while ( ( line = errReader.readLine() ) != null ) {
+                            Logger.logErrorSilent( line );
+                        }
                     }
-                }
-                catch ( IOException e ) {
-                    Logger.logErrorSilent( "Unable to read error stream from Minecraft process." );
-                }
-            } );
-            errThread.start();
+                    catch ( IOException e ) {
+                        Logger.logErrorSilent( "Unable to read error stream from Minecraft process." );
+                    }
+                } );
+                errThread.start();
+            }
 
             // Wait for process to finish
             int returnCode = mcProcess.waitFor();
-            outThread.join();
-            errThread.join();
+            if ( outThread != null ) {
+                outThread.join();
+            }
+            if ( errThread != null ) {
+                errThread.join();
+            }
 
             // Check return code
             if ( returnCode != 0 ) {

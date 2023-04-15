@@ -127,7 +127,24 @@ public class Logger
         /*
          * File print stream
          */
+        boolean scheduled = false;
         FileOutputStream fileOutputStream = new FileOutputStream( logFile );
+        fileBufferedOutputStream = new BufferedOutputStream( fileOutputStream );
+        try {
+            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool( 1 );
+            scheduler.scheduleAtFixedRate( () -> {
+                try {
+                    fileBufferedOutputStream.flush();
+                }
+                catch ( IOException e ) {
+                    Logger.logError( "Unable to flush log stream to file!" );
+                }
+            }, 5, 5, TimeUnit.SECONDS );
+            scheduled = true;
+        }
+        catch ( Exception e ) {
+            Logger.logError( "Unable to schedule log stream flush!" );
+        }
 
         /*
          * Original console (System.out) print stream
@@ -140,8 +157,17 @@ public class Logger
         PrintStream consoleErr = System.err;
 
         // Create new tee print stream for System.out and System.err
-        PrintStream sysOut = new PrintStream( new TeeOutputStream( console, fileOutputStream ) );
-        PrintStream sysErr = new PrintStream( new TeeOutputStream( consoleErr, fileOutputStream ) );
+        PrintStream sysOut;
+        PrintStream sysErr;
+        if ( scheduled ) {
+            sysOut = new PrintStream( new TeeOutputStream( console, fileBufferedOutputStream ) );
+            sysErr = new PrintStream( new TeeOutputStream( consoleErr, fileBufferedOutputStream ) );
+        }
+        else {
+            sysOut = new PrintStream( new TeeOutputStream( console, fileOutputStream ) );
+            sysErr = new PrintStream( new TeeOutputStream( consoleErr, fileOutputStream ) );
+            Logger.logErrorSilent( "Falling back to non-buffered log stream. Performance may be degraded!" );
+        }
 
         // Assign tee-d print streams
         System.setOut( sysOut );

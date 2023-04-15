@@ -145,6 +145,13 @@ public class ConfigConstants
     public static final String LOG_DEBUG_ENABLE_KEY = "debug";
 
     /**
+     * Key for accessing the enhanced logging enable value.
+     *
+     * @since 1.0
+     */
+    public static final String LOG_ENHANCED_ENABLE_KEY = "enhancedLogging";
+
+    /**
      * Key for accessing the Discord RPC enable value.
      *
      * @since 1.0

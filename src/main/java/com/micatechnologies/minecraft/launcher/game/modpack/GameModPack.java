@@ -378,6 +378,17 @@ public class GameModPack
         String nativesFolder = getPackRootFolder() +
                 File.separator +
                 ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
+        File nativesFolderFile = SynchronizedFileManager.getSynchronizedFile( nativesFolder );
+        if ( nativesFolderFile.exists() ) {
+            nativesFolderFile.setExecutable( true );
+            nativesFolderFile.setReadable( true );
+            nativesFolderFile.setWritable( true );
+            for ( File f : nativesFolderFile.listFiles() ) {
+                f.setExecutable( true );
+                f.setReadable( true );
+                f.setWritable( true );
+            }
+        }
         if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
             minecraftArgs = "-Djava.library.path=\"" + nativesFolder + "\" " + minecraftArgs;
         }
