@@ -69,6 +69,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
+    MFXToggleButton enhancedLoggingCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
     MFXButton resetLauncherBtn;
 
     @SuppressWarnings( "unused" )
@@ -227,6 +231,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             ConfigManager.setResizableWindows( windowResizeCheckBox.isSelected() );
             GUIUtilities.JFXPlatformRun( () -> stage.setResizable( ConfigManager.getResizableWindows() ) );
 
+            // Store enhanced logging to config
+            ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
+
             // Store theme selection
             if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
                 ConfigManager.setTheme( themeSelection.getSelectedItem() );
@@ -337,12 +344,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
 
         // Load version information
-        String jreVersionInfo = "Game JRE Version: "+RuntimeManager.getJre8Version();
+        String jreVersionInfo = "Game JRE Version: " + RuntimeManager.getJre8Version();
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            versionLabel.setText( "Software Version: DEVELOPMENT MODE\n"+jreVersionInfo );
+            versionLabel.setText( "Software Version: DEVELOPMENT MODE\n" + jreVersionInfo );
         }
         else {
-            versionLabel.setText( "Software Version: " + LauncherConstants.LAUNCHER_APPLICATION_VERSION+"\n"+jreVersionInfo );
+            versionLabel.setText(
+                    "Software Version: " + LauncherConstants.LAUNCHER_APPLICATION_VERSION + "\n" + jreVersionInfo );
         }
 
         // Set and configure resizable windows check box
@@ -362,6 +370,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Populate theme selection dropdown
         themeSelection.getItems().clear();
         themeSelection.getItems().addAll( ConfigConstants.ALLOWED_THEMES );
+
+        // Set and configure enhanced logging check box
+        enhancedLoggingCheckBox.setSelected( ConfigManager.getEnhancedLogging() );
+        enhancedLoggingCheckBox.setOnAction( actionEvent -> setEdited( true ) );
 
         // Load system RAM config label
         SystemInfo systemInfo = new SystemInfo();
