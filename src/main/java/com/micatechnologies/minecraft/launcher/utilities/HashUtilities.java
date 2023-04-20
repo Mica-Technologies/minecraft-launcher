@@ -47,7 +47,7 @@ public class HashUtilities
      * @throws IOException if unable to calculate file checksum
      * @since 1.0
      */
-    private static String getFileChecksum( MessageDigest digest, File file ) throws IOException {
+    private static BigInteger getFileChecksum( MessageDigest digest, File file ) throws IOException {
         // Get file input stream for reading file contents
         FileInputStream fileInputStream = new FileInputStream( file );
 
@@ -65,7 +65,7 @@ public class HashUtilities
 
         // Get bytes of hash
         byte[] hashBytes = digest.digest();
-        return new BigInteger( 1, hashBytes ).toString( 16 );
+        return new BigInteger( 1, hashBytes );
     }
 
     /**
@@ -80,7 +80,8 @@ public class HashUtilities
     public static String getFileSHA1( File file ) {
         String checksum = null;
         try {
-            checksum = getFileChecksum( MessageDigest.getInstance( "SHA-1" ), file );
+            BigInteger checksumBigInteger = getFileChecksum( MessageDigest.getInstance( "SHA-1" ), file );
+            checksum = String.format( "%040x", checksumBigInteger );
         }
         catch ( IOException e ) {
             Logger.logError( "Unable to calculate the SHA-1 sum of " + file.getAbsolutePath() + "!" );
@@ -107,7 +108,8 @@ public class HashUtilities
     public static String getFileSHA256( File file ) {
         String checksum = null;
         try {
-            checksum = getFileChecksum( MessageDigest.getInstance( "SHA-256" ), file );
+            BigInteger checksumBigInteger = getFileChecksum( MessageDigest.getInstance( "SHA-256" ), file );
+            checksum = String.format( "%064x", checksumBigInteger );
         }
         catch ( IOException e ) {
             Logger.logError( "Unable to calculate the SHA-256 sum of " + file.getAbsolutePath() + "!" );
@@ -134,7 +136,8 @@ public class HashUtilities
     public static String getFileMD5( File file ) {
         String checksum = null;
         try {
-            checksum = getFileChecksum( MessageDigest.getInstance( "MD5" ), file );
+            BigInteger checksumBigInteger = getFileChecksum( MessageDigest.getInstance( "MD5" ), file );
+            checksum = String.format( "%032x", checksumBigInteger );
         }
         catch ( IOException e ) {
             Logger.logError( "Unable to calculate the MD5 sum of " + file.getAbsolutePath() + "!" );
