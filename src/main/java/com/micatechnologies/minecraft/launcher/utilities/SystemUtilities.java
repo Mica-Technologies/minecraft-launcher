@@ -71,6 +71,12 @@ public class SystemUtilities
             // Reset retry flag
             retry = false;
 
+            // Build process call
+            ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO()
+                                                                                      .directory(
+                                                                                              SynchronizedFileManager.getSynchronizedFile(
+                                                                                                      workingDirectory ) );
+
             // Start process and wait for finish
             if ( retryNumber > 0 ) {
                 Logger.logStd( "Executing command (retry " + retryNumber + "): " + command );
@@ -78,9 +84,7 @@ public class SystemUtilities
             else {
                 Logger.logStd( "Executing command: " + command );
             }
-            Process mcProcess = Runtime.getRuntime()
-                                       .exec( command.split( " " ), null,
-                                              SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
+            Process mcProcess = processBuilder.start();
 
             // Read output stream
             StreamGobbler outGobbler = null;
