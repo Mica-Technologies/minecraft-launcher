@@ -34,7 +34,7 @@ import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
  * A Java class representation of a remote file that should be kept locally in sync.
  *
  * @author Mica Technologies
- * @version 2.0
+ * @version 2.1
  * @since 1.0
  */
 public class ManagedGameFile
@@ -69,6 +69,13 @@ public class ManagedGameFile
     private final String md5;
 
     /**
+     * The SHA-256 hash of the file
+     *
+     * @since 2.1
+     */
+    private final String sha256;
+
+    /**
      * The prefix added to the local file path in {@link #local}.
      *
      * @since 1.0
@@ -98,6 +105,7 @@ public class ManagedGameFile
 
         this.sha1 = "-1";
         this.md5 = "-1";
+        this.sha256 = "-1";
     }
 
     /**
@@ -126,14 +134,22 @@ public class ManagedGameFile
         if ( hashType == ManagedGameFileHashType.SHA1 ) {
             this.sha1 = hash;
             this.md5 = "-1";
+            this.sha256 = "-1";
         }
         else if ( hashType == ManagedGameFileHashType.MD5 ) {
             this.sha1 = "-1";
             this.md5 = hash;
+            this.sha256 = "-1";
+        }
+        else if ( hashType == ManagedGameFileHashType.SHA256 ) {
+            this.sha1 = "-1";
+            this.md5 = "-1";
+            this.sha256 = hash;
         }
         else {
             this.sha1 = "-1";
             this.md5 = "-1";
+            this.sha256 = "-1";
         }
     }
 
@@ -160,15 +176,19 @@ public class ManagedGameFile
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
 
         // Hash Checking Enabled (SHA1): Return true if file exists, is not a folder, and hashes match
-         if (this.sha1 != null && !this.sha1.equals( "-1" )) {
+        if ( this.sha1 != null && !this.sha1.equals( "-1" ) ) {
             return HashUtilities.verifySHA1( localFile, sha1 );
         }
         // Hash Checking Enabled (MD5): Return true if file exists, is not a folder, and hashes match
-        else if (this.md5 != null && !this.md5.equals( "-1" )) {
+        else if ( this.md5 != null && !this.md5.equals( "-1" ) ) {
             return HashUtilities.verifyMD5( localFile, md5 );
         }
+        // Hash Checking Enabled (SHA256): Return true if file exists, is not a folder, and hashes match
+        else if ( this.sha256 != null && !this.sha256.equals( "-1" ) ) {
+            return HashUtilities.verifySHA256( localFile, sha256 );
+        }
         // Hash Checking Disabled: Return true if file exists and is file (not folder)
-        else{
+        else {
             return localFile.exists() && localFile.isFile();
         }
     }
@@ -205,6 +225,7 @@ public class ManagedGameFile
      */
     public boolean updateLocalFile() throws ModpackException {
         if ( !verifyLocalFile() ) {
+            System.err.println( "FILE FAILED VERIFICATION, RE-DOWNLOADING: " + getFullLocalFilePath() );
             downloadLocalFile();
             return true;
         }
@@ -283,6 +304,6 @@ public class ManagedGameFile
      */
     public enum ManagedGameFileHashType
     {
-        SHA1, MD5
+        SHA1, MD5, SHA256
     }
 }
