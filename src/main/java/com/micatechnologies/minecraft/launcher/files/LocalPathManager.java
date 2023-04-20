@@ -55,6 +55,17 @@ public class LocalPathManager
     }
 
     /**
+     * Gets the local path for storing launcher metadata information.
+     *
+     * @return launcher metadata folder path
+     *
+     * @since 1.0
+     */
+    public static String getLauncherMetadataFolderPath() {
+        return getLauncherLocalPath() + LocalPathConstants.METADATA_FOLDER;
+    }
+
+    /**
      * Gets the local path for storing installed mod packs.
      *
      * @return launcher mod pack installation folder path
