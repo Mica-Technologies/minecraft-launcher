@@ -30,6 +30,7 @@ import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import jodd.io.StreamGobbler;
 import org.apache.commons.io.FileUtils;
 
 /**
@@ -70,12 +71,6 @@ public class SystemUtilities
             // Reset retry flag
             retry = false;
 
-            // Build process call
-            ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO()
-                                                                                      .directory(
-                                                                                              SynchronizedFileManager.getSynchronizedFile(
-                                                                                                      workingDirectory ) );
-
             // Start process and wait for finish
             if ( retryNumber > 0 ) {
                 Logger.logStd( "Executing command (retry " + retryNumber + "): " + command );
@@ -83,51 +78,27 @@ public class SystemUtilities
             else {
                 Logger.logStd( "Executing command: " + command );
             }
-            Process mcProcess = processBuilder.start();
+            Process mcProcess = Runtime.getRuntime()
+                                       .exec( command.split( " " ), null,
+                                              SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
 
             // Read output stream
-            Thread outThread = null;
-            Thread errThread = null;
+            StreamGobbler outGobbler = null;
+            StreamGobbler errGobbler = null;
             if ( ConfigManager.getEnhancedLogging() ) {
-                outThread = new Thread( () -> {
-                    try {
-                        BufferedReader outReader = new BufferedReader(
-                                new InputStreamReader( mcProcess.getInputStream() ) );
-                        String line;
-                        while ( ( line = outReader.readLine() ) != null ) {
-                            Logger.logStd( line );
-                        }
-                    }
-                    catch ( IOException e ) {
-                        Logger.logErrorSilent( "Unable to read output stream from Minecraft process." );
-                    }
-                } );
-                outThread.start();
-
-                // Read error stream
-                errThread = new Thread( () -> {
-                    try {
-                        BufferedReader errReader = new BufferedReader(
-                                new InputStreamReader( mcProcess.getErrorStream() ) );
-                        String line;
-                        while ( ( line = errReader.readLine() ) != null ) {
-                            Logger.logErrorSilent( line );
-                        }
-                    }
-                    catch ( IOException e ) {
-                        Logger.logErrorSilent( "Unable to read error stream from Minecraft process." );
-                    }
-                } );
-                errThread.start();
+                outGobbler = new StreamGobbler( mcProcess.getInputStream(), System.out );
+                outGobbler.start();
+                errGobbler = new StreamGobbler( mcProcess.getErrorStream(), System.err );
+                errGobbler.start();
             }
 
             // Wait for process to finish
             int returnCode = mcProcess.waitFor();
-            if ( outThread != null ) {
-                outThread.join();
+            if ( outGobbler != null ) {
+                outGobbler.waitFor();
             }
-            if ( errThread != null ) {
-                errThread.join();
+            if ( errGobbler != null ) {
+                errGobbler.waitFor();
             }
 
             // Check return code
