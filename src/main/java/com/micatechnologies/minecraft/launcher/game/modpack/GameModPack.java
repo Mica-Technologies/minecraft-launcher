@@ -47,7 +47,7 @@ import org.apache.commons.io.FilenameUtils;
 /**
  * Class representation of a Forge mod pack with functionality to update mods, game libraries and start the game.
  *
- * @version 1.1
+ * @version 1.2
  */
 public class GameModPack
 {
@@ -75,6 +75,14 @@ public class GameModPack
      */
     @SuppressWarnings( "unused" )
     private String packURL;
+
+    /**
+     * Mod pack unstable flag. Value read from manifest JSON.
+     *
+     * @since 1.2
+     */
+    @SuppressWarnings( "unused" )
+    private boolean packUnstable;
 
     /**
      * Mod pack logo URL. Value read from manifest JSON.
@@ -673,7 +681,7 @@ public class GameModPack
         GameAsset log4jPatch = new GameAsset(
                 "https://launcher.mojang.com/v1/objects/02937d122c86ce73319ef9975b58896fc1b491d1/log4j2_112-116.xml",
                 "log4j2_112-116.xml", "02937d122c86ce73319ef9975b58896fc1b491d1",
-                ManagedGameFile.ManagedGameFileHashType.MD5, true, true );
+                ManagedGameFile.ManagedGameFileHashType.SHA1, true, true );
         log4jPatch.setLocalPathPrefix( initFilesLocalPathPrefix );
         log4jPatch.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
@@ -824,6 +832,10 @@ public class GameModPack
 
     public String getPackVersion() {
         return packVersion;
+    }
+
+    public boolean getPackUnstable() {
+        return packUnstable;
     }
 
     public String getPackURL() {

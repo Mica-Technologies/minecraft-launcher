@@ -27,6 +27,8 @@ import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
+import com.nativejavafx.taskbar.TaskbarProgressbar;
+import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXListView;
 import io.github.palexdev.materialfx.controls.cell.MFXListCell;
@@ -156,6 +158,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     Label announcement;
 
     /**
+     * Unstable mod pack warning banner.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label unstableWarning;
+
+    /**
      * Announcement banner row constraints.
      *
      * @since 3.0
@@ -163,6 +174,26 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     RowConstraints announcementRow;
+
+    /**
+     * Unstable mod pack warning banner row constraints.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    RowConstraints unstableWarningRow;
+
+    /**
+     * Center content/button pane.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    GridPane centerPane;
+
+    private TaskbarProgressbar taskbarProgressbar = null;
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
@@ -225,6 +256,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
 
+        // Set unstable mod pack warning hidden by default
+        setUnstableWarning( false );
+
         // Check for launcher update and show image if there is one
         updateImgView.setVisible( false );
         SystemUtilities.spawnNewTask( () -> {
@@ -238,6 +272,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
                 // Check if current version is less than latest
                 if ( SystemUtilities.compareVersionNumbers( version, latestVersion ) == -1 ) {
+                    // Setup taskbar progress bar
+                    if ( TaskbarProgressbar.isSupported() ) {
+                        taskbarProgressbar = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
+                    }
+
                     GUIUtilities.JFXPlatformRun( () -> {
                         updateImgView.setVisible( true );
                         updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
@@ -257,6 +296,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                 }
                             }
                         } ) );
+
+                        if ( taskbarProgressbar != null ) {
+                            taskbarProgressbar.showFullErrorProgress();
+                        }
                     } );
                 }
             }
@@ -267,23 +310,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
 
         // Display announcements if present
-        String announcementText;
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            announcementText =
-                    "[DEVELOPMENT MODE: Bugs may be present and not all features may function as intended]\n" +
-                            AnnouncementManager.getAnnouncementHome();
+            setAnnouncementRow(
+                    "[DEVELOPMENT MODE: Bugs may be present and not all features may function as intended]" );
         }
         else {
-            announcementText = AnnouncementManager.getAnnouncementHome();
-        }
-        if ( announcementText.length() > 0 ) {
-            announcement.setText( announcementText );
-            announcement.setMinHeight( 30 );
-            announcementRow.setMinHeight( 30 );
-        }
-        else {
-            announcement.setMaxHeight( 0 );
-            announcementRow.setMaxHeight( 0 );
+            setAnnouncementRow( null );
         }
 
         // Configure settings button
@@ -425,7 +457,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     @Override
     void cleanup() {
-
+        if ( taskbarProgressbar != null ) {
+            GUIUtilities.JFXPlatformRun( () -> {
+                taskbarProgressbar.stopProgress();
+                taskbarProgressbar.closeOperations();
+            } );
+        }
     }
 
     /**
@@ -442,36 +479,58 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
         }
 
-        // Load modpack logo and set in GUI
-        SystemUtilities.spawnNewTask( () -> {
-            Image packLogoImg;
-            if ( selectedGameModPack != null ) {
-                packLogoImg = new Image( new File( selectedGameModPack.getPackLogoFilepath() ).toURI().toString() );
-            }
-            else {
-                packLogoImg = new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
-            }
-            GUIUtilities.JFXPlatformRun( () -> {
-                // Set modpack background image on root pane
-                if ( selectedGameModPack != null ) {
-                    // noinspection All
-                    rootPane.setStyle( rootPane.getStyle() +
-                                               "-fx-background-image: url('" +
-                                               new File( selectedGameModPack.getPackBackgroundFilepath() ).toURI() +
-                                               "');" );
-                }
-                else {
-                    rootPane.setStyle( rootPane.getStyle() +
-                                               "-fx-background-image: url('" +
-                                               ModPackConstants.MODPACK_DEFAULT_BG_URL +
-                                               "');" );
-                }
+        // Set unstable warning
+        boolean unstableWarningVisible = false;
+        if ( selectedGameModPack != null ) {
+            unstableWarningVisible = selectedGameModPack.getPackUnstable();
+        }
+        setUnstableWarning( unstableWarningVisible );
 
-                rootPane.setStyle(
-                        rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
-            } );
-        } );
+        // Set modpack background image on root pane
+        if ( selectedGameModPack != null ) {
+            // noinspection All
+            rootPane.setStyle( rootPane.getStyle() +
+                                       "-fx-background-image: url('" +
+                                       new File( selectedGameModPack.getPackBackgroundFilepath() ).toURI() +
+                                       "');" );
+        }
+        else {
+            rootPane.setStyle( rootPane.getStyle() +
+                                       "-fx-background-image: url('" +
+                                       ModPackConstants.MODPACK_DEFAULT_BG_URL +
+                                       "');" );
+        }
+        rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
     };
+
+    public void setAnnouncementRow( String extra ) {
+        String announcementText;
+        if ( extra != null ) {
+            announcementText = extra + "\n" + AnnouncementManager.getAnnouncementHome();
+        }
+        else {
+            announcementText = AnnouncementManager.getAnnouncementHome();
+        }
+        if ( announcementText.length() > 0 ) {
+            announcement.setText( announcementText );
+            announcement.setMinHeight( 30 );
+            announcementRow.setMinHeight( 30 );
+        }
+        else {
+            announcement.setMaxHeight( 0 );
+            announcementRow.setMaxHeight( 0 );
+        }
+    }
+
+    public void setUnstableWarning( boolean unstable ) {
+        unstableWarning.setVisible( unstable );
+        unstableWarningRow.setMaxHeight( unstable ? 37 : 0 );
+        unstableWarningRow.setMaxHeight( unstable ? 37 : 0 );
+        unstableWarningRow.setMinHeight( unstable ? 37 : 0 );
+        centerPane.setPrefHeight( unstable ? 100 : 60 );
+        centerPane.setMaxHeight( unstable ? 100 : 60 );
+        centerPane.setMinHeight( unstable ? 100 : 60 );
+    }
 
     public void selectModpack( String modPack ) {
         // Select supplied mod pack
