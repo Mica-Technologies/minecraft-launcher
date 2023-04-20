@@ -58,6 +58,13 @@ public class LocalPathConstants
     public static final String CONFIG_FOLDER = File.separator + "config";
 
     /**
+     * Relative path to the application metadata folder within the application folder.
+     *
+     * @since 1.0
+     */
+    public static final String METADATA_FOLDER = File.separator + "metadata";
+
+    /**
      * Relative path to the installed mod packs folder within the application folder.
      *
      * @since 1.0

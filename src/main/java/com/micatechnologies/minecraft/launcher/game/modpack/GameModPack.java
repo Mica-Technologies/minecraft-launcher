@@ -40,6 +40,7 @@ import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest;
+import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import org.apache.commons.io.FilenameUtils;
@@ -93,12 +94,28 @@ public class GameModPack
     private String packLogoURL;
 
     /**
+     * Mod pack logo SHA-1. Value read from manifest JSON.
+     *
+     * @since 1.0
+     */
+    @SuppressWarnings( "unused" )
+    private String packLogoSha1;
+
+    /**
      * Mod pack background URL. Value read from manifest JSON.
      *
      * @since 1.0
      */
     @SuppressWarnings( "unused" )
     private String packBackgroundURL;
+
+    /**
+     * Mod pack background SHA-1. Value read from manifest JSON.
+     *
+     * @since 1.0
+     */
+    @SuppressWarnings( "unused" )
+    private String packBackgroundSha1;
 
     /**
      * Mod pack minimum RAM (GB). Value read from manifest JSON.
@@ -174,8 +191,11 @@ public class GameModPack
      */
     @SuppressWarnings( "WeakerAccess" )
     public String getPackRootFolder() {
-        final String sanitizedModPackName = getPackName().replaceAll( "[^a-zA-Z0-9]", "" );
-        return LocalPathManager.getLauncherModpackFolderPath() + File.separator + sanitizedModPackName;
+        return LocalPathManager.getLauncherModpackFolderPath() + File.separator + getPackSanitizedName();
+    }
+
+    public String getPackSanitizedName() {
+        return getPackName().replaceAll( "[^a-zA-Z0-9]", "" );
     }
 
     public String getPackBinFolder() {
@@ -709,18 +729,40 @@ public class GameModPack
         if ( !didCacheImages ) {
             cacheImages();
         }
-        return getPackRootFolder() + File.separator + ModPackConstants.MODPACK_LOGO_LOCAL_FILE;
+        return getRawLogoFilePath();
     }
 
     public synchronized String getPackBackgroundFilepath() {
         if ( !didCacheImages ) {
             cacheImages();
         }
-        return getPackRootFolder() + File.separator + ModPackConstants.MODPACK_BACKGROUND_LOCAL_FILE;
+        return getRawBackgroundFilePath();
     }
 
     public void setProgressProvider( GameModPackProgressProvider progressProvider ) {
         this.progressProvider = progressProvider;
+    }
+
+    private String getRawLogoFilePath() {
+        String filename;
+        if ( packLogoSha1 != null ) {
+            filename = packLogoSha1 + ".png";
+        }
+        else {
+            filename = "logo_" + getPackSanitizedName() + ".png";
+        }
+        return LocalPathManager.getLauncherMetadataFolderPath() + File.separator + filename;
+    }
+
+    private String getRawBackgroundFilePath() {
+        String filename;
+        if ( packBackgroundSha1 != null ) {
+            filename = packBackgroundSha1 + ".png";
+        }
+        else {
+            filename = "background_" + getPackSanitizedName() + ".png";
+        }
+        return LocalPathManager.getLauncherMetadataFolderPath() + File.separator + filename;
     }
 
     /**
@@ -731,9 +773,19 @@ public class GameModPack
     private synchronized void fetchLatestModpackLogo() throws ModpackException {
         // Download latest logo
         try {
-            String logoFilePath = getPackRootFolder() + File.separator + ModPackConstants.MODPACK_LOGO_LOCAL_FILE;
-            NetworkUtilities.downloadFileFromURL( new URL( packLogoURL ),
-                                                  SynchronizedFileManager.getSynchronizedFile( logoFilePath ) );
+            File syncFile = SynchronizedFileManager.getSynchronizedFile( getRawLogoFilePath() );
+            boolean redownload = false;
+            if ( packLogoSha1 == null ) {
+                redownload = true;
+            }
+            else if ( !HashUtilities.verifySHA1( syncFile, packLogoSha1 ) ) {
+                redownload = true;
+            }
+            if ( redownload ) {
+                NetworkUtilities.downloadFileFromURL(
+                        new URL( Objects.requireNonNullElse( packLogoURL, ModPackConstants.MODPACK_DEFAULT_LOGO_URL ) ),
+                        syncFile );
+            }
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to download/fetch mod pack logo.", e );
@@ -748,12 +800,19 @@ public class GameModPack
     private synchronized void fetchLatestModpackBackground() throws ModpackException {
         // Download latest background
         try {
-            String backgroundFilePath = getPackRootFolder() +
-                    File.separator +
-                    ModPackConstants.MODPACK_BACKGROUND_LOCAL_FILE;
-            NetworkUtilities.downloadFileFromURL(
-                    new URL( Objects.requireNonNullElse( packBackgroundURL, ModPackConstants.MODPACK_DEFAULT_BG_URL ) ),
-                    SynchronizedFileManager.getSynchronizedFile( backgroundFilePath ) );
+            File syncFile = SynchronizedFileManager.getSynchronizedFile( getRawBackgroundFilePath() );
+            boolean redownload = false;
+            if ( packBackgroundSha1 == null ) {
+                redownload = true;
+            }
+            else if ( !HashUtilities.verifySHA1( syncFile, packBackgroundSha1 ) ) {
+                redownload = true;
+            }
+            if ( redownload ) {
+                NetworkUtilities.downloadFileFromURL( new URL(
+                                                              Objects.requireNonNullElse( packBackgroundURL, ModPackConstants.MODPACK_DEFAULT_BG_URL ) ),
+                                                      syncFile );
+            }
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to download/fetch mod pack background.", e );
