@@ -23,7 +23,6 @@ import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ManifestConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
-import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameLibrary;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -211,8 +210,8 @@ public class GameLibraryManifest extends ManagedGameFile
                                                                       .getAsJsonObject( "classifiers" )
                                                                       .getAsJsonObject( "natives-windows" )
                                                                       .get( "sha1" )
-                                                                      .getAsString(), ManagedGameFileHashType.MD5, true,
-                                                     nativeValidOS, true );
+                                                                      .getAsString(), ManagedGameFileHashType.SHA1,
+                                                     true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
                         libraries.add( nativeLib );
@@ -250,8 +249,8 @@ public class GameLibraryManifest extends ManagedGameFile
                                                                       .getAsJsonObject( "classifiers" )
                                                                       .getAsJsonObject( "natives-osx" )
                                                                       .get( "sha1" )
-                                                                      .getAsString(), ManagedGameFileHashType.MD5, true,
-                                                     nativeValidOS, true );
+                                                                      .getAsString(), ManagedGameFileHashType.SHA1,
+                                                     true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
                         libraries.add( nativeLib );
@@ -289,8 +288,8 @@ public class GameLibraryManifest extends ManagedGameFile
                                                                       .getAsJsonObject( "classifiers" )
                                                                       .getAsJsonObject( "natives-linux" )
                                                                       .get( "sha1" )
-                                                                      .getAsString(), ManagedGameFileHashType.MD5, true,
-                                                     nativeValidOS, true );
+                                                                      .getAsString(), ManagedGameFileHashType.SHA1,
+                                                     true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
                         libraries.add( nativeLib );
@@ -299,7 +298,7 @@ public class GameLibraryManifest extends ManagedGameFile
 
                 // Create final library object and add to applicable list
                 if ( path != null && url != null && sha1 != null ) {
-                    GameLibrary thisLib = new GameLibrary( url, path.toString(), sha1, ManagedGameFileHashType.MD5,
+                    GameLibrary thisLib = new GameLibrary( url, path.toString(), sha1, ManagedGameFileHashType.SHA1,
                                                            useStrictRules, rulesOS, false );
 
                     if ( ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS &&
