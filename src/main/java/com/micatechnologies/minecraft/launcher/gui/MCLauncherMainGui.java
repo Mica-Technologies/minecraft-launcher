@@ -361,10 +361,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
                                                                           .getSelectedValues()
                                                                           .get( 0 );
-            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)", "Mod Pack: " +
-                                                                                           installedModPackByFriendlyName.getPackName(), OffsetDateTime.now(), "mica_minecraft_launcher",
-                                                                                   "Mica Minecraft Launcher", "game",
-                                                                                   "In Game" ) );
+            if ( installedModPackByFriendlyName.getCustomDiscordRpc() ) {
+                SystemUtilities.spawnNewTask( DiscordRpcUtility::exit );
+            }
+            else {
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)",
+                                                                                       "Mod Pack: " +
+                                                                                               installedModPackByFriendlyName.getPackName(),
+                                                                                       OffsetDateTime.now(),
+                                                                                       "mica_minecraft_launcher",
+                                                                                       "Mica Minecraft Launcher",
+                                                                                       "game", "In Game" ) );
+            }
             LauncherCore.play( installedModPackByFriendlyName, () -> GUIUtilities.JFXPlatformRun( () -> {
                 try {
                     Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();

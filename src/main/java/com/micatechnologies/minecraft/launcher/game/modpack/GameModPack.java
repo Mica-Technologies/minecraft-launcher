@@ -86,6 +86,14 @@ public class GameModPack
     private boolean packUnstable;
 
     /**
+     * Mod pack custom Discord RPC flag. Value read from manifest JSON.
+     *
+     * @since 1.2
+     */
+    @SuppressWarnings( "unused" )
+    private boolean packCustomDiscordRpc;
+
+    /**
      * Mod pack logo URL. Value read from manifest JSON.
      *
      * @since 1.0
@@ -895,6 +903,10 @@ public class GameModPack
 
     public boolean getPackUnstable() {
         return packUnstable;
+    }
+
+    public boolean getCustomDiscordRpc() {
+        return packCustomDiscordRpc;
     }
 
     public String getPackURL() {
