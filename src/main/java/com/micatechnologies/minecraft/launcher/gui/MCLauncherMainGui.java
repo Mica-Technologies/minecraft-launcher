@@ -334,6 +334,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } ) );
 
         // Configure modpacks edit button
+        editButton.setDisable( AnnouncementManager.getDisableModpacksEdit() );
         editButton.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToEditModpacksGui();
@@ -356,6 +357,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
 
         // Configure play button
+        playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
             GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
@@ -416,7 +418,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         scene.setOnKeyPressed( keyEvent -> {
             if ( keyEvent.getCode() == KeyCode.ENTER ) {
                 keyEvent.consume();
-                playBtn.fire();
+                if ( !playBtn.isDisabled() ) {
+                    playBtn.fire();
+                }
             }
         } );
 

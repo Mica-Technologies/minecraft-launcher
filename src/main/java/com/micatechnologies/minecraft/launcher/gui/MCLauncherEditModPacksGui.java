@@ -224,6 +224,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
         } );
 
         // Configure add by URL button
+        urlAddBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
         urlAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             GameModPackManager.installModPackByURL( urlAddBox.getText() );
             try {
@@ -237,6 +238,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
         } ) );
 
         // Configure add by List button
+        listAddBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
         listAddBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             GameModPackManager.installModPackByFriendlyName( listAddBox.getSelectedItem() );
             try {
@@ -250,6 +252,7 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
         } ) );
 
         // Configure remove selected button
+        removeSelectedBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
         removeSelectedBtn.setOnAction( actionEvent -> {
             List< String > selectedItems = modpackList.getSelectionModel().getSelectedValues();
             for ( String selectedItem : selectedItems ) {
