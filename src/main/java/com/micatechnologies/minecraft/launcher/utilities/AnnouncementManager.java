@@ -32,7 +32,7 @@ import java.nio.charset.Charset;
  * Utility class for managing the check for and retrieval of announcements from the launcher repository.
  *
  * @author Mica Technologies
- * @version 1.0
+ * @version 1.1
  * @since 2022.1.1
  */
 public class AnnouncementManager
@@ -74,6 +74,21 @@ public class AnnouncementManager
     private static final String ANNOUNCEMENT_JSON_MODPACKS_EDIT_KEY = "modpacksedit";
 
     /**
+     * The key used to access the boolean which controls whether gameplay is disabled based on the announcements.
+     *
+     * @since 1.1
+     */
+    private static final String DISABLE_GAMEPLAY_KEY = "disableGameplay";
+
+    /**
+     * The key used to access the boolean which controls whether modpack editing is disabled based on the
+     * announcements.
+     *
+     * @since 1.1
+     */
+    private static final String DISABLE_MODPACKS_EDIT_KEY = "disableModpacksEdit";
+
+    /**
      * The announcement shown to the user on the login screen.
      *
      * @since 1.0
@@ -100,6 +115,20 @@ public class AnnouncementManager
      * @since 1.0
      */
     private static String announcementModpacksEdit = "";
+
+    /**
+     * The boolean which controls whether gameplay is disabled based on the announcements.
+     *
+     * @since 1.1
+     */
+    private static boolean disableGameplay = false;
+
+    /**
+     * The boolean which controls whether modpack editing is disabled based on the announcements.
+     *
+     * @since 1.1
+     */
+    private static boolean disableModpacksEdit = false;
 
     /**
      * Checks for new announcements from the launcher repository. If new announcements are found, they are retrieved and
@@ -139,6 +168,16 @@ public class AnnouncementManager
             // Check for modpacks edit announcement
             if ( announcementJson.has( ANNOUNCEMENT_JSON_MODPACKS_EDIT_KEY ) ) {
                 announcementModpacksEdit = announcementJson.get( ANNOUNCEMENT_JSON_MODPACKS_EDIT_KEY ).getAsString();
+            }
+
+            // Check for gameplay disable
+            if ( announcementJson.has( DISABLE_GAMEPLAY_KEY ) ) {
+                disableGameplay = announcementJson.get( DISABLE_GAMEPLAY_KEY ).getAsBoolean();
+            }
+
+            // Check for modpacks edit disable
+            if ( announcementJson.has( DISABLE_MODPACKS_EDIT_KEY ) ) {
+                disableModpacksEdit = announcementJson.get( DISABLE_MODPACKS_EDIT_KEY ).getAsBoolean();
             }
         }
     }
@@ -185,5 +224,27 @@ public class AnnouncementManager
      */
     public static String getAnnouncementModpacksEdit() {
         return announcementModpacksEdit;
+    }
+
+    /**
+     * Gets the boolean which controls whether gameplay is disabled based on the announcements.
+     *
+     * @return Boolean which controls whether gameplay is disabled based on the announcements.
+     *
+     * @since 1.1
+     */
+    public static boolean getDisableGameplay() {
+        return disableGameplay;
+    }
+
+    /**
+     * Gets the boolean which controls whether modpack editing is disabled based on the announcements.
+     *
+     * @return Boolean which controls whether modpack editing is disabled based on the announcements.
+     *
+     * @since 1.1
+     */
+    public static boolean getDisableModpacksEdit() {
+        return disableModpacksEdit;
     }
 }
