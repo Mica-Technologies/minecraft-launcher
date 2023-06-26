@@ -284,3 +284,8 @@
     -fx-font-style: italic;
     -fx-padding: 0 0 0 6;
 }
+
+.settingsContainer{
+    -fx-background-color: rgba(80, 80, 80, 0.85);
+    -fx-background-radius: 8px;
+}

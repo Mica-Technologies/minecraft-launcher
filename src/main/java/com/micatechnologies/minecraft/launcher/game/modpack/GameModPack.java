@@ -22,10 +22,12 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
+import java.util.function.Function;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
@@ -33,6 +35,7 @@ import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
+import com.micatechnologies.minecraft.launcher.exceptions.ModpackScanDetectionException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
@@ -43,6 +46,9 @@ import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersio
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import me.cortex.jarscanner.Constants;
+import me.cortex.jarscanner.Main;
+import me.cortex.jarscanner.Results;
 import org.apache.commons.io.FilenameUtils;
 
 /**
@@ -340,7 +346,7 @@ public class GameModPack
 
         // Verify local Minecraft assets and get classpath
         if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching Minecraft assets, libraries and classpath", 40.0 );
+            progressProvider.startProgressSection( "Fetching Minecraft assets, libraries and classpath", 25.0 );
         }
         GameLibraryManifest libraryManifest = GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(),
                                                                                                this );
@@ -350,12 +356,63 @@ public class GameModPack
             progressProvider.endProgressSection( "Done fetching Minecraft assets, libraries and classpath" );
         }
 
+        // Run scan on downloaded files
+        if ( progressProvider != null ) {
+            progressProvider.startProgressSection( "Scanning downloaded files", 15.0 );
+        }
+        try {
+            scanModPackRootFolder();
+        }
+        catch ( IOException e ) {
+            throw new ModpackException( "Unable to scan downloaded files due to an exception!", e );
+        }
+        catch ( InterruptedException e ) {
+            throw new ModpackException( "Unable to scan downloaded files due to an interruption!", e );
+        }
+        if ( progressProvider != null ) {
+            progressProvider.endProgressSection( "Done scanning downloaded files!" );
+        }
+
         // Add classpath separator between Forge and Minecraft only if Forge classpath not empty (it shouldn't be)
         if ( !forgeAssetClasspath.isEmpty() && !forgeAssetClasspath.endsWith( File.pathSeparator ) ) {
             forgeAssetClasspath += File.pathSeparator;
         }
 
         return forgeAssetClasspath + minecraftAssetClasspath;
+    }
+
+    /**
+     * Scans the modpack root folder for any infections identified by the {@link me.cortex.jarscanner.Detector} class.
+     *
+     * @throws ModpackException     if any infections are found
+     * @throws IOException          if any I/O errors occur while scanning
+     * @throws InterruptedException if the current thread is interrupted while scanning
+     */
+    public void scanModPackRootFolder() throws ModpackException, IOException, InterruptedException {
+        int halfCoreCount = Runtime.getRuntime().availableProcessors() / 2;
+        int scanCoreCount = Math.min( 1, halfCoreCount );
+        boolean emitWalkErrors = true;
+        Function< String, String > logOutput = ( out ) -> {
+            if ( progressProvider != null ) {
+                String processedOut = out.replace( Constants.ANSI_RED, "" )
+                                         .replace( Constants.ANSI_GREEN, "" )
+                                         .replace( Constants.ANSI_WHITE, "" )
+                                         .replace( Constants.ANSI_RESET, "" );
+                progressProvider.setCurrText( processedOut );
+            }
+            return out;
+        };
+
+        Results scanResults = Main.run( scanCoreCount, Path.of( getPackRootFolder() ), emitWalkErrors, logOutput,
+                                        null );
+        if ( scanResults.getStage1Detections() != null && !scanResults.getStage1Detections().isEmpty() ) {
+            logOutput.apply( "Stage 1 infections found: " + scanResults.getStage1Detections().size() );
+            throw new ModpackScanDetectionException( scanResults );
+        }
+        else if ( scanResults.getStage2Detections() != null && !scanResults.getStage2Detections().isEmpty() ) {
+            logOutput.apply( "Stage 2 infections found: " + scanResults.getStage2Detections().size() );
+            throw new ModpackScanDetectionException( scanResults );
+        }
     }
 
     public void startGame() throws ModpackException
