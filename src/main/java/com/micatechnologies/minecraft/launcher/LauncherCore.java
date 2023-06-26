@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
+import com.micatechnologies.minecraft.launcher.exceptions.ModpackScanDetectionException;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
@@ -215,6 +216,10 @@ public class LauncherCore
                     }
                 } );
                 gameModPack.startGame();
+            }
+            catch ( ModpackScanDetectionException e ) {
+                Logger.logError( e.getMessage() );
+                Logger.logThrowable( e );
             }
             catch ( Exception e ) {
                 Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );

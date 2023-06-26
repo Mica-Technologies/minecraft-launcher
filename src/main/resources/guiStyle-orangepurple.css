@@ -304,3 +304,7 @@
     -fx-text-fill: white;
     -fx-fill: white;
 }
+
+.settingsContainer {
+    -fx-background-color: #1B1B1B;
+}

@@ -21,6 +21,8 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
+import com.micatechnologies.minecraft.launcher.exceptions.ModpackScanDetectionException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
@@ -31,19 +33,29 @@ import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
+import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import io.github.palexdev.materialfx.controls.MFXToggleButton;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.RowConstraints;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
+import me.cortex.jarscanner.Constants;
+import me.cortex.jarscanner.Main;
+import me.cortex.jarscanner.Progress;
+import me.cortex.jarscanner.Results;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.Precision;
 import org.codehaus.plexus.util.FileUtils;
 import oshi.SystemInfo;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.function.Function;
 
 public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 {
@@ -70,6 +82,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton enhancedLoggingCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton scanFolderBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton scanBtn;
 
     @SuppressWarnings( "unused" )
     @FXML
@@ -117,7 +137,37 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     RowConstraints announcementRow;
 
-    boolean dirty = false;
+    /**
+     * Progress bar. Displays the scan's progress on a scale from 0 to 1.
+     *
+     * @since 1.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXProgressBar scanProgressBar;
+
+    /**
+     * Scan output label.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label scanOutputLabel;
+
+    /**
+     * Scan output label.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label scanFolderLabel;
+
+    boolean dirty            = false;
+    boolean scanning         = false;
+    boolean scanningCanceled = false;
+    File    scanFolder       = null;
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
@@ -418,6 +468,126 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) minRamGb.getValueFactory() ).setMax(
                     newValWithMaxForMin );
         } );
+
+        // Configure scan buttons/labels
+        scanning = false;
+        scanFolder = SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLocalPath() );
+        scanFolderLabel.setText( "Scan Folder: " + scanFolder );
+        scanFolderBtn.setVisible( true );
+        scanProgressBar.setVisible( false );
+        scanOutputLabel.setVisible( false );
+        scanFolderBtn.setOnAction( actionEvent -> {
+            DirectoryChooser directoryChooser = new DirectoryChooser();
+            directoryChooser.setTitle( "Select a folder to scan" );
+            directoryChooser.setInitialDirectory( scanFolder );
+            File selectedDirectory = directoryChooser.showDialog( MCLauncherGuiController.getTopStageOrNull() );
+            if ( selectedDirectory != null ) {
+                scanFolder = selectedDirectory;
+                scanFolderLabel.setText( "Scan Folder: " + scanFolder );
+            }
+        } );
+        scanBtn.setOnAction( actionEvent -> {
+            if ( scanning ) {
+                Main.cancelScanIfRunning();
+                scanningCanceled = true;
+            }
+            else {
+                if ( scanFolder != null ) {
+                    SystemUtilities.spawnNewTask( () -> {
+                        // Update GUI
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            scanBtn.setText( "Cancel" );
+                            scanFolderBtn.setDisable( true );
+                            scanFolderBtn.setVisible( false );
+                            scanProgressBar.setVisible( true );
+                            scanOutputLabel.setVisible( true );
+                            saveBtn.setDisable( true );
+                            returnBtn.setDisable( true );
+                        } );
+
+                        // Run scan
+                        scanning = true;
+                        try {
+                            scanProgressBar.setProgress( 0.0 );
+                            scanSelectedFolder();
+                            scanProgressBar.setProgress( 1.0 );
+                        }
+                        catch ( Exception e ) {
+                            scanOutputLabel.setText( "Scan failed (exception)! See log file for details." );
+                            Logger.logError( "Scan failed (exception)!" );
+                            Logger.logThrowable( e );
+                        }
+                        scanning = false;
+
+                        // Restore GUI
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            saveBtn.setDisable( false );
+                            returnBtn.setDisable( false );
+                            scanProgressBar.setVisible( false );
+                            scanFolderBtn.setVisible( true );
+                            scanBtn.setText( "Scan" );
+                            scanFolderBtn.setDisable( false );
+                        } );
+                    } );
+                }
+                else {
+                    Logger.logWarning( "No folder selected. Select a folder to scan!" );
+                }
+            }
+        } );
+    }
+
+    /**
+     * Scans the user-selected folder for any infections identified by the {@link me.cortex.jarscanner.Detector} class.
+     *
+     * @throws ModpackException     if any infections are found
+     * @throws IOException          if any I/O errors occur while scanning
+     * @throws InterruptedException if the current thread is interrupted while scanning
+     */
+    public void scanSelectedFolder() throws ModpackException, IOException, InterruptedException {
+        int halfCoreCount = Runtime.getRuntime().availableProcessors() / 2;
+        int scanCoreCount = Math.min( 1, halfCoreCount );
+        boolean emitWalkErrors = true;
+        Function< String, String > logOutput = ( out ) -> {
+            String processedOut = out.replace( Constants.ANSI_RED, "" )
+                                     .replace( Constants.ANSI_GREEN, "" )
+                                     .replace( Constants.ANSI_WHITE, "" )
+                                     .replace( Constants.ANSI_RESET, "" );
+            GUIUtilities.JFXPlatformRun( () -> scanOutputLabel.setText( processedOut ) );
+            return out;
+        };
+        Function< Progress, Progress > progressOutput = ( progress ) -> {
+            if (progress.getTotalFiles() <= 0.0){
+                GUIUtilities.JFXPlatformRun( () -> scanProgressBar.setProgress( ProgressIndicator.INDETERMINATE_PROGRESS ) );
+            } else{
+                final double currentProgress = progress.getFilesProcessed() / progress.getTotalFiles();
+                GUIUtilities.JFXPlatformRun( () -> scanProgressBar.setProgress( currentProgress ) );
+            }
+            return progress;
+        };
+        Results scanResults = Main.run( scanCoreCount, scanFolder.toPath(), emitWalkErrors, logOutput, progressOutput );
+        if ( scanResults.getStage1Detections() != null &&
+                !scanResults.getStage1Detections().isEmpty() &&
+                scanResults.getStage2Detections() != null &&
+                !scanResults.getStage2Detections().isEmpty() ) {
+            int infectionCount = scanResults.getStage1Detections().size() + scanResults.getStage2Detections().size();
+            logOutput.apply( "Stage 1 and 2 infections found: " + infectionCount );
+        }
+        else if ( scanResults.getStage1Detections() != null && !scanResults.getStage1Detections().isEmpty() ) {
+            int infectionCount = scanResults.getStage1Detections().size();
+            logOutput.apply( "Stage 1 infections found: " + infectionCount );
+        }
+        else if ( scanResults.getStage2Detections() != null && !scanResults.getStage2Detections().isEmpty() ) {
+            int infectionCount = scanResults.getStage2Detections().size();
+            logOutput.apply( "Stage 2 infections found: " + infectionCount );
+        }
+        else if ( scanningCanceled ) {
+            logOutput.apply( "Scan canceled!" );
+            scanningCanceled = false;
+        }
+        else {
+            logOutput.apply( "No infections found!" );
+        }
     }
 
     @Override
