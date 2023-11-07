@@ -1,365 +1,207 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  ~ Copyright (c) 2020 Mica Technologies
-  ~
-  ~ This program is free software: you can redistribute it and/or modify it
-  ~ under the terms of the GNU General Public License as published by
-  ~ the Free Software Foundation, either version 3 of the License,
-  ~ or (at your option) any later version.
-  ~
-  ~ This program is distributed in the hope that it will be useful, but
-  ~ WITHOUT ANY WARRANTY; without even the implied warranty
-  ~ of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  ~ See the GNU General Public License for more details.
-  ~
-  ~ You should have received a copy of the GNU General Public License
-  ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
-  -->
-
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-    <!-- APPLICATION/ARTIFACT INFORMATION -->
-    <groupId>com.micatechnologies.minecraft</groupId>
-    <artifactId>launcher</artifactId>
-    <version>2023.2.3</version>
-    <name>Mica Minecraft Launcher</name>
-    <packaging>jar</packaging>
-    <organization>
-        <name>Mica Technologies | Minecraft</name>
-        <url>https://minecraft.micatechnologies.com</url>
-    </organization>
+  <!-- APPLICATION INFORMATION -->
+  <groupId>com.micatechnologies.minecraft</groupId>
+  <artifactId>launcher</artifactId>
+  <version>${revision}</version>
+  <name>${full.name}</name>
 
-    <!-- PROJECT AND CUSTOM PROPERTIES -->
-    <properties>
-        <main.class>com.micatechnologies.minecraft.launcher.LauncherCore</main.class>
-        <timestamp>${maven.build.timestamp}</timestamp>
-        <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
-        <dependency.locations.enabled>false</dependency.locations.enabled>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafx.version>19</javafx.version>
-        <jdk.version>19+37</jdk.version>
-        <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
-        </jfxtaskbarprogressbar.export>
-    </properties>
+  <!-- RELEASE/ARTIFACT INFORMATION -->
+  <packaging>jar</packaging>
+  <url>${website}</url>
+  <organization>
+    <name>${website.name}</name>
+    <url>${website}</url>
+  </organization>
 
-    <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
-    <repositories>
-        <!-- JCenter REPO -->
-        <repository>
-            <id>jcenter</id>
-            <url>https://jcenter.bintray.com</url>
-            <name>jcenter-bintray</name>
-        </repository>
+  <!-- PROPERTIES -->
+  <properties>
+    <!-- APPLICATION INFORMATION -->
+    <full.name>Mica Minecraft Launcher</full.name>
+    <revision>2024.1</revision>
+    <website>https://minecraft.micatechnologies.com</website>
+    <website.name>Mica Technologies | Minecraft</website.name>
 
-        <!-- GitHub BASED MAVEN REPOS -->
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
+    <!-- PLUGIN VERSIONS -->
+    <pluginversion.maven.compiler>3.8.1</pluginversion.maven.compiler>
+    <pluginversion.javafx>20</pluginversion.javafx>
+    <pluginversion.gluonfx>1.0.22</pluginversion.gluonfx>
+    <pluginversion.junit>3.8.1</pluginversion.junit>
+    <pluginversion.java.keyring>1.0.4</pluginversion.java.keyring>
+    <pluginversion.microsoft.credstorage>1.0.0</pluginversion.microsoft.credstorage>
+    <pluginversion.log4j>2.21.1</pluginversion.log4j>
+    <pluginversion.msal4j>1.14.0</pluginversion.msal4j>
+    <pluginversion.gson>2.11.0</pluginversion.gson>
+    <pluginversion.apache.commons.lang>3.13.0</pluginversion.apache.commons.lang>
 
-        <!-- Minecraft Authenticator MAVEN REPO -->
-        <repository>
-            <id>repo.u-team.info</id>
-            <url>https://repo.u-team.info</url>
-        </repository>
-    </repositories>
+    <!-- BUILD TIMESTAMP FORMAT -->
+    <timestamp>${maven.build.timestamp}</timestamp>
+    <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
 
-    <build>
-        <plugins>
-            <!-- CLEANUP UNWANTED FILES AND BINARIES -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-clean-plugin</artifactId>
-                <version>3.1.0</version>
-                <configuration>
-                    <filesets>
-                        <fileset>
-                            <directory>target</directory>
-                            <followSymlinks>false</followSymlinks>
-                        </fileset>
-                        <fileset>
-                            <directory>packaging</directory>
-                            <followSymlinks>false</followSymlinks>
-                        </fileset>
-                    </filesets>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+    <!-- SOURCE FILE ENCODING AND COMPILER VERSION -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
 
-            <!-- COMPILE CODE -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>16</source>
-                    <target>16</target>
-                    <encoding>UTF-8</encoding>
-                    <parameters>true</parameters>
-                    <compilerArgs>
-                        <arg>${jfxtaskbarprogressbar.export}</arg>
-                    </compilerArgs>
-                </configuration>
-            </plugin>
+    <!-- PACKAGED JDK VERSION -->
+    <jdk.version>19+37</jdk.version>
 
-            <!-- ASSEMBLE JAR WITH DEPENDENCIES -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                            <mainClass>${main.class}</mainClass>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
-                        </manifest>
-                    </archive>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id> <!-- this is used for inheritance merges -->
-                        <phase>package</phase> <!-- bind to the packaging phase -->
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+    <!-- GLUONFX TARGET -->
+    <gluonfx.target>host</gluonfx.target>
+  </properties>
 
-            <!-- DOWNLOAD JAVA RUNTIME -->
-            <plugin>
-                <groupId>com.igormaznitsa</groupId>
-                <artifactId>mvn-jlink-wrapper</artifactId>
-                <version>1.2.0</version>
-                <executions>
-                    <!-- CACHE JDK -->
-                    <execution>
-                        <id>cache-jdk</id>
-                        <goals>
-                            <goal>cache-jdk</goal>
-                        </goals>
-                        <configuration>
-                            <provider>BELLSOFT</provider>
-                            <providerConfig>
-                                <type>jdk</type>
-                                <version>${jdk.version}</version>
-                                <arch>amd64-full</arch>
-                            </providerConfig>
-                            <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
-                            <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+  <!-- DEPENDENCIES -->
+  <dependencies>
+    <!-- TEST DEPENDENCIES -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${pluginversion.junit}</version>
+      <scope>test</scope>
+    </dependency>
 
-            <plugin>
-                <groupId>io.github.fvarrui</groupId>
-                <artifactId>javapackager</artifactId>
-                <version>1.6.7</version>
-                <configuration>
-                    <mainClass>${main.class}</mainClass>
-                    <assetsDir>${project.basedir}${file.separator}deploy</assetsDir>
-                    <bundleJre>true</bundleJre>
-                    <customizedJre>false</customizedJre>
-                    <jreMinVersion>16</jreMinVersion>
-                    <generateInstaller>true</generateInstaller>
-                    <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
-                    <runnableJar>
-                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
-                    </runnableJar>
-                    <copyDependencies>false</copyDependencies>
-                    <outputDirectory>${project.basedir}${file.separator}packaging</outputDirectory>
-                    <!--suppress UnresolvedMavenProperty -->
-                    <jdkPath>${jlink.jdk.path}</jdkPath>
-                    <additionalResources>
-                        <additionalResource>
-                            ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
-                        </additionalResource>
-                    </additionalResources>
-                    <macConfig>
-                        <entitlements>
-                            ${project.basedir}${file.separator}assets${file.separator}mac${file.separator}micaforgelauncher.entitlements
-                        </entitlements>
-                        <macStartup>UNIVERSAL</macStartup>
-                        <codesignApp>false</codesignApp>
-                    </macConfig>
-                    <vmArgs>
-                        <vmArg>${jfxtaskbarprogressbar.export}</vmArg>
-                    </vmArgs>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>bundling</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>package</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+    <!-- LOGGING DEPENDENCIES -->
+    <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <version>${pluginversion.log4j}</version>
+    </dependency>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-base</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-graphics</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-web</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.rauschig</groupId>
-            <artifactId>jarchivelib</artifactId>
-            <version>1.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.11.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.10</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>2.0.3</version>
-        </dependency>
-        <dependency>
-            <groupId>io.github.CDAGaming</groupId>
-            <artifactId>DiscordIPC</artifactId>
-            <version>0.6.1</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.Dansoftowner</groupId>
-            <artifactId>jSystemThemeDetector</artifactId>
-            <version>3.8</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>net.java.dev.jna</groupId>
-                    <artifactId>jna</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>net.java.dev.jna</groupId>
-                    <artifactId>jna-platform</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.github.oshi</groupId>
-                    <artifactId>oshi-core</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>io.github.palexdev</groupId>
-            <artifactId>materialfx</artifactId>
-            <version>11.13.5</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.oshi</groupId>
-            <artifactId>oshi-core</artifactId>
-            <version>6.3.1</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-math3</artifactId>
-            <version>3.6.1</version>
-        </dependency>
-        <dependency>
-            <groupId>net.hycrafthd</groupId>
-            <artifactId>minecraft_authenticator</artifactId>
-            <version>3.0.2</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.google.code.gson</groupId>
-                    <artifactId>gson</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.codehaus.plexus</groupId>
-            <artifactId>plexus-utils</artifactId>
-            <version>3.5.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.Dansoftowner</groupId>
-            <artifactId>FXTaskbarProgressBar</artifactId>
-            <version>v11.4</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.jetbrains</groupId>
-                    <artifactId>annotations</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jodd</groupId>
-            <artifactId>jodd-util</artifactId>
-            <version>6.2.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm</artifactId>
-            <version>9.5</version>
-        </dependency>
-        <dependency>
-            <groupId>org.ow2.asm</groupId>
-            <artifactId>asm-tree</artifactId>
-            <version>9.5</version>
-        </dependency>
-    </dependencies>
+    <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>${pluginversion.log4j}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j2-impl -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
+      <version>${pluginversion.log4j}</version>
+    </dependency>
+
+    <!-- JAVAFX DEPENDENCIES -->
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-base</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-graphics</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-fxml</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-web</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+
+    <!-- OTHER DEPENDENCIES -->
+    <!-- https://mvnrepository.com/artifact/com.microsoft.azure/msal4j -->
+    <dependency>
+      <groupId>com.microsoft.azure</groupId>
+      <artifactId>msal4j</artifactId>
+      <version>${pluginversion.msal4j}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.microsoft/credential-secure-storage -->
+    <dependency>
+      <groupId>com.microsoft</groupId>
+      <artifactId>credential-secure-storage</artifactId>
+      <version>${pluginversion.microsoft.credstorage}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>${pluginversion.gson}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>${pluginversion.apache.commons.lang}</version>
+    </dependency>
+  </dependencies>
+
+  <!-- PLUGIN MANAGEMENT -->
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${pluginversion.maven.compiler}</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>com.gluonhq</groupId>
+        <artifactId>gluonfx-maven-plugin</artifactId>
+        <version>${pluginversion.gluonfx}</version>
+        <configuration>
+          <target>${gluonfx.target}</target>
+          <mainClass>com.micatechnologies.minecraft.launcher.Main</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <!-- PROFILES -->
+  <profiles>
+    <profile>
+      <id>ios</id>
+      <properties>
+        <gluonfx.target>ios</gluonfx.target>
+      </properties>
+    </profile>
+    <profile>
+      <id>android</id>
+      <properties>
+        <gluonfx.target>android</gluonfx.target>
+      </properties>
+    </profile>
+    <profile>
+      <id>linux</id>
+      <properties>
+        <gluonfx.target>linux</gluonfx.target>
+      </properties>
+    </profile>
+    <profile>
+      <id>windows</id>
+      <properties>
+        <gluonfx.target>windows</gluonfx.target>
+      </properties>
+    </profile>
+    <profile>
+      <id>macos</id>
+      <properties>
+        <gluonfx.target>macos</gluonfx.target>
+      </properties>
+    </profile>
+    <profile>
+      <id>default</id>
+      <properties>
+        <gluonfx.target>host</gluonfx.target>
+      </properties>
+    </profile>
+  </profiles>
 </project>
