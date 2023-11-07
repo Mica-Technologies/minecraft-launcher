@@ -1,0 +1,75 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <!-- PARENT INFORMATION -->
+  <parent>
+    <groupId>com.micatechnologies.minecraft</groupId>
+    <artifactId>launcher</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <!-- APPLICATION INFORMATION -->
+  <artifactId>client</artifactId>
+  <name>client</name>
+
+  <!-- RELEASE/ARTIFACT INFORMATION -->
+  <packaging>jar</packaging>
+  <url>${website}</url>
+
+  <properties>
+  </properties>
+
+  <!-- DEPENDENCIES -->
+  <dependencies>
+    <!-- TEST DEPENDENCIES -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${pluginversion.junit}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- COMMON DEPENDENCY -->
+    <dependency>
+      <groupId>com.micatechnologies.minecraft</groupId>
+      <artifactId>common</artifactId>
+      <version>${revision}</version>
+    </dependency>
+
+    <!-- JAVAFX DEPENDENCIES -->
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-base</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-graphics</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-fxml</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-web</artifactId>
+      <version>${pluginversion.javafx}</version>
+    </dependency>
+
+    <!-- OTHER DEPENDENCIES -->
+    <!-- https://mvnrepository.com/artifact/com.microsoft.azure/msal4j -->
+    <dependency>
+      <groupId>com.microsoft.azure</groupId>
+      <artifactId>msal4j</artifactId>
+      <version>${pluginversion.msal4j}</version>
+    </dependency>
+  </dependencies>
+</project>

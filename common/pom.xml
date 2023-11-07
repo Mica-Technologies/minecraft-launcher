@@ -1,0 +1,77 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <!-- PARENT INFORMATION -->
+  <parent>
+    <groupId>com.micatechnologies.minecraft</groupId>
+    <artifactId>launcher</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <!-- APPLICATION INFORMATION -->
+  <artifactId>common</artifactId>
+  <name>common</name>
+
+  <!-- RELEASE/ARTIFACT INFORMATION -->
+  <packaging>jar</packaging>
+  <url>${website}</url>
+
+  <properties>
+  </properties>
+
+  <!-- DEPENDENCIES -->
+  <dependencies>
+    <!-- TEST DEPENDENCIES -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${pluginversion.junit}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- LOGGING DEPENDENCIES -->
+    <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <version>${pluginversion.log4j}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>${pluginversion.log4j}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j2-impl -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
+      <version>${pluginversion.log4j}</version>
+    </dependency>
+
+    <!-- OTHER DEPENDENCIES -->
+    <!-- https://mvnrepository.com/artifact/com.microsoft/credential-secure-storage -->
+    <dependency>
+      <groupId>com.microsoft</groupId>
+      <artifactId>credential-secure-storage</artifactId>
+      <version>${pluginversion.microsoft.credstorage}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>${pluginversion.gson}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-lang3 -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>${pluginversion.apache.commons.lang}</version>
+    </dependency>
+  </dependencies>
+</project>
