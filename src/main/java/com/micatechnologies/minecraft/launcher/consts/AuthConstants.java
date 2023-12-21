@@ -29,11 +29,4 @@ package com.micatechnologies.minecraft.launcher.consts;
  */
 public class AuthConstants
 {
-
-    /**
-     * Address of the Mojang/Minecraft authentication server.
-     *
-     * @since 1.0
-     */
-    public static final String AUTH_SERVER_URL = "https://authserver.mojang.com";
 }

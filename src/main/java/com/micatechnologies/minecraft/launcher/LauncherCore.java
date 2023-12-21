@@ -111,12 +111,6 @@ public class LauncherCore
                                          "may function as intended." );
             }
 
-            // Check for internet connection. Close if unable to connect
-            if ( !NetworkUtilities.isMojangAuthReachable() ) {
-                Logger.logError( LocalizationManager.UNABLE_TO_REACH_MOJANG_CANT_START_TEXT );
-                closeApp();
-            }
-
             // If client, do login
             if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
                 Logger.logDebug( LocalizationManager.LAUNCHER_CLIENT_MODE_STARTING_LOGIN_TEXT );
