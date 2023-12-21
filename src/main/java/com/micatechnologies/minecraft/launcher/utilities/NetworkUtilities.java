@@ -17,13 +17,11 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
-import com.micatechnologies.minecraft.launcher.consts.AuthConstants;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
@@ -38,35 +36,6 @@ import java.nio.charset.Charset;
  */
 public class NetworkUtilities
 {
-    /**
-     * Tests a connection to the Mojang/Minecraft authentication server and returns a boolean indicating success or
-     * failure.
-     *
-     * @return true if successful, false if unsuccessful
-     *
-     * @since 1.0
-     */
-    public static boolean isMojangAuthReachable() {
-        boolean success = false;
-        try {
-            // Attempt connection to auth server
-            URL url = new URL( AuthConstants.AUTH_SERVER_URL );
-            HttpURLConnection connection = ( HttpURLConnection ) url.openConnection();
-            connection.setConnectTimeout( 5000 );
-            connection.setReadTimeout( 5000 );
-            connection.getContent();
-
-            // Check response code
-            if ( connection.getResponseCode() == HttpURLConnection.HTTP_OK ) {
-                success = true;
-            }
-        }
-        catch ( Exception ignored ) {
-        }
-
-        // Return false if did not meet connection criteria
-        return success;
-    }
 
     /**
      * Downloads the file from the specified URL (as string) to the specified file.
@@ -79,22 +48,6 @@ public class NetworkUtilities
      */
     public static void downloadFileFromURL( String source, File destination ) throws IOException {
         downloadFileFromURL( new URL( source ), destination );
-    }
-
-    /**
-     * Downloads the file from the specified URL (as string) to the specified file.
-     *
-     * @param source              source URL (as string)
-     * @param destination         destination file
-     * @param responseContentType content type of response
-     *
-     * @throws IOException if unable to download or save file
-     * @since 1.1
-     */
-    public static void downloadFileFromURL( String source, File destination, String responseContentType )
-    throws IOException
-    {
-        downloadFileFromURL( new URL( source ), destination, responseContentType );
     }
 
     /**
@@ -112,6 +65,22 @@ public class NetworkUtilities
             connection.setUseCaches( false );
             FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
         }
+    }
+
+    /**
+     * Downloads the file from the specified URL (as string) to the specified file.
+     *
+     * @param source              source URL (as string)
+     * @param destination         destination file
+     * @param responseContentType content type of response
+     *
+     * @throws IOException if unable to download or save file
+     * @since 1.1
+     */
+    public static void downloadFileFromURL( String source, File destination, String responseContentType )
+    throws IOException
+    {
+        downloadFileFromURL( new URL( source ), destination, responseContentType );
     }
 
     /**
