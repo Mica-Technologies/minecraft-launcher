@@ -80,8 +80,8 @@ public class Main
         // Scan all jars in path
         final double[] progress = { 0.0, 0.0 };
         // set progress[1] to the total number of files in the directory
-        try ( final var files = Files.walk( dirToCheck ) ) {
-            progress[ 1 ] = files.count();
+        try ( var files = Files.walk( dirToCheck ) ) {
+            progress[ 1 ] = files.parallel().filter( path -> !path.toFile().isDirectory() ).count();
         }
         long stage1StartTime = System.currentTimeMillis();
         logOutput.apply( Constants.ANSI_GREEN + "Running Stage 1 Scan..." + Constants.ANSI_RESET );
