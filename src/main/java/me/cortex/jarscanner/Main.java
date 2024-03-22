@@ -50,6 +50,7 @@ public class Main
     public static Results run( int nThreads,
                                Path dirToCheck,
                                boolean emitWalkErrors,
+                               List< String > excludeFolders,
                                Function< String, String > logOutput,
                                Function< Progress, Progress > progessOutput ) throws IOException, InterruptedException
     {
@@ -80,9 +81,23 @@ public class Main
         // Scan all jars in path
         final double[] progress = { 0.0, 0.0 };
         // set progress[1] to the total number of files in the directory
+        logOutput.apply( Constants.ANSI_GREEN + "Preparing Scanner..." + Constants.ANSI_RESET );
+        long scannerPrepStartTime = System.currentTimeMillis();
         try ( var files = Files.walk( dirToCheck ) ) {
-            progress[ 1 ] = files.parallel().filter( path -> !path.toFile().isDirectory() ).count();
+            progress[ 1 ] = files.parallel()
+                                 .filter( path -> !path.toFile().isDirectory() )
+                                 .filter( path -> !isPathExcludedFromScan( dirToCheck, path, excludeFolders ) )
+                                 .count();
         }
+        long scannerPrepEndTime = System.currentTimeMillis();
+        long scannerPrepTime = scannerPrepEndTime - scannerPrepStartTime;
+        logOutput.apply( Constants.ANSI_GREEN +
+                                 "Scanner Prepared - " +
+                                 Constants.ANSI_RESET +
+                                 "Took  " +
+                                 scannerPrepTime +
+                                 "ms." );
+
         long stage1StartTime = System.currentTimeMillis();
         logOutput.apply( Constants.ANSI_GREEN + "Running Stage 1 Scan..." + Constants.ANSI_RESET );
         final List< String > stage1InfectionsList = new ArrayList<>();
@@ -97,6 +112,10 @@ public class Main
              */
             @Override
             public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs ) {
+                // Check if the directory should be excluded
+                if ( isPathExcludedFromScan( dirToCheck, dir, excludeFolders ) ) {
+                    return FileVisitResult.SKIP_SUBTREE; // Skip visiting contents of this directory
+                }
                 return FileVisitResult.CONTINUE;
             }
 
@@ -109,6 +128,11 @@ public class Main
              */
             @Override
             public FileVisitResult visitFile( Path file, BasicFileAttributes attrs ) {
+                // Check if the file should be excluded
+                if ( isPathExcludedFromScan( dirToCheck, file, excludeFolders ) ) {
+                    return FileVisitResult.CONTINUE; // Skip scanning this file
+                }
+
                 // Check if file is a scannable Jar file
                 boolean isScannable = file.toString().toLowerCase().endsWith( Constants.JAR_FILE_EXTENSION );
 
@@ -225,4 +249,60 @@ public class Main
             executorService.shutdownNow();
         }
     }
+
+    private static String normalizeExcludedPath( String exclusion ) {
+        // Trim leading and trailing whitespace
+        String normalized = exclusion.trim();
+
+        // Remove leading slash if present
+        if ( normalized.startsWith( "/" ) ) {
+            normalized = normalized.substring( 1 );
+        }
+
+        // Remove trailing slash if present
+        if ( normalized.endsWith( "/" ) ) {
+            normalized = normalized.substring( 0, normalized.length() - 1 );
+        }
+
+        return normalized;
+    }
+
+    private static boolean isPathExcludedFromScan( Path scanPath, Path checkPath, List< String > excludePaths ) {
+        // Check if the checkPath is the same as the scanPath
+        if ( scanPath.equals( checkPath ) ) {
+            return false; // The scanPath itself should not be excluded
+        }
+
+        // Get checkPath relative to scanPath (and parent)
+        Path relativeCheckPath = scanPath.relativize( checkPath );
+        Path relativeCheckPathParent = relativeCheckPath.getParent();
+        String relativeCheckPathString = relativeCheckPath.toString().toLowerCase();
+        String relativeCheckPathParentString = relativeCheckPath.toString().toLowerCase();
+        String relativeCheckPathFileName = relativeCheckPath.getFileName().toString().toLowerCase();
+
+        // Iterate over each exclusion pattern to check for a match
+        for ( String excludePath : excludePaths ) {
+            // Get the normalized and lowercase exclusion pattern
+            String normalizedExclude = normalizeExcludedPath( excludePath ).toLowerCase();
+
+            // Check if the exclusion pattern matches the exact path (case-insensitive)
+            if ( normalizedExclude.equals( relativeCheckPathString ) ) {
+                return true; // The path is excluded from the scan
+            }
+
+            // Check if the exclusion pattern matches the parent folder path (case-insensitive)
+            if ( relativeCheckPathParent != null && normalizedExclude.equals( relativeCheckPathParentString ) ) {
+                return true; // The path is excluded from the scan
+            }
+
+            // Check if the exclusion pattern matches a parent folder path (case-insensitive)
+            if ( relativeCheckPathParent != null &&
+                    relativeCheckPathString.startsWith( normalizedExclude + File.separator ) ) {
+                return true; // The path is excluded from the scan
+            }
+        }
+
+        return false; // The path is not excluded from the scan
+    }
+
 }
