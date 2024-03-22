@@ -54,7 +54,7 @@ import org.apache.commons.io.FilenameUtils;
 /**
  * Class representation of a Forge mod pack with functionality to update mods, game libraries and start the game.
  *
- * @version 1.2
+ * @version 1.3
  */
 public class GameModPack
 {
@@ -154,6 +154,14 @@ public class GameModPack
      */
     @SuppressWarnings( "unused" )
     private String packForgeHash;
+
+    /**
+     * Mod pack scan exclusions (file or folder names, relative to mod pack root). Value read from manifest JSON.
+     *
+     * @since 1.3
+     */
+    @SuppressWarnings( "unused" )
+    private List< String > packScanExclusions;
 
     /**
      * List of mod pack Forge mods. Value read from manifest JSON.
@@ -264,6 +272,20 @@ public class GameModPack
      */
     public GameLibraryManifest getMinecraftLibraryManifest() throws ModpackException {
         return GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(), this );
+    }
+
+    /**
+     * Get the mod pack scan exclusions (file or folder names, relative to mod pack root) for this modpack.
+     *
+     * @return list of scan exclusions
+     *
+     * @since 1.3
+     */
+    public List< String > getPackScanExclusions() {
+        if ( packScanExclusions == null ) {
+            packScanExclusions = new ArrayList<>();
+        }
+        return packScanExclusions;
     }
 
     /**
@@ -403,8 +425,8 @@ public class GameModPack
             return out;
         };
 
-        Results scanResults = Main.run( scanCoreCount, Path.of( getPackRootFolder() ), emitWalkErrors, logOutput,
-                                        null );
+        Results scanResults = Main.run( scanCoreCount, Path.of( getPackRootFolder() ), emitWalkErrors,
+                                        getPackScanExclusions(), logOutput, null );
         if ( scanResults.getStage1Detections() != null && !scanResults.getStage1Detections().isEmpty() ) {
             logOutput.apply( "Stage 1 infections found: " + scanResults.getStage1Detections().size() );
             throw new ModpackScanDetectionException( scanResults );

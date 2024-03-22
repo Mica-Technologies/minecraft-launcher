@@ -54,7 +54,7 @@ import oshi.SystemInfo;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.function.Function;
 
 public class MCLauncherSettingsGui extends MCLauncherAbstractGui
@@ -565,7 +565,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             }
             return progress;
         };
-        Results scanResults = Main.run( scanCoreCount, scanFolder.toPath(), emitWalkErrors, logOutput, progressOutput );
+        Results scanResults = Main.run( scanCoreCount, scanFolder.toPath(), emitWalkErrors, new ArrayList<>(),
+                                        logOutput, progressOutput );
         if ( scanResults.getStage1Detections() != null &&
                 !scanResults.getStage1Detections().isEmpty() &&
                 scanResults.getStage2Detections() != null &&
