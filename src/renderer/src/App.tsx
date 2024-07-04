@@ -1,5 +1,7 @@
 import Versions from './components/Versions'
 import electronLogo from './assets/electron.svg'
+import Stack from '@mui/material/Stack'
+import Button from '@mui/material/Button'
 
 function App(): JSX.Element {
   const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
@@ -16,16 +18,14 @@ function App(): JSX.Element {
         Please try pressing <code>F12</code> to open the devTool
       </p>
       <div className="actions">
-        <div className="action">
+        <Stack spacing={2} direction="row">
           <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
+            <Button variant="outlined">Documentation</Button>
           </a>
-        </div>
-        <div className="action">
           <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
+            <Button variant="outlined">Send IPC</Button>
           </a>
-        </div>
+        </Stack>
       </div>
       <Versions></Versions>
     </>
