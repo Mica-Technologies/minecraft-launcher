@@ -32,6 +32,8 @@ import java.nio.file.Path;
 
 public class MCLauncherAuthManager
 {
+    public static final String CLIENT_ID="e947042e-fc02-42c5-8159-950cde78ea75";
+    public static final String AUTH_REDIRECT_URL="https://login.live.com/oauth20_desktop.srf";
     private static final Path SAVED_LOGIN_FILE_PATH = Path.of( LocalPathManager.getRememberedAccountFilePath() );
     private static       User loggedIn              = null;
 
@@ -68,7 +70,7 @@ public class MCLauncherAuthManager
             Logger.logDebug( LocalizationManager.REMEMBERED_USER_LOADED_TEXT );
 
             // Update authentication
-            final Authenticator authenticator = Authenticator.of( previousAuthFile ).shouldAuthenticate().build();
+            final Authenticator authenticator = Authenticator.of( previousAuthFile ).shouldRetrieveXBoxProfile().shouldAuthenticate().build();
             authenticator.run();
 
             if ( authenticator.getResultFile() != null ) {
@@ -111,7 +113,10 @@ public class MCLauncherAuthManager
         // Try to login with Microsoft
         try {
             // Perform authentication
-            final Authenticator authenticator = Authenticator.ofMicrosoft( authCode ).shouldAuthenticate().build();
+            final Authenticator authenticator =
+                    Authenticator.ofMicrosoft( authCode ).customAzureApplication( CLIENT_ID,AUTH_REDIRECT_URL ).shouldRetrieveXBoxProfile().shouldAuthenticate().build();
+//            final Authenticator authenticator =
+//                    Authenticator.ofMicrosoft( authCode ).customAzureApplication( clientId,redirectUrl ).shouldRetrieveXBoxProfile().shouldAuthenticate().build();
             authenticator.run();
 
             if ( authenticator.getResultFile() != null ) {

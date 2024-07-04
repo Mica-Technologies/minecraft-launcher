@@ -21,11 +21,9 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
-import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
-import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
-import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
-import io.github.palexdev.materialfx.controls.*;
+import com.micatechnologies.minecraft.launcher.utilities.*;
+import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXToggleButton;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.RowConstraints;
@@ -40,7 +38,9 @@ import java.net.CookieManager;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
@@ -49,6 +49,8 @@ import static java.util.stream.Collectors.*;
 
 public class MCLauncherLoginGui extends MCLauncherAbstractGui
 {
+    private final CountDownLatch loginSuccessLatch        = new CountDownLatch( 1 );
+    private final AtomicBoolean  waitingOnWebViewResponse = new AtomicBoolean( false );
     /**
      * Exit button. This button closes the window, but in most cases the result is the application closing as well.
      *
@@ -56,8 +58,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton exitBtn;
-
+    MFXButton       exitBtn;
     /**
      * Authentication web view area.
      *
@@ -65,8 +66,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    WebView authWebView;
-
+    WebView         authWebView;
     /**
      * Microsoft Account stay logged in option check box. If checked, this enabled saving of the account on persistent
      * storage so it can be used automatically.
@@ -76,7 +76,6 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton msStayLoggedInCheckBox;
-
     /**
      * Announcement banner.
      *
@@ -84,8 +83,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    Label announcement;
-
+    Label           announcement;
     /**
      * Announcement banner row constraints.
      *
@@ -93,10 +91,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    RowConstraints announcementRow;
-
-    private final CountDownLatch loginSuccessLatch        = new CountDownLatch( 1 );
-    private final AtomicBoolean  waitingOnWebViewResponse = new AtomicBoolean( false );
+    RowConstraints  announcementRow;
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
@@ -191,18 +186,21 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         // Load MS login website
         CookieManager cookieManager = new CookieManager();
         CookieHandler.setDefault( cookieManager );
-        authWebView.getEngine().load( MicrosoftService.oAuthLoginUrl().toString() );
+
+        authWebView.getEngine().load( MicrosoftService.oAuthLoginUrl(MCLauncherAuthManager.CLIENT_ID,
+                                                                     MCLauncherAuthManager.AUTH_REDIRECT_URL).toString() );
 
         // Set waiting on web view response flag to true
         waitingOnWebViewResponse.set( true );
 
         // Configure web view listener
         authWebView.getEngine().getLoadWorker().stateProperty().addListener( ( observable, oldValue, newValue ) -> {
+            System.out.println( "WebView location: " + authWebView.getEngine().getLocation() );
             // Only run handler if expecting a response
             if ( waitingOnWebViewResponse.get() ) {
                 // Check if page is on callback/redirect URI
                 String location = authWebView.getEngine().getLocation();
-                if ( location.startsWith( Constants.MICROSOFT_OAUTH_REDIRECT_URL ) ) {
+                if ( location.startsWith( MCLauncherAuthManager.AUTH_REDIRECT_URL ) ) {
                     // Set waiting on web view response flag to false
                     waitingOnWebViewResponse.set( false );
 
@@ -273,7 +271,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     private void handleBadLogin() {
         Logger.logError( "Failed to login with Microsoft!" );
-        loadMsAuthFrame();
+        GUIUtilities.JFXPlatformRun( this::loadMsAuthFrame );
     }
 
     /**
