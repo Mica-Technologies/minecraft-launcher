@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { preShutdown } from './core'
 import icon from '../../resources/icon.png?asset'
 
 function createWindow(): void {
@@ -10,6 +11,7 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
+    icon: icon,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -40,7 +42,7 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.micatechnologies.launcher')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -64,9 +66,18 @@ app.whenReady().then(() => {
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
+// Also, call the launcher core onShutdown function (unless on macOS)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    preShutdown()
     app.quit()
+  }
+})
+
+// On macOS, call the launcher core onShutdown function when the app is quit
+app.on('before-quit', () => {
+  if (process.platform === 'darwin') {
+    preShutdown()
   }
 })
 
