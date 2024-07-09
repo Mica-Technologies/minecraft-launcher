@@ -8,5 +8,12 @@
   },
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "favorites.resources": [
+    {
+      "filePath": "src",
+      "group": "Default"
+    }
+  ],
+  "workbench.iconTheme": "file-icons"
 }
