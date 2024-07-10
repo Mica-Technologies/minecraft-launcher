@@ -15,5 +15,8 @@
       "group": "Default"
     }
   ],
-  "workbench.iconTheme": "file-icons"
+  "workbench.iconTheme": "file-icons",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "npm.packageManager": "yarn"
 }
