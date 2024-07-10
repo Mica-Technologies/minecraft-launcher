@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import { startGUI } from './lifecycle/startupGui'
 import { startHeadless } from './lifecycle/startupHeadless'
-import { handleCliArgs } from './lifecycle/cliArgs'
+import { handleCliArgs, cliUsageText } from './lifecycle/cliArgs'
 import { setLauncherHeadless, setLauncherMode } from './utils/launcherState'
 import { postStartup, preStartup } from './lifecycle/events'
 
@@ -11,7 +11,16 @@ import { postStartup, preStartup } from './lifecycle/events'
 app.whenReady().then(async () => {
   try {
     // Parse CLI arguments
-    const { headless: cliHeadless, launcherMode } = await handleCliArgs()
+    let cliArgs
+    try {
+      cliArgs = await handleCliArgs()
+    } catch (error) {
+      console.log(cliUsageText) // Display usage information
+      console.error(error)
+      app.quit()
+      return // Exit early
+    }
+    const { headless: cliHeadless, launcherMode } = cliArgs
 
     // Check if monitor/videocard is supported
     // TODO: Implement this
@@ -44,6 +53,6 @@ app.whenReady().then(async () => {
 
 // Handle unhandled errors
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Promise Rejection:', reason);
-  app.quit();
-});
+  console.error('Unhandled Promise Rejection:', reason)
+  app.quit()
+})
