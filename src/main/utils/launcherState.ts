@@ -34,15 +34,3 @@ export async function setLauncherHeadless(newHeadless: boolean): Promise<void> {
         headless = newHeadless;
     });
 }
-
-
-// Example usage:
-(async () => {
-    await setLauncherMode(LauncherMode.CLIENT);
-    const mode = await getLauncherMode();
-    console.log(`Current mode is: ${mode}`);
-    
-    await setLauncherHeadless(true);
-    const headless = await isLauncherHeadless();
-    console.log(`Is headless: ${headless}`);
-})();

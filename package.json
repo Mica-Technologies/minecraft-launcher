@@ -12,6 +12,9 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "start": "electron-vite preview",
+    "start:headless": "electron-vite preview -- --headless",
+    "start:server": "electron-vite preview -- --launcherde server",
+    "start:client": "electron-vite preview -- --launchMode client",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
@@ -27,6 +30,8 @@
     "@emotion/styled": "^11.11.5",
     "@mui/material": "^5.15.21",
     "async-mutex": "^0.5.0",
+    "command-line-args": "^6.0.0",
+    "command-line-usage": "^7.0.2",
     "electron-updater": "^6.1.7",
     "npm": "^10.8.1",
     "react-router-dom": "^6.24.1"
