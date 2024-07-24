@@ -50,6 +50,7 @@ export function startGUI(): void {
     // Setup IPC for front-end<-->back-end communication
     setupIpc()
 
+    // Create the main window
     createWindow()
 
     app.on('activate', function () {
