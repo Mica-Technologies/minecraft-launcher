@@ -5,7 +5,8 @@
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.tsx",
     "src/preload/*.d.ts",
-    "src/common/**/*"
+    "src/common/**/*",
+    "src/types/**/*"
   ],
   "compilerOptions": {
     "composite": true,
@@ -13,7 +14,8 @@
     "baseUrl": "./src",
     "paths": {
       "@renderer/*": ["renderer/src/*"],
-      "@common/*": ["common/*"]
+      "@common/*": ["common/*"],
+      "@launcherTypes/*": ["types/*"]
     }
   }
 }

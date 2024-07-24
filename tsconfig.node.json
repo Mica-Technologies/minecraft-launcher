@@ -4,7 +4,8 @@
     "electron.vite.config.*",
     "src/main/**/*",
     "src/preload/**/*",
-    "src/common/**/*"
+    "src/common/**/*",
+    "src/types/**/*"
   ],
   "compilerOptions": {
     "composite": true,
@@ -13,7 +14,8 @@
     "paths": {
       "@main/*": ["main/*"],
       "@preload/*": ["preload/*"],
-      "@common/*": ["common/*"]
+      "@common/*": ["common/*"],
+      "@launcherTypes/*": ["types/*"]
     }
   }
 }
