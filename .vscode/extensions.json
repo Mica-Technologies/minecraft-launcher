@@ -3,6 +3,7 @@
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
     "nextbook.file-and-folder-icons",
-    "howardzuo.vscode-favorites"
+    "howardzuo.vscode-favorites",
+    "editorconfig.editorconfig"
   ]
 }
