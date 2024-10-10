@@ -1,12 +1,11 @@
 export function preStartup() {
-    console.log('preStartup');
+  console.log('preStartup');
 }
 
 export function postStartup() {
-    console.log('postStartup');
+  console.log('postStartup');
 }
 
 export function preShutdown() {
-    console.log('preShutdown');
+  console.log('preShutdown');
 }
-

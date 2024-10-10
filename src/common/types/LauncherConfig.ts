@@ -9,29 +9,29 @@
  */
 export interface LauncherConfig {
   gameConfiguration: {
-    minRAM: number
-    maxRAM: number
-    customJvmArguments: string[]
-  }
+    minRAM: number;
+    maxRAM: number;
+    customJvmArguments: string[];
+  };
   modPackSelectionConfiguration: {
-    sortBy: 'name' | 'lastPlayed'
-    sortDescending: boolean
-    lastSelectedModPack: string
-    favoriteModPacks: string[]
-    autoStartModPack?: string | null
-  }
+    sortBy: 'name' | 'lastPlayed';
+    sortDescending: boolean;
+    lastSelectedModPack: string;
+    favoriteModPacks: string[];
+    autoStartModPack?: string | null;
+  };
   socialConfiguration: {
-    discordEnabled: boolean
-    hideGameDetails: boolean
-  }
+    discordEnabled: boolean;
+    hideGameDetails: boolean;
+  };
   styleConfiguration: {
-    theme: 'auto' | 'light' | 'dark'
-    useNativeTitleBar: boolean
-    useWindowsTitleBarOverlay: boolean
-  }
+    theme: 'auto' | 'light' | 'dark';
+    useNativeTitleBar: boolean;
+    useWindowsTitleBarOverlay: boolean;
+  };
   advancedConfiguration: {
-    resetLauncherOnNextStart: boolean
-  }
+    resetLauncherOnNextStart: boolean;
+  };
 }
 
 /**
@@ -43,25 +43,25 @@ export function getDefaultConfig(): LauncherConfig {
     gameConfiguration: {
       minRAM: 2048,
       maxRAM: 4096,
-      customJvmArguments: []
+      customJvmArguments: [],
     },
     modPackSelectionConfiguration: {
       sortBy: 'name',
       sortDescending: false,
       lastSelectedModPack: '',
-      favoriteModPacks: []
+      favoriteModPacks: [],
     },
     socialConfiguration: {
       discordEnabled: true,
-      hideGameDetails: false
+      hideGameDetails: false,
     },
     styleConfiguration: {
       theme: 'auto',
       useNativeTitleBar: false,
-      useWindowsTitleBarOverlay: false
+      useWindowsTitleBarOverlay: false,
     },
     advancedConfiguration: {
-      resetLauncherOnNextStart: false
-    }
-  }
+      resetLauncherOnNextStart: false,
+    },
+  };
 }

@@ -1,11 +1,11 @@
-import Versions from '@renderer/components/Versions'
-import electronLogo from '@renderer/assets/electron.svg'
-import backgroundImage from '@renderer/assets/background-devtemp.png'
-import Stack from '@mui/material/Stack'
-import Button from '@mui/material/Button'
+import Versions from '@renderer/components/Versions';
+import electronLogo from '@renderer/assets/electron.svg';
+import backgroundImage from '@renderer/assets/background-devtemp.png';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 
 function About(): JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping');
 
   return (
     <Stack
@@ -16,7 +16,7 @@ function About(): JSX.Element {
         backgroundImage: `url(${backgroundImage})`,
         backgroundSize: 'cover',
         width: '100vw',
-        height: '100vh'
+        height: '100vh',
       }}
     >
       <img alt="logo" className="logo" src={electronLogo} />
@@ -30,7 +30,7 @@ function About(): JSX.Element {
       </p>
       <div className="actions">
         <Stack spacing={2} direction="row">
-        <a href="#"rel="noreferrer">
+          <a href="#" rel="noreferrer">
             <Button variant="outlined">Back</Button>
           </a>
           <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
@@ -40,7 +40,7 @@ function About(): JSX.Element {
       </div>
       <Versions></Versions>
     </Stack>
-  )
+  );
 }
 
-export default About
+export default About;

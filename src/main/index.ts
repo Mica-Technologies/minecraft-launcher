@@ -1,9 +1,9 @@
-import { app } from 'electron'
-import { startGUI } from './lifecycle/startupGui'
-import { startHeadless } from './lifecycle/startupHeadless'
-import { handleCliArgs, cliUsageText } from './lifecycle/cliArgs'
-import { setLauncherHeadless, setLauncherMode } from './utils/launcherState'
-import { postStartup, preStartup } from './lifecycle/events'
+import { app } from 'electron';
+import { startGUI } from './lifecycle/startupGui';
+import { startHeadless } from './lifecycle/startupHeadless';
+import { handleCliArgs, cliUsageText } from './lifecycle/cliArgs';
+import { setLauncherHeadless, setLauncherMode } from './utils/launcherState';
+import { postStartup, preStartup } from './lifecycle/events';
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -11,48 +11,48 @@ import { postStartup, preStartup } from './lifecycle/events'
 app.whenReady().then(async () => {
   try {
     // Parse CLI arguments
-    let cliArgs
+    let cliArgs;
     try {
-      cliArgs = await handleCliArgs()
+      cliArgs = await handleCliArgs();
     } catch (error) {
-      console.log(cliUsageText) // Display usage information
-      console.error(error)
-      app.quit()
-      return // Exit early
+      console.log(cliUsageText); // Display usage information
+      console.error(error);
+      app.quit();
+      return; // Exit early
     }
-    const { headless: cliHeadless, launcherMode } = cliArgs
+    const { headless: cliHeadless, launcherMode } = cliArgs;
 
     // Check if monitor/videocard is supported
     // TODO: Implement this
-    const monitorSupported = true
-    const headless = cliHeadless || !monitorSupported
+    const monitorSupported = true;
+    const headless = cliHeadless || !monitorSupported;
 
     // Set the launcher mode and headless states
-    await setLauncherMode(launcherMode)
-    await setLauncherHeadless(headless)
-    console.log(`Launcher mode: ${launcherMode}`)
-    console.log(`Headless mode: ${headless}`)
+    await setLauncherMode(launcherMode);
+    await setLauncherHeadless(headless);
+    console.log(`Launcher mode: ${launcherMode}`);
+    console.log(`Headless mode: ${headless}`);
 
     // Perform pre-startup tasks
-    preStartup()
+    preStartup();
 
     // Start the application in the appropriate mode
     if (headless) {
-      startHeadless()
+      startHeadless();
     } else {
-      startGUI()
+      startGUI();
     }
 
     // Perform post-startup tasks
-    postStartup()
+    postStartup();
   } catch (error) {
-    console.error('An error occurred during startup:', error)
-    app.quit()
+    console.error('An error occurred during startup:', error);
+    app.quit();
   }
-})
+});
 
 // Handle unhandled errors
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Promise Rejection:', reason)
-  app.quit()
-})
+  console.error('Unhandled Promise Rejection:', reason);
+  app.quit();
+});

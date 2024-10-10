@@ -1,10 +1,10 @@
-import { GetReleasesErrorResponse, GetReleasesResponse, LibericaAPI } from './LibericaApi' // Import the LibericaAPI class
+import { GetReleasesErrorResponse, GetReleasesResponse, LibericaAPI } from './LibericaApi'; // Import the LibericaAPI class
 
 export class JreManager {
-  private api: LibericaAPI
+  private api: LibericaAPI;
 
   constructor() {
-    this.api = new LibericaAPI() // Initialize the LibericaAPI class
+    this.api = new LibericaAPI(); // Initialize the LibericaAPI class
   }
 
   /**
@@ -18,12 +18,12 @@ export class JreManager {
     const releasesResponse: GetReleasesResponse | GetReleasesErrorResponse =
       await this.api.getReleases({
         version,
-        'bundle-type': bundleType
-      })
+        'bundle-type': bundleType,
+      });
 
     // Check if the response is an error
     if ('error' in releasesResponse) {
-      throw new Error(releasesResponse.error)
+      throw new Error(releasesResponse.error);
     }
   }
 }

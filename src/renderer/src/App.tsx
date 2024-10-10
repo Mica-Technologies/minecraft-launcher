@@ -2,7 +2,6 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 import Main from './pages/Main';
 import About from './pages/About';
 
-
 function App(): JSX.Element {
   return (
     <HashRouter>
@@ -14,4 +13,4 @@ function App(): JSX.Element {
   );
 }
 
-export default App
+export default App;

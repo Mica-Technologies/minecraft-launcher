@@ -1,11 +1,11 @@
-import Versions from '@renderer/components/Versions'
-import electronLogo from '@renderer/assets/electron.svg'
-import Stack from '@mui/material/Stack'
-import Button from '@mui/material/Button'
-import RootUiStack from '@renderer/components/containers/RootUiStack'
+import Versions from '@renderer/components/Versions';
+import electronLogo from '@renderer/assets/electron.svg';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import RootUiStack from '@renderer/components/containers/RootUiStack';
 
 function Main(): JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping');
 
   return (
     <RootUiStack>
@@ -30,7 +30,7 @@ function Main(): JSX.Element {
       </div>
       <Versions></Versions>
     </RootUiStack>
-  )
+  );
 }
 
-export default Main
+export default Main;

@@ -1,23 +1,23 @@
-import { app, shell, BrowserWindow } from 'electron'
-import { join } from 'path'
-import { optimizer, is } from '@electron-toolkit/utils'
-import { preShutdown } from '../lifecycle/events'
-import icon from '../../../resources/icon.png?asset'
-import { setupIpc } from './ipc'
-import electronWindowState from 'electron-window-state'
+import { app, shell, BrowserWindow } from 'electron';
+import { join } from 'path';
+import { optimizer, is } from '@electron-toolkit/utils';
+import { preShutdown } from '../lifecycle/events';
+import icon from '../../../resources/icon.png?asset';
+import { setupIpc } from './ipc';
+import electronWindowState from 'electron-window-state';
 
-const MAIN_WINDOW_DEFAULT_WIDTH = 900
-const MAIN_WINDOW_DEFAULT_HEIGHT = 670
-const MAIN_WINDOW_MIN_WIDTH = 800
-const MAIN_WINDOW_MIN_HEIGHT = 600
+const MAIN_WINDOW_DEFAULT_WIDTH = 900;
+const MAIN_WINDOW_DEFAULT_HEIGHT = 670;
+const MAIN_WINDOW_MIN_WIDTH = 800;
+const MAIN_WINDOW_MIN_HEIGHT = 600;
 
 export function createWindow(): void {
   // Load the previous state with fallback to defaults
   const mainWindowState = electronWindowState({
     defaultWidth: MAIN_WINDOW_DEFAULT_WIDTH,
     defaultHeight: MAIN_WINDOW_DEFAULT_HEIGHT,
-    file: 'main-window-state.json'
-  })
+    file: 'main-window-state.json',
+  });
 
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -33,35 +33,35 @@ export function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
-  })
+      sandbox: false,
+    },
+  });
 
   // Set the bounds
-  mainWindowState.manage(mainWindow)
+  mainWindowState.manage(mainWindow);
   mainWindow.setBounds(
     {
       width: mainWindowState.width || MAIN_WINDOW_DEFAULT_WIDTH,
-      height: mainWindowState.height || MAIN_WINDOW_DEFAULT_HEIGHT
+      height: mainWindowState.height || MAIN_WINDOW_DEFAULT_HEIGHT,
     },
     false
-  )
+  );
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
+    mainWindow.show();
+  });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+    shell.openExternal(details.url);
+    return { action: 'deny' };
+  });
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 }
 
@@ -71,21 +71,21 @@ export function startGUI(): void {
     // and ignore CommandOrControl + R in production.
     // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
     app.on('browser-window-created', (_, window) => {
-      optimizer.watchWindowShortcuts(window)
-    })
+      optimizer.watchWindowShortcuts(window);
+    });
 
     // Setup IPC for front-end<-->back-end communication
-    setupIpc()
+    setupIpc();
 
     // Create the main window
-    createWindow()
+    createWindow();
 
     app.on('activate', function () {
       // On macOS it's common to re-create a window in the app when the
       // dock icon is clicked and there are no other windows open.
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
-    })
-  })
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
 
   // Quit when all windows are closed, except on macOS. There, it's common
   // for applications and their menu bar to stay active until the user quits
@@ -93,15 +93,15 @@ export function startGUI(): void {
   // Also, call the launcher core onShutdown function (unless on macOS)
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
-      preShutdown()
-      app.quit()
+      preShutdown();
+      app.quit();
     }
-  })
+  });
 
   // On macOS, call the launcher core onShutdown function when the app is quit
   app.on('before-quit', () => {
     if (process.platform === 'darwin') {
-      preShutdown()
+      preShutdown();
     }
-  })
+  });
 }

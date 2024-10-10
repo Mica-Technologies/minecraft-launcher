@@ -4,1235 +4,1325 @@
  */
 
 export interface paths {
-    "/liberica/releases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Returns a list of properties and a download URL for Liberica JDK releases. */
-        get: {
-            parameters: {
-                query?: {
-                    /**
-                     * @description Full Liberica JDK version filter
-                     * @example 11.0.5+11
-                     */
-                    version?: string;
-                    /** @description Feature version filter */
-                    "version-feature"?: components["schemas"]["FeatureVersion"];
-                    /**
-                     * @description Interim version filter
-                     * @example 0
-                     */
-                    "version-interim"?: number;
-                    /**
-                     * @description Update version filter
-                     * @example 5
-                     */
-                    "version-update"?: number;
-                    /**
-                     * @description Patch version filter
-                     * @example 0
-                     */
-                    "version-patch"?: number;
-                    /**
-                     * @description Version modifier
-                     * @example latest
-                     */
-                    "version-modifier"?: "latest" | "supported";
-                    /** @description Bitness filter */
-                    bitness?: components["schemas"]["Bitness"];
-                    /**
-                     * @description FX filter
-                     * @example false
-                     */
-                    fx?: boolean;
-                    /** @description EA / GA filter */
-                    "build-type"?: "ea" | "all";
-                    /** @description LTS / All filter */
-                    "release-type"?: "lts" | "all";
-                    /**
-                     * @description OS filter
-                     * @example windows
-                     */
-                    os?: components["schemas"]["OperatingSystem"];
-                    /**
-                     * @description Architecture filter
-                     * @example x86
-                     */
-                    arch?: components["schemas"]["Architecture"];
-                    /**
-                     * @description Installation type filter
-                     * @example archive
-                     */
-                    "installation-type"?: components["schemas"]["InstallType"];
-                    /**
-                     * @description Package type filter
-                     * @example zip
-                     */
-                    "package-type"?: components["schemas"]["PackageType"];
-                    /**
-                     * @description Bundle type filter
-                     * @example jdk
-                     */
-                    "bundle-type"?: components["schemas"]["BundleType"];
-                    /** @description Response format modifier. Default value is json. */
-                    output?: "json" | "text";
-                    /** @description Comma separated list of fields */
-                    fields?: ("architecture" | "bitness" | "buildVersion" | "bundleType" | "downloadUrl" | "EOL" | "featureVersion" | "filename" | "FX" | "GA" | "installationType" | "interimVersion" | "latest" | "latestInFeatureVersion" | "latestLTS" | "LTS" | "os" | "packageType" | "patchVersion" | "sha1" | "size" | "updateVersion" | "version")[];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Expected response to a valid request */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Releases"];
-                        "text/plain": string;
-                    };
-                };
-                /** @description Wrong parameter or wrong parameter value */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/liberica/releases': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/liberica/releases/{filename}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /** Returns a list of properties and a download URL for Liberica JDK releases. */
+    get: {
+      parameters: {
+        query?: {
+          /**
+           * @description Full Liberica JDK version filter
+           * @example 11.0.5+11
+           */
+          version?: string;
+          /** @description Feature version filter */
+          'version-feature'?: components['schemas']['FeatureVersion'];
+          /**
+           * @description Interim version filter
+           * @example 0
+           */
+          'version-interim'?: number;
+          /**
+           * @description Update version filter
+           * @example 5
+           */
+          'version-update'?: number;
+          /**
+           * @description Patch version filter
+           * @example 0
+           */
+          'version-patch'?: number;
+          /**
+           * @description Version modifier
+           * @example latest
+           */
+          'version-modifier'?: 'latest' | 'supported';
+          /** @description Bitness filter */
+          bitness?: components['schemas']['Bitness'];
+          /**
+           * @description FX filter
+           * @example false
+           */
+          fx?: boolean;
+          /** @description EA / GA filter */
+          'build-type'?: 'ea' | 'all';
+          /** @description LTS / All filter */
+          'release-type'?: 'lts' | 'all';
+          /**
+           * @description OS filter
+           * @example windows
+           */
+          os?: components['schemas']['OperatingSystem'];
+          /**
+           * @description Architecture filter
+           * @example x86
+           */
+          arch?: components['schemas']['Architecture'];
+          /**
+           * @description Installation type filter
+           * @example archive
+           */
+          'installation-type'?: components['schemas']['InstallType'];
+          /**
+           * @description Package type filter
+           * @example zip
+           */
+          'package-type'?: components['schemas']['PackageType'];
+          /**
+           * @description Bundle type filter
+           * @example jdk
+           */
+          'bundle-type'?: components['schemas']['BundleType'];
+          /** @description Response format modifier. Default value is json. */
+          output?: 'json' | 'text';
+          /** @description Comma separated list of fields */
+          fields?: (
+            | 'architecture'
+            | 'bitness'
+            | 'buildVersion'
+            | 'bundleType'
+            | 'downloadUrl'
+            | 'EOL'
+            | 'featureVersion'
+            | 'filename'
+            | 'FX'
+            | 'GA'
+            | 'installationType'
+            | 'interimVersion'
+            | 'latest'
+            | 'latestInFeatureVersion'
+            | 'latestLTS'
+            | 'LTS'
+            | 'os'
+            | 'packageType'
+            | 'patchVersion'
+            | 'sha1'
+            | 'size'
+            | 'updateVersion'
+            | 'version'
+          )[];
         };
-        /** Returns properties and a download URL for a particular Liberica JDK release by filename (id). */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /**
-                     * @description Filename filter
-                     * @example bellsoft-jdk11.0.5+11-windows-amd64.msi
-                     */
-                    filename: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Expected response to a valid request */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Release"];
-                    };
-                };
-                /** @description Release not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Expected response to a valid request */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Releases'];
+            'text/plain': string;
+          };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+        /** @description Wrong parameter or wrong parameter value */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
     };
-    "/liberica/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Returns a list of all possible versions of Liberica JDK. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of versions. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Versions"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/liberica/releases/{filename}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/liberica/versions/{feature-version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /** Returns properties and a download URL for a particular Liberica JDK release by filename (id). */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /**
+           * @description Filename filter
+           * @example bellsoft-jdk11.0.5+11-windows-amd64.msi
+           */
+          filename: string;
         };
-        /** Returns a list of possible versions of the particular feature version of Liberica JDK. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /**
-                     * @description Feature version
-                     * @example 11
-                     */
-                    "feature-version": string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of versions. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["VersionsFull"];
-                    };
-                };
-            };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Expected response to a valid request */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Release'];
+          };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+        /** @description Release not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
     };
-    "/liberica/architectures": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Returns a list of architectures (platforms) supported by Liberica JDK. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of architectures. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Architectures"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/liberica/versions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/liberica/operating-systems": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /** Returns a list of all possible versions of Liberica JDK. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List of versions. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Versions'];
+          };
         };
-        /** Returns a list of operating systems supported by Liberica JDK. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of supported operating systems. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["OperatingSystems"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
     };
-    "/liberica/installation-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Returns a list of installation types supported by Liberica JDK.
-         * @description Liberica JDK can be delivered as an archive or as an installer for a particular OS.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description list of supported installation types */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["InstallTypes"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/liberica/versions/{feature-version}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/liberica/package-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /** Returns a list of possible versions of the particular feature version of Liberica JDK. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /**
+           * @description Feature version
+           * @example 11
+           */
+          'feature-version': string;
         };
-        /**
-         * Returns a list of package types supported by Liberica JDK.
-         * @description Liberica JDK has multiple archives (binaries and sources) and installers suitable for different operating systems.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description list of supported package types */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PackageTypes"];
-                    };
-                };
-            };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List of versions. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['VersionsFull'];
+          };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
     };
-    "/liberica/bundle-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Returns a list of bundle types supported by Liberica JDK. Liberica distributes as JDK, JRE, or JDK-Lite bundles.
-         *
-         * @description - JDK stands for the Java Development Kit and can be used to develop applications in the Java programming language. JDK includes JRE.
-         *     - JRE stands for Java Runtime Environment and can be used to execute programs written in Java.
-         *     - JDK Lite is a lightweight version of the JDK without FX and some other features.
-         *
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description list of supported bundle types */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BundleTypes"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/liberica/architectures': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/vendor": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /** Returns a list of architectures (platforms) supported by Liberica JDK. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List of architectures. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Architectures'];
+          };
         };
-        /** Returns vendor description. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Vendor description */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Vendor"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
     };
-    "/products": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Returns BellSoft products description. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description product description */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Products"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/liberica/operating-systems': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/nik/releases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /** Returns a list of operating systems supported by Liberica JDK. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List of supported operating systems. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['OperatingSystems'];
+          };
         };
-        /** Returns a list of properties and a download URL for Liberica Native Image Kit releases (base components and/or their embedded and installable components). */
-        get: {
-            parameters: {
-                query?: {
-                    /**
-                     * @description Full Liberica Native Image Kit version filter
-                     * @example 21.0.0.2
-                     */
-                    version?: string;
-                    /** @description Annual version filter */
-                    "version-annual"?: components["schemas"]["nikAnnualVersion"];
-                    /**
-                     * @description Feature version filter
-                     * @example 0
-                     */
-                    "version-feature"?: number;
-                    /**
-                     * @description Patch version filter
-                     * @example 0
-                     */
-                    "version-patch"?: number;
-                    /**
-                     * @description Extra version filter
-                     * @example 2
-                     */
-                    "version-extra"?: number;
-                    /**
-                     * @description Version modifier
-                     * @example latest
-                     */
-                    "version-modifier"?: "latest";
-                    /** @description Nested component version filter */
-                    "component-version"?: "liberica@11" | "liberica@11.0.11+9" | "nodejs@12" | "nodejs@14.16.1" | "python@3.8.5" | "r@3.6.1" | "r@4.0.3";
-                    /** @description Bitness filter */
-                    bitness?: components["schemas"]["Bitness"];
-                    /** @description EA / GA filter */
-                    "build-type"?: "ea" | "all";
-                    /** @description LTS / All filter */
-                    "release-type"?: "lts" | "all";
-                    /**
-                     * @description OS filter
-                     * @example linux
-                     */
-                    os?: components["schemas"]["nikOperatingSystem"];
-                    /**
-                     * @description Architecture filter
-                     * @example x86
-                     */
-                    arch?: components["schemas"]["nikArchitecture"];
-                    /**
-                     * @description Installation type filter
-                     * @example archive
-                     */
-                    "installation-type"?: components["schemas"]["nikInstallType"];
-                    /**
-                     * @description Bundle type filter
-                     * @example standard
-                     */
-                    "bundle-type"?: components["schemas"]["nikBundleType"];
-                    /**
-                     * @description Package type filter
-                     * @example zip
-                     */
-                    "package-type"?: components["schemas"]["nikPackageType"];
-                    /** @description Response format modifier. Default value is json. */
-                    output?: "json" | "text";
-                    /** @description Comma separated list of fields */
-                    fields?: ("annualVersion" | "architecture" | "bitness" | "component" | "components" | "downloadUrl" | "EOL" | "embedded" | "extraVersion" | "featureVersion" | "filename" | "GA" | "installationType" | "latest" | "latestInAnnualVersion" | "latestLTS" | "LTS" | "os" | "packageType" | "patchVersion" | "releaseCatalogUrl" | "sha1" | "size" | "version")[];
-                    /** @description Comma separated list of Liberica Native Image Kit components */
-                    components?: ("liberica" | "llvm" | "ni" | "nik" | "nodejs" | "python" | "r" | "ruby" | "wasm")[];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Expected response to a valid request */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikReleases"];
-                        "text/plain": string;
-                    };
-                };
-                /** @description Wrong parameter or wrong parameter value */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
     };
-    "/nik/releases/{filename}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Returns properties and a download URL for a particular Liberica Native Image Kit release by filename (id). */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /**
-                     * @description Filename filter
-                     * @example bellsoft-liberica-vm-openjdk11-21.0.0.2-linux-amd64.tar.gz
-                     */
-                    filename: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Expected response to a valid request */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikRelease"];
-                    };
-                };
-                /** @description Release not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/liberica/installation-types': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/nik/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /**
+     * Returns a list of installation types supported by Liberica JDK.
+     * @description Liberica JDK can be delivered as an archive or as an installer for a particular OS.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description list of supported installation types */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['InstallTypes'];
+          };
         };
-        /** Returns a list of all possible versions of Liberica Native Image Kit. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of versions. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikVersions"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
     };
-    "/nik/versions/{annual-version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Returns a list of possible versions of the particular feature version of Liberica Native Image Kit. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /**
-                     * @description Annual version
-                     * @example 21
-                     */
-                    "annual-version": string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of versions. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikVersionsFull"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/liberica/package-types': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/nik/architectures": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /**
+     * Returns a list of package types supported by Liberica JDK.
+     * @description Liberica JDK has multiple archives (binaries and sources) and installers suitable for different operating systems.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description list of supported package types */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['PackageTypes'];
+          };
         };
-        /** Returns a list of architectures (platforms) supported by Liberica Native Image Kit. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of architectures. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikArchitectures"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
     };
-    "/nik/operating-systems": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Returns a list of operating systems supported by Liberica Native Image Kit. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description List of supported operating systems. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikOperatingSystems"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/liberica/bundle-types': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/nik/bundle-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /**
+     * Returns a list of bundle types supported by Liberica JDK. Liberica distributes as JDK, JRE, or JDK-Lite bundles.
+     *
+     * @description - JDK stands for the Java Development Kit and can be used to develop applications in the Java programming language. JDK includes JRE.
+     *     - JRE stands for Java Runtime Environment and can be used to execute programs written in Java.
+     *     - JDK Lite is a lightweight version of the JDK without FX and some other features.
+     *
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description list of supported bundle types */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BundleTypes'];
+          };
         };
-        /** Returns a list of bundle types supported by Liberica Native Image Kit. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description list of supported bundle types */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikBundleTypes"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
     };
-    "/nik/installation-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Returns a list of installation types supported by Liberica Native Image Kit.
-         * @description Liberica Native Image Kit can be delivered as an archive or as an installer for a particular OS.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description list of supported installation types */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikInstallTypes"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/vendor': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/nik/package-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    /** Returns vendor description. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Vendor description */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Vendor'];
+          };
         };
-        /**
-         * Returns a list of package types supported by Liberica Native Image Kit.
-         * @description Liberica Native Image Kit has multiple archives (binaries and sources) and installers suitable for different operating systems.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description list of supported package types */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["nikPackageTypes"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/products': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns BellSoft products description. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description product description */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Products'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/releases': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns a list of properties and a download URL for Liberica Native Image Kit releases (base components and/or their embedded and installable components). */
+    get: {
+      parameters: {
+        query?: {
+          /**
+           * @description Full Liberica Native Image Kit version filter
+           * @example 21.0.0.2
+           */
+          version?: string;
+          /** @description Annual version filter */
+          'version-annual'?: components['schemas']['nikAnnualVersion'];
+          /**
+           * @description Feature version filter
+           * @example 0
+           */
+          'version-feature'?: number;
+          /**
+           * @description Patch version filter
+           * @example 0
+           */
+          'version-patch'?: number;
+          /**
+           * @description Extra version filter
+           * @example 2
+           */
+          'version-extra'?: number;
+          /**
+           * @description Version modifier
+           * @example latest
+           */
+          'version-modifier'?: 'latest';
+          /** @description Nested component version filter */
+          'component-version'?:
+            | 'liberica@11'
+            | 'liberica@11.0.11+9'
+            | 'nodejs@12'
+            | 'nodejs@14.16.1'
+            | 'python@3.8.5'
+            | 'r@3.6.1'
+            | 'r@4.0.3';
+          /** @description Bitness filter */
+          bitness?: components['schemas']['Bitness'];
+          /** @description EA / GA filter */
+          'build-type'?: 'ea' | 'all';
+          /** @description LTS / All filter */
+          'release-type'?: 'lts' | 'all';
+          /**
+           * @description OS filter
+           * @example linux
+           */
+          os?: components['schemas']['nikOperatingSystem'];
+          /**
+           * @description Architecture filter
+           * @example x86
+           */
+          arch?: components['schemas']['nikArchitecture'];
+          /**
+           * @description Installation type filter
+           * @example archive
+           */
+          'installation-type'?: components['schemas']['nikInstallType'];
+          /**
+           * @description Bundle type filter
+           * @example standard
+           */
+          'bundle-type'?: components['schemas']['nikBundleType'];
+          /**
+           * @description Package type filter
+           * @example zip
+           */
+          'package-type'?: components['schemas']['nikPackageType'];
+          /** @description Response format modifier. Default value is json. */
+          output?: 'json' | 'text';
+          /** @description Comma separated list of fields */
+          fields?: (
+            | 'annualVersion'
+            | 'architecture'
+            | 'bitness'
+            | 'component'
+            | 'components'
+            | 'downloadUrl'
+            | 'EOL'
+            | 'embedded'
+            | 'extraVersion'
+            | 'featureVersion'
+            | 'filename'
+            | 'GA'
+            | 'installationType'
+            | 'latest'
+            | 'latestInAnnualVersion'
+            | 'latestLTS'
+            | 'LTS'
+            | 'os'
+            | 'packageType'
+            | 'patchVersion'
+            | 'releaseCatalogUrl'
+            | 'sha1'
+            | 'size'
+            | 'version'
+          )[];
+          /** @description Comma separated list of Liberica Native Image Kit components */
+          components?: (
+            | 'liberica'
+            | 'llvm'
+            | 'ni'
+            | 'nik'
+            | 'nodejs'
+            | 'python'
+            | 'r'
+            | 'ruby'
+            | 'wasm'
+          )[];
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Expected response to a valid request */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikReleases'];
+            'text/plain': string;
+          };
+        };
+        /** @description Wrong parameter or wrong parameter value */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/releases/{filename}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns properties and a download URL for a particular Liberica Native Image Kit release by filename (id). */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /**
+           * @description Filename filter
+           * @example bellsoft-liberica-vm-openjdk11-21.0.0.2-linux-amd64.tar.gz
+           */
+          filename: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Expected response to a valid request */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikRelease'];
+          };
+        };
+        /** @description Release not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/versions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns a list of all possible versions of Liberica Native Image Kit. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List of versions. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikVersions'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/versions/{annual-version}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns a list of possible versions of the particular feature version of Liberica Native Image Kit. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /**
+           * @description Annual version
+           * @example 21
+           */
+          'annual-version': string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List of versions. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikVersionsFull'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/architectures': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns a list of architectures (platforms) supported by Liberica Native Image Kit. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List of architectures. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikArchitectures'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/operating-systems': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns a list of operating systems supported by Liberica Native Image Kit. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List of supported operating systems. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikOperatingSystems'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/bundle-types': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Returns a list of bundle types supported by Liberica Native Image Kit. */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description list of supported bundle types */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikBundleTypes'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/installation-types': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Returns a list of installation types supported by Liberica Native Image Kit.
+     * @description Liberica Native Image Kit can be delivered as an archive or as an installer for a particular OS.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description list of supported installation types */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikInstallTypes'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/nik/package-types': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Returns a list of package types supported by Liberica Native Image Kit.
+     * @description Liberica Native Image Kit has multiple archives (binaries and sources) and installers suitable for different operating systems.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description list of supported package types */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['nikPackageTypes'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
+
 export type webhooks = Record<string, never>;
+
 export interface components {
-    schemas: {
-        Release: {
-            /** @example bellsoft-jdk11.0.5+11-windows-amd64.msi */
-            filename: string;
-            /**
-             * Format: uri
-             * @example http://cdb.bell-sw.com/bellsoft-jdk11.0.5+11-windows-amd64.msi
-             */
-            downloadUrl: string;
-            /** @example 52735923479 */
-            size: number;
-            /** @example ac8390c4ebd50db32aea33057051f35ba621aecf */
-            sha1: string;
-            /** @example 11.0.5+11 */
-            version: string;
-            os: components["schemas"]["OperatingSystem"];
-            bitness: components["schemas"]["Bitness"];
-            featureVersion: components["schemas"]["FeatureVersion"];
-            /** @example 0 */
-            interimVersion: number;
-            /** @example 5 */
-            updateVersion: number;
-            /** @example 0 */
-            patchVersion: number;
-            /** @example 11 */
-            buildVersion: number;
-            /** @example 0 */
-            extraVersion: number;
-            /** @example true */
-            latestInFeatureVersion: boolean;
-            /** @example true */
-            latestLTS: boolean;
-            /** @example false */
-            latest: boolean;
-            /** @example true */
-            LTS: boolean;
-            /** @example true */
-            GA: boolean;
-            /** @example true */
-            FX: boolean;
-            /** @example true */
-            EOL?: boolean;
-            architecture: components["schemas"]["Architecture"];
-            installationType: components["schemas"]["InstallType"];
-            packageType: components["schemas"]["PackageType"];
-            bundleType: components["schemas"]["BundleType"];
-            updateType: components["schemas"]["UpdateType"];
-        };
-        Releases: components["schemas"]["Release"][];
-        Vendor: {
-            /** @example BellSoft */
-            name: string;
-            /** @example BellSoft LLC */
-            longName: string;
-            /** @example https://bell-sw.com/ */
-            url: string;
-        };
-        Product: {
-            /** @example Liberica */
-            name: string;
-            /** @example Liberica JDK is a supported build of OpenJDK that is tested and verified to be compliant with the Java SE specification using OpenJDK Technology Compatibility Kit test suite. */
-            description: string;
-        };
-        Products: components["schemas"]["Product"][];
-        Version: {
-            /** @example 11 */
-            featureVersion: number;
-            /** @example true */
-            LTS: boolean;
-            /** @example true */
-            GA: boolean;
-        };
-        Versions: components["schemas"]["Version"][];
-        VersionFull: {
-            /** @example 8u232 */
-            version: string;
-            /** @example true */
-            LTS: boolean;
-            /** @example true */
-            GA: boolean;
-            /** @example true */
-            EOL: boolean;
-        };
-        VersionsFull: components["schemas"]["VersionFull"][];
-        /** @enum {integer} */
-        Bitness: 32 | 64;
-        /**
-         * @example 11
-         * @enum {integer}
-         */
-        FeatureVersion: 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20;
-        /** @enum {string} */
-        Architecture: "arm" | "ppc" | "sparc" | "x86";
-        /** @example [
-         *       "arm",
-         *       "ppc",
-         *       "sparc",
-         *       "x86"
-         *     ] */
-        Architectures: components["schemas"]["Architecture"][];
-        /** @enum {string} */
-        OperatingSystem: "linux" | "linux-musl" | "macos" | "solaris" | "windows";
-        /** @example [
-         *       "linux",
-         *       "linux-musl",
-         *       "macos",
-         *       "solaris",
-         *       "windows"
-         *     ] */
-        OperatingSystems: components["schemas"]["OperatingSystem"][];
-        /** @enum {string} */
-        InstallType: "archive" | "installer";
-        /** @example [
-         *       "archive",
-         *       "installer"
-         *     ] */
-        InstallTypes: components["schemas"]["InstallType"][];
-        /** @enum {string} */
-        PackageType: "apk" | "deb" | "dmg" | "msi" | "pkg" | "rpm" | "src.tar.gz" | "tar.gz" | "zip" | "symbols.zip" | "symbols.tar.gz";
-        /** @example [
-         *       "apk",
-         *       "deb",
-         *       "dmg",
-         *       "msi",
-         *       "pkg",
-         *       "rpm",
-         *       "src.tar.gz",
-         *       "tar.gz",
-         *       "zip"
-         *     ] */
-        PackageTypes: components["schemas"]["PackageType"][];
-        /** @enum {string} */
-        BundleType: "jdk" | "jdk-full" | "jdk-lite" | "jre" | "jre-full";
-        /** @example [
-         *       "jdk",
-         *       "jdk-full",
-         *       "jdk-lite",
-         *       "jre",
-         *       "jre-full"
-         *     ] */
-        BundleTypes: components["schemas"]["BundleType"][];
-        /** @enum {string} */
-        UpdateType: "psu" | "cpu";
-        Error: {
-            /** @example 121 */
-            errorCode: number;
-            /** @example Unexpected parameter name */
-            errorDescription: string;
-            /** @example unexpectedParam */
-            parameterName: string;
-            /** @example wrongValue */
-            parameterValue?: string;
-        };
-        nikRelease: {
-            annualVersion: components["schemas"]["nikAnnualVersion"];
-            architecture: components["schemas"]["nikArchitecture"];
-            bitness: components["schemas"]["Bitness"];
-            bundleType: components["schemas"]["nikBundleType"];
-            component: components["schemas"]["nikComponent"];
-            /**
-             * Format: uri
-             * @example https://download.bell-sw.com/vm/21.0.0.2/bellsoft-liberica-vm-openjdk11-21.0.0.2-macos-amd64.zip
-             */
-            downloadUrl: string;
-            /** @example true */
-            EOL: boolean;
-            /** @example 0 */
-            extraVersion: number;
-            /** @example 0 */
-            featureVersion: number;
-            /** @example bellsoft-liberica-vm-openjdk11-21.0.0.2-macos-amd64.zip */
-            filename: string;
-            /** @example true */
-            GA: boolean;
-            installationType: components["schemas"]["nikInstallType"];
-            /** @example false */
-            latest: boolean;
-            /** @example true */
-            latestInAnnualVersion: boolean;
-            /** @example true */
-            latestLTS: boolean;
-            /** @example true */
-            LTS: boolean;
-            os: components["schemas"]["nikOperatingSystem"];
-            packageType: components["schemas"]["nikPackageType"];
-            /** @example 0 */
-            patchVersion: number;
-            /**
-             * Format: uri
-             * @example https://download.bell-sw.com/vm/release-catalog-java11.properties
-             */
-            releaseCatalogUrl: string;
-            /** @example ac8390c4ebd50db32aea33057051f35ba621aecf */
-            sha1: string;
-            /** @example 52735923479 */
-            size: number;
-            /** @example 21.0.0.2 */
-            version: string;
-        };
-        nikReleases: components["schemas"]["nikRelease"][];
-        nikVersion: {
-            /** @example 21 */
-            annualVersion: number;
-            /** @example true */
-            LTS: boolean;
-            /** @example true */
-            GA: boolean;
-        };
-        nikVersions: components["schemas"]["nikVersion"][];
-        nikVersionFull: {
-            /** @example 21.0.0.2 */
-            version: string;
-            /** @example true */
-            LTS: boolean;
-            /** @example true */
-            GA: boolean;
-            /** @example true */
-            EOL: boolean;
-        };
-        nikVersionsFull: components["schemas"]["nikVersionFull"][];
-        /**
-         * @example 21
-         * @enum {integer}
-         */
-        nikAnnualVersion: 20 | 21 | 22 | 23 | 24 | 25;
-        /** @enum {string} */
-        nikArchitecture: "arm" | "x86";
-        /** @example [
-         *       "arm",
-         *       "x86"
-         *     ] */
-        nikArchitectures: components["schemas"]["nikArchitecture"][];
-        /** @enum {string} */
-        nikBundleType: "core" | "standard";
-        /** @example [
-         *       "core",
-         *       "standard"
-         *     ] */
-        nikBundleTypes: components["schemas"]["nikBundleType"][];
-        /** @enum {string} */
-        nikOperatingSystem: "linux" | "linux-musl" | "macos" | "windows";
-        /** @example [
-         *       "linux",
-         *       "linux-musl",
-         *       "macos",
-         *       "windows"
-         *     ] */
-        nikOperatingSystems: components["schemas"]["nikOperatingSystem"][];
-        /** @enum {string} */
-        nikInstallType: "archive" | "installer";
-        /** @example [
-         *       "archive",
-         *       "installer"
-         *     ] */
-        nikInstallTypes: components["schemas"]["nikInstallType"][];
-        /** @enum {string} */
-        nikPackageType: "apk" | "deb" | "dmg" | "jar" | "msi" | "pkg" | "rpm" | "src.tar.gz" | "tar.gz" | "zip";
-        /** @example [
-         *       "apk",
-         *       "deb",
-         *       "dmg",
-         *       "jar",
-         *       "msi",
-         *       "pkg",
-         *       "rpm",
-         *       "src.tar.gz",
-         *       "tar.gz",
-         *       "zip"
-         *     ] */
-        nikPackageTypes: components["schemas"]["nikPackageType"][];
-        /** @enum {string} */
-        nikComponent: "liberica" | "llvm" | "ni" | "nik" | "nodejs" | "python" | "r" | "ruby" | "wasm";
-        /** @example [
-         *       "liberica",
-         *       "llvm",
-         *       "ni",
-         *       "nik",
-         *       "nodejs",
-         *       "python",
-         *       "r",
-         *       "ruby",
-         *       "wasm"
-         *     ] */
-        nikComponents: components["schemas"]["nikComponent"][];
+  schemas: {
+    Release: {
+      /** @example bellsoft-jdk11.0.5+11-windows-amd64.msi */
+      filename: string;
+      /**
+       * Format: uri
+       * @example http://cdb.bell-sw.com/bellsoft-jdk11.0.5+11-windows-amd64.msi
+       */
+      downloadUrl: string;
+      /** @example 52735923479 */
+      size: number;
+      /** @example ac8390c4ebd50db32aea33057051f35ba621aecf */
+      sha1: string;
+      /** @example 11.0.5+11 */
+      version: string;
+      os: components['schemas']['OperatingSystem'];
+      bitness: components['schemas']['Bitness'];
+      featureVersion: components['schemas']['FeatureVersion'];
+      /** @example 0 */
+      interimVersion: number;
+      /** @example 5 */
+      updateVersion: number;
+      /** @example 0 */
+      patchVersion: number;
+      /** @example 11 */
+      buildVersion: number;
+      /** @example 0 */
+      extraVersion: number;
+      /** @example true */
+      latestInFeatureVersion: boolean;
+      /** @example true */
+      latestLTS: boolean;
+      /** @example false */
+      latest: boolean;
+      /** @example true */
+      LTS: boolean;
+      /** @example true */
+      GA: boolean;
+      /** @example true */
+      FX: boolean;
+      /** @example true */
+      EOL?: boolean;
+      architecture: components['schemas']['Architecture'];
+      installationType: components['schemas']['InstallType'];
+      packageType: components['schemas']['PackageType'];
+      bundleType: components['schemas']['BundleType'];
+      updateType: components['schemas']['UpdateType'];
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    Releases: components['schemas']['Release'][];
+    Vendor: {
+      /** @example BellSoft */
+      name: string;
+      /** @example BellSoft LLC */
+      longName: string;
+      /** @example https://bell-sw.com/ */
+      url: string;
+    };
+    Product: {
+      /** @example Liberica */
+      name: string;
+      /** @example Liberica JDK is a supported build of OpenJDK that is tested and verified to be compliant with the Java SE specification using OpenJDK Technology Compatibility Kit test suite. */
+      description: string;
+    };
+    Products: components['schemas']['Product'][];
+    Version: {
+      /** @example 11 */
+      featureVersion: number;
+      /** @example true */
+      LTS: boolean;
+      /** @example true */
+      GA: boolean;
+    };
+    Versions: components['schemas']['Version'][];
+    VersionFull: {
+      /** @example 8u232 */
+      version: string;
+      /** @example true */
+      LTS: boolean;
+      /** @example true */
+      GA: boolean;
+      /** @example true */
+      EOL: boolean;
+    };
+    VersionsFull: components['schemas']['VersionFull'][];
+    /** @enum {integer} */
+    Bitness: 32 | 64;
+    /**
+     * @example 11
+     * @enum {integer}
+     */
+    FeatureVersion: 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20;
+    /** @enum {string} */
+    Architecture: 'arm' | 'ppc' | 'sparc' | 'x86';
+    /** @example [
+     *       "arm",
+     *       "ppc",
+     *       "sparc",
+     *       "x86"
+     *     ] */
+    Architectures: components['schemas']['Architecture'][];
+    /** @enum {string} */
+    OperatingSystem: 'linux' | 'linux-musl' | 'macos' | 'solaris' | 'windows';
+    /** @example [
+     *       "linux",
+     *       "linux-musl",
+     *       "macos",
+     *       "solaris",
+     *       "windows"
+     *     ] */
+    OperatingSystems: components['schemas']['OperatingSystem'][];
+    /** @enum {string} */
+    InstallType: 'archive' | 'installer';
+    /** @example [
+     *       "archive",
+     *       "installer"
+     *     ] */
+    InstallTypes: components['schemas']['InstallType'][];
+    /** @enum {string} */
+    PackageType:
+      | 'apk'
+      | 'deb'
+      | 'dmg'
+      | 'msi'
+      | 'pkg'
+      | 'rpm'
+      | 'src.tar.gz'
+      | 'tar.gz'
+      | 'zip'
+      | 'symbols.zip'
+      | 'symbols.tar.gz';
+    /** @example [
+     *       "apk",
+     *       "deb",
+     *       "dmg",
+     *       "msi",
+     *       "pkg",
+     *       "rpm",
+     *       "src.tar.gz",
+     *       "tar.gz",
+     *       "zip"
+     *     ] */
+    PackageTypes: components['schemas']['PackageType'][];
+    /** @enum {string} */
+    BundleType: 'jdk' | 'jdk-full' | 'jdk-lite' | 'jre' | 'jre-full';
+    /** @example [
+     *       "jdk",
+     *       "jdk-full",
+     *       "jdk-lite",
+     *       "jre",
+     *       "jre-full"
+     *     ] */
+    BundleTypes: components['schemas']['BundleType'][];
+    /** @enum {string} */
+    UpdateType: 'psu' | 'cpu';
+    Error: {
+      /** @example 121 */
+      errorCode: number;
+      /** @example Unexpected parameter name */
+      errorDescription: string;
+      /** @example unexpectedParam */
+      parameterName: string;
+      /** @example wrongValue */
+      parameterValue?: string;
+    };
+    nikRelease: {
+      annualVersion: components['schemas']['nikAnnualVersion'];
+      architecture: components['schemas']['nikArchitecture'];
+      bitness: components['schemas']['Bitness'];
+      bundleType: components['schemas']['nikBundleType'];
+      component: components['schemas']['nikComponent'];
+      /**
+       * Format: uri
+       * @example https://download.bell-sw.com/vm/21.0.0.2/bellsoft-liberica-vm-openjdk11-21.0.0.2-macos-amd64.zip
+       */
+      downloadUrl: string;
+      /** @example true */
+      EOL: boolean;
+      /** @example 0 */
+      extraVersion: number;
+      /** @example 0 */
+      featureVersion: number;
+      /** @example bellsoft-liberica-vm-openjdk11-21.0.0.2-macos-amd64.zip */
+      filename: string;
+      /** @example true */
+      GA: boolean;
+      installationType: components['schemas']['nikInstallType'];
+      /** @example false */
+      latest: boolean;
+      /** @example true */
+      latestInAnnualVersion: boolean;
+      /** @example true */
+      latestLTS: boolean;
+      /** @example true */
+      LTS: boolean;
+      os: components['schemas']['nikOperatingSystem'];
+      packageType: components['schemas']['nikPackageType'];
+      /** @example 0 */
+      patchVersion: number;
+      /**
+       * Format: uri
+       * @example https://download.bell-sw.com/vm/release-catalog-java11.properties
+       */
+      releaseCatalogUrl: string;
+      /** @example ac8390c4ebd50db32aea33057051f35ba621aecf */
+      sha1: string;
+      /** @example 52735923479 */
+      size: number;
+      /** @example 21.0.0.2 */
+      version: string;
+    };
+    nikReleases: components['schemas']['nikRelease'][];
+    nikVersion: {
+      /** @example 21 */
+      annualVersion: number;
+      /** @example true */
+      LTS: boolean;
+      /** @example true */
+      GA: boolean;
+    };
+    nikVersions: components['schemas']['nikVersion'][];
+    nikVersionFull: {
+      /** @example 21.0.0.2 */
+      version: string;
+      /** @example true */
+      LTS: boolean;
+      /** @example true */
+      GA: boolean;
+      /** @example true */
+      EOL: boolean;
+    };
+    nikVersionsFull: components['schemas']['nikVersionFull'][];
+    /**
+     * @example 21
+     * @enum {integer}
+     */
+    nikAnnualVersion: 20 | 21 | 22 | 23 | 24 | 25;
+    /** @enum {string} */
+    nikArchitecture: 'arm' | 'x86';
+    /** @example [
+     *       "arm",
+     *       "x86"
+     *     ] */
+    nikArchitectures: components['schemas']['nikArchitecture'][];
+    /** @enum {string} */
+    nikBundleType: 'core' | 'standard';
+    /** @example [
+     *       "core",
+     *       "standard"
+     *     ] */
+    nikBundleTypes: components['schemas']['nikBundleType'][];
+    /** @enum {string} */
+    nikOperatingSystem: 'linux' | 'linux-musl' | 'macos' | 'windows';
+    /** @example [
+     *       "linux",
+     *       "linux-musl",
+     *       "macos",
+     *       "windows"
+     *     ] */
+    nikOperatingSystems: components['schemas']['nikOperatingSystem'][];
+    /** @enum {string} */
+    nikInstallType: 'archive' | 'installer';
+    /** @example [
+     *       "archive",
+     *       "installer"
+     *     ] */
+    nikInstallTypes: components['schemas']['nikInstallType'][];
+    /** @enum {string} */
+    nikPackageType:
+      | 'apk'
+      | 'deb'
+      | 'dmg'
+      | 'jar'
+      | 'msi'
+      | 'pkg'
+      | 'rpm'
+      | 'src.tar.gz'
+      | 'tar.gz'
+      | 'zip';
+    /** @example [
+     *       "apk",
+     *       "deb",
+     *       "dmg",
+     *       "jar",
+     *       "msi",
+     *       "pkg",
+     *       "rpm",
+     *       "src.tar.gz",
+     *       "tar.gz",
+     *       "zip"
+     *     ] */
+    nikPackageTypes: components['schemas']['nikPackageType'][];
+    /** @enum {string} */
+    nikComponent: 'liberica' | 'llvm' | 'ni' | 'nik' | 'nodejs' | 'python' | 'r' | 'ruby' | 'wasm';
+    /** @example [
+     *       "liberica",
+     *       "llvm",
+     *       "ni",
+     *       "nik",
+     *       "nodejs",
+     *       "python",
+     *       "r",
+     *       "ruby",
+     *       "wasm"
+     *     ] */
+    nikComponents: components['schemas']['nikComponent'][];
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
+
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

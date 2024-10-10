@@ -1,13 +1,13 @@
 import '@renderer/assets/css/components/RootUiStack.css';
 import { ReactNode } from 'react';
-import Stack from '@mui/material/Stack'
-import backgroundImage from '@renderer/assets/background-devtemp.png'
+import Stack from '@mui/material/Stack';
+import backgroundImage from '@renderer/assets/background-devtemp.png';
 
 type RootUiStackProps = {
   children: ReactNode | ReactNode[];
 };
 
-export default function RootUiStack({ children }: RootUiStackProps) {
+export default function RootUiStack({ children }: RootUiStackProps): JSX.Element {
   return (
     <Stack
       spacing={2}

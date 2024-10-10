@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron'
+import { ipcMain } from 'electron';
 
 export function setupIpc(): void {
-    ipcMain.on('ping', () => console.log('pong'))
+  ipcMain.on('ping', () => console.log('pong'));
 }

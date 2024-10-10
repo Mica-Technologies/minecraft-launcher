@@ -13,9 +13,15 @@
     "jsx": "react-jsx",
     "baseUrl": "./src",
     "paths": {
-      "@renderer/*": ["renderer/src/*"],
-      "@common/*": ["common/*"],
-      "@launcherTypes/*": ["types/*"]
+      "@renderer/*": [
+        "renderer/src/*"
+      ],
+      "@common/*": [
+        "common/*"
+      ],
+      "@launcherTypes/*": [
+        "types/*"
+      ]
     }
   }
 }

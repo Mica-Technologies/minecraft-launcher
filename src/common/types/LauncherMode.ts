@@ -9,5 +9,5 @@
  */
 export enum LauncherMode {
   CLIENT = 'CLIENT',
-  SERVER = 'SERVER'
+  SERVER = 'SERVER',
 }

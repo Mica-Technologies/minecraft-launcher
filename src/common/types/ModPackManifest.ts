@@ -8,71 +8,71 @@
  * The JSON interface for a mod in a mod pack definition file.
  */
 export interface PackMod {
-  name: string
-  remote: string
-  local: string
-  sha1: string
-  clientReq: boolean
-  serverReq: boolean
+  name: string;
+  remote: string;
+  local: string;
+  sha1: string;
+  clientReq: boolean;
+  serverReq: boolean;
 }
 
 /**
  * The JSON interface for a config in a mod pack definition file.
  */
 export interface PackConfig {
-  remote: string
-  local: string
-  sha1: string
-  clientReq: boolean
-  serverReq: boolean
+  remote: string;
+  local: string;
+  sha1: string;
+  clientReq: boolean;
+  serverReq: boolean;
 }
 
 /**
  * The JSON interface for a resource pack in a mod pack definition file.
  */
 export interface PackResourcePack {
-  remote: string
-  local: string
-  sha1: string
+  remote: string;
+  local: string;
+  sha1: string;
 }
 
 /**
  * The JSON interface for a shader pack in a mod pack definition file.
  */
 export interface PackShaderPack {
-  remote: string
-  local: string
-  sha1: string
+  remote: string;
+  local: string;
+  sha1: string;
 }
 
 /**
  * The JSON interface for an initial file in a mod pack definition file.
  */
 export interface PackInitialFile {
-  remote: string
-  local: string
-  sha1: string
-  clientReq: boolean
-  serverReq: boolean
+  remote: string;
+  local: string;
+  sha1: string;
+  clientReq: boolean;
+  serverReq: boolean;
 }
 
 /**
  * The JSON interface for a mod pack definition file.
  */
 export default interface ModPackInterface {
-  packName: string
-  packVersion: string
-  packURL: string
-  packLogoURL: string
-  packBackgroundURL: string
-  packMinRAMGB: string
-  packForgeURL: string
-  packForgeHash: string
-  packMods: PackMod[]
-  packConfigs: PackConfig[]
-  packResourcePacks: PackResourcePack[]
-  packShaderPacks: PackShaderPack[]
-  packInitialFiles: PackInitialFile[]
+  packName: string;
+  packVersion: string;
+  packURL: string;
+  packLogoURL: string;
+  packBackgroundURL: string;
+  packMinRAMGB: string;
+  packForgeURL: string;
+  packForgeHash: string;
+  packMods: PackMod[];
+  packConfigs: PackConfig[];
+  packResourcePacks: PackResourcePack[];
+  packShaderPacks: PackShaderPack[];
+  packInitialFiles: PackInitialFile[];
 }
 
 /**
@@ -80,7 +80,7 @@ export default interface ModPackInterface {
  * @param json The JSON string to convert.
  */
 export function fromJson(json: string): ModPackInterface {
-  return JSON.parse(json)
+  return JSON.parse(json);
 }
 
 /**
@@ -88,7 +88,7 @@ export function fromJson(json: string): ModPackInterface {
  * @param modPackInterface The ModPackInterface to convert.
  */
 export function toJson(modPackInterface: ModPackInterface): string {
-  return JSON.stringify(modPackInterface)
+  return JSON.stringify(modPackInterface);
 }
 
 /**
@@ -96,7 +96,7 @@ export function toJson(modPackInterface: ModPackInterface): string {
  * @param json The JSON string to check.
  */
 export function isModPack(json: string) {
-  const jsonInterface = JSON.parse(json)
+  const jsonInterface = JSON.parse(json);
   return (
     jsonInterface.packName !== undefined &&
     jsonInterface.packVersion !== undefined &&
@@ -111,5 +111,5 @@ export function isModPack(json: string) {
     jsonInterface.packResourcePacks !== undefined &&
     jsonInterface.packShaderPacks !== undefined &&
     jsonInterface.packInitialFiles !== undefined
-  )
+  );
 }
