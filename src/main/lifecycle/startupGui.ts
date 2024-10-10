@@ -4,12 +4,29 @@ import { optimizer, is } from '@electron-toolkit/utils'
 import { preShutdown } from '../lifecycle/events'
 import icon from '../../../resources/icon.png?asset'
 import { setupIpc } from './ipc'
+import electronWindowState from 'electron-window-state'
+
+const MAIN_WINDOW_DEFAULT_WIDTH = 900
+const MAIN_WINDOW_DEFAULT_HEIGHT = 670
+const MAIN_WINDOW_MIN_WIDTH = 800
+const MAIN_WINDOW_MIN_HEIGHT = 600
 
 export function createWindow(): void {
+  // Load the previous state with fallback to defaults
+  const mainWindowState = electronWindowState({
+    defaultWidth: MAIN_WINDOW_DEFAULT_WIDTH,
+    defaultHeight: MAIN_WINDOW_DEFAULT_HEIGHT,
+    file: 'main-window-state.json'
+  })
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: mainWindowState.width,
+    height: mainWindowState.height,
+    x: mainWindowState.x,
+    y: mainWindowState.y,
+    minWidth: MAIN_WINDOW_MIN_WIDTH,
+    minHeight: MAIN_WINDOW_MIN_HEIGHT,
     show: false,
     autoHideMenuBar: true,
     icon: icon,
@@ -19,6 +36,16 @@ export function createWindow(): void {
       sandbox: false
     }
   })
+
+  // Set the bounds
+  mainWindowState.manage(mainWindow)
+  mainWindow.setBounds(
+    {
+      width: mainWindowState.width || MAIN_WINDOW_DEFAULT_WIDTH,
+      height: mainWindowState.height || MAIN_WINDOW_DEFAULT_HEIGHT
+    },
+    false
+  )
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
