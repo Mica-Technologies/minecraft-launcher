@@ -9,7 +9,7 @@
   ],
   "compilerOptions": {
     "composite": true,
-    "types": ["electron-vite/node"],
+    "types": ["electron-vite/node","vitest/globals"],
     "baseUrl": "./src",
     "paths": {
       "@main/*": ["main/*"],
