@@ -21,43 +21,43 @@ export const ENDPOINTS = {
   packageTypes: '/liberica/package-types',
   bundleTypes: '/liberica/bundle-types',
   vendor: '/vendor',
-  products: '/products',
+  products: '/products'
 } as const
 export type Endpoints = (typeof ENDPOINTS)[keyof typeof ENDPOINTS]
 
 // TYPES
 
-type GetReleasesParams =
+export type GetReleasesParams =
   paths[typeof ENDPOINTS.releases][typeof HTTP_GET_STRING]['parameters']['query']
-type GetReleasesResponse =
+export type GetReleasesResponse =
   paths[typeof ENDPOINTS.releases][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetReleasesErrorResponse =
+export type GetReleasesErrorResponse =
   paths[typeof ENDPOINTS.releases][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.BAD_REQUEST]['content'][typeof APPLICATION_TYPE_JSON]
-type GetReleasesFileParams =
+export type GetReleasesFileParams =
   paths[typeof ENDPOINTS.releasesFile][typeof HTTP_GET_STRING]['parameters']['path']
-type GetReleasesFileResponse =
+export type GetReleasesFileResponse =
   paths[typeof ENDPOINTS.releasesFile][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetReleasesFileErrorResponse =
+export type GetReleasesFileErrorResponse =
   paths[typeof ENDPOINTS.releasesFile][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.NOT_FOUND]['content'][typeof APPLICATION_TYPE_JSON]
-type GetVersionsResponse =
+export type GetVersionsResponse =
   paths[typeof ENDPOINTS.versions][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetVersionsFeatureVersionParams =
+export type GetVersionsFeatureVersionParams =
   paths[typeof ENDPOINTS.versionsFeatureVersion][typeof HTTP_GET_STRING]['parameters']['path']
-type GetVersionsFeatureVersionResponse =
+export type GetVersionsFeatureVersionResponse =
   paths[typeof ENDPOINTS.versionsFeatureVersion][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetArchitecturesResponse =
+export type GetArchitecturesResponse =
   paths[typeof ENDPOINTS.architectures][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetOperatingSystemsResponse =
+export type GetOperatingSystemsResponse =
   paths[typeof ENDPOINTS.operatingSystems][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetInstallationTypesResponse =
+export type GetInstallationTypesResponse =
   paths[typeof ENDPOINTS.installationTypes][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetPackageTypesResponse =
+export type GetPackageTypesResponse =
   paths[typeof ENDPOINTS.packageTypes][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetBundleTypesResponse =
+export type GetBundleTypesResponse =
   paths[typeof ENDPOINTS.bundleTypes][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetVendorResponse =
+export type GetVendorResponse =
   paths[typeof ENDPOINTS.vendor][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
-type GetProductsResponse =
+export type GetProductsResponse =
   paths[typeof ENDPOINTS.products][typeof HTTP_GET_STRING]['responses'][typeof HttpStatusCodes.OK]['content'][typeof APPLICATION_TYPE_JSON]
 
 // API CLASS
