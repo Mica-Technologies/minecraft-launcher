@@ -1,0 +1,88 @@
+.AppBarRoot {
+  box-shadow: none !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  margin-top: calc(var(--template-frame-height, 0px) + 28px);
+}
+
+.AppBarToolbar {
+  /* Remove background-color, border, and box-shadow here to let MUI theme handle them */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  border-radius: calc(8px + 8px);
+  backdrop-filter: blur(24px);
+  padding: 8px 12px;
+}
+
+.AppBarLogoLinks {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  padding-left: 0;
+}
+
+.AppBarLinks {
+  display: none;
+}
+@media (min-width: 700px) {
+  .AppBarLinks {
+    display: flex;
+  }
+}
+
+.AppBarLinkButton {
+  /* Add spacing or custom styles if needed */
+}
+
+.AppBarLinkButton:focus {
+  outline: none;
+}
+
+.AppBarActions {
+  display: none;
+  gap: 8px;
+  align-items: center;
+}
+@media (min-width: 700px) {
+  .AppBarActions {
+    display: flex;
+  }
+}
+
+.AppBarActionButton {
+  /* Add spacing or custom styles if needed */
+}
+
+.AppBarMobileMenu {
+  display: flex;
+  gap: 8px;
+}
+@media (min-width: 700px) {
+  .AppBarMobileMenu {
+    display: none;
+  }
+}
+
+.AppBarDrawerPaper {
+  bottom: var(--template-frame-height, 0px) !important;
+}
+
+.AppBarDrawerContent {
+  padding: 16px;
+  background-color: var(--mui-palette-background-default, #fff);
+}
+
+.AppBarDrawerClose {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.AppBarDrawerMenuItem {
+  /* Add custom styles if needed */
+}
+
+.AppBarDrawerDivider {
+  margin: 24px 0;
+}

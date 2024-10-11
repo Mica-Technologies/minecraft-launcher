@@ -1,0 +1,26 @@
+/* HeaderLogo.css */
+.headerLogoContainer{
+    align-items: center; /* Center vertically */
+    margin-right: 10px !important;
+    user-select: none;
+    --webkit-user-select: none; /* Safari */
+    --moz-user-select: none; /* Firefox */
+    width: fit-content;
+}
+
+.headerLogoImage {
+    width: 25px;
+    height: 25px;
+    user-select: none;
+    --webkit-user-select: none; /* Safari */
+    --moz-user-select: none; /* Firefox */
+}
+
+.headerLogoText {
+    font-weight: lighter !important;
+    margin-left: 5px !important;
+    color: var(--template-palette-text-primary);
+    user-select: none;
+    --webkit-user-select: none; /* Safari */
+    --moz-user-select: none; /* Firefox */
+}

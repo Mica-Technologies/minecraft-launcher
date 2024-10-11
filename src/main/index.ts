@@ -4,6 +4,9 @@ import { startHeadless } from './lifecycle/startupHeadless';
 import { handleCliArgs, cliUsageText } from './lifecycle/cliArgs';
 import { setLauncherHeadless, setLauncherMode } from './utils/launcherState';
 import { postStartup, preStartup } from './lifecycle/events';
+import { appConstants } from '@common/constants/appConstants';
+
+console.log('Starting ' + appConstants.APP_NAME + '...');
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

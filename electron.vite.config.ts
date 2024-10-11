@@ -10,6 +10,7 @@ export default defineConfig({
         '@main': resolve('src/main'),
         '@preload': resolve('src/preload'),
         '@common': resolve('src/common'),
+        '@types': resolve('src/types'),
       },
     },
   },
@@ -20,6 +21,7 @@ export default defineConfig({
         '@main': resolve('src/main'),
         '@preload': resolve('src/preload'),
         '@common': resolve('src/common'),
+        '@types': resolve('src/types'),
       },
     },
   },
@@ -28,6 +30,7 @@ export default defineConfig({
       alias: {
         '@renderer': resolve('src/renderer/src'),
         '@common': resolve('src/common'),
+        '@types': resolve('src/types'),
       },
     },
     plugins: [react()],

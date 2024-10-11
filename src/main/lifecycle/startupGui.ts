@@ -8,8 +8,8 @@ import electronWindowState from 'electron-window-state';
 
 const MAIN_WINDOW_DEFAULT_WIDTH = 900;
 const MAIN_WINDOW_DEFAULT_HEIGHT = 670;
-const MAIN_WINDOW_MIN_WIDTH = 800;
-const MAIN_WINDOW_MIN_HEIGHT = 600;
+const MAIN_WINDOW_MIN_WIDTH = 500;
+const MAIN_WINDOW_MIN_HEIGHT = 500;
 
 export function createWindow(): void {
   // Load the previous state with fallback to defaults
@@ -27,8 +27,12 @@ export function createWindow(): void {
     y: mainWindowState.y,
     minWidth: MAIN_WINDOW_MIN_WIDTH,
     minHeight: MAIN_WINDOW_MIN_HEIGHT,
-    show: false,
+    show: true,
     autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: 'rgba(128, 128, 128, 0.0)',
+    },
     icon: icon,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
@@ -49,6 +53,13 @@ export function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  mainWindow.on('close', (e) => {
+    const allowClose = true; // TODO: Replace with actual logic to determine if close is allowed
+    if (!allowClose) {
+      e.preventDefault();
+    }
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

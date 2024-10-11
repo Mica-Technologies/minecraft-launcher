@@ -2,6 +2,8 @@ import '@renderer/assets/css/components/RootUiStack.css';
 import { ReactNode } from 'react';
 import Stack from '@mui/material/Stack';
 import backgroundImage from '@renderer/assets/background-devtemp.png';
+import TitleBar from '../views/TitleBar';
+import MicaAppBar from '@renderer/components/appBar/MicaAppBar';
 
 type RootUiStackProps = {
   children: ReactNode | ReactNode[];
@@ -18,7 +20,9 @@ export default function RootUiStack({ children }: RootUiStackProps): JSX.Element
         backgroundImage: `url(${backgroundImage})`,
       }}
     >
+      <TitleBar />
       {children}
+      <MicaAppBar />
     </Stack>
   );
 }
