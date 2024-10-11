@@ -1,0 +1,17 @@
+:root {
+  --fallback-title-bar-height: 40px;
+}
+
+#titleBarContainer {
+  position: absolute;
+  top: env(titlebar-area-y, 0);
+  height: env(titlebar-area-height, var(--fallback-title-bar-height));
+  width: 100%;
+}
+
+#titleBar {
+  display: block;
+  user-select: none;
+  height: env(titlebar-area-height, var(--fallback-title-bar-height));
+  width: env(calc(100% - titlebar-area-width), 100%);
+}

@@ -29,6 +29,10 @@ export function createWindow(): void {
     minHeight: MAIN_WINDOW_MIN_HEIGHT,
     show: false,
     autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: 'rgba(0, 0, 0, 0.0)',
+    },
     icon: icon,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
