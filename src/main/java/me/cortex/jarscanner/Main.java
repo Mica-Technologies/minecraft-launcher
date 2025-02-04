@@ -83,12 +83,7 @@ public class Main
         // set progress[1] to the total number of files in the directory
         logOutput.apply( Constants.ANSI_GREEN + "Preparing Scanner..." + Constants.ANSI_RESET );
         long scannerPrepStartTime = System.currentTimeMillis();
-        try ( var files = Files.walk( dirToCheck ) ) {
-            progress[ 1 ] = files.parallel()
-                                 .filter( path -> !path.toFile().isDirectory() )
-                                 .filter( path -> !isPathExcludedFromScan( dirToCheck, path, excludeFolders ) )
-                                 .count();
-        }
+        progress[1] = countValidFiles(dirToCheck, excludeFolders);
         long scannerPrepEndTime = System.currentTimeMillis();
         long scannerPrepTime = scannerPrepEndTime - scannerPrepStartTime;
         logOutput.apply( Constants.ANSI_GREEN +
@@ -266,6 +261,39 @@ public class Main
 
         return normalized;
     }
+
+    private static long countValidFiles(Path dirToCheck, List<String> excludeFolders) throws IOException {
+        final long[] fileCount = {0};
+        Files.walkFileTree(dirToCheck, new FileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                if (isPathExcludedFromScan(dirToCheck, dir, excludeFolders)) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                if (!isPathExcludedFromScan(dirToCheck, file, excludeFolders) && !file.toFile().isDirectory()) {
+                    fileCount[0]++;
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFileFailed(Path file, IOException exc) {
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
+                return FileVisitResult.CONTINUE;
+            }
+        });
+        return fileCount[0];
+    }
+
 
     private static boolean isPathExcludedFromScan( Path scanPath, Path checkPath, List< String > excludePaths ) {
         // Check if the checkPath is the same as the scanPath
