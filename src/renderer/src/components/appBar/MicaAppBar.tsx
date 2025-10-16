@@ -44,7 +44,7 @@ export const appBarLinks: IMicaAppBarLink[] = [
 ];
 
 // List of action buttons (icon buttons)
-const appBarActions: IMicaAppBarAction[] = [
+export const appBarActions: IMicaAppBarAction[] = [
   {
     title: 'Account',
     to: '/account',

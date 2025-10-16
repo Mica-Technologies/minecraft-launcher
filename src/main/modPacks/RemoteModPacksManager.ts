@@ -3,27 +3,24 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 import ModPackInterface from '@common/types/ModPackManifest';
+import FileManager from '@main/files/FileManager';
+import log from 'electron-log/main';
 
 class RemoteModPacksManager {
   // Static configuration
-  private static MOD_PACKS_URL = 'https://example.com/modpacks.json'; // URL to get mod pack URLs
-  private static CACHE_FOLDER = path.join(__dirname, 'cache'); // Folder to cache mod pack JSON
+  private static MOD_PACKS_URL =
+    'https://github.com/Mica-Technologies/minecraft-launcher-modpacks/raw/refs/heads/main/installable.json'; // URL to get mod pack URLs
+  private static CACHE_CONTEXT = 'modpacks'; // Context for caching
 
   // Holds cached mod pack data
   private modPackData: { [key: string]: ModPackInterface } = {};
-
-  constructor() {
-    // Ensure cache folder exists
-    if (!fs.existsSync(RemoteModPacksManager.CACHE_FOLDER)) {
-      fs.mkdirSync(RemoteModPacksManager.CACHE_FOLDER);
-    }
-  }
 
   // Fetches available mod pack URLs from remote server
   public async fetchAvailableModPackUrls(): Promise<string[]> {
     try {
       const response = await axios.get(RemoteModPacksManager.MOD_PACKS_URL);
-      const urls: string[] = response.data;
+      log.debug(response.data.available);
+      const urls: string[] = response.data.available;
       return urls;
     } catch (error) {
       console.error('Failed to fetch available mod pack URLs:', error);
@@ -37,7 +34,8 @@ class RemoteModPacksManager {
       try {
         const response = await axios.get(url);
         const modPackName = path.basename(url, path.extname(url));
-        const cacheFilePath = path.join(RemoteModPacksManager.CACHE_FOLDER, `${modPackName}.json`);
+        const cacheDir = FileManager.getAppCacheDirPath(RemoteModPacksManager.CACHE_CONTEXT);
+        const cacheFilePath = path.join(cacheDir, `${modPackName}.json`);
         fs.writeFileSync(cacheFilePath, JSON.stringify(response.data, null, 2));
         this.modPackData[modPackName] = response.data;
       } catch (error) {
@@ -48,9 +46,10 @@ class RemoteModPacksManager {
 
   // Loads cached mod pack data
   public loadCachedModPacks(): void {
-    const files = fs.readdirSync(RemoteModPacksManager.CACHE_FOLDER);
+    const cacheDir = FileManager.getAppCacheDirPath(RemoteModPacksManager.CACHE_CONTEXT);
+    const files = fs.readdirSync(cacheDir);
     for (const file of files) {
-      const filePath = path.join(RemoteModPacksManager.CACHE_FOLDER, file);
+      const filePath = path.join(cacheDir, file);
       const modPackName = path.basename(file, path.extname(file));
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       this.modPackData[modPackName] = data;

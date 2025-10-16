@@ -51,7 +51,8 @@ export interface PackShaderPack {
 export interface PackInitialFile {
   remote: string;
   local: string;
-  sha1: string;
+  sha1?: string;
+  md5?: string;
   clientReq: boolean;
   serverReq: boolean;
 }

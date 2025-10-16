@@ -3,7 +3,7 @@ import Stack from '@mui/material/Stack';
 import { CSSProperties, useEffect, useState } from 'react';
 import { Typography } from '@mui/material';
 import { appConstants } from '@common/constants/appConstants';
-import { appBarLinks } from '@renderer/components/appBar/MicaAppBar';
+import { appBarActions, appBarLinks } from '@renderer/components/appBar/MicaAppBar';
 import { useLocation } from 'react-router-dom';
 
 type TitleBarProps = {
@@ -27,12 +27,25 @@ export default function TitleBar({
   const [pageTitle, setPageTitle] = useState('');
   const currentPath = useLocation();
   useEffect(() => {
-    let newTitle = 'Unknown';
+    const newTitleDefault = 'Unknown';
+    let newTitle = newTitleDefault;
+
+    // Check in links for matching path to set title
     appBarLinks.forEach((link) => {
       if (link.to === currentPath.pathname) {
         newTitle = link.title;
       }
     });
+
+    // If not found in links, check in actions
+    if (newTitle === newTitleDefault) {
+      appBarActions.forEach((action) => {
+        if (action.to === currentPath.pathname) {
+          newTitle = action.title;
+        }
+      });
+    }
+
     setPageTitle(newTitle);
   }, [currentPath]);
 

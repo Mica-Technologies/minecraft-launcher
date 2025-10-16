@@ -1,4 +1,5 @@
 import log from 'electron-log/main';
+import remoteModPacksManager from '@main/modPacks/RemoteModPacksManager';
 
 export function preStartup(): void {
   // Setup logging
@@ -23,6 +24,17 @@ export function preStartup(): void {
       process.exit(0);
     });
   });
+
+  // Queue update of available mod packs
+  log.debug('Queuing mod pack data refresh...');
+  remoteModPacksManager
+    .refreshModPackData()
+    .then(() => {
+      log.debug('Mod pack data refresh completed.');
+    })
+    .catch((error) => {
+      log.error('Error refreshing mod pack data:', error);
+    });
 
   // Log completion of pre-startup tasks
   log.debug('Pre-startup tasks completed.');
