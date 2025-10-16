@@ -188,6 +188,7 @@ public class RuntimeManager
         }
         catch ( Exception e ) {
             Logger.logError( LocalizationManager.RUNTIME_CHECKSUM_DOWNLOAD_FAIL_TEXT );
+            Logger.logThrowable( e );
             newJavaPath = "java";
             newJavaVersion = "Unknown (System Java)";
         }
