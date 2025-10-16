@@ -37,6 +37,9 @@ import org.rauschig.jarchivelib.CompressionType;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Class for managing the download and usage of JREs required for Minecraft.
@@ -87,7 +90,6 @@ public class RuntimeManager
 
         // Create runtime folder and file objects
         String runtimeFolderPath = LocalPathManager.getLauncherRuntimeFolderPath();
-
         File runtimeFolderFile = SynchronizedFileManager.getSynchronizedFile(
                 SystemUtilities.buildFilePath( runtimeFolderPath ) );
 
@@ -157,12 +159,24 @@ public class RuntimeManager
         File extractedJreFolderFile2 = null;
         String newJavaPath = null;
         String newJavaVersion = null;
+        boolean usedApiFallback = false;
         try {
-            JsonArray jreLatestInformation = downloadLatestJre8Info( latestJre8InfoApiUrlForOs );
-            if ( jreLatestInformation == null ) {
-                throw new Exception( "Unable to download JRE 8 information." );
+            JsonArray jreLatestInformation = null;
+            try {
+                jreLatestInformation = downloadLatestJre8Info( latestJre8InfoApiUrlForOs );
+            } catch (Exception apiEx) {
+                // Fallback: read local file if API fails
+                Logger.logError("Failed to download latest JRE 8 API info, falling back to local cache.");
+                File jre8InfoFile = SynchronizedFileManager.getSynchronizedFile(
+                        SystemUtilities.buildFilePath( runtimeFolderPath, RuntimeConstants.JRE_8_API_DATA_FILE_NAME ) );
+                if (jre8InfoFile.exists()) {
+                    jreLatestInformation = FileUtilities.readAsJsonArray(jre8InfoFile);
+                    usedApiFallback = true;
+                } else {
+                    throw apiEx;
+                }
             }
-            else if ( jreLatestInformation.size() == 0 ) {
+            if ( jreLatestInformation == null || jreLatestInformation.size() == 0 ) {
                 throw new Exception( "No JRE 8 information available." );
             }
             jreLatestInformationObject = jreLatestInformation.get( 0 ).getAsJsonObject();
@@ -293,13 +307,78 @@ public class RuntimeManager
                     newJavaPath = "java";
                     newJavaVersion = "Unknown (System Java)";
                 }
+
+                // --- Create/Update symlink to latest JRE folder ---
+                try {
+                    String symlinkName = "jre8-latest";
+                    Path symlinkPath = Paths.get(runtimeFolderPath, symlinkName);
+                    Path targetPath = null;
+                    if (extractedJreFolderFile1 != null && extractedJreFolderFile1.exists()) {
+                        targetPath = extractedJreFolderFile1.toPath();
+                    } else if (extractedJreFolderFile2 != null && extractedJreFolderFile2.exists()) {
+                        targetPath = extractedJreFolderFile2.toPath();
+                    }
+                    if (targetPath != null) {
+                        // Remove old symlink if exists
+                        if (Files.exists(symlinkPath)) {
+                            Files.delete(symlinkPath);
+                        }
+                        Files.createSymbolicLink(symlinkPath, targetPath);
+                        Logger.logStd("Created/updated symlink: " + symlinkPath + " -> " + targetPath);
+                    }
+                } catch (Exception symlinkEx) {
+                    Logger.logWarningSilent("Failed to create symlink for latest JRE: " + symlinkEx.getMessage());
+                }
             }
         }
         catch ( Exception e ) {
             Logger.logError( LocalizationManager.UNABLE_DOWNLOAD_RUNTIME_TEXT );
-            newJavaPath = "java";
-            newJavaVersion = "Unknown (System Java)";
+            // --- Fallback: Try to use local API info and existing JRE folder ---
+            try {
+                File jre8InfoFile = SynchronizedFileManager.getSynchronizedFile(
+                        SystemUtilities.buildFilePath( runtimeFolderPath, RuntimeConstants.JRE_8_API_DATA_FILE_NAME ) );
+                if (jre8InfoFile.exists()) {
+                    JsonArray jreLatestInformation = FileUtilities.readAsJsonArray(jre8InfoFile);
+                    if (jreLatestInformation != null && jreLatestInformation.size() > 0) {
+                         jreLatestInformationObject = jreLatestInformation.get(0).getAsJsonObject();
+                        String fallbackFolderName = jreLatestInformationObject.get("bundleType").getAsString() +
+                                jreLatestInformationObject.get("featureVersion").getAsInt() +
+                                "u" +
+                                jreLatestInformationObject.get("updateVersion").getAsInt();
+                        File fallbackJreFolderFile = SynchronizedFileManager.getSynchronizedFile(
+                                SystemUtilities.buildFilePath(runtimeFolderPath, fallbackFolderName));
+                        if (fallbackJreFolderFile.exists()) {
+                            newJavaPath = SystemUtilities.buildFilePath(fallbackJreFolderFile.getAbsolutePath(),
+                                    getJreExecutablePathForOs());
+                            newJavaVersion = jreLatestInformationObject.get("version").getAsString();
+                            Logger.logStd("Fell back to existing JRE in folder: " + fallbackJreFolderFile.getAbsolutePath());
+                            // Try to update symlink as well
+                            try {
+                                String symlinkName = "jre8-latest";
+                                Path symlinkPath = Paths.get(runtimeFolderPath, symlinkName);
+                                Path targetPath = fallbackJreFolderFile.toPath();
+                                if (Files.exists(symlinkPath)) {
+                                    Files.delete(symlinkPath);
+                                }
+                                Files.createSymbolicLink(symlinkPath, targetPath);
+                                Logger.logStd("Created/updated symlink: " + symlinkPath + " -> " + targetPath);
+                            } catch (Exception symlinkEx) {
+                                Logger.logWarningSilent("Failed to create symlink for fallback JRE: " + symlinkEx.getMessage());
+                            }
+                        } else {
+                            Logger.logError("No existing JRE folder found for fallback.");
+                            newJavaPath = "java";
+                            newJavaVersion = "Unknown (System Java)";
+                        }
+                    }
+                }
+            } catch (Exception fallbackEx) {
+                Logger.logError("Failed to fallback to local JRE info: " + fallbackEx.getMessage());
+                newJavaPath = "java";
+                newJavaVersion = "Unknown (System Java)";
+            }
         }
+
         // Close progress window if applicable
         if ( progressWindow != null ) {
             progressWindow.setLowerLabelText( LocalizationManager.COMPLETED_TEXT );
@@ -315,6 +394,11 @@ public class RuntimeManager
         // Store new Java path
         jre8VerifiedPath = newJavaPath;
         jre8VerifiedVersion = newJavaVersion;
+
+        // Log if fallback was used
+        if (usedApiFallback) {
+            Logger.logStd("Used cached JRE 8 API info due to network/API failure.");
+        }
     }
 
     /**
