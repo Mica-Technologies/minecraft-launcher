@@ -158,14 +158,14 @@
 /* Center Pane Styling */
 
 .centerPane {
-    -fx-background-color: rgba(233, 233, 233, 0.85);
+    -fx-background-color: rgba(233, 233, 233, 0.65);
     -fx-background-radius: 8px;
 }
 
 /* Strip Pane Styling */
 
 .stripPane {
-    -fx-background-color: rgba(233, 233, 233, 0.85);
+    -fx-background-color: rgba(233, 233, 233, 0.65);
     -fx-background-radius: 0;
 }
 
