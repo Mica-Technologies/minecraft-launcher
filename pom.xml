@@ -39,8 +39,8 @@
         <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafx.version>19</javafx.version>
-        <jdk.version>19+37</jdk.version>
+        <javafx.version>25</javafx.version>
+        <jdk.version>25+37</jdk.version>
         <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
         </jfxtaskbarprogressbar.export>
     </properties>
@@ -145,7 +145,7 @@
             <plugin>
                 <groupId>com.igormaznitsa</groupId>
                 <artifactId>mvn-jlink-wrapper</artifactId>
-                <version>1.2.0</version>
+                <version>1.2.5</version>
                 <executions>
                     <!-- CACHE JDK -->
                     <execution>
@@ -176,7 +176,7 @@
                     <assetsDir>${project.basedir}${file.separator}deploy</assetsDir>
                     <bundleJre>true</bundleJre>
                     <customizedJre>false</customizedJre>
-                    <jreMinVersion>16</jreMinVersion>
+                    <jreMinVersion>25</jreMinVersion>
                     <generateInstaller>true</generateInstaller>
                     <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
                     <runnableJar>
