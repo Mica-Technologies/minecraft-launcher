@@ -40,7 +40,7 @@
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javafx.version>25</javafx.version>
-        <jdk.version>25+37</jdk.version>
+        <jdk.version>25.0.0.36.2</jdk.version>
         <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
         </jfxtaskbarprogressbar.export>
     </properties>
@@ -154,11 +154,11 @@
                             <goal>cache-jdk</goal>
                         </goals>
                         <configuration>
-                            <provider>BELLSOFT</provider>
+                            <provider>CORRETTO</provider>
                             <providerConfig>
                                 <type>jdk</type>
                                 <version>${jdk.version}</version>
-                                <arch>amd64-full</arch>
+                                <arch>x64</arch>
                             </providerConfig>
                             <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
                             <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
