@@ -170,7 +170,7 @@
             <plugin>
                 <groupId>io.github.fvarrui</groupId>
                 <artifactId>javapackager</artifactId>
-                <version>1.6.7</version>
+                <version>1.7.6</version>
                 <configuration>
                     <mainClass>${main.class}</mainClass>
                     <assetsDir>${project.basedir}${file.separator}deploy</assetsDir>
