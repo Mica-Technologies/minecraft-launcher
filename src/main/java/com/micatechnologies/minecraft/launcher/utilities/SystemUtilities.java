@@ -18,8 +18,10 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -71,11 +73,11 @@ public class SystemUtilities
             // Reset retry flag
             retry = false;
 
-            // Build process call
-            ProcessBuilder processBuilder = new ProcessBuilder( command.split( " " ) ).inheritIO()
-                                                                                      .directory(
-                                                                                              SynchronizedFileManager.getSynchronizedFile(
-                                                                                                      workingDirectory ) );
+            // Build process call directly to avoid cmd.exe line-length limits on Windows.
+            ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) ).inheritIO()
+                                                                                              .directory(
+                                                                                                      SynchronizedFileManager.getSynchronizedFile(
+                                                                                                              workingDirectory ) );
 
             // Start process and wait for finish
             if ( retryNumber > 0 ) {
@@ -116,6 +118,74 @@ public class SystemUtilities
                 retryNumber++;
             }
         }
+    }
+
+    /**
+     * Launches a command as a new process without blocking. The process does NOT inherit IO, so its streams can be
+     * captured by the caller (e.g., for the in-game console).
+     *
+     * @param command          the full command string
+     * @param workingDirectory the working directory
+     *
+     * @return the started Process
+     *
+     * @throws IOException if the process cannot be started
+     *
+     * @since 3.0
+     */
+    public static Process launchCommand( String command, String workingDirectory ) throws IOException {
+        ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) )
+                .redirectErrorStream( false )
+                .directory( SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
+        Logger.logStd( "Launching command: " + command );
+        return processBuilder.start();
+    }
+
+    /**
+     * Waits for a process to complete, with optional retry on non-zero exit.
+     *
+     * @param process the process to wait for
+     *
+     * @throws InterruptedException if interrupted while waiting
+     *
+     * @since 3.0
+     */
+    public static void waitForProcess( Process process ) throws InterruptedException {
+        int returnCode = process.waitFor();
+        if ( returnCode != 0 ) {
+            Logger.logErrorConfirmRetry(
+                    "Oops - The game has crashed! Try again, and check the log files if the issue persists.",
+                    "Reload" );
+        }
+    }
+
+    private static List< String > splitCommandLine( String commandLine ) {
+        List< String > args = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+
+        for ( int i = 0; i < commandLine.length(); i++ ) {
+            char c = commandLine.charAt( i );
+            if ( c == '"' ) {
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if ( Character.isWhitespace( c ) && !inQuotes ) {
+                if ( current.length() > 0 ) {
+                    args.add( current.toString() );
+                    current.setLength( 0 );
+                }
+            }
+            else {
+                current.append( c );
+            }
+        }
+
+        if ( current.length() > 0 ) {
+            args.add( current.toString() );
+        }
+        return args;
     }
 
     /**

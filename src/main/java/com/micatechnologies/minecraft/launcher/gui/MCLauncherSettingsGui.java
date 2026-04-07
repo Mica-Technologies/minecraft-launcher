@@ -84,6 +84,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
+    MFXToggleButton inGameConsoleCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
     MFXButton scanFolderBtn;
 
     @SuppressWarnings( "unused" )
@@ -97,6 +101,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton resetRuntimeBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton manageRuntimeBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton openFolderBtn;
 
     @SuppressWarnings( "unused" )
     @FXML
@@ -163,7 +175,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     Label scanFolderLabel;
 
-    boolean dirty            = false;
     boolean scanning         = false;
     boolean scanningCanceled = false;
     File    scanFolder       = null;
@@ -214,15 +225,32 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @Override
     void setup() {
-        // Configure window close
+        // Configure window close -- X button should close the app, not navigate back
         stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();
-            returnBtn.fire();
+            SystemUtilities.spawnNewTask( () -> {
+                if ( hasUnsavedChanges() ) {
+                    int response = GUIUtilities.showQuestionMessage( "Unsaved Changes", "You have unsaved changes",
+                                                                     "Would you like to save before closing?",
+                                                                     "Save & Close", "Close Without Saving", stage );
+                    if ( response == 1 ) {
+                        GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
+                        LauncherCore.closeApp();
+                    }
+                    else if ( response == 2 ) {
+                        LauncherCore.closeApp();
+                    }
+                    // Cancel (0) -- do nothing, stay on settings
+                }
+                else {
+                    LauncherCore.closeApp();
+                }
+            } );
         } );
 
         // Configure return button
         returnBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            if ( dirty ) {
+            if ( hasUnsavedChanges() ) {
                 int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
                                                                  "Are you sure you want to return without saving " +
                                                                          "changes?", "Save", "Return", stage );
@@ -282,15 +310,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
             // Store enhanced logging to config
             ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
+            ConfigManager.setInGameConsoleEnable( inGameConsoleCheckBox.isSelected() );
 
             // Store theme selection
             if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
                 ConfigManager.setTheme( themeSelection.getSelectedItem() );
                 MCLauncherGuiController.forceThemeRefresh();
             }
-
-            // Reset dirty flag (changes have been saved)
-            setEdited( false );
 
             // Change save button text to indicate successful save
             GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
@@ -338,7 +364,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Configure reset runtime button
         resetRuntimeBtn.setOnAction( event -> SystemUtilities.spawnNewTask( () -> {
-            if ( dirty ) {
+            if ( hasUnsavedChanges() ) {
                 int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
                                                                  "Are you sure you want to reset the runtime without " +
                                                                          "saving changes?", "Save & Reset Runtime",
@@ -360,14 +386,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 return;
             }
 
-            try {
-                RuntimeManager.clearJre8();
+            // Clear all installed runtimes
+            java.util.List< java.util.Map< String, String > > runtimes = RuntimeManager.getInstalledRuntimes();
+            for ( java.util.Map< String, String > rt : runtimes ) {
+                try {
+                    RuntimeManager.clearRuntime( rt.get( "component" ) );
+                }
+                catch ( IOException e ) {
+                    Logger.logError( "Failed to delete " + rt.get( "component" ) + " runtime: " +
+                                             e.getMessage() );
+                }
             }
-            catch ( IOException e ) {
-                Logger.logError(
-                        "The runtime could not be deleted due to an IO exception. Continuing runtime verification..." );
-            }
-            RuntimeManager.verifyJre8();
+            Logger.logStd( "All runtimes cleared. They will be re-downloaded when a modpack is launched." );
 
             //Return to the settings window
             try {
@@ -377,6 +407,33 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 Logger.logError( "Oops! Unable to reload settings GUI" );
                 Logger.logThrowable( e );
                 LauncherCore.closeApp();
+            }
+        } ) );
+
+        // Configure manage runtimes button
+        manageRuntimeBtn.setOnAction( event -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                MCLauncherGuiController.goToRuntimeGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to open runtime management GUI." );
+                Logger.logThrowable( e );
+            }
+        } ) );
+
+        // Configure open launcher folder button
+        openFolderBtn.setOnAction( event -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                java.io.File launcherFolder = SynchronizedFileManager.getSynchronizedFile(
+                        LocalPathManager.getLauncherLocalPath() );
+                if ( !launcherFolder.exists() ) {
+                    launcherFolder.mkdirs();
+                }
+                java.awt.Desktop.getDesktop().open( launcherFolder );
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Unable to open the launcher folder." );
+                Logger.logThrowable( e );
             }
         } ) );
 
@@ -393,27 +450,22 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
 
         // Load version information
-        String jreVersionInfo = "Game JRE Version: " + RuntimeManager.getJre8Version();
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            versionLabel.setText( "Software Version: DEVELOPMENT MODE\n" + jreVersionInfo );
+            versionLabel.setText( "Software Version: DEVELOPMENT MODE" );
         }
         else {
-            versionLabel.setText(
-                    "Software Version: " + LauncherConstants.LAUNCHER_APPLICATION_VERSION + "\n" + jreVersionInfo );
+            versionLabel.setText( "Software Version: " + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
         }
 
         // Set and configure resizable windows check box
         windowResizeCheckBox.setSelected( ConfigManager.getResizableWindows() );
-        windowResizeCheckBox.setOnAction( actionEvent -> setEdited( true ) );
 
         // Set and configure debug mode check box
         debugCheckBox.setSelected( ConfigManager.getDebugLogging() );
-        debugCheckBox.setOnAction( actionEvent -> setEdited( true ) );
         debugCheckBox.setDisable( LauncherConstants.LAUNCHER_IS_DEV );
 
         // Set and configure Discord RPC check box
         discordCheckBox.setSelected( ConfigManager.getDiscordRpcEnable() );
-        discordCheckBox.setOnAction( actionEvent -> setEdited( true ) );
         discordCheckBox.setDisable( LauncherConstants.LAUNCHER_IS_DEV );
 
         // Populate theme selection dropdown
@@ -422,7 +474,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Set and configure enhanced logging check box
         enhancedLoggingCheckBox.setSelected( ConfigManager.getEnhancedLogging() );
-        enhancedLoggingCheckBox.setOnAction( actionEvent -> setEdited( true ) );
+
+        // Set and configure in-game console check box
+        inGameConsoleCheckBox.setSelected( ConfigManager.getInGameConsoleEnable() );
 
         // Load system RAM config label
         SystemInfo systemInfo = new SystemInfo();
@@ -449,7 +503,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 new SpinnerValueFactory.DoubleSpinnerValueFactory( LauncherConstants.SETTINGS_MIN_RAM_MIN,
                                                                    correctedMaxForMin, minRamGbVal, 0.1 ) );
         minRamGb.getValueFactory().valueProperty().addListener( ( observable, oldValue, newValue ) -> {
-            setEdited( true );
+
             double newValWithMinForMax = Math.max( LauncherConstants.SETTINGS_MAX_RAM_MIN, newValue );
             ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) maxRamGb.getValueFactory() ).setMin(
                     newValWithMinForMax );
@@ -462,7 +516,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                                                                                      LauncherConstants.SETTINGS_MAX_RAM_MAX,
                                                                                      maxRamGbVal, 0.1 ) );
         maxRamGb.getValueFactory().valueProperty().addListener( ( observable, oldValue, newValue ) -> {
-            setEdited( true );
+
             double newValWithMaxForMin = Math.min( LauncherConstants.SETTINGS_MIN_RAM_MAX, newValue );
             ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) minRamGb.getValueFactory() ).setMax(
                     newValWithMaxForMin );
@@ -606,11 +660,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         themeSelection.selectItem( safeCurrentConfigTheme );
         themeSelection.getSelectionModel().selectItem( safeCurrentConfigTheme );
-
-        // Add theme selection change listener
-        themeSelection.getSelectionModel()
-                      .selectedIndexProperty()
-                      .addListener( ( observable, oldValue, newValue ) -> setEdited( true ) );
     }
 
     @Override
@@ -618,7 +667,25 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     }
 
-    private void setEdited( boolean edited ) {
-        dirty = edited;
+    /**
+     * Checks whether any settings in the UI differ from the persisted config values.
+     *
+     * @return true if any setting has been changed by the user
+     *
+     * @since 3.0
+     */
+    private boolean hasUnsavedChanges() {
+        long currentMinRamMb = ( long ) ( minRamGb.getValue() * 1024 );
+        long currentMaxRamMb = ( long ) ( maxRamGb.getValue() * 1024 );
+        if ( currentMinRamMb != ConfigManager.getMinRam() ) return true;
+        if ( currentMaxRamMb != ConfigManager.getMaxRam() ) return true;
+        if ( debugCheckBox.isSelected() != ConfigManager.getDebugLogging() ) return true;
+        if ( discordCheckBox.isSelected() != ConfigManager.getDiscordRpcEnable() ) return true;
+        if ( windowResizeCheckBox.isSelected() != ConfigManager.getResizableWindows() ) return true;
+        if ( enhancedLoggingCheckBox.isSelected() != ConfigManager.getEnhancedLogging() ) return true;
+        if ( inGameConsoleCheckBox.isSelected() != ConfigManager.getInGameConsoleEnable() ) return true;
+        String selectedTheme = themeSelection.getSelectedItem();
+        if ( selectedTheme != null && !selectedTheme.equalsIgnoreCase( ConfigManager.getTheme() ) ) return true;
+        return false;
     }
 }

@@ -30,17 +30,17 @@ import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.nativejavafx.taskbar.TaskbarProgressbar;
 import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import io.github.palexdev.materialfx.controls.MFXButton;
-import io.github.palexdev.materialfx.controls.MFXListView;
-import io.github.palexdev.materialfx.controls.cell.MFXListCell;
-import io.github.palexdev.materialfx.utils.others.FunctionalStringConverter;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableMap;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
@@ -53,6 +53,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -65,7 +66,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXListView< GameModPack > packSelectionList;
+    ListView< GameModPack > packSelectionList;
 
     /**
      * Play button. Starts the current selected mod pack.
@@ -111,6 +112,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton editButton;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton vanillaBtn;
 
     /**
      * Current user avatar image. Displays the avatar of the currently logged in user.
@@ -350,6 +355,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } ) );
 
+        // Configure vanilla versions button
+        vanillaBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                MCLauncherGuiController.goToVanillaVersionsGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to open vanilla versions GUI." );
+                Logger.logThrowable( e );
+            }
+        } ) );
+
         // Configure logout button
         logoutBtn.setOnAction( actionEvent -> {
             MCLauncherAuthManager.logout();
@@ -361,8 +377,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
             GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
-                                                                          .getSelectedValues()
-                                                                          .get( 0 );
+                                                                          .getSelectedItem();
             if ( installedModPackByFriendlyName.getCustomDiscordRpc() ) {
                 SystemUtilities.spawnNewTask( DiscordRpcUtility::exit );
             }
@@ -392,8 +407,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Configure website button
         websiteBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
-                                                                          .getSelectedValues()
-                                                                          .get( 0 );
+                                                                          .getSelectedItem();
             try {
                 Desktop.getDesktop().browse( URI.create( installedModPackByFriendlyName.getPackURL() ) );
             }
@@ -414,7 +428,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 GUIConstants.URL_MINECRAFT_USER_ICONS.replace( GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
                                                                MCLauncherAuthManager.getLoggedInUser().uuid() ) ) );
 
-        // Configure ENTER key to press play button
+        // Configure keyboard shortcuts
         scene.setOnKeyPressed( keyEvent -> {
             if ( keyEvent.getCode() == KeyCode.ENTER ) {
                 keyEvent.consume();
@@ -422,11 +436,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     playBtn.fire();
                 }
             }
-        } );
-
-        // Configure F5 key to refresh
-        scene.setOnKeyPressed( keyEvent -> {
-            if ( keyEvent.getCode() == KeyCode.F5 ) {
+            else if ( keyEvent.getCode() == KeyCode.F5 ) {
                 keyEvent.consume();
                 SystemUtilities.spawnNewTask( () -> {
                     AnnouncementManager.checkAnnouncements();
@@ -443,8 +453,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
 
         // Configure mod pack list
-        packSelectionList.setCellFactory( modpack -> new ModPackCellFactory( packSelectionList, modpack ) );
-        packSelectionList.setConverter( FunctionalStringConverter.to( gameModPack -> "" ) );
+        packSelectionList.setCellFactory( listView -> new ModPackCellFactory() );
+        packSelectionList.setFixedCellSize( 52 );
 
         // Populate list of modpacks
         populateModpackDropdown();
@@ -483,10 +493,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @since 1.0
      */
-    private final ChangeListener< ObservableMap< Integer, GameModPack > > packSelectionChangeListener
-            = ( ObservableValue< ? extends ObservableMap< Integer, GameModPack > > observable, ObservableMap< Integer, GameModPack > oldValue, ObservableMap< Integer, GameModPack > newValue ) -> {
+    private final ChangeListener< GameModPack > packSelectionChangeListener
+            = ( observable, oldValue, newValue ) -> {
         // Get selected mod pack
-        GameModPack selectedGameModPack = packSelectionList.getSelectionModel().getSelectedValues().get( 0 );
+        GameModPack selectedGameModPack = newValue;
         if ( selectedGameModPack != null ) {
             ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
         }
@@ -537,7 +547,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     public void setUnstableWarning( boolean unstable ) {
         unstableWarning.setVisible( unstable );
         unstableWarningRow.setMaxHeight( unstable ? 37 : 0 );
-        unstableWarningRow.setMaxHeight( unstable ? 37 : 0 );
+        unstableWarningRow.setPrefHeight( unstable ? 37 : 0 );
         unstableWarningRow.setMinHeight( unstable ? 37 : 0 );
         centerPane.setPrefHeight( unstable ? 100 : 60 );
         centerPane.setMaxHeight( unstable ? 100 : 60 );
@@ -546,10 +556,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     public void selectModpack( String modPack ) {
         // Select supplied mod pack
-        packSelectionList.getSelectionModel()
-                         .selectItem( packSelectionList.getItems()
-                                                       .filtered( mp -> mp.getFriendlyName().equals( modPack ) )
-                                                       .get( 0 ) );
+        for ( GameModPack mp : packSelectionList.getItems() ) {
+            if ( mp.getFriendlyName().equals( modPack ) ) {
+                packSelectionList.getSelectionModel().select( mp );
+                return;
+            }
+        }
     }
 
     public void selectModpack( GameModPack modPack ) {
@@ -563,19 +575,24 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * @since 1.0
      */
     private void populateModpackDropdown() {
-        // Get list of mod pack names
-        List< String > modpackListNames = GameModPackManager.getInstalledModPackFriendlyNames();
+        // Build combined list: Forge modpacks + vanilla versions
+        List< GameModPack > allPacks = new ArrayList<>();
+        allPacks.addAll( GameModPackManager.getInstalledModPacks() );
+
+        // Add installed vanilla versions
+        for ( String versionId : com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager.getInstalledVersionIds() ) {
+            allPacks.add( GameModPack.createVanillaModPack( versionId ) );
+        }
 
         // Reset mod pack selector
         packSelectionList.setDisable( false );
-        packSelectionList.getSelectionModel().setAllowsMultipleSelection( false );
-        packSelectionList.getSelectionModel().selectionProperty().removeListener( packSelectionChangeListener );
+        packSelectionList.getSelectionModel().selectedItemProperty().removeListener( packSelectionChangeListener );
         packSelectionList.getItems().clear();
 
         // Populate mod packs dropdown
-        if ( modpackListNames.size() > 0 ) {
-            packSelectionList.setItems( FXCollections.observableList( GameModPackManager.getInstalledModPacks() ) );
-            packSelectionList.getSelectionModel().selectionProperty().addListener( packSelectionChangeListener );
+        if ( !allPacks.isEmpty() ) {
+            packSelectionList.setItems( FXCollections.observableArrayList( allPacks ) );
+            packSelectionList.getSelectionModel().selectedItemProperty().addListener( packSelectionChangeListener );
         }
         else {
             packSelectionList.setItems( FXCollections.singletonObservableList( GameModPack.NULL_MODPACK() ) );
@@ -586,49 +603,109 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                        "');" );
             rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
         }
-        packSelectionList.setPrefHeight( packSelectionList.getItems().size() * 52 );
+        // Let the GridPane layout handle list height naturally via vgrow.
+        // Setting a fixed prefHeight conflicts with the virtual scroll and causes scroll jumping.
     }
 
-    private static class ModPackCellFactory extends MFXListCell< GameModPack >
+    private static class ModPackCellFactory extends ListCell< GameModPack >
     {
         private final GridPane gridPane;
+        private final ImageView packLogo;
+        private final Label packNameLabel;
+        private final Label packVersionLabel;
 
-        public ModPackCellFactory( MFXListView< GameModPack > listView, GameModPack cell )
+        public ModPackCellFactory()
         {
-            super( listView, cell );
             setPrefHeight( 52 );
+            getStyleClass().add( "pack-list-cell" );
 
-            String packLogoFilepath = cell.getPackLogoFilepath() != null ?
-                                      new File( cell.getPackLogoFilepath() ).toURI().toString() :
-                                      ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
-            ImageView packLogo = new ImageView( packLogoFilepath );
+            packLogo = new ImageView();
             packLogo.setFitHeight( 40 );
             packLogo.setPreserveRatio( true );
             packLogo.getStyleClass().add( "packLogo" );
-            Label packName = new Label( cell.getPackName() );
-            packName.setAlignment( Pos.CENTER_LEFT );
-            packName.getStyleClass().add( "packName" );
-            Label packVersion = new Label( "Version: " + cell.getPackVersion() );
-            packVersion.setAlignment( Pos.CENTER_LEFT );
-            packVersion.getStyleClass().add( "packVersion" );
+            packNameLabel = new Label();
+            packNameLabel.setAlignment( Pos.CENTER_LEFT );
+            packNameLabel.getStyleClass().add( "packName" );
+            packVersionLabel = new Label();
+            packVersionLabel.setAlignment( Pos.CENTER_LEFT );
+            packVersionLabel.getStyleClass().add( "packVersion" );
 
-            // Add components to grid pane 2x2 (logo takes entire left column)
             gridPane = new GridPane();
             gridPane.getStyleClass().add( "packPane" );
-            //gridPane.setAlignment( Pos.CENTER );
             gridPane.add( packLogo, 0, 0, 1, 2 );
-            gridPane.add( packName, 1, 0 );
-            gridPane.add( packVersion, 1, 1 );
-
-            render( cell );
+            gridPane.add( packNameLabel, 1, 0 );
+            gridPane.add( packVersionLabel, 1, 1 );
         }
 
         @Override
-        protected void render( GameModPack cell ) {
-            super.render( cell );
-            if ( gridPane != null ) {
-                getChildren().add( 0, gridPane );
+        protected void updateItem( GameModPack item, boolean empty ) {
+            super.updateItem( item, empty );
+            if ( empty || item == null ) {
+                setText( null );
+                setGraphic( null );
+                setContextMenu( null );
             }
+            else {
+                String logoPath;
+                if ( item.getPackLogoFilepath() != null && new File( item.getPackLogoFilepath() ).exists() ) {
+                    logoPath = new File( item.getPackLogoFilepath() ).toURI().toString();
+                }
+                else {
+                    logoPath = ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
+                }
+                packLogo.setImage( new Image( logoPath ) );
+                packNameLabel.setText( item.getPackName() );
+                packVersionLabel.setText( "Version: " + item.getPackVersion() );
+                setText( null );
+                setGraphic( gridPane );
+                setContextMenu( buildContextMenu( item ) );
+            }
+        }
+
+        private ContextMenu buildContextMenu( GameModPack pack ) {
+            ContextMenu menu = new ContextMenu();
+
+            MenuItem openFolder = new MenuItem( "Open Install Folder" );
+            openFolder.setOnAction( e -> openPackSubfolder( pack, "" ) );
+
+            MenuItem openScreenshots = new MenuItem( "Open Screenshots" );
+            openScreenshots.setOnAction( e -> openPackSubfolder( pack, "screenshots" ) );
+
+            MenuItem openResourcePacks = new MenuItem( "Open Resource Packs" );
+            openResourcePacks.setOnAction( e -> openPackSubfolder( pack, "resourcepacks" ) );
+
+            MenuItem openShaderPacks = new MenuItem( "Open Shader Packs" );
+            openShaderPacks.setOnAction( e -> openPackSubfolder( pack, "shaderpacks" ) );
+
+            MenuItem openMods = new MenuItem( "Open Mods Folder" );
+            openMods.setOnAction( e -> openPackSubfolder( pack, "mods" ) );
+
+            MenuItem openConfig = new MenuItem( "Open Config Folder" );
+            openConfig.setOnAction( e -> openPackSubfolder( pack, "config" ) );
+
+            menu.getItems().addAll( openFolder, new SeparatorMenuItem(),
+                                    openScreenshots, openResourcePacks, openShaderPacks,
+                                    new SeparatorMenuItem(), openMods, openConfig );
+            return menu;
+        }
+
+        private void openPackSubfolder( GameModPack pack, String subfolder ) {
+            SystemUtilities.spawnNewTask( () -> {
+                try {
+                    String path = pack.getPackRootFolder();
+                    if ( !subfolder.isEmpty() ) {
+                        path += File.separator + subfolder;
+                    }
+                    File folder = new File( path );
+                    if ( !folder.exists() ) {
+                        folder.mkdirs();
+                    }
+                    Desktop.getDesktop().open( folder );
+                }
+                catch ( Exception ex ) {
+                    Logger.logWarningSilent( "Unable to open folder: " + ex.getMessage() );
+                }
+            } );
         }
     }
 }

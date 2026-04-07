@@ -457,6 +457,75 @@ public class ConfigManager
     }
 
     /**
+     * Gets the configured in-game console enabled value.
+     *
+     * @return true if in-game console is enabled
+     *
+     * @since 3.0
+     */
+    public synchronized static boolean getInGameConsoleEnable() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY,
+                                       ConfigConstants.INGAME_CONSOLE_ENABLE_DEFAULT );
+        }
+        return configObject.get( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Sets the configured in-game console enabled value.
+     *
+     * @param enable true to enable in-game console
+     *
+     * @since 3.0
+     */
+    public synchronized static void setInGameConsoleEnable( boolean enable ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY, enable );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Gets the configured list of installed vanilla Minecraft version IDs.
+     *
+     * @return list of installed vanilla version IDs (e.g. ["1.20.4", "1.12.2"])
+     *
+     * @since 3.0
+     */
+    public synchronized static List< String > getInstalledVanillaVersions() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY ) ) {
+            configObject.add( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY,
+                              new Gson().toJsonTree( ConfigConstants.VANILLA_VERSIONS_INSTALLED_DEFAULT,
+                                                      ConfigConstants.modPacksListType ) );
+        }
+        JsonArray arr = configObject.get( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY ).getAsJsonArray();
+        return new Gson().fromJson( arr, ConfigConstants.modPacksListType );
+    }
+
+    /**
+     * Sets the configured list of installed vanilla Minecraft version IDs.
+     *
+     * @param versions list of version IDs
+     *
+     * @since 3.0
+     */
+    public synchronized static void setInstalledVanillaVersions( List< String > versions ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.add( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY,
+                          new Gson().toJsonTree( versions, ConfigConstants.modPacksListType ) );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Reads the application configuration from its file on persistent storage. In the event that a file does not exist,
      * or an error occurred with the file, a new default configuration file will be created.
      *

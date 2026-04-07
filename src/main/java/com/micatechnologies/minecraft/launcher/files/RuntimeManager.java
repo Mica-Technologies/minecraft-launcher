@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.files;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
@@ -28,476 +29,690 @@ import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.SystemUtils;
 import org.rauschig.jarchivelib.ArchiveFormat;
 import org.rauschig.jarchivelib.Archiver;
 import org.rauschig.jarchivelib.ArchiverFactory;
 import org.rauschig.jarchivelib.CompressionType;
+import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Class for managing the download and usage of JREs required for Minecraft.
+ * Class for managing the download and usage of JREs required for Minecraft. Uses Mojang's official Java runtime
+ * distribution to ensure compatibility with all Minecraft versions. Supports multiple runtime components
+ * (jre-legacy, java-runtime-alpha, java-runtime-beta, java-runtime-gamma, java-runtime-delta, java-runtime-epsilon).
  *
  * @author Mica Technologies
- * @version 1.0
+ * @version 3.0
  * @since 1.1
  */
 public class RuntimeManager
 {
     /**
-     * The path to the downloaded and verified JRE 8 installation. This value is <code>null</code> until populated by
-     * verifying the JRE 8 with {@link #verifyJre8()}.
-     *
-     * @since 1.0
+     * Cache of verified Java executable paths keyed by runtime component name.
      */
-    private static String jre8VerifiedPath = null;
+    private static final Map< String, String > verifiedPaths = new ConcurrentHashMap<>();
 
     /**
-     * The version of the downloaded and verified JRE 8 installation. This value is <code>null</code> until populated by
-     * verifying the JRE 8 with {@link #verifyJre8()}.
+     * Cache of verified Java version strings keyed by runtime component name.
      */
-    private static String jre8VerifiedVersion = null;
+    private static final Map< String, String > verifiedVersions = new ConcurrentHashMap<>();
 
     /**
-     * Verifies the integrity of the local JRE 8 installation, and downloads or replaces files as necessary. This method
-     * must be called before calling {@link #getJre8Path()}.
-     *
-     * @since 1.0
+     * Cached Mojang runtime index JSON.
      */
-    public static void verifyJre8() {
-        // Create progress window if applicable
+    private static JsonObject runtimeIndex = null;
+
+    /**
+     * Verifies the Mojang runtime for the given component name, downloading files as needed.
+     *
+     * @param component  the Mojang runtime component name (e.g. "jre-legacy", "java-runtime-gamma")
+     * @param showProgress whether to show a progress GUI window
+     *
+     * @since 3.0
+     */
+    /**
+     * Functional interface for receiving runtime verification progress updates.
+     */
+    @FunctionalInterface
+    public interface RuntimeProgressCallback
+    {
+        void onProgress( String statusText );
+    }
+
+    /**
+     * Verifies the Mojang runtime for the given component name, downloading files as needed.
+     *
+     * @param component  the Mojang runtime component name
+     * @param showProgress whether to show a progress GUI window
+     */
+    public static void verifyRuntime( String component, boolean showProgress ) {
+        verifyRuntime( component, showProgress, null );
+    }
+
+    /**
+     * Verifies the Mojang runtime with an optional progress callback for inline status updates.
+     *
+     * @param component        the Mojang runtime component name
+     * @param showProgress     whether to show a standalone progress GUI window
+     * @param progressCallback optional callback for status text updates (used when embedded in another progress flow)
+     */
+    public static void verifyRuntime( String component, boolean showProgress, RuntimeProgressCallback progressCallback ) {
+        // Mojang's jre-legacy is Java 8u51, which is too old for Forge (needs 8u121+ for sun.misc.ObjectInputFilter).
+        // Use Bell-SW Liberica 8u392 instead, which is the last known-good JRE 8 for Minecraft + Forge.
+        if ( "jre-legacy".equals( component ) ) {
+            verifyLegacyJre( showProgress, progressCallback );
+            return;
+        }
+
         MCLauncherProgressGui progressWindow = null;
-        try {
-            if ( MCLauncherGuiController.shouldCreateGui() ) {
-                progressWindow = MCLauncherGuiController.goToProgressGui();
+        if ( showProgress ) {
+            try {
+                if ( MCLauncherGuiController.shouldCreateGui() ) {
+                    progressWindow = MCLauncherGuiController.goToProgressGui();
+                }
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to load progress GUI for runtime verification." );
+                Logger.logThrowable( e );
             }
         }
-        catch ( IOException e ) {
-            Logger.logError( "Unable to load progress GUI due to an incomplete response from the GUI subsystem." );
-            Logger.logThrowable( e );
-        }
 
-        if ( progressWindow != null ) {
-            progressWindow.setLabelTexts( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL,
-                                          LocalizationManager.RUNTIME_INSTALL_PROGRESS_LOWER_LABEL );
-        }
+        String label = "Java Runtime (" + component + ")";
+        reportProgress( progressWindow, progressCallback, label, "Checking runtime...", 5 );
 
-        // Create runtime folder and file objects
-        String runtimeFolderPath = LocalPathManager.getLauncherRuntimeFolderPath();
-        File runtimeFolderFile = SynchronizedFileManager.getSynchronizedFile(
-                SystemUtilities.buildFilePath( runtimeFolderPath ) );
+        String runtimeFolderPath = getComponentRuntimeFolderPath( component );
+        File runtimeFolder = SynchronizedFileManager.getSynchronizedFile( runtimeFolderPath );
+        runtimeFolder.mkdirs();
 
-        // Verify runtime folder exists and is valid
-        if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( LocalizationManager.VERIFYING_RUNTIME_INSTALL_FOLDER_TEXT );
-            progressWindow.setProgress( 5 );
-        }
-        else {
-            Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                   ": " +
-                                   LocalizationManager.VERIFYING_RUNTIME_INSTALL_FOLDER_TEXT +
-                                   " (5%)" );
-        }
-        final var mkdirs = runtimeFolderFile.mkdirs();
-        final var readable = runtimeFolderFile.setReadable( true );
-        final var writable = runtimeFolderFile.setWritable( true );
-        if ( mkdirs ) {
-            Logger.logDebug( LocalizationManager.CREATED_FOLDER_RUNTIME_TEXT );
-        }
-        else {
-            Logger.logDebug( LocalizationManager.DID_NOT_CREATE_FOLDER_RUNTIME_TEXT );
-        }
-        if ( readable ) {
-            Logger.logDebug( LocalizationManager.RUNTIME_FOLDER_SET_READABLE_TEXT );
-        }
-        else {
-            Logger.logDebug( LocalizationManager.DID_NOT_SET_RUNTIME_FOLDER_READABLE_TEXT );
-        }
-        if ( writable ) {
-            Logger.logDebug( LocalizationManager.RUNTIME_FOLDER_SET_WRITABLE_TEXT );
-        }
-        else {
-            Logger.logDebug( LocalizationManager.DID_NOT_SET_RUNTIME_FOLDER_WRITABLE_TEXT );
-        }
-
-        // Get proper URLs and archive information for specific OS
-        if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( LocalizationManager.GATHERING_RUNTIME_INFO_TEXT );
-            progressWindow.setProgress( 20 );
-        }
-        else {
-            Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                   ": " +
-                                   LocalizationManager.GATHERING_RUNTIME_INFO_TEXT +
-                                   " (20%)" );
-        }
-        String latestJre8InfoApiUrlForOs = getLatestJre8InfoUrlForOs();
-
-        // Download archive information
-        if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADING_RUNTIME_CHECKSUM_TEXT );
-            progressWindow.setProgress( 25 );
-        }
-        else {
-            Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                   ": " +
-                                   LocalizationManager.DOWNLOADING_RUNTIME_CHECKSUM_TEXT +
-                                   " (25%)" );
-        }
-        ArchiveFormat jreArchiveFormat = null;
-        CompressionType jreArchiveCompressionType = null;
-        JsonObject jreLatestInformationObject = null;
-        String extractedJreFolderName1 = null;
-        String extractedJreFolderName2 = null;
-        File extractedJreFolderFile1 = null;
-        File extractedJreFolderFile2 = null;
         String newJavaPath = null;
         String newJavaVersion = null;
-        boolean usedApiFallback = false;
+
         try {
-            JsonArray jreLatestInformation = null;
-            try {
-                jreLatestInformation = downloadLatestJre8Info( latestJre8InfoApiUrlForOs );
-            } catch (Exception apiEx) {
-                // Fallback: read local file if API fails
-                Logger.logError("Failed to download latest JRE 8 API info, falling back to local cache.");
-                File jre8InfoFile = SynchronizedFileManager.getSynchronizedFile(
-                        SystemUtilities.buildFilePath( runtimeFolderPath, RuntimeConstants.JRE_8_API_DATA_FILE_NAME ) );
-                if (jre8InfoFile.exists()) {
-                    jreLatestInformation = FileUtilities.readAsJsonArray(jre8InfoFile);
-                    usedApiFallback = true;
-                } else {
-                    throw apiEx;
+            // Get the Mojang runtime index
+            reportProgress( progressWindow, progressCallback, label, "Fetching runtime index...", 10 );
+            JsonObject index = getMojangRuntimeIndex();
+            String platform = RuntimeConstants.getMojangPlatformKey();
+
+            if ( !index.has( platform ) ) {
+                throw new Exception( "Platform '" + platform + "' not found in Mojang runtime index." );
+            }
+
+            JsonObject platformObj = index.getAsJsonObject( platform );
+            if ( !platformObj.has( component ) ) {
+                throw new Exception( "Runtime component '" + component + "' not found for platform '" + platform + "'." );
+            }
+
+            JsonArray componentArray = platformObj.getAsJsonArray( component );
+            if ( componentArray.isEmpty() ) {
+                throw new Exception( "No runtime entries for component '" + component + "' on platform '" + platform + "'." );
+            }
+
+            JsonObject componentEntry = componentArray.get( 0 ).getAsJsonObject();
+            String manifestUrl = componentEntry.getAsJsonObject( "manifest" ).get( "url" ).getAsString();
+            String versionName = componentEntry.getAsJsonObject( "version" ).get( "name" ).getAsString();
+
+            // Check if we already have this version installed
+            File versionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
+            if ( versionFile.exists() ) {
+                String installedVersion = org.apache.commons.io.FileUtils.readFileToString( versionFile,
+                                                                                             "UTF-8" ).trim();
+                File javaExec = new File( runtimeFolderPath, RuntimeConstants.getJavaExecPathForOs() );
+                if ( installedVersion.equals( versionName ) && javaExec.exists() ) {
+                    Logger.logStd( "Runtime " + component + " (" + versionName + ") is already installed." );
+                    newJavaPath = javaExec.getAbsolutePath();
+                    newJavaVersion = versionName;
+                    reportProgress( progressWindow, progressCallback, label, "Already installed.", 100 );
+                    verifiedPaths.put( component, newJavaPath );
+                    verifiedVersions.put( component, newJavaVersion );
+                    return;
                 }
             }
-            if ( jreLatestInformation == null || jreLatestInformation.size() == 0 ) {
-                throw new Exception( "No JRE 8 information available." );
+
+            // Download the file manifest
+            reportProgress( progressWindow, progressCallback, label, "Downloading file manifest...", 15 );
+            File manifestFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_MANIFEST_FILE_NAME );
+            NetworkUtilities.downloadFileFromURL( manifestUrl, manifestFile );
+            JsonObject manifest = FileUtilities.readAsJsonObject( manifestFile );
+            JsonObject files = manifest.getAsJsonObject( "files" );
+
+            // Count total files for progress
+            int totalFiles = files.entrySet().size();
+            int processedFiles = 0;
+
+            Logger.logStd( "Installing runtime " + component + " (" + versionName + ") - " + totalFiles + " files..." );
+
+            // Process each file entry
+            for ( Map.Entry< String, JsonElement > entry : files.entrySet() ) {
+                String relativePath = entry.getKey();
+                JsonObject fileEntry = entry.getValue().getAsJsonObject();
+                String type = fileEntry.get( "type" ).getAsString();
+
+                File localFile = new File( runtimeFolderPath, relativePath.replace( "/", File.separator ) );
+
+                if ( "directory".equals( type ) ) {
+                    localFile.mkdirs();
+                }
+                else if ( "file".equals( type ) ) {
+                    JsonObject downloads = fileEntry.getAsJsonObject( "downloads" );
+                    JsonObject rawDownload = downloads.getAsJsonObject( "raw" );
+                    String sha1 = rawDownload.get( "sha1" ).getAsString();
+                    String url = rawDownload.get( "url" ).getAsString();
+
+                    // Only download if file doesn't exist or hash doesn't match
+                    if ( !localFile.exists() || !HashUtilities.verifySHA1( localFile, sha1 ) ) {
+                        localFile.getParentFile().mkdirs();
+                        NetworkUtilities.downloadFileFromURL( url, localFile );
+                    }
+
+                    // Set executable permission if needed
+                    if ( fileEntry.has( "executable" ) && fileEntry.get( "executable" ).getAsBoolean() ) {
+                        localFile.setExecutable( true );
+                    }
+                }
+                // Skip "link" type entries on Windows (symlinks require elevated privileges)
+
+                processedFiles++;
+                if ( progressWindow != null && processedFiles % 20 == 0 ) {
+                    double pct = 15 + ( 80.0 * processedFiles / totalFiles );
+                    reportProgress( progressWindow, progressCallback, label, "Installing files... (" + processedFiles + "/" +
+                            totalFiles + ")", pct );
+                }
             }
-            jreLatestInformationObject = jreLatestInformation.get( 0 ).getAsJsonObject();
-            jreArchiveFormat = jreLatestInformationObject.get( "packageType" ).getAsString().equals( "tar.gz" ) ?
-                               ArchiveFormat.TAR :
-                               ArchiveFormat.ZIP;
-            jreArchiveCompressionType = jreLatestInformationObject.get( "packageType" )
-                                                                  .getAsString()
-                                                                  .equals( "tar.gz" ) ? CompressionType.GZIP : null;
-            newJavaVersion = jreLatestInformationObject.get( "version" ).getAsString();
 
-            extractedJreFolderName1 = jreLatestInformationObject.get( "bundleType" ).getAsString() +
-                    jreLatestInformationObject.get( "featureVersion" ).getAsInt() +
-                    "u" +
-                    jreLatestInformationObject.get( "updateVersion" ).getAsInt();
-            extractedJreFolderName2 = extractedJreFolderName1 +
-                    "." +
-                    jreLatestInformationObject.get( "bundleType" ).getAsString();
-            extractedJreFolderFile1 = SynchronizedFileManager.getSynchronizedFile(
-                    SystemUtilities.buildFilePath( runtimeFolderPath, extractedJreFolderName1 ) );
-            extractedJreFolderFile2 = SynchronizedFileManager.getSynchronizedFile(
-                    SystemUtilities.buildFilePath( runtimeFolderPath, extractedJreFolderName2 ) );
-        }
-        catch ( Exception e ) {
-            Logger.logError( LocalizationManager.RUNTIME_CHECKSUM_DOWNLOAD_FAIL_TEXT );
-            Logger.logThrowable( e );
-            newJavaPath = "java";
-            newJavaVersion = "Unknown (System Java)";
-        }
+            // Write version marker
+            org.apache.commons.io.FileUtils.writeStringToFile( versionFile, versionName, "UTF-8" );
 
-        // Verify and download runtime locally
-        if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( LocalizationManager.VERIFYING_LOCAL_RUNTIME_TEXT );
-            progressWindow.setProgress( 30 );
-        }
-        else {
-            Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                   ": " +
-                                   LocalizationManager.VERIFYING_LOCAL_RUNTIME_TEXT +
-                                   " (30%)" );
-        }
-        try {
-            if ( jreLatestInformationObject == null ) {
-                throw new Exception( "Unable to download JRE 8 information." );
+            // Resolve java executable path
+            File javaExec = new File( runtimeFolderPath, RuntimeConstants.getJavaExecPathForOs() );
+            if ( javaExec.exists() ) {
+                newJavaPath = javaExec.getAbsolutePath();
+                newJavaVersion = versionName;
+                Logger.logStd( "Runtime " + component + " (" + versionName + ") installed successfully." );
             }
             else {
-                String jreArchiveHash = jreLatestInformationObject.get( "sha1" ).getAsString();
-                File jreArchiveFile = SynchronizedFileManager.getSynchronizedFile(
-                        SystemUtilities.buildFilePath( runtimeFolderPath,
-                                                       jreLatestInformationObject.get( "filename" ).getAsString() ) );
-                boolean isExistingValid = HashUtilities.verifySHA1( jreArchiveFile, jreArchiveHash );
-                if ( !isExistingValid ) {
-                    // Download archive from URL
-                    if ( progressWindow != null ) {
-                        progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADING_RUNTIME_TEXT );
-                        progressWindow.setProgress( MFXProgressBar.INDETERMINATE_PROGRESS );
-
-                    }
-                    else {
-                        Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                               ": " +
-                                               LocalizationManager.DOWNLOADING_RUNTIME_TEXT );
-                    }
-                    NetworkUtilities.downloadFileFromURL( jreLatestInformationObject.get( "downloadUrl" ).getAsString(),
-                                                          jreArchiveFile );
-                    if ( progressWindow != null ) {
-                        progressWindow.setLowerLabelText( LocalizationManager.DOWNLOADED_RUNTIME_SUCCESS_TEXT );
-                        progressWindow.setProgress( 65 );
-                    }
-                    else {
-                        Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                               ": " +
-                                               LocalizationManager.DOWNLOADED_RUNTIME_SUCCESS_TEXT +
-                                               " (65%)" );
-                    }
-
-                    // Delete previous extracted JRE
-                    if ( progressWindow != null ) {
-                        progressWindow.setLowerLabelText( LocalizationManager.CLEANING_RUNTIME_ENV_TEXT );
-                        progressWindow.setProgress( 70 );
-                    }
-                    else {
-                        Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                               ": " +
-                                               LocalizationManager.CLEANING_RUNTIME_ENV_TEXT +
-                                               " (70%)" );
-                    }
-                    if ( extractedJreFolderFile1 != null && extractedJreFolderFile1.exists() ) {
-                        FileUtils.deleteDirectory( extractedJreFolderFile1 );
-                    }
-                    if ( extractedJreFolderFile2 != null && extractedJreFolderFile2.exists() ) {
-                        FileUtils.deleteDirectory( extractedJreFolderFile2 );
-                    }
-
-                    // Extract downloaded JRE
-                    if ( progressWindow != null ) {
-                        progressWindow.setLowerLabelText( LocalizationManager.EXTRACTING_RUNTIME_TO_ENV_TEXT );
-                        progressWindow.setProgress( 75 );
-                    }
-                    else {
-                        Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                               ": " +
-                                               LocalizationManager.EXTRACTING_RUNTIME_TO_ENV_TEXT +
-                                               " (75%)" );
-                    }
-                    Archiver archiver;
-                    if ( jreArchiveCompressionType == null ) {
-                        archiver = ArchiverFactory.createArchiver( jreArchiveFormat );
-                    }
-                    else {
-                        archiver = ArchiverFactory.createArchiver( jreArchiveFormat, jreArchiveCompressionType );
-                    }
-                    archiver.extract( jreArchiveFile, runtimeFolderFile );
-                }
-
-                // Set java path if not already set by an error
-                if ( newJavaPath == null && extractedJreFolderFile1 != null && extractedJreFolderFile1.exists() ) {
-                    newJavaPath = SystemUtilities.buildFilePath( extractedJreFolderFile1.getAbsolutePath(),
-                                                                 getJreExecutablePathForOs() );
-                }
-                else if ( newJavaPath == null && extractedJreFolderFile2 != null && extractedJreFolderFile2.exists() ) {
-                    newJavaPath = SystemUtilities.buildFilePath( extractedJreFolderFile2.getAbsolutePath(),
-                                                                 getJreExecutablePathForOs() );
-                }
-                else {
-                    Logger.logDebug( "Unable to find Java executable in successfully downloaded JRE!" );
-                    Logger.logError( LocalizationManager.UNABLE_DOWNLOAD_RUNTIME_TEXT );
+                // Try finding java executable by searching
+                Logger.logError( "Java executable not found at expected path: " + javaExec.getAbsolutePath() );
+                newJavaPath = findJavaExecutable( runtimeFolder );
+                newJavaVersion = versionName;
+                if ( newJavaPath == null ) {
+                    Logger.logError( "Could not find Java executable in runtime folder. Falling back to system Java." );
                     newJavaPath = "java";
                     newJavaVersion = "Unknown (System Java)";
                 }
-
-                // --- Create/Update symlink to latest JRE folder ---
-                try {
-                    String symlinkName = "jre8-latest";
-                    Path symlinkPath = Paths.get(runtimeFolderPath, symlinkName);
-                    Path targetPath = null;
-                    if (extractedJreFolderFile1 != null && extractedJreFolderFile1.exists()) {
-                        targetPath = extractedJreFolderFile1.toPath();
-                    } else if (extractedJreFolderFile2 != null && extractedJreFolderFile2.exists()) {
-                        targetPath = extractedJreFolderFile2.toPath();
-                    }
-                    if (targetPath != null) {
-                        // Remove old symlink if exists
-                        if (Files.exists(symlinkPath)) {
-                            Files.delete(symlinkPath);
-                        }
-                        Files.createSymbolicLink(symlinkPath, targetPath);
-                        Logger.logStd("Created/updated symlink: " + symlinkPath + " -> " + targetPath);
-                    }
-                } catch (Exception symlinkEx) {
-                    Logger.logWarningSilent("Failed to create symlink for latest JRE: " + symlinkEx.getMessage());
-                }
             }
         }
         catch ( Exception e ) {
-            Logger.logError( LocalizationManager.UNABLE_DOWNLOAD_RUNTIME_TEXT );
-            // --- Fallback: Try to use local API info and existing JRE folder ---
-            try {
-                File jre8InfoFile = SynchronizedFileManager.getSynchronizedFile(
-                        SystemUtilities.buildFilePath( runtimeFolderPath, RuntimeConstants.JRE_8_API_DATA_FILE_NAME ) );
-                if (jre8InfoFile.exists()) {
-                    JsonArray jreLatestInformation = FileUtilities.readAsJsonArray(jre8InfoFile);
-                    if (jreLatestInformation != null && jreLatestInformation.size() > 0) {
-                         jreLatestInformationObject = jreLatestInformation.get(0).getAsJsonObject();
-                        String fallbackFolderName = jreLatestInformationObject.get("bundleType").getAsString() +
-                                jreLatestInformationObject.get("featureVersion").getAsInt() +
-                                "u" +
-                                jreLatestInformationObject.get("updateVersion").getAsInt();
-                        File fallbackJreFolderFile = SynchronizedFileManager.getSynchronizedFile(
-                                SystemUtilities.buildFilePath(runtimeFolderPath, fallbackFolderName));
-                        if (fallbackJreFolderFile.exists()) {
-                            newJavaPath = SystemUtilities.buildFilePath(fallbackJreFolderFile.getAbsolutePath(),
-                                    getJreExecutablePathForOs());
-                            newJavaVersion = jreLatestInformationObject.get("version").getAsString();
-                            Logger.logStd("Fell back to existing JRE in folder: " + fallbackJreFolderFile.getAbsolutePath());
-                            // Try to update symlink as well
-                            try {
-                                String symlinkName = "jre8-latest";
-                                Path symlinkPath = Paths.get(runtimeFolderPath, symlinkName);
-                                Path targetPath = fallbackJreFolderFile.toPath();
-                                if (Files.exists(symlinkPath)) {
-                                    Files.delete(symlinkPath);
-                                }
-                                Files.createSymbolicLink(symlinkPath, targetPath);
-                                Logger.logStd("Created/updated symlink: " + symlinkPath + " -> " + targetPath);
-                            } catch (Exception symlinkEx) {
-                                Logger.logWarningSilent("Failed to create symlink for fallback JRE: " + symlinkEx.getMessage());
-                            }
-                        } else {
-                            Logger.logError("No existing JRE folder found for fallback.");
-                            newJavaPath = "java";
-                            newJavaVersion = "Unknown (System Java)";
-                        }
-                    }
+            Logger.logError( "Failed to install runtime " + component + ": " + e.getMessage() );
+            Logger.logThrowable( e );
+            // Try to use existing installation even if update check failed
+            File javaExec = new File( runtimeFolderPath, RuntimeConstants.getJavaExecPathForOs() );
+            if ( javaExec.exists() ) {
+                newJavaPath = javaExec.getAbsolutePath();
+                File versionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
+                try {
+                    newJavaVersion = org.apache.commons.io.FileUtils.readFileToString( versionFile, "UTF-8" ).trim();
                 }
-            } catch (Exception fallbackEx) {
-                Logger.logError("Failed to fallback to local JRE info: " + fallbackEx.getMessage());
+                catch ( Exception ignored ) {
+                    newJavaVersion = "Unknown";
+                }
+                Logger.logStd( "Using existing runtime installation at: " + newJavaPath );
+            }
+            else {
                 newJavaPath = "java";
                 newJavaVersion = "Unknown (System Java)";
             }
         }
 
-        // Close progress window if applicable
+        reportProgress( progressWindow, progressCallback, label, "Completed.", 100 );
+
+        verifiedPaths.put( component, newJavaPath );
+        verifiedVersions.put( component, newJavaVersion );
+    }
+
+    /**
+     * Gets the Java executable path for the specified runtime component. Verifies/downloads on demand.
+     *
+     * @param component the Mojang runtime component name
+     *
+     * @return the path to the Java executable
+     *
+     * @since 3.0
+     */
+    public static String getJavaPath( String component ) {
+        if ( !verifiedPaths.containsKey( component ) ) {
+            verifyRuntime( component, false );
+        }
+        return verifiedPaths.get( component );
+    }
+
+    /**
+     * Gets the Java version string for the specified runtime component.
+     *
+     * @param component the runtime component name
+     *
+     * @return the version string, or null if not verified
+     *
+     * @since 3.0
+     */
+    public static String getJavaVersion( String component ) {
+        return verifiedVersions.get( component );
+    }
+
+    /**
+     * Deletes the runtime installation for the specified component.
+     *
+     * @param component the runtime component name
+     *
+     * @throws IOException if unable to delete the runtime
+     *
+     * @since 3.0
+     */
+    public static void clearRuntime( String component ) throws IOException {
+        String folderPath = getComponentRuntimeFolderPath( component );
+        File folder = SynchronizedFileManager.getSynchronizedFile( folderPath );
+        if ( folder.exists() ) {
+            FileUtils.deleteDirectory( folder );
+        }
+        verifiedPaths.remove( component );
+        verifiedVersions.remove( component );
+    }
+
+    /**
+     * Returns a list of installed runtime entries with component name, version, and size.
+     *
+     * @return list of installed runtime info maps
+     *
+     * @since 3.0
+     */
+    public static List< Map< String, String > > getInstalledRuntimes() {
+        List< Map< String, String > > runtimes = new ArrayList<>();
+        String runtimeRootPath = LocalPathManager.getLauncherRuntimeFolderPath();
+        File runtimeRoot = SynchronizedFileManager.getSynchronizedFile( runtimeRootPath );
+        if ( !runtimeRoot.exists() || !runtimeRoot.isDirectory() ) {
+            return runtimes;
+        }
+
+        File[] children = runtimeRoot.listFiles();
+        if ( children == null ) {
+            return runtimes;
+        }
+
+        for ( File child : children ) {
+            if ( !child.isDirectory() ) {
+                continue;
+            }
+
+            File versionFile = new File( child, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
+            if ( !versionFile.exists() ) {
+                continue;
+            }
+
+            Map< String, String > info = new LinkedHashMap<>();
+            info.put( "component", child.getName() );
+            try {
+                info.put( "version", org.apache.commons.io.FileUtils.readFileToString( versionFile, "UTF-8" ).trim() );
+            }
+            catch ( IOException e ) {
+                info.put( "version", "Unknown" );
+            }
+            info.put( "path", child.getAbsolutePath() );
+
+            long sizeBytes = FileUtils.sizeOfDirectory( child );
+            long sizeMB = sizeBytes / ( 1024 * 1024 );
+            info.put( "sizeMB", String.valueOf( sizeMB ) );
+
+            runtimes.add( info );
+        }
+
+        return runtimes;
+    }
+
+    // --- Backward-compatible wrappers (use component names internally) ---
+
+    /**
+     * Verifies a runtime by Java major version. Maps the major version to the default component name.
+     *
+     * @param majorVersion the Java major version
+     * @param showProgress whether to show progress GUI
+     *
+     * @since 2.0
+     */
+    public static void verifyJre( int majorVersion, boolean showProgress ) {
+        verifyRuntime( majorVersionToComponent( majorVersion ), showProgress );
+    }
+
+    /**
+     * Verifies a runtime by Java major version with progress GUI.
+     *
+     * @param majorVersion the Java major version
+     *
+     * @since 2.0
+     */
+    public static void verifyJre( int majorVersion ) {
+        verifyJre( majorVersion, true );
+    }
+
+    /**
+     * Gets the Java executable path for the specified major version.
+     *
+     * @param majorVersion the Java major version
+     *
+     * @return the path to the Java executable
+     *
+     * @since 2.0
+     */
+    public static String getJavaPath( int majorVersion ) {
+        return getJavaPath( majorVersionToComponent( majorVersion ) );
+    }
+
+    /**
+     * Gets the Java version string for the specified major version.
+     *
+     * @param majorVersion the Java major version
+     *
+     * @return the version string
+     *
+     * @since 2.0
+     */
+    public static String getJavaVersion( int majorVersion ) {
+        return getJavaVersion( majorVersionToComponent( majorVersion ) );
+    }
+
+    /**
+     * Deletes the runtime for the specified major version.
+     *
+     * @param majorVersion the Java major version
+     *
+     * @throws IOException if unable to delete
+     *
+     * @since 2.0
+     */
+    public static void clearRuntime( int majorVersion ) throws IOException {
+        clearRuntime( majorVersionToComponent( majorVersion ) );
+    }
+
+    /** @since 1.0 */
+    public static void verifyJre8() { verifyJre( 8 ); }
+
+    /** @since 1.0 */
+    public static void clearJre8() throws IOException { clearRuntime( 8 ); }
+
+    /** @since 1.0 */
+    public static String getJre8Path() { return getJavaPath( 8 ); }
+
+    /** @since 1.0 */
+    public static String getJre8Version() { return getJavaVersion( 8 ); }
+
+    // --- Legacy JRE 8 via Bell-SW Liberica (Mojang's 8u51 is too old for Forge) ---
+
+    /**
+     * Bell-SW Liberica API URL for JRE 8u392 (last known-good for Minecraft + Forge).
+     */
+    private static final String LIBERICA_JRE8_API_TEMPLATE
+            = "https://api.bell-sw.com/v1/liberica/releases?version-feature=8&version-update=392&bitness=64&installation-type=archive&os={OS}&arch={ARCH}&bundle-type=jre";
+
+    /**
+     * Verifies/downloads the legacy JRE 8 using Bell-SW Liberica 8u392 instead of Mojang's too-old 8u51.
+     */
+    private static void verifyLegacyJre( boolean showProgress, RuntimeProgressCallback progressCallback ) {
+        String component = "jre-legacy";
+        MCLauncherProgressGui progressWindow = null;
+        if ( showProgress ) {
+            try {
+                if ( MCLauncherGuiController.shouldCreateGui() ) {
+                    progressWindow = MCLauncherGuiController.goToProgressGui();
+                }
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to load progress GUI for legacy JRE verification." );
+            }
+        }
+
+        String label = "Java Runtime (jre-legacy / Liberica 8u392)";
+        reportProgress( progressWindow, progressCallback, label, "Checking runtime...", 5 );
+
+        String runtimeFolderPath = getComponentRuntimeFolderPath( component );
+        File runtimeFolder = SynchronizedFileManager.getSynchronizedFile( runtimeFolderPath );
+        runtimeFolder.mkdirs();
+
+        String newJavaPath = null;
+        String newJavaVersion = null;
+
+        try {
+            // Build API URL for current OS
+            String os, arch;
+            if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+                os = "windows"; arch = "x86";
+            }
+            else if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+                os = "macos";
+                arch = System.getProperty( "os.arch", "" ).contains( "aarch64" ) ? "arm" : "x86";
+            }
+            else {
+                os = "linux";
+                arch = System.getProperty( "os.arch", "" ).contains( "aarch64" ) ? "arm" : "x86";
+            }
+            String apiUrl = LIBERICA_JRE8_API_TEMPLATE.replace( "{OS}", os ).replace( "{ARCH}", arch );
+
+            // Download API info
+            reportProgress( progressWindow, progressCallback, label, "Fetching JRE 8 info...", 15 );
+            String apiDataFileName = "jre-legacy.api.json";
+            File apiFile = new File( runtimeFolderPath, apiDataFileName );
+
+            JsonArray apiData = null;
+            try {
+                NetworkUtilities.downloadFileFromURL( apiUrl, apiFile, "application/json" );
+                apiData = FileUtilities.readAsJsonArray( apiFile );
+            }
+            catch ( Exception e ) {
+                if ( apiFile.exists() ) {
+                    apiData = FileUtilities.readAsJsonArray( apiFile );
+                    Logger.logWarningSilent( "Using cached JRE 8 API info." );
+                }
+                else {
+                    throw e;
+                }
+            }
+
+            if ( apiData == null || apiData.isEmpty() ) {
+                throw new Exception( "No JRE 8 info available from Liberica API." );
+            }
+
+            JsonObject info = apiData.get( 0 ).getAsJsonObject();
+            newJavaVersion = info.get( "version" ).getAsString();
+
+            // Check if already installed
+            File versionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
+            String extractedFolderName = info.get( "bundleType" ).getAsString() +
+                    info.get( "featureVersion" ).getAsInt() + "u" + info.get( "updateVersion" ).getAsInt();
+            File extractedFolder = new File( runtimeFolderPath, extractedFolderName );
+
+            if ( versionFile.exists() && extractedFolder.exists() ) {
+                String installed = org.apache.commons.io.FileUtils.readFileToString( versionFile, "UTF-8" ).trim();
+                if ( installed.equals( newJavaVersion ) ) {
+                    File javaExec = new File( extractedFolder, RuntimeConstants.getJavaExecPathForOs() );
+                    if ( javaExec.exists() ) {
+                        Logger.logStd( "JRE 8 (Liberica " + newJavaVersion + ") is already installed." );
+                        verifiedPaths.put( component, javaExec.getAbsolutePath() );
+                        verifiedVersions.put( component, newJavaVersion );
+                        reportProgress( progressWindow, progressCallback, label, "Already installed.", 100 );
+                        return;
+                    }
+                }
+            }
+
+            // Verify/download archive
+            reportProgress( progressWindow, progressCallback, label, "Verifying JRE 8 archive...", 30 );
+            String archiveHash = info.get( "sha1" ).getAsString();
+            File archiveFile = new File( runtimeFolderPath, info.get( "filename" ).getAsString() );
+            if ( !HashUtilities.verifySHA1( archiveFile, archiveHash ) ) {
+                reportProgress( progressWindow, progressCallback, label, "Downloading JRE 8...", -1 );
+                NetworkUtilities.downloadFileFromURL( info.get( "downloadUrl" ).getAsString(), archiveFile );
+            }
+
+            // Extract
+            reportProgress( progressWindow, progressCallback, label, "Extracting JRE 8...", 75 );
+            if ( extractedFolder.exists() ) {
+                FileUtils.deleteDirectory( extractedFolder );
+            }
+            String pkgType = info.get( "packageType" ).getAsString();
+            Archiver archiver;
+            if ( pkgType.equals( "tar.gz" ) ) {
+                archiver = ArchiverFactory.createArchiver( ArchiveFormat.TAR, CompressionType.GZIP );
+            }
+            else {
+                archiver = ArchiverFactory.createArchiver( ArchiveFormat.ZIP );
+            }
+            archiver.extract( archiveFile, runtimeFolder );
+
+            // Find the extracted folder (may have a different suffix)
+            if ( !extractedFolder.exists() ) {
+                File altFolder = new File( runtimeFolderPath, extractedFolderName + "." +
+                        info.get( "bundleType" ).getAsString() );
+                if ( altFolder.exists() ) {
+                    extractedFolder = altFolder;
+                }
+            }
+
+            // Resolve java executable
+            File javaExec = new File( extractedFolder, RuntimeConstants.getJavaExecPathForOs() );
+            if ( javaExec.exists() ) {
+                newJavaPath = javaExec.getAbsolutePath();
+            }
+            else {
+                newJavaPath = findJavaExecutable( extractedFolder );
+            }
+
+            if ( newJavaPath == null ) {
+                newJavaPath = "java";
+                newJavaVersion = "Unknown (System Java)";
+            }
+
+            // Write version marker
+            org.apache.commons.io.FileUtils.writeStringToFile( versionFile, newJavaVersion, "UTF-8" );
+
+            Logger.logStd( "JRE 8 (Liberica " + newJavaVersion + ") installed successfully." );
+        }
+        catch ( Exception e ) {
+            Logger.logError( "Failed to install legacy JRE 8: " + e.getMessage() );
+            Logger.logThrowable( e );
+            newJavaPath = "java";
+            newJavaVersion = "Unknown (System Java)";
+        }
+
+        reportProgress( progressWindow, progressCallback, label, "Completed.", 100 );
+        verifiedPaths.put( component, newJavaPath );
+        verifiedVersions.put( component, newJavaVersion );
+    }
+
+    // --- Internal helpers ---
+
+    /**
+     * Maps a Java major version to the Mojang runtime component name.
+     */
+    static String majorVersionToComponent( int majorVersion ) {
+        return switch ( majorVersion ) {
+            case 8 -> "jre-legacy";
+            case 16 -> "java-runtime-alpha";
+            case 17 -> "java-runtime-gamma";
+            case 21 -> "java-runtime-delta";
+            case 25 -> "java-runtime-epsilon";
+            default -> {
+                // For unknown versions, try to find a close match
+                if ( majorVersion <= 8 ) yield "jre-legacy";
+                else if ( majorVersion <= 16 ) yield "java-runtime-alpha";
+                else if ( majorVersion <= 17 ) yield "java-runtime-gamma";
+                else if ( majorVersion <= 21 ) yield "java-runtime-delta";
+                else yield "java-runtime-epsilon";
+            }
+        };
+    }
+
+    /**
+     * Returns the per-component runtime folder path.
+     */
+    private static String getComponentRuntimeFolderPath( String component ) {
+        return SystemUtilities.buildFilePath( LocalPathManager.getLauncherRuntimeFolderPath(), component );
+    }
+
+    /**
+     * Fetches and caches the Mojang runtime index.
+     */
+    private static synchronized JsonObject getMojangRuntimeIndex() throws Exception {
+        if ( runtimeIndex != null ) {
+            return runtimeIndex;
+        }
+
+        String runtimeFolderPath = LocalPathManager.getLauncherRuntimeFolderPath();
+        File runtimeFolder = SynchronizedFileManager.getSynchronizedFile( runtimeFolderPath );
+        runtimeFolder.mkdirs();
+
+        File indexFile = new File( runtimeFolderPath, RuntimeConstants.MOJANG_RUNTIME_INDEX_FILE_NAME );
+        try {
+            NetworkUtilities.downloadFileFromURL( RuntimeConstants.MOJANG_RUNTIME_INDEX_URL, indexFile );
+        }
+        catch ( IOException e ) {
+            if ( indexFile.exists() ) {
+                Logger.logWarningSilent( "Failed to update runtime index, using cached version." );
+            }
+            else {
+                throw e;
+            }
+        }
+
+        runtimeIndex = FileUtilities.readAsJsonObject( indexFile );
+        return runtimeIndex;
+    }
+
+    /**
+     * Attempts to find a java executable by searching the runtime folder.
+     */
+    private static String findJavaExecutable( File runtimeFolder ) {
+        String javaName = org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ? "java.exe" : "java";
+        return searchForFile( runtimeFolder, javaName );
+    }
+
+    /**
+     * Recursively searches for a file by name.
+     */
+    private static String searchForFile( File dir, String name ) {
+        File[] children = dir.listFiles();
+        if ( children == null ) {
+            return null;
+        }
+        for ( File child : children ) {
+            if ( child.isFile() && child.getName().equals( name ) ) {
+                return child.getAbsolutePath();
+            }
+            if ( child.isDirectory() ) {
+                String result = searchForFile( child, name );
+                if ( result != null ) {
+                    return result;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Reports progress via the standalone progress window, the inline callback, or the console log.
+     */
+    private static void reportProgress( MCLauncherProgressGui progressWindow, RuntimeProgressCallback callback,
+                                         String upperLabel, String lowerText, double percent )
+    {
         if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( LocalizationManager.COMPLETED_TEXT );
-            progressWindow.setProgress( 100 );
+            progressWindow.setUpperLabelText( upperLabel );
+            progressWindow.setSectionText( lowerText );
+            progressWindow.setProgress( percent );
         }
-        else {
-            Logger.logStd( LocalizationManager.RUNTIME_INSTALL_PROGRESS_UPPER_LABEL +
-                                   ": " +
-                                   LocalizationManager.COMPLETED_TEXT +
-                                   " (100%)" );
+        if ( callback != null ) {
+            callback.onProgress( lowerText );
         }
-
-        // Store new Java path
-        jre8VerifiedPath = newJavaPath;
-        jre8VerifiedVersion = newJavaVersion;
-
-        // Log if fallback was used
-        if (usedApiFallback) {
-            Logger.logStd("Used cached JRE 8 API info due to network/API failure.");
-        }
-    }
-
-    /**
-     * Deletes the existing local runtime if it exists.
-     *
-     * @throws IOException if unable to delete local runtime
-     * @since 1.0
-     */
-    public static void clearJre8() throws IOException {
-        FileUtils.deleteDirectory(
-                SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherRuntimeFolderPath() ) );
-    }
-
-    /**
-     * Gets the path to the local JRE 8 that has been verified.
-     *
-     * @return JRE 8 path
-     *
-     * @since 1.0
-     */
-    public static String getJre8Path() {
-        if ( jre8VerifiedPath == null ) {
-            verifyJre8();
-        }
-        return jre8VerifiedPath;
-    }
-
-    /**
-     * Gets the version of the local JRE 8 that has been verified.
-     *
-     * @return JRE 8 version
-     *
-     * @since 1.0
-     */
-    public static String getJre8Version() {
-        return jre8VerifiedVersion;
-    }
-
-    /**
-     * Gets the API URL for the latest JRE 8 information for the current OS.
-     *
-     * @return API URL for the latest JRE 8 information for the current OS.
-     *
-     * @since 1.1
-     */
-    public static String getLatestJre8InfoUrlForOs() {
-        String apiUrl;
-        if ( SystemUtils.IS_OS_WINDOWS ) {
-            apiUrl = RuntimeConstants.JRE_8_WIN_API_URL;
-        }
-        else if ( SystemUtils.IS_OS_MAC ) {
-            apiUrl = RuntimeConstants.JRE_8_MAC_API_URL;
-        }
-        else if ( SystemUtils.IS_OS_LINUX ) {
-            return RuntimeConstants.JRE_8_LNX_API_URL;
-        }
-        else {
-            Logger.logError( "Unable to determine JRE API URL for OS: " +
-                                     SystemUtils.OS_NAME +
-                                     ". Using Linux API URL" +
-                                     "..." );
-            apiUrl = RuntimeConstants.JRE_8_LNX_API_URL;
-        }
-        return apiUrl;
-    }
-
-    /**
-     * Downloads the latest JRE 8 information from the API for the current OS.
-     *
-     * @param apiUrl the API URL to use
-     *
-     * @return latest JRE 8 information from the API for the current OS
-     *
-     * @throws Exception if an error occurs while downloading the API data file or reading it as a JSON object
-     * @since 1.1
-     */
-    public static JsonArray downloadLatestJre8Info( String apiUrl ) throws Exception {
-        File jre8InfoFile = SynchronizedFileManager.getSynchronizedFile(
-                SystemUtilities.buildFilePath( LocalPathManager.getLauncherRuntimeFolderPath(),
-                                               RuntimeConstants.JRE_8_API_DATA_FILE_NAME ) );
-        NetworkUtilities.downloadFileFromURL( apiUrl, jre8InfoFile, "application/json" );
-        return FileUtilities.readAsJsonArray( jre8InfoFile );
-    }
-
-    private static String getJreExecutablePathForOs() {
-        if ( SystemUtils.IS_OS_WINDOWS ) {
-            return RuntimeConstants.JRE_8_WIN_JAVA_EXEC_PATH;
-        }
-        else if ( SystemUtils.IS_OS_MAC ) {
-            return RuntimeConstants.JRE_8_MAC_JAVA_EXEC_PATH;
-        }
-        else if ( SystemUtils.IS_OS_LINUX ) {
-            return RuntimeConstants.JRE_8_LNX_JAVA_EXEC_PATH;
-        }
-        else {
-            Logger.logError( "Unable to determine JRE executable path for OS: " +
-                                     SystemUtils.OS_NAME +
-                                     ". Using Linux executable path..." );
-            return RuntimeConstants.JRE_8_LNX_JAVA_EXEC_PATH;
-        }
+        String percentStr = percent >= 0 ? " (" + ( int ) percent + "%)" : "";
+        Logger.logStd( upperLabel + ": " + lowerText + percentStr );
     }
 }

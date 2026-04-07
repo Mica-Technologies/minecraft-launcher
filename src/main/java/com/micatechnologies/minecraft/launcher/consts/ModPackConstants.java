@@ -175,6 +175,6 @@ public class ModPackConstants
      * @since 1.0
      */
     public static final String MINECRAFT_VERSION_MANIFEST_URL
-            = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+            = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
 }

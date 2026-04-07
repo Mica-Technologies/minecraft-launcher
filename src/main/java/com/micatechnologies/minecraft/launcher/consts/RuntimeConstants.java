@@ -17,75 +17,127 @@
 
 package com.micatechnologies.minecraft.launcher.consts;
 
-import com.google.gson.JsonObject;
-import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
-import org.apache.commons.lang3.SystemUtils;
-
 import java.io.File;
 
 /**
- * Constants related to and required by the runtime management subsystem in the application.
- * <p>
- * NOTE: This class should NOT contain display strings that are visible to the end-user. All localizable strings MUST be
- * stored and retrieved using {@link com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager}.
+ * Constants related to and required by the runtime management subsystem in the application. Uses Mojang's official
+ * Java runtime distribution to ensure perfect Minecraft compatibility.
  *
  * @author Mica Technologies
- * @version 1.1
+ * @version 3.0
  * @since 2.0
  */
 public class RuntimeConstants
 {
     /**
-     * URL for the API providing the latest JRE information for Windows OSes.
+     * The default Java runtime component to use when no version information is available from the manifest.
      *
-     * @since 1.1
+     * @since 3.0
      */
-    public static final String JRE_8_WIN_API_URL
-            = "https://api.bell-sw.com/v1/liberica/releases?version-feature=8&version-modifier=latest&bitness=64&installation-type=archive&os=windows&arch=x86&bundle-type=jre";
+    public static final String DEFAULT_RUNTIME_COMPONENT = "jre-legacy";
 
     /**
-     * URL for the API providing the latest JRE information for macOS OSes.
+     * The default Java major version to use when no version information is available from the manifest.
      *
-     * @since 1.1
+     * @since 2.0
      */
-    public static final String JRE_8_MAC_API_URL
-            = "https://api.bell-sw.com/v1/liberica/releases?version-feature=8&version-modifier=latest&bitness=64&installation-type=archive&os=macos&arch=x86&bundle-type=jre";
+    public static final int DEFAULT_JAVA_MAJOR_VERSION = 8;
 
     /**
-     * URL for the API providing the latest JRE information for Linux OSes.
+     * URL of the Mojang Java runtime index, listing all available runtime components per platform.
      *
-     * @since 1.1
+     * @since 3.0
      */
-    public static final String JRE_8_LNX_API_URL
-            = "https://api.bell-sw.com/v1/liberica/releases?version-feature=8&version-modifier=latest&bitness=64&installation-type=archive&os=linux&arch=x86&bundle-type=jre";
+    public static final String MOJANG_RUNTIME_INDEX_URL
+            = "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
 
     /**
-     * The name of the file containing the latest JRE 8 API data.
+     * Cached file name for the Mojang runtime index.
      *
-     * @since 1.1
+     * @since 3.0
      */
-    public static final String JRE_8_API_DATA_FILE_NAME = "jre8.api.latest.json";
-
+    public static final String MOJANG_RUNTIME_INDEX_FILE_NAME = "mojang-runtime-index.json";
 
     /**
-     * The file path to the Java executable in an extracted JRE 8 install for Windows.
+     * Subfolder name template for per-component runtime storage.
+     *
+     * @since 3.0
+     */
+    public static final String RUNTIME_COMPONENT_SUBFOLDER_TEMPLATE = "{COMPONENT}";
+
+    /**
+     * File name for the cached component manifest within a runtime folder.
+     *
+     * @since 3.0
+     */
+    public static final String RUNTIME_MANIFEST_FILE_NAME = "runtime-manifest.json";
+
+    /**
+     * File name for storing the installed version name within a runtime folder.
+     *
+     * @since 3.0
+     */
+    public static final String RUNTIME_VERSION_FILE_NAME = ".version";
+
+    /**
+     * The file path to the Java executable within an extracted JRE for Windows.
      *
      * @since 1.0
      */
-    public static final String JRE_8_WIN_JAVA_EXEC_PATH = "bin" + File.separator + "java.exe";
+    public static final String WIN_JAVA_EXEC_PATH = "bin" + File.separator + "java.exe";
 
     /**
-     * The file path to the Java executable in an extracted JRE 8 install for macOS.
+     * The file path to the Java executable within an extracted JRE for macOS.
      *
      * @since 1.0
      */
-    public static final String JRE_8_MAC_JAVA_EXEC_PATH = "bin" + File.separator + "java";
+    public static final String MAC_JAVA_EXEC_PATH = "jre.bundle" + File.separator + "Contents" + File.separator +
+            "Home" + File.separator + "bin" + File.separator + "java";
 
     /**
-     * The file path to the Java executable in an extracted JRE 8 install for Linux.
+     * The file path to the Java executable within an extracted JRE for Linux.
      *
      * @since 1.0
      */
-    public static final String JRE_8_LNX_JAVA_EXEC_PATH = "bin" + File.separator + "java";
+    public static final String LNX_JAVA_EXEC_PATH = "bin" + File.separator + "java";
+
+    /**
+     * Returns the Mojang platform key for the current OS and architecture.
+     *
+     * @return the Mojang platform key (e.g. "windows-x64", "mac-os-arm64", "linux")
+     *
+     * @since 3.0
+     */
+    public static String getMojangPlatformKey() {
+        String osArch = System.getProperty( "os.arch", "" );
+        boolean isArm = osArch.contains( "aarch64" ) || osArch.contains( "arm" );
+
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            return isArm ? "windows-arm64" : "windows-x64";
+        }
+        else if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+            return isArm ? "mac-os-arm64" : "mac-os";
+        }
+        else {
+            // Linux
+            return osArch.contains( "86" ) || osArch.contains( "32" ) ? "linux-i386" : "linux";
+        }
+    }
+
+    /**
+     * Returns the path to the Java executable within an extracted JRE for the current OS.
+     *
+     * @return the relative path to the java executable
+     *
+     * @since 2.0
+     */
+    public static String getJavaExecPathForOs() {
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            return WIN_JAVA_EXEC_PATH;
+        }
+        else if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+            return MAC_JAVA_EXEC_PATH;
+        }
+        return LNX_JAVA_EXEC_PATH;
+    }
 }

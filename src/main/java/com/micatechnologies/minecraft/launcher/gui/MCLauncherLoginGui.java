@@ -152,7 +152,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
         // Setup auth web view engine
         authWebView.getEngine().setJavaScriptEnabled( true );
-        authWebView.getEngine().setUserAgent( "AppleWebKit/537.44" );
+        authWebView.getEngine().setUserAgent( "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0" );
 
         // Display announcements if present
         String announcementText = AnnouncementManager.getAnnouncementLogin();

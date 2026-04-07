@@ -244,6 +244,9 @@ public class GameModPack
      */
     @SuppressWarnings( "WeakerAccess" )
     public String getMinecraftVersion() throws ModpackException {
+        if ( vanillaVersion && vanillaMinecraftVersion != null ) {
+            return vanillaMinecraftVersion;
+        }
         return getForgeApp().getMinecraftVersion();
     }
 
@@ -299,88 +302,85 @@ public class GameModPack
      */
     public String buildModpackClasspath() throws ModpackException {
         if ( progressProvider != null ) {
-            progressProvider.setCurrText( "Building modpack classpath environment" );
+            progressProvider.setCurrText( "Preparing modpack..." );
         }
 
-        // Verify local Forge mods
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching mods", 20.0 );
-        }
-        fetchLatestMods();
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching mods" );
+        String forgeAssetClasspath = "";
+
+        if ( !vanillaVersion ) {
+            // --- Step 1: Download modpack content (mods, configs, resources) ---
+            if ( progressProvider != null ) {
+                progressProvider.startProgressSection( "Downloading mods...", 15.0 );
+            }
+            fetchLatestMods();
+            if ( progressProvider != null ) {
+                progressProvider.endProgressSection( "Mods ready" );
+            }
+
+            if ( progressProvider != null ) {
+                progressProvider.startProgressSection( "Downloading configs and resources...", 5.0 );
+            }
+            fetchLatestConfigs();
+            fetchLatestResourcePacks();
+            fetchLatestShaderPacks();
+            fetchLatestInitialFiles();
+            cacheImages();
+            if ( progressProvider != null ) {
+                progressProvider.endProgressSection( "Configs and resources ready" );
+            }
+
+            // --- Step 2: Download Forge libraries ---
+            if ( progressProvider != null ) {
+                progressProvider.startProgressSection( "Downloading Forge libraries...", 15.0 );
+            }
+            forgeAssetClasspath = getForgeApp().buildForgeClasspath( GameModeManager.getCurrentGameMode(),
+                                                                     progressProvider );
+            if ( progressProvider != null ) {
+                progressProvider.endProgressSection( "Forge libraries ready" );
+            }
         }
 
-        // Verify local Forge configs
+        // --- Step 3: Download Minecraft libraries and assets ---
         if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching configs", 5.0 );
-        }
-        fetchLatestConfigs();
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching configs" );
-        }
-
-        // Verify local resource packs
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching resource packs", 7.0 );
-        }
-        fetchLatestResourcePacks();
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching resource packs" );
-        }
-
-        // Verify local shader packs
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching shader packs", 5.0 );
-        }
-        fetchLatestShaderPacks();
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching shader packs" );
-        }
-
-        // Verify local initial files
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching initial files", 2.0 );
-        }
-        fetchLatestInitialFiles();
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching initial files" );
-        }
-
-        // Verify modpack logo
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching modpack images", 1.0 );
-        }
-        cacheImages();
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching modpack images" );
-        }
-
-        // Verify local Forge assets and get classpath
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching Forge assets and classpath", 20.0 );
-        }
-        String forgeAssetClasspath = getForgeApp().buildForgeClasspath( GameModeManager.getCurrentGameMode(),
-                                                                        progressProvider );
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching Forge assets and classpath" );
-        }
-
-        // Verify local Minecraft assets and get classpath
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Fetching Minecraft assets, libraries and classpath", 25.0 );
+            progressProvider.startProgressSection( "Downloading Minecraft libraries and assets...",
+                                                    vanillaVersion ? 40.0 : 20.0 );
         }
         GameLibraryManifest libraryManifest = GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(),
                                                                                                this );
         String minecraftAssetClasspath = libraryManifest.buildMinecraftClasspath( GameModeManager.getCurrentGameMode(),
                                                                                   progressProvider );
         if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done fetching Minecraft assets, libraries and classpath" );
+            progressProvider.endProgressSection( "Minecraft libraries and assets ready" );
         }
 
-        // Run scan on downloaded files
+        // --- Step 4: Install Java runtime ---
+        String procRuntimeComponent = libraryManifest.getRequiredRuntimeComponent();
         if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Scanning downloaded files", 15.0 );
+            progressProvider.startProgressSection( "Installing Java runtime (" + procRuntimeComponent + ")...",
+                                                    vanillaVersion ? 20.0 : 15.0 );
+        }
+        RuntimeManager.verifyRuntime( procRuntimeComponent, false,
+                                       progressProvider != null ? progressProvider::setCurrText : null );
+        if ( progressProvider != null ) {
+            progressProvider.submitProgress( "Java runtime ready", 100.0 );
+            progressProvider.endProgressSection( "Java runtime ready" );
+        }
+
+        // --- Step 5: Run Forge install processors (if needed, Forge only) ---
+        if ( !vanillaVersion ) {
+            if ( progressProvider != null ) {
+                progressProvider.startProgressSection( "Patching game files...", 10.0 );
+            }
+            getForgeApp().runForgeProcessors( GameModeManager.getCurrentGameMode(), progressProvider,
+                                              procRuntimeComponent );
+            if ( progressProvider != null ) {
+                progressProvider.endProgressSection( "Game files patched" );
+            }
+        }
+
+        // --- Step 6: Security scan ---
+        if ( progressProvider != null ) {
+            progressProvider.startProgressSection( "Scanning for malware...", 10.0 );
         }
         try {
             scanModPackRootFolder();
@@ -392,10 +392,10 @@ public class GameModPack
             throw new ModpackException( "Unable to scan downloaded files due to an interruption!", e );
         }
         if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Done scanning downloaded files!" );
+            progressProvider.endProgressSection( "Security scan complete" );
         }
 
-        // Add classpath separator between Forge and Minecraft only if Forge classpath not empty (it shouldn't be)
+        // Combine classpaths
         if ( !forgeAssetClasspath.isEmpty() && !forgeAssetClasspath.endsWith( File.pathSeparator ) ) {
             forgeAssetClasspath += File.pathSeparator;
         }
@@ -441,55 +441,101 @@ public class GameModPack
     {
         // Get classpath, main class and Minecraft args
         String cp = buildModpackClasspath();
-        String minecraftArgs = GameModeManager.isClient() ? getForgeApp().getMinecraftArguments() : "";
-        String minecraftMainClass = GameModeManager.isClient() ?
-                                    getForgeApp().getMinecraftMainClass() :
-                                    "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
 
-        // Add main class to arguments
-        minecraftArgs = minecraftMainClass + " " + minecraftArgs;
+        // Determine the required Java version from the Minecraft version manifest
+        GameLibraryManifest libraryManifest = getMinecraftLibraryManifest();
 
-        // Add log4j patch
-        minecraftArgs = "-Dlog4j2.formatMsgNoLookups=true -Dlog4j.configurationFile=log4j2_112-116.xml" +
-                " " +
-                minecraftArgs;
+        String minecraftMainClass;
+        String minecraftArgs = "";
 
-        // Add min and max RAM to arguments
-        long SminRAMMB = ConfigManager.getMinRam();
-        long SmaxRAMMB = ConfigManager.getMaxRam();
-        if ( GameModeManager.isServer() ) {
-            // Get min and max RAM from existing JVM args
-            RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
-            List< String > aList = bean.getInputArguments();
-
-            for ( String s : aList ) {
-                System.out.println( s );
-                if ( s.contains( "Xms" ) ) {
-                    SminRAMMB = Integer.parseInt( s.replaceAll( "\\D+", "" ) );
-                    System.out.println( "Configuring min RAM from provided " + s );
-                }
-                if ( s.contains( "Xmx" ) ) {
-                    SmaxRAMMB = Integer.parseInt( s.replaceAll( "\\D+", "" ) );
-                    System.out.println( "Configuring max RAM from provided " + s );
+        if ( vanillaVersion ) {
+            // Vanilla launch: use mainClass and args from the vanilla manifest
+            try {
+                minecraftMainClass = libraryManifest.getVanillaMainClass();
+                if ( minecraftMainClass == null ) {
+                    minecraftMainClass = "net.minecraft.client.main.Main";
                 }
             }
+            catch ( Exception e ) {
+                minecraftMainClass = "net.minecraft.client.main.Main";
+            }
 
-        }
-        minecraftArgs = "-Xms" + SminRAMMB + "m " + minecraftArgs;
-        minecraftArgs = "-Xmx" + SmaxRAMMB + "m " + minecraftArgs;
-
-        // Add garbage collection config to arguments
-        minecraftArgs = ConfigManager.getCustomJvmArgs() + " " + minecraftArgs;
-
-        // Add classpath to arguments
-        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-            minecraftArgs = "-cp \"" + cp + "\" " + minecraftArgs;
+            if ( GameModeManager.isClient() ) {
+                minecraftArgs = libraryManifest.getGameArguments();
+            }
         }
         else {
-            minecraftArgs = "-cp " + cp + " " + minecraftArgs;
+            // Forge launch
+            minecraftMainClass = GameModeManager.isClient() ?
+                                 getForgeApp().getMinecraftMainClass() :
+                                 "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
+
+            // Build game arguments: combine vanilla game args with Forge-specific game args
+            if ( GameModeManager.isClient() ) {
+                String vanillaGameArgs = libraryManifest.getGameArguments();
+                String forgeGameArgs = getForgeApp().getMinecraftArguments();
+
+                if ( !forgeGameArgs.isEmpty() && !vanillaGameArgs.isEmpty() &&
+                        !forgeGameArgs.contains( "${auth_player_name}" ) ) {
+                    minecraftArgs = vanillaGameArgs + " " + forgeGameArgs;
+                }
+                else if ( !forgeGameArgs.isEmpty() ) {
+                    minecraftArgs = forgeGameArgs;
+                }
+                else {
+                    minecraftArgs = vanillaGameArgs;
+                }
+            }
+        }
+        String runtimeComponent = libraryManifest.getRequiredRuntimeComponent();
+        int requiredJavaMajorVersion = libraryManifest.getRequiredJavaMajorVersion();
+        Logger.logStd( "Minecraft version " + getMinecraftVersion() + " requires runtime " + runtimeComponent +
+                               " (Java " + requiredJavaMajorVersion + ")" );
+
+        // Ensure the required Java runtime is available (should already be verified by buildModpackClasspath,
+        // but this call is cheap if already cached)
+        RuntimeManager.verifyRuntime( runtimeComponent, false );
+
+        if ( progressProvider != null ) {
+            progressProvider.setCurrText( "Preparing launch command..." );
         }
 
-        // Add natives path to arguments
+        // Build JVM arguments string
+        StringBuilder jvmArgs = new StringBuilder();
+
+        // Add custom user JVM args first
+        String customJvmArgs = ConfigManager.getCustomJvmArgs();
+        if ( customJvmArgs != null && !customJvmArgs.isBlank() ) {
+            jvmArgs.append( customJvmArgs ).append( " " );
+        }
+
+        // Add min and max RAM
+        long minRAMMB = ConfigManager.getMinRam();
+        long maxRAMMB = ConfigManager.getMaxRam();
+        if ( GameModeManager.isServer() ) {
+            RuntimeMXBean bean = ManagementFactory.getRuntimeMXBean();
+            List< String > aList = bean.getInputArguments();
+            for ( String s : aList ) {
+                if ( s.contains( "Xms" ) ) {
+                    minRAMMB = Integer.parseInt( s.replaceAll( "\\D+", "" ) );
+                    Logger.logDebug( "Configuring min RAM from provided " + s );
+                }
+                if ( s.contains( "Xmx" ) ) {
+                    maxRAMMB = Integer.parseInt( s.replaceAll( "\\D+", "" ) );
+                    Logger.logDebug( "Configuring max RAM from provided " + s );
+                }
+            }
+        }
+        jvmArgs.append( "-Xms" ).append( minRAMMB ).append( "m " );
+        jvmArgs.append( "-Xmx" ).append( maxRAMMB ).append( "m " );
+
+        // Handle logging configuration using Mojang's security-patched log4j configs
+        // (CVE-2021-44228 / Log4Shell mitigation). These also use PatternLayout instead of XMLLayout
+        // for the console appender, preventing XML clutter in stdout.
+        // See: https://www.minecraft.net/en-us/article/important-message--security-vulnerability-java-edition
+        applyLog4jSecurityConfig( jvmArgs, getMinecraftVersion() );
+
+        // Add natives path
         String nativesFolder = getPackRootFolder() +
                 File.separator +
                 ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
@@ -498,76 +544,262 @@ public class GameModPack
             nativesFolderFile.setExecutable( true );
             nativesFolderFile.setReadable( true );
             nativesFolderFile.setWritable( true );
-            for ( File f : nativesFolderFile.listFiles() ) {
-                f.setExecutable( true );
-                f.setReadable( true );
-                f.setWritable( true );
+            File[] nativeFiles = nativesFolderFile.listFiles();
+            if ( nativeFiles != null ) {
+                for ( File f : nativeFiles ) {
+                    f.setExecutable( true );
+                    f.setReadable( true );
+                    f.setWritable( true );
+                }
             }
         }
-        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-            minecraftArgs = "-Djava.library.path=\"" + nativesFolder + "\" " + minecraftArgs;
-        }
-        else {
-            minecraftArgs = "-Djava.library.path=" + nativesFolder + " " + minecraftArgs;
+
+        // Add manifest JVM arguments (from modern arguments.jvm if available)
+        String manifestJvmArgs = libraryManifest.getJvmArguments();
+        if ( !manifestJvmArgs.isEmpty() ) {
+            jvmArgs.append( manifestJvmArgs ).append( " " );
         }
 
-        // Replace fillers with data
-        if ( GameModeManager.isClient() ) {
-            minecraftArgs = minecraftArgs.replace( "${auth_player_name}",
-                                                   MCLauncherAuthManager.getLoggedInUser().name() );
-            minecraftArgs = minecraftArgs.replace( "${version_name}", getForgeVersion() );
+        // Add Forge-specific JVM arguments (e.g. module system flags for modern Forge)
+        if ( !vanillaVersion && GameModeManager.isClient() ) {
+            String forgeJvmArgs = getForgeApp().getForgeJvmArguments();
+            if ( !forgeJvmArgs.isEmpty() ) {
+                jvmArgs.append( forgeJvmArgs ).append( " " );
+            }
+        }
+
+        if ( manifestJvmArgs.isEmpty() ) {
+            // Legacy versions don't specify JVM args in the manifest; add essential ones manually
             if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-                minecraftArgs = minecraftArgs.replace( "${game_directory}", "\"" + getPackRootFolder() + "\"" );
-                minecraftArgs = minecraftArgs.replace( "${assets_root}", "\"" +
+                jvmArgs.append( "-Djava.library.path=\"" ).append( nativesFolder ).append( "\" " );
+                jvmArgs.append( "-cp \"" ).append( cp ).append( "\" " );
+            }
+            else {
+                jvmArgs.append( "-Djava.library.path=" ).append( nativesFolder ).append( " " );
+                jvmArgs.append( "-cp " ).append( cp ).append( " " );
+            }
+        }
+
+        // Add main class
+        jvmArgs.append( minecraftMainClass ).append( " " );
+
+        // Add game arguments
+        jvmArgs.append( minecraftArgs );
+
+        String fullArgs = jvmArgs.toString();
+
+        // Replace JVM placeholders (from modern arguments.jvm)
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            fullArgs = fullArgs.replace( "${natives_directory}", "\"" + nativesFolder + "\"" );
+            fullArgs = fullArgs.replace( "${classpath}", "\"" + cp + "\"" );
+        }
+        else {
+            fullArgs = fullArgs.replace( "${natives_directory}", nativesFolder );
+            fullArgs = fullArgs.replace( "${classpath}", cp );
+        }
+        fullArgs = fullArgs.replace( "${launcher_name}", "MicaMinecraftLauncher" );
+        fullArgs = fullArgs.replace( "${launcher_version}", "2025.1" );
+        fullArgs = fullArgs.replace( "${version_type}", "release" );
+        fullArgs = fullArgs.replace( "${classpath_separator}", File.pathSeparator );
+        fullArgs = fullArgs.replace( "${library_directory}", getPackRootFolder() + File.separator +
+                ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
+
+        // Replace game argument placeholders
+        if ( GameModeManager.isClient() ) {
+            fullArgs = fullArgs.replace( "${auth_player_name}",
+                                          MCLauncherAuthManager.getLoggedInUser().name() );
+            fullArgs = fullArgs.replace( "${version_name}",
+                                          vanillaVersion ? getMinecraftVersion() : getForgeVersion() );
+            if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+                fullArgs = fullArgs.replace( "${game_directory}", "\"" + getPackRootFolder() + "\"" );
+                fullArgs = fullArgs.replace( "${assets_root}", "\"" +
                         getPackRootFolder() +
                         File.separator +
                         ModPackConstants.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER +
                         "\"" );
             }
             else {
-                minecraftArgs = minecraftArgs.replace( "${game_directory}", getPackRootFolder() );
-                minecraftArgs = minecraftArgs.replace( "${assets_root}", getPackRootFolder() +
+                fullArgs = fullArgs.replace( "${game_directory}", getPackRootFolder() );
+                fullArgs = fullArgs.replace( "${assets_root}", getPackRootFolder() +
                         File.separator +
                         ModPackConstants.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
             }
 
-            minecraftArgs = minecraftArgs.replace( "${assets_index_name}",
-                                                   getMinecraftLibraryManifest().getAssetIndexVersion() );
-            minecraftArgs = minecraftArgs.replace( "${auth_uuid}", MCLauncherAuthManager.getLoggedInUser().uuid() );
-            minecraftArgs = minecraftArgs.replace( "${auth_access_token}",
-                                                   MCLauncherAuthManager.getLoggedInUser().accessToken() );
-            minecraftArgs = minecraftArgs.replace( "${user_type}", "mojang" );
+            fullArgs = fullArgs.replace( "${assets_index_name}", libraryManifest.getAssetIndexVersion() );
+            fullArgs = fullArgs.replace( "${auth_uuid}", MCLauncherAuthManager.getLoggedInUser().uuid() );
+            fullArgs = fullArgs.replace( "${auth_access_token}",
+                                          MCLauncherAuthManager.getLoggedInUser().accessToken() );
+            fullArgs = fullArgs.replace( "${user_type}", "mojang" );
+            fullArgs = fullArgs.replace( "${clientid}", "" );
+            fullArgs = fullArgs.replace( "${auth_xuid}", "" );
+            fullArgs = fullArgs.replace( "${user_properties}", "{}" );
 
             // Add title and icon to arguments
-            minecraftArgs += " --title " + packName;
-            minecraftArgs += " --icon " + getPackLogoFilepath();
+            fullArgs += " --title \"" + packName + "\"";
+            fullArgs += " --icon \"" + getPackLogoFilepath() + "\"";
 
             // Set dock name and icon for macOS
             if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
-                minecraftArgs += " -Xdock:icon=\"" + getPackLogoFilepath() + "\"";
-                minecraftArgs += " -Xdock:name=\"" + getPackName() + "\" ";
-                minecraftArgs += "-Dapple.laf.useScreenMenuBar=true ";
-                minecraftArgs += "-Djdk.lang.Process.launchMechanism=vfork ";
+                fullArgs += " -Xdock:icon=\"" + getPackLogoFilepath() + "\"";
+                fullArgs += " -Xdock:name=\"" + getPackName() + "\" ";
+                fullArgs += "-Dapple.laf.useScreenMenuBar=true ";
+                fullArgs += "-Djdk.lang.Process.launchMechanism=vfork ";
             }
         }
 
-        // Add java call to front of args
-        minecraftArgs = RuntimeManager.getJre8Path() + " " + minecraftArgs;
+        // Add java executable path to front of args
+        fullArgs = RuntimeManager.getJavaPath( runtimeComponent ) + " " + fullArgs;
 
-        // Start game
-        try {
-            SystemUtilities.executeStringCommand( minecraftArgs, getPackRootFolder() );
+        // Signal completion to trigger the progress window hide
+        if ( progressProvider != null ) {
+            progressProvider.signalComplete( "Starting Minecraft..." );
         }
-        catch ( IOException | InterruptedException e ) {
+
+        // Start game (always non-blocking -- LauncherCore.play() handles the process lifecycle)
+        try {
+            Logger.logDebug( "Launching game with command: " + fullArgs );
+            lastLaunchedProcess = SystemUtilities.launchCommand( fullArgs, getPackRootFolder() );
+        }
+        catch ( IOException e ) {
             throw new ModpackException( "Unable to execute mod pack game.", e );
         }
     }
+
+    /**
+     * Returns the last launched game process, if available and the in-game console is enabled.
+     *
+     * @return the game Process, or null
+     *
+     * @since 3.0
+     */
+    public Process getLastLaunchedProcess() {
+        return lastLaunchedProcess;
+    }
+
+    /**
+     * Finds and returns the content of the most recent Minecraft crash report in this modpack's crash-reports folder.
+     *
+     * @return the crash report content, or null if no crash report found
+     *
+     * @since 3.0
+     */
+    public String getLatestCrashReport() {
+        File crashReportsDir = new File( getPackRootFolder(), "crash-reports" );
+        if ( !crashReportsDir.exists() || !crashReportsDir.isDirectory() ) {
+            return null;
+        }
+
+        File[] reports = crashReportsDir.listFiles( ( dir, name ) -> name.endsWith( ".txt" ) );
+        if ( reports == null || reports.length == 0 ) {
+            return null;
+        }
+
+        // Find the most recent crash report (by last modified time)
+        File latest = reports[ 0 ];
+        for ( File report : reports ) {
+            if ( report.lastModified() > latest.lastModified() ) {
+                latest = report;
+            }
+        }
+
+        // Only return if the crash report was created recently (within last 60 seconds)
+        if ( System.currentTimeMillis() - latest.lastModified() > 60_000 ) {
+            return null;
+        }
+
+        try {
+            return org.apache.commons.io.FileUtils.readFileToString( latest, "UTF-8" );
+        }
+        catch ( IOException e ) {
+            Logger.logError( "Failed to read crash report: " + latest.getName() );
+            return null;
+        }
+    }
+
+    private transient Process lastLaunchedProcess = null;
 
     /**
      * Remove all mods from this modpack mods folder that are not in the modpack.
      *
      * @since 1.0
      */
+    /**
+     * Mojang security-patched log4j config for MC 1.12-1.16.5. Uses PatternLayout with {@code %msg{nolookups}} to
+     * mitigate CVE-2021-44228 (Log4Shell).
+     */
+    private static final String LOG4J_CONFIG_112_116_URL
+            = "https://launcher.mojang.com/v1/objects/02937d122c86ce73319ef9975b58896fc1b491d1/log4j2_112-116.xml";
+    private static final String LOG4J_CONFIG_112_116_SHA1 = "02937d122c86ce73319ef9975b58896fc1b491d1";
+    private static final String LOG4J_CONFIG_112_116_NAME = "log4j2_112-116.xml";
+
+    /**
+     * Mojang security-patched log4j config for MC 1.7-1.11.2. Uses RegexFilter to deny {@code ${...}} patterns
+     * since older Log4j doesn't support {@code {nolookups}}.
+     */
+    private static final String LOG4J_CONFIG_17_111_URL
+            = "https://launcher.mojang.com/v1/objects/4bb89a97a66f350bc9f73b3ca8509632682aea2e/log4j2_17-111.xml";
+    private static final String LOG4J_CONFIG_17_111_SHA1 = "4bb89a97a66f350bc9f73b3ca8509632682aea2e";
+    private static final String LOG4J_CONFIG_17_111_NAME = "log4j2_17-111.xml";
+
+    /**
+     * Applies the correct Mojang security-patched log4j configuration based on the Minecraft version.
+     * <ul>
+     *   <li>MC 1.7 - 1.11.2: Uses {@code log4j2_17-111.xml} with RegexFilter</li>
+     *   <li>MC 1.12 - 1.16.5: Uses {@code log4j2_112-116.xml} with {@code %msg{nolookups}}</li>
+     *   <li>MC 1.17+: Uses {@code -Dlog4j2.formatMsgNoLookups=true} JVM flag (built-in support)</li>
+     * </ul>
+     */
+    private void applyLog4jSecurityConfig( StringBuilder jvmArgs, String mcVersion ) {
+        // Parse the major and minor version numbers from the MC version string (e.g. "1.12.2" -> major=1, minor=12)
+        int minor = 0;
+        try {
+            String[] parts = mcVersion.split( "\\." );
+            if ( parts.length >= 2 ) {
+                minor = Integer.parseInt( parts[ 1 ] );
+            }
+        }
+        catch ( NumberFormatException e ) {
+            Logger.logWarningSilent( "Could not parse Minecraft version for log4j config: " + mcVersion );
+        }
+
+        // Always add the safety flag as a baseline (no-op if the config file is also applied)
+        jvmArgs.append( "-Dlog4j2.formatMsgNoLookups=true " );
+
+        if ( minor >= 17 ) {
+            // MC 1.17+: The JVM flag above is sufficient, no config file needed
+            Logger.logDebug( "MC " + mcVersion + ": Using log4j2.formatMsgNoLookups=true (1.17+ built-in support)" );
+        }
+        else if ( minor >= 12 ) {
+            // MC 1.12 - 1.16.5: Download and apply the security-patched config
+            applyLog4jConfigFile( jvmArgs, LOG4J_CONFIG_112_116_URL, LOG4J_CONFIG_112_116_SHA1,
+                                  LOG4J_CONFIG_112_116_NAME );
+        }
+        else if ( minor >= 7 ) {
+            // MC 1.7 - 1.11.2: Download and apply the older security-patched config
+            applyLog4jConfigFile( jvmArgs, LOG4J_CONFIG_17_111_URL, LOG4J_CONFIG_17_111_SHA1,
+                                  LOG4J_CONFIG_17_111_NAME );
+        }
+        // MC < 1.7: Not affected by Log4Shell
+    }
+
+    /**
+     * Downloads a log4j config file and adds the JVM argument to use it.
+     */
+    private void applyLog4jConfigFile( StringBuilder jvmArgs, String url, String sha1, String fileName ) {
+        String logConfigPath = getPackRootFolder() + File.separator + "bin" + File.separator + fileName;
+        try {
+            ManagedGameFile logConfigFile = new ManagedGameFile( url, logConfigPath, sha1,
+                                                                 ManagedGameFile.ManagedGameFileHashType.SHA1 );
+            logConfigFile.updateLocalFile();
+            jvmArgs.append( "-Dlog4j.configurationFile=" ).append( logConfigPath ).append( " " );
+            Logger.logDebug( "Applied Mojang security log4j config: " + fileName );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Failed to download Mojang log4j config " + fileName +
+                                             ", relying on formatMsgNoLookups flag." );
+        }
+    }
+
     private void clearFloatingMods() {
         // Get full path to modpack mods folder
         String modLocalPathPrefix = getPackRootFolder() +
@@ -784,13 +1016,8 @@ public class GameModPack
         // Get full path to configs folder
         String initFilesLocalPathPrefix = getPackRootFolder();
 
-        // Check for log4j XML patch
-        GameAsset log4jPatch = new GameAsset(
-                "https://launcher.mojang.com/v1/objects/02937d122c86ce73319ef9975b58896fc1b491d1/log4j2_112-116.xml",
-                "log4j2_112-116.xml", "02937d122c86ce73319ef9975b58896fc1b491d1",
-                ManagedGameFile.ManagedGameFileHashType.SHA1, true, true );
-        log4jPatch.setLocalPathPrefix( initFilesLocalPathPrefix );
-        log4jPatch.updateLocalFile( GameModeManager.getCurrentGameMode() );
+        // Note: log4j security configs are now downloaded and applied in applyLog4jSecurityConfig()
+        // during startGame(), using the correct version-specific config for the Minecraft version.
 
         // Check if initial files supplied
         if ( packInitialFiles == null ) {
@@ -996,6 +1223,47 @@ public class GameModPack
         return getPackName() != null ?
                String.format( ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, getPackName(), getPackVersion() ) :
                null;
+    }
+
+    /**
+     * Flag indicating this is a vanilla (non-Forge) Minecraft version.
+     */
+    private transient boolean vanillaVersion = false;
+
+    /**
+     * For vanilla versions, the Minecraft version ID (e.g. "1.20.4").
+     */
+    private transient String vanillaMinecraftVersion = null;
+
+    /**
+     * Returns true if this is a vanilla (non-Forge) Minecraft version.
+     */
+    public boolean isVanillaVersion() {
+        return vanillaVersion;
+    }
+
+    /**
+     * Creates a GameModPack representing a vanilla (non-Forge) Minecraft version.
+     *
+     * @param versionId the Minecraft version ID (e.g. "1.20.4")
+     *
+     * @return a GameModPack configured for vanilla launch
+     *
+     * @since 3.0
+     */
+    public static GameModPack createVanillaModPack( String versionId ) {
+        GameModPack pack = new GameModPack();
+        pack.packName = "Minecraft " + versionId;
+        pack.packVersion = versionId;
+        pack.packURL = "https://minecraft.net";
+        pack.packLogoURL = ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
+        pack.packBackgroundURL = ModPackConstants.MODPACK_DEFAULT_BG_URL;
+        pack.packMinRAMGB = "2";
+        pack.packMods = new ArrayList<>();
+        pack.vanillaVersion = true;
+        pack.vanillaMinecraftVersion = versionId;
+        pack.didCacheImages = false;
+        return pack;
     }
 
     public static GameModPack NULL_MODPACK() {

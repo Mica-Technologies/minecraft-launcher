@@ -30,176 +30,149 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
+/**
+ * Progress GUI with three text labels:
+ * <ul>
+ *   <li><b>upperLabel</b> -- overall task title (e.g. "Launching: Forge 1.15.2")</li>
+ *   <li><b>sectionLabel</b> -- current step heading (e.g. "Downloading mods...")</li>
+ *   <li><b>detailLabel</b> -- granular file-level detail below progress bar (e.g. "Verified jna-4.4.0.jar")</li>
+ * </ul>
+ */
 public class MCLauncherProgressGui extends MCLauncherAbstractGui
 {
-    /**
-     * Upper label. Displays a brief description of the task (as a whole) that is being run. For example, "Downloading
-     * mod updates..."
-     *
-     * @since 1.0
-     */
+    /** Overall task title above everything. */
     @SuppressWarnings( "unused" )
     @FXML
     Label upperLabel;
 
-    /**
-     * Lower label. Displays a brief description of the current task (detailed) that is being run. For example,
-     * "Downloading Mod Name.jar".
-     *
-     * @since 1.0
-     */
+    /** Current section/step heading between the title and progress bar. */
     @SuppressWarnings( "unused" )
     @FXML
-    Label lowerLabel;
+    Label sectionLabel;
 
-    /**
-     * Progress bar. Displays the task's progress on a scale from 0 to 1.
-     *
-     * @since 1.0
-     */
+    /** File-level detail below the progress bar. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label detailLabel;
+
+    /** Progress bar. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXProgressBar progressBar;
 
-    /**
-     * The initial text of the upper progress label.
-     *
-     * @since 2.0
-     */
-    private static final String INITIAL_UPPER_LABEL_TEXT = "Just a Moment";
-
-    /**
-     * The initial text of the lower progress label.
-     *
-     * @since 2.0
-     */
-    private static final String INITIAL_LOWER_LABEL_TEXT = "Fetching progress information...";
-
     private TaskbarProgressbar taskbarProgressbar = null;
 
-    /**
-     * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
-     * controller.
-     *
-     * @throws IOException if unable to load FXML file specified
-     */
     public MCLauncherProgressGui( Stage stage ) throws IOException {
         super( stage );
     }
 
-    /**
-     * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
-     * controller.
-     *
-     * @throws IOException if unable to load FXML file specified
-     */
     public MCLauncherProgressGui( Stage stage, double width, double height ) throws IOException {
         super( stage, width, height );
     }
 
-    /**
-     * This method must return the resource path for the JavaFX scene FXML file.
-     *
-     * @return JavaFX scene FXML resource path
-     */
     @Override
     String getSceneFxmlPath() {
         return "gui/progressGUI.fxml";
     }
 
-    /**
-     * This method must return the name of the JavaFX scene.
-     *
-     * @return Java FX scene name
-     */
     @Override
     String getSceneName() {
         return "Loading";
     }
 
-    /**
-     * This method must perform initialization and setup of the scene and @FXML components.
-     */
     @Override
     void setup() {
-        // Configure window close
         stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();
             LauncherCore.closeApp();
         } );
-
-        // Setup taskbar progress bar
-        if ( TaskbarProgressbar.isSupported() ) {
-            taskbarProgressbar = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
-        }
+        // Note: taskbar progress bar is initialized in afterShow() after the stage is visible,
+        // to avoid native access violations from uninitialized window handles.
     }
 
     @Override
     void afterShow() {
-        // Set filler display information
-        setUpperLabelText( INITIAL_UPPER_LABEL_TEXT );
-        setLowerLabelText( INITIAL_LOWER_LABEL_TEXT );
+        setUpperLabelText( "Just a Moment" );
+        setSectionText( "" );
+        setDetailText( "" );
         setProgress( 0.0 );
+
+        // Initialize taskbar progress bar AFTER the stage is shown, so the native HWND is valid.
+        try {
+            if ( TaskbarProgressbar.isSupported() ) {
+                taskbarProgressbar = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Unable to initialize taskbar progress bar: " + e.getMessage() );
+            taskbarProgressbar = null;
+        }
     }
 
     @Override
     void cleanup() {
         if ( taskbarProgressbar != null ) {
             GUIUtilities.JFXPlatformRun( () -> {
-                taskbarProgressbar.stopProgress();
-                taskbarProgressbar.closeOperations();
+                try {
+                    taskbarProgressbar.stopProgress();
+                    taskbarProgressbar.closeOperations();
+                }
+                catch ( Exception | Error e ) {
+                    Logger.logWarningSilent( "Failed to clean up taskbar progress bar." );
+                }
+                taskbarProgressbar = null;
             } );
         }
     }
 
     /**
-     * Sets the text of the upper label. Upper label text should be a description of the task as a whole. For example,
-     * "Downloading mods..."
-     *
-     * @param text upper label text
-     *
-     * @since 1.0
+     * Sets the overall task title (top line). E.g. "Launching: Forge 1.15.2" or "Signing In".
      */
     public void setUpperLabelText( String text ) {
         GUIUtilities.JFXPlatformRun( () -> upperLabel.setText( text ) );
     }
 
     /**
-     * Sets the text of the lower label. Lower label text should be a specific description of the task as it progresses.
-     * For example, "Downloading Mod Name.jar"
-     *
-     * @param text lower label text
-     *
-     * @since 1.0
+     * Sets the current section heading (between title and progress bar). E.g. "Downloading mods..."
      */
-    public void setLowerLabelText( String text ) {
-        GUIUtilities.JFXPlatformRun( () -> lowerLabel.setText( text ) );
-    }
-
-    public void setLabelTexts( String upper, String lower ) {
-        setUpperLabelText( upper );
-        setLowerLabelText( lower );
+    public void setSectionText( String text ) {
+        GUIUtilities.JFXPlatformRun( () -> sectionLabel.setText( text ) );
     }
 
     /**
-     * Sets the value of the progress bar, and prints a text status update to the console/log file.
-     *
-     * @param progress progress value
-     *
-     * @since 1.0
+     * Sets the detail text below the progress bar. E.g. "Verified library jna-4.4.0.jar"
+     */
+    public void setDetailText( String text ) {
+        GUIUtilities.JFXPlatformRun( () -> detailLabel.setText( text ) );
+    }
+
+    /**
+     * Sets the lower label text. For backward compatibility, this updates the section label.
+     * Direct callers should prefer {@link #setSectionText(String)} or {@link #setDetailText(String)}.
+     */
+    public void setLowerLabelText( String text ) {
+        setSectionText( text );
+    }
+
+    /**
+     * Sets both upper and section labels. For backward compatibility with existing callers.
+     */
+    public void setLabelTexts( String upper, String lower ) {
+        setUpperLabelText( upper );
+        setSectionText( lower );
+    }
+
+    /**
+     * Sets the progress bar value (0-100 scale, or INDETERMINATE_PROGRESS).
      */
     public void setProgress( double progress ) {
-        // Calculate proper value
         final double baseProgValue = ( progress == MFXProgressBar.INDETERMINATE_PROGRESS ) ?
                                      ( progress ) :
                                      ( progress / GameModPackProgressProvider.PROGRESS_PERCENT_BASE );
 
-        // Update progress bar
         GUIUtilities.JFXPlatformRun( () -> {
-            // Update GUI progress bar
             progressBar.setProgress( baseProgValue );
 
-            // Update taskbar progress bar
             try {
                 if ( taskbarProgressbar != null ) {
                     if ( baseProgValue == MFXProgressBar.INDETERMINATE_PROGRESS ) {
@@ -210,20 +183,12 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
                     }
                 }
             }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( "Failed to update progress bar on taskbar icon!" );
-                Logger.logThrowable( e );
+            catch ( Exception | Error e ) {
+                // Catch both Exception and Error (including native RuntimeException from BridJ/COM)
+                // to prevent taskbar progress issues from crashing the entire application.
+                Logger.logWarningSilent( "Failed to update taskbar progress bar, disabling it." );
+                taskbarProgressbar = null;
             }
         } );
-
-        // Print progress to logs
-        if ( upperLabel != null && lowerLabel != null ) {
-            if ( progress >= 0 ) {
-                Logger.logStd( upperLabel.getText() + ": " + lowerLabel.getText() + " (" + progress + "%)" );
-            }
-            else {
-                Logger.logStd( upperLabel.getText() + ": " + lowerLabel.getText() + " (Running)" );
-            }
-        }
     }
 }

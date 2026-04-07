@@ -17,14 +17,6 @@
   ~ under the terms of the GNU General Public License as published by
   ~ the Free Software Foundation, either version 3 of the License,
   ~ or (at your option) any later version.
-  ~
-  ~ This program is distributed in the hope that it will be useful, but
-  ~ WITHOUT ANY WARRANTY; without even the implied warranty
-  ~ of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  ~ See the GNU General Public License for more details.
-  ~
-  ~ You should have received a copy of the GNU General Public License
-  ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
 <GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
@@ -36,46 +28,68 @@
     <rowConstraints>
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
-    <GridPane maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane" GridPane.halignment="CENTER">
+    <GridPane maxWidth="420.0" minWidth="375.0" prefWidth="400.0" styleClass="stripPane" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
         <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875" />
+            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
         </columnConstraints>
         <rowConstraints>
-            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="250.0" vgrow="SOMETIMES" />
+            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="250.0" prefHeight="340.0" vgrow="SOMETIMES" />
         </rowConstraints>
-        <GridPane.margin>
-            <Insets />
-        </GridPane.margin>
-        <GridPane prefHeight="290.0" prefWidth="400.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+        <GridPane prefHeight="380.0" prefWidth="400.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
             <columnConstraints>
                 <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
             </columnConstraints>
             <rowConstraints>
-                <RowConstraints fillHeight="false" maxHeight="140.0" minHeight="100.0" prefHeight="100.0" />
-                <RowConstraints fillHeight="false" maxHeight="78.66666666666666" minHeight="44.00004069010416" prefHeight="52.66666666666666" />
-                <RowConstraints fillHeight="false" maxHeight="63.33331298828125" minHeight="33.3333740234375" prefHeight="34.66666666666666" />
-                <RowConstraints fillHeight="false" maxHeight="95.99995930989581" minHeight="30.0" prefHeight="95.99995930989581" />
+                <!-- Row 0: Logo -->
+                <RowConstraints fillHeight="false" maxHeight="110.0" minHeight="90.0" prefHeight="100.0" />
+                <!-- Row 1: Upper label (overall task title, e.g. "Launching: Forge 1.15.2") -->
+                <RowConstraints fillHeight="false" maxHeight="50.0" minHeight="35.0" prefHeight="42.0" />
+                <!-- Row 2: Section label (current step, e.g. "Downloading mods...") -->
+                <RowConstraints fillHeight="false" maxHeight="30.0" minHeight="20.0" prefHeight="26.0" />
+                <!-- Row 3: Progress bar -->
+                <RowConstraints fillHeight="false" maxHeight="35.0" minHeight="25.0" prefHeight="30.0" />
+                <!-- Row 4: Detail label (file-level info below progress bar) -->
+                <RowConstraints fillHeight="false" maxHeight="35.0" minHeight="20.0" prefHeight="28.0" />
             </rowConstraints>
-            <GridPane.margin>
-                <Insets />
-            </GridPane.margin>
-            <Label fx:id="upperLabel" alignment="CENTER" contentDisplay="CENTER" prefHeight="53.0" prefWidth="350.0" text="Just a Moment" textAlignment="CENTER" wrapText="true" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+
+            <!-- Row 0: Logo -->
+            <ImageView fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true"
+                       GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                <Image url="@../micaminecraftlauncher.png" />
+            </ImageView>
+
+            <!-- Row 1: Upper label (overall task title) -->
+            <Label fx:id="upperLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"
+                   prefWidth="350.0" text="Just a Moment" textAlignment="CENTER" wrapText="true"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
                 <font>
                     <Font size="18.0" />
                 </font>
             </Label>
-            <Label fx:id="lowerLabel" alignment="CENTER" contentDisplay="CENTER" prefHeight="39.0" prefWidth="350.0" text="Fetching progress information..." textAlignment="CENTER" wrapText="true" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+
+            <!-- Row 2: Section label (current step heading) -->
+            <Label fx:id="sectionLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"
+                   prefWidth="350.0" text="" textAlignment="CENTER" wrapText="true"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
                 <font>
-                    <Font size="11.0" />
+                    <Font size="12.0" />
                 </font>
             </Label>
-          <MFXProgressBar fx:id="progressBar" maxWidth="300.0" minWidth="300.0" prefWidth="300.0" progress="0.81" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
-            <ImageView fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-                <Image url="@../micaminecraftlauncher.png" />
-                <GridPane.margin>
-                    <Insets />
-                </GridPane.margin>
-            </ImageView>
+
+            <!-- Row 3: Progress bar -->
+            <MFXProgressBar fx:id="progressBar" maxWidth="300.0" minWidth="300.0" prefWidth="300.0"
+                            progress="0.0" GridPane.halignment="CENTER" GridPane.rowIndex="3"
+                            GridPane.valignment="CENTER" />
+
+            <!-- Row 4: Detail label (file-level details below progress bar) -->
+            <Label fx:id="detailLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"
+                   prefWidth="350.0" text="" textAlignment="CENTER" wrapText="true"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER"
+                   opacity="0.6">
+                <font>
+                    <Font size="10.0" />
+                </font>
+            </Label>
         </GridPane>
     </GridPane>
 </GridPane>

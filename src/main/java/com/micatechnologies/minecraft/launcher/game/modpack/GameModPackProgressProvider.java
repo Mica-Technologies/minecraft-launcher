@@ -24,25 +24,25 @@ public abstract class GameModPackProgressProvider
 
     private              double currPercent           = 0.0;
 
-    private              String currSectionText       = "<null>";
+    private              String currSectionTitle      = "";
+
+    private              String currDetailText        = "";
 
     private              double currSectionSize       = PROGRESS_PERCENT_BASE;
 
     private              double currSectionProgress   = 0.0;
 
     void triggerUpdateHandler() {
-        updateProgressHandler( getActualProgress(), currSectionText );
+        updateProgressHandler( getActualProgress(), currSectionTitle, currDetailText );
     }
 
     private double getActualProgress() {
         return currPercent + ( currSectionProgress * ( currSectionSize / PROGRESS_PERCENT_BASE ) );
     }
 
-    public void submitProgress( String text, double sectionProgress ) {
-        // Store updated text
-        this.currSectionText = text;
+    public void submitProgress( String detailText, double sectionProgress ) {
+        this.currDetailText = detailText;
 
-        // Add progress to section progress
         if ( sectionProgress + currSectionProgress > PROGRESS_PERCENT_BASE ) {
             currSectionProgress = PROGRESS_PERCENT_BASE;
         }
@@ -50,40 +50,55 @@ public abstract class GameModPackProgressProvider
             currSectionProgress += sectionProgress;
         }
 
-        // Trigger update progress handler
         triggerUpdateHandler();
     }
 
-    void setCurrText( String text ) {
-        this.currSectionText = text;
-
-        // Trigger update progress handler
+    void setCurrText( String detailText ) {
+        this.currDetailText = detailText;
         triggerUpdateHandler();
     }
 
     void endProgressSection( String text ) {
-        // Add final percentage to main percentage and reset section info
         this.currPercent += currSectionSize;
         this.currSectionProgress = 0;
-        this.currSectionText = text;
+        this.currDetailText = text;
         this.currSectionSize = 0;
 
-        // Trigger update progress handler
         triggerUpdateHandler();
     }
 
-    void startProgressSection( String text, double size ) {
+    void startProgressSection( String sectionTitle, double size ) {
         // End open progress session (if exists)
         this.currPercent += this.currSectionProgress;
 
         // Store progress section information
-        this.currSectionText = text;
+        this.currSectionTitle = sectionTitle;
+        this.currDetailText = "";
         this.currSectionSize = size;
         this.currSectionProgress = 0;
 
-        // Trigger update progress handler
         triggerUpdateHandler();
     }
 
-    abstract public void updateProgressHandler( double percent, String text );
+    /**
+     * Called when progress updates. Implementors receive the section title (heading) and detail text (file-level info)
+     * separately so they can be displayed in different UI positions.
+     *
+     * @param percent      overall progress percentage (0-100)
+     * @param sectionTitle the current section heading (e.g. "Downloading mods...")
+     * @param detailText   the current detail text (e.g. "Verified library jna-4.4.0.jar")
+     */
+    /**
+     * Forces progress to 100% and triggers the handler. Used when the overall task is complete.
+     */
+    public void signalComplete( String sectionTitle ) {
+        this.currPercent = PROGRESS_PERCENT_BASE;
+        this.currSectionProgress = 0;
+        this.currSectionSize = 0;
+        this.currSectionTitle = sectionTitle;
+        this.currDetailText = "";
+        triggerUpdateHandler();
+    }
+
+    abstract public void updateProgressHandler( double percent, String sectionTitle, String detailText );
 }

@@ -30,90 +30,115 @@
 
 <GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0" prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
-      <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
     </columnConstraints>
     <rowConstraints>
-      <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0" />
-        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
+        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
     </rowConstraints>
-    <GridPane maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane" GridPane.halignment="CENTER" GridPane.rowIndex="1">
+    <GridPane maxWidth="400.0" minWidth="375.0" prefWidth="375.0" styleClass="stripPane" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
         <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="73.66668701171875" />
+            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
         </columnConstraints>
         <rowConstraints>
-            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="200.0" prefHeight="250.0" vgrow="SOMETIMES" />
+            <RowConstraints vgrow="SOMETIMES"/>
         </rowConstraints>
-        <GridPane.margin>
-            <Insets />
-        </GridPane.margin>
-        <GridPane minHeight="450.0" prefHeight="450.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+        <GridPane GridPane.halignment="CENTER" GridPane.valignment="CENTER">
             <columnConstraints>
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="277.0" minWidth="0.0" percentWidth="33.0" prefWidth="146.0" />
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="277.0" minWidth="10.0" percentWidth="34.0" prefWidth="146.0" />
-                <ColumnConstraints hgrow="SOMETIMES" maxWidth="295.3333333333333" minWidth="10.0" percentWidth="33.0" prefWidth="149.33333333333331" />
+                <ColumnConstraints hgrow="ALWAYS"/>
             </columnConstraints>
             <rowConstraints>
-                <RowConstraints vgrow="SOMETIMES" />
-                <RowConstraints maxHeight="1.7976931348623157E308" minHeight="73.0" prefHeight="222.0" vgrow="SOMETIMES" />
-            <RowConstraints />
-            <RowConstraints />
-                <RowConstraints />
-                <RowConstraints />
-                <RowConstraints />
+                <!-- 0: Title -->
+                <RowConstraints/>
+                <!-- 1: Modpack list -->
+                <RowConstraints minHeight="73.0" prefHeight="180.0" vgrow="ALWAYS"/>
+                <!-- 2: Remove button -->
+                <RowConstraints/>
+                <!-- 3: Hint label -->
+                <RowConstraints/>
+                <!-- 4: URL text field -->
+                <RowConstraints/>
+                <!-- 5: Add (URL) button -->
+                <RowConstraints/>
+                <!-- 6: List dropdown -->
+                <RowConstraints/>
+                <!-- 7: Add (List) button -->
+                <RowConstraints/>
+                <!-- 8: Return button -->
+                <RowConstraints/>
             </rowConstraints>
-            <GridPane.margin>
-                <Insets />
-            </GridPane.margin>
             <padding>
-                <Insets left="15.0" right="15.0" />
+                <Insets left="15.0" right="15.0"/>
             </padding>
-            <Label fx:id="upperLabel" alignment="CENTER" prefHeight="23.0" prefWidth="111.0" text="Modpacks" textAlignment="CENTER" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+
+            <!-- Row 0: Title -->
+            <Label fx:id="upperLabel" alignment="CENTER" prefHeight="23.0" text="Modpacks" textAlignment="CENTER" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
                 <font>
-                    <Font size="18.0" />
+                    <Font size="18.0"/>
                 </font>
-            <GridPane.margin>
-               <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-            </GridPane.margin>
+                <GridPane.margin>
+                    <Insets bottom="8.0" top="8.0"/>
+                </GridPane.margin>
             </Label>
-         <MFXListView fx:id="modpackList" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
-          <MFXTextField fx:id="urlAddBox" alignment="TOP_LEFT" floatingText="Mod Pack URL" maxHeight="36.0" maxWidth="245.0" minHeight="36.0" minWidth="245.0" prefHeight="36.0" prefWidth="245.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
-            <padding>
-               <Insets left="3.0" />
-            </padding>
-            <GridPane.margin>
-               <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-            </GridPane.margin>
-          </MFXTextField>
-          <MFXComboBox fx:id="listAddBox" maxHeight="36.0" maxWidth="245.0" minHeight="36.0" minWidth="245.0" prefHeight="36.0" prefWidth="245.0" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-            <GridPane.margin>
-               <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-            </GridPane.margin></MFXComboBox>
-          <MFXButton fx:id="urlAddBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Add (URL)" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
-            <GridPane.margin>
-               <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-            </GridPane.margin></MFXButton>
-          <MFXButton fx:id="listAddBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Add (List)" GridPane.columnIndex="2" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
-            <GridPane.margin>
-               <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-            </GridPane.margin></MFXButton>
-          <MFXButton fx:id="returnBtn" maxHeight="25.0" maxWidth="80.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="80.0" text="Return" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER">
-            <GridPane.margin>
-               <Insets bottom="8.0" left="8.0" right="8.0" top="32.0" />
-            </GridPane.margin></MFXButton>
-         <MFXButton fx:id="removeSelectedBtn" maxHeight="25.0" maxWidth="128.0" minHeight="25.0" minWidth="80.0" prefHeight="25.0" prefWidth="128.0" text="Remove Selected" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
-            <GridPane.margin>
-               <Insets left="8.0" right="8.0" top="16.0" />
-            </GridPane.margin>
-         </MFXButton>
-         <Label fx:id="upperLabel1" alignment="CENTER" prefHeight="23.0" prefWidth="230.0" text="Select multiple mod packs using the SHIFT key" textAlignment="CENTER" GridPane.columnSpan="3" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER">
-            <font>
-               <Font size="10.0" />
-            </font>
-            <GridPane.margin>
-               <Insets bottom="32.0" left="8.0" right="8.0" top="4.0" />
-            </GridPane.margin>
-         </Label>
+
+            <!-- Row 1: Modpack list -->
+            <MFXListView fx:id="modpackList" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER"/>
+
+            <!-- Row 2: Remove button -->
+            <MFXButton fx:id="removeSelectedBtn" prefHeight="28.0" prefWidth="150.0" styleClass="dangerZone" text="Uninstall Selected" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+                <GridPane.margin>
+                    <Insets top="12.0"/>
+                </GridPane.margin>
+            </MFXButton>
+
+            <!-- Row 3: Hint label -->
+            <Label fx:id="upperLabel1" alignment="CENTER" text="Select multiple mod packs using the SHIFT key" textAlignment="CENTER" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER">
+                <font>
+                    <Font size="10.0"/>
+                </font>
+                <GridPane.margin>
+                    <Insets bottom="20.0" top="4.0"/>
+                </GridPane.margin>
+            </Label>
+
+            <!-- Row 4: URL text field (full width) -->
+            <MFXTextField fx:id="urlAddBox" alignment="TOP_LEFT" floatingText="Mod Pack URL" maxWidth="320.0" minHeight="36.0" prefHeight="36.0" prefWidth="320.0" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
+                <padding>
+                    <Insets left="3.0"/>
+                </padding>
+                <GridPane.margin>
+                    <Insets left="8.0" right="8.0" top="4.0"/>
+                </GridPane.margin>
+            </MFXTextField>
+
+            <!-- Row 5: Add (URL) button below text field -->
+            <MFXButton fx:id="urlAddBtn" prefHeight="25.0" prefWidth="150.0" text="Add from URL" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
+                <GridPane.margin>
+                    <Insets bottom="16.0" top="6.0"/>
+                </GridPane.margin>
+            </MFXButton>
+
+            <!-- Row 6: List dropdown (full width) -->
+            <MFXComboBox fx:id="listAddBox" floatingText="Mod Pack List" maxWidth="320.0" minHeight="36.0" prefHeight="36.0" prefWidth="320.0" GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER">
+                <GridPane.margin>
+                    <Insets left="8.0" right="8.0" top="4.0"/>
+                </GridPane.margin>
+            </MFXComboBox>
+
+            <!-- Row 7: Add (List) button below dropdown -->
+            <MFXButton fx:id="listAddBtn" prefHeight="25.0" prefWidth="150.0" text="Add from List" GridPane.halignment="CENTER" GridPane.rowIndex="7" GridPane.valignment="CENTER">
+                <GridPane.margin>
+                    <Insets top="6.0"/>
+                </GridPane.margin>
+            </MFXButton>
+
+            <!-- Row 8: Return button -->
+            <MFXButton fx:id="returnBtn" prefHeight="25.0" prefWidth="100.0" text="Return" GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER">
+                <GridPane.margin>
+                    <Insets bottom="8.0" top="24.0"/>
+                </GridPane.margin>
+            </MFXButton>
         </GridPane>
     </GridPane>
-   <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" style="-fx-background-color: #8b0000;" text="--" wrapText="true" />
+    <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" style="-fx-background-color: #8b0000;" text="--" wrapText="true"/>
 </GridPane>

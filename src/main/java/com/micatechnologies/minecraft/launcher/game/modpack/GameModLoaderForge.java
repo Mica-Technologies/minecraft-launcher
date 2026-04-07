@@ -27,7 +27,10 @@ import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.game.modpack.manifests.ManifestRuleUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 
@@ -35,8 +38,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -111,12 +118,36 @@ class GameModLoaderForge extends ManagedGameFile
         // Store Forge/MC information
         JsonObject forgeVersionManifest = getForgeVersionManifest();
         forgeVersion = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY ).getAsString();
-        minecraftVersion = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_INHERITS_FROM_KEY )
-                                               .getAsString();
-        minecraftArguments = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_MINECRAFT_ARGS_KEY )
-                                                 .getAsString();
+        minecraftVersion = parseMinecraftVersion( forgeVersionManifest, forgeVersion );
+        minecraftArguments = parseMinecraftArguments( forgeVersionManifest );
         minecraftMainClass = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_MAIN_CLASS_KEY )
                                                  .getAsString();
+    }
+
+    private static String parseMinecraftVersion( JsonObject forgeVersionManifest, String fallbackVersionId ) {
+        if ( forgeVersionManifest.has( ForgeConstants.FORGE_VERSION_MANIFEST_INHERITS_FROM_KEY ) ) {
+            return forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_INHERITS_FROM_KEY ).getAsString();
+        }
+
+        if ( fallbackVersionId != null && fallbackVersionId.contains( "-forge" ) ) {
+            return fallbackVersionId.substring( 0, fallbackVersionId.indexOf( "-forge" ) );
+        }
+        return fallbackVersionId;
+    }
+
+    private static String parseMinecraftArguments( JsonObject forgeVersionManifest ) {
+        if ( forgeVersionManifest.has( ForgeConstants.FORGE_VERSION_MANIFEST_MINECRAFT_ARGS_KEY ) ) {
+            return forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_MINECRAFT_ARGS_KEY ).getAsString();
+        }
+
+        if ( forgeVersionManifest.has( "arguments" ) ) {
+            JsonObject argumentsObject = forgeVersionManifest.getAsJsonObject( "arguments" );
+            if ( argumentsObject.has( "game" ) ) {
+                return ManifestRuleUtilities.flattenArguments( argumentsObject.getAsJsonArray( "game" ) );
+            }
+        }
+
+        return "";
     }
 
     /**
@@ -150,6 +181,27 @@ class GameModLoaderForge extends ManagedGameFile
      */
     public String getMinecraftArguments() {
         return minecraftArguments;
+    }
+
+    /**
+     * Gets the JVM arguments from this Forge mod loader's version manifest, if present. Modern Forge versions
+     * (1.13+) may specify JVM arguments like module system flags in {@code arguments.jvm}.
+     *
+     * @return Forge JVM arguments string, or empty string if none
+     *
+     * @throws ModpackException if unable to read the Forge manifest
+     *
+     * @since 2.0
+     */
+    public String getForgeJvmArguments() throws ModpackException {
+        JsonObject forgeVersionManifest = getForgeVersionManifest();
+        if ( forgeVersionManifest.has( "arguments" ) ) {
+            JsonObject argumentsObject = forgeVersionManifest.getAsJsonObject( "arguments" );
+            if ( argumentsObject.has( "jvm" ) ) {
+                return ManifestRuleUtilities.flattenArguments( argumentsObject.getAsJsonArray( "jvm" ) );
+            }
+        }
+        return "";
     }
 
     /**
@@ -238,6 +290,25 @@ class GameModLoaderForge extends ManagedGameFile
                                                      .getAsString();
             }
 
+            // Modern Forge installers (1.13+) embed both "forge-<ver>.jar" (containing launch target services like
+            // fmlclient) and "forge-<ver>-universal.jar" (containing main Forge code). Both must be on the classpath.
+            // Legacy Forge (1.7-1.12) only has the universal JAR.
+            boolean addUniversalAsExtra = false;
+            String universalRepoPath = null;
+            if ( isSpecifiedRepoPath && forgeAssetName.startsWith( "net.minecraftforge:forge:" ) &&
+                    !forgeAssetRepoPath.contains( "-universal" ) ) {
+                universalRepoPath = forgeAssetRepoPath.replace( ".jar", "-universal.jar" );
+                if ( hasEmbeddedMavenEntry( universalRepoPath ) && hasEmbeddedMavenEntry( forgeAssetRepoPath ) ) {
+                    // Modern Forge: both JARs exist. Keep the base JAR as-is and add universal separately.
+                    addUniversalAsExtra = true;
+                }
+                else if ( hasEmbeddedMavenEntry( universalRepoPath ) ) {
+                    // Legacy Forge: only universal exists. Replace the base path.
+                    forgeAssetRepoPath = universalRepoPath;
+                    sha1 = null;
+                }
+            }
+
             // Build Full Repo URL and Path
             String forgeAssetURL;
             if ( forgeAssetDownloadsArtifactObj != null &&
@@ -249,24 +320,17 @@ class GameModLoaderForge extends ManagedGameFile
                 forgeAssetURL = forgeAssetDownloadsArtifactObj.get(
                         ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY ).getAsString();
             }
+            else if ( isSpecifiedRepoPath && hasEmbeddedMavenEntry( forgeAssetRepoPath ) ) {
+                forgeAssetURL = getEmbeddedMavenEntryURL( forgeAssetRepoPath );
+            }
             else {
                 // Get Repo URL
                 String repoURL = "https://repo1.maven.org/maven2/";
                 if ( forgeAssetName.contains( "net.minecraft:" ) ) {
                     repoURL = "https://libraries.minecraft.net/";
                 }
-                else if ( forgeAssetName.contains( "net.minecraftforge:forge:" ) ) {
+                else if ( forgeAssetName.contains( "net.minecraftforge:" ) ) {
                     repoURL = "https://maven.minecraftforge.net/";
-                    if ( !isSpecifiedRepoPath ) {
-                        forgeAssetRepoPath += "-universal";
-                    }
-                    else if ( !forgeAssetRepoPath.contains( "-universal" ) ) {
-                        String originalForgeAssetRepoPath = forgeAssetRepoPath;
-                        forgeAssetRepoPath = originalForgeAssetRepoPath.substring( 0,
-                                                                                   originalForgeAssetRepoPath.lastIndexOf(
-                                                                                           ".jar" ) ) +
-                                "-universal.jar";
-                    }
                 }
 
                 if ( isSpecifiedRepoPath ) {
@@ -304,11 +368,19 @@ class GameModLoaderForge extends ManagedGameFile
             }
 
             // Build Local File Path
-            String localForgeAssetFilePath = forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) )
-                                                           .replace( ".", File.separator ) +
-                    File.separator +
-                    inferredForgeAssetRepoPath +
-                    LocalPathConstants.JAR_FILE_EXTENSION;
+            String localForgeAssetFilePath;
+            if ( isSpecifiedRepoPath ) {
+                localForgeAssetFilePath = forgeAssetRepoPath.replace( "/", File.separator );
+            }
+            else {
+                localForgeAssetFilePath = forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) )
+                                               .replace( ".", File.separator ) +
+                        File.separator +
+                        forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", File.separator ) +
+                        File.separator +
+                        inferredForgeAssetRepoPath +
+                        LocalPathConstants.JAR_FILE_EXTENSION;
+            }
 
             // Get Forge Asset Requirements
             boolean clientReq = true;
@@ -331,10 +403,34 @@ class GameModLoaderForge extends ManagedGameFile
             else {
                 forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
             }
+
+            // For modern Forge: also add the universal JAR as a separate classpath entry
+            if ( addUniversalAsExtra && universalRepoPath != null ) {
+                String universalURL = getEmbeddedMavenEntryURL( universalRepoPath );
+                String universalLocalPath = universalRepoPath.replace( "/", File.separator );
+                forgeAssets.add( new GameAsset( universalURL, universalLocalPath, clientReq, serverReq ) );
+            }
         }
 
         // Return resulting list of Forge Assets
         return forgeAssets;
+    }
+
+    private boolean hasEmbeddedMavenEntry( String repoPath ) {
+        try {
+            JarFile forgeJarFile = getForgeJarFile();
+            boolean exists = forgeJarFile.getEntry( "maven/" + repoPath ) != null;
+            forgeJarFile.close();
+            return exists;
+        }
+        catch ( IOException | ModpackException e ) {
+            return false;
+        }
+    }
+
+    private String getEmbeddedMavenEntryURL( String repoPath ) {
+        File forgeInstaller = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
+        return "jar:" + forgeInstaller.toURI() + "!/maven/" + repoPath;
     }
 
     private void downloadForgeAssets( GameMode gameAppMode, GameModPackProgressProvider progressProvider )
@@ -360,6 +456,321 @@ class GameModLoaderForge extends ManagedGameFile
         }
     }
 
+    /**
+     * Runs the Forge install processors defined in install_profile.json. Modern Forge (1.13+) requires a multi-step
+     * patching process to produce the patched client JAR from the vanilla Minecraft client. This method downloads
+     * processor libraries, resolves data variables, and runs each processor in sequence.
+     *
+     * @param gameAppMode      client or server mode
+     * @param progressProvider progress provider for UI feedback
+     * @param javaMajorVersion the Java major version to use for running processors
+     *
+     * @throws ModpackException if processors fail
+     *
+     * @since 2.0
+     */
+    void runForgeProcessors( GameMode gameAppMode, GameModPackProgressProvider progressProvider, String runtimeComponent )
+    throws ModpackException
+    {
+        String side = gameAppMode == GameMode.CLIENT ? "client" : "server";
+        String libsFolder = SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
+                                                            ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
+
+        // Read install_profile.json from the Forge installer
+        JsonObject installProfile;
+        try {
+            JarFile forgeJar = getForgeJarFile();
+            JarEntry profileEntry = forgeJar.getJarEntry( "install_profile.json" );
+            if ( profileEntry == null ) {
+                Logger.logDebug( "No install_profile.json found -- legacy Forge, skipping processors." );
+                return;
+            }
+            InputStream is = forgeJar.getInputStream( profileEntry );
+            installProfile = new Gson().fromJson( new InputStreamReader( is ), JsonObject.class );
+            is.close();
+            forgeJar.close();
+        }
+        catch ( IOException e ) {
+            throw new ModpackException( "Unable to read install_profile.json from Forge installer.", e );
+        }
+
+        if ( !installProfile.has( "processors" ) || !installProfile.has( "data" ) ) {
+            Logger.logDebug( "install_profile.json has no processors -- skipping." );
+            return;
+        }
+
+        // Check if the patched output already exists
+        JsonObject data = installProfile.getAsJsonObject( "data" );
+        if ( data.has( "PATCHED" ) ) {
+            String patchedCoord = data.getAsJsonObject( "PATCHED" ).get( side ).getAsString();
+            String patchedPath = mavenCoordToPath( patchedCoord );
+            File patchedFile = new File( libsFolder, patchedPath );
+            if ( patchedFile.exists() && patchedFile.length() > 0 ) {
+                Logger.logStd( "Forge patched client already exists, skipping processors." );
+                return;
+            }
+        }
+
+        Logger.logStd( "Running Forge install processors for " + side + "..." );
+
+        // Download install_profile libraries
+        JsonArray profileLibs = installProfile.getAsJsonArray( "libraries" );
+        for ( JsonElement libEl : profileLibs ) {
+            JsonObject lib = libEl.getAsJsonObject();
+            JsonObject downloads = lib.has( "downloads" ) ? lib.getAsJsonObject( "downloads" ) : null;
+            JsonObject artifact = downloads != null && downloads.has( "artifact" ) ?
+                                  downloads.getAsJsonObject( "artifact" ) : null;
+            if ( artifact == null ) {
+                continue;
+            }
+
+            String path = artifact.get( "path" ).getAsString();
+            String url = artifact.has( "url" ) ? artifact.get( "url" ).getAsString() : "";
+            File localFile = new File( libsFolder, path.replace( "/", File.separator ) );
+
+            if ( localFile.exists() ) {
+                continue;
+            }
+
+            if ( url.isEmpty() ) {
+                // Embedded in installer JAR
+                if ( hasEmbeddedMavenEntry( path ) ) {
+                    try {
+                        extractEmbeddedMavenEntry( path, localFile );
+                    }
+                    catch ( IOException e ) {
+                        throw new ModpackException( "Failed to extract embedded library: " + path, e );
+                    }
+                }
+                continue;
+            }
+
+            localFile.getParentFile().mkdirs();
+            try {
+                NetworkUtilities.downloadFileFromURL( url, localFile );
+            }
+            catch ( IOException e ) {
+                throw new ModpackException( "Failed to download processor library: " + url, e );
+            }
+
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "Downloaded processor lib: " + localFile.getName(), 1.0 );
+            }
+        }
+
+        // Get the vanilla Minecraft JAR path
+        String minecraftJarPath = parentModPack.getPackRootFolder() + File.separator +
+                ModPackConstants.MODPACK_MINECRAFT_JAR_LOCAL_PATH;
+
+        // Ensure the Java runtime is available for running processors
+        String javaExec = RuntimeManager.getJavaPath( runtimeComponent );
+
+        // Run each processor
+        JsonArray processors = installProfile.getAsJsonArray( "processors" );
+        for ( int i = 0; i < processors.size(); i++ ) {
+            JsonObject proc = processors.get( i ).getAsJsonObject();
+
+            // Check side filter
+            if ( proc.has( "sides" ) ) {
+                JsonArray sides = proc.getAsJsonArray( "sides" );
+                boolean sideMatch = false;
+                for ( JsonElement s : sides ) {
+                    if ( s.getAsString().equals( side ) ) {
+                        sideMatch = true;
+                        break;
+                    }
+                }
+                if ( !sideMatch ) {
+                    continue;
+                }
+            }
+
+            String processorJar = proc.get( "jar" ).getAsString();
+            Logger.logStd( "Running Forge processor " + ( i + 1 ) + "/" + processors.size() + ": " + processorJar );
+
+            // Build classpath for this processor
+            StringBuilder procClasspath = new StringBuilder();
+            procClasspath.append( new File( libsFolder, mavenCoordToPath( processorJar ) ).getAbsolutePath() );
+
+            if ( proc.has( "classpath" ) ) {
+                for ( JsonElement cpEl : proc.getAsJsonArray( "classpath" ) ) {
+                    procClasspath.append( File.pathSeparator );
+                    procClasspath.append(
+                            new File( libsFolder, mavenCoordToPath( cpEl.getAsString() ) ).getAbsolutePath() );
+                }
+            }
+
+            // Find main class from processor JAR manifest
+            String mainClass;
+            try {
+                JarFile procJarFile = new JarFile(
+                        new File( libsFolder, mavenCoordToPath( processorJar ) ) );
+                mainClass = procJarFile.getManifest().getMainAttributes().getValue( "Main-Class" );
+                procJarFile.close();
+            }
+            catch ( IOException e ) {
+                throw new ModpackException( "Cannot read processor JAR manifest: " + processorJar, e );
+            }
+
+            if ( mainClass == null ) {
+                throw new ModpackException( "Processor JAR has no Main-Class: " + processorJar );
+            }
+
+            // Resolve args
+            JsonArray argsArray = proc.getAsJsonArray( "args" );
+            List< String > resolvedArgs = new ArrayList<>();
+            for ( JsonElement argEl : argsArray ) {
+                String arg = argEl.getAsString();
+                arg = resolveProcessorArg( arg, data, side, libsFolder, minecraftJarPath );
+                resolvedArgs.add( arg );
+            }
+
+            // Build the command
+            List< String > command = new ArrayList<>();
+            command.add( javaExec );
+            command.add( "-cp" );
+            command.add( procClasspath.toString() );
+            command.add( mainClass );
+            command.addAll( resolvedArgs );
+
+            // Run the processor
+            try {
+                ProcessBuilder pb = new ProcessBuilder( command );
+                pb.directory( new File( parentModPack.getPackRootFolder() ) );
+                pb.inheritIO();
+                Process process = pb.start();
+                int exitCode = process.waitFor();
+                if ( exitCode != 0 ) {
+                    throw new ModpackException(
+                            "Forge processor failed (exit code " + exitCode + "): " + processorJar );
+                }
+            }
+            catch ( IOException | InterruptedException e ) {
+                throw new ModpackException( "Failed to run Forge processor: " + processorJar, e );
+            }
+
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "Completed processor: " + processorJar,
+                                                 10.0 / processors.size() );
+            }
+        }
+
+        Logger.logStd( "Forge install processors completed successfully." );
+    }
+
+    /**
+     * Converts a Maven coordinate (e.g. "net.minecraftforge:forge:1.15.2-31.2.50:client") to a local path
+     * (e.g. "net/minecraftforge/forge/1.15.2-31.2.50/forge-1.15.2-31.2.50-client.jar").
+     */
+    private static String mavenCoordToPath( String coord ) {
+        // Strip brackets if present (e.g. "[group:artifact:version]")
+        if ( coord.startsWith( "[" ) && coord.endsWith( "]" ) ) {
+            coord = coord.substring( 1, coord.length() - 1 );
+        }
+
+        // Handle @ext suffix
+        String ext = "jar";
+        if ( coord.contains( "@" ) ) {
+            ext = coord.substring( coord.indexOf( "@" ) + 1 );
+            coord = coord.substring( 0, coord.indexOf( "@" ) );
+        }
+
+        String[] parts = coord.split( ":" );
+        String group = parts[ 0 ].replace( ".", "/" );
+        String artifact = parts[ 1 ];
+        String version = parts[ 2 ];
+        String classifier = parts.length > 3 ? parts[ 3 ] : null;
+
+        String fileName = artifact + "-" + version + ( classifier != null ? "-" + classifier : "" ) + "." + ext;
+        return group + "/" + artifact + "/" + version + "/" + fileName;
+    }
+
+    /**
+     * Resolves a processor argument by substituting data variables and special tokens.
+     */
+    private String resolveProcessorArg( String arg, JsonObject data, String side, String libsFolder,
+                                         String minecraftJarPath )
+    throws ModpackException
+    {
+        // {VARIABLE} -> resolved from data section
+        if ( arg.startsWith( "{" ) && arg.endsWith( "}" ) ) {
+            String key = arg.substring( 1, arg.length() - 1 );
+            if ( key.equals( "MINECRAFT_JAR" ) ) {
+                return minecraftJarPath;
+            }
+            if ( data.has( key ) ) {
+                String value = data.getAsJsonObject( key ).get( side ).getAsString();
+                return resolveDataValue( value, libsFolder );
+            }
+            return arg;
+        }
+
+        // [maven:coord] -> path to library
+        if ( arg.startsWith( "[" ) && arg.endsWith( "]" ) ) {
+            return new File( libsFolder, mavenCoordToPath( arg ) ).getAbsolutePath();
+        }
+
+        return arg;
+    }
+
+    /**
+     * Resolves a data value which can be a Maven coordinate [group:artifact:version], a path inside the installer JAR
+     * (/data/file.lzma), or a literal string ('value').
+     */
+    private String resolveDataValue( String value, String libsFolder ) throws ModpackException {
+        // Literal string in single quotes
+        if ( value.startsWith( "'" ) && value.endsWith( "'" ) ) {
+            return value.substring( 1, value.length() - 1 );
+        }
+
+        // Maven coordinate in brackets
+        if ( value.startsWith( "[" ) && value.endsWith( "]" ) ) {
+            return new File( libsFolder, mavenCoordToPath( value ) ).getAbsolutePath();
+        }
+
+        // Path inside the installer JAR (e.g. /data/client.lzma)
+        if ( value.startsWith( "/" ) ) {
+            String entryName = value.substring( 1 ); // remove leading /
+            File extractedFile = new File( libsFolder, "forge-installer-data" + File.separator +
+                    entryName.replace( "/", File.separator ) );
+            if ( !extractedFile.exists() ) {
+                try {
+                    JarFile forgeJar = getForgeJarFile();
+                    JarEntry entry = forgeJar.getJarEntry( entryName );
+                    if ( entry == null ) {
+                        forgeJar.close();
+                        throw new ModpackException( "Missing entry in Forge installer: " + entryName );
+                    }
+                    extractedFile.getParentFile().mkdirs();
+                    Files.copy( forgeJar.getInputStream( entry ), extractedFile.toPath(),
+                                StandardCopyOption.REPLACE_EXISTING );
+                    forgeJar.close();
+                }
+                catch ( IOException e ) {
+                    throw new ModpackException( "Failed to extract from Forge installer: " + entryName, e );
+                }
+            }
+            return extractedFile.getAbsolutePath();
+        }
+
+        return value;
+    }
+
+    /**
+     * Extracts an embedded maven entry from the Forge installer JAR to a local file.
+     */
+    private void extractEmbeddedMavenEntry( String repoPath, File destination ) throws IOException, ModpackException {
+        JarFile forgeJar = getForgeJarFile();
+        JarEntry entry = forgeJar.getJarEntry( "maven/" + repoPath );
+        if ( entry == null ) {
+            forgeJar.close();
+            throw new IOException( "Embedded maven entry not found: maven/" + repoPath );
+        }
+        destination.getParentFile().mkdirs();
+        Files.copy( forgeJar.getInputStream( entry ), destination.toPath(), StandardCopyOption.REPLACE_EXISTING );
+        forgeJar.close();
+    }
+
     String buildForgeClasspath( GameMode gameAppMode, GameModPackProgressProvider progressProvider )
     throws ModpackException
     {
@@ -375,23 +786,65 @@ class GameModLoaderForge extends ManagedGameFile
 
         // For each asset, add to classpath
         StringBuilder classpath = new StringBuilder();
+        LinkedHashSet< String > classpathEntries = new LinkedHashSet<>();
         for ( GameAsset forgeAsset : forgeAssetsList ) {
-            // Add separator to string if necessary
-            if ( ( classpath.length() > 0 ) && !classpath.toString().endsWith( File.pathSeparator ) ) {
-                classpath.append( File.pathSeparator );
-            }
-
-            // Add asset to classpath
             String localPathPrefix = SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
                                                                     ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
             forgeAsset.setLocalPathPrefix( localPathPrefix );
-            classpath.append( forgeAsset.getFullLocalFilePath() );
+            classpathEntries.add( forgeAsset.getFullLocalFilePath() );
 
             // Update progress provider if present
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "Added to classpath: " + forgeAsset.getLocalFilePath(),
                                                  ( 20.0 / ( double ) forgeAssetsList.size() ) );
             }
+        }
+
+        // Add the patched client JAR from Forge processors if it exists (modern Forge 1.13+)
+        String libsFolder = SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
+                                                            ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
+        try {
+            JarFile forgeJar = getForgeJarFile();
+            JarEntry profileEntry = forgeJar.getJarEntry( "install_profile.json" );
+            if ( profileEntry != null ) {
+                InputStream is = forgeJar.getInputStream( profileEntry );
+                JsonObject installProfile = new Gson().fromJson( new InputStreamReader( is ), JsonObject.class );
+                is.close();
+                if ( installProfile.has( "data" ) ) {
+                    JsonObject data = installProfile.getAsJsonObject( "data" );
+                    String side = gameAppMode == GameMode.CLIENT ? "client" : "server";
+                    if ( data.has( "PATCHED" ) ) {
+                        String patchedCoord = data.getAsJsonObject( "PATCHED" ).get( side ).getAsString();
+                        String patchedPath = mavenCoordToPath( patchedCoord );
+                        File patchedFile = new File( libsFolder, patchedPath );
+                        if ( patchedFile.exists() ) {
+                            classpathEntries.add( patchedFile.getAbsolutePath() );
+                            Logger.logDebug( "Added patched Forge client to classpath: " + patchedFile.getName() );
+                        }
+                    }
+                    // Also add MC_EXTRA (contains resources split from the vanilla JAR)
+                    if ( data.has( "MC_EXTRA" ) ) {
+                        String extraCoord = data.getAsJsonObject( "MC_EXTRA" ).get( side ).getAsString();
+                        String extraPath = mavenCoordToPath( extraCoord );
+                        File extraFile = new File( libsFolder, extraPath );
+                        if ( extraFile.exists() ) {
+                            classpathEntries.add( extraFile.getAbsolutePath() );
+                            Logger.logDebug( "Added MC extra to classpath: " + extraFile.getName() );
+                        }
+                    }
+                }
+            }
+            forgeJar.close();
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "Could not check for Forge patched client: " + e.getMessage() );
+        }
+
+        for ( String cpEntry : classpathEntries ) {
+            if ( classpath.length() > 0 ) {
+                classpath.append( File.pathSeparator );
+            }
+            classpath.append( cpEntry );
         }
 
         return classpath.toString();

@@ -166,6 +166,34 @@ public class ConfigConstants
     public static final String RESIZE_WINDOWS_ENABLE_KEY = "resizableWindows";
 
     /**
+     * Key for accessing the in-game console enable value.
+     *
+     * @since 3.0
+     */
+    public static final String INGAME_CONSOLE_ENABLE_KEY = "inGameConsole";
+
+    /**
+     * The default value for in-game console being enabled.
+     *
+     * @since 3.0
+     */
+    public static final boolean INGAME_CONSOLE_ENABLE_DEFAULT = false;
+
+    /**
+     * Key for accessing the list of installed vanilla Minecraft versions.
+     *
+     * @since 3.0
+     */
+    public static final String VANILLA_VERSIONS_INSTALLED_KEY = "vanillaVersions";
+
+    /**
+     * The default value for the installed vanilla versions list.
+     *
+     * @since 3.0
+     */
+    public static final List< String > VANILLA_VERSIONS_INSTALLED_DEFAULT = new ArrayList<>();
+
+    /**
      * Key for accessing the list of installed mod packs.
      *
      * @since 1.0

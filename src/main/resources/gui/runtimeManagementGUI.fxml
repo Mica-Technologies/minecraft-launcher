@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import io.github.palexdev.materialfx.controls.MFXButton?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.text.Font?>
+
+<!--
+  ~ Copyright (c) 2026 Mica Technologies
+  ~
+  ~ This program is free software: you can redistribute it and/or modify it
+  ~ under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License,
+  ~ or (at your option) any later version.
+  -->
+
+<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="400.0" minWidth="600.0"
+          prefHeight="550.0" prefWidth="800.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css"
+          xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+    <columnConstraints>
+        <ColumnConstraints hgrow="ALWAYS"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints minHeight="0.0" prefHeight="0.0"/>
+        <RowConstraints vgrow="SOMETIMES"/>
+    </rowConstraints>
+
+    <!-- Announcement Row -->
+    <Label fx:id="announcement" maxHeight="0.0" maxWidth="1.7976931348623157E308" minHeight="0.0"
+           styleClass="announcementLabel" text="" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+
+    <!-- Main Content -->
+    <GridPane styleClass="stripPane" GridPane.columnIndex="0" GridPane.rowIndex="1">
+        <columnConstraints>
+            <ColumnConstraints hgrow="ALWAYS"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints minHeight="50.0" prefHeight="50.0"/>
+            <RowConstraints vgrow="ALWAYS"/>
+            <RowConstraints minHeight="50.0" prefHeight="60.0"/>
+        </rowConstraints>
+
+        <!-- Title Section -->
+        <GridPane styleClass="settingsContainer" GridPane.rowIndex="0">
+            <columnConstraints>
+                <ColumnConstraints hgrow="ALWAYS"/>
+            </columnConstraints>
+            <padding>
+                <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
+            </padding>
+            <Label fx:id="titleLabel" maxWidth="1.7976931348623157E308" text="Runtime Management">
+                <font>
+                    <Font name="System Bold" size="18.0"/>
+                </font>
+            </Label>
+        </GridPane>
+
+        <!-- Runtime List Section -->
+        <GridPane styleClass="settingsContainer" GridPane.rowIndex="1">
+            <columnConstraints>
+                <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints minWidth="140.0" prefWidth="140.0"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints minHeight="30.0" prefHeight="30.0"/>
+                <RowConstraints vgrow="ALWAYS"/>
+                <RowConstraints minHeight="30.0" prefHeight="30.0"/>
+            </rowConstraints>
+            <padding>
+                <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
+            </padding>
+
+            <!-- Column Headers -->
+            <Label text="Installed Java Runtimes" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                <font>
+                    <Font name="System Bold" size="13.0"/>
+                </font>
+            </Label>
+
+            <!-- Runtime List -->
+            <ListView fx:id="runtimeListView" GridPane.columnIndex="0" GridPane.columnSpan="2"
+                      GridPane.rowIndex="1">
+                <padding>
+                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0"/>
+                </padding>
+            </ListView>
+
+            <!-- Action Buttons Row -->
+            <GridPane GridPane.columnIndex="0" GridPane.columnSpan="2" GridPane.rowIndex="2">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                    <ColumnConstraints minWidth="120.0" prefWidth="120.0"/>
+                    <ColumnConstraints minWidth="120.0" prefWidth="120.0"/>
+                    <ColumnConstraints minWidth="120.0" prefWidth="120.0"/>
+                </columnConstraints>
+                <padding>
+                    <Insets top="5.0"/>
+                </padding>
+
+                <Label fx:id="statusLabel" text="Select a runtime to manage it." GridPane.columnIndex="0"/>
+
+                <MFXButton fx:id="refreshBtn" prefHeight="25.0" prefWidth="110.0" text="Refresh"
+                           GridPane.columnIndex="1">
+                    <GridPane.margin>
+                        <Insets left="5.0" right="5.0"/>
+                    </GridPane.margin>
+                </MFXButton>
+
+                <MFXButton fx:id="deleteBtn" prefHeight="25.0" prefWidth="110.0" styleClass="dangerZone"
+                           text="Delete" GridPane.columnIndex="2">
+                    <GridPane.margin>
+                        <Insets left="5.0" right="5.0"/>
+                    </GridPane.margin>
+                </MFXButton>
+
+                <MFXButton fx:id="deleteAllBtn" prefHeight="25.0" prefWidth="110.0" styleClass="dangerZone"
+                           text="Delete All" GridPane.columnIndex="3">
+                    <GridPane.margin>
+                        <Insets left="5.0" right="5.0"/>
+                    </GridPane.margin>
+                </MFXButton>
+            </GridPane>
+        </GridPane>
+
+        <!-- Bottom Navigation -->
+        <GridPane styleClass="settingsContainer" GridPane.rowIndex="2">
+            <columnConstraints>
+                <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints minWidth="80.0" prefWidth="80.0"/>
+            </columnConstraints>
+            <padding>
+                <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
+            </padding>
+
+            <Label fx:id="infoLabel" text="Runtimes are downloaded automatically when launching a modpack."
+                   GridPane.columnIndex="0"/>
+
+            <MFXButton fx:id="returnBtn" prefHeight="30.0" prefWidth="80.0" text="Return"
+                       GridPane.columnIndex="1"/>
+        </GridPane>
+    </GridPane>
+</GridPane>

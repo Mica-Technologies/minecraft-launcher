@@ -97,9 +97,9 @@ public class GameAssetManifest extends ManagedGameFile
                                                               assetFolder, assetHash );
 
             // Build full asset URL
-            String assetURL = ManifestConstants.MINECRAFT_ASSET_SERVER_URL_TEMPLATE.replaceAll(
-                                                       ManifestConstants.MINECRAFT_ASSET_SERVER_URL_FOLDER_KEY, assetFolder )
-                                                                                   .replaceAll(
+            String assetURL = ManifestConstants.MINECRAFT_ASSET_SERVER_URL_TEMPLATE.replace(
+                    ManifestConstants.MINECRAFT_ASSET_SERVER_URL_FOLDER_KEY, assetFolder )
+                                                                                   .replace(
                                                                                            ManifestConstants.MINECRAFT_ASSET_SERVER_URL_HASH_KEY,
                                                                                            assetHash );
             assets.add( new ManagedGameFile( assetURL, assetPath, assetHash, ManagedGameFileHashType.SHA1 ) );
@@ -125,9 +125,14 @@ public class GameAssetManifest extends ManagedGameFile
 
         // Update each asset
         List< ManagedGameFile > assets = getAssets();
+        if ( assets.isEmpty() ) {
+            return;
+        }
 
         // Build list of asset download threads
-        ExecutorService threadPool = Executors.newFixedThreadPool( assets.size() );
+        int maxThreads = Math.max( 1, Runtime.getRuntime().availableProcessors() );
+        int threadCount = Math.min( assets.size(), maxThreads );
+        ExecutorService threadPool = Executors.newFixedThreadPool( threadCount );
         List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
         for ( ManagedGameFile asset : assets ) {
             Callable< Boolean > updateFileCallable = () -> {

@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
+import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
@@ -194,10 +195,10 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
      */
     @Override
     void setup() {
-        // Configure window close
+        // Configure window close -- X button closes the app
         stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();
-            returnBtn.fire();
+            LauncherCore.closeApp();
         } );
 
         // Display announcements if present
@@ -253,22 +254,55 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
 
         // Configure remove selected button
         removeSelectedBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
-        removeSelectedBtn.setOnAction( actionEvent -> {
+        removeSelectedBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             List< String > selectedItems = modpackList.getSelectionModel().getSelectedValues();
-            for ( String selectedItem : selectedItems ) {
-                modpackList.getItems().remove( selectedItem );
-                SystemUtilities.spawnNewTask( () -> {
-                    boolean isUnavailable = selectedItem.contains( UNAVAILABLE_PREFIX );
-                    String preppedEventItem = selectedItem;
-                    if ( isUnavailable ) {
-                        preppedEventItem = selectedItem.substring(
-                                selectedItem.indexOf( UNAVAILABLE_PREFIX ) + UNAVAILABLE_PREFIX.length() );
-                    }
-                    uninstallModPack( preppedEventItem, isUnavailable );
-                } );
+            if ( selectedItems == null || selectedItems.isEmpty() ) {
+                return;
             }
 
-        } );
+            int count = selectedItems.size();
+            String label = count == 1 ? selectedItems.get( 0 ) : count + " mod packs";
+            int response = GUIUtilities.showQuestionMessage( "Remove Mod Packs",
+                                                              "Remove " + label + "?",
+                                                              "Would you also like to delete the installed game files?",
+                                                              "Remove & Delete Files",
+                                                              "Remove (Keep Files)", stage );
+            if ( response == 0 ) {
+                return; // Cancel
+            }
+
+            boolean deleteFiles = ( response == 1 );
+
+            for ( String selectedItem : selectedItems ) {
+                boolean isUnavailable = selectedItem.contains( UNAVAILABLE_PREFIX );
+                String preppedEventItem = selectedItem;
+                if ( isUnavailable ) {
+                    preppedEventItem = selectedItem.substring(
+                            selectedItem.indexOf( UNAVAILABLE_PREFIX ) + UNAVAILABLE_PREFIX.length() );
+                }
+
+                // Delete install folder if requested
+                if ( deleteFiles ) {
+                    GameModPack matchedPack = GameModPackManager.getInstalledModPackByName( preppedEventItem );
+                    if ( matchedPack == null && !isUnavailable ) {
+                        matchedPack = GameModPackManager.getInstalledModPackByFriendlyName( preppedEventItem );
+                    }
+                    if ( matchedPack != null ) {
+                        try {
+                            java.io.File installDir = new java.io.File( matchedPack.getPackRootFolder() );
+                            if ( installDir.exists() ) {
+                                org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
+                            }
+                        }
+                        catch ( Exception e ) {
+                            Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
+                        }
+                    }
+                }
+
+                uninstallModPack( preppedEventItem, isUnavailable );
+            }
+        } ) );
 
         // Loads lists
         loadModPackList();

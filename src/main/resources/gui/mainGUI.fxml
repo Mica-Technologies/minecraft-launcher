@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
-<?import io.github.palexdev.materialfx.controls.MFXListView?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.Image?>
@@ -73,10 +73,10 @@
             <Insets />
          </GridPane.margin>
         </GridPane>
-      <MFXListView fx:id="packSelectionList" maxWidth="1.7976931348623157E308" GridPane.halignment="CENTER" GridPane.hgrow="SOMETIMES" GridPane.rowIndex="1" GridPane.valignment="CENTER" GridPane.vgrow="SOMETIMES">
+      <ListView fx:id="packSelectionList" maxWidth="1.7976931348623157E308" fixedCellSize="52" GridPane.halignment="CENTER" GridPane.hgrow="SOMETIMES" GridPane.rowIndex="1" GridPane.valignment="TOP" GridPane.vgrow="ALWAYS" style="-fx-background-color: transparent;">
          <GridPane.margin>
             <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
-         </GridPane.margin></MFXListView>
+         </GridPane.margin></ListView>
         <GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" GridPane.rowIndex="2">
             <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" minWidth="-Infinity" />
@@ -89,17 +89,17 @@
             <RowConstraints maxHeight="-Infinity" minHeight="-Infinity" />
             <RowConstraints />
             </rowConstraints>
-            <MFXButton fx:id="settingsBtn" prefHeight="25.0" prefWidth="125.0" text="⚙ Settings" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+            <MFXButton fx:id="settingsBtn" prefHeight="25.0" prefWidth="125.0" text="Settings" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER">
                 <GridPane.margin>
                     <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
                 </GridPane.margin>
             </MFXButton>
-            <MFXButton fx:id="exitBtn" prefHeight="25.0" prefWidth="80.0" text="✖ Exit" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
+            <MFXButton fx:id="exitBtn" prefHeight="25.0" prefWidth="80.0" text="Exit" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
                 <GridPane.margin>
                     <Insets bottom="24.0" left="8.0" right="8.0" top="24.0" />
                 </GridPane.margin>
             </MFXButton>
-         <MFXButton fx:id="logoutBtn" alignment="CENTER" prefHeight="25.0" prefWidth="80.0" styleClass="logoutBtn" text="🠔 Log Out" GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
+         <MFXButton fx:id="logoutBtn" alignment="CENTER" prefHeight="25.0" prefWidth="80.0" styleClass="logoutBtn" text="Log Out" GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
              <GridPane.margin>
                  <Insets bottom="24.0" left="8.0" right="8.0" top="24.0" />
              </GridPane.margin>
@@ -110,9 +110,13 @@
                 <Insets bottom="24.0" left="16.0" right="16.0" top="24.0" />
             </GridPane.margin>
            </ImageView>
-            <MFXButton fx:id="editButton" prefHeight="25.0" prefWidth="125.0" text="✎ Edit Mod Packs" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+            <MFXButton fx:id="editButton" prefHeight="25.0" prefWidth="125.0" text="Edit Mod Packs" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
             <GridPane.margin>
-               <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+               <Insets bottom="4.0" left="8.0" right="8.0" top="4.0" />
+            </GridPane.margin></MFXButton>
+            <MFXButton fx:id="vanillaBtn" prefHeight="25.0" prefWidth="135.0" text="Vanilla Versions" GridPane.columnSpan="2147483647" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+            <GridPane.margin>
+               <Insets bottom="4.0" left="8.0" right="8.0" top="4.0" />
             </GridPane.margin></MFXButton>
          <GridPane.margin>
             <Insets />

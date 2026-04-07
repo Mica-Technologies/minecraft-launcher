@@ -27,11 +27,11 @@ import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
-import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherGameConsoleGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
@@ -121,14 +121,43 @@ public class LauncherCore
                 Logger.logDebug( LocalizationManager.LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT );
             }
 
+            // Show a progress window while loading startup data
+            MCLauncherProgressGui startupProgressWindow = null;
+            try {
+                if ( MCLauncherGuiController.shouldCreateGui() ) {
+                    startupProgressWindow = MCLauncherGuiController.goToProgressGui();
+                }
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to load progress GUI for startup." );
+                Logger.logThrowable( e );
+            }
+
             // Load announcements
+            if ( startupProgressWindow != null ) {
+                startupProgressWindow.setUpperLabelText( "Loading" );
+                startupProgressWindow.setSectionText( "Checking for announcements..." );
+                startupProgressWindow.setDetailText( "Contacting announcement server" );
+                startupProgressWindow.setProgress( 25 );
+            }
             AnnouncementManager.checkAnnouncements();
 
             // Load mod pack information
+            if ( startupProgressWindow != null ) {
+                startupProgressWindow.setSectionText( "Loading mod packs..." );
+                startupProgressWindow.setDetailText( "Fetching installed and available mod packs" );
+                startupProgressWindow.setProgress( 60 );
+            }
             GameModPackManager.fetchModPackInfo();
 
-            // Get local JDK
-            RuntimeManager.verifyJre8();
+            if ( startupProgressWindow != null ) {
+                startupProgressWindow.setSectionText( "Ready!" );
+                startupProgressWindow.setDetailText( "" );
+                startupProgressWindow.setProgress( 100 );
+            }
+
+            // Note: Java runtime verification is now performed on-demand when a modpack is launched,
+            // based on the Minecraft version's required Java version (from client.json javaVersion field).
 
             // Show main (mod pack selection) window
             doModpackSelection( initialModPackSelection, previousRestartError );
@@ -177,8 +206,9 @@ public class LauncherCore
             }
 
             if ( playProgressWindow != null ) {
-                playProgressWindow.setLabelTexts( LocalizationManager.LAUNCHING_MOD_PACK_TEXT,
-                                                  gameModPack.getFriendlyName() );
+                playProgressWindow.setUpperLabelText( "Launching: " + gameModPack.getPackName() );
+                playProgressWindow.setSectionText( "Preparing..." );
+                playProgressWindow.setDetailText( "" );
             }
 
             try {
@@ -187,29 +217,88 @@ public class LauncherCore
                 gameModPack.setProgressProvider( new GameModPackProgressProvider()
                 {
                     @Override
-                    public void updateProgressHandler( double percent, String text ) {
-                        Logger.logStd( text + " - " + percent );
+                    public void updateProgressHandler( double percent, String sectionTitle, String detailText ) {
+                        Logger.logStd( sectionTitle + ": " + detailText + " - " + ( int ) percent + "%" );
 
                         if ( finalPlayProgressWindow != null ) {
-                            finalPlayProgressWindow.setUpperLabelText( "Launching: " + gameModPack.getPackName() );
-                            finalPlayProgressWindow.setLowerLabelText( text );
+                            // Section title goes in the middle (between title and progress bar)
+                            if ( sectionTitle != null && !sectionTitle.isEmpty() ) {
+                                finalPlayProgressWindow.setSectionText( sectionTitle );
+                            }
+                            // Detail text goes below the progress bar (smaller, dimmer)
+                            finalPlayProgressWindow.setDetailText(
+                                    detailText != null ? detailText : "" );
                             finalPlayProgressWindow.setProgress( percent );
                             if ( percent >= 100.0 ) {
-                                finalPlayProgressWindow.setLowerLabelText( "Starting Minecraft..." );
-                                SystemUtilities.spawnNewTask( () -> {
-                                    try {
-                                        Thread.sleep( 3000 );
-                                    }
-                                    catch ( InterruptedException ignored ) {
-                                    }
-                                    finalPlayProgressWindow.hideStage();
-                                } );
-
+                                finalPlayProgressWindow.setSectionText( "Starting Minecraft..." );
+                                finalPlayProgressWindow.setDetailText( "" );
+                                // Only hide if the in-game console won't be taking over the stage
+                                if ( !ConfigManager.getInGameConsoleEnable() ) {
+                                    SystemUtilities.spawnNewTask( () -> {
+                                        try {
+                                            Thread.sleep( 3000 );
+                                        }
+                                        catch ( InterruptedException ignored ) {
+                                        }
+                                        finalPlayProgressWindow.hideStage();
+                                    } );
+                                }
                             }
                         }
                     }
                 } );
                 gameModPack.startGame();
+
+                Process gameProcess = gameModPack.getLastLaunchedProcess();
+                if ( gameProcess != null ) {
+                    if ( ConfigManager.getInGameConsoleEnable() ) {
+                        // Console enabled: show console and attach to process
+                        try {
+                            MCLauncherGameConsoleGui consoleGui = MCLauncherGuiController.goToGameConsoleGui();
+                            if ( consoleGui != null ) {
+                                consoleGui.attachToProcess( gameProcess, gameModPack.getPackName(),
+                                                             exitCode -> {
+                                    // On crash, find and display crash report
+                                    if ( exitCode != 0 ) {
+                                        String crashReport = gameModPack.getLatestCrashReport();
+                                        if ( crashReport != null ) {
+                                            consoleGui.showCrashReport( crashReport );
+                                        }
+                                    }
+                                } );
+                            }
+                        }
+                        catch ( IOException e ) {
+                            Logger.logError( "Unable to open in-game console GUI." );
+                            Logger.logThrowable( e );
+                        }
+                    }
+                    else {
+                        // Console disabled: wait for game to exit, then check for crash
+                        try {
+                            int exitCode = gameProcess.waitFor();
+                            if ( exitCode != 0 ) {
+                                Logger.logError( "Game crashed with exit code " + exitCode );
+                                // Show crash console even when console setting is off
+                                String crashReport = gameModPack.getLatestCrashReport();
+                                try {
+                                    MCLauncherGameConsoleGui crashGui =
+                                            MCLauncherGuiController.goToGameConsoleGui();
+                                    if ( crashGui != null ) {
+                                        crashGui.showCrashOnly( gameModPack.getPackName(), exitCode,
+                                                                 crashReport, null );
+                                    }
+                                }
+                                catch ( IOException e ) {
+                                    Logger.logError( "Unable to show crash report GUI." );
+                                }
+                            }
+                        }
+                        catch ( InterruptedException e ) {
+                            Logger.logError( "Game process wait was interrupted." );
+                        }
+                    }
+                }
             }
             catch ( ModpackScanDetectionException e ) {
                 Logger.logError( e.getMessage() );
@@ -220,8 +309,9 @@ public class LauncherCore
                 Logger.logThrowable( e );
             }
 
-            // If after runnable present, run it
-            if ( after != null ) {
+            // If after runnable present, run it -- but NOT when the in-game console is managing
+            // the UI lifecycle (it will return to main GUI via its own Close button)
+            if ( after != null && !ConfigManager.getInGameConsoleEnable() ) {
                 after.run();
             }
         }
@@ -323,40 +413,36 @@ public class LauncherCore
      * @since 2.0
      */
     public static void performClientLogin( String initialErrorMessage ) {
-        // If no saved account, show message and login screen, otherwise continue.
-        if ( !MCLauncherAuthManager.hasExistingLogin() ) {
-            Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
-
-            // Show login screen
-            MCLauncherLoginGui loginWindow;
+        // If a saved account exists, try to renew it first
+        if ( MCLauncherAuthManager.hasExistingLogin() ) {
+            // Show a progress indicator while contacting auth servers
+            MCLauncherProgressGui authProgressWindow = null;
             try {
-                loginWindow = MCLauncherGuiController.goToLoginGui();
-
-                if ( initialErrorMessage != null && initialErrorMessage.length() > 0 ) {
-                    Logger.logError( initialErrorMessage );
-                }
-
-                // Wait for login screen to complete
-                try {
-                    loginWindow.waitForLoginSuccess();
-                }
-                catch ( InterruptedException e ) {
-                    Logger.logError( LocalizationManager.UNABLE_WAIT_PENDING_LOGIN_TEXT );
-                    Logger.logThrowable( e );
-                    closeApp();
+                if ( MCLauncherGuiController.shouldCreateGui() ) {
+                    authProgressWindow = MCLauncherGuiController.goToProgressGui();
                 }
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load login GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( "Unable to load progress GUI for auth renewal." );
                 Logger.logThrowable( e );
-                closeApp();
             }
-        }
-        else {
-            // Attempt to load/renew saved user account
-            MCLauncherAuthResult authResult = MCLauncherAuthManager.renewExistingLogin();
+            if ( authProgressWindow != null ) {
+                authProgressWindow.setUpperLabelText( "Signing In" );
+                authProgressWindow.setSectionText( "Checking session..." );
+                authProgressWindow.setDetailText( "" );
+            }
 
-            // Check login renewal result
+            // Wire up progress callback so auth status updates appear in the progress GUI
+            MCLauncherProgressGui finalAuthProgressWindow = authProgressWindow;
+            MCLauncherAuthManager.setStatusCallback( ( section, detail ) -> {
+                if ( finalAuthProgressWindow != null ) {
+                    finalAuthProgressWindow.setSectionText( section );
+                    finalAuthProgressWindow.setDetailText( detail );
+                }
+            } );
+
+            MCLauncherAuthResult authResult = MCLauncherAuthManager.renewExistingLogin();
+            MCLauncherAuthManager.setStatusCallback( null );
             boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
 
             if ( authSuccess ) {
@@ -364,12 +450,44 @@ public class LauncherCore
                                        authResult.getMinecraftUser().name() +
                                        "] " +
                                        LocalizationManager.WAS_LOGGED_IN_TO_LAUNCHER_TEXT );
+                return;
             }
             else {
+                // Auth renewal failed -- clear saved account and fall through to login screen
+                Logger.logStd( "Saved account could not be renewed. Showing login screen." );
                 MCLauncherAuthManager.logout();
-                restartFlag = true;
-                restartAppWithError( LocalizationManager.AUTH_UNABLE_TO_REFRESH_TEXT );
+                if ( initialErrorMessage == null || initialErrorMessage.isEmpty() ) {
+                    initialErrorMessage = LocalizationManager.AUTH_UNABLE_TO_REFRESH_TEXT;
+                }
             }
+        }
+        else {
+            Logger.logStd( LocalizationManager.REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN );
+        }
+
+        // Show login screen (either no saved account, or renewal failed)
+        MCLauncherLoginGui loginWindow;
+        try {
+            loginWindow = MCLauncherGuiController.goToLoginGui();
+
+            if ( initialErrorMessage != null && !initialErrorMessage.isEmpty() ) {
+                Logger.logError( initialErrorMessage );
+            }
+
+            // Wait for login screen to complete
+            try {
+                loginWindow.waitForLoginSuccess();
+            }
+            catch ( InterruptedException e ) {
+                Logger.logError( LocalizationManager.UNABLE_WAIT_PENDING_LOGIN_TEXT );
+                Logger.logThrowable( e );
+                closeApp();
+            }
+        }
+        catch ( IOException e ) {
+            Logger.logError( "Unable to load login GUI due to an incomplete response from the GUI subsystem." );
+            Logger.logThrowable( e );
+            closeApp();
         }
     }
 

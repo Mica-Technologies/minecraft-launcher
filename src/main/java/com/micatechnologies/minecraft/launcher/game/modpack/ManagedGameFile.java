@@ -83,6 +83,14 @@ public class ManagedGameFile
     private transient String localPathPrefix = "";
 
     /**
+     * Whether this file has already been verified or downloaded during the current session. Once set to true,
+     * subsequent calls to {@link #updateLocalFile()} will skip re-verification.
+     *
+     * @since 2.2
+     */
+    private transient boolean sessionVerified = false;
+
+    /**
      * Create an {@link ManagedGameFile} object with hash checking disabled, using the specified remote URL and local
      * file path.
      *
@@ -224,11 +232,16 @@ public class ManagedGameFile
      * @since 1.0
      */
     public boolean updateLocalFile() throws ModpackException {
+        if ( sessionVerified ) {
+            return false;
+        }
         if ( !verifyLocalFile() ) {
             System.err.println( "FILE FAILED VERIFICATION, RE-DOWNLOADING: " + getFullLocalFilePath() );
             downloadLocalFile();
+            sessionVerified = true;
             return true;
         }
+        sessionVerified = true;
         return false;
     }
 

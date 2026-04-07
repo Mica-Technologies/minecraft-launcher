@@ -31,11 +31,29 @@ import java.nio.charset.Charset;
  * the launcher.
  *
  * @author Mica Technologies
- * @version 1.1
+ * @version 2.0
  * @since 1.0
  */
 public class NetworkUtilities
 {
+    /**
+     * Default connect timeout in milliseconds (10 seconds).
+     */
+    private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
+
+    /**
+     * Default read timeout in milliseconds (30 seconds).
+     */
+    private static final int DEFAULT_READ_TIMEOUT_MS = 30_000;
+
+    /**
+     * Applies default timeouts to a URLConnection.
+     */
+    private static void applyDefaults( URLConnection connection ) {
+        connection.setConnectTimeout( DEFAULT_CONNECT_TIMEOUT_MS );
+        connection.setReadTimeout( DEFAULT_READ_TIMEOUT_MS );
+        connection.setUseCaches( false );
+    }
 
     /**
      * Downloads the file from the specified URL (as string) to the specified file.
@@ -62,7 +80,7 @@ public class NetworkUtilities
     public static void downloadFileFromURL( URL source, File destination ) throws IOException {
         synchronized ( destination ) {
             URLConnection connection = source.openConnection();
-            connection.setUseCaches( false );
+            applyDefaults( connection );
             FileUtils.copyInputStreamToFile( connection.getInputStream(), destination );
         }
     }
@@ -97,7 +115,7 @@ public class NetworkUtilities
     throws IOException
     {
         URLConnection connection = source.openConnection();
-        connection.setUseCaches( false );
+        applyDefaults( connection );
         connection.setDoInput( true );
         connection.setDoOutput( true );
         connection.setRequestProperty( "Accept", responseContentType );
@@ -115,7 +133,7 @@ public class NetworkUtilities
      * @since 1.1
      */
     public static String downloadFileFromURL( String source ) throws IOException {
-        return IOUtils.toString( new URL( source ), Charset.defaultCharset() );
+        return downloadFileFromURL( new URL( source ) );
     }
 
     /**
@@ -131,12 +149,7 @@ public class NetworkUtilities
      */
     public static String downloadFileFromURL( String source, String responseContentType ) throws IOException
     {
-        URLConnection connection = new URL( source ).openConnection();
-        connection.setUseCaches( false );
-        connection.setDoInput( true );
-        connection.setDoOutput( true );
-        connection.setRequestProperty( "Accept", responseContentType );
-        return IOUtils.toString( connection.getInputStream(), Charset.defaultCharset() );
+        return downloadFileFromURL( new URL( source ), responseContentType );
     }
 
     /**
@@ -151,7 +164,7 @@ public class NetworkUtilities
      */
     public static String downloadFileFromURL( URL source ) throws IOException {
         URLConnection connection = source.openConnection();
-        connection.setUseCaches( false );
+        applyDefaults( connection );
         return IOUtils.toString( connection.getInputStream(), Charset.defaultCharset() );
     }
 
@@ -169,7 +182,7 @@ public class NetworkUtilities
     public static String downloadFileFromURL( URL source, String responseContentType ) throws IOException
     {
         URLConnection connection = source.openConnection();
-        connection.setUseCaches( false );
+        applyDefaults( connection );
         connection.setDoInput( true );
         connection.setDoOutput( true );
         connection.setRequestProperty( "Accept", responseContentType );

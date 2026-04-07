@@ -21,6 +21,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -31,28 +32,37 @@ import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Class representing the Mojang Minecraft version manifest and providing functionality to download a Minecraft
- * version's library manifest.
+ * Class representing the Mojang Minecraft version manifest (v2) and providing functionality to resolve version-specific
+ * client JSON data, library manifests, and Java version requirements.
  *
  * @author Mica Technologies
- * @version 2.0
+ * @version 3.0
  */
 public class GameVersionManifest
 {
     /**
-     * The JSON object containing the contents of the Minecraft version manifest after being downloaded in {@link
-     * #download()}.
+     * The JSON object containing the contents of the Minecraft version manifest after being downloaded.
      *
      * @since 2.0
      */
     private static JsonObject versionManifest = null;
 
     /**
-     * Downloads the contents of the Minecraft version manifest and stores in {@link #versionManifest}.
+     * Cache of downloaded and parsed client.json objects keyed by Minecraft version ID.
+     *
+     * @since 3.0
+     */
+    private static final Map< String, JsonObject > clientJsonCache = new ConcurrentHashMap<>();
+
+    /**
+     * Downloads the contents of the Minecraft version manifest (v2) and stores it.
      *
      * @throws IOException if unable to download to file or read file
+     *
      * @since 2.0
      */
     private static void download() throws IOException {
@@ -63,46 +73,131 @@ public class GameVersionManifest
     }
 
     /**
-     * Get the URL of the Minecraft library manifest for the specified Minecraft version.
+     * Ensures the version manifest is downloaded.
      *
-     * @param minecraftVersion minecraft version
+     * @throws ModpackException if unable to download
      *
-     * @return URL of Minecraft version's library manifest
-     *
-     * @throws ModpackException if unable to get URL
-     * @since 1.0
+     * @since 3.0
      */
-    private static String getMinecraftLibaryManifestURL( String minecraftVersion )
-    throws ModpackException
-    {
-        // Download manifest if not downloaded
+    private static void ensureManifestDownloaded() throws ModpackException {
         if ( versionManifest == null ) {
             try {
-                Logger.logDebug( "Minecraft library manifest has not been downloaded. Getting now..." );
+                Logger.logDebug( "Minecraft version manifest has not been downloaded. Getting now..." );
                 download();
-                Logger.logDebug( "Minecraft library manifest has been downloaded!" );
+                Logger.logDebug( "Minecraft version manifest has been downloaded!" );
             }
             catch ( IOException e ) {
                 Logger.logError( "Failed to download and read Minecraft version manifest!" );
                 Logger.logThrowable( e );
-                return null;
+                throw new ModpackException( "Unable to download Minecraft version manifest.", e );
             }
         }
+    }
 
-        // Get versions from version manifest root object
+    /**
+     * Get the URL of the Minecraft client JSON (library manifest) for the specified Minecraft version.
+     *
+     * @param minecraftVersion minecraft version
+     *
+     * @return URL of Minecraft version's client JSON
+     *
+     * @throws ModpackException if unable to get URL
+     *
+     * @since 1.0
+     */
+    private static String getMinecraftLibraryManifestURL( String minecraftVersion )
+    throws ModpackException
+    {
+        ensureManifestDownloaded();
+
         JsonArray minecraftVersions = versionManifest.getAsJsonArray( "versions" );
-
-        // Loop through all versions in array
         for ( JsonElement version : minecraftVersions ) {
-            // Check if version matches
             if ( version.getAsJsonObject().get( "id" ).getAsString().equals( minecraftVersion ) ) {
                 return version.getAsJsonObject().get( "url" ).getAsString();
             }
         }
 
-        // Throw exception if not found
-        throw new ModpackException(
-                "Unable to find specified Minecraft version library manifest." );
+        throw new ModpackException( "Unable to find specified Minecraft version: " + minecraftVersion );
+    }
+
+    /**
+     * Downloads and caches the client.json for the specified Minecraft version, then returns it.
+     *
+     * @param minecraftVersion the Minecraft version
+     *
+     * @return the parsed client.json as a JsonObject
+     *
+     * @throws ModpackException if unable to download or parse
+     *
+     * @since 3.0
+     */
+    public static JsonObject getClientJson( String minecraftVersion ) throws ModpackException {
+        JsonObject cached = clientJsonCache.get( minecraftVersion );
+        if ( cached != null ) {
+            return cached;
+        }
+
+        String url = getMinecraftLibraryManifestURL( minecraftVersion );
+        try {
+            String localPath = LocalPathManager.getLauncherMetadataFolderPath() + File.separator +
+                    "client-" + minecraftVersion + ".json";
+            File localFile = SynchronizedFileManager.getSynchronizedFile( localPath );
+            NetworkUtilities.downloadFileFromURL( url, localFile );
+            JsonObject clientJson = FileUtilities.readAsJsonObject( localFile );
+            clientJsonCache.put( minecraftVersion, clientJson );
+            return clientJson;
+        }
+        catch ( IOException e ) {
+            throw new ModpackException( "Unable to download client.json for Minecraft " + minecraftVersion, e );
+        }
+    }
+
+    /**
+     * Gets the required Java major version for the specified Minecraft version. Reads the {@code javaVersion.majorVersion}
+     * field from the client.json. Returns {@link RuntimeConstants#DEFAULT_JAVA_MAJOR_VERSION} if the field is absent
+     * (very old Minecraft versions).
+     *
+     * @param minecraftVersion the Minecraft version
+     *
+     * @return the required Java major version (e.g. 8, 17, 21, 25)
+     *
+     * @throws ModpackException if unable to fetch version info
+     *
+     * @since 3.0
+     */
+    public static int getRequiredJavaMajorVersion( String minecraftVersion ) throws ModpackException {
+        JsonObject clientJson = getClientJson( minecraftVersion );
+        if ( clientJson.has( "javaVersion" ) ) {
+            JsonObject javaVersion = clientJson.getAsJsonObject( "javaVersion" );
+            if ( javaVersion.has( "majorVersion" ) ) {
+                return javaVersion.get( "majorVersion" ).getAsInt();
+            }
+        }
+        return RuntimeConstants.DEFAULT_JAVA_MAJOR_VERSION;
+    }
+
+    /**
+     * Gets the required Mojang runtime component name for the specified Minecraft version. Reads the
+     * {@code javaVersion.component} field from the client.json. Returns {@link RuntimeConstants#DEFAULT_RUNTIME_COMPONENT}
+     * if the field is absent.
+     *
+     * @param minecraftVersion the Minecraft version
+     *
+     * @return the runtime component name (e.g. "jre-legacy", "java-runtime-gamma")
+     *
+     * @throws ModpackException if unable to fetch version info
+     *
+     * @since 3.0
+     */
+    public static String getRequiredRuntimeComponent( String minecraftVersion ) throws ModpackException {
+        JsonObject clientJson = getClientJson( minecraftVersion );
+        if ( clientJson.has( "javaVersion" ) ) {
+            JsonObject javaVersion = clientJson.getAsJsonObject( "javaVersion" );
+            if ( javaVersion.has( "component" ) ) {
+                return javaVersion.get( "component" ).getAsString();
+            }
+        }
+        return RuntimeConstants.DEFAULT_RUNTIME_COMPONENT;
     }
 
     /**
@@ -114,12 +209,12 @@ public class GameVersionManifest
      * @return Minecraft version's library manifest
      *
      * @throws ModpackException if unable to get library manifest
+     *
      * @since 1.0
      */
     public static GameLibraryManifest getMinecraftLibraryManifest( String minecraftVersion, GameModPack parent )
     throws ModpackException
     {
-        return new GameLibraryManifest( getMinecraftLibaryManifestURL( minecraftVersion ),
-                                        parent );
+        return new GameLibraryManifest( getMinecraftLibraryManifestURL( minecraftVersion ), parent );
     }
 }

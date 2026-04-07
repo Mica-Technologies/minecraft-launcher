@@ -71,8 +71,8 @@ public class GameModPackManager
     private synchronized static void fetchAvailableModPacks( MCLauncherProgressGui progressWindow ) {
         // Update progress window
         if ( progressWindow != null ) {
-            progressWindow.setUpperLabelText( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT );
-            progressWindow.setLowerLabelText( LocalizationManager.CONTACTING_SERVER_TEXT );
+            progressWindow.setSectionText( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT );
+            progressWindow.setDetailText( LocalizationManager.CONTACTING_SERVER_TEXT );
         }
         else {
             Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
@@ -115,13 +115,13 @@ public class GameModPackManager
 
                     // Update progress window
                     if ( progressWindow != null ) {
-                        progressWindow.setLowerLabelText( LocalizationManager.ADDED_TEXT +
-                                                                  " " +
-                                                                  gameModPack.getPackName() +
-                                                                  " v" +
-                                                                  gameModPack.getPackVersion() +
-                                                                  " " +
-                                                                  LocalizationManager.TO_AVAILABLE_MOD_PACKS_TEXT );
+                        progressWindow.setDetailText( LocalizationManager.ADDED_TEXT +
+                                                               " " +
+                                                               gameModPack.getPackName() +
+                                                               " v" +
+                                                               gameModPack.getPackVersion() +
+                                                               " " +
+                                                               LocalizationManager.TO_AVAILABLE_MOD_PACKS_TEXT );
                     }
                     else {
                         Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
@@ -142,7 +142,7 @@ public class GameModPackManager
 
                 // Update progress window
                 if ( progressWindow != null ) {
-                    progressWindow.setLowerLabelText(
+                    progressWindow.setDetailText(
                             LocalizationManager.ALREADY_INSTALLED_TEXT + ": " + manifestUrlVal );
                 }
                 else {
@@ -157,7 +157,7 @@ public class GameModPackManager
         }
         // Update progress window
         if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( LocalizationManager.COMPLETED_TEXT );
+            progressWindow.setDetailText( LocalizationManager.COMPLETED_TEXT );
         }
         else {
             Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
@@ -176,8 +176,8 @@ public class GameModPackManager
     private synchronized static void fetchInstalledModPacks( MCLauncherProgressGui progressWindow ) {
         // Update progress window to show start of fetch installed
         if ( progressWindow != null ) {
-            progressWindow.setUpperLabelText( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT );
-            progressWindow.setLowerLabelText( LocalizationManager.UPDATING_LIST_APPLICABLE_MOD_PACKS_TEXT );
+            progressWindow.setSectionText( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT );
+            progressWindow.setDetailText( LocalizationManager.UPDATING_LIST_APPLICABLE_MOD_PACKS_TEXT );
         }
         else {
             Logger.logStd( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT +
@@ -204,12 +204,12 @@ public class GameModPackManager
 
                 // Update progress window
                 if ( progressWindow != null ) {
-                    progressWindow.setLowerLabelText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +
-                                                              " " +
-                                                              gameModPack.getPackName() +
-                                                              " (v" +
-                                                              gameModPack.getPackVersion() +
-                                                              ")" );
+                    progressWindow.setDetailText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +
+                                                           " " +
+                                                           gameModPack.getPackName() +
+                                                           " (v" +
+                                                           gameModPack.getPackVersion() +
+                                                           ")" );
                 }
                 else {
                     Logger.logStd( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT +
@@ -231,7 +231,7 @@ public class GameModPackManager
 
         // Update progress window
         if ( progressWindow != null ) {
-            progressWindow.setLowerLabelText( LocalizationManager.COMPLETED_TEXT );
+            progressWindow.setDetailText( LocalizationManager.COMPLETED_TEXT );
         }
         else {
             Logger.logStd( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT +
@@ -261,8 +261,9 @@ public class GameModPackManager
         }
 
         if ( progressWindow != null ) {
-            progressWindow.setLabelTexts( LocalizationManager.MODPACK_INSTALL_FETCH_UPPER_LABEL,
-                                          LocalizationManager.MODPACK_INSTALL_FETCH_LOWER_LABEL );
+            progressWindow.setUpperLabelText( LocalizationManager.MODPACK_INSTALL_FETCH_UPPER_LABEL );
+            progressWindow.setSectionText( LocalizationManager.MODPACK_INSTALL_FETCH_LOWER_LABEL );
+            progressWindow.setDetailText( "" );
         }
 
         // Update installed mod packs and available mod packs

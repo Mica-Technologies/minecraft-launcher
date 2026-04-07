@@ -142,6 +142,52 @@ public class MCLauncherGuiController
         return newProgressGui;
     }
 
+    @SuppressWarnings( "UnusedReturnValue" )
+    public static MCLauncherVanillaVersionsGui goToVanillaVersionsGui() throws IOException {
+        MCLauncherVanillaVersionsGui newGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newGui = new MCLauncherVanillaVersionsGui( guiWindow.getStage() );
+            guiWindow.setScene( newGui );
+            guiWindow.show();
+        }
+        else {
+            Logger.logError( "The vanilla versions GUI could not be displayed." );
+        }
+        return newGui;
+    }
+
+    @SuppressWarnings( "UnusedReturnValue" )
+    public static MCLauncherGameConsoleGui goToGameConsoleGui() throws IOException {
+        MCLauncherGameConsoleGui newGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newGui = new MCLauncherGameConsoleGui( guiWindow.getStage() );
+            guiWindow.setScene( newGui );
+            guiWindow.show();
+        }
+        else {
+            Logger.logError( "The game console GUI could not be displayed." );
+        }
+        return newGui;
+    }
+
+    @SuppressWarnings( "UnusedReturnValue" )
+    public static MCLauncherRuntimeGui goToRuntimeGui() throws IOException {
+        MCLauncherRuntimeGui newRuntimeGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newRuntimeGui = new MCLauncherRuntimeGui( guiWindow.getStage() );
+            guiWindow.setScene( newRuntimeGui );
+            guiWindow.show();
+        }
+        else {
+            Logger.logError(
+                    "The runtime management GUI could not be displayed due to the application GUI not being started." );
+        }
+        return newRuntimeGui;
+    }
+
     public static void forceThemeRefresh() {
         if ( guiWindow != null ) {
             guiWindow.forceThemeChange();
