@@ -38,6 +38,7 @@ import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
+import com.micatechnologies.minecraft.launcher.utilities.SingleInstanceLock;
 import com.sun.jna.WString;
 import com.sun.jna.platform.win32.Shell32;
 import org.apache.commons.lang3.SystemUtils;
@@ -80,6 +81,18 @@ public class LauncherCore
      * @since 1.0
      */
     public static void main( String[] args ) {
+        // Enforce single instance -- if another instance is already running, notify and exit
+        if ( !SingleInstanceLock.tryAcquire() ) {
+            javax.swing.SwingUtilities.invokeLater( () -> {
+                javax.swing.JOptionPane.showMessageDialog( null,
+                        "Mica Minecraft Launcher is already running.",
+                        LauncherConstants.LAUNCHER_APPLICATION_NAME,
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE );
+                System.exit( 0 );
+            } );
+            return;
+        }
+
         while ( restartFlag ) {
             // Reset restart flag to false
             String previousRestartError = restartError;
@@ -573,6 +586,7 @@ public class LauncherCore
         try {
             DiscordRpcUtility.exit();
             MCLauncherGuiController.exit();
+            SingleInstanceLock.release();
             Logger.shutdownLogSys();
         }
         catch ( Exception ignored ) {

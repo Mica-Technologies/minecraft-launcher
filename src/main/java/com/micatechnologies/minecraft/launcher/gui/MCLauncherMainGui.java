@@ -27,6 +27,7 @@ import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
+import com.micatechnologies.minecraft.launcher.utilities.DesktopShortcutManager;
 import com.nativejavafx.taskbar.TaskbarProgressbar;
 import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import io.github.palexdev.materialfx.controls.MFXButton;
@@ -683,10 +684,45 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             MenuItem openConfig = new MenuItem( "Open Config Folder" );
             openConfig.setOnAction( e -> openPackSubfolder( pack, "config" ) );
 
+            MenuItem createShortcut = new MenuItem( "Create Desktop Shortcut" );
+            createShortcut.setOnAction( e -> createDesktopShortcut( pack ) );
+
             menu.getItems().addAll( openFolder, new SeparatorMenuItem(),
                                     openScreenshots, openResourcePacks, openShaderPacks,
-                                    new SeparatorMenuItem(), openMods, openConfig );
+                                    new SeparatorMenuItem(), openMods, openConfig,
+                                    new SeparatorMenuItem(), createShortcut );
             return menu;
+        }
+
+        private void createDesktopShortcut( GameModPack pack ) {
+            SystemUtilities.spawnNewTask( () -> {
+                try {
+                    DesktopShortcutManager.createShortcut( pack );
+                    javafx.stage.Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+                    if ( ownerStage != null ) {
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                                    javafx.scene.control.Alert.AlertType.INFORMATION );
+                            alert.setTitle( "Shortcut Created" );
+                            alert.setHeaderText( null );
+                            alert.setContentText(
+                                    "Desktop shortcut created for " + pack.getPackName() + "." );
+                            alert.initOwner( ownerStage );
+                            alert.initStyle( javafx.stage.StageStyle.UTILITY );
+                            alert.showAndWait();
+                        } );
+                    }
+                }
+                catch ( Exception ex ) {
+                    Logger.logError( "Failed to create desktop shortcut: " + ex.getMessage() );
+                    Logger.logThrowable( ex );
+                    javafx.stage.Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+                    if ( ownerStage != null ) {
+                        GUIUtilities.showErrorMessage(
+                                "Unable to create desktop shortcut: " + ex.getMessage(), ownerStage );
+                    }
+                }
+            } );
         }
 
         private void openPackSubfolder( GameModPack pack, String subfolder ) {

@@ -163,6 +163,43 @@ __Full Example__:
 
 ## Development
 
+### Requirements
+
+- **JDK 25** with JavaFX (e.g. Azul Zulu `jdk+fx` or AWS Corretto)
+- **Maven** (bundled with IntelliJ IDEA, or install separately)
+
+### Building
+
+```bash
+# Compile only (no packaging)
+mvn compile
+
+# Build fat JAR + native installer (EXE/MSI, DMG/PKG, DEB/RPM)
+mvn -B package
+
+# Build a DEV version (separate install, won't conflict with production)
+mvn -Pdev package
+
+# Clean build artifacts
+mvn clean
+```
+
+The `-Pdev` profile creates an installable build with a different app name (`Mica Minecraft Launcher DEV`), separate install directory, and separate data folder so it can run side-by-side with a production install. Dev builds also use a distinct single-instance lock port so both can run simultaneously.
+
+Build outputs:
+- `target/*-jar-with-dependencies.jar` -- runnable fat JAR
+- `packaging/` -- native installers
+
+### IntelliJ Run Configurations
+
+| Configuration | Description |
+|---|---|
+| Core (Client) | Run the launcher in client (GUI) mode from IDE |
+| Core (Server) | Run the launcher in server (headless) mode |
+| Core (Automatic) | Run with automatic mode detection |
+| Package App | Build production fat JAR + native installer |
+| Package App (DEV) | Build DEV fat JAR + native installer (side-by-side safe) |
+
 ### Contributing
 There are many ways to contribute to this project. If you have an issue or feature suggestion, please feel free to bring it to the development team's attention by adding a GitHub Issue to the project on the Issues tab of this repo. To contribute to the source code or functionality of the application, please download [IntelliJ IDEA](https://www.jetbrains.com/idea/download/#section=windows) and checkout this repository as a Maven project.
    

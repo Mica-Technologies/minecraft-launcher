@@ -144,6 +144,21 @@ public class LauncherConstants
     public static final int EXIT_STATUS_CODE_GOOD = 0;
 
     /**
+     * Port used by the single-instance lock socket for release builds. Chosen to be high and unlikely to conflict.
+     *
+     * @since 2.0
+     */
+    public static final int SINGLE_INSTANCE_PORT = 47821;
+
+    /**
+     * Port used by the single-instance lock socket for development builds. Separate from release so both can run
+     * simultaneously.
+     *
+     * @since 2.0
+     */
+    public static final int SINGLE_INSTANCE_PORT_DEV = 47822;
+
+    /**
      * Map containing the JVM properties that must be applied at startup of each instance of the application.
      *
      * @since 1.1
