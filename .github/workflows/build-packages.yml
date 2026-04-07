@@ -27,16 +27,8 @@ jobs:
           java-package: jdk+fx
           cache: 'maven'
 
-      - name: Set path for candle and light
-        run: echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $GITHUB_PATH
-        shell: bash
-
-      - name: Download and install Inno Setup
-        run: choco install innosetup
-        shell: powershell
-
-      - name: Set path for iscc
-        run: echo "C:\Program Files (x86)\Inno Setup 6" >> $GITHUB_PATH
+      - name: Set path for WiX Toolset
+        run: echo "C:\Program Files (x86)\WiX Toolset v3.14\bin" >> $GITHUB_PATH
         shell: bash
 
       - name: Build and package with Maven
@@ -47,8 +39,8 @@ jobs:
         with:
           name: windows-pkg-output
           path: |
-            packaging/*.exe
-            packaging/*.msi
+            build/packaging/*.exe
+            build/packaging/*.msi
             target/*-jar-with-dependencies.jar
 
   pkg_mac:
@@ -83,8 +75,8 @@ jobs:
         with:
           name: mac-pkg-output
           path: |
-            packaging/*.dmg
-            packaging/*.pkg
+            build/packaging/*.dmg
+            build/packaging/*.pkg
             target/*-jar-with-dependencies.jar
 
   pkg_lnx:
@@ -105,8 +97,8 @@ jobs:
           java-package: jdk+fx
           cache: 'maven'
 
-      - name: Download build tools
-        run: sudo apt install -y dpkg rpm
+      - name: Install packaging tools
+        run: sudo apt-get install -y dpkg fakeroot rpm
 
       - name: Build and package with Maven
         run: mvn -B package --file pom.xml
@@ -116,8 +108,6 @@ jobs:
         with:
           name: linux-pkg-output
           path: |
-            packaging/*.rpm
-            packaging/*.deb
-            packaging/*.changes
-            packaging/*.AppImage
+            build/packaging/*.rpm
+            build/packaging/*.deb
             target/*-jar-with-dependencies.jar

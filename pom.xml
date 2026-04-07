@@ -74,6 +74,7 @@
     </repositories>
 
     <build>
+        <directory>${project.basedir}/build/target</directory>
         <plugins>
             <!-- CLEANUP UNWANTED FILES AND BINARIES -->
             <plugin>
@@ -83,11 +84,7 @@
                 <configuration>
                     <filesets>
                         <fileset>
-                            <directory>target</directory>
-                            <followSymlinks>false</followSymlinks>
-                        </fileset>
-                        <fileset>
-                            <directory>packaging</directory>
+                            <directory>build</directory>
                             <followSymlinks>false</followSymlinks>
                         </fileset>
                     </filesets>
@@ -169,75 +166,234 @@
                                 <version>${jdk.version}</version>
                                 <arch>x64</arch>
                             </providerConfig>
-                            <jdkCachePath>${project.basedir}${file.separator}jdk</jdkCachePath>
+                            <jdkCachePath>${project.basedir}${file.separator}build${file.separator}jdk</jdkCachePath>
                             <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
 
+            <!-- STAGE FAT JAR FOR JPACKAGE (avoids copying entire target/ into app image) -->
             <plugin>
-                <groupId>io.github.fvarrui</groupId>
-                <artifactId>javapackager</artifactId>
-                <version>1.7.6</version>
-                <configuration>
-                    <name>${packaging.name}</name>
-                    <displayName>${packaging.displayName}</displayName>
-                    <mainClass>${main.class}</mainClass>
-                    <assetsDir>${project.basedir}${file.separator}deploy</assetsDir>
-                    <bundleJre>true</bundleJre>
-                    <customizedJre>false</customizedJre>
-                    <jreMinVersion>25</jreMinVersion>
-                    <generateInstaller>true</generateInstaller>
-                    <licenseFile>${project.basedir}${file.separator}LICENSE</licenseFile>
-                    <runnableJar>
-                        ${project.build.directory}${file.separator}${project.artifactId}-${project.version}-jar-with-dependencies.jar
-                    </runnableJar>
-                    <copyDependencies>false</copyDependencies>
-                    <outputDirectory>${project.basedir}${file.separator}packaging</outputDirectory>
-                    <!--suppress UnresolvedMavenProperty -->
-                    <jdkPath>${jlink.jdk.path}</jdkPath>
-                    <additionalResources>
-                        <additionalResource>
-                            ${project.basedir}${file.separator}src${file.separator}main${file.separator}resources
-                        </additionalResource>
-                    </additionalResources>
-                    <macConfig>
-                        <entitlements>
-                            ${project.basedir}${file.separator}assets${file.separator}mac${file.separator}micaforgelauncher.entitlements
-                        </entitlements>
-                        <macStartup>UNIVERSAL</macStartup>
-                        <codesignApp>false</codesignApp>
-                    </macConfig>
-                    <vmArgs>
-                        <vmArg>${jfxtaskbarprogressbar.export}</vmArg>
-                    </vmArgs>
-                </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
-                        <id>bundling</id>
+                        <id>stage-jar-for-jpackage</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>package</goal>
+                            <goal>run</goal>
                         </goals>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${project.build.directory}/jpackage-input"/>
+                                <copy file="${project.build.directory}/${project.artifactId}-${project.version}-jar-with-dependencies.jar"
+                                      todir="${project.build.directory}/jpackage-input"/>
+                                <!-- Copy installer resources and inject absolute BMP paths.
+                                     jpackage does not copy .bmp files from resource-dir to its
+                                     temp config dir, so WiX needs absolute paths to find them. -->
+                                <copy todir="${project.build.directory}/installer-resources">
+                                    <fileset dir="${project.basedir}/deploy/windows/installer-resources"/>
+                                </copy>
+                                <replace file="${project.build.directory}/installer-resources/main.wxs"
+                                         token="@@BANNER_BMP_PATH@@"
+                                         value="${project.basedir}/deploy/windows/installer-resources/installer-banner.bmp"/>
+                                <replace file="${project.build.directory}/installer-resources/main.wxs"
+                                         token="@@DIALOG_BMP_PATH@@"
+                                         value="${project.basedir}/deploy/windows/installer-resources/installer-background.bmp"/>
+                            </target>
+                        </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- NATIVE PACKAGING VIA JPACKAGE (replaces fvarrui javapackager).
+                 jpackage is invoked from the cached JDK and properly forwards CLI arguments
+                 to the Java application. Platform-specific arguments (icon, installer type,
+                 and platform-specific flags) are configured in the platform profiles below.
+                 The exec-maven-plugin is declared here but the jpackage execution is bound
+                 in the platform profiles so each platform can supply its own flags. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
             </plugin>
         </plugins>
     </build>
 
     <profiles>
+        <!-- Platform-specific jpackage configuration -->
+        <!-- Platform-specific jpackage configurations. Each profile provides the full
+             jpackage execution with platform-specific flags (icon, installer type, UX options). -->
         <profile>
-            <id>linux-packaging-safe-name</id>
+            <id>windows-packaging</id>
             <activation>
-                <os>
-                    <name>Linux</name>
-                </os>
+                <os><family>windows</family></os>
+            </activation>
+            <properties>
+                <!-- Windows Installer requires version major <= 255; remap year-based version -->
+                <jpackage.app.version>25.1.2</jpackage.app.version>
+                <!-- Requires WiX Toolset 3.x for exe/msi installer generation.
+                     Install via: winget install WiXToolset.WiX
+                     Override with -Djpackage.type=app-image if WiX is not available. -->
+                <jpackage.type>msi</jpackage.type>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${jpackage.app.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.basedir}/build/packaging</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
+                                        <argument>--type</argument>
+                                        <argument>${jpackage.type}</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${project.basedir}/LICENSE</argument>
+                                        <argument>--win-dir-chooser</argument>
+                                        <argument>--win-menu</argument>
+                                        <argument>--win-shortcut</argument>
+                                        <argument>--win-shortcut-prompt</argument>
+                                        <argument>--win-upgrade-uuid</argument>
+                                        <argument>3699f9a3-0d10-4228-ab2f-b86ca9a500ac</argument>
+                                        <argument>--resource-dir</argument>
+                                        <argument>${project.build.directory}/installer-resources</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>mac-packaging</id>
+            <activation>
+                <os><family>mac</family></os>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.basedir}/build/packaging</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
+                                        <argument>--type</argument>
+                                        <argument>dmg</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${project.basedir}/LICENSE</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>linux-packaging</id>
+            <activation>
+                <os><family>unix</family><name>Linux</name></os>
             </activation>
             <properties>
                 <packaging.name>mica-minecraft-launcher</packaging.name>
             </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.basedir}/build/packaging</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
+                                        <argument>--type</argument>
+                                        <argument>deb</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${project.basedir}/LICENSE</argument>
+                                        <argument>--linux-shortcut</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
+
         <!-- Dev build profile: produces a side-by-side installable dev version.
              Usage: mvn -Pdev package
              The dev build uses a different app name, install dir, and data folder
