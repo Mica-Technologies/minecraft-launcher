@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Core (Automatic)",
+      "request": "launch",
+      "mainClass": "com.micatechnologies.minecraft.launcher.LauncherCore",
+      "vmArgs": "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
+    },
+    {
+      "type": "java",
+      "name": "Core (Client)",
+      "request": "launch",
+      "mainClass": "com.micatechnologies.minecraft.launcher.LauncherCore",
+      "args": "-c",
+      "vmArgs": "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
+    },
+    {
+      "type": "java",
+      "name": "Core (Server)",
+      "request": "launch",
+      "mainClass": "com.micatechnologies.minecraft.launcher.LauncherCore",
+      "args": "-s",
+      "vmArgs": "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
+    }
+  ]
+}

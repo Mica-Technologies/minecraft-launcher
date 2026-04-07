@@ -34,17 +34,21 @@ import java.util.Map;
 public class LauncherConstants
 {
     /**
-     * Launcher application name. Leave blank, this is auto-filled in.
+     * Launcher boolean indicating if the application is in development mode. True when:
+     * 1. Running from IDE (no implementation version in manifest), OR
+     * 2. Built with the {@code -Pdev} Maven profile (manifest contains {@code Launcher-Environment: DEV})
+     */
+    public final static boolean LAUNCHER_IS_DEV = detectDevMode();
+
+    /**
+     * Launcher application name. Auto-filled from manifest, with DEV suffix when in dev mode.
      *
      * @since 1.0
      */
-    public final static String LAUNCHER_APPLICATION_NAME = LauncherCore.class.getPackage().getImplementationTitle() !=
-                                                                   null ?
-                                                           LauncherCore.class.getPackage().getImplementationTitle() :
-                                                           "Mica Minecraft Launcher DEV";
+    public final static String LAUNCHER_APPLICATION_NAME = resolveAppName();
 
     /**
-     * Launcher application version. Leave blank, this is auto-filled in.
+     * Launcher application version. Auto-filled from manifest, defaults to "0.0.1" in IDE dev mode.
      *
      * @since 1.0
      */
@@ -55,17 +59,40 @@ public class LauncherConstants
                                                               "0.0.1";
 
     /**
-     * Launcher boolean indicating if the application is in development mode. This is determined by the package
-     * implementation version string being null.
-     */
-    public final static boolean LAUNCHER_IS_DEV = LauncherCore.class.getPackage().getImplementationVersion() == null;
-
-    /**
      * Launcher application name without spaces.
      *
      * @since 1.0
      */
     public final static String LAUNCHER_APPLICATION_NAME_TRIMMED = LAUNCHER_APPLICATION_NAME.replaceAll( " ", "" );
+
+    private static boolean detectDevMode() {
+        // No manifest version means running from IDE -- always dev mode
+        if ( LauncherCore.class.getPackage().getImplementationVersion() == null ) {
+            return true;
+        }
+        // Check for Launcher-Environment: DEV manifest entry (set by -Pdev Maven profile)
+        try {
+            java.util.jar.Manifest manifest = new java.util.jar.Manifest(
+                    LauncherCore.class.getResourceAsStream( "/META-INF/MANIFEST.MF" ) );
+            String env = manifest.getMainAttributes().getValue( "Launcher-Environment" );
+            return "DEV".equalsIgnoreCase( env );
+        }
+        catch ( Exception e ) {
+            return false;
+        }
+    }
+
+    private static String resolveAppName() {
+        String title = LauncherCore.class.getPackage().getImplementationTitle();
+        if ( title != null ) {
+            // If dev mode is active but the manifest title doesn't include DEV, append it
+            if ( LAUNCHER_IS_DEV && !title.toUpperCase().contains( "DEV" ) ) {
+                return title + " DEV";
+            }
+            return title;
+        }
+        return "Mica Minecraft Launcher DEV";
+    }
 
     /**
      * Argument used to open application in forced client mode.
