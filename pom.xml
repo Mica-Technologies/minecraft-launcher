@@ -24,7 +24,7 @@
     <!-- APPLICATION/ARTIFACT INFORMATION -->
     <groupId>com.micatechnologies.minecraft</groupId>
     <artifactId>launcher</artifactId>
-    <version>2025.1.2</version>
+    <version>${revision}</version>
     <name>Mica Minecraft Launcher</name>
     <packaging>jar</packaging>
     <organization>
@@ -34,6 +34,9 @@
 
     <!-- PROJECT AND CUSTOM PROPERTIES -->
     <properties>
+        <!-- CI-friendly version: override via -Drevision=YYYY.MM.DD in CI.
+             Default value is used for local/IDE builds. -->
+        <revision>2025.1.2</revision>
         <main.class>com.micatechnologies.minecraft.launcher.LauncherCore</main.class>
         <packaging.displayName>Mica Minecraft Launcher</packaging.displayName>
         <packaging.name>${packaging.displayName}</packaging.name>
@@ -208,6 +211,30 @@
                 </executions>
             </plugin>
 
+            <!-- CI-friendly versioning: the flatten-maven-plugin resolves ${revision} in the
+                 POM so that downstream tools (jpackage, jar manifests) see a concrete version. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals><goal>flatten</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals><goal>clean</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- NATIVE PACKAGING VIA JPACKAGE (replaces fvarrui javapackager).
                  jpackage is invoked from the cached JDK and properly forwards CLI arguments
                  to the Java application. Platform-specific arguments (icon, installer type,
@@ -232,7 +259,8 @@
                 <os><family>windows</family></os>
             </activation>
             <properties>
-                <!-- Windows Installer requires version major <= 255; remap year-based version -->
+                <!-- Windows Installer requires version major <= 255; CI will override via
+                     -Djpackage.app.version=YY.M.D (2-digit year) to satisfy the constraint. -->
                 <jpackage.app.version>25.1.2</jpackage.app.version>
                 <!-- Requires WiX Toolset 3.x for exe/msi installer generation.
                      Install via: winget install WiXToolset.WiX
@@ -283,6 +311,12 @@
                                         <argument>3699f9a3-0d10-4228-ab2f-b86ca9a500ac</argument>
                                         <argument>--resource-dir</argument>
                                         <argument>${project.build.directory}/installer-resources</argument>
+                                        <!-- CODE SIGNING (Windows): Uncomment when a code signing
+                                             certificate is available. Requires signtool.exe on the
+                                             PATH and the certificate installed in the Windows cert
+                                             store. In CI, import via a GitHub secret and certutil.
+                                        <argument>- -win-sign</argument>
+                                        -->
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -332,6 +366,14 @@
                                         <argument>dmg</argument>
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
+                                        <!-- CODE SIGNING (macOS): Uncomment when an Apple Developer
+                                             ID certificate is available. Requires the cert imported
+                                             via apple-actions/import-codesign-certs in CI. Set
+                                             MAC_SIGNING_IDENTITY to "Developer ID Application: ..."
+                                        <argument>- -mac-sign</argument>
+                                        <argument>- -mac-signing-key-user-name</argument>
+                                        <argument>${env.MAC_SIGNING_IDENTITY}</argument>
+                                        -->
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -473,7 +515,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>2.0.3</version>
+            <version>2.0.16</version>
         </dependency>
         <dependency>
             <groupId>io.github.CDAGaming</groupId>

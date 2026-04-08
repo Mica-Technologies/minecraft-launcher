@@ -26,6 +26,7 @@
 hs_err_pid*
 
 # Maven (target/ is inside build/ via pom.xml <build><directory>)
+.flattened-pom.xml
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup

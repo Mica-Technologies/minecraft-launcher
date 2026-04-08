@@ -1,0 +1,65 @@
+name: Test Build (Pull Request)
+
+on: pull_request
+
+jobs:
+  build-windows:
+    name: Test Build (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Zulu FX)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '25'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Set path for WiX Toolset
+        run: echo "C:\Program Files (x86)\WiX Toolset v3.14\bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Build and package
+        run: mvn -B package --file pom.xml
+
+  build-macos:
+    name: Test Build (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Zulu FX)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '25'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Build and package
+        run: mvn -B package --file pom.xml
+
+  build-linux:
+    name: Test Build (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Zulu FX)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '25'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Install packaging tools
+        run: sudo apt-get install -y dpkg fakeroot rpm
+
+      - name: Build and package
+        run: mvn -B package --file pom.xml

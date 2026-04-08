@@ -1,0 +1,280 @@
+name: Build Release/Pre-Release (Main Branch)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create a full release (otherwise pre-release)'
+        required: false
+        default: 'false'
+
+jobs:
+  # --- Step 1: Calculate version and create tag ---
+  prepare:
+    name: Prepare Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      is_release: ${{ steps.version.outputs.is_release }}
+      win_version: ${{ steps.version.outputs.win_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate version numbers
+        id: version
+        run: |
+          SHORT_SHA=$(git rev-parse --short "${{ github.sha }}")
+          IS_RELEASE=${{ github.event.inputs.release == 'true' && github.event.inputs.release || 'false' }}
+
+          # Full version: YYYY.MM.DD
+          REL_VERSION=$(date -u +'%Y.%-m.%-d')
+
+          if [ "$IS_RELEASE" = "true" ]; then
+            TAG="$REL_VERSION"
+            VERSION="$REL_VERSION"
+          else
+            # Pre-release: YYYY.MM.DD-pre.HHMM.UTC+SHORTSHA
+            PRE_SUFFIX=$(date -u +'pre.%H%M.UTC')+$SHORT_SHA
+            TAG="${REL_VERSION}-${PRE_SUFFIX}"
+            VERSION="${REL_VERSION}-${PRE_SUFFIX}"
+          fi
+
+          # Windows MSI requires major version <= 255, use 2-digit year
+          WIN_VERSION=$(date -u +'%-y.%-m.%-d')
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "is_release=$IS_RELEASE" >> $GITHUB_OUTPUT
+          echo "win_version=$WIN_VERSION" >> $GITHUB_OUTPUT
+          echo "Computed version: $VERSION (tag: $TAG, win: $WIN_VERSION)"
+
+      - name: Create git tag
+        run: |
+          git tag "${{ steps.version.outputs.tag }}" "${{ github.sha }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+  # --- Step 2: Build on all platforms ---
+  build-windows:
+    name: Build Windows (x64)
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Zulu FX)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '25'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Set path for WiX Toolset
+        run: echo "C:\Program Files (x86)\WiX Toolset v3.14\bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Build and package (MSI)
+        run: >
+          mvn -B package --file pom.xml
+          -Drevision=${{ needs.prepare.outputs.version }}
+          -Djpackage.app.version=${{ needs.prepare.outputs.win_version }}
+          -Djpackage.type=msi
+
+      - name: Build EXE installer
+        run: >
+          mvn -B exec:exec@jpackage --file pom.xml
+          -Drevision=${{ needs.prepare.outputs.version }}
+          -Djpackage.app.version=${{ needs.prepare.outputs.win_version }}
+          -Djpackage.type=exe
+        continue-on-error: true
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: |
+            build/packaging/*.msi
+            build/packaging/*.exe
+
+  build-macos-arm:
+    name: Build macOS (arm64)
+    needs: prepare
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Zulu FX)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '25'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Build and package (DMG)
+        run: >
+          mvn -B package --file pom.xml
+          -Drevision=${{ needs.prepare.outputs.version }}
+
+      - name: Upload macOS arm64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: build/packaging/*.dmg
+
+  build-macos-intel:
+    name: Build macOS (x64 Intel)
+    needs: prepare
+    runs-on: macos-13
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Zulu FX)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '25'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Build and package (DMG)
+        run: >
+          mvn -B package --file pom.xml
+          -Drevision=${{ needs.prepare.outputs.version }}
+
+      - name: Upload macOS x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64
+          path: build/packaging/*.dmg
+
+  build-linux:
+    name: Build Linux (x64)
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Zulu FX)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '25'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Install packaging tools
+        run: sudo apt-get install -y dpkg fakeroot rpm
+
+      - name: Build and package (DEB)
+        run: >
+          mvn -B package --file pom.xml
+          -Drevision=${{ needs.prepare.outputs.version }}
+
+      - name: Build RPM
+        run: >
+          mvn -B exec:exec@jpackage --file pom.xml
+          -Drevision=${{ needs.prepare.outputs.version }}
+          -Djpackage.type=rpm
+        continue-on-error: true
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: |
+            build/packaging/*.deb
+            build/packaging/*.rpm
+
+      - name: Upload fat JAR (platform-independent)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fat-jar
+          path: build/target/*-jar-with-dependencies.jar
+
+  # --- Step 3: Create GitHub Release ---
+  release:
+    name: Create Release
+    needs: [prepare, build-windows, build-macos-arm, build-macos-intel, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Calculate hashes
+        id: hashes
+        run: |
+          cd artifacts
+          echo "## Checksums (SHA-256)" > checksums.txt
+          echo '```' >> checksums.txt
+          find . -type f \( -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "*-jar-with-dependencies.jar" \) \
+            -exec sha256sum {} \; | sort >> checksums.txt
+          echo '```' >> checksums.txt
+          cat checksums.txt
+          CHECKSUMS=$(cat checksums.txt)
+          echo "checksums<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHECKSUMS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        if: needs.prepare.outputs.is_release == 'true'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: Release ${{ needs.prepare.outputs.version }}
+          body: |
+            ## Mica Minecraft Launcher ${{ needs.prepare.outputs.version }}
+
+            ${{ steps.hashes.outputs.checksums }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.msi
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+            artifacts/**/*-jar-with-dependencies.jar
+
+      - name: Create Pre-Release
+        if: needs.prepare.outputs.is_release != 'true'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: Pre-Release ${{ needs.prepare.outputs.version }}
+          body: |
+            ## Mica Minecraft Launcher ${{ needs.prepare.outputs.version }} (Pre-Release)
+
+            > **Note:** This is a pre-release build and may not be stable. Pre-releases
+            > may be removed after 90 days.
+
+            ${{ steps.hashes.outputs.checksums }}
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.msi
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+            artifacts/**/*-jar-with-dependencies.jar
