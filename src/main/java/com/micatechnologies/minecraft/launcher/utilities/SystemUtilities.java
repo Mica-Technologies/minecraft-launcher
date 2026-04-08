@@ -18,21 +18,17 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
-import jodd.io.StreamGobbler;
 import org.apache.commons.io.FileUtils;
 
 /**
@@ -54,138 +50,31 @@ public class SystemUtilities
     private static String clientToken = null;
 
     /**
-     * Executes the specified string command in the specified working directory.
-     *
-     * @param command          command to execute
-     * @param workingDirectory working directory to execute in
-     *
-     * @throws IOException          if unable to start execution
-     * @throws InterruptedException if unable to wait for execution to complete
-     * @since 1.0
+     * @deprecated Use {@link ProcessUtilities#executeStringCommand(String, String)} instead.
      */
+    @Deprecated
     public static void executeStringCommand( String command, String workingDirectory )
     throws IOException, InterruptedException
     {
-        boolean retry = true;
-        int retryNumber = 0;
-
-        while ( retry ) {
-            // Reset retry flag
-            retry = false;
-
-            // Build process call directly to avoid cmd.exe line-length limits on Windows.
-            ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) ).inheritIO()
-                                                                                              .directory(
-                                                                                                      SynchronizedFileManager.getSynchronizedFile(
-                                                                                                              workingDirectory ) );
-
-            // Start process and wait for finish
-            if ( retryNumber > 0 ) {
-                Logger.logStd( "Executing command (retry " + retryNumber + "): " + command );
-            }
-            else {
-                Logger.logStd( "Executing command: " + command );
-            }
-            Process mcProcess = processBuilder.start();
-
-            // Read output stream
-            StreamGobbler outGobbler = null;
-            StreamGobbler errGobbler = null;
-            if ( ConfigManager.getEnhancedLogging() ) {
-                outGobbler = new StreamGobbler( mcProcess.getInputStream(), System.out );
-                outGobbler.start();
-                errGobbler = new StreamGobbler( mcProcess.getErrorStream(), System.err );
-                errGobbler.start();
-            }
-
-            // Wait for process to finish
-            int returnCode = mcProcess.waitFor();
-            if ( outGobbler != null ) {
-                outGobbler.waitFor();
-            }
-            if ( errGobbler != null ) {
-                errGobbler.waitFor();
-            }
-
-            // Check return code
-            if ( returnCode != 0 ) {
-                retry = Logger.logErrorConfirmRetry(
-                        "Oops - The game has crashed! Try again, and check the log files if the issue persists.",
-                        "Reload" );
-            }
-
-            if ( retry ) {
-                retryNumber++;
-            }
-        }
+        ProcessUtilities.executeStringCommand( command, workingDirectory );
     }
 
     /**
-     * Launches a command as a new process without blocking. The process does NOT inherit IO, so its streams can be
-     * captured by the caller (e.g., for the in-game console).
-     *
-     * @param command          the full command string
-     * @param workingDirectory the working directory
-     *
-     * @return the started Process
-     *
-     * @throws IOException if the process cannot be started
-     *
-     * @since 3.0
+     * @deprecated Use {@link ProcessUtilities#launchCommand(String, String)} instead.
      */
-    public static Process launchCommand( String command, String workingDirectory ) throws IOException {
-        ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) )
-                .redirectErrorStream( false )
-                .directory( SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
-        Logger.logStd( "Launching command: " + command );
-        return processBuilder.start();
+    @Deprecated
+    public static Process launchCommand( String command, String workingDirectory ) throws IOException
+    {
+        return ProcessUtilities.launchCommand( command, workingDirectory );
     }
 
     /**
-     * Waits for a process to complete, with optional retry on non-zero exit.
-     *
-     * @param process the process to wait for
-     *
-     * @throws InterruptedException if interrupted while waiting
-     *
-     * @since 3.0
+     * @deprecated Use {@link ProcessUtilities#waitForProcess(Process)} instead.
      */
-    public static void waitForProcess( Process process ) throws InterruptedException {
-        int returnCode = process.waitFor();
-        if ( returnCode != 0 ) {
-            Logger.logErrorConfirmRetry(
-                    "Oops - The game has crashed! Try again, and check the log files if the issue persists.",
-                    "Reload" );
-        }
-    }
-
-    private static List< String > splitCommandLine( String commandLine ) {
-        List< String > args = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        boolean inQuotes = false;
-
-        for ( int i = 0; i < commandLine.length(); i++ ) {
-            char c = commandLine.charAt( i );
-            if ( c == '"' ) {
-                inQuotes = !inQuotes;
-                continue;
-            }
-
-            if ( Character.isWhitespace( c ) && !inQuotes ) {
-                if ( current.length() > 0 ) {
-                    args.add( current.toString() );
-                    current.setLength( 0 );
-                }
-            }
-            else {
-                current.append( c );
-            }
-        }
-
-        if ( current.length() > 0 ) {
-            args.add( current.toString() );
-        }
-        return args;
+    @Deprecated
+    public static void waitForProcess( Process process ) throws InterruptedException
+    {
+        ProcessUtilities.waitForProcess( process );
     }
 
     /**
@@ -284,44 +173,12 @@ public class SystemUtilities
     }
 
     /**
-     * Compares the specified version numbers and returns: 0 if <code>version1</code> and <code>version2</code> are
-     * equal, -1 if <code>version1</code> is less than <code>version2</code>, or (+)1 if <code>version1</code> is
-     * greater than <code>version2</code>.
-     *
-     * @param version1 first version number
-     * @param version2 second version number
-     *
-     * @return 0 if equal, -1 if <code>version1</code> lower, 1 if <code>version1</code> higher
+     * @deprecated Use {@link VersionUtilities#compareVersionNumbers(String, String)} instead.
      */
-    public static int compareVersionNumbers( String version1, String version2 ) {
-        String[] arr1 = version1.split( "\\." );
-        String[] arr2 = version2.split( "\\." );
-
-        int i = 0;
-        while ( i < arr1.length || i < arr2.length ) {
-            if ( i < arr1.length && i < arr2.length ) {
-                if ( Integer.parseInt( arr1[ i ] ) < Integer.parseInt( arr2[ i ] ) ) {
-                    return -1;
-                }
-                else if ( Integer.parseInt( arr1[ i ] ) > Integer.parseInt( arr2[ i ] ) ) {
-                    return 1;
-                }
-            }
-            else if ( i < arr1.length ) {
-                if ( Integer.parseInt( arr1[ i ] ) != 0 ) {
-                    return 1;
-                }
-            }
-            else {
-                if ( Integer.parseInt( arr2[ i ] ) != 0 ) {
-                    return -1;
-                }
-            }
-
-            i++;
-        }
-
-        return 0;
+    @Deprecated
+    public static int compareVersionNumbers( String version1, String version2 )
+    {
+        return VersionUtilities.compareVersionNumbers( version1, version2 );
     }
 
     /**

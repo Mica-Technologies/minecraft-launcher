@@ -24,7 +24,7 @@ import net.hycrafthd.minecraft_authenticator.login.AuthenticationFile;
 import net.hycrafthd.minecraft_authenticator.login.Authenticator;
 import net.hycrafthd.minecraft_authenticator.login.User;
 
-import com.google.gson.Gson;
+import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.google.gson.JsonObject;
 import oshi.SystemInfo;
 
@@ -250,7 +250,7 @@ public class MCLauncherAuthManager
             json.addProperty( "type", user.type() );
             json.addProperty( "xuid", user.xuid() );
             json.addProperty( "clientId", user.clientId() );
-            String encrypted = encryptForMachine( new Gson().toJson( json ) );
+            String encrypted = encryptForMachine( JSONUtilities.getGson().toJson( json ) );
             Files.writeString( resolveSiblingPath( CACHED_USER_FILE ), encrypted );
         }
         catch ( Exception e ) {
@@ -273,7 +273,7 @@ public class MCLauncherAuthManager
             if ( decrypted == null ) {
                 return null;
             }
-            JsonObject json = new Gson().fromJson( decrypted, JsonObject.class );
+            JsonObject json = JSONUtilities.getGson().fromJson( decrypted, JsonObject.class );
             return new User(
                     json.has( "uuid" ) ? json.get( "uuid" ).getAsString() : null,
                     json.has( "name" ) ? json.get( "name" ).getAsString() : null,

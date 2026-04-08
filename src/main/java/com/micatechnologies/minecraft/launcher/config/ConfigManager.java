@@ -587,8 +587,51 @@ public class ConfigManager
             setDiscordRpcEnable( ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
             setResizableWindows( ConfigConstants.RESIZE_WINDOWS_ENABLE_DEFAULT );
             setInstalledModPacks( ConfigConstants.MOD_PACKS_INSTALLED_DEFAULT );
+            configObject.addProperty( ConfigConstants.CONFIG_VERSION_KEY, ConfigConstants.CONFIG_VERSION );
             Logger.logStd( LocalizationManager.CONFIG_RESET_SUCCESS_TEXT );
         }
+
+        // Migrate existing config if schema version is outdated or missing
+        migrateConfigIfNeeded();
+    }
+
+    /**
+     * Migrates the configuration to the current schema version by ensuring all expected keys have default values. This
+     * is called after loading the config from disk. If the stored version is already current, this is a no-op.
+     *
+     * @since 3.0
+     */
+    private synchronized static void migrateConfigIfNeeded()
+    {
+        int storedVersion = 0;
+        if ( configObject.has( ConfigConstants.CONFIG_VERSION_KEY ) ) {
+            storedVersion = configObject.get( ConfigConstants.CONFIG_VERSION_KEY ).getAsInt();
+        }
+
+        if ( storedVersion >= ConfigConstants.CONFIG_VERSION ) {
+            return;
+        }
+
+        Logger.logStd( "Migrating config from version " + storedVersion + " to " + ConfigConstants.CONFIG_VERSION );
+
+        // Ensure all keys exist with defaults (each getter already does this individually,
+        // but calling them here ensures a complete config on disk after migration)
+        getMinRam();
+        getMaxRam();
+        getDebugLogging();
+        getDiscordRpcEnable();
+        getResizableWindows();
+        getEnhancedLogging();
+        getCustomJvmArgs();
+        getLastModPackSelected();
+        getTheme();
+        getInstalledModPacks();
+        getInGameConsoleEnable();
+        getInstalledVanillaVersions();
+
+        // Stamp the current version and persist
+        configObject.addProperty( ConfigConstants.CONFIG_VERSION_KEY, ConfigConstants.CONFIG_VERSION );
+        writeConfigurationToDisk();
     }
 
     /**

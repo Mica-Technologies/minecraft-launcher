@@ -195,10 +195,13 @@ public class MCLauncherGuiController
     }
 
     public static void exit() {
-        if ( guiWindow != null && guiWindow.getStage() != null ) {
-            Platform.setImplicitExit( false );
-            if ( guiWindow.getStage().isShowing() ) {
-                GUIUtilities.JFXPlatformRun( () -> guiWindow.getStage().close() );
+        if ( guiWindow != null ) {
+            guiWindow.cleanup();
+            if ( guiWindow.getStage() != null ) {
+                Platform.setImplicitExit( false );
+                if ( guiWindow.getStage().isShowing() ) {
+                    GUIUtilities.JFXPlatformRun( () -> guiWindow.getStage().close() );
+                }
             }
             guiWindow = null;
         }

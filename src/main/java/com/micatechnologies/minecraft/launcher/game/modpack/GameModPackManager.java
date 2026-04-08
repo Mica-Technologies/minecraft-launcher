@@ -17,9 +17,9 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
@@ -104,7 +104,7 @@ public class GameModPackManager
         List< String > installedModPackManifestUrls = getInstalledModPackURLs();
 
         // Parse available mod pack manifest contents
-        JsonObject installableManifestUrls = new Gson().fromJson( availableModPackManifestBody, JsonObject.class );
+        JsonObject installableManifestUrls = JSONUtilities.getGson().fromJson( availableModPackManifestBody, JsonObject.class );
         for ( JsonElement manifestUrl : installableManifestUrls.getAsJsonArray(
                 ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY ) ) {
             final String manifestUrlVal = manifestUrl.getAsString();

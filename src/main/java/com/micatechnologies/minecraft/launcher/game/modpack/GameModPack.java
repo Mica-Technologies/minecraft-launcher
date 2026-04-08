@@ -21,207 +21,48 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.function.Function;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
-import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackScanDetectionException;
-import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest;
-import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.ProcessUtilities;
 import me.cortex.jarscanner.Constants;
 import me.cortex.jarscanner.Main;
 import me.cortex.jarscanner.Results;
-import org.apache.commons.io.FilenameUtils;
 
 /**
  * Class representation of a Forge mod pack with functionality to update mods, game libraries and start the game.
  *
  * @version 1.3
  */
-public class GameModPack
+public class GameModPack extends GameModPackMetadata
 {
+    private transient GameModPackProgressProvider progressProvider  = null;
+    private transient GameModPackEnvironment      environment       = null;
 
     /**
-     * Mod pack name. Value read from manifest JSON.
-     *
-     * @since 1.0
+     * Returns the lazily-initialized environment handler for this modpack.
      */
-    @SuppressWarnings( "unused" )
-    private String packName;
-
-    /**
-     * Mod pack version. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packVersion;
-
-    /**
-     * Mod pack website URL. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packURL;
-
-    /**
-     * Mod pack unstable flag. Value read from manifest JSON.
-     *
-     * @since 1.2
-     */
-    @SuppressWarnings( "unused" )
-    private boolean packUnstable;
-
-    /**
-     * Mod pack custom Discord RPC flag. Value read from manifest JSON.
-     *
-     * @since 1.2
-     */
-    @SuppressWarnings( "unused" )
-    private boolean packCustomDiscordRpc;
-
-    /**
-     * Mod pack logo URL. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packLogoURL;
-
-    /**
-     * Mod pack logo SHA-1. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packLogoSha1;
-
-    /**
-     * Mod pack background URL. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packBackgroundURL;
-
-    /**
-     * Mod pack background SHA-1. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packBackgroundSha1;
-
-    /**
-     * Mod pack minimum RAM (GB). Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packMinRAMGB;
-
-    /**
-     * Mod pack Forge download URL. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packForgeURL;
-
-    /**
-     * Mod pack Forge download SHA-1 hash. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    private String packForgeHash;
-
-    /**
-     * Mod pack scan exclusions (file or folder names, relative to mod pack root). Value read from manifest JSON.
-     *
-     * @since 1.3
-     */
-    @SuppressWarnings( "unused" )
-    private List< String > packScanExclusions;
-
-    /**
-     * List of mod pack Forge mods. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
-    private List< GameMod > packMods;
-
-    /**
-     * List of mod pack Forge configs. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
-    private List< GameAsset > packConfigs;
-
-    /**
-     * List of mod pack resource packs. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
-    private List< ManagedGameFile > packResourcePacks;
-
-    /**
-     * List of mod pack shader packs. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
-    private List< ManagedGameFile > packShaderPacks;
-
-    /**
-     * List of initial files for mod pack. Value read from manifest JSON.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
-    private List< GameAsset > packInitialFiles;
-
-    private transient          GameModPackProgressProvider progressProvider = null;
-    private transient volatile boolean                     didCacheImages   = false;
-
-    /**
-     * Get the installation folder of this mod pack.
-     *
-     * @return installation folder Path
-     */
-    @SuppressWarnings( "WeakerAccess" )
-    public String getPackRootFolder() {
-        return LocalPathManager.getLauncherModpackFolderPath() + File.separator + getPackSanitizedName();
-    }
-
-    public String getPackSanitizedName() {
-        return getPackName().replaceAll( "[^a-zA-Z0-9]", "" );
-    }
-
-    public String getPackBinFolder() {
-        return SystemUtilities.buildFilePath( getPackRootFolder(), LocalPathConstants.MOD_PACK_BIN_FOLDER_NAME );
+    private GameModPackEnvironment getEnvironment()
+    {
+        if ( environment == null ) {
+            environment = new GameModPackEnvironment( this );
+        }
+        return environment;
     }
 
     /**
@@ -262,10 +103,6 @@ public class GameModPack
         return getForgeApp().getForgeVersion();
     }
 
-    public double getPackMinRAMGB() {
-        return Double.parseDouble( packMinRAMGB );
-    }
-
     /**
      * Get the Minecraft library manifest for this modpack.
      *
@@ -275,20 +112,6 @@ public class GameModPack
      */
     public GameLibraryManifest getMinecraftLibraryManifest() throws ModpackException {
         return GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(), this );
-    }
-
-    /**
-     * Get the mod pack scan exclusions (file or folder names, relative to mod pack root) for this modpack.
-     *
-     * @return list of scan exclusions
-     *
-     * @since 1.3
-     */
-    public List< String > getPackScanExclusions() {
-        if ( packScanExclusions == null ) {
-            packScanExclusions = new ArrayList<>();
-        }
-        return packScanExclusions;
     }
 
     /**
@@ -309,10 +132,11 @@ public class GameModPack
 
         if ( !vanillaVersion ) {
             // --- Step 1: Download modpack content (mods, configs, resources) ---
+            GameModPackFileSync fileSync = new GameModPackFileSync( this, progressProvider );
             if ( progressProvider != null ) {
                 progressProvider.startProgressSection( "Downloading mods...", 15.0 );
             }
-            fetchLatestMods();
+            fileSync.fetchLatestMods();
             if ( progressProvider != null ) {
                 progressProvider.endProgressSection( "Mods ready" );
             }
@@ -320,10 +144,10 @@ public class GameModPack
             if ( progressProvider != null ) {
                 progressProvider.startProgressSection( "Downloading configs and resources...", 5.0 );
             }
-            fetchLatestConfigs();
-            fetchLatestResourcePacks();
-            fetchLatestShaderPacks();
-            fetchLatestInitialFiles();
+            fileSync.fetchLatestConfigs();
+            fileSync.fetchLatestResourcePacks();
+            fileSync.fetchLatestShaderPacks();
+            fileSync.fetchLatestInitialFiles();
             cacheImages();
             if ( progressProvider != null ) {
                 progressProvider.endProgressSection( "Configs and resources ready" );
@@ -658,7 +482,7 @@ public class GameModPack
         // Start game (always non-blocking -- LauncherCore.play() handles the process lifecycle)
         try {
             Logger.logDebug( "Launching game with command: " + fullArgs );
-            lastLaunchedProcess = SystemUtilities.launchCommand( fullArgs, getPackRootFolder() );
+            lastLaunchedProcess = ProcessUtilities.launchCommand( fullArgs, getPackRootFolder() );
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to execute mod pack game.", e );
@@ -718,11 +542,6 @@ public class GameModPack
 
     private transient Process lastLaunchedProcess = null;
 
-    /**
-     * Remove all mods from this modpack mods folder that are not in the modpack.
-     *
-     * @since 1.0
-     */
     /**
      * Mojang security-patched log4j config for MC 1.12-1.16.5. Uses PatternLayout with {@code %msg{nolookups}} to
      * mitigate CVE-2021-44228 (Log4Shell).
@@ -800,434 +619,36 @@ public class GameModPack
         }
     }
 
-    private void clearFloatingMods() {
-        // Get full path to modpack mods folder
-        String modLocalPathPrefix = getPackRootFolder() +
-                File.separator +
-                ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
-        // Build list of valid mods
-        ArrayList< String > validModPaths = new ArrayList<>();
-        for ( GameMod mod : packMods ) {
-            if ( ( GameModeManager.isClient() && mod.clientReq ) || ( GameModeManager.isServer() && mod.serverReq ) ) {
-                mod.setLocalPathPrefix( modLocalPathPrefix );
-                validModPaths.add( mod.getFullLocalFilePath() );
-            }
-        }
-
-        // Loop through files in mods folder and remove unwanted
-        File modpackModsFolderFile = SynchronizedFileManager.getSynchronizedFile( modLocalPathPrefix );
-        File[] modsFolderFiles = modpackModsFolderFile.listFiles();
-        if ( modsFolderFiles != null ) {
-            for ( File modFile : modsFolderFiles ) {
-                if ( !validModPaths.contains( modFile.getPath() ) && modFile.isFile() ) {
-                    boolean delete = modFile.delete();
-                    if ( !delete ) {
-                        Logger.logError( "Unable to delete file during mod folder sanitization." );
-                    }
-                }
-            }
-        }
+    public synchronized String getPackLogoFilepath()
+    {
+        return getEnvironment().getPackLogoFilepath();
     }
 
-    /**
-     * Verifies the integrity of local copies of this mod pack's mods and repair/download/update as necessary.
-     *
-     * @throws ModpackException if unable to fetch latest mods
-     */
-    private void fetchLatestMods() throws ModpackException {
-        // Cleanup mods that don't belong
-        clearFloatingMods();
-        if ( progressProvider != null ) {
-            progressProvider.submitProgress( "Removed floating mods", 30.0 );
-        }
-
-        // Check if mods supplied
-        if ( packMods == null ) {
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No mods to handle", 100 );
-            }
-            return;
-        }
-
-        // Get full path to mods folder
-        String modLocalPathPrefix = getPackRootFolder() +
-                File.separator +
-                ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
-
-        // Build list of mod download threads
-        if ( packMods.size() > 1 ) {
-            ExecutorService threadPool = Executors.newFixedThreadPool( Math.min( packMods.size(), 16 ) );
-            List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
-            for ( GameMod mod : packMods ) {
-                Callable< Boolean > updateFileCallable = () -> {
-                    mod.setLocalPathPrefix( modLocalPathPrefix );
-
-                    if ( progressProvider != null ) {
-                        progressProvider.submitProgress( "Verifying " + mod.name,
-                                                         ( 70.0 / ( double ) packMods.size() ) );
-                    }
-
-                    boolean ret = mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
-
-                    if ( progressProvider != null ) {
-                        progressProvider.setCurrText( "Verified " + mod.name );
-                    }
-                    return ret;
-                };
-                Future< Boolean > future = threadPool.submit( updateFileCallable );
-                threadPoolFutures.add( future );
-            }
-            threadPool.shutdown();
-            try {
-                if ( !threadPool.awaitTermination( 30, TimeUnit.MINUTES ) ) {
-                    threadPool.shutdownNow();
-                    throw new ModpackException(
-                            "Mod downloads did not complete within 30 minutes. Check your network connection." );
-                }
-            }
-            catch ( InterruptedException e ) {
-                threadPool.shutdownNow();
-                throw new ModpackException( "The download of Minecraft mods was interrupted before completion!", e );
-            }
-
-            // Parse list of futures
-            for ( Future< Boolean > threadPoolFuture : threadPoolFutures ) {
-                try {
-                    threadPoolFuture.get();
-                }
-                catch ( InterruptedException e ) {
-                    throw new ModpackException( "The download of Minecraft mods was interrupted before completion!",
-                                                e );
-                }
-                catch ( ExecutionException e ) {
-                    throw new ModpackException( "Unable to execute runner to retrieve Minecraft mods!", e );
-                }
-            }
-        }
+    public synchronized String getPackBackgroundFilepath()
+    {
+        return getEnvironment().getPackBackgroundFilepath();
     }
 
-    /**
-     * Verifies the integrity of local copies of this mod pack's configs and repair/download/update as necessary.
-     *
-     * @throws ModpackException if unable to fetch latest configs
-     */
-    private void fetchLatestConfigs() throws ModpackException {
-        // Get full path to configs folder
-        String configLocalPathPrefix = getPackRootFolder() +
-                File.separator +
-                ModPackConstants.MODPACK_FORGE_CONFIGS_LOCAL_FOLDER;
-
-        // Check if configs supplied
-        if ( packConfigs == null ) {
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No configs to handle", 100 );
-            }
-            return;
-        }
-
-        // Update each config if necessary
-        for ( GameAsset config : packConfigs ) {
-            config.setLocalPathPrefix( configLocalPathPrefix );
-            config.updateLocalFile( GameModeManager.getCurrentGameMode() );
-
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + FilenameUtils.getName( config.getFullLocalFilePath() ),
-                                                 ( 100.0 / ( double ) packConfigs.size() ) );
-            }
-        }
-    }
-
-    /**
-     * Verifies the integrity of local copies of this mod pack's resource packs and repair/download/update as
-     * necessary.
-     *
-     * @throws ModpackException if unable to fetch latest resource packs
-     */
-    private void fetchLatestResourcePacks() throws ModpackException {
-        // Only download resource packs on client (not server)
-        if ( GameModeManager.isServer() ) {
-            return;
-        }
-
-        // Check if resource packs supplied
-        if ( packResourcePacks == null ) {
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No resource packs to handle", 100 );
-            }
-            return;
-        }
-
-        // Get full path to resource pack folder
-        String resPackLocalPathPrefix = getPackRootFolder() +
-                File.separator +
-                ModPackConstants.MODPACK_FORGE_RESOURCEPACKS_LOCAL_FOLDER;
-
-        // Update each resource pack if necessary
-        for ( ManagedGameFile resourcePack : packResourcePacks ) {
-            resourcePack.setLocalPathPrefix( resPackLocalPathPrefix );
-            resourcePack.updateLocalFile();
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress(
-                        "Verified " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ),
-                        ( 100.0 / ( double ) packResourcePacks.size() ) );
-            }
-        }
-    }
-
-    /**
-     * Verifies the integrity of local copies of this mod pack's shader packs and repair/download/update as necessary.
-     *
-     * @throws ModpackException if unable to fetch latest shader packs
-     */
-    private void fetchLatestShaderPacks() throws ModpackException {
-        // Only download shader packs on client (not server)
-        if ( GameModeManager.isServer() ) {
-            return;
-        }
-
-        // Check if shader packs supplied
-        if ( packShaderPacks == null ) {
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No shader packs to handle", 100 );
-            }
-            return;
-        }
-
-        // Get full path to shader pack folder
-        String shaderPackLocalPathPrefix = getPackRootFolder() +
-                File.separator +
-                ModPackConstants.MODPACK_FORGE_SHADERPACKS_LOCAL_FOLDER;
-
-        // Update each shader pack if necessary
-        for ( ManagedGameFile shaderPack : packShaderPacks ) {
-            shaderPack.setLocalPathPrefix( shaderPackLocalPathPrefix );
-            shaderPack.updateLocalFile();
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress(
-                        "Verified " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ),
-                        ( 100.0 / ( double ) packShaderPacks.size() ) );
-            }
-        }
-    }
-
-    /**
-     * Verifies the integrity of local copies of this mod pack's initial files and repair/download/updated as
-     * necessary.
-     *
-     * @throws ModpackException if unable to fetch latest initial files
-     */
-    private void fetchLatestInitialFiles() throws ModpackException {
-        // Get full path to configs folder
-        String initFilesLocalPathPrefix = getPackRootFolder();
-
-        // Note: log4j security configs are now downloaded and applied in applyLog4jSecurityConfig()
-        // during startGame(), using the correct version-specific config for the Minecraft version.
-
-        // Check if initial files supplied
-        if ( packInitialFiles == null ) {
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "No initial files to handle", 100 );
-            }
-            return;
-        }
-
-        // Update each initial file if necessary
-        for ( GameAsset initFile : packInitialFiles ) {
-            initFile.setLocalPathPrefix( initFilesLocalPathPrefix );
-            initFile.updateLocalFile( GameModeManager.getCurrentGameMode() );
-
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified " + FilenameUtils.getName( initFile.getFullLocalFilePath() ),
-                                                 ( 100.0 / ( double ) packInitialFiles.size() ) );
-            }
-        }
-    }
-
-    public synchronized String getPackLogoFilepath() {
-        if ( !didCacheImages ) {
-            cacheImages();
-        }
-        return getRawLogoFilePath();
-    }
-
-    public synchronized String getPackBackgroundFilepath() {
-        if ( !didCacheImages ) {
-            cacheImages();
-        }
-        return getRawBackgroundFilePath();
-    }
-
-    public void setProgressProvider( GameModPackProgressProvider progressProvider ) {
+    public void setProgressProvider( GameModPackProgressProvider progressProvider )
+    {
         this.progressProvider = progressProvider;
     }
 
-    private String getRawLogoFilePath() {
-        String filename;
-        if ( packLogoSha1 != null ) {
-            filename = packLogoSha1 + ".png";
-        }
-        else {
-            filename = "logo_" + getPackSanitizedName() + ".png";
-        }
-        return LocalPathManager.getLauncherMetadataFolderPath() + File.separator + filename;
+    public synchronized void cacheImages()
+    {
+        getEnvironment().cacheImages();
     }
 
-    private String getRawBackgroundFilePath() {
-        String filename;
-        if ( packBackgroundSha1 != null ) {
-            filename = packBackgroundSha1 + ".png";
-        }
-        else {
-            filename = "background_" + getPackSanitizedName() + ".png";
-        }
-        return LocalPathManager.getLauncherMetadataFolderPath() + File.separator + filename;
-    }
-
-    /**
-     * Download the mod pack's logo from the URL specified in the manifest
-     *
-     * @throws ModpackException if unable to download/fetch logo
-     */
-    private synchronized void fetchLatestModpackLogo() throws ModpackException {
-        // Download latest logo
-        try {
-            File syncFile = SynchronizedFileManager.getSynchronizedFile( getRawLogoFilePath() );
-            boolean redownload = false;
-            if ( packLogoSha1 == null ) {
-                redownload = true;
-            }
-            else if ( !HashUtilities.verifySHA1( syncFile, packLogoSha1 ) ) {
-                redownload = true;
-            }
-            if ( redownload ) {
-                NetworkUtilities.downloadFileFromURL(
-                        new URL( Objects.requireNonNullElse( packLogoURL, ModPackConstants.MODPACK_DEFAULT_LOGO_URL ) ),
-                        syncFile );
-            }
-        }
-        catch ( IOException e ) {
-            throw new ModpackException( "Unable to download/fetch mod pack logo.", e );
-        }
-    }
-
-    /**
-     * Download the mod pack's logo from the URL specified in the manifest
-     *
-     * @throws ModpackException if unable to download/fetch logo
-     */
-    private synchronized void fetchLatestModpackBackground() throws ModpackException {
-        // Download latest background
-        try {
-            File syncFile = SynchronizedFileManager.getSynchronizedFile( getRawBackgroundFilePath() );
-            boolean redownload = false;
-            if ( packBackgroundSha1 == null ) {
-                redownload = true;
-            }
-            else if ( !HashUtilities.verifySHA1( syncFile, packBackgroundSha1 ) ) {
-                redownload = true;
-            }
-            if ( redownload ) {
-                NetworkUtilities.downloadFileFromURL( new URL(
-                                                              Objects.requireNonNullElse( packBackgroundURL, ModPackConstants.MODPACK_DEFAULT_BG_URL ) ),
-                                                      syncFile );
-            }
-        }
-        catch ( IOException e ) {
-            throw new ModpackException( "Unable to download/fetch mod pack background.", e );
-        }
-    }
-
-    public synchronized void cacheImages() {
-        try {
-            fetchLatestModpackLogo();
-            fetchLatestModpackBackground();
-            didCacheImages = true;
-        }
-        catch ( Exception e ) {
-            didCacheImages = false;
-            Logger.logError( "Unable to download image assets for mod pack: " + getFriendlyName() );
-            Logger.logThrowable( e );
-        }
-    }
-
-    /**
-     * Get and return the name of this modpack
-     *
-     * @return modpack name
-     */
-    public String getPackName() {
-        return packName;
-    }
-
-    public void prepareEnvironment() {
-        // Ensure local paths exist
-        File binPath = SynchronizedFileManager.getSynchronizedFile( getPackRootFolder() + File.separator + "bin" );
-        File modsPath = SynchronizedFileManager.getSynchronizedFile( getPackRootFolder() + File.separator + "mods" );
-        File configPath = SynchronizedFileManager.getSynchronizedFile(
-                getPackRootFolder() + File.separator + "config" );
-        File nativePath = SynchronizedFileManager.getSynchronizedFile(
-                getPackRootFolder() + File.separator + "bin" + File.separator + "natives" );
-        File resPackPath = SynchronizedFileManager.getSynchronizedFile(
-                getPackRootFolder() + File.separator + "resourcepacks" );
-        File shaderPackPath = SynchronizedFileManager.getSynchronizedFile(
-                getPackRootFolder() + File.separator + "shaderpacks" );
-
-        //noinspection ResultOfMethodCallIgnored
-        binPath.getParentFile().mkdirs();
-
-        if ( !binPath.exists() ) {
-            //noinspection ResultOfMethodCallIgnored
-            binPath.mkdir();
-        }
-        if ( !modsPath.exists() ) {
-            //noinspection ResultOfMethodCallIgnored
-            modsPath.mkdir();
-        }
-        if ( !configPath.exists() ) {
-            //noinspection ResultOfMethodCallIgnored
-            configPath.mkdir();
-        }
-        if ( !nativePath.exists() ) {
-            //noinspection ResultOfMethodCallIgnored
-            nativePath.mkdir();
-        }
-        if ( !resPackPath.exists() && GameModeManager.isClient() ) {
-            //noinspection ResultOfMethodCallIgnored
-            resPackPath.mkdir();
-        }
-        if ( !shaderPackPath.exists() && GameModeManager.isClient() ) {
-            //noinspection ResultOfMethodCallIgnored
-            shaderPackPath.mkdir();
-        }
+    public void prepareEnvironment()
+    {
+        getEnvironment().prepareEnvironment();
     }
 
     String manifestUrl;
 
     public String getManifestUrl() {
         return manifestUrl;
-    }
-
-    public String getPackVersion() {
-        return packVersion;
-    }
-
-    public boolean getPackUnstable() {
-        return packUnstable;
-    }
-
-    public boolean getCustomDiscordRpc() {
-        return packCustomDiscordRpc;
-    }
-
-    public String getPackURL() {
-        return packURL;
-    }
-
-    public String getFriendlyName() {
-        return getPackName() != null ?
-               String.format( ModPackConstants.MODPACK_FRIENDLY_NAME_TEMPLATE, getPackName(), getPackVersion() ) :
-               null;
     }
 
     /**
@@ -1267,7 +688,6 @@ public class GameModPack
         pack.packMods = new ArrayList<>();
         pack.vanillaVersion = true;
         pack.vanillaMinecraftVersion = versionId;
-        pack.didCacheImages = false;
         return pack;
     }
 

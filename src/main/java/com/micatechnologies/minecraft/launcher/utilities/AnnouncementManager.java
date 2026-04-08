@@ -17,7 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
-import com.google.gson.Gson;
+import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -141,7 +141,7 @@ public class AnnouncementManager
         JsonObject announcementJson = null;
         try {
             String manifestBody = NetworkUtilities.downloadFileFromURL( ANNOUNCEMENT_URL );
-            announcementJson = new Gson().fromJson( manifestBody, JsonObject.class );
+            announcementJson = JSONUtilities.getGson().fromJson( manifestBody, JsonObject.class );
         }
         catch ( Exception e ) {
             Logger.logError( "The launcher announcements could not be loaded." );

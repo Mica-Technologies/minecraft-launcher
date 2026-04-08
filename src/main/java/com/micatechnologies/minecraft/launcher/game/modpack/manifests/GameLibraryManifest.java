@@ -30,6 +30,7 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameLibrary;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.game.modpack.ManagedGameFile;
+import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 
@@ -108,28 +109,15 @@ public class GameLibraryManifest extends ManagedGameFile
                 String url = null;
 
                 // Check for and process library information
-                if ( libManifestLibObj.getAsJsonObject(
-                                              ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
-                                      .has( ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY ) ) {
+                JsonObject downloadsObj = libManifestLibObj.getAsJsonObject(
+                        ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY );
+                JsonObject artifactObj = JsonHelper.getJsonObject( downloadsObj,
+                        ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY );
+                if ( artifactObj != null ) {
                     // Store library path, sha1 and url
-                    path = Paths.get( libManifestLibObj.getAsJsonObject(
-                                                               ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
-                                                       .getAsJsonObject(
-                                                               ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY )
-                                                       .get( "path" )
-                                                       .getAsString() );
-                    sha1 = libManifestLibObj.getAsJsonObject(
-                                                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
-                                            .getAsJsonObject(
-                                                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY )
-                                            .get( "sha1" )
-                                            .getAsString();
-                    url = libManifestLibObj.getAsJsonObject(
-                                                   ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY )
-                                           .getAsJsonObject(
-                                                   ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY )
-                                           .get( "url" )
-                                           .getAsString();
+                    path = Paths.get( JsonHelper.getRequiredString( artifactObj, "path" ) );
+                    sha1 = JsonHelper.getRequiredString( artifactObj, "sha1" );
+                    url = JsonHelper.getRequiredString( artifactObj, "url" );
                 }
 
                 String currentPlatform = ManifestRuleUtilities.getCurrentPlatformName();
@@ -167,9 +155,11 @@ public class GameLibraryManifest extends ManagedGameFile
 
                         // Initialize new native library object
                         JsonObject nativeObj = classifiersObj.getAsJsonObject( windowsNativeKey );
-                        String localLibPath = nativeObj.get( "path" ).getAsString();
-                        GameLibrary nativeLib = new GameLibrary( nativeObj.get( "url" ).getAsString(), localLibPath,
-                                                     nativeObj.get( "sha1" ).getAsString(), ManagedGameFileHashType.SHA1,
+                        String localLibPath = JsonHelper.getRequiredString( nativeObj, "path" );
+                        GameLibrary nativeLib = new GameLibrary( JsonHelper.getRequiredString( nativeObj, "url" ),
+                                                     localLibPath,
+                                                     JsonHelper.getRequiredString( nativeObj, "sha1" ),
+                                                     ManagedGameFileHashType.SHA1,
                                                      true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
@@ -191,9 +181,11 @@ public class GameLibraryManifest extends ManagedGameFile
 
                         // Initialize new native library object
                         JsonObject nativeObj = classifiersObj.getAsJsonObject( macNativeKey );
-                        String localLibPath = nativeObj.get( "path" ).getAsString();
-                        GameLibrary nativeLib = new GameLibrary( nativeObj.get( "url" ).getAsString(), localLibPath,
-                                                     nativeObj.get( "sha1" ).getAsString(), ManagedGameFileHashType.SHA1,
+                        String localLibPath = JsonHelper.getRequiredString( nativeObj, "path" );
+                        GameLibrary nativeLib = new GameLibrary( JsonHelper.getRequiredString( nativeObj, "url" ),
+                                                     localLibPath,
+                                                     JsonHelper.getRequiredString( nativeObj, "sha1" ),
+                                                     ManagedGameFileHashType.SHA1,
                                                      true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
@@ -215,9 +207,11 @@ public class GameLibraryManifest extends ManagedGameFile
 
                         // Initialize new native library object
                         JsonObject nativeObj = classifiersObj.getAsJsonObject( linuxNativeKey );
-                        String localLibPath = nativeObj.get( "path" ).getAsString();
-                        GameLibrary nativeLib = new GameLibrary( nativeObj.get( "url" ).getAsString(), localLibPath,
-                                                     nativeObj.get( "sha1" ).getAsString(), ManagedGameFileHashType.SHA1,
+                        String localLibPath = JsonHelper.getRequiredString( nativeObj, "path" );
+                        GameLibrary nativeLib = new GameLibrary( JsonHelper.getRequiredString( nativeObj, "url" ),
+                                                     localLibPath,
+                                                     JsonHelper.getRequiredString( nativeObj, "sha1" ),
+                                                     ManagedGameFileHashType.SHA1,
                                                      true, nativeValidOS, true );
 
                         // Add native library to applicable libraries list
@@ -408,11 +402,15 @@ public class GameLibraryManifest extends ManagedGameFile
      * @throws ModpackException if unable to read manifest
      */
     public String getAssetIndexVersion() throws ModpackException {
-        return readToJsonObject().get( "assetIndex" ).getAsJsonObject().get( "id" ).getAsString();
+        JsonObject manifest = readToJsonObject();
+        JsonObject assetIndex = JsonHelper.getRequiredJsonObject( manifest, "assetIndex" );
+        return JsonHelper.getRequiredString( assetIndex, "id" );
     }
 
     GameAssetManifest getAssetManifest() throws ModpackException {
-        String remote = readToJsonObject().get( "assetIndex" ).getAsJsonObject().get( "url" ).getAsString();
+        JsonObject manifest = readToJsonObject();
+        JsonObject assetIndex = JsonHelper.getRequiredJsonObject( manifest, "assetIndex" );
+        String remote = JsonHelper.getRequiredString( assetIndex, "url" );
         return new GameAssetManifest( remote, parentModPack, getAssetIndexVersion() );
     }
 
@@ -429,14 +427,15 @@ public class GameLibraryManifest extends ManagedGameFile
      */
     private ManagedGameFile getMinecraftApp( GameMode gameAppMode ) throws ModpackException {
         // Get download information for client or server Minecraft app
+        JsonObject manifest = readToJsonObject();
+        JsonObject downloads = JsonHelper.getRequiredJsonObject( manifest,
+                ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY );
         JsonObject appObj;
         if ( gameAppMode == GameMode.CLIENT ) {
-            appObj = readToJsonObject().getAsJsonObject(
-                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ).getAsJsonObject( "client" );
+            appObj = JsonHelper.getRequiredJsonObject( downloads, "client" );
         }
         else if ( gameAppMode == GameMode.SERVER ) {
-            appObj = readToJsonObject().getAsJsonObject(
-                    ManifestConstants.MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY ).getAsJsonObject( "server" );
+            appObj = JsonHelper.getRequiredJsonObject( downloads, "server" );
         }
         else {
             throw new ModpackException( "An invalid game app mode was specified." );
@@ -446,8 +445,8 @@ public class GameLibraryManifest extends ManagedGameFile
         String localMinecraftAppPath = parentModPack.getPackRootFolder() +
                 File.separator +
                 ModPackConstants.MODPACK_MINECRAFT_JAR_LOCAL_PATH;
-        return new ManagedGameFile( appObj.get( "url" ).getAsString(), localMinecraftAppPath,
-                                    appObj.get( "sha1" ).getAsString(), ManagedGameFileHashType.SHA1 );
+        return new ManagedGameFile( JsonHelper.getRequiredString( appObj, "url" ), localMinecraftAppPath,
+                                    JsonHelper.getRequiredString( appObj, "sha1" ), ManagedGameFileHashType.SHA1 );
     }
 
     /**

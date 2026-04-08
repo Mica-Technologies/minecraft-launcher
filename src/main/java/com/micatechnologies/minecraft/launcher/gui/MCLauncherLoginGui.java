@@ -176,10 +176,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         loadMsAuthFrame();
 
         // Set Discord rich presence
-        SystemUtilities.spawnNewTask(
-                () -> DiscordRpcUtility.setRichPresence( "In Menus", "Logging In", OffsetDateTime.now(),
-                                                         "mica_minecraft_launcher", "Mica Minecraft Launcher", "auth",
-                                                         "Logging In" ) );
+        SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Logging In" ) );
     }
 
     @Override

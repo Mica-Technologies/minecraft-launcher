@@ -34,6 +34,19 @@ public class JSONUtilities
     private static final Gson GSON = new Gson();
 
     /**
+     * Returns the shared {@link Gson} instance. Gson is thread-safe, so a single instance can be used across the
+     * entire application without synchronization.
+     *
+     * @return the shared Gson instance
+     *
+     * @since 2.0
+     */
+    public static Gson getGson()
+    {
+        return GSON;
+    }
+
+    /**
      * Converts the specified string to a JSON object.
      *
      * @param json JSON string

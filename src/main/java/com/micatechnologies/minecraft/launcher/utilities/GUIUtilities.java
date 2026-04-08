@@ -179,9 +179,15 @@ public class GUIUtilities
             errorAlert.setTitle( "Oops" );
             errorAlert.setHeaderText( "Error" );
             errorAlert.setContentText( contentText );
-            errorAlert.initModality( Modality.WINDOW_MODAL );
+            // Use application-modal if the owner stage isn't visible to avoid force-showing hidden stages
+            if ( owner != null && owner.isShowing() ) {
+                errorAlert.initModality( Modality.WINDOW_MODAL );
+                errorAlert.initOwner( owner );
+            }
+            else {
+                errorAlert.initModality( Modality.APPLICATION_MODAL );
+            }
             errorAlert.initStyle( StageStyle.UTILITY );
-            errorAlert.initOwner( owner );
 
             ButtonType btn1 = new ButtonType( retryText, ButtonBar.ButtonData.BACK_PREVIOUS );
             ButtonType btnC = new ButtonType( "Cancel", ButtonBar.ButtonData.CANCEL_CLOSE );
@@ -189,16 +195,9 @@ public class GUIUtilities
             errorAlert.getButtonTypes().setAll( btn1, btnC );
 
             // Show the created error dialog
-            boolean ownerNotShowing = !owner.isShowing();
-            if (ownerNotShowing) {
-                owner.show();
-            }
             Optional< ButtonType > opt = errorAlert.showAndWait();
             if ( opt.isPresent() && opt.get() == btn1 ) {
                 retry.set( true );
-            }
-            if (ownerNotShowing) {
-                owner.hide();
             }
 
             // Release code from waiting

@@ -17,7 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
-import com.google.gson.Gson;
+import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import org.apache.commons.io.IOUtils;
@@ -50,7 +50,7 @@ public class GameModPackFetcher
         GameModPack gameModPack;
         try {
             String manifestBody = NetworkUtilities.downloadFileFromURL( manifestUrl );
-            gameModPack = new Gson().fromJson( manifestBody, GameModPack.class );
+            gameModPack = JSONUtilities.getGson().fromJson( manifestBody, GameModPack.class );
             if (createEnvironment) {
                 gameModPack.prepareEnvironment();
                 gameModPack.cacheImages();

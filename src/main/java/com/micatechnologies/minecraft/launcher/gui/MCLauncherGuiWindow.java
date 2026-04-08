@@ -238,5 +238,23 @@ public class MCLauncherGuiWindow extends Application
                                      .toExternalForm() );
         } );
     }
+
+    /**
+     * Cleans up the theme detector listener to prevent memory leaks. Should be called during application shutdown.
+     *
+     * @since 2.0
+     */
+    public void cleanup()
+    {
+        if ( detector != null && themeListener != null ) {
+            try {
+                detector.removeListener( themeListener );
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Unable to remove theme change listener during cleanup." );
+            }
+            themeListener = null;
+        }
+    }
 }
 

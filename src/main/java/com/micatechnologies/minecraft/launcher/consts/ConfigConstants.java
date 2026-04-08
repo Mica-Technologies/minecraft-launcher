@@ -46,6 +46,21 @@ public class ConfigConstants
     public static final String CONFIG_FILE_NAME = File.separator + "configuration.json";
 
     /**
+     * Key for the configuration schema version.
+     *
+     * @since 3.0
+     */
+    public static final String CONFIG_VERSION_KEY = "configVersion";
+
+    /**
+     * Current configuration schema version. Increment when adding new config keys so that existing configs get
+     * migrated with defaults for the new keys.
+     *
+     * @since 3.0
+     */
+    public static final int CONFIG_VERSION = 2;
+
+    /**
      * The default value for minimum RAM.
      *
      * @since 1.0

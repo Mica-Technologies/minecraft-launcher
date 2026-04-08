@@ -53,7 +53,8 @@
             </rowConstraints>
 
             <!-- Row 0: Logo -->
-            <ImageView fitHeight="85.0" fitWidth="85.0" pickOnBounds="true" preserveRatio="true"
+            <ImageView accessibleText="Mica Minecraft Launcher logo" fitHeight="85.0" fitWidth="85.0"
+                       pickOnBounds="true" preserveRatio="true"
                        GridPane.halignment="CENTER" GridPane.valignment="CENTER">
                 <Image url="@../micaminecraftlauncher.png" />
             </ImageView>

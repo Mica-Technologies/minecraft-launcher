@@ -53,7 +53,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.time.OffsetDateTime;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -254,10 +254,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
 
         // Start Discord rich presence
-        SystemUtilities.spawnNewTask(
-                () -> DiscordRpcUtility.setRichPresence( "In Menus", "Selecting a Mod Pack", OffsetDateTime.now(),
-                                                         "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                                         "clipboard", "Selecting a Mod Pack" ) );
+        SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Selecting a Mod Pack" ) );
 
         // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
@@ -266,52 +263,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         setUnstableWarning( false );
 
         // Check for launcher update and show image if there is one
-        updateImgView.setVisible( false );
+        TaskbarProgressbar[] taskbarRef = new TaskbarProgressbar[ 1 ];
+        UpdateCheckManager.checkAndConfigureUI( updateImgView, stage, taskbarRef );
         SystemUtilities.spawnNewTask( () -> {
-            try {
-                // Get current version
-                String version = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
-
-                // Get latest version
-                String latestVersionURL = UpdateCheckUtilities.getLatestReleaseURL();
-                String latestVersion = UpdateCheckUtilities.getLatestReleaseVersion();
-
-                // Check if current version is less than latest
-                if ( SystemUtilities.compareVersionNumbers( version, latestVersion ) == -1 ) {
-                    // Setup taskbar progress bar
-                    if ( TaskbarProgressbar.isSupported() ) {
-                        taskbarProgressbar = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
-                    }
-
-                    GUIUtilities.JFXPlatformRun( () -> {
-                        updateImgView.setVisible( true );
-                        updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
-                            int response = GUIUtilities.showQuestionMessage( "Update Available",
-                                                                             "Update Ready to " + "Download",
-                                                                             "An update has been found and is ready to be downloaded and installed.",
-                                                                             "Update Now", "Update Later", stage );
-                            if ( response == 1 ) {
-                                try {
-                                    Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
-                                }
-                                catch ( IOException e ) {
-                                    Logger.logError( "Unable to open your browser. Please visit " +
-                                                             latestVersionURL +
-                                                             " to download the latest launcher updates!" );
-                                    Logger.logThrowable( e );
-                                }
-                            }
-                        } ) );
-
-                        if ( taskbarProgressbar != null ) {
-                            taskbarProgressbar.showFullErrorProgress();
-                        }
-                    } );
-                }
-            }
-            catch ( Exception e ) {
-                Logger.logError( "An error occurred while checking for an updated launcher version!" );
-                Logger.logThrowable( e );
+            // Capture taskbar reference once the async check completes
+            if ( taskbarRef[ 0 ] != null ) {
+                taskbarProgressbar = taskbarRef[ 0 ];
             }
         } );
 
@@ -328,10 +285,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         settingsBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToSettingsGui();
-                SystemUtilities.spawnNewTask(
-                        () -> DiscordRpcUtility.setRichPresence( "In Menus", "Settings", OffsetDateTime.now(),
-                                                                 "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                                                 "settings", "Settings" ) );
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Settings" ) );
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to load settings GUI due to an incomplete response from the GUI subsystem." );
@@ -344,10 +298,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         editButton.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToEditModpacksGui();
-                SystemUtilities.spawnNewTask(
-                        () -> DiscordRpcUtility.setRichPresence( "In Menus", "Editing Mod Packs", OffsetDateTime.now(),
-                                                                 "mica_minecraft_launcher", "Mica Minecraft Launcher",
-                                                                 "download", "Editing Mod Packs" ) );
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Editing Mod Packs" ) );
             }
             catch ( IOException e ) {
                 Logger.logError(
@@ -379,18 +330,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             Platform.setImplicitExit( false );
             GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
                                                                           .getSelectedItem();
-            if ( installedModPackByFriendlyName.getCustomDiscordRpc() ) {
-                SystemUtilities.spawnNewTask( DiscordRpcUtility::exit );
-            }
-            else {
-                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setRichPresence( "In Game (Minecraft)",
-                                                                                       "Mod Pack: " +
-                                                                                               installedModPackByFriendlyName.getPackName(),
-                                                                                       OffsetDateTime.now(),
-                                                                                       "mica_minecraft_launcher",
-                                                                                       "Mica Minecraft Launcher",
-                                                                                       "game", "In Game" ) );
-            }
+            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence(
+                    installedModPackByFriendlyName.getPackName(),
+                    installedModPackByFriendlyName.getCustomDiscordRpc() ) );
             LauncherCore.play( installedModPackByFriendlyName, () -> GUIUtilities.JFXPlatformRun( () -> {
                 try {
                     Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
@@ -480,6 +422,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     @Override
     void cleanup() {
+        if ( packSelectionList != null ) {
+            packSelectionList.getSelectionModel().selectedItemProperty().removeListener( packSelectionChangeListener );
+        }
         if ( taskbarProgressbar != null ) {
             GUIUtilities.JFXPlatformRun( () -> {
                 taskbarProgressbar.stopProgress();

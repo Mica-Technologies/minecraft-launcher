@@ -127,6 +127,40 @@ public class DiscordRpcUtility
         }
     }
 
+    /**
+     * Sets the rich presence to a standard "In Menus" state with the specified screen detail.
+     *
+     * @param screenName the screen name to display (e.g., "Selecting a Mod Pack", "Settings")
+     *
+     * @since 2.0
+     */
+    public static void setMenuPresence( String screenName )
+    {
+        setRichPresence( "In Menus", screenName, OffsetDateTime.now(),
+                          "mica_minecraft_launcher", "Mica Minecraft Launcher",
+                          "clipboard", screenName );
+    }
+
+    /**
+     * Sets the rich presence to an "In Game" state for the specified modpack. If the modpack uses custom Discord RPC,
+     * this method exits the launcher's RPC connection so the game's own RPC can take over.
+     *
+     * @param packName        the modpack name
+     * @param customDiscordRpc true if the modpack provides its own Discord RPC
+     *
+     * @since 2.0
+     */
+    public static void setGamePresence( String packName, boolean customDiscordRpc )
+    {
+        if ( customDiscordRpc ) {
+            exit();
+        }
+        else {
+            setRichPresence( "In Game (Minecraft)", "Mod Pack: " + packName, OffsetDateTime.now(),
+                              "mica_minecraft_launcher", "Mica Minecraft Launcher", "game", "In Game" );
+        }
+    }
+
     public static void exit() {
         if ( discordRpcClient != null ) {
             try {

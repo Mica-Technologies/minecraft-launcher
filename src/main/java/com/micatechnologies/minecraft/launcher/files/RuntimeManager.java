@@ -26,6 +26,7 @@ import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
@@ -152,8 +153,10 @@ public class RuntimeManager
             }
 
             JsonObject componentEntry = componentArray.get( 0 ).getAsJsonObject();
-            String manifestUrl = componentEntry.getAsJsonObject( "manifest" ).get( "url" ).getAsString();
-            String versionName = componentEntry.getAsJsonObject( "version" ).get( "name" ).getAsString();
+            JsonObject manifestObj = JsonHelper.getRequiredJsonObject( componentEntry, "manifest" );
+            String manifestUrl = JsonHelper.getRequiredString( manifestObj, "url" );
+            JsonObject versionObj = JsonHelper.getRequiredJsonObject( componentEntry, "version" );
+            String versionName = JsonHelper.getRequiredString( versionObj, "name" );
 
             // Check if we already have this version installed
             File versionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
@@ -189,7 +192,7 @@ public class RuntimeManager
             for ( Map.Entry< String, JsonElement > entry : files.entrySet() ) {
                 String relativePath = entry.getKey();
                 JsonObject fileEntry = entry.getValue().getAsJsonObject();
-                String type = fileEntry.get( "type" ).getAsString();
+                String type = JsonHelper.getRequiredString( fileEntry, "type" );
 
                 File localFile = new File( runtimeFolderPath, relativePath.replace( "/", File.separator ) );
 
@@ -197,10 +200,10 @@ public class RuntimeManager
                     localFile.mkdirs();
                 }
                 else if ( "file".equals( type ) ) {
-                    JsonObject downloads = fileEntry.getAsJsonObject( "downloads" );
-                    JsonObject rawDownload = downloads.getAsJsonObject( "raw" );
-                    String sha1 = rawDownload.get( "sha1" ).getAsString();
-                    String url = rawDownload.get( "url" ).getAsString();
+                    JsonObject downloads = JsonHelper.getRequiredJsonObject( fileEntry, "downloads" );
+                    JsonObject rawDownload = JsonHelper.getRequiredJsonObject( downloads, "raw" );
+                    String sha1 = JsonHelper.getRequiredString( rawDownload, "sha1" );
+                    String url = JsonHelper.getRequiredString( rawDownload, "url" );
 
                     // Only download if file doesn't exist or hash doesn't match
                     if ( !localFile.exists() || !HashUtilities.verifySHA1( localFile, sha1 ) ) {
@@ -523,12 +526,14 @@ public class RuntimeManager
             }
 
             JsonObject info = apiData.get( 0 ).getAsJsonObject();
-            newJavaVersion = info.get( "version" ).getAsString();
+            newJavaVersion = JsonHelper.getRequiredString( info, "version" );
 
             // Check if already installed
             File versionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
-            String extractedFolderName = info.get( "bundleType" ).getAsString() +
-                    info.get( "featureVersion" ).getAsInt() + "u" + info.get( "updateVersion" ).getAsInt();
+            String bundleType = JsonHelper.getRequiredString( info, "bundleType" );
+            int featureVersion = JsonHelper.getInt( info, "featureVersion", 8 );
+            int updateVersion = JsonHelper.getInt( info, "updateVersion", 0 );
+            String extractedFolderName = bundleType + featureVersion + "u" + updateVersion;
             File extractedFolder = new File( runtimeFolderPath, extractedFolderName );
 
             if ( versionFile.exists() && extractedFolder.exists() ) {
@@ -547,11 +552,12 @@ public class RuntimeManager
 
             // Verify/download archive
             reportProgress( progressWindow, progressCallback, label, "Verifying JRE 8 archive...", 30 );
-            String archiveHash = info.get( "sha1" ).getAsString();
-            File archiveFile = new File( runtimeFolderPath, info.get( "filename" ).getAsString() );
+            String archiveHash = JsonHelper.getRequiredString( info, "sha1" );
+            File archiveFile = new File( runtimeFolderPath, JsonHelper.getRequiredString( info, "filename" ) );
             if ( !HashUtilities.verifySHA1( archiveFile, archiveHash ) ) {
                 reportProgress( progressWindow, progressCallback, label, "Downloading JRE 8...", -1 );
-                NetworkUtilities.downloadFileFromURL( info.get( "downloadUrl" ).getAsString(), archiveFile );
+                NetworkUtilities.downloadFileFromURL( JsonHelper.getRequiredString( info, "downloadUrl" ),
+                                                      archiveFile );
             }
 
             // Extract
@@ -559,7 +565,7 @@ public class RuntimeManager
             if ( extractedFolder.exists() ) {
                 FileUtils.deleteDirectory( extractedFolder );
             }
-            String pkgType = info.get( "packageType" ).getAsString();
+            String pkgType = JsonHelper.getString( info, "packageType", "tar.gz" );
             Archiver archiver;
             if ( pkgType.equals( "tar.gz" ) ) {
                 archiver = ArchiverFactory.createArchiver( ArchiveFormat.TAR, CompressionType.GZIP );
@@ -571,8 +577,7 @@ public class RuntimeManager
 
             // Find the extracted folder (may have a different suffix)
             if ( !extractedFolder.exists() ) {
-                File altFolder = new File( runtimeFolderPath, extractedFolderName + "." +
-                        info.get( "bundleType" ).getAsString() );
+                File altFolder = new File( runtimeFolderPath, extractedFolderName + "." + bundleType );
                 if ( altFolder.exists() ) {
                     extractedFolder = altFolder;
                 }

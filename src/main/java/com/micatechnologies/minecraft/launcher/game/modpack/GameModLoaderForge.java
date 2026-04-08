@@ -17,10 +17,11 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
 import com.micatechnologies.minecraft.launcher.consts.ForgeConstants;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
@@ -261,8 +262,8 @@ class GameModLoaderForge extends ManagedGameFile
         for ( JsonElement forgeAsset : forgeAssetsArray ) {
             // Get Asset Object and Information
             JsonObject forgeAssetObj = forgeAsset.getAsJsonObject();
-            String forgeAssetName = forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_NAME_KEY )
-                                                 .getAsString();
+            String forgeAssetName = JsonHelper.getRequiredString( forgeAssetObj,
+                    ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_NAME_KEY );
 
             // Get Asset Downloads Information
             JsonObject forgeAssetDownloadsObj;
@@ -490,7 +491,7 @@ class GameModLoaderForge extends ManagedGameFile
             }
             try ( InputStream is = forgeJar.getInputStream( profileEntry );
                   InputStreamReader reader = new InputStreamReader( is ) ) {
-                installProfile = new Gson().fromJson( reader, JsonObject.class );
+                installProfile = JSONUtilities.getGson().fromJson( reader, JsonObject.class );
             }
         }
         catch ( IOException e ) {
@@ -504,13 +505,16 @@ class GameModLoaderForge extends ManagedGameFile
 
         // Check if the patched output already exists
         JsonObject data = installProfile.getAsJsonObject( "data" );
-        if ( data.has( "PATCHED" ) ) {
-            String patchedCoord = data.getAsJsonObject( "PATCHED" ).get( side ).getAsString();
-            String patchedPath = mavenCoordToPath( patchedCoord );
-            File patchedFile = new File( libsFolder, patchedPath );
-            if ( patchedFile.exists() && patchedFile.length() > 0 ) {
-                Logger.logStd( "Forge patched client already exists, skipping processors." );
-                return;
+        JsonObject patchedObj = JsonHelper.getJsonObject( data, "PATCHED" );
+        if ( patchedObj != null ) {
+            String patchedCoord = JsonHelper.getString( patchedObj, side, null );
+            if ( patchedCoord != null ) {
+                String patchedPath = mavenCoordToPath( patchedCoord );
+                File patchedFile = new File( libsFolder, patchedPath );
+                if ( patchedFile.exists() && patchedFile.length() > 0 ) {
+                    Logger.logStd( "Forge patched client already exists, skipping processors." );
+                    return;
+                }
             }
         }
 
@@ -527,8 +531,8 @@ class GameModLoaderForge extends ManagedGameFile
                 continue;
             }
 
-            String path = artifact.get( "path" ).getAsString();
-            String url = artifact.has( "url" ) ? artifact.get( "url" ).getAsString() : "";
+            String path = JsonHelper.getRequiredString( artifact, "path" );
+            String url = JsonHelper.getString( artifact, "url", "" );
             File localFile = new File( libsFolder, path.replace( "/", File.separator ) );
 
             if ( localFile.exists() ) {
@@ -588,7 +592,7 @@ class GameModLoaderForge extends ManagedGameFile
                 }
             }
 
-            String processorJar = proc.get( "jar" ).getAsString();
+            String processorJar = JsonHelper.getRequiredString( proc, "jar" );
             Logger.logStd( "Running Forge processor " + ( i + 1 ) + "/" + processors.size() + ": " + processorJar );
 
             // Build classpath for this processor
@@ -618,7 +622,7 @@ class GameModLoaderForge extends ManagedGameFile
             }
 
             // Resolve args
-            JsonArray argsArray = proc.getAsJsonArray( "args" );
+            JsonArray argsArray = JsonHelper.getRequiredJsonArray( proc, "args" );
             List< String > resolvedArgs = new ArrayList<>();
             for ( JsonElement argEl : argsArray ) {
                 String arg = argEl.getAsString();
@@ -714,9 +718,12 @@ class GameModLoaderForge extends ManagedGameFile
             if ( key.equals( "MINECRAFT_JAR" ) ) {
                 return minecraftJarPath;
             }
-            if ( data.has( key ) ) {
-                String value = data.getAsJsonObject( key ).get( side ).getAsString();
-                return resolveDataValue( value, libsFolder );
+            JsonObject dataEntry = JsonHelper.getJsonObject( data, key );
+            if ( dataEntry != null ) {
+                String value = JsonHelper.getString( dataEntry, side, null );
+                if ( value != null ) {
+                    return resolveDataValue( value, libsFolder );
+                }
             }
             return arg;
         }
@@ -824,7 +831,7 @@ class GameModLoaderForge extends ManagedGameFile
                 JsonObject installProfile;
                 try ( InputStream is = forgeJar.getInputStream( profileEntry );
                       InputStreamReader reader = new InputStreamReader( is ) ) {
-                    installProfile = new Gson().fromJson( reader, JsonObject.class );
+                    installProfile = JSONUtilities.getGson().fromJson( reader, JsonObject.class );
                 }
                 if ( installProfile.has( "data" ) ) {
                     JsonObject data = installProfile.getAsJsonObject( "data" );
@@ -873,7 +880,7 @@ class GameModLoaderForge extends ManagedGameFile
                 if ( jarEntry.getName().equals( ForgeConstants.FORGE_JAR_VERSION_FILE_NAME ) ) {
                     try ( InputStream inputStream = forgeJarFile.getInputStream( jarEntry );
                           InputStreamReader inputStreamReader = new InputStreamReader( inputStream ) ) {
-                        return new Gson().fromJson( inputStreamReader, JsonObject.class );
+                        return JSONUtilities.getGson().fromJson( inputStreamReader, JsonObject.class );
                     }
                     catch ( IOException e ) {
                         throw new ModpackException(

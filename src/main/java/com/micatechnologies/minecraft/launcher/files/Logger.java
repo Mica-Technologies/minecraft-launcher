@@ -122,11 +122,26 @@ public class Logger
      * @throws FileNotFoundException if unable to find log file
      * @since 1.0
      */
+    /**
+     * Maximum log file size before rotation (10 MB).
+     */
+    private static final long MAX_LOG_FILE_SIZE = 10L * 1024L * 1024L;
+
+    /**
+     * Maximum number of rotated backup log files to retain.
+     */
+    private static final int MAX_LOG_BACKUPS = 3;
+
     public static void initLogSys( File logFile ) throws IOException {
         // Create parent directory(ies) if necessary
         final var mkdirs = logFile.getParentFile().mkdirs();
         if ( !mkdirs && !logFile.getParentFile().exists() ) {
             Logger.logDebug( LocalizationManager.LOG_FILE_DIR_NOT_CREATED_TEXT );
+        }
+
+        // Rotate existing log file if it exceeds the size threshold
+        if ( logFile.exists() && logFile.length() > MAX_LOG_FILE_SIZE ) {
+            rotateLogFiles( logFile );
         }
 
         // Create a new log file
@@ -188,6 +203,38 @@ public class Logger
         System.setOut( sysOut );
         System.setErr( sysErr );
         Logger.logStd( LocalizationManager.LOG_SYSTEM_INITIALIZED_TEXT );
+    }
+
+    /**
+     * Rotates log files by renaming the current log to {@code .1}, shifting existing backups ({@code .1} &rarr;
+     * {@code .2}, etc.), and deleting backups beyond {@link #MAX_LOG_BACKUPS}.
+     *
+     * @param logFile the current log file to rotate
+     */
+    private static void rotateLogFiles( File logFile )
+    {
+        String basePath = logFile.getAbsolutePath();
+
+        // Delete the oldest backup if it exists
+        File oldest = new File( basePath + "." + MAX_LOG_BACKUPS );
+        if ( oldest.exists() ) {
+            //noinspection ResultOfMethodCallIgnored
+            oldest.delete();
+        }
+
+        // Shift existing backups: .2 -> .3, .1 -> .2, etc.
+        for ( int i = MAX_LOG_BACKUPS - 1; i >= 1; i-- ) {
+            File from = new File( basePath + "." + i );
+            File to = new File( basePath + "." + ( i + 1 ) );
+            if ( from.exists() ) {
+                //noinspection ResultOfMethodCallIgnored
+                from.renameTo( to );
+            }
+        }
+
+        // Rename current log file to .1
+        //noinspection ResultOfMethodCallIgnored
+        logFile.renameTo( new File( basePath + ".1" ) );
     }
 
     /**

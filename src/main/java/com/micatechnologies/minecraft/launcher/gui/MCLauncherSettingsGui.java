@@ -58,6 +58,9 @@ import java.util.function.Function;
 
 public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 {
+    private javafx.beans.value.ChangeListener< Double > minRamListener;
+    private javafx.beans.value.ChangeListener< Double > maxRamListener;
+
     @SuppressWarnings( "unused" )
     @FXML
     Spinner< Double > minRamGb;
@@ -502,12 +505,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         minRamGb.setValueFactory(
                 new SpinnerValueFactory.DoubleSpinnerValueFactory( LauncherConstants.SETTINGS_MIN_RAM_MIN,
                                                                    correctedMaxForMin, minRamGbVal, 0.1 ) );
-        minRamGb.getValueFactory().valueProperty().addListener( ( observable, oldValue, newValue ) -> {
-
+        minRamListener = ( observable, oldValue, newValue ) -> {
             double newValWithMinForMax = Math.max( LauncherConstants.SETTINGS_MAX_RAM_MIN, newValue );
             ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) maxRamGb.getValueFactory() ).setMin(
                     newValWithMinForMax );
-        } );
+        };
+        minRamGb.getValueFactory().valueProperty().addListener( minRamListener );
 
         // Populate and configure maximum RAM dropdown
         maxRamGb.setEditable( true );
@@ -515,12 +518,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         maxRamGb.setValueFactory( new SpinnerValueFactory.DoubleSpinnerValueFactory( correctedMinForMax,
                                                                                      LauncherConstants.SETTINGS_MAX_RAM_MAX,
                                                                                      maxRamGbVal, 0.1 ) );
-        maxRamGb.getValueFactory().valueProperty().addListener( ( observable, oldValue, newValue ) -> {
-
+        maxRamListener = ( observable, oldValue, newValue ) -> {
             double newValWithMaxForMin = Math.min( LauncherConstants.SETTINGS_MIN_RAM_MAX, newValue );
             ( ( SpinnerValueFactory.DoubleSpinnerValueFactory ) minRamGb.getValueFactory() ).setMax(
                     newValWithMaxForMin );
-        } );
+        };
+        maxRamGb.getValueFactory().valueProperty().addListener( maxRamListener );
 
         // Configure scan buttons/labels
         scanning = false;
@@ -664,7 +667,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @Override
     void cleanup() {
-
+        if ( minRamGb != null && minRamGb.getValueFactory() != null && minRamListener != null ) {
+            minRamGb.getValueFactory().valueProperty().removeListener( minRamListener );
+        }
+        if ( maxRamGb != null && maxRamGb.getValueFactory() != null && maxRamListener != null ) {
+            maxRamGb.getValueFactory().valueProperty().removeListener( maxRamListener );
+        }
     }
 
     /**
