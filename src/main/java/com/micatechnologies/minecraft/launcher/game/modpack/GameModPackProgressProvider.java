@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
+import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
+
 public abstract class GameModPackProgressProvider
 {
 
@@ -32,8 +34,24 @@ public abstract class GameModPackProgressProvider
 
     private              double currSectionProgress   = 0.0;
 
+    /**
+     * Shared download tracker for byte-level progress across all download sections.
+     */
+    private final DownloadTracker downloadTracker = new DownloadTracker();
+
+    /**
+     * Returns the shared download tracker for use in file downloads.
+     *
+     * @return the download tracker instance
+     */
+    public DownloadTracker getDownloadTracker()
+    {
+        return downloadTracker;
+    }
+
     void triggerUpdateHandler() {
-        updateProgressHandler( getActualProgress(), currSectionTitle, currDetailText );
+        updateProgressHandler( getActualProgress(), currSectionTitle, currDetailText,
+                               downloadTracker.getFormattedStatus() );
     }
 
     private double getActualProgress() {
@@ -100,5 +118,14 @@ public abstract class GameModPackProgressProvider
         triggerUpdateHandler();
     }
 
-    abstract public void updateProgressHandler( double percent, String sectionTitle, String detailText );
+    /**
+     * Called when progress updates.
+     *
+     * @param percent        overall progress percentage (0-100)
+     * @param sectionTitle   the current section heading (e.g. "Downloading mods...")
+     * @param detailText     the current detail text (e.g. "Verified library jna-4.4.0.jar")
+     * @param downloadStatus formatted download speed/ETA string (e.g. "2.4 MB/s -- 3:42 remaining"), or empty
+     */
+    abstract public void updateProgressHandler( double percent, String sectionTitle, String detailText,
+                                                 String downloadStatus );
 }

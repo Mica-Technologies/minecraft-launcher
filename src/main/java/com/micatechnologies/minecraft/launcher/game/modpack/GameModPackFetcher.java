@@ -49,7 +49,31 @@ public class GameModPackFetcher
         // Fetch contents of available mod pack manifest
         GameModPack gameModPack;
         try {
-            String manifestBody = NetworkUtilities.downloadFileFromURL( manifestUrl );
+            String manifestBody = null;
+
+            // Try downloading from network first (unless already known offline)
+            if ( !NetworkUtilities.isOffline() ) {
+                try {
+                    manifestBody = NetworkUtilities.downloadFileFromURL( manifestUrl );
+                    cacheManifest( manifestUrl, manifestBody );
+                }
+                catch ( IOException e ) {
+                    Logger.logWarningSilent( "Failed to download manifest, trying cache: " + manifestUrl );
+                    manifestBody = null;
+                }
+            }
+
+            // Fall back to cached manifest if download failed or offline
+            if ( manifestBody == null ) {
+                manifestBody = loadCachedManifest( manifestUrl );
+                if ( manifestBody != null ) {
+                    Logger.logStd( "Loaded cached manifest for: " + manifestUrl );
+                }
+                else {
+                    throw new IOException( "Unable to download manifest and no cached version available" );
+                }
+            }
+
             gameModPack = JSONUtilities.getGson().fromJson( manifestBody, GameModPack.class );
             if (createEnvironment) {
                 gameModPack.prepareEnvironment();
@@ -57,7 +81,8 @@ public class GameModPackFetcher
             }
         }
         catch ( Exception e ) {
-            Logger.logError( "The following installed mod pack could not be loaded: " + manifestUrl );
+            // Use silent logging to avoid blocking error dialogs for each failed pack
+            Logger.logErrorSilent( "The following installed mod pack could not be loaded: " + manifestUrl );
             Logger.logThrowable( e );
             gameModPack = GameModPack.createFailedModPack( manifestUrl, e.getMessage() );
         }

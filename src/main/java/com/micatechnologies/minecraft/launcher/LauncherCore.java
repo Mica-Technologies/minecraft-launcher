@@ -230,7 +230,8 @@ public class LauncherCore
                 gameModPack.setProgressProvider( new GameModPackProgressProvider()
                 {
                     @Override
-                    public void updateProgressHandler( double percent, String sectionTitle, String detailText ) {
+                    public void updateProgressHandler( double percent, String sectionTitle, String detailText,
+                                                        String downloadStatus ) {
                         Logger.logStd( sectionTitle + ": " + detailText + " - " + ( int ) percent + "%" );
 
                         if ( finalPlayProgressWindow != null ) {
@@ -241,10 +242,14 @@ public class LauncherCore
                             // Detail text goes below the progress bar (smaller, dimmer)
                             finalPlayProgressWindow.setDetailText(
                                     detailText != null ? detailText : "" );
+                            // Download speed/ETA below the detail text
+                            finalPlayProgressWindow.setSpeedText(
+                                    downloadStatus != null ? downloadStatus : "" );
                             finalPlayProgressWindow.setProgress( percent );
                             if ( percent >= 100.0 ) {
                                 finalPlayProgressWindow.setSectionText( "Starting Minecraft..." );
                                 finalPlayProgressWindow.setDetailText( "" );
+                                finalPlayProgressWindow.setSpeedText( "" );
                                 // Only hide if the in-game console won't be taking over the stage
                                 if ( !ConfigManager.getInGameConsoleEnable() ) {
                                     SystemUtilities.spawnNewTask( () -> {
@@ -316,10 +321,12 @@ public class LauncherCore
             catch ( ModpackScanDetectionException e ) {
                 Logger.logError( e.getMessage() );
                 Logger.logThrowable( e );
+                returnToMainGuiOnError();
             }
             catch ( Exception e ) {
                 Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );
                 Logger.logThrowable( e );
+                returnToMainGuiOnError();
             }
 
             // If after runnable present, run it -- but NOT when the in-game console is managing
@@ -618,6 +625,23 @@ public class LauncherCore
         restartError = restartErrorString;
         cleanupApp();
         exitLatch.countDown();
+    }
+
+    /**
+     * Attempts to return to the main GUI after a game launch error. If the main GUI cannot be loaded, the error is
+     * logged silently (the user can still close the app via the window X button).
+     *
+     * @since 2.0
+     */
+    private static void returnToMainGuiOnError() {
+        if ( MCLauncherGuiController.shouldCreateGui() ) {
+            try {
+                MCLauncherGuiController.goToMainGui();
+            }
+            catch ( IOException e ) {
+                Logger.logErrorSilent( "Unable to return to main GUI after launch error." );
+            }
+        }
     }
 
     /**

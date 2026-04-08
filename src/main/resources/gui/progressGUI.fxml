@@ -50,6 +50,8 @@
                 <RowConstraints fillHeight="false" maxHeight="35.0" minHeight="25.0" prefHeight="30.0" />
                 <!-- Row 4: Detail label (file-level info below progress bar) -->
                 <RowConstraints fillHeight="false" maxHeight="35.0" minHeight="20.0" prefHeight="28.0" />
+                <!-- Row 5: Speed/ETA info label -->
+                <RowConstraints fillHeight="false" maxHeight="25.0" minHeight="15.0" prefHeight="22.0" />
             </rowConstraints>
 
             <!-- Row 0: Logo -->
@@ -89,6 +91,16 @@
                    opacity="0.6">
                 <font>
                     <Font size="10.0" />
+                </font>
+            </Label>
+
+            <!-- Row 5: Speed/ETA info below detail label -->
+            <Label fx:id="speedLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"
+                   prefWidth="350.0" text="" textAlignment="CENTER" wrapText="true"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER"
+                   opacity="0.5">
+                <font>
+                    <Font size="9.0" />
                 </font>
             </Label>
         </GridPane>

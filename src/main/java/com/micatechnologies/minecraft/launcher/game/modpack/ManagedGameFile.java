@@ -26,6 +26,7 @@ import java.net.URL;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
@@ -89,6 +90,14 @@ public class ManagedGameFile
      * @since 2.2
      */
     private transient boolean sessionVerified = false;
+
+    /**
+     * Optional download tracker for byte-level progress reporting. Set via {@link #setDownloadTracker(DownloadTracker)}
+     * before calling {@link #updateLocalFile()}.
+     *
+     * @since 2.3
+     */
+    private transient DownloadTracker downloadTracker = null;
 
     /**
      * Create an {@link ManagedGameFile} object with hash checking disabled, using the specified remote URL and local
@@ -173,6 +182,17 @@ public class ManagedGameFile
     }
 
     /**
+     * Sets the download tracker for byte-level progress reporting during file downloads.
+     *
+     * @param tracker the download tracker, or null to disable tracking
+     *
+     * @since 2.3
+     */
+    public void setDownloadTracker( DownloadTracker tracker ) {
+        this.downloadTracker = tracker;
+    }
+
+    /**
      * Verify the integrity of the local copy of this remote file
      *
      * @return true if local copy is valid
@@ -215,7 +235,12 @@ public class ManagedGameFile
         try {
             //noinspection ResultOfMethodCallIgnored
             localFile.getParentFile().mkdirs();
-            NetworkUtilities.downloadFileFromURL( new URL( remote ), localFile );
+            if ( downloadTracker != null ) {
+                NetworkUtilities.downloadFileFromURL( new URL( remote ), localFile, downloadTracker );
+            }
+            else {
+                NetworkUtilities.downloadFileFromURL( new URL( remote ), localFile );
+            }
         }
         catch ( IOException e ) {
             throw new ModpackException(

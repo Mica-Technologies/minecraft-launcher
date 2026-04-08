@@ -60,6 +60,11 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     @FXML
     MFXProgressBar progressBar;
 
+    /** Download speed and ETA info below the detail label. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label speedLabel;
+
     private TaskbarProgressbar taskbarProgressbar = null;
 
     public MCLauncherProgressGui( Stage stage ) throws IOException {
@@ -95,6 +100,7 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         setUpperLabelText( "Just a Moment" );
         setSectionText( "" );
         setDetailText( "" );
+        setSpeedText( "" );
         setProgress( 0.0 );
 
         // Initialize taskbar progress bar AFTER the stage is shown, so the native HWND is valid.
@@ -144,6 +150,13 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      */
     public void setDetailText( String text ) {
         GUIUtilities.JFXPlatformRun( () -> detailLabel.setText( text ) );
+    }
+
+    /**
+     * Sets the speed/ETA info text. E.g. "2.4 MB/s -- 3:42 remaining -- 12/150 files"
+     */
+    public void setSpeedText( String text ) {
+        GUIUtilities.JFXPlatformRun( () -> speedLabel.setText( text ) );
     }
 
     /**

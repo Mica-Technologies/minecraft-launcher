@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -40,8 +41,14 @@ import java.util.concurrent.*;
  */
 class GameModPackFileSync
 {
-    private final GameModPackMetadata      metadata;
-    private final GameModPackProgressProvider progressProvider;
+    /**
+     * Maximum number of concurrent download threads for mod files.
+     */
+    private static final int MAX_DOWNLOAD_THREADS = 8;
+
+    private final GameModPackMetadata         metadata;
+    private final GameModPackProgressProvider  progressProvider;
+    private final DownloadTracker              downloadTracker;
 
     /**
      * Creates a new file sync handler for the specified modpack.
@@ -53,6 +60,20 @@ class GameModPackFileSync
     {
         this.metadata = metadata;
         this.progressProvider = progressProvider;
+        this.downloadTracker = ( progressProvider != null ) ? progressProvider.getDownloadTracker() : null;
+
+        // Pre-count total files across all categories so the tracker shows accurate totals from the start
+        if ( downloadTracker != null ) {
+            long totalFiles = 0;
+            if ( metadata.packMods != null ) totalFiles += metadata.packMods.size();
+            if ( metadata.packConfigs != null ) totalFiles += metadata.packConfigs.size();
+            if ( metadata.packResourcePacks != null && !GameModeManager.isServer() )
+                totalFiles += metadata.packResourcePacks.size();
+            if ( metadata.packShaderPacks != null && !GameModeManager.isServer() )
+                totalFiles += metadata.packShaderPacks.size();
+            if ( metadata.packInitialFiles != null ) totalFiles += metadata.packInitialFiles.size();
+            downloadTracker.setTotalFileCount( totalFiles );
+        }
     }
 
     /**
@@ -83,21 +104,28 @@ class GameModPackFileSync
 
         // Build list of mod download threads
         if ( metadata.packMods.size() > 1 ) {
-            ExecutorService threadPool = Executors.newFixedThreadPool( Math.min( metadata.packMods.size(), 16 ) );
+            ExecutorService threadPool = Executors.newFixedThreadPool(
+                    Math.min( metadata.packMods.size(), MAX_DOWNLOAD_THREADS ) );
             List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
             for ( GameMod mod : metadata.packMods ) {
                 Callable< Boolean > updateFileCallable = () -> {
                     mod.setLocalPathPrefix( modLocalPathPrefix );
+                    if ( downloadTracker != null ) {
+                        mod.setDownloadTracker( downloadTracker );
+                    }
 
                     if ( progressProvider != null ) {
-                        progressProvider.submitProgress( "Verifying " + mod.name,
-                                                         ( 70.0 / ( double ) metadata.packMods.size() ) );
+                        progressProvider.setCurrText( "Downloading " + mod.name + "..." );
                     }
 
                     boolean ret = mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
                     if ( progressProvider != null ) {
-                        progressProvider.setCurrText( "Verified " + mod.name );
+                        progressProvider.submitProgress( "Verified " + mod.name,
+                                                         ( 70.0 / ( double ) metadata.packMods.size() ) );
+                    }
+                    if ( downloadTracker != null ) {
+                        downloadTracker.completeFile();
                     }
                     return ret;
                 };
@@ -156,11 +184,20 @@ class GameModPackFileSync
         // Update each config if necessary
         for ( GameAsset config : metadata.packConfigs ) {
             config.setLocalPathPrefix( configLocalPathPrefix );
+            if ( downloadTracker != null ) {
+                config.setDownloadTracker( downloadTracker );
+            }
+            if ( progressProvider != null ) {
+                progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( config.getFullLocalFilePath() ) + "..." );
+            }
             config.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "Verified " + FilenameUtils.getName( config.getFullLocalFilePath() ),
                                                  ( 100.0 / ( double ) metadata.packConfigs.size() ) );
+            }
+            if ( downloadTracker != null ) {
+                downloadTracker.completeFile();
             }
         }
     }
@@ -194,11 +231,20 @@ class GameModPackFileSync
         // Update each resource pack if necessary
         for ( ManagedGameFile resourcePack : metadata.packResourcePacks ) {
             resourcePack.setLocalPathPrefix( resPackLocalPathPrefix );
+            if ( downloadTracker != null ) {
+                resourcePack.setDownloadTracker( downloadTracker );
+            }
+            if ( progressProvider != null ) {
+                progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ) + "..." );
+            }
             resourcePack.updateLocalFile();
             if ( progressProvider != null ) {
                 progressProvider.submitProgress(
                         "Verified " + FilenameUtils.getName( resourcePack.getFullLocalFilePath() ),
                         ( 100.0 / ( double ) metadata.packResourcePacks.size() ) );
+            }
+            if ( downloadTracker != null ) {
+                downloadTracker.completeFile();
             }
         }
     }
@@ -231,11 +277,20 @@ class GameModPackFileSync
         // Update each shader pack if necessary
         for ( ManagedGameFile shaderPack : metadata.packShaderPacks ) {
             shaderPack.setLocalPathPrefix( shaderPackLocalPathPrefix );
+            if ( downloadTracker != null ) {
+                shaderPack.setDownloadTracker( downloadTracker );
+            }
+            if ( progressProvider != null ) {
+                progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ) + "..." );
+            }
             shaderPack.updateLocalFile();
             if ( progressProvider != null ) {
                 progressProvider.submitProgress(
                         "Verified " + FilenameUtils.getName( shaderPack.getFullLocalFilePath() ),
                         ( 100.0 / ( double ) metadata.packShaderPacks.size() ) );
+            }
+            if ( downloadTracker != null ) {
+                downloadTracker.completeFile();
             }
         }
     }
@@ -264,11 +319,20 @@ class GameModPackFileSync
         // Update each initial file if necessary
         for ( GameAsset initFile : metadata.packInitialFiles ) {
             initFile.setLocalPathPrefix( initFilesLocalPathPrefix );
+            if ( downloadTracker != null ) {
+                initFile.setDownloadTracker( downloadTracker );
+            }
+            if ( progressProvider != null ) {
+                progressProvider.setCurrText( "Downloading " + FilenameUtils.getName( initFile.getFullLocalFilePath() ) + "..." );
+            }
             initFile.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "Verified " + FilenameUtils.getName( initFile.getFullLocalFilePath() ),
                                                  ( 100.0 / ( double ) metadata.packInitialFiles.size() ) );
+            }
+            if ( downloadTracker != null ) {
+                downloadTracker.completeFile();
             }
         }
     }
