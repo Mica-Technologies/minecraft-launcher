@@ -64,7 +64,9 @@
                 <RowConstraints/>
                 <!-- 7: Add (List) button -->
                 <RowConstraints/>
-                <!-- 8: Return button -->
+                <!-- 8: Modpack Editor button -->
+                <RowConstraints/>
+                <!-- 9: Return button -->
                 <RowConstraints/>
             </rowConstraints>
             <padding>
@@ -132,8 +134,15 @@
                 </GridPane.margin>
             </MFXButton>
 
-            <!-- Row 8: Return button -->
-            <MFXButton fx:id="returnBtn" prefHeight="25.0" prefWidth="100.0" text="Return" GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER">
+            <!-- Row 8: Modpack Editor button -->
+            <MFXButton fx:id="editorBtn" prefHeight="25.0" prefWidth="150.0" text="Modpack Editor" GridPane.halignment="CENTER" GridPane.rowIndex="8" GridPane.valignment="CENTER">
+                <GridPane.margin>
+                    <Insets top="20.0"/>
+                </GridPane.margin>
+            </MFXButton>
+
+            <!-- Row 9: Return button -->
+            <MFXButton fx:id="returnBtn" prefHeight="25.0" prefWidth="100.0" text="Return" GridPane.halignment="CENTER" GridPane.rowIndex="9" GridPane.valignment="CENTER">
                 <GridPane.margin>
                     <Insets bottom="8.0" top="24.0"/>
                 </GridPane.margin>

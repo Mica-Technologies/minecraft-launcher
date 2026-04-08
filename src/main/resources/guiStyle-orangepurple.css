@@ -571,3 +571,48 @@
     -fx-background-color: #140B11;
     -fx-background-radius: 12;
 }
+
+
+/* ===== Tab Pane (Modpack Editor) ===== */
+
+.tab-pane { -fx-background-color: transparent; }
+.tab-pane .tab-header-area { -fx-background-color: rgba(79, 55, 70, 0.55); }
+.tab-pane .tab-header-area .tab-header-background { -fx-background-color: transparent; }
+.tab-pane .tab { -fx-background-color: rgba(79, 55, 70, 0.6); -fx-background-radius: 8 8 0 0; -fx-background-insets: 2 2 0 2; }
+.tab-pane .tab:selected { -fx-background-color: #9C3587; }
+.tab-pane .tab .tab-label { -fx-text-fill: #F0DEE6; }
+.tab-pane .tab:selected .tab-label { -fx-text-fill: white; }
+.tab-pane .tab-content-area { -fx-background-color: rgba(31, 16, 25, 0.9); }
+
+/* ===== Table View ===== */
+
+.table-view { -fx-background-color: transparent; -fx-border-width: 0; }
+.table-view .column-header-background { -fx-background-color: rgba(79, 55, 70, 0.75); }
+.table-view .column-header { -fx-background-color: transparent; -fx-border-color: transparent transparent #6B4D62 transparent; -fx-border-width: 0 0 1 0; }
+.table-view .column-header .label { -fx-text-fill: #D4BFC8; -fx-font-weight: bold; -fx-font-size: 11; }
+.table-view .table-row-cell { -fx-background-color: transparent; -fx-border-color: transparent transparent #2A1822 transparent; -fx-border-width: 0 0 1 0; }
+.table-view .table-row-cell:odd { -fx-background-color: rgba(79, 55, 70, 0.25); }
+.table-view .table-row-cell:selected { -fx-background-color: rgba(156, 53, 135, 0.35); }
+.table-view .table-row-cell:hover { -fx-background-color: rgba(156, 53, 135, 0.15); }
+.table-view .table-cell { -fx-text-fill: #F0DEE6; -fx-padding: 4 6 4 6; }
+.table-view .table-row-cell:selected .table-cell { -fx-text-fill: white; }
+.table-view .table-cell .text-field { -fx-text-fill: #F0DEE6; -fx-background-color: rgba(79, 55, 70, 0.5); -fx-background-radius: 4; }
+.table-view .table-row-cell:empty { -fx-background-color: transparent; -fx-border-color: transparent; }
+.table-view .placeholder .label { -fx-text-fill: #9B8A92; }
+.table-view .column-resize-line { -fx-background-color: #9C3587; }
+.table-view .filler { -fx-background-color: rgba(79, 55, 70, 0.75); }
+
+/* ===== Scroll Pane ===== */
+.scroll-pane { -fx-background-color: transparent; }
+.scroll-pane .viewport { -fx-background-color: transparent; }
+
+/* ===== Standard Button (scoped to Table) ===== */
+.table-view .button { -fx-background-color: rgba(79, 55, 70, 0.7); -fx-text-fill: #F0DEE6; -fx-background-radius: 6; -fx-padding: 2 8 2 8; -fx-cursor: hand; }
+.table-view .button:hover { -fx-background-color: rgba(156, 53, 135, 0.5); }
+.table-view .button:armed { -fx-background-color: #9C3587; -fx-text-fill: white; }
+
+/* ===== Check Box ===== */
+.check-box { -fx-text-fill: #F0DEE6; }
+.check-box .box { -fx-background-color: rgba(79, 55, 70, 0.7); -fx-border-color: #6B4D62; -fx-border-radius: 4; -fx-background-radius: 4; }
+.check-box:selected .box { -fx-background-color: #9C3587; -fx-border-color: #9C3587; }
+.check-box:selected .mark { -fx-background-color: white; }

@@ -113,6 +113,15 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     MFXButton removeSelectedBtn;
 
     /**
+     * Modpack editor button.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton editorBtn;
+
+    /**
      * Announcement banner.
      *
      * @since 3.0
@@ -212,6 +221,17 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
             announcement.setMaxHeight( 0 );
             announcementRow.setMaxHeight( 0 );
         }
+
+        // Configure modpack editor button
+        editorBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                MCLauncherGuiController.goToModPackEditorGui();
+            }
+            catch ( IOException ex ) {
+                Logger.logError( "Unable to open modpack editor." );
+                Logger.logThrowable( ex );
+            }
+        } ) );
 
         // Configure return button and window close
         returnBtn.setOnAction( actionEvent -> {

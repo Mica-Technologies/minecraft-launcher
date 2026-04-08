@@ -188,6 +188,22 @@ public class MCLauncherGuiController
         return newRuntimeGui;
     }
 
+    public static MCLauncherModPackEditorGui goToModPackEditorGui() throws IOException
+    {
+        MCLauncherModPackEditorGui newEditorGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newEditorGui = new MCLauncherModPackEditorGui( guiWindow.getStage() );
+            guiWindow.setScene( newEditorGui );
+            guiWindow.show();
+        }
+        else {
+            Logger.logError(
+                    "The modpack editor GUI could not be displayed due to the application GUI not being started." );
+        }
+        return newEditorGui;
+    }
+
     public static void forceThemeRefresh() {
         if ( guiWindow != null ) {
             guiWindow.forceThemeChange();
