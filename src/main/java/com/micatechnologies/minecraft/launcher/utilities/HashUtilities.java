@@ -48,22 +48,15 @@ public class HashUtilities
      * @since 1.0
      */
     private static BigInteger getFileChecksum( MessageDigest digest, File file ) throws IOException {
-        // Get file input stream for reading file contents
-        FileInputStream fileInputStream = new FileInputStream( file );
-
-        // Create byte array for reading file data in chunks
-        byte[] fileByteArray = new byte[ 1024 ];
+        byte[] fileByteArray = new byte[ 8192 ];
         int fileByteCount;
 
-        // Read entire file data and update digest
-        while ( ( fileByteCount = fileInputStream.read( fileByteArray ) ) != -1 ) {
-            digest.update( fileByteArray, 0, fileByteCount );
+        try ( FileInputStream fileInputStream = new FileInputStream( file ) ) {
+            while ( ( fileByteCount = fileInputStream.read( fileByteArray ) ) != -1 ) {
+                digest.update( fileByteArray, 0, fileByteCount );
+            }
         }
 
-        // Close file input stream
-        fileInputStream.close();
-
-        // Get bytes of hash
         byte[] hashBytes = digest.digest();
         return new BigInteger( 1, hashBytes );
     }
@@ -162,14 +155,11 @@ public class HashUtilities
      * @since 1.0
      */
     public static boolean verifySHA1( File file, String validSha ) {
-        boolean matches = false;
-
         if ( file.isFile() ) {
             String fileSha = getFileSHA1( file );
-            matches = fileSha.equalsIgnoreCase( validSha );
+            return fileSha != null && fileSha.equalsIgnoreCase( validSha );
         }
-
-        return matches;
+        return false;
     }
 
     /**
@@ -183,14 +173,11 @@ public class HashUtilities
      * @since 1.0
      */
     public static boolean verifySHA256( File file, String validSha ) {
-        boolean matches = false;
-
         if ( file.isFile() ) {
             String fileSha = getFileSHA256( file );
-            matches = fileSha.equalsIgnoreCase( validSha );
+            return fileSha != null && fileSha.equalsIgnoreCase( validSha );
         }
-
-        return matches;
+        return false;
     }
 
     /**
@@ -204,13 +191,10 @@ public class HashUtilities
      * @since 1.1
      */
     public static boolean verifyMD5( File file, String validMd5 ) {
-        boolean matches = false;
-
         if ( file.isFile() ) {
-            String fileMda5 = getFileMD5( file );
-            matches = fileMda5.equalsIgnoreCase( validMd5 );
+            String fileMd5 = getFileMD5( file );
+            return fileMd5 != null && fileMd5.equalsIgnoreCase( validMd5 );
         }
-
-        return matches;
+        return false;
     }
 }

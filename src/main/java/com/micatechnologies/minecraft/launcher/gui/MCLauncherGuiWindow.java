@@ -42,6 +42,7 @@ public class MCLauncherGuiWindow extends Application
     private              MCLauncherAbstractGui gui;
 
     private OsThemeDetector detector = null;
+    private java.util.function.Consumer< Boolean > themeListener = null;
 
     @Override
     public void start( Stage stage ) throws Exception {
@@ -59,8 +60,7 @@ public class MCLauncherGuiWindow extends Application
         stage.setResizable( ConfigManager.getResizableWindows() );
 
         // Set application icon
-        try {
-            InputStream iconStream = getClass().getClassLoader().getResourceAsStream( "micaminecraftlauncher.png" );
+        try ( InputStream iconStream = getClass().getClassLoader().getResourceAsStream( "micaminecraftlauncher.png" ) ) {
             if ( iconStream != null ) {
                 Image icon = new Image( iconStream );
                 stage.getIcons().add( icon );
@@ -111,10 +111,14 @@ public class MCLauncherGuiWindow extends Application
             gui.afterShow();
         } );
 
-        // Setup theme detector change listener
+        // Setup theme detector change listener (unregister previous to avoid accumulation)
         if ( detector != null ) {
             try {
-                detector.registerListener( isDark -> forceThemeChange() );
+                if ( themeListener != null ) {
+                    detector.removeListener( themeListener );
+                }
+                themeListener = isDark -> forceThemeChange();
+                detector.registerListener( themeListener );
             }
             catch ( Exception e ) {
                 Logger.logWarningSilent( "Unable to configure theme change listener for dark/light mode!" );

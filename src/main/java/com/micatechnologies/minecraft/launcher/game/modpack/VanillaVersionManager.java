@@ -53,14 +53,18 @@ public class VanillaVersionManager
         }
 
         allVersions = new ArrayList<>();
+
+        // Ensure the Mojang version manifest is downloaded and cached
         try {
-            JsonObject manifest = GameVersionManifest.getClientJson( "__fetch_manifest__" );
+            GameVersionManifest.ensureManifestDownloaded();
         }
-        catch ( ModpackException ignored ) {
-            // Expected -- __fetch_manifest__ doesn't exist, but this triggers manifest download
+        catch ( ModpackException e ) {
+            Logger.logError( "Failed to download Minecraft version manifest." );
+            Logger.logThrowable( e );
+            return allVersions;
         }
 
-        // Re-fetch the raw manifest to get the versions array
+        // Read the cached manifest to get the versions array
         try {
             File manifestFile = SynchronizedFileManager.getSynchronizedFile(
                     com.micatechnologies.minecraft.launcher.files.LocalPathManager.getMinecraftVersionManifestFilePath() );

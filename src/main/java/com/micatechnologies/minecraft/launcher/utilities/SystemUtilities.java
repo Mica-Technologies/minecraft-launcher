@@ -237,26 +237,16 @@ public class SystemUtilities
             }
 
             // Read file from jar to extracted file
-            InputStream inputStream;
-            FileOutputStream fileOutputStream;
-            try {
-                inputStream = source.getInputStream( jarFileFile );
-                fileOutputStream = new FileOutputStream( extractedJarFileFile );
-                while ( inputStream.available() > 0 ) {
-                    fileOutputStream.write( inputStream.read() );
+            try ( InputStream inputStream = source.getInputStream( jarFileFile );
+                  FileOutputStream fileOutputStream = new FileOutputStream( extractedJarFileFile ) ) {
+                byte[] buffer = new byte[ 8192 ];
+                int bytesRead;
+                while ( ( bytesRead = inputStream.read( buffer ) ) != -1 ) {
+                    fileOutputStream.write( buffer, 0, bytesRead );
                 }
             }
             catch ( IOException e ) {
                 throw new ModpackException( "Unable to read file from jar during extraction.", e );
-            }
-
-            // Close streams
-            try {
-                fileOutputStream.close();
-                inputStream.close();
-            }
-            catch ( IOException e ) {
-                System.err.println( "Unable to close streams after extracting JAR file." );
             }
         }
     }

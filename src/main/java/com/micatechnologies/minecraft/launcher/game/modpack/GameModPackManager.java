@@ -33,8 +33,8 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Mod pack list manager class. This class handles the loading and modification of mod packs installed in the launcher.
@@ -87,14 +87,14 @@ public class GameModPackManager
                     ModPackConstants.AVAILABLE_PACKS_MANIFEST_URL );
         }
         catch ( IOException e ) {
-            e.printStackTrace();
+            Logger.logThrowable( e );
             Logger.logError( LocalizationManager.UNABLE_FETCH_INFO_INSTALLABLE_MOD_PACKS_TEXT );
             return;
         }
 
         // Clear existing list or create new
         if ( availableGameModPacks == null ) {
-            availableGameModPacks = Collections.synchronizedList( new ArrayList<>() );
+            availableGameModPacks = new CopyOnWriteArrayList<>();
         }
         else {
             availableGameModPacks.clear();
@@ -190,7 +190,7 @@ public class GameModPackManager
 
         // Clear existing list or create new
         if ( installedGameModPacks == null ) {
-            installedGameModPacks = Collections.synchronizedList( new ArrayList<>() );
+            installedGameModPacks = new CopyOnWriteArrayList<>();
         }
         else {
             installedGameModPacks.clear();

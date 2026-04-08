@@ -203,8 +203,8 @@ public class GameModPack
     @SuppressWarnings( { "MismatchedQueryAndUpdateOfCollection", "unused" } )
     private List< GameAsset > packInitialFiles;
 
-    private transient GameModPackProgressProvider progressProvider = null;
-    private           boolean                     didCacheImages   = false;
+    private transient          GameModPackProgressProvider progressProvider = null;
+    private transient volatile boolean                     didCacheImages   = false;
 
     /**
      * Get the installation folder of this mod pack.
@@ -857,7 +857,7 @@ public class GameModPack
 
         // Build list of mod download threads
         if ( packMods.size() > 1 ) {
-            ExecutorService threadPool = Executors.newFixedThreadPool( packMods.size() );
+            ExecutorService threadPool = Executors.newFixedThreadPool( Math.min( packMods.size(), 16 ) );
             List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
             for ( GameMod mod : packMods ) {
                 Callable< Boolean > updateFileCallable = () -> {
@@ -880,9 +880,14 @@ public class GameModPack
             }
             threadPool.shutdown();
             try {
-                threadPool.awaitTermination( Long.MAX_VALUE, TimeUnit.MILLISECONDS );
+                if ( !threadPool.awaitTermination( 30, TimeUnit.MINUTES ) ) {
+                    threadPool.shutdownNow();
+                    throw new ModpackException(
+                            "Mod downloads did not complete within 30 minutes. Check your network connection." );
+                }
             }
             catch ( InterruptedException e ) {
+                threadPool.shutdownNow();
                 throw new ModpackException( "The download of Minecraft mods was interrupted before completion!", e );
             }
 
@@ -1263,6 +1268,33 @@ public class GameModPack
         pack.vanillaVersion = true;
         pack.vanillaMinecraftVersion = versionId;
         pack.didCacheImages = false;
+        return pack;
+    }
+
+    /**
+     * Creates a GameModPack representing a failed load attempt. The pack name indicates the failure so the user can
+     * see that something went wrong in the pack list.
+     *
+     * @param manifestUrl  the URL that failed to load
+     * @param errorMessage the error message, or null
+     *
+     * @return a GameModPack with a descriptive error name
+     *
+     * @since 3.0
+     */
+    public static GameModPack createFailedModPack( String manifestUrl, String errorMessage )
+    {
+        GameModPack pack = new GameModPack();
+        // Extract a short identifier from the URL for display
+        String shortUrl = manifestUrl;
+        if ( shortUrl.length() > 40 ) {
+            shortUrl = "..." + shortUrl.substring( shortUrl.length() - 37 );
+        }
+        pack.packName = "[Failed to load] " + shortUrl;
+        pack.packVersion = "Error";
+        pack.packMinRAMGB = "2";
+        pack.packLogoURL = ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
+        pack.packBackgroundURL = ModPackConstants.MODPACK_DEFAULT_BG_URL;
         return pack;
     }
 

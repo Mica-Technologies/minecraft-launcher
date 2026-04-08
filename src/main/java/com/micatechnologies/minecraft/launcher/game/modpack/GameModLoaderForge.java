@@ -117,6 +117,14 @@ class GameModLoaderForge extends ManagedGameFile
 
         // Store Forge/MC information
         JsonObject forgeVersionManifest = getForgeVersionManifest();
+        if ( !forgeVersionManifest.has( ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY ) ) {
+            throw new ModpackException( "Forge version manifest is missing required field: " +
+                                                ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY );
+        }
+        if ( !forgeVersionManifest.has( ForgeConstants.FORGE_VERSION_MANIFEST_MAIN_CLASS_KEY ) ) {
+            throw new ModpackException( "Forge version manifest is missing required field: " +
+                                                ForgeConstants.FORGE_VERSION_MANIFEST_MAIN_CLASS_KEY );
+        }
         forgeVersion = forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_ID_KEY ).getAsString();
         minecraftVersion = parseMinecraftVersion( forgeVersionManifest, forgeVersion );
         minecraftArguments = parseMinecraftArguments( forgeVersionManifest );
@@ -324,13 +332,23 @@ class GameModLoaderForge extends ManagedGameFile
                 forgeAssetURL = getEmbeddedMavenEntryURL( forgeAssetRepoPath );
             }
             else {
-                // Get Repo URL
-                String repoURL = "https://repo1.maven.org/maven2/";
-                if ( forgeAssetName.contains( "net.minecraft:" ) ) {
-                    repoURL = "https://libraries.minecraft.net/";
+                // Determine the base repository URL. Legacy Forge manifests (1.7-1.12) provide a top-level
+                // "url" field on each library entry specifying the Maven repository base. Modern Forge (1.13+)
+                // uses the downloads.artifact.url path instead (handled above). If no top-level "url" is
+                // provided, fall back to well-known repositories based on the group ID.
+                String repoURL = JsonHelper.getString( forgeAssetObj, "url", null );
+                if ( repoURL == null || repoURL.isBlank() ) {
+                    repoURL = "https://repo1.maven.org/maven2/";
+                    if ( forgeAssetName.contains( "net.minecraft:" ) ) {
+                        repoURL = "https://libraries.minecraft.net/";
+                    }
+                    else if ( forgeAssetName.contains( "net.minecraftforge:" ) ) {
+                        repoURL = "https://maven.minecraftforge.net/";
+                    }
                 }
-                else if ( forgeAssetName.contains( "net.minecraftforge:" ) ) {
-                    repoURL = "https://maven.minecraftforge.net/";
+                // Ensure trailing slash
+                if ( !repoURL.endsWith( "/" ) ) {
+                    repoURL += "/";
                 }
 
                 if ( isSpecifiedRepoPath ) {
@@ -346,24 +364,10 @@ class GameModLoaderForge extends ManagedGameFile
                             ".jar";
                 }
 
-                // Override special libraries
-                if ( forgeAssetURL.contains( "scala-parser-combinators" ) ) {
-                    forgeAssetURL
-                            = "https://repo1.maven.org/maven2/org/scala-lang/scala-parser-combinators/2.11.0-M4/scala-parser-combinators-2.11.0-M4.jar";
-                }
-                if ( forgeAssetURL.contains( "scala-swing" ) ) {
-                    forgeAssetURL
-                            = "https://repo1.maven.org/maven2/org/scala-lang/scala-swing/2.11.0-M7/scala-swing-2.11.0-M7.jar";
-                }
-                if ( forgeAssetURL.contains( "scala-xml" ) ) {
-                    forgeAssetURL
-                            = "https://repo1.maven.org/maven2/org/scala-lang/scala-xml/2.11.0-M4/scala-xml-2.11.0-M4.jar";
-                }
-                if ( forgeAssetURL.contains( "lzma/lzma" ) ) {
+                // Fallback for lzma:lzma:0.0.1 which is not hosted on Maven Central or Forge Maven.
+                // This artifact is required by Forge 1.7-1.12 and is only available from SpongePowered.
+                if ( forgeAssetURL.contains( "lzma/lzma/0.0.1" ) && !forgeAssetURL.contains( "spongepowered" ) ) {
                     forgeAssetURL = "https://repo.spongepowered.org/maven/lzma/lzma/0.0.1/lzma-0.0.1.jar";
-                }
-                if ( forgeAssetURL.contains( "vecmath" ) ) {
-                    forgeAssetURL = "https://repo1.maven.org/maven2/javax/vecmath/vecmath/1.5.2/vecmath-1.5.2.jar";
                 }
             }
 
@@ -478,17 +482,16 @@ class GameModLoaderForge extends ManagedGameFile
 
         // Read install_profile.json from the Forge installer
         JsonObject installProfile;
-        try {
-            JarFile forgeJar = getForgeJarFile();
+        try ( JarFile forgeJar = getForgeJarFile() ) {
             JarEntry profileEntry = forgeJar.getJarEntry( "install_profile.json" );
             if ( profileEntry == null ) {
                 Logger.logDebug( "No install_profile.json found -- legacy Forge, skipping processors." );
                 return;
             }
-            InputStream is = forgeJar.getInputStream( profileEntry );
-            installProfile = new Gson().fromJson( new InputStreamReader( is ), JsonObject.class );
-            is.close();
-            forgeJar.close();
+            try ( InputStream is = forgeJar.getInputStream( profileEntry );
+                  InputStreamReader reader = new InputStreamReader( is ) ) {
+                installProfile = new Gson().fromJson( reader, JsonObject.class );
+            }
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to read install_profile.json from Forge installer.", e );
@@ -602,11 +605,9 @@ class GameModLoaderForge extends ManagedGameFile
 
             // Find main class from processor JAR manifest
             String mainClass;
-            try {
-                JarFile procJarFile = new JarFile(
-                        new File( libsFolder, mavenCoordToPath( processorJar ) ) );
+            try ( JarFile procJarFile = new JarFile(
+                    new File( libsFolder, mavenCoordToPath( processorJar ) ) ) ) {
                 mainClass = procJarFile.getManifest().getMainAttributes().getValue( "Main-Class" );
-                procJarFile.close();
             }
             catch ( IOException e ) {
                 throw new ModpackException( "Cannot read processor JAR manifest: " + processorJar, e );
@@ -633,14 +634,21 @@ class GameModLoaderForge extends ManagedGameFile
             command.add( mainClass );
             command.addAll( resolvedArgs );
 
-            // Run the processor
+            // Run the processor (10-minute timeout to prevent indefinite hangs)
             try {
                 ProcessBuilder pb = new ProcessBuilder( command );
                 pb.directory( new File( parentModPack.getPackRootFolder() ) );
                 pb.inheritIO();
                 Process process = pb.start();
-                int exitCode = process.waitFor();
+                boolean completed = process.waitFor( 10, java.util.concurrent.TimeUnit.MINUTES );
+                if ( !completed ) {
+                    process.destroyForcibly();
+                    throw new ModpackException(
+                            "Forge processor timed out after 10 minutes: " + processorJar );
+                }
+                int exitCode = process.exitValue();
                 if ( exitCode != 0 ) {
+                    process.destroyForcibly();
                     throw new ModpackException(
                             "Forge processor failed (exit code " + exitCode + "): " + processorJar );
                 }
@@ -662,7 +670,7 @@ class GameModLoaderForge extends ManagedGameFile
      * Converts a Maven coordinate (e.g. "net.minecraftforge:forge:1.15.2-31.2.50:client") to a local path
      * (e.g. "net/minecraftforge/forge/1.15.2-31.2.50/forge-1.15.2-31.2.50-client.jar").
      */
-    private static String mavenCoordToPath( String coord ) {
+    private static String mavenCoordToPath( String coord ) throws ModpackException {
         // Strip brackets if present (e.g. "[group:artifact:version]")
         if ( coord.startsWith( "[" ) && coord.endsWith( "]" ) ) {
             coord = coord.substring( 1, coord.length() - 1 );
@@ -676,10 +684,18 @@ class GameModLoaderForge extends ManagedGameFile
         }
 
         String[] parts = coord.split( ":" );
+        if ( parts.length < 3 ) {
+            throw new ModpackException( "Invalid Maven coordinate (expected group:artifact:version): " + coord );
+        }
         String group = parts[ 0 ].replace( ".", "/" );
         String artifact = parts[ 1 ];
         String version = parts[ 2 ];
         String classifier = parts.length > 3 ? parts[ 3 ] : null;
+
+        // Validate no path traversal in coordinate components
+        if ( group.contains( ".." ) || artifact.contains( ".." ) || version.contains( ".." ) ) {
+            throw new ModpackException( "Path traversal detected in Maven coordinate: " + coord );
+        }
 
         String fileName = artifact + "-" + version + ( classifier != null ? "-" + classifier : "" ) + "." + ext;
         return group + "/" + artifact + "/" + version + "/" + fileName;
@@ -734,17 +750,15 @@ class GameModLoaderForge extends ManagedGameFile
             File extractedFile = new File( libsFolder, "forge-installer-data" + File.separator +
                     entryName.replace( "/", File.separator ) );
             if ( !extractedFile.exists() ) {
-                try {
-                    JarFile forgeJar = getForgeJarFile();
+                try ( JarFile forgeJar = getForgeJarFile() ) {
                     JarEntry entry = forgeJar.getJarEntry( entryName );
                     if ( entry == null ) {
-                        forgeJar.close();
                         throw new ModpackException( "Missing entry in Forge installer: " + entryName );
                     }
                     extractedFile.getParentFile().mkdirs();
-                    Files.copy( forgeJar.getInputStream( entry ), extractedFile.toPath(),
-                                StandardCopyOption.REPLACE_EXISTING );
-                    forgeJar.close();
+                    try ( InputStream entryStream = forgeJar.getInputStream( entry ) ) {
+                        Files.copy( entryStream, extractedFile.toPath(), StandardCopyOption.REPLACE_EXISTING );
+                    }
                 }
                 catch ( IOException e ) {
                     throw new ModpackException( "Failed to extract from Forge installer: " + entryName, e );
@@ -760,15 +774,16 @@ class GameModLoaderForge extends ManagedGameFile
      * Extracts an embedded maven entry from the Forge installer JAR to a local file.
      */
     private void extractEmbeddedMavenEntry( String repoPath, File destination ) throws IOException, ModpackException {
-        JarFile forgeJar = getForgeJarFile();
-        JarEntry entry = forgeJar.getJarEntry( "maven/" + repoPath );
-        if ( entry == null ) {
-            forgeJar.close();
-            throw new IOException( "Embedded maven entry not found: maven/" + repoPath );
+        try ( JarFile forgeJar = getForgeJarFile() ) {
+            JarEntry entry = forgeJar.getJarEntry( "maven/" + repoPath );
+            if ( entry == null ) {
+                throw new IOException( "Embedded maven entry not found: maven/" + repoPath );
+            }
+            destination.getParentFile().mkdirs();
+            try ( InputStream entryStream = forgeJar.getInputStream( entry ) ) {
+                Files.copy( entryStream, destination.toPath(), StandardCopyOption.REPLACE_EXISTING );
+            }
         }
-        destination.getParentFile().mkdirs();
-        Files.copy( forgeJar.getInputStream( entry ), destination.toPath(), StandardCopyOption.REPLACE_EXISTING );
-        forgeJar.close();
     }
 
     String buildForgeClasspath( GameMode gameAppMode, GameModPackProgressProvider progressProvider )
@@ -803,17 +818,18 @@ class GameModLoaderForge extends ManagedGameFile
         // Add the patched client JAR from Forge processors if it exists (modern Forge 1.13+)
         String libsFolder = SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
                                                             ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
-        try {
-            JarFile forgeJar = getForgeJarFile();
+        try ( JarFile forgeJar = getForgeJarFile() ) {
             JarEntry profileEntry = forgeJar.getJarEntry( "install_profile.json" );
             if ( profileEntry != null ) {
-                InputStream is = forgeJar.getInputStream( profileEntry );
-                JsonObject installProfile = new Gson().fromJson( new InputStreamReader( is ), JsonObject.class );
-                is.close();
+                JsonObject installProfile;
+                try ( InputStream is = forgeJar.getInputStream( profileEntry );
+                      InputStreamReader reader = new InputStreamReader( is ) ) {
+                    installProfile = new Gson().fromJson( reader, JsonObject.class );
+                }
                 if ( installProfile.has( "data" ) ) {
                     JsonObject data = installProfile.getAsJsonObject( "data" );
                     String side = gameAppMode == GameMode.CLIENT ? "client" : "server";
-                    if ( data.has( "PATCHED" ) ) {
+                    if ( data.has( "PATCHED" ) && data.getAsJsonObject( "PATCHED" ).has( side ) ) {
                         String patchedCoord = data.getAsJsonObject( "PATCHED" ).get( side ).getAsString();
                         String patchedPath = mavenCoordToPath( patchedCoord );
                         File patchedFile = new File( libsFolder, patchedPath );
@@ -823,7 +839,7 @@ class GameModLoaderForge extends ManagedGameFile
                         }
                     }
                     // Also add MC_EXTRA (contains resources split from the vanilla JAR)
-                    if ( data.has( "MC_EXTRA" ) ) {
+                    if ( data.has( "MC_EXTRA" ) && data.getAsJsonObject( "MC_EXTRA" ).has( side ) ) {
                         String extraCoord = data.getAsJsonObject( "MC_EXTRA" ).get( side ).getAsString();
                         String extraPath = mavenCoordToPath( extraCoord );
                         File extraFile = new File( libsFolder, extraPath );
@@ -834,7 +850,6 @@ class GameModLoaderForge extends ManagedGameFile
                     }
                 }
             }
-            forgeJar.close();
         }
         catch ( IOException e ) {
             Logger.logWarningSilent( "Could not check for Forge patched client: " + e.getMessage() );
@@ -851,41 +866,26 @@ class GameModLoaderForge extends ManagedGameFile
     }
 
     private JsonObject getForgeVersionManifest() throws ModpackException {
-        // Get access to Forge jar
-        JarFile forgeJarFile = getForgeJarFile();
-
-        // Loop through each element in the jar
-        Enumeration< JarEntry > enumeration = forgeJarFile.entries();
-        while ( enumeration.hasMoreElements() ) {
-            // Check if element is version.json
-            JarEntry jarEntry = enumeration.nextElement();
-            if ( jarEntry.getName().equals( ForgeConstants.FORGE_JAR_VERSION_FILE_NAME ) ) {
-                // Read version.json via input stream
-                InputStream inputStream;
-                try {
-                    inputStream = forgeJarFile.getInputStream( jarEntry );
+        try ( JarFile forgeJarFile = getForgeJarFile() ) {
+            Enumeration< JarEntry > enumeration = forgeJarFile.entries();
+            while ( enumeration.hasMoreElements() ) {
+                JarEntry jarEntry = enumeration.nextElement();
+                if ( jarEntry.getName().equals( ForgeConstants.FORGE_JAR_VERSION_FILE_NAME ) ) {
+                    try ( InputStream inputStream = forgeJarFile.getInputStream( jarEntry );
+                          InputStreamReader inputStreamReader = new InputStreamReader( inputStream ) ) {
+                        return new Gson().fromJson( inputStreamReader, JsonObject.class );
+                    }
+                    catch ( IOException e ) {
+                        throw new ModpackException(
+                                LocalizationManager.UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT, e );
+                    }
                 }
-                catch ( IOException e ) {
-                    throw new ModpackException( LocalizationManager.UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT,
-                                                e );
-                }
-                InputStreamReader inputStreamReader = new InputStreamReader( inputStream );
-                JsonObject jsonObject = new Gson().fromJson( inputStreamReader, JsonObject.class );
-
-                // Close streams and return object
-                try {
-                    inputStream.close();
-                    inputStreamReader.close();
-                    forgeJarFile.close();
-                }
-                catch ( IOException e ) {
-                    Logger.logError( LocalizationManager.UNABLE_CLOSE_STREAMS_TEXT );
-                }
-                return jsonObject;
             }
         }
+        catch ( IOException e ) {
+            throw new ModpackException( LocalizationManager.UNABLE_CLOSE_STREAMS_TEXT, e );
+        }
 
-        // Throw exception if not able to locate version.json
         throw new ModpackException( LocalizationManager.UNABLE_FIND_FORGE_VERSION_FILE_TEXT );
     }
 }

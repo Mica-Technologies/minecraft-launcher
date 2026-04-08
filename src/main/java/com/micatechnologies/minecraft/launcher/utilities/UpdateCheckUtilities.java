@@ -56,7 +56,9 @@ public class UpdateCheckUtilities
 
         // Extract latest version number and URL from JSON
         JsonObject releaseInfoObject = FileUtilities.readAsJsonObject( latestVersionInfoFile );
-        if ( releaseInfoObject.size() > 0 ) {
+        if ( releaseInfoObject.size() > 0 &&
+                releaseInfoObject.has( UpdateCheckConstants.UPDATE_CHECK_LATEST_VERSION_KEY ) &&
+                releaseInfoObject.has( UpdateCheckConstants.UPDATE_CHECK_LATEST_URL_KEY ) ) {
             latestReleaseVersion = releaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_LATEST_VERSION_KEY )
                                                     .getAsString();
             latestReleaseURL = releaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_LATEST_URL_KEY ).getAsString();

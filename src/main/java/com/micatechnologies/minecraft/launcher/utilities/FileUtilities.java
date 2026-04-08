@@ -21,6 +21,7 @@ import com.google.gson.*;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Utility class for reading and writing strings and JSON objects to a persistent file.
@@ -36,7 +37,7 @@ public class FileUtilities
      *
      * @since 1.0
      */
-    public static final Charset persistenceCharset = Charset.defaultCharset();
+    public static final Charset persistenceCharset = StandardCharsets.UTF_8;
 
     /**
      * Reads the contents of the specified file to a string and returns the resulting string.

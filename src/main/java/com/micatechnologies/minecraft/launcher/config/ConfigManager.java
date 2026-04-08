@@ -17,11 +17,11 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
@@ -62,6 +62,11 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
+        // Add default if missing
+        if ( !configObject.has( ConfigConstants.MIN_RAM_KEY ) ) {
+            configObject.addProperty( ConfigConstants.MIN_RAM_KEY, ConfigConstants.MIN_RAM_MEGABYTES_DEFAULT );
+        }
+
         // Get and return value of min RAM
         return configObject.get( ConfigConstants.MIN_RAM_KEY ).getAsLong();
     }
@@ -99,7 +104,12 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        // Get and return value of min RAM
+        // Add default if missing
+        if ( !configObject.has( ConfigConstants.MAX_RAM_KEY ) ) {
+            configObject.addProperty( ConfigConstants.MAX_RAM_KEY, ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT );
+        }
+
+        // Get and return value of max RAM
         return configObject.get( ConfigConstants.MAX_RAM_KEY ).getAsLong();
     }
 
@@ -147,7 +157,13 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        // Get and return value of min RAM (or true if dev mode)
+        // Add default if missing
+        if ( !configObject.has( ConfigConstants.LOG_DEBUG_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.LOG_DEBUG_ENABLE_KEY,
+                                      ConfigConstants.LOG_DEBUG_ENABLE_DEFAULT );
+        }
+
+        // Get and return value of debug logging (or true if dev mode)
         return LauncherConstants.LAUNCHER_IS_DEV ||
                 configObject.get( ConfigConstants.LOG_DEBUG_ENABLE_KEY ).getAsBoolean();
     }
@@ -228,7 +244,13 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        // Get and return value of min RAM
+        // Add default if missing
+        if ( !configObject.has( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY,
+                                      ConfigConstants.RESIZE_WINDOWS_ENABLE_DEFAULT );
+        }
+
+        // Get and return value of resizable windows
         return configObject.get( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY ).getAsBoolean();
     }
 
@@ -429,9 +451,16 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        // Get and return value of min RAM
+        // Add default if missing
+        if ( !configObject.has( ConfigConstants.MOD_PACKS_INSTALLED_KEY ) ) {
+            JsonArray defaultArray = ( JsonArray ) JSONUtilities.getGson().toJsonTree(
+                    ConfigConstants.MOD_PACKS_INSTALLED_DEFAULT, ConfigConstants.modPacksListType );
+            configObject.add( ConfigConstants.MOD_PACKS_INSTALLED_KEY, defaultArray );
+        }
+
+        // Get and return value of installed mod packs
         JsonArray installedModPacksArray = configObject.get( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).getAsJsonArray();
-        return new Gson().fromJson( installedModPacksArray, ConfigConstants.modPacksListType );
+        return JSONUtilities.getGson().fromJson( installedModPacksArray, ConfigConstants.modPacksListType );
     }
 
     /**
@@ -448,7 +477,7 @@ public class ConfigManager
         }
 
         // Set value of min RAM
-        JsonArray installedModPacksArray = ( JsonArray ) new Gson().toJsonTree( installedModPacks,
+        JsonArray installedModPacksArray = ( JsonArray ) JSONUtilities.getGson().toJsonTree( installedModPacks,
                                                                                 ConfigConstants.modPacksListType );
         configObject.add( ConfigConstants.MOD_PACKS_INSTALLED_KEY, installedModPacksArray );
 
@@ -502,11 +531,11 @@ public class ConfigManager
         }
         if ( !configObject.has( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY ) ) {
             configObject.add( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY,
-                              new Gson().toJsonTree( ConfigConstants.VANILLA_VERSIONS_INSTALLED_DEFAULT,
+                              JSONUtilities.getGson().toJsonTree( ConfigConstants.VANILLA_VERSIONS_INSTALLED_DEFAULT,
                                                       ConfigConstants.modPacksListType ) );
         }
         JsonArray arr = configObject.get( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY ).getAsJsonArray();
-        return new Gson().fromJson( arr, ConfigConstants.modPacksListType );
+        return JSONUtilities.getGson().fromJson( arr, ConfigConstants.modPacksListType );
     }
 
     /**
@@ -521,7 +550,7 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
         configObject.add( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY,
-                          new Gson().toJsonTree( versions, ConfigConstants.modPacksListType ) );
+                          JSONUtilities.getGson().toJsonTree( versions, ConfigConstants.modPacksListType ) );
         writeConfigurationToDisk();
     }
 

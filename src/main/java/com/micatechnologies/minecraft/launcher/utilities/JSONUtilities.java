@@ -29,6 +29,11 @@ import com.google.gson.*;
 public class JSONUtilities
 {
     /**
+     * Shared Gson instance. Gson is thread-safe and expensive to instantiate.
+     */
+    private static final Gson GSON = new Gson();
+
+    /**
      * Converts the specified string to a JSON object.
      *
      * @param json JSON string
@@ -38,7 +43,7 @@ public class JSONUtilities
      * @since 1.0
      */
     public static JsonObject stringToObject( String json ) {
-        return new Gson().fromJson( json, JsonObject.class );
+        return GSON.fromJson( json, JsonObject.class );
     }
 
     /**
@@ -51,7 +56,7 @@ public class JSONUtilities
      * @since 1.0
      */
     public static JsonArray stringToArray( String json ) {
-        return new Gson().fromJson( json, JsonArray.class );
+        return GSON.fromJson( json, JsonArray.class );
     }
 
     /**
@@ -64,7 +69,7 @@ public class JSONUtilities
      * @since 1.0
      */
     public static String objectToString( JsonObject object ) {
-        return new Gson().toJson( object );
+        return GSON.toJson( object );
     }
 
     /**
@@ -77,6 +82,6 @@ public class JSONUtilities
      * @since 1.0
      */
     public static String arrayToString( JsonArray array ) {
-        return new Gson().toJson( array );
+        return GSON.toJson( array );
     }
 }

@@ -88,7 +88,14 @@ public class Logger
      *
      * @since 1.1
      */
-    private static BufferedOutputStream fileBufferedOutputStream = null;
+    private static volatile BufferedOutputStream fileBufferedOutputStream = null;
+
+    /**
+     * Scheduled executor for periodic log flushing. Stored so it can be shut down cleanly.
+     *
+     * @since 2.0
+     */
+    private static ScheduledExecutorService logFlushScheduler = null;
 
     /**
      * Shuts down the logging system by flushing and closing any open {@link OutputStream}s.
@@ -97,6 +104,10 @@ public class Logger
      * @since 1.1
      */
     public static void shutdownLogSys() throws IOException {
+        if ( logFlushScheduler != null ) {
+            logFlushScheduler.shutdownNow();
+            logFlushScheduler = null;
+        }
         if ( fileBufferedOutputStream != null ) {
             fileBufferedOutputStream.flush();
             fileBufferedOutputStream.close();
@@ -131,8 +142,12 @@ public class Logger
         FileOutputStream fileOutputStream = new FileOutputStream( logFile );
         fileBufferedOutputStream = new BufferedOutputStream( fileOutputStream );
         try {
-            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool( 1 );
-            scheduler.scheduleAtFixedRate( () -> {
+            logFlushScheduler = Executors.newScheduledThreadPool( 1, r -> {
+                Thread t = new Thread( r, "log-flush" );
+                t.setDaemon( true );
+                return t;
+            } );
+            logFlushScheduler.scheduleAtFixedRate( () -> {
                 try {
                     fileBufferedOutputStream.flush();
                 }

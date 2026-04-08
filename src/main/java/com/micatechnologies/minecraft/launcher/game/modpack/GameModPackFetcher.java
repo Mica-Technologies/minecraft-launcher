@@ -59,7 +59,7 @@ public class GameModPackFetcher
         catch ( Exception e ) {
             Logger.logError( "The following installed mod pack could not be loaded: " + manifestUrl );
             Logger.logThrowable( e );
-            gameModPack = new GameModPack();
+            gameModPack = GameModPack.createFailedModPack( manifestUrl, e.getMessage() );
         }
 
         // Parse available mod pack manifest contents

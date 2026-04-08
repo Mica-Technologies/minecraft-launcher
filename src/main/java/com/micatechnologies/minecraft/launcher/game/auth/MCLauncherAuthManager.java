@@ -55,7 +55,7 @@ public class MCLauncherAuthManager
     /**
      * Maximum time in seconds to wait for an authentication operation to complete before giving up.
      */
-    private static final int AUTH_TIMEOUT_SECONDS = 30;
+    private static final int AUTH_TIMEOUT_SECONDS = 60;
 
     /**
      * Tracks the timestamp of the last auth API call to enforce rate limiting.
@@ -447,12 +447,12 @@ public class MCLauncherAuthManager
         enforceRateLimit();
 
         // Try to read and renew login for saved account
-        FileInputStream authFileInputStream = null;
         try {
             // Get previous authentication file
-            authFileInputStream = new FileInputStream( SAVED_LOGIN_FILE_PATH.toFile() );
-            final AuthenticationFile previousAuthFile = AuthenticationFile.readCompressed( authFileInputStream );
-            authFileInputStream.close();
+            final AuthenticationFile previousAuthFile;
+            try ( FileInputStream authFileInputStream = new FileInputStream( SAVED_LOGIN_FILE_PATH.toFile() ) ) {
+                previousAuthFile = AuthenticationFile.readCompressed( authFileInputStream );
+            }
             Logger.logDebug( LocalizationManager.REMEMBERED_USER_LOADED_TEXT );
 
             // Update authentication with timeout protection
@@ -501,16 +501,6 @@ public class MCLauncherAuthManager
         catch ( Exception e ) {
             Logger.logWarningSilent( LocalizationManager.PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT );
             Logger.logThrowable( e );
-            if ( authFileInputStream != null ) {
-                try {
-                    authFileInputStream.close();
-                }
-                catch ( IOException ex ) {
-                    Logger.logWarningSilent( "An error occurred while closing an input stream for reading the saved " +
-                                                     "user account file!" );
-                    Logger.logThrowable( e );
-                }
-            }
             recordAuthFailure();
             return MCLauncherAuthResult.ERROR_OTHER;
         }
@@ -637,14 +627,17 @@ public class MCLauncherAuthManager
     }
 
     private static boolean checkIfExceptionIsNoValuePresent( Exception e ) {
-        return e.getMessage().toLowerCase().contains( "no value present" );
+        String msg = e.getMessage();
+        return msg != null && msg.toLowerCase().contains( "no value present" );
     }
 
     private static boolean checkIfExceptionIsNotBought( Exception e ) {
-        return e.getMessage().toLowerCase().contains( "not have bought" );
+        String msg = e.getMessage();
+        return msg != null && msg.toLowerCase().contains( "not have bought" );
     }
 
     private static boolean checkIfExceptionIsInvalidCredentials( Exception e ) {
-        return e.getMessage().toLowerCase().contains( "invalid credentials" );
+        String msg = e.getMessage();
+        return msg != null && msg.toLowerCase().contains( "invalid credentials" );
     }
 }

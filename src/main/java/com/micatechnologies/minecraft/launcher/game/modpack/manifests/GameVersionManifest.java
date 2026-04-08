@@ -79,7 +79,15 @@ public class GameVersionManifest
      *
      * @since 3.0
      */
-    private static void ensureManifestDownloaded() throws ModpackException {
+    /**
+     * Ensures the Mojang version manifest has been downloaded and cached. This method is safe to call multiple times;
+     * the download only occurs on the first call.
+     *
+     * @throws ModpackException if unable to download the manifest
+     *
+     * @since 3.0
+     */
+    public static void ensureManifestDownloaded() throws ModpackException {
         if ( versionManifest == null ) {
             try {
                 Logger.logDebug( "Minecraft version manifest has not been downloaded. Getting now..." );

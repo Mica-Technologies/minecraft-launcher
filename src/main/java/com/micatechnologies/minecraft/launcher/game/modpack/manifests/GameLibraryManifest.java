@@ -312,7 +312,10 @@ public class GameLibraryManifest extends ManagedGameFile
             threadPoolFutures.add( future );
         }
         threadPool.shutdown();
-        threadPool.awaitTermination( Long.MAX_VALUE, TimeUnit.MILLISECONDS );
+        if ( !threadPool.awaitTermination( 30, TimeUnit.MINUTES ) ) {
+            threadPool.shutdownNow();
+            throw new ModpackException( "Library downloads did not complete within 30 minutes." );
+        }
 
         // Parse list of futures
         for ( Future< Boolean > threadPoolFuture : threadPoolFutures ) {
