@@ -34,12 +34,15 @@ import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import io.github.palexdev.materialfx.controls.MFXToggleButton;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.RowConstraints;
+import javafx.scene.layout.StackPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import me.cortex.jarscanner.Constants;
@@ -205,6 +208,29 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     Label scanFolderLabel;
+
+    /**
+     * Navigation buttons for settings category sidebar.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem;
+
+    /**
+     * StackPane containing the category content panes.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    StackPane settingsContent;
+
+    /**
+     * Array of nav buttons in category order, populated during setup.
+     */
+    private MFXButton[] navButtons;
 
     boolean scanning         = false;
     boolean scanningCanceled = false;
@@ -727,6 +753,42 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
             }
         } );
+
+        // Wire up sidebar navigation buttons
+        navButtons = new MFXButton[]{ navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem };
+        navGame.setOnAction( e -> showCategory( 0 ) );
+        navAppearance.setOnAction( e -> showCategory( 1 ) );
+        navAdvanced.setOnAction( e -> showCategory( 2 ) );
+        navNetwork.setOnAction( e -> showCategory( 3 ) );
+        navSecurity.setOnAction( e -> showCategory( 4 ) );
+        navSystem.setOnAction( e -> showCategory( 5 ) );
+
+        // Show Game category by default
+        showCategory( 0 );
+    }
+
+    /**
+     * Switches the visible settings category pane to the one at the given index and updates the nav button selection
+     * state.
+     *
+     * @param index the zero-based category index (0=Game, 1=Appearance, 2=Advanced, 3=Network, 4=Security, 5=System)
+     *
+     * @since 3.0
+     */
+    private void showCategory( int index )
+    {
+        ObservableList< Node > children = settingsContent.getChildren();
+        for ( int i = 0; i < children.size(); i++ ) {
+            boolean active = ( i == index );
+            children.get( i ).setVisible( active );
+            children.get( i ).setManaged( active );
+        }
+        for ( MFXButton btn : navButtons ) {
+            btn.getStyleClass().remove( "selected" );
+        }
+        if ( index >= 0 && index < navButtons.length ) {
+            navButtons[index].getStyleClass().add( "selected" );
+        }
     }
 
     /**

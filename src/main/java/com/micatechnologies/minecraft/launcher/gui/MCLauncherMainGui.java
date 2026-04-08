@@ -199,6 +199,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @FXML
     GridPane centerPane;
 
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label versionLabel;
+
     private TaskbarProgressbar taskbarProgressbar = null;
 
     /**
@@ -362,9 +366,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } ) );
 
-        // Configure user label
-        playerLabel.setText(
-                TimeUtilities.getFriendlyTimeBasedGreeting() + ",\n" + MCLauncherAuthManager.getLoggedInUser().name() );
+        // Configure user label (compact — just username for nav bar)
+        playerLabel.setText( MCLauncherAuthManager.getLoggedInUser().name() );
+
+        // Configure version label in bottom bar
+        versionLabel.setText( "Mica Launcher v" + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
 
         // Configure user image
         userImage.setImage( new Image(

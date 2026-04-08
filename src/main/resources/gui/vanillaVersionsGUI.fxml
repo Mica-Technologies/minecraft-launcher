@@ -3,6 +3,8 @@
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
 <?import io.github.palexdev.materialfx.controls.MFXComboBox?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.layout.ColumnConstraints?>
@@ -83,21 +85,14 @@
             </GridPane.margin>
         </ListView>
 
-        <!-- Bottom -->
-        <GridPane GridPane.rowIndex="3">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints minWidth="100.0" prefWidth="100.0"/>
-            </columnConstraints>
+        <!-- Bottom bar -->
+        <HBox styleClass="bottomBar" alignment="CENTER_LEFT" spacing="8.0" minHeight="44.0" maxHeight="44.0" prefHeight="44.0" GridPane.rowIndex="3">
             <padding>
-                <Insets top="5.0"/>
+                <Insets left="8.0" right="8.0"/>
             </padding>
-
-            <Label fx:id="statusLabel" text="Select a version to install."
-                   GridPane.columnIndex="0"/>
-
-            <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="90.0" text="Return"
-                       GridPane.columnIndex="1"/>
-        </GridPane>
+            <Label fx:id="statusLabel" text="Select a version to install."/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="90.0" text="Return"/>
+        </HBox>
     </GridPane>
 </GridPane>
