@@ -57,6 +57,7 @@
         <MFXButton fx:id="openUrlBtn" prefHeight="28.0" text="Open URL"/>
         <MFXButton fx:id="saveBtn" prefHeight="28.0" text="Save"/>
         <MFXButton fx:id="validateBtn" prefHeight="28.0" text="Validate"/>
+        <MFXButton fx:id="diffBtn" prefHeight="28.0" text="Diff"/>
         <MFXButton fx:id="returnBtn" prefHeight="28.0" text="Return"/>
     </HBox>
 
@@ -75,8 +76,13 @@
                     </Label>
                     <MFXTextField fx:id="packNameField" floatingText="Pack Name" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="36.0"/>
-                    <MFXTextField fx:id="packVersionField" floatingText="Pack Version" maxWidth="500.0"
-                                  prefWidth="500.0" minHeight="36.0"/>
+                    <HBox spacing="8.0" alignment="CENTER_LEFT">
+                        <MFXTextField fx:id="packVersionField" floatingText="Pack Version" maxWidth="300.0"
+                                      prefWidth="300.0" minHeight="36.0"/>
+                        <MFXButton fx:id="bumpMajorBtn" text="Major" prefHeight="28.0"/>
+                        <MFXButton fx:id="bumpMinorBtn" text="Minor" prefHeight="28.0"/>
+                        <MFXButton fx:id="bumpPatchBtn" text="Patch" prefHeight="28.0"/>
+                    </HBox>
                     <MFXTextField fx:id="packURLField" floatingText="Pack Website URL" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="36.0"/>
                     <MFXTextField fx:id="packMinRAMField" floatingText="Minimum RAM (GB)" maxWidth="500.0"
@@ -91,10 +97,12 @@
                     <MFXToggleButton fx:id="packCustomDiscordRpcToggle" text="Custom Discord RPC"/>
 
                     <!-- Forge -->
-                    <Label text="Forge Installer" style="-fx-font-weight: bold;">
-                        <padding><Insets top="8.0"/></padding>
-                        <font><Font size="14.0"/></font>
-                    </Label>
+                    <HBox spacing="8.0" alignment="CENTER_LEFT">
+                        <Label text="Forge Installer" style="-fx-font-weight: bold;">
+                            <font><Font size="14.0"/></font>
+                        </Label>
+                        <MFXButton fx:id="forgePickerBtn" text="Pick Forge Version" prefHeight="28.0"/>
+                    </HBox>
                     <MFXTextField fx:id="packForgeURLField" floatingText="Forge Installer URL" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="36.0"/>
                     <MFXTextField fx:id="packForgeHashField" floatingText="Forge Installer SHA-1" maxWidth="500.0"

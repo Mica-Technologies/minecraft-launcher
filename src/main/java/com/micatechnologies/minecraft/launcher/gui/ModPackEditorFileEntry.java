@@ -39,6 +39,7 @@ public class ModPackEditorFileEntry
     private final StringProperty hashType = new SimpleStringProperty( "sha1" );
     private final BooleanProperty clientReq = new SimpleBooleanProperty( true );
     private final BooleanProperty serverReq = new SimpleBooleanProperty( true );
+    private final StringProperty modrinthSlug = new SimpleStringProperty( "" );
 
     public ModPackEditorFileEntry()
     {
@@ -85,6 +86,10 @@ public class ModPackEditorFileEntry
     public BooleanProperty serverReqProperty() { return serverReq; }
     public boolean isServerReq() { return serverReq.get(); }
     public void setServerReq( boolean value ) { serverReq.set( value ); }
+
+    public StringProperty modrinthSlugProperty() { return modrinthSlug; }
+    public String getModrinthSlug() { return modrinthSlug.get(); }
+    public void setModrinthSlug( String value ) { modrinthSlug.set( value != null ? value : "" ); }
 
     // endregion
 }

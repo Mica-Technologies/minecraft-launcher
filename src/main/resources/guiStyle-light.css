@@ -545,6 +545,29 @@
 }
 
 
+/* ===== Dialog Pane ===== */
+.dialog-pane { -fx-background-color: #FFFBFE; }
+.dialog-pane > * { -fx-background-color: #FFFBFE; }
+.dialog-pane .header-panel { -fx-background-color: rgba(231, 224, 236, 0.55); }
+.dialog-pane .header-panel .label { -fx-text-fill: #1C1B1F; }
+.dialog-pane .content { -fx-background-color: #FFFBFE; }
+.dialog-pane .content.label { -fx-text-fill: #1C1B1F; }
+.dialog-pane .expandable-content { -fx-background-color: #FFFBFE; }
+.dialog-pane .button-bar { -fx-background-color: #FFFBFE; }
+.dialog-pane .button-bar .button { -fx-background-color: #2E7D32; -fx-text-fill: white; -fx-background-radius: 12; -fx-padding: 6 16 6 16; }
+.dialog-pane .button-bar .button:hover { -fx-background-color: #388E3C; }
+.dialog-pane .list-view { -fx-background-color: #F4EFF4; }
+.dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell { -fx-background-color: rgba(231, 224, 236, 0.7); -fx-text-fill: #1C1B1F; -fx-background-radius: 8; -fx-background-insets: 2; }
+.dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:hover { -fx-background-color: rgba(46, 125, 50, 0.14); }
+.dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:selected { -fx-background-color: #2E7D32; }
+.dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:empty { -fx-background-color: transparent; }
+.dialog-pane .check-box { -fx-text-fill: #1C1B1F; }
+.dialog-pane .combo-box .list-cell { -fx-text-fill: #1C1B1F; -fx-background-color: transparent; }
+.dialog-pane .combo-box-popup .list-view { -fx-background-color: #F4EFF4; }
+.dialog-pane .combo-box-popup .list-cell { -fx-text-fill: #1C1B1F; -fx-background-color: #F4EFF4; }
+.dialog-pane .combo-box-popup .list-cell:hover { -fx-background-color: rgba(46, 125, 50, 0.14); }
+
+
 /* ===== Text Area (Game Console) ===== */
 
 .text-area {

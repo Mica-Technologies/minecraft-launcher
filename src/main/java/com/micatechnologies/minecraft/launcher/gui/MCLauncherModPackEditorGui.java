@@ -23,6 +23,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.utilities.CacheManager;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
@@ -75,11 +76,20 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @FXML MFXButton openUrlBtn;
     @FXML MFXButton saveBtn;
     @FXML MFXButton validateBtn;
+    @FXML MFXButton diffBtn;
     @FXML MFXButton returnBtn;
     @FXML TabPane editorTabPane;
     @FXML Label statusLabel;
     @FXML Label announcement;
     @FXML RowConstraints announcementRow;
+
+    // Version bump buttons
+    @FXML MFXButton bumpMajorBtn;
+    @FXML MFXButton bumpMinorBtn;
+    @FXML MFXButton bumpPatchBtn;
+
+    // Forge picker
+    @FXML MFXButton forgePickerBtn;
 
     // Metadata fields
     @FXML MFXTextField packNameField;
@@ -157,12 +167,21 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             } );
         } );
 
+        // Forge picker
+        forgePickerBtn.setOnAction( e -> pickForgeVersion() );
+
+        // Version bump buttons
+        bumpMajorBtn.setOnAction( e -> bumpVersion( 0 ) );
+        bumpMinorBtn.setOnAction( e -> bumpVersion( 1 ) );
+        bumpPatchBtn.setOnAction( e -> bumpVersion( 2 ) );
+
         // Toolbar buttons
         newBtn.setOnAction( e -> newDocument() );
         openFileBtn.setOnAction( e -> openFromFile() );
         openUrlBtn.setOnAction( e -> openFromUrl() );
         saveBtn.setOnAction( e -> saveToFile() );
         validateBtn.setOnAction( e -> validateDocument() );
+        diffBtn.setOnAction( e -> showDiff() );
         returnBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             if ( isDirty() ) {
                 int response = GUIUtilities.showQuestionMessage( "Unsaved Changes",
@@ -195,11 +214,19 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         } );
 
         // Create file list tabs (all 5 types)
-        editorTabPane.getTabs().add( createFileListTab( "Mods", "packMods", true, true ) );
+        Tab modsTab = createFileListTab( "Mods", "packMods", true, true );
+        editorTabPane.getTabs().add( modsTab );
         editorTabPane.getTabs().add( createFileListTab( "Configs", "packConfigs", false, true ) );
         editorTabPane.getTabs().add( createFileListTab( "Resources", "packResourcePacks", false, false ) );
         editorTabPane.getTabs().add( createFileListTab( "Shaders", "packShaderPacks", false, false ) );
         editorTabPane.getTabs().add( createFileListTab( "Initial Files", "packInitialFiles", false, true ) );
+
+        // Add Modrinth search button to the Mods tab toolbar
+        BorderPane modsContent = ( BorderPane ) modsTab.getContent();
+        HBox modsToolbar = ( HBox ) modsContent.getTop();
+        MFXButton searchModrinthBtn = new MFXButton( "Search Modrinth" );
+        searchModrinthBtn.setOnAction( e -> searchModrinth() );
+        modsToolbar.getChildren().add( modsToolbar.getChildren().size() - 1, searchModrinthBtn );
 
         // Start with a new empty document
         newDocument();
@@ -225,6 +252,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     private void newDocument()
     {
         workingDocument = new JsonObject();
+        workingDocument.addProperty( "manifestFormat", 2 );
         workingDocument.addProperty( "packName", "" );
         workingDocument.addProperty( "packVersion", "1.0.0" );
         workingDocument.addProperty( "packURL", "" );
@@ -267,8 +295,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         String json = FileUtils.readFileToString( file, StandardCharsets.UTF_8 );
                         workingDocument = JSONUtilities.getGson().fromJson( json, JsonObject.class );
                         currentFile = file;
-                        savedSnapshot = serializeDocument();
-                        GUIUtilities.JFXPlatformRun( this::populateFieldsFromDocument );
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            populateFieldsFromDocument();
+                            // Snapshot after round-trip so the normalized form matches future diffs
+                            collectFieldsToDocument();
+                            savedSnapshot = serializeDocument();
+                        } );
                         updateStatus( "Loaded: " + file.getName() );
                     }
                     catch ( Exception ex ) {
@@ -304,8 +336,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         String json = NetworkUtilities.downloadFileFromURL( url );
                         workingDocument = JSONUtilities.getGson().fromJson( json, JsonObject.class );
                         currentFile = null;
-                        savedSnapshot = serializeDocument();
-                        GUIUtilities.JFXPlatformRun( this::populateFieldsFromDocument );
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            populateFieldsFromDocument();
+                            collectFieldsToDocument();
+                            savedSnapshot = serializeDocument();
+                        } );
                         updateStatus( "Loaded from URL" );
                     }
                     catch ( Exception ex ) {
@@ -359,6 +394,531 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     }
 
     /**
+     * Opens a Forge version picker dialog. Fetches available versions from the Forge Maven promotions API, displays
+     * them grouped by Minecraft version, and auto-populates the Forge URL and hash fields.
+     */
+    private void pickForgeVersion()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                updateStatus( "Fetching Forge versions..." );
+                String json = NetworkUtilities.downloadFileFromURL(
+                        "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json" );
+                JsonObject promos = JSONUtilities.getGson().fromJson( json, JsonObject.class )
+                                                  .getAsJsonObject( "promos" );
+
+                // Build list of entries: "MC x.y.z - Forge a.b.c (recommended)" etc.
+                List< String > entries = new ArrayList<>();
+                Map< String, String > entryToForgeUrl = new HashMap<>();
+
+                // Collect unique MC versions and their forge versions
+                Map< String, String > recommended = new HashMap<>();
+                Map< String, String > latest = new HashMap<>();
+                for ( Map.Entry< String, JsonElement > entry : promos.entrySet() ) {
+                    String key = entry.getKey();
+                    String forgeVer = entry.getValue().getAsString();
+                    if ( key.endsWith( "-recommended" ) ) {
+                        String mcVer = key.replace( "-recommended", "" );
+                        recommended.put( mcVer, forgeVer );
+                    }
+                    else if ( key.endsWith( "-latest" ) ) {
+                        String mcVer = key.replace( "-latest", "" );
+                        latest.put( mcVer, forgeVer );
+                    }
+                }
+
+                // Build display entries, recommended first
+                List< String > mcVersions = new ArrayList<>( latest.keySet() );
+                mcVersions.sort( ( a, b ) -> com.micatechnologies.minecraft.launcher.utilities.VersionUtilities
+                        .compareVersionNumbers( b, a ) );
+
+                for ( String mcVer : mcVersions ) {
+                    if ( recommended.containsKey( mcVer ) ) {
+                        String forgeVer = recommended.get( mcVer );
+                        String label = "MC " + mcVer + " - Forge " + forgeVer + " (recommended)";
+                        String url = "https://maven.minecraftforge.net/net/minecraftforge/forge/" +
+                                mcVer + "-" + forgeVer + "/forge-" + mcVer + "-" + forgeVer + "-installer.jar";
+                        entries.add( label );
+                        entryToForgeUrl.put( label, url );
+                    }
+                    if ( latest.containsKey( mcVer ) ) {
+                        String forgeVer = latest.get( mcVer );
+                        String recVer = recommended.get( mcVer );
+                        // Skip if latest == recommended (already listed)
+                        if ( recVer != null && recVer.equals( forgeVer ) ) {
+                            continue;
+                        }
+                        String label = "MC " + mcVer + " - Forge " + forgeVer + " (latest)";
+                        String url = "https://maven.minecraftforge.net/net/minecraftforge/forge/" +
+                                mcVer + "-" + forgeVer + "/forge-" + mcVer + "-" + forgeVer + "-installer.jar";
+                        entries.add( label );
+                        entryToForgeUrl.put( label, url );
+                    }
+                }
+
+                GUIUtilities.JFXPlatformRun( () -> {
+                    ChoiceDialog< String > dialog = new ChoiceDialog<>( entries.isEmpty() ? null : entries.get( 0 ),
+                                                                         entries );
+                    dialog.setTitle( "Pick Forge Version" );
+                    dialog.setHeaderText( "Select a Forge version" );
+                    dialog.setContentText( "Forge:" );
+                    applyThemeToDialog( dialog );
+                    dialog.showAndWait().ifPresent( selected -> {
+                        String url = entryToForgeUrl.get( selected );
+                        if ( url != null ) {
+                            packForgeURLField.setText( url );
+                            packForgeHashField.setText( "" );
+                            updateStatus( "Forge URL set. Computing hash..." );
+                            // Download and compute hash in background
+                            SystemUtilities.spawnNewTask( () -> {
+                                try {
+                                    File tempFile = File.createTempFile( "forge_installer_", ".jar" );
+                                    tempFile.deleteOnExit();
+                                    NetworkUtilities.downloadFileFromURL( new URL( url ), tempFile );
+                                    String sha1 = HashUtilities.getFileSHA1( tempFile );
+                                    tempFile.delete();
+                                    if ( sha1 != null ) {
+                                        GUIUtilities.JFXPlatformRun(
+                                                () -> packForgeHashField.setText( sha1 ) );
+                                        updateStatus( "Forge hash computed: " + sha1.substring( 0, 8 ) + "..." );
+                                    }
+                                }
+                                catch ( Exception ex ) {
+                                    updateStatus( "Failed to compute Forge hash: " + ex.getMessage() );
+                                }
+                            } );
+                        }
+                    } );
+                } );
+            }
+            catch ( Exception ex ) {
+                Logger.logError( "Failed to fetch Forge promotions." );
+                Logger.logThrowable( ex );
+                updateStatus( "Failed to fetch Forge versions: " + ex.getMessage() );
+            }
+        } );
+    }
+
+    /**
+     * Opens a Modrinth search dialog. The user types a mod name, results are displayed in a list, and selected mods
+     * can be added to the Mods table with their download URL and hash pre-populated.
+     */
+    private void searchModrinth()
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            // Build a custom dialog with search field and results list
+            Dialog< List< ModPackEditorFileEntry > > dialog = new Dialog<>();
+            dialog.setTitle( "Search Modrinth" );
+            dialog.setHeaderText( "Search for mods on Modrinth" );
+
+            ButtonType addButtonType = new ButtonType( "Add Selected", ButtonBar.ButtonData.OTHER );
+            dialog.getDialogPane().getButtonTypes().addAll( addButtonType, ButtonType.CANCEL );
+
+            // Search field
+            MFXTextField searchField = new MFXTextField();
+            searchField.setFloatingText( "Mod name..." );
+            searchField.setPrefWidth( 400 );
+            searchField.setMinHeight( 36 );
+
+            MFXButton searchBtn = new MFXButton( "Search" );
+            HBox searchBar = new HBox( 8, searchField, searchBtn );
+            searchBar.setAlignment( Pos.CENTER_LEFT );
+
+            // Game version filter
+            javafx.scene.control.CheckBox versionFilterCheck = new javafx.scene.control.CheckBox(
+                    "Filter by game version:" );
+            MFXTextField versionFilterField = new MFXTextField();
+            versionFilterField.setPrefWidth( 100 );
+            versionFilterField.setMinHeight( 32 );
+            // Try to auto-detect MC version from the Forge URL (e.g., "forge/1.20.1-47.3.0/...")
+            String forgeUrl = packForgeURLField.getText();
+            if ( forgeUrl != null && forgeUrl.contains( "/forge/" ) ) {
+                String afterForge = forgeUrl.substring( forgeUrl.indexOf( "/forge/" ) + 7 );
+                int dashIdx = afterForge.indexOf( "-" );
+                if ( dashIdx > 0 ) {
+                    versionFilterField.setText( afterForge.substring( 0, dashIdx ) );
+                    versionFilterCheck.setSelected( true );
+                }
+            }
+            versionFilterField.addEventFilter( javafx.scene.input.KeyEvent.KEY_PRESSED, ev -> {
+                if ( ev.getCode() == javafx.scene.input.KeyCode.ENTER ) {
+                    ev.consume();
+                    searchBtn.fire();
+                }
+            } );
+            versionFilterField.disableProperty().bind( versionFilterCheck.selectedProperty().not() );
+            HBox versionBar = new HBox( 8, versionFilterCheck, versionFilterField );
+            versionBar.setAlignment( Pos.CENTER_LEFT );
+
+            // Capture theme colors for use inside the cell factory
+            String[] cellColors = getThemeColors();
+            String cellBg = cellColors[ 0 ];
+            String cellFg = cellColors[ 1 ];
+            String cellSurface = cellColors[ 4 ];
+
+            // Results list with rich cells (icon + title + description)
+            ListView< JsonObject > resultsList = new ListView<>();
+            resultsList.setPrefHeight( 350 );
+            resultsList.getSelectionModel().setSelectionMode( SelectionMode.MULTIPLE );
+            resultsList.setCellFactory( lv -> new ListCell< >()
+            {
+                private final ImageView icon = new ImageView();
+                private final Label titleLabel = new Label();
+                private final Label descLabel = new Label();
+                private final javafx.scene.layout.VBox textBox = new javafx.scene.layout.VBox( 2, titleLabel,
+                                                                                                descLabel );
+                private final HBox cellBox = new HBox( 10, icon, textBox );
+
+                {
+                    icon.setFitWidth( 40 );
+                    icon.setFitHeight( 40 );
+                    icon.setPreserveRatio( true );
+                    titleLabel.setStyle( "-fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: " + cellFg + ";" );
+                    descLabel.setStyle( "-fx-font-size: 11; -fx-opacity: 0.8; -fx-text-fill: " + cellFg + ";" );
+                    descLabel.setWrapText( true );
+                    descLabel.setMaxHeight( 32 );
+                    cellBox.setAlignment( Pos.CENTER_LEFT );
+                    cellBox.setPadding( new Insets( 4 ) );
+                    textBox.setMaxWidth( Double.MAX_VALUE );
+                    javafx.scene.layout.HBox.setHgrow( textBox, javafx.scene.layout.Priority.ALWAYS );
+                }
+
+                @Override
+                protected void updateItem( JsonObject project, boolean empty )
+                {
+                    super.updateItem( project, empty );
+                    if ( empty || project == null ) {
+                        setGraphic( null );
+                        setStyle( "-fx-background-color: transparent;" );
+                        return;
+                    }
+                    setStyle( "-fx-background-color: " + cellSurface + "; -fx-background-radius: 8;" +
+                              "-fx-background-insets: 2;" );
+                    String title = project.has( "title" ) ? project.get( "title" ).getAsString() : "?";
+                    String author = project.has( "author" ) ? project.get( "author" ).getAsString() : "";
+                    String desc = project.has( "description" ) ? project.get( "description" ).getAsString() : "";
+                    String iconUrl = project.has( "icon_url" ) ? project.get( "icon_url" ).getAsString() : "";
+
+                    titleLabel.setText( title + ( author.isEmpty() ? "" : "  by " + author ) );
+
+                    // Truncate description to ~120 chars
+                    if ( desc.length() > 120 ) {
+                        desc = desc.substring( 0, 117 ) + "...";
+                    }
+                    descLabel.setText( desc );
+
+                    // Load icon -- if search result has no icon_url, try project detail API
+                    String projectSlugForIcon = project.has( "slug" ) ?
+                            project.get( "slug" ).getAsString() : null;
+                    icon.setImage( null );
+                    if ( !iconUrl.isEmpty() || ( projectSlugForIcon != null && !projectSlugForIcon.isEmpty() ) ) {
+                        final String finalIconUrl = iconUrl;
+                        final String finalSlug = projectSlugForIcon;
+                        SystemUtilities.spawnNewTask( () -> {
+                            try {
+                                String resolvedUrl = finalIconUrl;
+                                // If search result didn't include icon_url, fetch from project detail
+                                if ( resolvedUrl.isEmpty() && finalSlug != null ) {
+                                    String projectJson = NetworkUtilities.downloadFileFromURL(
+                                            "https://api.modrinth.com/v2/project/" + finalSlug );
+                                    JsonObject projDetail = JSONUtilities.getGson().fromJson( projectJson,
+                                                                                              JsonObject.class );
+                                    if ( projDetail.has( "icon_url" ) &&
+                                            !projDetail.get( "icon_url" ).isJsonNull() ) {
+                                        resolvedUrl = projDetail.get( "icon_url" ).getAsString();
+                                    }
+                                }
+                                if ( !resolvedUrl.isEmpty() ) {
+                                    File cachedIcon = CacheManager.downloadAndCache( resolvedUrl );
+                                    Image img = new Image( cachedIcon.toURI().toString(), 40, 40, true, true );
+                                    if ( !img.isError() ) {
+                                        GUIUtilities.JFXPlatformRun( () -> icon.setImage( img ) );
+                                    }
+                                }
+                            }
+                            catch ( Exception ignored ) {
+                                // Icon load failure is non-critical
+                            }
+                        } );
+                    }
+                    // Context menu for opening Modrinth page
+                    String projectSlug = project.has( "slug" ) ? project.get( "slug" ).getAsString() : null;
+                    if ( projectSlug != null && !projectSlug.isEmpty() ) {
+                        ContextMenu contextMenu = new ContextMenu();
+                        MenuItem openPageItem = new MenuItem( "Open Modrinth Page" );
+                        openPageItem.setOnAction( ev -> {
+                            try {
+                                java.awt.Desktop.getDesktop().browse(
+                                        java.net.URI.create( "https://modrinth.com/mod/" + projectSlug ) );
+                            }
+                            catch ( Exception ignored ) {
+                            }
+                        } );
+                        contextMenu.getItems().add( openPageItem );
+                        setContextMenu( contextMenu );
+                    }
+
+                    setGraphic( cellBox );
+                }
+            } );
+
+            Label infoLabel = new Label( "Enter a search term and click Search" );
+
+            javafx.scene.layout.VBox content = new javafx.scene.layout.VBox( 8, searchBar, versionBar, infoLabel,
+                                                                              resultsList );
+            content.setPrefWidth( 600 );
+
+            // Apply inline theme colors to every dialog element
+            String[] colors = getThemeColors();
+            String bg = colors[ 0 ];
+            String fg = colors[ 1 ];
+            String surfaceDark = colors[ 2 ];
+            String accent = colors[ 3 ];
+            String surfaceContainer = colors[ 4 ];
+
+            content.setStyle( "-fx-background-color: " + bg + ";" );
+            infoLabel.setStyle( "-fx-text-fill: " + fg + ";" );
+            resultsList.setStyle( "-fx-background-color: " + surfaceDark + ";" +
+                    "-fx-border-color: " + surfaceContainer + "; -fx-border-width: 1; -fx-border-radius: 8;" );
+            versionFilterCheck.setStyle( "-fx-text-fill: " + fg + "; -fx-mark-color: " + accent + ";" );
+            searchField.setStyle( "-fx-text-fill: " + fg + "; -fx-background-color: " + surfaceContainer + ";" +
+                    "-fx-border-color: " + surfaceContainer + "; -fx-border-radius: 8;" );
+            versionFilterField.setStyle( "-fx-text-fill: " + fg + "; -fx-background-color: " + surfaceContainer +
+                    "; -fx-border-color: " + surfaceContainer + "; -fx-border-radius: 8;" );
+            searchBtn.setStyle( "-fx-background-color: " + accent + "; -fx-text-fill: white;" +
+                    "-fx-background-radius: 20; -fx-padding: 6 16 6 16;" );
+
+            dialog.getDialogPane().setContent( content );
+
+            // Apply theme to the dialog
+            applyThemeToDialog( dialog );
+
+            // Comprehensively style every dialog element after layout
+            dialog.setOnShown( e -> {
+                javafx.scene.Scene dialogScene = dialog.getDialogPane().getScene();
+                if ( dialogScene != null ) {
+                    dialogScene.getRoot().setStyle( "-fx-background-color: " + bg + ";" );
+                    if ( scene != null ) {
+                        dialogScene.getStylesheets().addAll( scene.getStylesheets() );
+                    }
+                }
+                // Header panel background
+                dialog.getDialogPane().lookupAll( ".header-panel" ).forEach( node ->
+                        node.setStyle( "-fx-background-color: " + surfaceContainer + ";" ) );
+                // Header text
+                dialog.getDialogPane().lookupAll( ".header-panel .label" ).forEach( node ->
+                        node.setStyle( "-fx-text-fill: " + fg + ";" ) );
+                // Button bar background
+                dialog.getDialogPane().lookupAll( ".button-bar" ).forEach( node ->
+                        node.setStyle( "-fx-background-color: " + bg + "; -fx-padding: 12;" ) );
+                // All buttons in the dialog
+                dialog.getDialogPane().lookupAll( ".button-bar .button" ).forEach( node ->
+                        node.setStyle( "-fx-background-color: " + accent + "; -fx-text-fill: white;" +
+                                "-fx-background-radius: 12; -fx-padding: 6 16 6 16; -fx-cursor: hand;" ) );
+                // Scrollbars
+                dialog.getDialogPane().lookupAll( ".scroll-bar" ).forEach( node ->
+                        node.setStyle( "-fx-background-color: transparent;" ) );
+                dialog.getDialogPane().lookupAll( ".scroll-bar .thumb" ).forEach( node ->
+                        node.setStyle( "-fx-background-color: rgba(200,200,200,0.35); -fx-background-radius: 5;" ) );
+                dialog.getDialogPane().lookupAll( ".scroll-bar .track" ).forEach( node ->
+                        node.setStyle( "-fx-background-color: transparent;" ) );
+                dialog.getDialogPane().lookupAll( ".scroll-bar .increment-button" ).forEach( node ->
+                        node.setStyle( "-fx-background-color: transparent; -fx-padding: 0;" ) );
+                dialog.getDialogPane().lookupAll( ".scroll-bar .decrement-button" ).forEach( node ->
+                        node.setStyle( "-fx-background-color: transparent; -fx-padding: 0;" ) );
+                dialog.getDialogPane().lookupAll( ".scroll-bar .increment-arrow" ).forEach( node ->
+                        node.setStyle( "-fx-shape: \"\"; -fx-padding: 0;" ) );
+                dialog.getDialogPane().lookupAll( ".scroll-bar .decrement-arrow" ).forEach( node ->
+                        node.setStyle( "-fx-shape: \"\"; -fx-padding: 0;" ) );
+            } );
+
+            searchBtn.setOnAction( ev -> {
+                String query = searchField.getText();
+                if ( query == null || query.isBlank() ) {
+                    return;
+                }
+                infoLabel.setText( "Searching..." );
+                resultsList.getItems().clear();
+
+                // Build facets: always filter to mods, optionally filter by game version
+                String gameVersion = versionFilterCheck.isSelected() ? versionFilterField.getText().trim() : "";
+                SystemUtilities.spawnNewTask( () -> {
+                    try {
+                        String encodedQuery = java.net.URLEncoder.encode( query, "UTF-8" );
+                        String facetsJson;
+                        if ( !gameVersion.isEmpty() ) {
+                            facetsJson = "[[\"project_type:mod\"],[\"versions:" + gameVersion + "\"]]";
+                        }
+                        else {
+                            facetsJson = "[[\"project_type:mod\"]]";
+                        }
+                        String encodedFacets = java.net.URLEncoder.encode( facetsJson, "UTF-8" );
+                        String apiUrl = "https://api.modrinth.com/v2/search?query=" + encodedQuery +
+                                "&facets=" + encodedFacets + "&limit=25";
+                        String response = NetworkUtilities.downloadFileFromURL( apiUrl );
+                        JsonObject json = JSONUtilities.getGson().fromJson( response, JsonObject.class );
+                        JsonArray hits = json.getAsJsonArray( "hits" );
+
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            for ( JsonElement hit : hits ) {
+                                resultsList.getItems().add( hit.getAsJsonObject() );
+                            }
+                            infoLabel.setText( hits.size() + " results found. Select mods to add." );
+                        } );
+                    }
+                    catch ( Exception ex ) {
+                        GUIUtilities.JFXPlatformRun(
+                                () -> infoLabel.setText( "Search failed: " + ex.getMessage() ) );
+                    }
+                } );
+            } );
+
+            // Handle Enter key in search field -- use key filter to prevent dialog close
+            searchField.addEventFilter( javafx.scene.input.KeyEvent.KEY_PRESSED, ev -> {
+                if ( ev.getCode() == javafx.scene.input.KeyCode.ENTER ) {
+                    ev.consume();
+                    searchBtn.fire();
+                }
+            } );
+
+            dialog.setResultConverter( button -> {
+                if ( button == addButtonType ) {
+                    List< ModPackEditorFileEntry > entries = new ArrayList<>();
+                    for ( JsonObject project : resultsList.getSelectionModel().getSelectedItems() ) {
+                        if ( project != null ) {
+                            String title = project.has( "title" ) ? project.get( "title" ).getAsString() : "";
+                            String slug = project.has( "slug" ) ? project.get( "slug" ).getAsString() : "";
+                            // We'll need to fetch version info to get the actual download URL
+                            // For now, populate with Modrinth project page and mark for version fetch
+                            ModPackEditorFileEntry entry = new ModPackEditorFileEntry();
+                            entry.setName( title );
+                            entry.setRemote( "modrinth:" + slug );
+                            entry.setLocal( slug + ".jar" );
+                            entry.setHashType( "sha1" );
+                            entry.setModrinthSlug( slug );
+                            entries.add( entry );
+                        }
+                    }
+                    return entries;
+                }
+                return null;
+            } );
+
+            // Capture game version for version-filtered fetching
+            final String selectedGameVersion = versionFilterCheck.isSelected() ?
+                    versionFilterField.getText().trim() : "";
+
+            dialog.showAndWait().ifPresent( entries -> {
+                ObservableList< ModPackEditorFileEntry > modsData = fileListData.get( "packMods" );
+                if ( modsData != null && !entries.isEmpty() ) {
+                    // For each entry, fetch a compatible version from Modrinth to get the download URL
+                    SystemUtilities.spawnNewTask( () -> {
+                        for ( ModPackEditorFileEntry entry : entries ) {
+                            String slug = entry.getRemote().replace( "modrinth:", "" );
+                            try {
+                                String versionFilter = selectedGameVersion.isEmpty() ? "" :
+                                        "&game_versions=[\"" + selectedGameVersion + "\"]";
+                                String versionsUrl =
+                                        "https://api.modrinth.com/v2/project/" + slug + "/version?limit=1" +
+                                        versionFilter;
+                                String versionsJson = NetworkUtilities.downloadFileFromURL( versionsUrl );
+                                JsonArray versions = JSONUtilities.getGson().fromJson( versionsJson, JsonArray.class );
+                                if ( !versions.isEmpty() ) {
+                                    JsonObject version = versions.get( 0 ).getAsJsonObject();
+                                    JsonArray files = version.getAsJsonArray( "files" );
+                                    if ( files != null && !files.isEmpty() ) {
+                                        JsonObject file = files.get( 0 ).getAsJsonObject();
+                                        String url = file.has( "url" ) ? file.get( "url" ).getAsString() : "";
+                                        String filename = file.has( "filename" ) ?
+                                                           file.get( "filename" ).getAsString() : slug + ".jar";
+                                        String sha1 = "";
+                                        if ( file.has( "hashes" ) ) {
+                                            JsonObject hashes = file.getAsJsonObject( "hashes" );
+                                            if ( hashes.has( "sha1" ) ) {
+                                                sha1 = hashes.get( "sha1" ).getAsString();
+                                            }
+                                        }
+                                        entry.setRemote( url );
+                                        entry.setLocal( filename );
+                                        entry.setHash( sha1 );
+                                    }
+                                }
+                            }
+                            catch ( Exception ex ) {
+                                Logger.logWarningSilent( "Failed to fetch Modrinth version for " + slug );
+                            }
+                        }
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            modsData.addAll( entries );
+                            updateStatus( "Added " + entries.size() + " mod(s) from Modrinth" );
+                        } );
+                    } );
+                }
+            } );
+        } );
+    }
+
+    /**
+     * Shows a diff between the saved/loaded version and the current editor state.
+     */
+    private void showDiff()
+    {
+        collectFieldsToDocument();
+        String current = serializeDocument();
+        String original = savedSnapshot;
+
+        if ( current.equals( original ) ) {
+            GUIUtilities.JFXPlatformRun( () -> {
+                Alert alert = new Alert( Alert.AlertType.INFORMATION );
+                alert.setTitle( "Diff" );
+                alert.setHeaderText( "No Changes" );
+                alert.setContentText( "The document has not been modified since it was last saved or loaded." );
+                applyThemeToDialog( alert );
+                alert.showAndWait();
+            } );
+            return;
+        }
+
+        // Simple line-by-line diff
+        String[] origLines = original.split( "\n" );
+        String[] currLines = current.split( "\n" );
+        StringBuilder diff = new StringBuilder();
+
+        int maxLen = Math.max( origLines.length, currLines.length );
+        for ( int i = 0; i < maxLen; i++ ) {
+            String origLine = i < origLines.length ? origLines[ i ] : "";
+            String currLine = i < currLines.length ? currLines[ i ] : "";
+            if ( !origLine.equals( currLine ) ) {
+                if ( !origLine.isEmpty() ) {
+                    diff.append( "- " ).append( origLine.trim() ).append( "\n" );
+                }
+                if ( !currLine.isEmpty() ) {
+                    diff.append( "+ " ).append( currLine.trim() ).append( "\n" );
+                }
+            }
+        }
+
+        String diffText = diff.toString();
+        GUIUtilities.JFXPlatformRun( () -> {
+            Alert alert = new Alert( Alert.AlertType.INFORMATION );
+            alert.setTitle( "Diff" );
+            alert.setHeaderText( "Changes since last save/load" );
+
+            TextArea textArea = new TextArea( diffText );
+            textArea.setEditable( false );
+            textArea.setWrapText( false );
+            textArea.setStyle( "-fx-font-family: monospace;" );
+            textArea.setPrefHeight( 400 );
+            textArea.setPrefWidth( 600 );
+
+            alert.getDialogPane().setExpandableContent( textArea );
+            alert.getDialogPane().setExpanded( true );
+            applyThemeToDialog( alert );
+            alert.showAndWait();
+        } );
+    }
+
+    /**
      * Validates the current document.
      */
     private void validateDocument()
@@ -407,6 +967,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 alert.setTitle( "Validation Results" );
                 alert.setHeaderText( issues.length() == 0 ? "Valid" : "Issues Found" );
                 alert.setContentText( result );
+                applyThemeToDialog( alert );
                 alert.showAndWait();
             } );
         } );
@@ -563,9 +1124,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         hashCol.setCellValueFactory( c -> c.getValue().hashProperty() );
         hashCol.setCellFactory( TextFieldTableCell.forTableColumn() );
         hashCol.setOnEditCommit( e -> e.getRowValue().setHash( e.getNewValue() ) );
-        hashCol.setPrefWidth( 100 );
-        hashCol.setMinWidth( 60 );
-        hashCol.setMaxWidth( 160 );
+        hashCol.setPrefWidth( 140 );
+        hashCol.setMinWidth( 80 );
+        // No maxWidth -- hash column can grow to show full SHA-1 (40 chars)
         table.getColumns().add( hashCol );
 
         TableColumn< ModPackEditorFileEntry, String > hashTypeCol = new TableColumn<>( "Type" );
@@ -680,11 +1241,47 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             data.removeAll( selected );
         } );
 
+        MFXButton checkUrlsBtn = new MFXButton( "Check URLs" );
+        checkUrlsBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+            updateStatus( "Checking URLs for " + tabName + "..." );
+            int broken = 0;
+            int checked = 0;
+            for ( ModPackEditorFileEntry entry : data ) {
+                String remoteUrl = entry.getRemote();
+                if ( remoteUrl == null || remoteUrl.isBlank() ) {
+                    continue;
+                }
+                checked++;
+                try {
+                    java.net.HttpURLConnection conn =
+                            ( java.net.HttpURLConnection ) new URL( remoteUrl ).openConnection();
+                    conn.setRequestMethod( "HEAD" );
+                    conn.setConnectTimeout( 5000 );
+                    conn.setReadTimeout( 5000 );
+                    conn.setRequestProperty( "User-Agent", "MicaMinecraftLauncher" );
+                    int code = conn.getResponseCode();
+                    conn.disconnect();
+                    if ( code < 200 || code >= 400 ) {
+                        entry.setHash( "[URL " + code + "] " + entry.getHash() );
+                        broken++;
+                    }
+                }
+                catch ( Exception ex ) {
+                    entry.setHash( "[URL ERR] " + entry.getHash() );
+                    broken++;
+                }
+            }
+            final int finalBroken = broken;
+            final int finalChecked = checked;
+            GUIUtilities.JFXPlatformRun( () -> table.refresh() );
+            updateStatus( "URL check: " + finalChecked + " checked, " + finalBroken + " broken" );
+        } ) );
+
         Label countLabel = new Label( "0 entries" );
         data.addListener( ( javafx.collections.ListChangeListener< ModPackEditorFileEntry > ) change ->
                 countLabel.setText( data.size() + " entries" ) );
 
-        HBox toolbar = new HBox( 8, filterField, addBtn, removeBtn, countLabel );
+        HBox toolbar = new HBox( 8, filterField, addBtn, removeBtn, checkUrlsBtn, countLabel );
         toolbar.setAlignment( Pos.CENTER_LEFT );
         toolbar.setPadding( new Insets( 8 ) );
 
@@ -750,7 +1347,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             boolean clientReq = !hasClientServerReq || !obj.has( "clientReq" ) || obj.get( "clientReq" ).getAsBoolean();
             boolean serverReq = !hasClientServerReq || !obj.has( "serverReq" ) || obj.get( "serverReq" ).getAsBoolean();
 
-            data.add( new ModPackEditorFileEntry( name, remote, local, hash, hashType, clientReq, serverReq ) );
+            ModPackEditorFileEntry entry = new ModPackEditorFileEntry( name, remote, local, hash, hashType,
+                                                                       clientReq, serverReq );
+            // Read optional Modrinth slug (manifestFormat 2+)
+            if ( obj.has( "modrinthSlug" ) ) {
+                entry.setModrinthSlug( obj.get( "modrinthSlug" ).getAsString() );
+            }
+            data.add( entry );
         }
     }
 
@@ -805,6 +1408,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             if ( hasClientServerReq ) {
                 obj.addProperty( "clientReq", entry.isClientReq() );
                 obj.addProperty( "serverReq", entry.isServerReq() );
+            }
+
+            // Include Modrinth slug if present (manifestFormat 2+)
+            if ( !entry.getModrinthSlug().isEmpty() ) {
+                obj.addProperty( "modrinthSlug", entry.getModrinthSlug() );
             }
 
             array.add( obj );
@@ -882,6 +1490,100 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         if ( !workingDocument.has( key ) || workingDocument.get( key ).getAsString().isBlank() ) {
             issues.append( "- " ).append( label ).append( " is required\n" );
         }
+    }
+
+    /**
+     * Bumps the version number at the specified position (0=major, 1=minor, 2=patch). Parses the current version
+     * string, increments the target segment, and resets all segments to the right to zero.
+     *
+     * @param position 0 for major, 1 for minor, 2 for patch
+     */
+    private void bumpVersion( int position )
+    {
+        String current = packVersionField.getText();
+        if ( current == null || current.isBlank() ) {
+            current = "0.0.0";
+        }
+
+        String[] parts = current.split( "\\." );
+        int[] segments = new int[ Math.max( 3, parts.length ) ];
+        for ( int i = 0; i < parts.length; i++ ) {
+            try {
+                segments[ i ] = Integer.parseInt( parts[ i ] );
+            }
+            catch ( NumberFormatException ignored ) {
+                segments[ i ] = 0;
+            }
+        }
+
+        // Increment target and reset segments to the right
+        if ( position < segments.length ) {
+            segments[ position ]++;
+            for ( int i = position + 1; i < segments.length; i++ ) {
+                segments[ i ] = 0;
+            }
+        }
+
+        String newVersion = segments[ 0 ] + "." + segments[ 1 ] + "." + segments[ 2 ];
+        packVersionField.setText( newVersion );
+        updateStatus( "Version bumped to " + newVersion );
+    }
+
+    /**
+     * Applies the current scene's theme stylesheet to a dialog so it matches the app's look. Stylesheets are applied
+     * both to the DialogPane and to the Dialog's own Scene (which is only available once the dialog is showing).
+     */
+    /**
+     * Determines the current theme's background and text colors based on ConfigManager.
+     */
+    private String[] getThemeColors()
+    {
+        String theme = com.micatechnologies.minecraft.launcher.config.ConfigManager.getTheme();
+        return switch ( theme.toLowerCase() )
+        {
+            case "light" -> new String[]{ "#FFFBFE", "#1C1B1F", "#F4EFF4", "#2E7D32", "rgba(231,224,236,0.55)" };
+            case "blue+gray" -> new String[]{ "#111318", "#E2E2E9", "#0C0E13", "#4D82F0", "rgba(68,71,79,0.55)" };
+            case "orange+purple" -> new String[]{ "#1F1019", "#F0DEE6", "#140B11", "#9C3587", "rgba(79,55,70,0.55)" };
+            default -> new String[]{ "#1C1B1F", "#E6E1E5", "#131316", "#4CAF50", "rgba(73,69,79,0.55)" };
+        };
+    }
+
+    /**
+     * Applies the current theme to a dialog using inline styles. JavaFX Dialog's CSS stylesheet inheritance is
+     * unreliable, so we apply colors directly to the dialog pane and its key children.
+     */
+    private void applyThemeToDialog( Dialog< ? > dialog )
+    {
+        String[] colors = getThemeColors();
+        String bg = colors[ 0 ];
+        String fg = colors[ 1 ];
+        String surfaceDark = colors[ 2 ];
+        String accent = colors[ 3 ];
+        String surfaceContainer = colors[ 4 ];
+
+        dialog.getDialogPane().setStyle(
+                "-fx-background-color: " + bg + ";" );
+
+        // Style the header panel
+        dialog.getDialogPane().lookupAll( ".header-panel" ).forEach( node ->
+                node.setStyle( "-fx-background-color: " + surfaceContainer + ";" ) );
+
+        // Apply stylesheets for any CSS-styled children (buttons, list cells, etc.)
+        if ( scene != null && !scene.getStylesheets().isEmpty() ) {
+            dialog.getDialogPane().getStylesheets().addAll( scene.getStylesheets() );
+        }
+        dialog.getDialogPane().getStyleClass().add( "rootPane" );
+
+        // Apply to the Dialog's Scene once available
+        dialog.setOnShown( e -> {
+            javafx.scene.Scene dialogScene = dialog.getDialogPane().getScene();
+            if ( dialogScene != null ) {
+                dialogScene.getRoot().setStyle( "-fx-background-color: " + bg + ";" );
+                if ( scene != null ) {
+                    dialogScene.getStylesheets().addAll( scene.getStylesheets() );
+                }
+            }
+        } );
     }
 
     private void refreshImagePreview( String url, ImageView imageView )
