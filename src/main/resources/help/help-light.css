@@ -1,0 +1,18 @@
+/* Light theme colors - matches guiStyle-light.css */
+
+body { background-color: #FFFBFE; color: #1C1B1F; }
+h1 { color: #1C1B1F; border-bottom: 1px solid #C9C5CA; }
+h2 { color: #1C1B1F; }
+h3 { color: #49454F; }
+a { color: #2E7D32; }
+a:hover { color: #4CAF50; }
+code { background-color: #E8E0E5; color: #2E7D32; }
+pre { background-color: #E8E0E5; color: #1C1B1F; }
+th { border-bottom-color: #C9C5CA; background-color: #E8E0E5; color: #1C1B1F; }
+td { border-bottom-color: #E0DCE1; }
+kbd { background-color: #E8E0E5; border-color: #C9C5CA; color: #1C1B1F; }
+.tip { background-color: rgba(76, 175, 80, 0.08); }
+.warning { background-color: rgba(255, 152, 0, 0.08); }
+.note { background-color: rgba(33, 150, 243, 0.08); }
+.callout-title { color: #1C1B1F; }
+.steps li::before { background-color: #4CAF50; color: #FFFFFF; }

@@ -184,6 +184,9 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
     }
 
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.LOGIN; }
+
     private void loadMsAuthFrame() {
         // Load MS login website
         CookieManager cookieManager = new CookieManager();

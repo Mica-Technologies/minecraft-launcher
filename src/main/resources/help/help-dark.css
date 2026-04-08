@@ -1,0 +1,18 @@
+/* Dark theme colors - matches guiStyle-dark.css */
+
+body { background-color: #1C1B1F; color: #E6E1E5; }
+h1 { color: #FFFFFF; border-bottom: 1px solid #636168; }
+h2 { color: #E6E1E5; }
+h3 { color: #CAC4D0; }
+a { color: #81C784; }
+a:hover { color: #A5D6A7; }
+code { background-color: #2C2B30; color: #A5D6A7; }
+pre { background-color: #2C2B30; color: #E6E1E5; }
+th { border-bottom-color: #636168; background-color: rgba(73, 69, 79, 0.55); color: #FFFFFF; }
+td { border-bottom-color: #3A3840; }
+kbd { background-color: #2C2B30; border-color: #636168; color: #E6E1E5; }
+.tip { background-color: rgba(76, 175, 80, 0.1); }
+.warning { background-color: rgba(255, 152, 0, 0.1); }
+.note { background-color: rgba(33, 150, 243, 0.1); }
+.callout-title { color: #FFFFFF; }
+.steps li::before { background-color: #4CAF50; color: #FFFFFF; }

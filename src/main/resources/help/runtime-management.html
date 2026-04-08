@@ -1,0 +1,59 @@
+<h1>Runtime Management</h1>
+
+<p>The Mica Minecraft Launcher automatically manages Java runtimes so you never need to install
+or configure Java yourself.</p>
+
+<h2>Why Runtimes Matter</h2>
+
+<p>Minecraft and Forge require specific Java versions to run correctly. Different modpacks and
+Minecraft versions may need different Java runtimes:</p>
+
+<ul>
+    <li><strong>Minecraft 1.16 and earlier</strong> — Java 8</li>
+    <li><strong>Minecraft 1.17 - 1.20</strong> — Java 17</li>
+    <li><strong>Minecraft 1.21+</strong> — Java 21 or later</li>
+</ul>
+
+<p>The launcher detects which runtime each modpack or vanilla version requires and downloads it
+automatically on first launch.</p>
+
+<h2>Automatic Downloads</h2>
+
+<p>When you launch a modpack or vanilla version for the first time, the launcher checks whether
+the required runtime is already installed. If not, it downloads the correct version from
+Mojang's or Liberica's distribution servers. This is a one-time download per runtime version.</p>
+
+<div class="note">
+    <div class="callout-title">Note</div>
+    <p>Runtime downloads are typically 40 - 80 MB and are stored in the launcher's data
+    directory, separate from any Java installation on your system.</p>
+</div>
+
+<h2>Viewing Installed Runtimes</h2>
+
+<p>Open <a href="help://topic/SETTINGS">Settings</a> and click <strong>Runtime Management</strong> to see
+a list of all installed Java runtimes, including their version, path, and which modpacks
+use them.</p>
+
+<h2>Deleting Unused Runtimes</h2>
+
+<p>If you have removed modpacks that used a particular Java version, you can delete the
+corresponding runtime to free disk space. Select a runtime in the management screen and
+click <strong>Delete</strong>.</p>
+
+<div class="warning">
+    <div class="callout-title">Warning</div>
+    <p>Deleting a runtime that is still needed by an installed modpack will cause the launcher
+    to re-download it on the next launch of that modpack.</p>
+</div>
+
+<h2>Troubleshooting Runtimes</h2>
+
+<p>If a modpack fails to launch with Java-related errors, try the following:</p>
+
+<ol>
+    <li>Open Runtime Management and delete the runtime used by the affected modpack.</li>
+    <li>Launch the modpack again — the launcher will re-download a fresh copy.</li>
+    <li>If the issue persists, see <a href="help://topic/TROUBLESHOOTING">Troubleshooting</a> for
+        additional steps.</li>
+</ol>

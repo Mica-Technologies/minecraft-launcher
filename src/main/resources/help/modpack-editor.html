@@ -1,0 +1,57 @@
+<h1>Modpack Editor</h1>
+
+<p>The modpack editor is a built-in tool for creating and editing modpack JSON definition files.
+It provides a structured interface with validation, search integration, and diff tracking.</p>
+
+<h2>Toolbar</h2>
+
+<ul>
+    <li><strong>New</strong> — create a blank modpack definition from a template.</li>
+    <li><strong>Open File</strong> — load an existing JSON definition from disk.</li>
+    <li><strong>Open URL</strong> — fetch and load a definition from a remote URL.</li>
+    <li><strong>Save</strong> — write the current definition to a local file.</li>
+    <li><strong>Validate</strong> — check the definition for errors (missing fields, invalid URLs, hash mismatches).</li>
+    <li><strong>Diff</strong> — compare the current state against the last saved version to see what changed.</li>
+</ul>
+
+<h2>Metadata Fields</h2>
+
+<p>The top section contains the core modpack information: name, version, description, author,
+Minecraft version, and Forge version. The <strong>Forge version picker</strong> lets you browse
+available Forge builds for the selected Minecraft version.</p>
+
+<h2>File Tabs</h2>
+
+<p>Files are organized into categorized tabs:</p>
+
+<table class="settings-table">
+    <tr><td>Mods</td><td>Forge mod JARs placed in the <code>mods/</code> folder.</td></tr>
+    <tr><td>Configs</td><td>Configuration files for mods, placed in <code>config/</code>.</td></tr>
+    <tr><td>Resources</td><td>Resource packs and other assets.</td></tr>
+    <tr><td>Shaders</td><td>Shader packs for OptiFine or Iris.</td></tr>
+    <tr><td>Initial Files</td><td>Files copied only on first install (e.g., default options.txt).</td></tr>
+</table>
+
+<p>Each file entry includes a download URL and SHA-1 hash. The editor can
+<strong>auto-calculate hashes</strong> by downloading the file and computing its checksum.</p>
+
+<h2>Modrinth Search</h2>
+
+<p>Use the integrated Modrinth search to find mods by name. Select a result to automatically
+populate the download URL and hash fields for the correct version.</p>
+
+<h2>Version Bumping</h2>
+
+<p>The <strong>Bump Version</strong> button increments the modpack's version number, making it easy to
+publish updates that the launcher will detect automatically.</p>
+
+<h2>URL Checking</h2>
+
+<p>The editor can verify that all file download URLs are reachable, helping you catch broken
+links before publishing.</p>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>Use <strong>Validate</strong> before saving to catch issues early. The validator checks for
+    required fields, valid URLs, and correct hash formats.</p>
+</div>

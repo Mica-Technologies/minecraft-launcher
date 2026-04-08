@@ -244,6 +244,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // Nothing to clean up -- no persistent listeners beyond FXML-bound ones
     }
 
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.MODPACK_EDITOR; }
+
     // region Document operations
 
     /**

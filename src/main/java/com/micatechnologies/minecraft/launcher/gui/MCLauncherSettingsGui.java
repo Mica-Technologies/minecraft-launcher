@@ -800,6 +800,41 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         themeSelection.selectItem( safeCurrentConfigTheme );
         themeSelection.getSelectionModel().selectItem( safeCurrentConfigTheme );
+
+        // Install tooltips on all settings controls
+        TooltipManager.install( minRamGb, "Minimum RAM allocated to Minecraft (GB). Recommended: 2-4 GB." );
+        TooltipManager.install( maxRamGb,
+                "Maximum RAM Minecraft can use (GB). Set 4-8 GB for large modpacks." );
+        TooltipManager.install( debugCheckBox,
+                "Enables verbose logging output. Useful for troubleshooting issues." );
+        TooltipManager.install( windowResizeCheckBox,
+                "Allows the launcher window to be resized freely." );
+        TooltipManager.install( discordCheckBox,
+                "Shows your current modpack and play status in Discord." );
+        TooltipManager.install( enhancedLoggingCheckBox,
+                "Writes additional diagnostic info to log files." );
+        TooltipManager.install( inGameConsoleCheckBox,
+                "Shows a real-time game output console while playing. Useful for debugging." );
+        TooltipManager.install( themeSelection,
+                "Choose the launcher's visual theme. Automatic matches your OS setting." );
+        TooltipManager.install( jvmPresetSelection,
+                "JVM tuning flags. Performance (Aikar's Flags) is recommended for most users." );
+        TooltipManager.install( proxyEnableCheckBox,
+                "Enable if you're behind a corporate or school proxy/firewall." );
+        TooltipManager.install( proxyHostField,
+                "The proxy server hostname or IP address (e.g. proxy.example.com or 10.0.0.1)." );
+        TooltipManager.install( proxyPortSpinner,
+                "The proxy server port number (commonly 8080 for HTTP, 1080 for SOCKS)." );
+        TooltipManager.install( proxyTypeSelection,
+                "HTTP for web proxies, SOCKS for lower-level network proxies." );
+        TooltipManager.install( resetLauncherBtn,
+                "Deletes all launcher data and resets to defaults. Use as a last resort!" );
+        TooltipManager.install( resetRuntimeBtn,
+                "Removes all cached Java runtimes. They will re-download on next launch." );
+        TooltipManager.install( exportSettingsBtn,
+                "Save your current launcher settings to a JSON file for backup or sharing." );
+        TooltipManager.install( importSettingsBtn,
+                "Load settings from a previously exported JSON file." );
     }
 
     @Override
@@ -811,6 +846,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             maxRamGb.getValueFactory().valueProperty().removeListener( maxRamListener );
         }
     }
+
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.SETTINGS; }
 
     /**
      * Checks whether any settings in the UI differ from the persisted config values.

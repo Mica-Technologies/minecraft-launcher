@@ -143,5 +143,18 @@ public abstract class MCLauncherAbstractGui
     abstract void afterShow();
 
     abstract void cleanup();
+
+    /**
+     * Returns the help topic associated with this screen. The default implementation returns
+     * {@link HelpTopic#GETTING_STARTED}. Subclasses should override to return a screen-specific topic.
+     *
+     * @return the help topic for this screen
+     *
+     * @since 2.0
+     */
+    HelpTopic getHelpTopic()
+    {
+        return HelpTopic.GETTING_STARTED;
+    }
 }
 

@@ -24,8 +24,13 @@ import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
+import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Application;
+import javafx.geometry.HPos;
+import javafx.geometry.Insets;
+import javafx.geometry.VPos;
 import javafx.scene.image.Image;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
 import java.io.InputStream;
@@ -98,6 +103,9 @@ public class MCLauncherGuiWindow extends Application
             // Prepare scene environment
             gui.setup();
 
+            // Inject context-sensitive help button into top-right corner
+            injectHelpButton( gui );
+
             // Change stage name
             stage.setTitle(
                     LauncherConstants.LAUNCHER_APPLICATION_NAME + GUIConstants.TITLE_SPLIT_CHAR + gui.getSceneName() );
@@ -136,6 +144,9 @@ public class MCLauncherGuiWindow extends Application
     }
 
     public void forceThemeChange() {
+        // Also refresh the help window theme if it's open
+        MCLauncherHelpWindow.refreshTheme();
+
         switch ( ConfigManager.getTheme() ) {
             case ConfigConstants.THEME_AUTOMATIC:
                 if ( detector != null ) {
@@ -237,6 +248,29 @@ public class MCLauncherGuiWindow extends Application
                                              getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
                                      .toExternalForm() );
         } );
+    }
+
+    /**
+     * Programmatically injects a "?" help button into the top-right corner of the screen's root pane. The button opens
+     * the help window to the topic returned by the GUI's {@link MCLauncherAbstractGui#getHelpTopic()}.
+     *
+     * @param gui the current GUI screen
+     */
+    private void injectHelpButton( MCLauncherAbstractGui gui )
+    {
+        if ( gui.rootPane instanceof GridPane gridPane ) {
+            MFXButton helpBtn = new MFXButton( "?" );
+            helpBtn.getStyleClass().add( "helpButton" );
+            helpBtn.setOnAction( e -> MCLauncherHelpWindow.show( gui.getHelpTopic() ) );
+
+            // Add to column 0, row 0 aligned to top-right so it overlays in the corner
+            int col = gridPane.getColumnConstraints().size() - 1;
+            if ( col < 0 ) col = 0;
+            gridPane.add( helpBtn, col, 0 );
+            GridPane.setHalignment( helpBtn, HPos.RIGHT );
+            GridPane.setValignment( helpBtn, VPos.TOP );
+            GridPane.setMargin( helpBtn, new Insets( 8, 8, 0, 0 ) );
+        }
     }
 
     /**

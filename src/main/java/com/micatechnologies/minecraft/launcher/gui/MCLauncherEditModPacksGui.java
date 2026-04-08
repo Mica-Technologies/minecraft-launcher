@@ -387,6 +387,9 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
 
     }
 
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.EDIT_MODPACKS; }
+
     /**
      * Populates the installed mod pack list and installable mod pack lists.
      *

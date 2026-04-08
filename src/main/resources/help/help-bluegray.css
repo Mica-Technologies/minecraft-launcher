@@ -1,0 +1,18 @@
+/* Blue-gray theme colors - matches guiStyle-bluegray.css */
+
+body { background-color: #1A1C2E; color: #E0E1EC; }
+h1 { color: #FFFFFF; border-bottom: 1px solid #5C5E72; }
+h2 { color: #E0E1EC; }
+h3 { color: #C2C3D0; }
+a { color: #81C784; }
+a:hover { color: #A5D6A7; }
+code { background-color: #2A2C40; color: #A5D6A7; }
+pre { background-color: #2A2C40; color: #E0E1EC; }
+th { border-bottom-color: #5C5E72; background-color: rgba(60, 62, 82, 0.55); color: #FFFFFF; }
+td { border-bottom-color: #3A3C50; }
+kbd { background-color: #2A2C40; border-color: #5C5E72; color: #E0E1EC; }
+.tip { background-color: rgba(76, 175, 80, 0.1); }
+.warning { background-color: rgba(255, 152, 0, 0.1); }
+.note { background-color: rgba(33, 150, 243, 0.1); }
+.callout-title { color: #FFFFFF; }
+.steps li::before { background-color: #4CAF50; color: #FFFFFF; }

@@ -1,0 +1,168 @@
+/* Base help content styles - theme-agnostic typography and layout */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 24px 32px;
+    max-width: 700px;
+}
+
+h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+}
+
+h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-top: 24px;
+    margin-bottom: 10px;
+}
+
+h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 18px;
+    margin-bottom: 8px;
+}
+
+p {
+    margin-bottom: 12px;
+}
+
+ul, ol {
+    margin-bottom: 12px;
+    padding-left: 24px;
+}
+
+li {
+    margin-bottom: 4px;
+}
+
+code {
+    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+pre {
+    padding: 12px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+pre code {
+    padding: 0;
+    background: none;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+
+th, td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+}
+
+th {
+    font-weight: 600;
+}
+
+/* Callout boxes */
+.tip, .warning, .note {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border-left: 4px solid;
+}
+
+.tip {
+    border-left-color: #4CAF50;
+}
+
+.warning {
+    border-left-color: #FF9800;
+}
+
+.note {
+    border-left-color: #2196F3;
+}
+
+.callout-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* Keyboard shortcuts */
+kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-family: inherit;
+    border-radius: 4px;
+    border-width: 1px;
+    border-style: solid;
+}
+
+/* Links */
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Settings table */
+.settings-table td:first-child {
+    font-weight: 600;
+    white-space: nowrap;
+    width: 180px;
+}
+
+/* Step indicators */
+.steps {
+    counter-reset: step-counter;
+    list-style: none;
+    padding-left: 0;
+}
+
+.steps li {
+    counter-increment: step-counter;
+    padding-left: 32px;
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.steps li::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 22px;
+    font-size: 12px;
+    font-weight: 700;
+}

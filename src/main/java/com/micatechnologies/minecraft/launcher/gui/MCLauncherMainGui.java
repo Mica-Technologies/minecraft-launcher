@@ -418,6 +418,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         else {
             selectModpack( packSelectionList.getItems().get( 0 ) );
         }
+
+        // Install tooltips
+        TooltipManager.install( playBtn, "Launch the selected modpack." );
+        TooltipManager.install( settingsBtn, "Open launcher settings (RAM, theme, JVM flags, proxy)." );
+        TooltipManager.install( vanillaBtn, "Browse and play vanilla (unmodded) Minecraft versions." );
+        TooltipManager.install( websiteBtn, "Open the selected modpack's website in your browser." );
+        TooltipManager.install( packSelectionList, "Right-click a modpack for more options." );
     }
 
     @Override
@@ -432,6 +439,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             } );
         }
     }
+
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.MAIN_SCREEN; }
 
     /**
      * Custom change listener for handling a change in the selection of the mod pack list. Updates the mod pack logo and

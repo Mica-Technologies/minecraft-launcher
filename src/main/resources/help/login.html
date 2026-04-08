@@ -1,0 +1,43 @@
+<h1>Login</h1>
+
+<p>The Mica Minecraft Launcher uses <strong>official Microsoft authentication</strong> to verify your
+Minecraft account. This is the same sign-in flow used by the official Minecraft launcher.</p>
+
+<h2>How It Works</h2>
+
+<ol class="steps">
+    <li>Click <strong>Sign In</strong> on the login screen. A browser window opens to the Microsoft sign-in page.</li>
+    <li>Enter your Microsoft account credentials and approve the sign-in.</li>
+    <li>Once authenticated, the browser window closes and the launcher proceeds to the
+        <a href="help://topic/MAIN_SCREEN">Main Screen</a>.</li>
+</ol>
+
+<h2>Token Caching</h2>
+
+<p>After a successful login, your authentication token is cached locally using
+<strong>AES-256-GCM encryption</strong> with a machine-derived key. This means:</p>
+
+<ul>
+    <li>You will not need to sign in again for approximately <strong>4 hours</strong>.</li>
+    <li>The cached token is encrypted and tied to your specific machine — it cannot be transferred or reused elsewhere.</li>
+    <li>After the cache expires, the launcher will prompt you to sign in again.</li>
+</ul>
+
+<h2>Troubleshooting Login Issues</h2>
+
+<div class="warning">
+    <div class="callout-title">Internet Required</div>
+    <p>An active internet connection is required for the initial login. The launcher cannot
+    authenticate in fully offline mode.</p>
+</div>
+
+<p>If you are having trouble signing in:</p>
+
+<ul>
+    <li><strong>Browser does not open</strong> — check that a default browser is configured on your system.</li>
+    <li><strong>Sign-in times out</strong> — verify your internet connection and try again.</li>
+    <li><strong>Account not recognized</strong> — make sure you are using the Microsoft account that owns Minecraft.</li>
+    <li><strong>Repeated sign-in prompts</strong> — the cached token may have expired. This is normal after 4 hours of inactivity.</li>
+</ul>
+
+<p>For persistent issues, see <a href="help://topic/TROUBLESHOOTING">Troubleshooting</a>.</p>

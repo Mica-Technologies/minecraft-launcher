@@ -1,0 +1,94 @@
+<h1>Troubleshooting</h1>
+
+<p>This page covers common issues and their solutions. If your problem is not listed here,
+check the launcher logs for error details.</p>
+
+<h2>Download Failures</h2>
+
+<p>Files fail to download or verification errors appear during launch.</p>
+
+<ul>
+    <li>Check your internet connection and try again.</li>
+    <li>If you are on a corporate or school network, configure a proxy in
+        <a href="help://topic/SETTINGS">Settings</a> under Network / Proxy.</li>
+    <li>Retry the launch — transient network errors often resolve on a second attempt.</li>
+    <li>If a specific file consistently fails, its download URL may be broken. Report this to the modpack author.</li>
+</ul>
+
+<h2>Game Crashes</h2>
+
+<p>The game starts but crashes shortly after, or crashes during gameplay.</p>
+
+<ul>
+    <li>Enable the <a href="help://topic/GAME_CONSOLE">Game Console</a> in settings to view crash output in real time.</li>
+    <li>Check the crash report in the modpack's <code>crash-reports/</code> folder for specific error details.</li>
+    <li>Try increasing the maximum RAM allocation in <a href="help://topic/SETTINGS">Settings</a> — many modpacks need at least 4 - 6 GB.</li>
+    <li>Right-click the modpack on the main screen and select <strong>Open Modpack Folder</strong>, then delete
+        the <code>mods/</code> folder and relaunch to force a fresh download.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Warning</div>
+    <p>Allocating too much RAM (more than your system can spare) can cause crashes just as
+    easily as allocating too little. Keep maximum RAM at or below half your total system memory.</p>
+</div>
+
+<h2>Launcher Stuck on Loading</h2>
+
+<p>The launcher appears frozen or a progress bar stops moving.</p>
+
+<ul>
+    <li>Wait a few minutes — large modpacks can take time to verify files, especially on first launch.</li>
+    <li>Check the launcher logs for errors (enable Enhanced Logging in settings).</li>
+    <li>As a last resort, use <strong>Reset Launcher</strong> in <a href="help://topic/SETTINGS">Settings</a>
+        to return to a clean state.</li>
+</ul>
+
+<h2>Offline Mode</h2>
+
+<p>The launcher requires an internet connection for authentication and downloading files. However,
+modpack manifests and game files are cached locally after the first successful download.</p>
+
+<ul>
+    <li>If you lose connectivity after initial setup, the game may still launch using cached files.</li>
+    <li>Authentication tokens are cached for approximately 4 hours — if your token is still valid, you can play offline within that window.</li>
+</ul>
+
+<h2>Performance Issues</h2>
+
+<p>The game runs but with low FPS or frequent stuttering.</p>
+
+<ul>
+    <li>Switch to the <strong>Performance (Aikar's Flags)</strong> JVM preset in
+        <a href="help://topic/SETTINGS">Settings</a>.</li>
+    <li>Ensure you have allocated enough RAM — at least 4 GB for most modpacks.</li>
+    <li>Close other memory-intensive applications while playing.</li>
+    <li>Check that your graphics drivers are up to date.</li>
+</ul>
+
+<h2>Missing Mods or Files</h2>
+
+<p>The game launches but mods are missing or configs are wrong.</p>
+
+<ul>
+    <li>The launcher verifies file hashes on each launch. If files were manually modified, they will be re-downloaded to match the modpack definition.</li>
+    <li>If a mod is missing from the modpack itself, contact the modpack author.</li>
+    <li>Try removing the modpack and re-adding it to force a complete re-download.</li>
+</ul>
+
+<h2>Authentication Issues</h2>
+
+<p>Cannot sign in or keep getting prompted to re-authenticate.</p>
+
+<ul>
+    <li>Tokens expire after approximately 4 hours — re-authentication is normal.</li>
+    <li>If sign-in fails repeatedly, try clearing your browser cookies for <code>login.microsoftonline.com</code>.</li>
+    <li>Ensure your Microsoft account has an active Minecraft license.</li>
+    <li>See <a href="help://topic/LOGIN">Login</a> for more details on the authentication process.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>When reporting issues, always include: the modpack name and version, your operating system,
+    the launcher log file, and any crash reports. This helps diagnose problems much faster.</p>
+</div>

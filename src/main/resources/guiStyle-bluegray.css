@@ -605,3 +605,19 @@
 .check-box .box { -fx-background-color: rgba(68, 71, 79, 0.7); -fx-border-color: #5C5F66; -fx-border-radius: 4; -fx-background-radius: 4; }
 .check-box:selected .box { -fx-background-color: #4D82F0; -fx-border-color: #4D82F0; }
 .check-box:selected .mark { -fx-background-color: white; }
+
+.helpButton.mfx-button {
+    -fx-background-color: rgba(60, 62, 82, 0.7);
+    -fx-background-radius: 50;
+    -fx-min-width: 28; -fx-min-height: 28; -fx-max-width: 28; -fx-max-height: 28;
+    -fx-padding: 0;
+}
+.helpButton.mfx-button:hover { -fx-background-color: rgba(76, 175, 80, 0.6); }
+.helpButton.mfx-button .text { -fx-fill: #E0E1EC; -fx-font-weight: bold; -fx-font-size: 14; }
+.helpRoot { -fx-background-color: #1A1C2E; }
+.helpSidebarHeader { -fx-text-fill: #E0E1EC; }
+.mcl-tooltip {
+    -fx-background-color: #2A2C40; -fx-text-fill: #E0E1EC;
+    -fx-background-radius: 6; -fx-border-color: #5C5E72; -fx-border-radius: 6;
+    -fx-padding: 6 10 6 10; -fx-font-size: 12;
+}

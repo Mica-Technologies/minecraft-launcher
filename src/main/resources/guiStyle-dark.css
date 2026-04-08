@@ -864,3 +864,41 @@
 .check-box:selected .mark {
     -fx-background-color: white;
 }
+
+/* Help button (injected programmatically on every screen) */
+.helpButton.mfx-button {
+    -fx-background-color: rgba(73, 69, 79, 0.7);
+    -fx-background-radius: 50;
+    -fx-min-width: 28;
+    -fx-min-height: 28;
+    -fx-max-width: 28;
+    -fx-max-height: 28;
+    -fx-padding: 0;
+}
+.helpButton.mfx-button:hover {
+    -fx-background-color: rgba(76, 175, 80, 0.6);
+}
+.helpButton.mfx-button .text {
+    -fx-fill: #E6E1E5;
+    -fx-font-weight: bold;
+    -fx-font-size: 14;
+}
+
+/* Help sidebar */
+.helpRoot {
+    -fx-background-color: #1C1B1F;
+}
+.helpSidebarHeader {
+    -fx-text-fill: #E6E1E5;
+}
+
+/* Tooltips */
+.mcl-tooltip {
+    -fx-background-color: #2C2B30;
+    -fx-text-fill: #E6E1E5;
+    -fx-background-radius: 6;
+    -fx-border-color: #636168;
+    -fx-border-radius: 6;
+    -fx-padding: 6 10 6 10;
+    -fx-font-size: 12;
+}

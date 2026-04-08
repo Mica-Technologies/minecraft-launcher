@@ -203,6 +203,9 @@ public class MCLauncherVanillaVersionsGui extends MCLauncherAbstractGui
     void cleanup() {
     }
 
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.VANILLA_VERSIONS; }
+
     private void refreshVersionList() {
         currentVersionList = VanillaVersionManager.getVersionsByType( currentFilter );
         List< String > installedIds = VanillaVersionManager.getInstalledVersionIds();

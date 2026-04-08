@@ -199,6 +199,9 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
         // Nothing to clean up
     }
 
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.RUNTIME_MANAGEMENT; }
+
     /**
      * Refreshes the runtime list view with current installed runtimes.
      */

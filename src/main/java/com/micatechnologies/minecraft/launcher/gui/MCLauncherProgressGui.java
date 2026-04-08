@@ -131,6 +131,9 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         }
     }
 
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.GETTING_STARTED; }
+
     /**
      * Sets the overall task title (top line). E.g. "Launching: Forge 1.15.2" or "Signing In".
      */

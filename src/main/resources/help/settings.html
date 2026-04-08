@@ -1,0 +1,88 @@
+<h1>Settings</h1>
+
+<p>The settings screen lets you customize memory allocation, appearance, JVM behavior, network
+configuration, and more. Changes are saved automatically.</p>
+
+<h2>Game Memory</h2>
+
+<table class="settings-table">
+    <tr><td>Minimum RAM</td><td>The initial heap size allocated to the game JVM. Typically leave at the default (512 MB) unless a modpack specifies otherwise.</td></tr>
+    <tr><td>Maximum RAM</td><td>The upper memory limit for the game. Most modpacks perform best with <strong>4 - 8 GB</strong>. Allocating more than your system can spare may cause instability.</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>A good rule of thumb: set maximum RAM to no more than half your total system memory.
+    For example, on a 16 GB machine, 6 - 8 GB is a reasonable upper limit.</p>
+</div>
+
+<h2>Theme</h2>
+
+<table class="settings-table">
+    <tr><td>Automatic</td><td>Follows your operating system's light/dark mode preference.</td></tr>
+    <tr><td>Dark</td><td>Dark background with light text — easy on the eyes.</td></tr>
+    <tr><td>Light</td><td>Traditional light background with dark text.</td></tr>
+    <tr><td>Blue + Gray</td><td>A cool-toned accent theme.</td></tr>
+    <tr><td>Orange + Purple</td><td>A warm-toned accent theme.</td></tr>
+</table>
+
+<h2>Advanced Options</h2>
+
+<table class="settings-table">
+    <tr><td>Debug Mode</td><td>Enables verbose logging output in the launcher console for diagnosing issues.</td></tr>
+    <tr><td>Window Resizing</td><td>Allows the launcher window to be freely resized beyond its default dimensions.</td></tr>
+    <tr><td>Discord Integration</td><td>Shows your current modpack as a Discord Rich Presence status.</td></tr>
+    <tr><td>Enhanced Logging</td><td>Writes detailed log files to disk for post-session analysis.</td></tr>
+    <tr><td>In-Game Console</td><td>Opens a <a href="help://topic/GAME_CONSOLE">Game Console</a> window alongside Minecraft to view real-time output.</td></tr>
+</table>
+
+<h2>JVM Presets</h2>
+
+<p>Pre-configured sets of JVM flags appended to the game launch command:</p>
+
+<table class="settings-table">
+    <tr><td>Performance (Aikar's Flags)</td><td><strong>Recommended.</strong> Optimized garbage collection flags widely used by the Minecraft community. Best overall performance for most modpacks.</td></tr>
+    <tr><td>Low Memory</td><td>Conservative flags for systems with limited RAM. Reduces GC overhead at the cost of some throughput.</td></tr>
+    <tr><td>Debug</td><td>Enables JVM debug output including GC logs. Useful for diagnosing crashes or performance problems.</td></tr>
+    <tr><td>None</td><td>No extra flags — uses the JVM's defaults. Use this only if you know what you are doing or a modpack requires it.</td></tr>
+</table>
+
+<h2>Network / Proxy</h2>
+
+<p>Configure a proxy if your network requires one (common on corporate or school networks).</p>
+
+<table class="settings-table">
+    <tr><td>HTTP Proxy</td><td>Standard web proxy. Enter the host and port provided by your network administrator.</td></tr>
+    <tr><td>SOCKS Proxy</td><td>Lower-level proxy protocol. Use this if your network specifically requires SOCKS.</td></tr>
+</table>
+
+<div class="note">
+    <div class="callout-title">Note</div>
+    <p>Most users can leave proxy settings blank. Only configure these if downloads or
+    authentication fail on a restricted network.</p>
+</div>
+
+<h2>Malware Scanning</h2>
+
+<p>The launcher includes a built-in scanner that checks downloaded JAR files for signatures of
+<strong>fractureiser</strong> — a Minecraft-specific malware that spread through compromised mods in 2023.
+The scan runs automatically before each game launch.</p>
+
+<h2>Reset and Runtime Options</h2>
+
+<table class="settings-table">
+    <tr><td>Reset Launcher</td><td>Restores all settings to defaults and clears cached data. <strong>This cannot be undone.</strong></td></tr>
+    <tr><td>Runtime Management</td><td>Opens the <a href="help://topic/RUNTIME_MANAGEMENT">Runtime Management</a> screen to view, verify, or remove installed Java runtimes.</td></tr>
+</table>
+
+<div class="warning">
+    <div class="callout-title">Warning</div>
+    <p>Resetting the launcher will remove all settings, cached tokens, and modpack state.
+    Your modpack files on disk are preserved, but you will need to re-add them.</p>
+</div>
+
+<h2>Import / Export Settings</h2>
+
+<p>Use <strong>Export</strong> to save your current configuration to a file, and <strong>Import</strong> to
+load a previously saved configuration. This is useful for sharing settings between machines
+or restoring a known-good configuration after a reset.</p>

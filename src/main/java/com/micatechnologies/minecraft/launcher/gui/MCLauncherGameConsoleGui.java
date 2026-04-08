@@ -207,6 +207,9 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         closeLogFileWriter();
     }
 
+    @Override
+    HelpTopic getHelpTopic() { return HelpTopic.GAME_CONSOLE; }
+
     /**
      * Attaches this console to a running game process and starts reading its output.
      *
