@@ -18,25 +18,34 @@
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
+import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
-import org.apache.commons.io.IOUtils;
 
-import java.net.URL;
-import java.nio.charset.Charset;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
- * Class for fetching mod pack objects from their manifest URL.
+ * Class for fetching mod pack objects from their manifest URL. Supports offline mode by caching manifests locally and
+ * falling back to the cache when the network is unavailable.
  *
  * @author Mica Technologies
- * @version 1.0
+ * @version 2.0
  * @since 2.0
  */
 public class GameModPackFetcher
 {
+    /**
+     * Subdirectory under the launcher folder where cached manifests are stored.
+     */
+    private static final String MANIFEST_CACHE_DIR = "manifest_cache";
 
     /**
-     * Fetches the mod pack object from the specified manifest URL.
+     * Fetches the mod pack object from the specified manifest URL. If the network is available, downloads the latest
+     * manifest and caches it locally. If offline, falls back to the cached version.
      *
      * @param manifestUrl       mod pack manifest URL
      * @param createEnvironment whether to create the mod pack environment
@@ -46,38 +55,28 @@ public class GameModPackFetcher
      * @since 1.0
      */
     public static GameModPack get( String manifestUrl, boolean createEnvironment ) {
-        // Fetch contents of available mod pack manifest
         GameModPack gameModPack;
         try {
-            String manifestBody = null;
-
-            // Try downloading from network first (unless already known offline)
-            if ( !NetworkUtilities.isOffline() ) {
-                try {
-                    manifestBody = NetworkUtilities.downloadFileFromURL( manifestUrl );
-                    cacheManifest( manifestUrl, manifestBody );
-                }
-                catch ( IOException e ) {
-                    Logger.logWarningSilent( "Failed to download manifest, trying cache: " + manifestUrl );
-                    manifestBody = null;
-                }
-            }
-
-            // Fall back to cached manifest if download failed or offline
-            if ( manifestBody == null ) {
+            String manifestBody;
+            if ( NetworkUtilities.isOffline() ) {
+                // Offline: load from cache
                 manifestBody = loadCachedManifest( manifestUrl );
-                if ( manifestBody != null ) {
-                    Logger.logStd( "Loaded cached manifest for: " + manifestUrl );
+                if ( manifestBody == null ) {
+                    throw new IOException( "No cached manifest available for offline mode" );
                 }
-                else {
-                    throw new IOException( "Unable to download manifest and no cached version available" );
-                }
+                Logger.logStd( "Loaded cached manifest for offline mode: " + manifestUrl );
             }
-
+            else {
+                // Online: download and cache
+                manifestBody = NetworkUtilities.downloadFileFromURL( manifestUrl );
+                cacheManifest( manifestUrl, manifestBody );
+            }
             gameModPack = JSONUtilities.getGson().fromJson( manifestBody, GameModPack.class );
-            if (createEnvironment) {
+            if ( createEnvironment ) {
                 gameModPack.prepareEnvironment();
-                gameModPack.cacheImages();
+                if ( !NetworkUtilities.isOffline() ) {
+                    gameModPack.cacheImages();
+                }
             }
         }
         catch ( Exception e ) {
@@ -87,8 +86,50 @@ public class GameModPackFetcher
             gameModPack = GameModPack.createFailedModPack( manifestUrl, e.getMessage() );
         }
 
-        // Parse available mod pack manifest contents
         gameModPack.manifestUrl = manifestUrl;
         return gameModPack;
+    }
+
+    /**
+     * Returns the cache file path for the given manifest URL. Uses a hash of the URL as filename.
+     */
+    private static Path getCacheFilePath( String manifestUrl )
+    {
+        String hash = Integer.toHexString( manifestUrl.hashCode() );
+        Path cacheDir = Path.of( LocalPathManager.getLauncherModpackFolderPath(), MANIFEST_CACHE_DIR );
+        return cacheDir.resolve( hash + ".json" );
+    }
+
+    /**
+     * Caches the manifest body to disk for offline use.
+     */
+    private static void cacheManifest( String manifestUrl, String manifestBody )
+    {
+        try {
+            Path cacheFile = getCacheFilePath( manifestUrl );
+            //noinspection ResultOfMethodCallIgnored
+            cacheFile.getParent().toFile().mkdirs();
+            Files.writeString( cacheFile, manifestBody, StandardCharsets.UTF_8 );
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "Unable to cache manifest for " + manifestUrl );
+        }
+    }
+
+    /**
+     * Loads a cached manifest from disk, or returns null if no cache exists.
+     */
+    private static String loadCachedManifest( String manifestUrl )
+    {
+        try {
+            Path cacheFile = getCacheFilePath( manifestUrl );
+            if ( Files.exists( cacheFile ) ) {
+                return Files.readString( cacheFile, StandardCharsets.UTF_8 );
+            }
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "Unable to load cached manifest for " + manifestUrl );
+        }
+        return null;
     }
 }

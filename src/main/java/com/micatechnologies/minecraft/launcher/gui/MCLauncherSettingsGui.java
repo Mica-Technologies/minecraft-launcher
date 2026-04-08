@@ -91,6 +91,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
+    MFXToggleButton autoHideCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
     MFXButton scanFolderBtn;
 
     @SuppressWarnings( "unused" )
@@ -132,6 +136,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > themeSelection;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXComboBox< String > jvmPresetSelection;
 
     /**
      * Announcement banner.
@@ -314,11 +322,23 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             // Store enhanced logging to config
             ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
             ConfigManager.setInGameConsoleEnable( inGameConsoleCheckBox.isSelected() );
+            ConfigManager.setAutoHideLauncher( autoHideCheckBox.isSelected() );
 
             // Store theme selection
             if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
                 ConfigManager.setTheme( themeSelection.getSelectedItem() );
                 MCLauncherGuiController.forceThemeRefresh();
+            }
+
+            // Store JVM preset selection
+            String selectedPreset = jvmPresetSelection.getSelectedItem();
+            if ( selectedPreset != null ) {
+                for ( int i = 0; i < ConfigConstants.JVM_PRESET_NAMES.length; i++ ) {
+                    if ( ConfigConstants.JVM_PRESET_NAMES[i].equals( selectedPreset ) ) {
+                        ConfigManager.setCustomJvmArgs( ConfigConstants.JVM_PRESET_ARGS[i] );
+                        break;
+                    }
+                }
             }
 
             // Change save button text to indicate successful save
@@ -475,11 +495,32 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         themeSelection.getItems().clear();
         themeSelection.getItems().addAll( ConfigConstants.ALLOWED_THEMES );
 
+        // Populate JVM preset selection dropdown
+        jvmPresetSelection.getItems().clear();
+        jvmPresetSelection.getItems().addAll( ConfigConstants.JVM_PRESET_NAMES );
+        // Detect which preset matches the current JVM args (if any)
+        String currentArgs = ConfigManager.getCustomJvmArgs();
+        boolean matched = false;
+        for ( int i = 0; i < ConfigConstants.JVM_PRESET_ARGS.length; i++ ) {
+            if ( ConfigConstants.JVM_PRESET_ARGS[i].equals( currentArgs ) ) {
+                jvmPresetSelection.selectItem( ConfigConstants.JVM_PRESET_NAMES[i] );
+                matched = true;
+                break;
+            }
+        }
+        if ( !matched ) {
+            // Custom args that don't match any preset — show Performance as closest
+            jvmPresetSelection.selectItem( ConfigConstants.JVM_PRESET_PERFORMANCE );
+        }
+
         // Set and configure enhanced logging check box
         enhancedLoggingCheckBox.setSelected( ConfigManager.getEnhancedLogging() );
 
         // Set and configure in-game console check box
         inGameConsoleCheckBox.setSelected( ConfigManager.getInGameConsoleEnable() );
+
+        // Set and configure auto-hide launcher check box
+        autoHideCheckBox.setSelected( ConfigManager.getAutoHideLauncher() );
 
         // Load system RAM config label
         SystemInfo systemInfo = new SystemInfo();

@@ -20,9 +20,15 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
+import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.VersionUtilities;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -331,6 +337,325 @@ public abstract class GameModPackMetadata
     public String getPackBinFolder()
     {
         return SystemUtilities.buildFilePath( getPackRootFolder(), LocalPathConstants.MOD_PACK_BIN_FOLDER_NAME );
+    }
+
+    // endregion
+
+    // region Version tracking (installed vs remote)
+
+    /**
+     * Name of the file that stores the last-launched version in each modpack's root folder.
+     */
+    private static final String INSTALLED_VERSION_FILE = ".installed_version";
+
+    /**
+     * Cached result of the update check (transient, not serialized).
+     */
+    private transient Boolean updateAvailable = null;
+
+    /**
+     * Gets the locally installed (last-launched) version string for this modpack, or null if no version file exists
+     * (i.e. the pack has never been launched).
+     *
+     * @return installed version string, or null
+     *
+     * @since 2.0
+     */
+    public String getInstalledVersion()
+    {
+        Path versionFile = Path.of( getPackRootFolder(), INSTALLED_VERSION_FILE );
+        if ( Files.exists( versionFile ) ) {
+            try {
+                return Files.readString( versionFile, StandardCharsets.UTF_8 ).trim();
+            }
+            catch ( IOException e ) {
+                Logger.logWarningSilent( "Unable to read installed version for " + getPackName() );
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Saves the current remote version as the installed version. Call after a successful game launch.
+     *
+     * @since 2.0
+     */
+    public void saveInstalledVersion()
+    {
+        Path versionFile = Path.of( getPackRootFolder(), INSTALLED_VERSION_FILE );
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            versionFile.getParent().toFile().mkdirs();
+            Files.writeString( versionFile, getPackVersion(), StandardCharsets.UTF_8 );
+            updateAvailable = null; // Reset cached check
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "Unable to save installed version for " + getPackName() );
+        }
+    }
+
+    /**
+     * Returns true if the remote pack version is newer than the locally installed version. Returns false if the pack
+     * has never been launched (no installed version file), since there's nothing to "update" yet.
+     *
+     * @return true if an update is available
+     *
+     * @since 2.0
+     */
+    public boolean isUpdateAvailable()
+    {
+        if ( updateAvailable != null ) {
+            return updateAvailable;
+        }
+        String installed = getInstalledVersion();
+        if ( installed == null || installed.isEmpty() ) {
+            updateAvailable = false;
+            return false;
+        }
+        String remote = getPackVersion();
+        if ( remote == null || remote.isEmpty() ) {
+            updateAvailable = false;
+            return false;
+        }
+        // compareVersionNumbers returns -1 if first < second (i.e., installed is older)
+        updateAvailable = VersionUtilities.compareVersionNumbers( installed, remote ) == -1;
+        return updateAvailable;
+    }
+
+    // endregion
+
+    // region Launch history
+
+    /**
+     * Name of the file that stores launch history in each modpack's root folder.
+     */
+    private static final String LAUNCH_HISTORY_FILE = ".launch_history";
+
+    /**
+     * Cached launch history values (transient, not serialized).
+     */
+    private transient long cachedLastPlayedMs = -1;
+    private transient long cachedTotalPlayTimeMs = -1;
+    private transient int  cachedLaunchCount = -1;
+
+    /**
+     * Records the start of a game launch. Call when the game process starts.
+     *
+     * @since 2.0
+     */
+    public void recordLaunchStart()
+    {
+        Path historyFile = Path.of( getPackRootFolder(), LAUNCH_HISTORY_FILE );
+        long now = System.currentTimeMillis();
+        long totalPlayTime = 0;
+        int launchCount = 0;
+
+        // Read existing history
+        if ( Files.exists( historyFile ) ) {
+            try {
+                String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
+                String[] parts = content.trim().split( "\n" );
+                if ( parts.length >= 2 ) {
+                    totalPlayTime = Long.parseLong( parts[1].trim() );
+                }
+                if ( parts.length >= 3 ) {
+                    launchCount = Integer.parseInt( parts[2].trim() );
+                }
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Unable to read launch history for " + getPackName() );
+            }
+        }
+
+        // Write updated history (last played, total play time, launch count)
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            historyFile.getParent().toFile().mkdirs();
+            String content = now + "\n" + totalPlayTime + "\n" + ( launchCount + 1 ) + "\n";
+            Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "Unable to save launch history for " + getPackName() );
+        }
+
+        // Update cache
+        cachedLastPlayedMs = now;
+        cachedTotalPlayTimeMs = totalPlayTime;
+        cachedLaunchCount = launchCount + 1;
+    }
+
+    /**
+     * Records the end of a game session. Call when the game process exits.
+     *
+     * @param sessionDurationMs the duration of the game session in milliseconds
+     *
+     * @since 2.0
+     */
+    public void recordSessionEnd( long sessionDurationMs )
+    {
+        Path historyFile = Path.of( getPackRootFolder(), LAUNCH_HISTORY_FILE );
+        long lastPlayed = System.currentTimeMillis();
+        long totalPlayTime = sessionDurationMs;
+        int launchCount = 1;
+
+        // Read existing history
+        if ( Files.exists( historyFile ) ) {
+            try {
+                String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
+                String[] parts = content.trim().split( "\n" );
+                if ( parts.length >= 1 ) {
+                    lastPlayed = Long.parseLong( parts[0].trim() );
+                }
+                if ( parts.length >= 2 ) {
+                    totalPlayTime += Long.parseLong( parts[1].trim() );
+                }
+                if ( parts.length >= 3 ) {
+                    launchCount = Integer.parseInt( parts[2].trim() );
+                }
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Unable to read launch history for " + getPackName() );
+            }
+        }
+
+        // Write updated history with accumulated play time
+        try {
+            String content = lastPlayed + "\n" + totalPlayTime + "\n" + launchCount + "\n";
+            Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "Unable to save launch history for " + getPackName() );
+        }
+
+        // Update cache
+        cachedLastPlayedMs = lastPlayed;
+        cachedTotalPlayTimeMs = totalPlayTime;
+        cachedLaunchCount = launchCount;
+    }
+
+    /**
+     * Loads launch history from disk if not already cached.
+     */
+    private void ensureHistoryLoaded()
+    {
+        if ( cachedLastPlayedMs >= 0 ) {
+            return;
+        }
+        Path historyFile = Path.of( getPackRootFolder(), LAUNCH_HISTORY_FILE );
+        if ( Files.exists( historyFile ) ) {
+            try {
+                String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
+                String[] parts = content.trim().split( "\n" );
+                cachedLastPlayedMs = parts.length >= 1 ? Long.parseLong( parts[0].trim() ) : 0;
+                cachedTotalPlayTimeMs = parts.length >= 2 ? Long.parseLong( parts[1].trim() ) : 0;
+                cachedLaunchCount = parts.length >= 3 ? Integer.parseInt( parts[2].trim() ) : 0;
+            }
+            catch ( Exception e ) {
+                cachedLastPlayedMs = 0;
+                cachedTotalPlayTimeMs = 0;
+                cachedLaunchCount = 0;
+            }
+        }
+        else {
+            cachedLastPlayedMs = 0;
+            cachedTotalPlayTimeMs = 0;
+            cachedLaunchCount = 0;
+        }
+    }
+
+    /**
+     * Returns the timestamp (epoch ms) of the last time this modpack was played, or 0 if never.
+     *
+     * @return last played timestamp
+     *
+     * @since 2.0
+     */
+    public long getLastPlayedMs()
+    {
+        ensureHistoryLoaded();
+        return cachedLastPlayedMs;
+    }
+
+    /**
+     * Returns a human-readable "last played" string (e.g. "2 hours ago", "3 days ago", or "Never").
+     *
+     * @return formatted last played string
+     *
+     * @since 2.0
+     */
+    public String getLastPlayedFormatted()
+    {
+        long lastPlayed = getLastPlayedMs();
+        if ( lastPlayed == 0 ) {
+            return "Never played";
+        }
+        long elapsed = System.currentTimeMillis() - lastPlayed;
+        if ( elapsed < 60_000 ) {
+            return "Just now";
+        }
+        else if ( elapsed < 3_600_000 ) {
+            long mins = elapsed / 60_000;
+            return mins + ( mins == 1 ? " minute ago" : " minutes ago" );
+        }
+        else if ( elapsed < 86_400_000 ) {
+            long hours = elapsed / 3_600_000;
+            return hours + ( hours == 1 ? " hour ago" : " hours ago" );
+        }
+        else {
+            long days = elapsed / 86_400_000;
+            return days + ( days == 1 ? " day ago" : " days ago" );
+        }
+    }
+
+    /**
+     * Returns the total play time in milliseconds across all sessions.
+     *
+     * @return total play time in ms
+     *
+     * @since 2.0
+     */
+    public long getTotalPlayTimeMs()
+    {
+        ensureHistoryLoaded();
+        return cachedTotalPlayTimeMs;
+    }
+
+    /**
+     * Returns a formatted total play time string (e.g. "12.5 hours", "45 minutes").
+     *
+     * @return formatted total play time
+     *
+     * @since 2.0
+     */
+    public String getTotalPlayTimeFormatted()
+    {
+        long totalMs = getTotalPlayTimeMs();
+        if ( totalMs == 0 ) {
+            return "0 minutes";
+        }
+        long totalMinutes = totalMs / 60_000;
+        if ( totalMinutes < 60 ) {
+            return totalMinutes + ( totalMinutes == 1 ? " minute" : " minutes" );
+        }
+        double hours = totalMinutes / 60.0;
+        if ( hours < 24 ) {
+            return String.format( "%.1f hours", hours );
+        }
+        double days = hours / 24.0;
+        return String.format( "%.1f days", days );
+    }
+
+    /**
+     * Returns the number of times this modpack has been launched.
+     *
+     * @return launch count
+     *
+     * @since 2.0
+     */
+    public int getLaunchCount()
+    {
+        ensureHistoryLoaded();
+        return cachedLaunchCount;
     }
 
     // endregion

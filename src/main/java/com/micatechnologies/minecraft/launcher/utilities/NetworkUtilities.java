@@ -133,7 +133,7 @@ public class NetworkUtilities
     }
 
     /**
-     * Checks network connectivity by attempting a quick TCP connection to a reliable host. Sets {@link #offlineMode}
+     * Checks network connectivity by attempting a quick HEAD request to a reliable host. Sets {@link #offlineMode}
      * accordingly and returns the result.
      *
      * @return true if the network is reachable
@@ -142,8 +142,15 @@ public class NetworkUtilities
      */
     public static boolean checkNetworkAvailability()
     {
-        try ( java.net.Socket socket = new java.net.Socket() ) {
-            socket.connect( new java.net.InetSocketAddress( "launchermeta.mojang.com", 443 ), 5_000 );
+        try {
+            URLConnection connection = new URL( "https://launchermeta.mojang.com/" ).openConnection();
+            connection.setConnectTimeout( 5_000 );
+            connection.setReadTimeout( 5_000 );
+            connection.setRequestProperty( "User-Agent", USER_AGENT );
+            try ( InputStream is = connection.getInputStream() ) {
+                // Just need the connection to succeed
+                is.read();
+            }
             offlineMode = false;
             return true;
         }

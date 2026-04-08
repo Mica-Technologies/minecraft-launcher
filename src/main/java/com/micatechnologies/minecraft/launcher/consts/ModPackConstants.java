@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.consts;
 
 import java.io.File;
+import java.net.URL;
 
 /**
  * Class containing constants that support the mod pack functionality of the launcher.
@@ -130,21 +131,37 @@ public class ModPackConstants
     public static final String PLATFORM_UNIX = "linux";
 
     /**
-     * The URL of the mod pack background image that is used as a default. This background image displays for mod packs
-     * that do not have a background image, and when no mod packs are installed.
+     * The URL of the mod pack background image that is used as a default. Uses a bundled resource to avoid depending on
+     * external CDNs that can disappear. Falls back to the launcher icon if the dedicated background resource is missing.
      *
      * @since 2.0
      */
-    public static final String MODPACK_DEFAULT_BG_URL = "https://i.ytimg.com/vi/oi3A9Wkn8XA/maxresdefault.jpg";
+    public static final String MODPACK_DEFAULT_BG_URL = resolveResourceUrl( "/default_background.png",
+                                                                              "/micaminecraftlauncher.png" );
 
     /**
-     * The URL of the mod pack logo image that is used as a default. This mod pack logo image displays for mod packs
-     * that do not have a mod pack logo image, and when no mod packs are installed.
+     * The URL of the mod pack logo image that is used as a default. Uses the bundled launcher icon instead of
+     * external CDN URLs that can disappear.
      *
      * @since 2.0
      */
-    public static final String MODPACK_DEFAULT_LOGO_URL
-            = "https://cdn.freebiesupply.com/logos/large/2x/minecraft-1-logo-png-transparent.png";
+    public static final String MODPACK_DEFAULT_LOGO_URL = resolveResourceUrl( "/micaminecraftlauncher.png", null );
+
+    /**
+     * Resolves a classpath resource to a URL string suitable for JavaFX Image and CSS url() usage.
+     *
+     * @param primary  the primary resource path (e.g. "/default_background.png")
+     * @param fallback the fallback resource path if primary is not found, or null
+     *
+     * @return a URL string for the resource
+     */
+    private static String resolveResourceUrl( String primary, String fallback ) {
+        URL url = ModPackConstants.class.getResource( primary );
+        if ( url == null && fallback != null ) {
+            url = ModPackConstants.class.getResource( fallback );
+        }
+        return url != null ? url.toExternalForm() : "";
+    }
 
     /**
      * URL of manifest containing the manifest URLs of installable mod packs.

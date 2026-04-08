@@ -124,7 +124,7 @@ public class ConfigConstants
     public static final String JVM_ARGS_KEY = "jvmArgs";
 
     /**
-     * Default value for the custom JVM arguments.
+     * Default value for the custom JVM arguments (Aikar's Performance flags).
      *
      * @since 1.1
      */
@@ -137,6 +137,93 @@ public class ConfigConstants
                     "-XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 " +
                     "-XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 " +
                     "-Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true";
+
+    // region JVM Argument Presets
+
+    /**
+     * Preset name for the performance profile (Aikar's flags). This is the default preset.
+     *
+     * @since 2.0
+     */
+    public static final String JVM_PRESET_PERFORMANCE = "Performance (Aikar's Flags)";
+
+    /**
+     * JVM args for the performance profile — same as the default.
+     *
+     * @since 2.0
+     */
+    public static final String JVM_PRESET_PERFORMANCE_ARGS = JVM_ARGS_VALUE_DEFAULT;
+
+    /**
+     * Preset name for the low memory profile (lightweight flags for constrained systems).
+     *
+     * @since 2.0
+     */
+    public static final String JVM_PRESET_LOW_MEMORY = "Low Memory";
+
+    /**
+     * JVM args for the low memory profile — minimal GC tuning.
+     *
+     * @since 2.0
+     */
+    public static final String JVM_PRESET_LOW_MEMORY_ARGS =
+            "-XX:+UseG1GC -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=1M";
+
+    /**
+     * Preset name for the debug profile.
+     *
+     * @since 2.0
+     */
+    public static final String JVM_PRESET_DEBUG = "Debug";
+
+    /**
+     * JVM args for the debug profile — GC logging and assertions enabled.
+     *
+     * @since 2.0
+     */
+    public static final String JVM_PRESET_DEBUG_ARGS =
+            "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 " +
+                    "-ea -verbose:gc -Xlog:gc*:file=gc.log:time,uptime,level,tags";
+
+    /**
+     * Preset name for no custom JVM flags.
+     *
+     * @since 2.0
+     */
+    public static final String JVM_PRESET_NONE = "None";
+
+    /**
+     * JVM args for the "none" preset — empty string.
+     *
+     * @since 2.0
+     */
+    public static final String JVM_PRESET_NONE_ARGS = "";
+
+    /**
+     * Ordered list of preset display names for use in combo boxes.
+     *
+     * @since 2.0
+     */
+    public static final String[] JVM_PRESET_NAMES = {
+            JVM_PRESET_PERFORMANCE,
+            JVM_PRESET_LOW_MEMORY,
+            JVM_PRESET_DEBUG,
+            JVM_PRESET_NONE
+    };
+
+    /**
+     * Ordered list of preset JVM args, parallel to {@link #JVM_PRESET_NAMES}.
+     *
+     * @since 2.0
+     */
+    public static final String[] JVM_PRESET_ARGS = {
+            JVM_PRESET_PERFORMANCE_ARGS,
+            JVM_PRESET_LOW_MEMORY_ARGS,
+            JVM_PRESET_DEBUG_ARGS,
+            JVM_PRESET_NONE_ARGS
+    };
+
+    // endregion
 
     /**
      * Key for accessing the value of the last mod pack.
@@ -193,6 +280,21 @@ public class ConfigConstants
      * @since 3.0
      */
     public static final boolean INGAME_CONSOLE_ENABLE_DEFAULT = false;
+
+    /**
+     * Key for accessing the auto-hide launcher setting. When enabled, the launcher window is hidden while the game is
+     * running and shown again when the game exits.
+     *
+     * @since 3.0
+     */
+    public static final String AUTO_HIDE_LAUNCHER_KEY = "autoHideLauncher";
+
+    /**
+     * Default value for auto-hide launcher setting.
+     *
+     * @since 3.0
+     */
+    public static final boolean AUTO_HIDE_LAUNCHER_DEFAULT = false;
 
     /**
      * Key for accessing the list of installed vanilla Minecraft versions.

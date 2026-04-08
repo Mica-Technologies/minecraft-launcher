@@ -266,9 +266,20 @@ public class GameModPackManager
             progressWindow.setDetailText( "" );
         }
 
+        // Check network connectivity before fetching
+        if ( progressWindow != null ) {
+            progressWindow.setDetailText( "Checking network connectivity..." );
+        }
+        boolean online = NetworkUtilities.checkNetworkAvailability();
+        if ( !online && progressWindow != null ) {
+            progressWindow.setDetailText( "Offline mode: using cached data" );
+        }
+
         // Update installed mod packs and available mod packs
         fetchInstalledModPacks( progressWindow );
-        fetchAvailableModPacks( progressWindow );
+        if ( !NetworkUtilities.isOffline() ) {
+            fetchAvailableModPacks( progressWindow );
+        }
     }
 
     /**

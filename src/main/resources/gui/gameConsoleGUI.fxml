@@ -84,6 +84,7 @@
         <GridPane GridPane.rowIndex="3">
             <columnConstraints>
                 <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints minWidth="70.0" prefWidth="75.0"/>
                 <ColumnConstraints minWidth="110.0" prefWidth="115.0"/>
                 <ColumnConstraints minWidth="110.0" prefWidth="110.0"/>
                 <ColumnConstraints minWidth="160.0" prefWidth="160.0"/>
@@ -94,22 +95,29 @@
 
             <Label fx:id="uptimeLabel" text="" GridPane.columnIndex="0"/>
 
+            <MFXButton fx:id="copyBtn" prefHeight="30.0" prefWidth="70.0"
+                       text="Copy" GridPane.columnIndex="1">
+                <GridPane.margin>
+                    <Insets right="5.0"/>
+                </GridPane.margin>
+            </MFXButton>
+
             <MFXButton fx:id="crashReportBtn" prefHeight="30.0" prefWidth="110.0"
-                       text="Crash Report" GridPane.columnIndex="1" visible="false" managed="false">
+                       text="Crash Report" GridPane.columnIndex="2" visible="false" managed="false">
                 <GridPane.margin>
                     <Insets right="5.0"/>
                 </GridPane.margin>
             </MFXButton>
 
             <MFXButton fx:id="killBtn" prefHeight="30.0" prefWidth="100.0" styleClass="dangerZone"
-                       text="Kill Game" GridPane.columnIndex="2">
+                       text="Kill Game" GridPane.columnIndex="3">
                 <GridPane.margin>
                     <Insets right="5.0"/>
                 </GridPane.margin>
             </MFXButton>
 
             <MFXButton fx:id="closeBtn" prefHeight="30.0" prefWidth="155.0"
-                       text="Close" GridPane.columnIndex="3"/>
+                       text="Close" GridPane.columnIndex="4"/>
         </GridPane>
     </GridPane>
 </GridPane>

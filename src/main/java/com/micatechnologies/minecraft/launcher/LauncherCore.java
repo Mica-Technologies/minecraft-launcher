@@ -266,8 +266,17 @@ public class LauncherCore
                     }
                 } );
                 gameModPack.startGame();
+                gameModPack.saveInstalledVersion();
+                gameModPack.recordLaunchStart();
+                final long launchStartMs = System.currentTimeMillis();
 
                 Process gameProcess = gameModPack.getLastLaunchedProcess();
+                // Auto-hide launcher while game is running (if enabled and not using console)
+                final boolean autoHide = ConfigManager.getAutoHideLauncher() &&
+                                                 !ConfigManager.getInGameConsoleEnable();
+                if ( autoHide && MCLauncherGuiController.shouldCreateGui() ) {
+                    MCLauncherGuiController.hideAllStages();
+                }
                 if ( gameProcess != null ) {
                     if ( ConfigManager.getInGameConsoleEnable() ) {
                         // Console enabled: show console and attach to process
@@ -276,6 +285,9 @@ public class LauncherCore
                             if ( consoleGui != null ) {
                                 consoleGui.attachToProcess( gameProcess, gameModPack.getPackName(),
                                                              exitCode -> {
+                                    // Record session duration
+                                    gameModPack.recordSessionEnd(
+                                            System.currentTimeMillis() - launchStartMs );
                                     // On crash, find and display crash report
                                     if ( exitCode != 0 ) {
                                         String crashReport = gameModPack.getLatestCrashReport();
@@ -295,6 +307,12 @@ public class LauncherCore
                         // Console disabled: wait for game to exit, then check for crash
                         try {
                             int exitCode = gameProcess.waitFor();
+                            // Record session duration
+                            gameModPack.recordSessionEnd( System.currentTimeMillis() - launchStartMs );
+                            // Restore launcher window if it was auto-hidden
+                            if ( autoHide ) {
+                                MCLauncherGuiController.showAllStages();
+                            }
                             if ( exitCode != 0 ) {
                                 Logger.logError( "Game crashed with exit code " + exitCode );
                                 // Show crash console even when console setting is off

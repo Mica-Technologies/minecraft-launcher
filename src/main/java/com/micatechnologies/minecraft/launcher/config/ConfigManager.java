@@ -347,6 +347,23 @@ public class ConfigManager
     }
 
     /**
+     * Sets the custom JVM launch arguments.
+     *
+     * @param jvmArgs the JVM arguments string
+     *
+     * @since 3.0
+     */
+    public synchronized static void setCustomJvmArgs( String jvmArgs ) {
+        // Read configuration from disk if not loaded
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+
+        configObject.addProperty( ConfigConstants.JVM_ARGS_KEY, jvmArgs != null ? jvmArgs : "" );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Gets the last mod pack selected.
      *
      * @return last mod pack selected
@@ -519,6 +536,40 @@ public class ConfigManager
     }
 
     /**
+     * Gets whether the launcher should auto-hide while the game is running.
+     *
+     * @return true if auto-hide is enabled
+     *
+     * @since 3.0
+     */
+    public synchronized static boolean getAutoHideLauncher() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.AUTO_HIDE_LAUNCHER_KEY ) ) {
+            configObject.addProperty( ConfigConstants.AUTO_HIDE_LAUNCHER_KEY,
+                                       ConfigConstants.AUTO_HIDE_LAUNCHER_DEFAULT );
+            writeConfigurationToDisk();
+        }
+        return configObject.get( ConfigConstants.AUTO_HIDE_LAUNCHER_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Sets whether the launcher should auto-hide while the game is running.
+     *
+     * @param enable true to enable auto-hide
+     *
+     * @since 3.0
+     */
+    public synchronized static void setAutoHideLauncher( boolean enable ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.AUTO_HIDE_LAUNCHER_KEY, enable );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Gets the configured list of installed vanilla Minecraft version IDs.
      *
      * @return list of installed vanilla version IDs (e.g. ["1.20.4", "1.12.2"])
@@ -627,6 +678,7 @@ public class ConfigManager
         getTheme();
         getInstalledModPacks();
         getInGameConsoleEnable();
+        getAutoHideLauncher();
         getInstalledVanillaVersions();
 
         // Stamp the current version and persist

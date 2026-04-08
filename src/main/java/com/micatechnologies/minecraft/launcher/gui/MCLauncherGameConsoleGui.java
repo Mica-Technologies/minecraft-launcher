@@ -21,6 +21,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.stage.Stage;
 
 import java.awt.Desktop;
@@ -66,6 +68,10 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton closeBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton copyBtn;
 
     @SuppressWarnings( "unused" )
     @FXML
@@ -149,6 +155,22 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
 
         closeBtn.setOnAction( event -> SystemUtilities.spawnNewTask( this::returnToMain ) );
         closeBtn.setDisable( true );
+
+        copyBtn.setOnAction( event -> {
+            String text = logArea.getText();
+            if ( text != null && !text.isEmpty() ) {
+                ClipboardContent content = new ClipboardContent();
+                content.putString( text );
+                Clipboard.getSystemClipboard().setContent( content );
+                // Brief visual feedback
+                String originalText = copyBtn.getText();
+                copyBtn.setText( "Copied!" );
+                SystemUtilities.spawnNewTask( () -> {
+                    try { Thread.sleep( 1500 ); } catch ( InterruptedException ignored ) {}
+                    GUIUtilities.JFXPlatformRun( () -> copyBtn.setText( originalText ) );
+                } );
+            }
+        } );
 
         crashReportBtn.setOnAction( event -> {
             if ( showingCrashReport ) {

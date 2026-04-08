@@ -559,6 +559,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         private final ImageView packLogo;
         private final Label packNameLabel;
         private final Label packVersionLabel;
+        private final Label updateBadge;
 
         public ModPackCellFactory()
         {
@@ -575,12 +576,20 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             packVersionLabel = new Label();
             packVersionLabel.setAlignment( Pos.CENTER_LEFT );
             packVersionLabel.getStyleClass().add( "packVersion" );
+            updateBadge = new Label( "UPDATE" );
+            updateBadge.getStyleClass().add( "updateBadge" );
+            updateBadge.setStyle( "-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-padding: 1 6; " +
+                                          "-fx-background-radius: 3; -fx-font-size: 9; -fx-font-weight: bold;" );
+            updateBadge.setVisible( false );
+            updateBadge.setManaged( false );
 
             gridPane = new GridPane();
             gridPane.getStyleClass().add( "packPane" );
             gridPane.add( packLogo, 0, 0, 1, 2 );
             gridPane.add( packNameLabel, 1, 0 );
-            gridPane.add( packVersionLabel, 1, 1 );
+            javafx.scene.layout.HBox versionBox = new javafx.scene.layout.HBox( 6, packVersionLabel, updateBadge );
+            versionBox.setAlignment( Pos.CENTER_LEFT );
+            gridPane.add( versionBox, 1, 1 );
         }
 
         @Override
@@ -601,7 +610,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 }
                 packLogo.setImage( new Image( logoPath ) );
                 packNameLabel.setText( item.getPackName() );
-                packVersionLabel.setText( "Version: " + item.getPackVersion() );
+                String versionText = "Version: " + item.getPackVersion();
+                String lastPlayed = item.getLastPlayedFormatted();
+                if ( !"Never played".equals( lastPlayed ) ) {
+                    versionText += "  |  " + lastPlayed;
+                }
+                packVersionLabel.setText( versionText );
+
+                // Show update badge if remote version is newer than installed
+                boolean hasUpdate = item.isUpdateAvailable();
+                updateBadge.setVisible( hasUpdate );
+                updateBadge.setManaged( hasUpdate );
+
                 setText( null );
                 setGraphic( gridPane );
                 setContextMenu( buildContextMenu( item ) );
@@ -632,7 +652,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             MenuItem createShortcut = new MenuItem( "Create Desktop Shortcut" );
             createShortcut.setOnAction( e -> createDesktopShortcut( pack ) );
 
-            menu.getItems().addAll( openFolder, new SeparatorMenuItem(),
+            // Play stats header (non-interactive)
+            MenuItem playStats = new MenuItem( "Played " + pack.getTotalPlayTimeFormatted() +
+                                                       " (" + pack.getLaunchCount() + " launches)" );
+            playStats.setDisable( true );
+
+            menu.getItems().addAll( playStats, new SeparatorMenuItem(),
+                                    openFolder, new SeparatorMenuItem(),
                                     openScreenshots, openResourcePacks, openShaderPacks,
                                     new SeparatorMenuItem(), openMods, openConfig,
                                     new SeparatorMenuItem(), createShortcut );

@@ -26,6 +26,7 @@ import java.net.URL;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
@@ -261,6 +262,17 @@ public class ManagedGameFile
             return false;
         }
         if ( !verifyLocalFile() ) {
+            // In offline mode, accept any existing file without re-downloading
+            if ( NetworkUtilities.isOffline() ) {
+                File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
+                if ( localFile.exists() && localFile.isFile() ) {
+                    Logger.logWarningSilent(
+                            "Offline mode: accepting unverified file: " + getFullLocalFilePath() );
+                    sessionVerified = true;
+                    return false;
+                }
+                throw new ModpackException( "Offline mode: missing required file: " + getFullLocalFilePath() );
+            }
             System.err.println( "FILE FAILED VERIFICATION, RE-DOWNLOADING: " + getFullLocalFilePath() );
             downloadLocalFile();
             sessionVerified = true;
