@@ -282,21 +282,6 @@ public class ConfigConstants
     public static final boolean INGAME_CONSOLE_ENABLE_DEFAULT = false;
 
     /**
-     * Key for accessing the auto-hide launcher setting. When enabled, the launcher window is hidden while the game is
-     * running and shown again when the game exits.
-     *
-     * @since 3.0
-     */
-    public static final String AUTO_HIDE_LAUNCHER_KEY = "autoHideLauncher";
-
-    /**
-     * Default value for auto-hide launcher setting.
-     *
-     * @since 3.0
-     */
-    public static final boolean AUTO_HIDE_LAUNCHER_DEFAULT = false;
-
-    /**
      * Key for accessing the list of installed vanilla Minecraft versions.
      *
      * @since 3.0

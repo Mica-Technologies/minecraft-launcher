@@ -271,12 +271,6 @@ public class LauncherCore
                 final long launchStartMs = System.currentTimeMillis();
 
                 Process gameProcess = gameModPack.getLastLaunchedProcess();
-                // Auto-hide launcher while game is running (if enabled and not using console)
-                final boolean autoHide = ConfigManager.getAutoHideLauncher() &&
-                                                 !ConfigManager.getInGameConsoleEnable();
-                if ( autoHide && MCLauncherGuiController.shouldCreateGui() ) {
-                    MCLauncherGuiController.hideAllStages();
-                }
                 if ( gameProcess != null ) {
                     if ( ConfigManager.getInGameConsoleEnable() ) {
                         // Console enabled: show console and attach to process
@@ -304,15 +298,30 @@ public class LauncherCore
                         }
                     }
                     else {
-                        // Console disabled: wait for game to exit, then check for crash
+                        // Console disabled: drain stdout/stderr in background threads to prevent
+                        // the game process from blocking when OS pipe buffers fill up.
+                        Thread stdoutDrain = new Thread( () -> {
+                            try ( var is = gameProcess.getInputStream() ) {
+                                is.transferTo( java.io.OutputStream.nullOutputStream() );
+                            }
+                            catch ( IOException ignored ) {}
+                        }, "game-stdout-drain" );
+                        Thread stderrDrain = new Thread( () -> {
+                            try ( var is = gameProcess.getErrorStream() ) {
+                                is.transferTo( java.io.OutputStream.nullOutputStream() );
+                            }
+                            catch ( IOException ignored ) {}
+                        }, "game-stderr-drain" );
+                        stdoutDrain.setDaemon( true );
+                        stderrDrain.setDaemon( true );
+                        stdoutDrain.start();
+                        stderrDrain.start();
+
+                        // Wait for game to exit, then check for crash
                         try {
                             int exitCode = gameProcess.waitFor();
                             // Record session duration
                             gameModPack.recordSessionEnd( System.currentTimeMillis() - launchStartMs );
-                            // Restore launcher window if it was auto-hidden
-                            if ( autoHide ) {
-                                MCLauncherGuiController.showAllStages();
-                            }
                             if ( exitCode != 0 ) {
                                 Logger.logError( "Game crashed with exit code " + exitCode );
                                 // Show crash console even when console setting is off

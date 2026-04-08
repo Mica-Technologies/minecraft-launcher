@@ -42,30 +42,6 @@ public class MCLauncherGuiController
         }
     }
 
-    /**
-     * Hides the main launcher window. Used by auto-hide feature to minimize the launcher while the game runs.
-     *
-     * @since 2.0
-     */
-    public static void hideAllStages() {
-        Stage topStage = getTopStageOrNull();
-        if ( topStage != null ) {
-            GUIUtilities.JFXPlatformRun( topStage::hide );
-        }
-    }
-
-    /**
-     * Shows the main launcher window after it was hidden. Used by auto-hide feature to restore the launcher when
-     * the game exits.
-     *
-     * @since 2.0
-     */
-    public static void showAllStages() {
-        Stage topStage = getTopStageOrNull();
-        if ( topStage != null ) {
-            GUIUtilities.JFXPlatformRun( topStage::show );
-        }
-    }
 
     private static boolean startGui() {
         if ( guiWindow == null ) {

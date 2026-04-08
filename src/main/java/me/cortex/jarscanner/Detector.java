@@ -200,7 +200,14 @@ public class Detector {
     }
 
     public static boolean scanClass(byte[] clazz) {
-        ClassReader reader = new ClassReader(clazz);
+        ClassReader reader;
+        try {
+            reader = new ClassReader(clazz);
+        } catch (IllegalArgumentException e) {
+            // Unsupported class file version (e.g. Java 25 / major version 69 with ASM 9.5).
+            // The class can't be parsed, so it can't contain detectable malware signatures.
+            return false;
+        }
         ClassNode node = new ClassNode();
         try {
             reader.accept(node, 0);

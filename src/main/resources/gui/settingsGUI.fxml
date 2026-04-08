@@ -162,8 +162,7 @@
                 <MFXToggleButton fx:id="windowResizeCheckBox" text="Window Resizing" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER" />
                 <MFXToggleButton fx:id="discordCheckBox" text="Discord Integration" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
                 <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="Enhanced Logging" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER" />
-                <MFXToggleButton fx:id="inGameConsoleCheckBox" text="In-Game Console" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
-                <MFXToggleButton fx:id="autoHideCheckBox" text="Auto-Hide Launcher" GridPane.columnIndex="1" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
+                <MFXToggleButton fx:id="inGameConsoleCheckBox" text="In-Game Console" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER" />
             </children>
             <GridPane.margin>
                <Insets bottom="5.0" left="10.0" right="10.0" top="5.0" />

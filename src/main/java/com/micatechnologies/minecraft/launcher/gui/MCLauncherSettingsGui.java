@@ -91,10 +91,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
-    MFXToggleButton autoHideCheckBox;
-
-    @SuppressWarnings( "unused" )
-    @FXML
     MFXButton scanFolderBtn;
 
     @SuppressWarnings( "unused" )
@@ -322,7 +318,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             // Store enhanced logging to config
             ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
             ConfigManager.setInGameConsoleEnable( inGameConsoleCheckBox.isSelected() );
-            ConfigManager.setAutoHideLauncher( autoHideCheckBox.isSelected() );
 
             // Store theme selection
             if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
@@ -518,9 +513,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Set and configure in-game console check box
         inGameConsoleCheckBox.setSelected( ConfigManager.getInGameConsoleEnable() );
-
-        // Set and configure auto-hide launcher check box
-        autoHideCheckBox.setSelected( ConfigManager.getAutoHideLauncher() );
 
         // Load system RAM config label
         SystemInfo systemInfo = new SystemInfo();
