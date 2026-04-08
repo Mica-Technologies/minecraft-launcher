@@ -29,6 +29,7 @@ import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
@@ -108,6 +109,30 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton manageRuntimeBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXToggleButton proxyEnableCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.control.TextField proxyHostField;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Spinner< Integer > proxyPortSpinner;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXComboBox< String > proxyTypeSelection;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton exportSettingsBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton importSettingsBtn;
 
     @SuppressWarnings( "unused" )
     @FXML
@@ -325,6 +350,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 MCLauncherGuiController.forceThemeRefresh();
             }
 
+            // Store proxy settings
+            ConfigManager.setProxyEnable( proxyEnableCheckBox.isSelected() );
+            ConfigManager.setProxyHost( proxyHostField.getText() );
+            ConfigManager.setProxyPort( proxyPortSpinner.getValue() );
+            String selectedProxyType = proxyTypeSelection.getSelectedItem();
+            if ( selectedProxyType != null ) {
+                ConfigManager.setProxyType( selectedProxyType );
+            }
+            NetworkUtilities.reloadProxy();
+
             // Store JVM preset selection
             String selectedPreset = jvmPresetSelection.getSelectedItem();
             if ( selectedPreset != null ) {
@@ -440,6 +475,65 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         } ) );
 
         // Configure open launcher folder button
+        exportSettingsBtn.setOnAction( event -> {
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle( "Export Settings" );
+            fileChooser.setInitialFileName( "launcher-settings.json" );
+            fileChooser.getExtensionFilters().add(
+                    new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+            java.io.File file = fileChooser.showSaveDialog( stage );
+            if ( file != null ) {
+                SystemUtilities.spawnNewTask( () -> {
+                    boolean ok = ConfigManager.exportConfig( file );
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        if ( ok ) {
+                            exportSettingsBtn.setText( "Exported!" );
+                        }
+                        else {
+                            exportSettingsBtn.setText( "Failed" );
+                        }
+                    } );
+                    SystemUtilities.spawnNewTask( () -> {
+                        try { Thread.sleep( 2000 ); } catch ( InterruptedException ignored ) {}
+                        GUIUtilities.JFXPlatformRun( () -> exportSettingsBtn.setText( "Export Settings" ) );
+                    } );
+                } );
+            }
+        } );
+
+        importSettingsBtn.setOnAction( event -> {
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle( "Import Settings" );
+            fileChooser.getExtensionFilters().add(
+                    new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+            java.io.File file = fileChooser.showOpenDialog( stage );
+            if ( file != null ) {
+                SystemUtilities.spawnNewTask( () -> {
+                    boolean ok = ConfigManager.importConfig( file );
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        if ( ok ) {
+                            importSettingsBtn.setText( "Imported!" );
+                            // Reload the settings GUI to reflect imported values
+                            try {
+                                MCLauncherGuiController.goToSettingsGui();
+                            }
+                            catch ( IOException e ) {
+                                Logger.logErrorSilent( "Unable to reload settings after import." );
+                            }
+                        }
+                        else {
+                            importSettingsBtn.setText( "Failed" );
+                            SystemUtilities.spawnNewTask( () -> {
+                                try { Thread.sleep( 2000 ); } catch ( InterruptedException ignored ) {}
+                                GUIUtilities.JFXPlatformRun(
+                                        () -> importSettingsBtn.setText( "Import Settings" ) );
+                            } );
+                        }
+                    } );
+                } );
+            }
+        } );
+
         openFolderBtn.setOnAction( event -> SystemUtilities.spawnNewTask( () -> {
             try {
                 java.io.File launcherFolder = SynchronizedFileManager.getSynchronizedFile(
@@ -513,6 +607,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Set and configure in-game console check box
         inGameConsoleCheckBox.setSelected( ConfigManager.getInGameConsoleEnable() );
+
+        // Populate proxy settings
+        proxyEnableCheckBox.setSelected( ConfigManager.getProxyEnable() );
+        proxyHostField.setText( ConfigManager.getProxyHost() );
+        proxyPortSpinner.setValueFactory(
+                new SpinnerValueFactory.IntegerSpinnerValueFactory( 1, 65535, ConfigManager.getProxyPort() ) );
+        proxyPortSpinner.setEditable( true );
+        proxyTypeSelection.getItems().clear();
+        proxyTypeSelection.getItems().addAll( ConfigConstants.PROXY_TYPES );
+        proxyTypeSelection.selectItem( ConfigManager.getProxyType() );
 
         // Load system RAM config label
         SystemInfo systemInfo = new SystemInfo();

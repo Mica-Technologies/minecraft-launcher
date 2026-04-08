@@ -21,6 +21,10 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
@@ -120,6 +124,15 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton editorBtn;
+
+    /**
+     * Generate hosting manifest button.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton hostingManifestBtn;
 
     /**
      * Announcement banner.
@@ -232,6 +245,42 @@ public class MCLauncherEditModPacksGui extends MCLauncherAbstractGui
                 Logger.logThrowable( ex );
             }
         } ) );
+
+        // Configure hosting manifest button
+        hostingManifestBtn.setOnAction( actionEvent -> {
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle( "Save Hosting Manifest" );
+            fileChooser.setInitialFileName( "installable.json" );
+            fileChooser.getExtensionFilters().add(
+                    new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+            java.io.File file = fileChooser.showSaveDialog( stage );
+            if ( file != null ) {
+                SystemUtilities.spawnNewTask( () -> {
+                    try {
+                        // Build the manifest from installed modpack URLs
+                        List< String > urls = GameModPackManager.getInstalledModPackURLs();
+                        JsonObject manifest = new JsonObject();
+                        JsonArray available = new JsonArray();
+                        for ( String url : urls ) {
+                            available.add( url );
+                        }
+                        manifest.add( ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY, available );
+                        String json = new GsonBuilder().setPrettyPrinting().create().toJson( manifest );
+                        java.nio.file.Files.writeString( file.toPath(), json,
+                                                          java.nio.charset.StandardCharsets.UTF_8 );
+                        GUIUtilities.JFXPlatformRun( () -> hostingManifestBtn.setText( "Saved!" ) );
+                        SystemUtilities.spawnNewTask( () -> {
+                            try { Thread.sleep( 2000 ); } catch ( InterruptedException ignored ) {}
+                            GUIUtilities.JFXPlatformRun(
+                                    () -> hostingManifestBtn.setText( "Generate Hosting Manifest" ) );
+                        } );
+                    }
+                    catch ( Exception ex ) {
+                        Logger.logError( "Failed to generate hosting manifest: " + ex.getMessage() );
+                    }
+                } );
+            }
+        } );
 
         // Configure return button and window close
         returnBtn.setOnAction( actionEvent -> {

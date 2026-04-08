@@ -281,6 +281,63 @@ public class ConfigConstants
      */
     public static final boolean INGAME_CONSOLE_ENABLE_DEFAULT = false;
 
+    // region Proxy Configuration
+
+    /**
+     * Key for the proxy enable flag.
+     *
+     * @since 3.0
+     */
+    public static final String PROXY_ENABLE_KEY = "proxyEnable";
+
+    /**
+     * Key for the proxy host.
+     *
+     * @since 3.0
+     */
+    public static final String PROXY_HOST_KEY = "proxyHost";
+
+    /**
+     * Key for the proxy port.
+     *
+     * @since 3.0
+     */
+    public static final String PROXY_PORT_KEY = "proxyPort";
+
+    /**
+     * Key for the proxy type (HTTP or SOCKS).
+     *
+     * @since 3.0
+     */
+    public static final String PROXY_TYPE_KEY = "proxyType";
+
+    /**
+     * Default proxy enable value.
+     */
+    public static final boolean PROXY_ENABLE_DEFAULT = false;
+
+    /**
+     * Default proxy host value.
+     */
+    public static final String PROXY_HOST_DEFAULT = "";
+
+    /**
+     * Default proxy port value.
+     */
+    public static final int PROXY_PORT_DEFAULT = 8080;
+
+    /**
+     * Default proxy type value.
+     */
+    public static final String PROXY_TYPE_DEFAULT = "HTTP";
+
+    /**
+     * Allowed proxy type values.
+     */
+    public static final String[] PROXY_TYPES = { "HTTP", "SOCKS" };
+
+    // endregion
+
     /**
      * Key for accessing the list of installed vanilla Minecraft versions.
      *

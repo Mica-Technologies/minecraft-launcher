@@ -535,6 +535,98 @@ public class ConfigManager
         writeConfigurationToDisk();
     }
 
+    // region Proxy Configuration
+
+    /**
+     * Gets whether proxy is enabled.
+     *
+     * @return true if proxy is enabled
+     *
+     * @since 3.0
+     */
+    public synchronized static boolean getProxyEnable() {
+        if ( configObject == null ) readConfigurationFromDisk();
+        if ( !configObject.has( ConfigConstants.PROXY_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.PROXY_ENABLE_KEY, ConfigConstants.PROXY_ENABLE_DEFAULT );
+            writeConfigurationToDisk();
+        }
+        return configObject.get( ConfigConstants.PROXY_ENABLE_KEY ).getAsBoolean();
+    }
+
+    public synchronized static void setProxyEnable( boolean enable ) {
+        if ( configObject == null ) readConfigurationFromDisk();
+        configObject.addProperty( ConfigConstants.PROXY_ENABLE_KEY, enable );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Gets the proxy host.
+     *
+     * @return proxy host string
+     *
+     * @since 3.0
+     */
+    public synchronized static String getProxyHost() {
+        if ( configObject == null ) readConfigurationFromDisk();
+        if ( !configObject.has( ConfigConstants.PROXY_HOST_KEY ) ) {
+            configObject.addProperty( ConfigConstants.PROXY_HOST_KEY, ConfigConstants.PROXY_HOST_DEFAULT );
+            writeConfigurationToDisk();
+        }
+        return configObject.get( ConfigConstants.PROXY_HOST_KEY ).getAsString();
+    }
+
+    public synchronized static void setProxyHost( String host ) {
+        if ( configObject == null ) readConfigurationFromDisk();
+        configObject.addProperty( ConfigConstants.PROXY_HOST_KEY, host != null ? host : "" );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Gets the proxy port.
+     *
+     * @return proxy port
+     *
+     * @since 3.0
+     */
+    public synchronized static int getProxyPort() {
+        if ( configObject == null ) readConfigurationFromDisk();
+        if ( !configObject.has( ConfigConstants.PROXY_PORT_KEY ) ) {
+            configObject.addProperty( ConfigConstants.PROXY_PORT_KEY, ConfigConstants.PROXY_PORT_DEFAULT );
+            writeConfigurationToDisk();
+        }
+        return configObject.get( ConfigConstants.PROXY_PORT_KEY ).getAsInt();
+    }
+
+    public synchronized static void setProxyPort( int port ) {
+        if ( configObject == null ) readConfigurationFromDisk();
+        configObject.addProperty( ConfigConstants.PROXY_PORT_KEY, port );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Gets the proxy type ("HTTP" or "SOCKS").
+     *
+     * @return proxy type string
+     *
+     * @since 3.0
+     */
+    public synchronized static String getProxyType() {
+        if ( configObject == null ) readConfigurationFromDisk();
+        if ( !configObject.has( ConfigConstants.PROXY_TYPE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.PROXY_TYPE_KEY, ConfigConstants.PROXY_TYPE_DEFAULT );
+            writeConfigurationToDisk();
+        }
+        return configObject.get( ConfigConstants.PROXY_TYPE_KEY ).getAsString();
+    }
+
+    public synchronized static void setProxyType( String type ) {
+        if ( configObject == null ) readConfigurationFromDisk();
+        configObject.addProperty( ConfigConstants.PROXY_TYPE_KEY, type != null ? type : "HTTP" );
+        writeConfigurationToDisk();
+    }
+
+    // endregion
+
     /**
      * Gets the configured list of installed vanilla Minecraft version IDs.
      *
@@ -644,6 +736,10 @@ public class ConfigManager
         getTheme();
         getInstalledModPacks();
         getInGameConsoleEnable();
+        getProxyEnable();
+        getProxyHost();
+        getProxyPort();
+        getProxyType();
         getInstalledVanillaVersions();
 
         // Stamp the current version and persist
@@ -656,6 +752,53 @@ public class ConfigManager
      *
      * @since 1.0
      */
+    /**
+     * Exports the current launcher configuration to the specified file as pretty-printed JSON.
+     *
+     * @param destination the file to write the exported config to
+     *
+     * @return true if export succeeded
+     *
+     * @since 3.0
+     */
+    public synchronized static boolean exportConfig( File destination ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        try {
+            FileUtilities.writeFromJson( configObject, destination );
+            return true;
+        }
+        catch ( Exception e ) {
+            Logger.logErrorSilent( "Failed to export settings: " + e.getMessage() );
+            return false;
+        }
+    }
+
+    /**
+     * Imports launcher configuration from the specified file, replacing the current config. The imported config is
+     * migrated to the current schema version after loading.
+     *
+     * @param source the file to read the config from
+     *
+     * @return true if import succeeded
+     *
+     * @since 3.0
+     */
+    public synchronized static boolean importConfig( File source ) {
+        try {
+            JsonObject imported = FileUtilities.readAsJsonObject( source );
+            configObject = imported;
+            migrateConfigIfNeeded();
+            writeConfigurationToDisk();
+            return true;
+        }
+        catch ( Exception e ) {
+            Logger.logErrorSilent( "Failed to import settings: " + e.getMessage() );
+            return false;
+        }
+    }
+
     private synchronized static void writeConfigurationToDisk() {
         // Check if configuration is loaded, return if not
         if ( configObject == null ) {

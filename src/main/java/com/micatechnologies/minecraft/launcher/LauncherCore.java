@@ -417,7 +417,73 @@ public class LauncherCore
                 Logger.logErrorSilent( initialErrorMessage );
             }
             if ( finalGameModPack != null ) {
-                play( finalGameModPack );
+                // Server mode: launch with auto-restart on crash
+                final int maxRestarts = 3;
+                int restartCount = 0;
+                boolean shouldRestart = true;
+                while ( shouldRestart ) {
+                    Logger.logStd( "Starting server" + ( restartCount > 0
+                                           ? " (restart " + restartCount + "/" + maxRestarts + ")" : "" ) + "..." );
+                    play( finalGameModPack );
+
+                    Process proc = finalGameModPack.getLastLaunchedProcess();
+                    if ( proc != null ) {
+                        try {
+                            // Pipe server output to launcher console (stdout/stderr)
+                            Thread stdoutPipe = new Thread( () -> {
+                                try ( var is = proc.getInputStream();
+                                      var reader = new java.io.BufferedReader(
+                                              new java.io.InputStreamReader( is ) ) ) {
+                                    String line;
+                                    while ( ( line = reader.readLine() ) != null ) {
+                                        System.out.println( "[SERVER] " + line );
+                                    }
+                                }
+                                catch ( IOException ignored ) {}
+                            }, "server-stdout-pipe" );
+                            Thread stderrPipe = new Thread( () -> {
+                                try ( var is = proc.getErrorStream();
+                                      var reader = new java.io.BufferedReader(
+                                              new java.io.InputStreamReader( is ) ) ) {
+                                    String line;
+                                    while ( ( line = reader.readLine() ) != null ) {
+                                        System.err.println( "[SERVER/ERR] " + line );
+                                    }
+                                }
+                                catch ( IOException ignored ) {}
+                            }, "server-stderr-pipe" );
+                            stdoutPipe.setDaemon( true );
+                            stderrPipe.setDaemon( true );
+                            stdoutPipe.start();
+                            stderrPipe.start();
+
+                            int exitCode = proc.waitFor();
+                            Logger.logStd( "Server exited with code " + exitCode );
+
+                            if ( exitCode == 0 ) {
+                                // Clean shutdown — don't restart
+                                shouldRestart = false;
+                            }
+                            else if ( restartCount < maxRestarts ) {
+                                restartCount++;
+                                Logger.logStd( "Server crashed, restarting in 5 seconds..." );
+                                Thread.sleep( 5_000 );
+                            }
+                            else {
+                                Logger.logErrorSilent(
+                                        "Server crashed " + maxRestarts + " times, not restarting." );
+                                shouldRestart = false;
+                            }
+                        }
+                        catch ( InterruptedException e ) {
+                            Logger.logErrorSilent( "Server wait interrupted." );
+                            shouldRestart = false;
+                        }
+                    }
+                    else {
+                        shouldRestart = false;
+                    }
+                }
             }
             else {
                 Logger.logError( LocalizationManager.NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT );

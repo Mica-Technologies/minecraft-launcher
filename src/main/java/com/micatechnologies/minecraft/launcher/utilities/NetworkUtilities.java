@@ -22,12 +22,16 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
@@ -91,6 +95,59 @@ public class NetworkUtilities
     private static final String USER_AGENT = "MicaMinecraftLauncher/" +
             ( LauncherConstants.LAUNCHER_APPLICATION_VERSION != null
                     ? LauncherConstants.LAUNCHER_APPLICATION_VERSION : "dev" );
+
+    /**
+     * Cached proxy instance built from config. Rebuilt when config changes.
+     */
+    private static volatile Proxy configuredProxy = null;
+    private static volatile boolean proxyInitialized = false;
+
+    /**
+     * Returns the configured proxy, or {@link Proxy#NO_PROXY} if proxy is disabled.
+     */
+    private static Proxy getProxy() {
+        if ( !proxyInitialized ) {
+            reloadProxy();
+        }
+        return configuredProxy;
+    }
+
+    /**
+     * Reloads proxy settings from config. Call after changing proxy settings.
+     */
+    public static void reloadProxy() {
+        try {
+            if ( ConfigManager.getProxyEnable() ) {
+                String host = ConfigManager.getProxyHost();
+                int port = ConfigManager.getProxyPort();
+                String type = ConfigManager.getProxyType();
+                if ( host != null && !host.isEmpty() ) {
+                    Proxy.Type proxyType = "SOCKS".equalsIgnoreCase( type ) ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
+                    configuredProxy = new Proxy( proxyType, new InetSocketAddress( host, port ) );
+                    Logger.logStd( "Proxy configured: " + proxyType + " " + host + ":" + port );
+                }
+                else {
+                    configuredProxy = Proxy.NO_PROXY;
+                }
+            }
+            else {
+                configuredProxy = Proxy.NO_PROXY;
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Failed to configure proxy, using direct connection" );
+            configuredProxy = Proxy.NO_PROXY;
+        }
+        proxyInitialized = true;
+    }
+
+    /**
+     * Opens a URLConnection to the given URL, using the configured proxy if enabled.
+     */
+    private static URLConnection openConnection( URL url ) throws IOException {
+        Proxy proxy = getProxy();
+        return ( proxy == Proxy.NO_PROXY ) ? url.openConnection() : url.openConnection( proxy );
+    }
 
     /**
      * Applies default timeouts and headers to a URLConnection.
@@ -190,7 +247,7 @@ public class NetworkUtilities
             for ( int attempt = 1; attempt <= MAX_RETRIES; attempt++ ) {
                 try {
                     File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
-                    URLConnection connection = source.openConnection();
+                    URLConnection connection = openConnection( source );
                     applyDefaults( connection );
                     try ( InputStream is = connection.getInputStream() ) {
                         FileUtils.copyInputStreamToFile( is, tempFile );
@@ -240,7 +297,7 @@ public class NetworkUtilities
             for ( int attempt = 1; attempt <= MAX_RETRIES; attempt++ ) {
                 try {
                     File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
-                    URLConnection connection = source.openConnection();
+                    URLConnection connection = openConnection( source );
                     applyDefaults( connection );
                     long contentLength = connection.getContentLengthLong();
                     if ( tracker != null ) {
@@ -327,7 +384,7 @@ public class NetworkUtilities
     public static void downloadFileFromURL( URL source, File destination, String responseContentType )
     throws IOException
     {
-        URLConnection connection = source.openConnection();
+        URLConnection connection = openConnection( source );
         applyDefaults( connection );
         connection.setDoInput( true );
         connection.setRequestProperty( "Accept", responseContentType );
@@ -379,7 +436,7 @@ public class NetworkUtilities
      * @since 1.1
      */
     public static String downloadFileFromURL( URL source ) throws IOException {
-        URLConnection connection = source.openConnection();
+        URLConnection connection = openConnection( source );
         applyDefaults( connection );
         try ( InputStream is = connection.getInputStream() ) {
             return IOUtils.toString( is, StandardCharsets.UTF_8 );
@@ -399,7 +456,7 @@ public class NetworkUtilities
      */
     public static String downloadFileFromURL( URL source, String responseContentType ) throws IOException
     {
-        URLConnection connection = source.openConnection();
+        URLConnection connection = openConnection( source );
         applyDefaults( connection );
         connection.setDoInput( true );
         connection.setRequestProperty( "Accept", responseContentType );
