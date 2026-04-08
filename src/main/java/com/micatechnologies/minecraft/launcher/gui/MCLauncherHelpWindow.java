@@ -20,7 +20,6 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;

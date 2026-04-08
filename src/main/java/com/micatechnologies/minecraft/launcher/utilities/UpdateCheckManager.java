@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import com.nativejavafx.taskbar.TaskbarProgressbar;
 import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import javafx.scene.image.ImageView;

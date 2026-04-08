@@ -24,7 +24,6 @@ import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.CacheManager;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;

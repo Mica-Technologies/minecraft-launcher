@@ -12,7 +12,6 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import com.micatechnologies.minecraft.launcher.LauncherCore;

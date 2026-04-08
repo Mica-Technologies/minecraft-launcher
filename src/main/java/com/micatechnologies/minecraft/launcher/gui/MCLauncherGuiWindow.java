@@ -23,7 +23,6 @@ import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Application;
 import javafx.geometry.HPos;

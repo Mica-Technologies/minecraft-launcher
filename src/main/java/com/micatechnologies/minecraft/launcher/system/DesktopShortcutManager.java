@@ -15,7 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.micatechnologies.minecraft.launcher.utilities;
+package com.micatechnologies.minecraft.launcher.system;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;

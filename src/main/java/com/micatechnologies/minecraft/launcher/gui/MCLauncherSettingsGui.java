@@ -28,7 +28,6 @@ import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;

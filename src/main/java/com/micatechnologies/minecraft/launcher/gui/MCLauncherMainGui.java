@@ -27,7 +27,7 @@ import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
-import com.micatechnologies.minecraft.launcher.utilities.DesktopShortcutManager;
+import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
 import com.nativejavafx.taskbar.TaskbarProgressbar;
 import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import io.github.palexdev.materialfx.controls.MFXButton;

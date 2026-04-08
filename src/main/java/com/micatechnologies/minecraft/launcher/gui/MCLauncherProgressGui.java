@@ -20,7 +20,6 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import com.nativejavafx.taskbar.TaskbarProgressbar;
 import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;

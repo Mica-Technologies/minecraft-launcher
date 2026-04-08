@@ -18,7 +18,6 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.files.Logger;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 

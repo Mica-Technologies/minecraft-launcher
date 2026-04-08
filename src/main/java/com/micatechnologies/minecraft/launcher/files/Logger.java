@@ -21,7 +21,7 @@ import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
-import com.micatechnologies.minecraft.launcher.utilities.GUIUtilities;
+import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import javafx.stage.Stage;
 import org.apache.commons.io.output.TeeOutputStream;
 

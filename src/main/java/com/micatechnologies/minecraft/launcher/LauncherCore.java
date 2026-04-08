@@ -46,7 +46,6 @@ import org.apache.commons.lang3.SystemUtils;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
-import java.util.concurrent.CountDownLatch;
 
 /**
  * Launcher core class. This class is the main entry point of the Mica Forge Launcher, and handles the main processes
@@ -71,7 +70,10 @@ public class LauncherCore
      */
     private static String restartError = null;
 
-    private static CountDownLatch exitLatch;
+    /**
+     * The current launcher session. Each iteration of the restart loop creates a new session.
+     */
+    private static LauncherSession currentSession;
 
     /**
      * Launcher application main method/entry point.
@@ -94,96 +96,13 @@ public class LauncherCore
         }
 
         while ( restartFlag ) {
-            // Reset restart flag to false
+            // Reset restart flag and create a new session for this lifecycle iteration
             String previousRestartError = restartError;
             restartFlag = false;
             restartError = null;
-            exitLatch = new CountDownLatch( 1 );
 
-            /*
-             * Parse launcher args and set game mode from parameters if present,
-             * otherwise infer by detection of graphics environment.
-             */
-            String initialModPackSelection = parseLauncherArgs( args );
-
-            // Apply system properties
-            applySystemProperties();
-
-            // Configure logging
-            configureLogger();
-
-            // Log startup
-            Logger.logDebug( "Logging configured. Application arguments parsed: " );
-            for ( String arg : args ) {
-                Logger.logDebug( "  " + arg );
-            }
-
-            // Log development mode
-            if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-                Logger.logDebug( "[NOTICE] Development Mode is Enabled! Bugs may be present and not all features " +
-                                         "may function as intended." );
-            }
-
-            // If client, do login
-            if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
-                Logger.logDebug( LocalizationManager.LAUNCHER_CLIENT_MODE_STARTING_LOGIN_TEXT );
-                performClientLogin( previousRestartError );
-                Logger.logDebug( LocalizationManager.LOGIN_PROCESS_FINISHED_TEXT );
-            }
-            else {
-                Logger.logDebug( LocalizationManager.LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT );
-            }
-
-            // Show a progress window while loading startup data
-            MCLauncherProgressGui startupProgressWindow = null;
-            try {
-                if ( MCLauncherGuiController.shouldCreateGui() ) {
-                    startupProgressWindow = MCLauncherGuiController.goToProgressGui();
-                }
-            }
-            catch ( IOException e ) {
-                Logger.logError( "Unable to load progress GUI for startup." );
-                Logger.logThrowable( e );
-            }
-
-            // Load announcements
-            if ( startupProgressWindow != null ) {
-                startupProgressWindow.setUpperLabelText( "Loading" );
-                startupProgressWindow.setSectionText( "Checking for announcements..." );
-                startupProgressWindow.setDetailText( "Contacting announcement server" );
-                startupProgressWindow.setProgress( 25 );
-            }
-            AnnouncementManager.checkAnnouncements();
-
-            // Load mod pack information
-            if ( startupProgressWindow != null ) {
-                startupProgressWindow.setSectionText( "Loading mod packs..." );
-                startupProgressWindow.setDetailText( "Fetching installed and available mod packs" );
-                startupProgressWindow.setProgress( 60 );
-            }
-            GameModPackManager.fetchModPackInfo();
-
-            if ( startupProgressWindow != null ) {
-                startupProgressWindow.setSectionText( "Ready!" );
-                startupProgressWindow.setDetailText( "" );
-                startupProgressWindow.setProgress( 100 );
-            }
-
-            // Note: Java runtime verification is now performed on-demand when a modpack is launched,
-            // based on the Minecraft version's required Java version (from client.json javaVersion field).
-
-            // Show main (mod pack selection) window
-            doModpackSelection( initialModPackSelection, previousRestartError );
-
-            // Wait for exit latch
-            try {
-                exitLatch.await();
-            }
-            catch ( InterruptedException e ) {
-                Logger.logError( "The main thread was interrupted before receiving an exit signal. The application " +
-                                         "will be unable to restart!" );
-                Logger.logThrowable( e );
-            }
+            currentSession = new LauncherSession( args, previousRestartError );
+            currentSession.run();
         }
     }
 
@@ -704,7 +623,7 @@ public class LauncherCore
         restartFlag = true;
         restartError = null;
         cleanupApp();
-        exitLatch.countDown();
+        currentSession.exitLatch.countDown();
     }
 
     /**
@@ -717,7 +636,7 @@ public class LauncherCore
         restartFlag = true;
         restartError = restartErrorString;
         cleanupApp();
-        exitLatch.countDown();
+        currentSession.exitLatch.countDown();
     }
 
     /**
@@ -745,7 +664,7 @@ public class LauncherCore
      */
     public static void closeApp() {
         cleanupApp();
-        exitLatch.countDown();
+        currentSession.exitLatch.countDown();
         Logger.logStd( LocalizationManager.SEE_YOU_SOON_TEXT );
         System.exit( LauncherConstants.EXIT_STATUS_CODE_GOOD );
     }
