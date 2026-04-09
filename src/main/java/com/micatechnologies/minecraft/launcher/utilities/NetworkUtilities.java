@@ -199,15 +199,8 @@ public class NetworkUtilities
      */
     public static boolean checkNetworkAvailability()
     {
-        try {
-            URLConnection connection = new URL( "https://launchermeta.mojang.com/" ).openConnection();
-            connection.setConnectTimeout( 5_000 );
-            connection.setReadTimeout( 5_000 );
-            connection.setRequestProperty( "User-Agent", USER_AGENT );
-            try ( InputStream is = connection.getInputStream() ) {
-                // Just need the connection to succeed
-                is.read();
-            }
+        try ( java.net.Socket socket = new java.net.Socket() ) {
+            socket.connect( new java.net.InetSocketAddress( "launchermeta.mojang.com", 443 ), 5_000 );
             offlineMode = false;
             return true;
         }

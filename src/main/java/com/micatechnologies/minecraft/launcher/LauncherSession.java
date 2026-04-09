@@ -98,19 +98,37 @@ class LauncherSession
             Logger.logThrowable( e );
         }
 
-        // Load announcements
+        // Check network connectivity
         if ( startupProgressWindow != null ) {
             startupProgressWindow.setUpperLabelText( "Loading" );
-            startupProgressWindow.setSectionText( "Checking for announcements..." );
-            startupProgressWindow.setDetailText( "Contacting announcement server" );
-            startupProgressWindow.setProgress( 25 );
+            startupProgressWindow.setSectionText( "Checking network connectivity..." );
+            startupProgressWindow.setDetailText( "" );
+            startupProgressWindow.setProgress( 15 );
         }
-        AnnouncementManager.checkAnnouncements();
+        boolean online = com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.checkNetworkAvailability();
+
+        // Load announcements (skip if offline to avoid timeout delays)
+        if ( online ) {
+            if ( startupProgressWindow != null ) {
+                startupProgressWindow.setSectionText( "Checking for announcements..." );
+                startupProgressWindow.setDetailText( "Contacting announcement server" );
+                startupProgressWindow.setProgress( 25 );
+            }
+            AnnouncementManager.checkAnnouncements();
+        }
+        else {
+            if ( startupProgressWindow != null ) {
+                startupProgressWindow.setSectionText( "Offline mode" );
+                startupProgressWindow.setDetailText( "Skipping announcements" );
+                startupProgressWindow.setProgress( 25 );
+            }
+        }
 
         // Load mod pack information
         if ( startupProgressWindow != null ) {
             startupProgressWindow.setSectionText( "Loading mod packs..." );
-            startupProgressWindow.setDetailText( "Fetching installed and available mod packs" );
+            startupProgressWindow.setDetailText( online ? "Fetching installed and available mod packs"
+                                                        : "Loading cached mod pack data" );
             startupProgressWindow.setProgress( 60 );
         }
         GameModPackManager.fetchModPackInfo();
