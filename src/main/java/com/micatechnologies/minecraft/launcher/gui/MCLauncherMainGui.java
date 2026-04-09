@@ -97,15 +97,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     MFXButton settingsBtn;
 
     /**
-     * Logout button. Logs out the currently logged in user.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton logoutBtn;
-
-    /**
      * Edit mod packs button. Opens the mod pack installation window.
      *
      * @since 3.0
@@ -202,6 +193,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     Label versionLabel;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label offlineLabel;
 
     private TaskbarProgressbar taskbarProgressbar = null;
 
@@ -322,12 +317,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } ) );
 
-        // Configure logout button
-        logoutBtn.setOnAction( actionEvent -> {
-            MCLauncherAuthManager.logout();
-            LauncherCore.restartApp();
-        } );
-
         // Configure play button
         playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
         playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
@@ -371,6 +360,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         // Configure version label in bottom bar
         versionLabel.setText( "Mica Launcher v" + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+
+        // Show offline mode indicator if applicable
+        if ( com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.isOffline() ) {
+            offlineLabel.setVisible( true );
+            offlineLabel.setManaged( true );
+        }
 
         // Configure user image
         userImage.setImage( new Image(

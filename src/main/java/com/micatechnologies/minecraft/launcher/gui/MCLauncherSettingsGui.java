@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
@@ -216,7 +217,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem;
+    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem;
 
     /**
      * StackPane containing the category content panes.
@@ -226,6 +227,23 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     StackPane settingsContent;
+
+    /**
+     * Account tab FXML controls.
+     *
+     * @since 3.0
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.image.ImageView accountAvatar;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label accountNameLabel, accountUuidLabel;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton minecraftNetBtn, msAccountBtn, logoutBtn;
 
     /**
      * Array of nav buttons in category order, populated during setup.
@@ -755,15 +773,19 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         } );
 
         // Wire up sidebar navigation buttons
-        navButtons = new MFXButton[]{ navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem };
-        navGame.setOnAction( e -> showCategory( 0 ) );
-        navAppearance.setOnAction( e -> showCategory( 1 ) );
-        navAdvanced.setOnAction( e -> showCategory( 2 ) );
-        navNetwork.setOnAction( e -> showCategory( 3 ) );
-        navSecurity.setOnAction( e -> showCategory( 4 ) );
-        navSystem.setOnAction( e -> showCategory( 5 ) );
+        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem };
+        navAccount.setOnAction( e -> showCategory( 0 ) );
+        navGame.setOnAction( e -> showCategory( 1 ) );
+        navAppearance.setOnAction( e -> showCategory( 2 ) );
+        navAdvanced.setOnAction( e -> showCategory( 3 ) );
+        navNetwork.setOnAction( e -> showCategory( 4 ) );
+        navSecurity.setOnAction( e -> showCategory( 5 ) );
+        navSystem.setOnAction( e -> showCategory( 6 ) );
 
-        // Show Game category by default
+        // Populate account tab
+        setupAccountTab();
+
+        // Show Account category by default
         showCategory( 0 );
     }
 
@@ -771,7 +793,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      * Switches the visible settings category pane to the one at the given index and updates the nav button selection
      * state.
      *
-     * @param index the zero-based category index (0=Game, 1=Appearance, 2=Advanced, 3=Network, 4=Security, 5=System)
+     * @param index the zero-based category index (0=Account, 1=Game, 2=Appearance, 3=Advanced, 4=Network, 5=Security,
+     *              6=System)
      *
      * @since 3.0
      */
@@ -789,6 +812,59 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( index >= 0 && index < navButtons.length ) {
             navButtons[index].getStyleClass().add( "selected" );
         }
+    }
+
+    /**
+     * Populates the Account settings tab with player info, helpful links, and a confirmed logout button.
+     *
+     * @since 3.0
+     */
+    private void setupAccountTab()
+    {
+        // Player profile
+        var user = MCLauncherAuthManager.getLoggedInUser();
+        accountNameLabel.setText( user.name() );
+        accountUuidLabel.setText( "UUID: " + user.uuid() );
+        accountAvatar.setImage( new javafx.scene.image.Image(
+                com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS
+                        .replace( com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
+                                  user.uuid() ) ) );
+
+        // Helpful links
+        minecraftNetBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                java.awt.Desktop.getDesktop().browse( java.net.URI.create( "https://www.minecraft.net/en-us/profile" ) );
+            }
+            catch ( IOException ex ) {
+                Logger.logError( "Unable to open browser." );
+                Logger.logThrowable( ex );
+            }
+        } ) );
+        msAccountBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                java.awt.Desktop.getDesktop().browse( java.net.URI.create( "https://account.microsoft.com/" ) );
+            }
+            catch ( IOException ex ) {
+                Logger.logError( "Unable to open browser." );
+                Logger.logThrowable( ex );
+            }
+        } ) );
+
+        // Logout with confirmation
+        logoutBtn.setOnAction( e -> {
+            javafx.scene.control.Alert confirm = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.CONFIRMATION );
+            confirm.setTitle( "Log Out" );
+            confirm.setHeaderText( "Are you sure you want to log out?" );
+            confirm.setContentText( "You will need to sign in with your Microsoft account again." );
+            confirm.initOwner( stage );
+            confirm.showAndWait().ifPresent( response -> {
+                if ( response == javafx.scene.control.ButtonType.OK ) {
+                    MCLauncherAuthManager.logout();
+                    LauncherCore.restartApp();
+                }
+            } );
+        } );
     }
 
     /**

@@ -770,14 +770,14 @@
     -fx-font-size: 14;
 }
 .navBar .mfx-button {
-    -fx-background-color: transparent;
+    -fx-background-color: rgba(0, 0, 0, 0.06);
     -fx-text-fill: #49454F;
     -fx-font-size: 12;
     -fx-padding: 4 12 4 12;
     -fx-background-radius: 8;
 }
 .navBar .mfx-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.15);
+    -fx-background-color: rgba(76, 175, 80, 0.2);
     -fx-text-fill: #1C1B1F;
 }
 
@@ -789,18 +789,18 @@
     -fx-padding: 6 16 6 16;
 }
 .bottomBar .label {
-    -fx-text-fill: #79747E;
-    -fx-font-size: 11;
+    -fx-text-fill: #49454F;
+    -fx-font-size: 14;
 }
 .bottomBar .mfx-button {
-    -fx-background-color: transparent;
+    -fx-background-color: rgba(0, 0, 0, 0.06);
     -fx-text-fill: #49454F;
-    -fx-font-size: 11;
-    -fx-padding: 3 10 3 10;
-    -fx-background-radius: 6;
+    -fx-font-size: 12;
+    -fx-padding: 4 12 4 12;
+    -fx-background-radius: 8;
 }
 .bottomBar .mfx-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.15);
+    -fx-background-color: rgba(76, 175, 80, 0.2);
 }
 
 /* Settings sidebar navigation buttons */

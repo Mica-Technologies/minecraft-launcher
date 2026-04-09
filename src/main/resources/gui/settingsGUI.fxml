@@ -14,6 +14,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
@@ -55,6 +56,7 @@
             <padding>
                 <Insets top="8.0" bottom="8.0" left="4.0" right="4.0" />
             </padding>
+            <MFXButton fx:id="navAccount" text="Account" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navGame" text="Game" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navAppearance" text="Appearance" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navAdvanced" text="Advanced" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
@@ -66,8 +68,87 @@
         <!-- Right content area: stacked category panes -->
         <StackPane fx:id="settingsContent" HBox.hgrow="ALWAYS">
 
-            <!-- Category 0: Game -->
-            <ScrollPane fx:id="gamePane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;">
+            <!-- Category 0: Account -->
+            <ScrollPane fx:id="accountPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;">
+                <VBox spacing="12" fillWidth="true">
+                    <padding>
+                        <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
+                    </padding>
+                    <Label text="Account" styleClass="settingsCategoryHeader">
+                        <font>
+                            <Font name="System Bold" size="18.0" />
+                        </font>
+                    </Label>
+                    <!-- Player profile card -->
+                    <VBox styleClass="settingsContainer" spacing="12">
+                        <padding>
+                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
+                        </padding>
+                        <HBox spacing="16" alignment="CENTER_LEFT">
+                            <ImageView fx:id="accountAvatar" fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true" />
+                            <VBox spacing="4">
+                                <Label fx:id="accountNameLabel" text="Player">
+                                    <font>
+                                        <Font name="System Bold" size="16.0" />
+                                    </font>
+                                </Label>
+                                <Label fx:id="accountUuidLabel" text="UUID: ..." wrapText="true">
+                                    <font>
+                                        <Font size="11.0" />
+                                    </font>
+                                </Label>
+                            </VBox>
+                        </HBox>
+                    </VBox>
+                    <!-- Helpful links -->
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Helpful Links">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <HBox spacing="8">
+                            <MFXButton fx:id="minecraftNetBtn" prefHeight="30.0" text="Minecraft.net">
+                                <font>
+                                    <Font size="11.0" />
+                                </font>
+                            </MFXButton>
+                            <MFXButton fx:id="msAccountBtn" prefHeight="30.0" text="Microsoft Account">
+                                <font>
+                                    <Font size="11.0" />
+                                </font>
+                            </MFXButton>
+                        </HBox>
+                    </VBox>
+                    <!-- Log out -->
+                    <VBox styleClass="settingsContainer, dangerZone" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Sign Out">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="Signing out will clear your saved login and restart the launcher." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXButton fx:id="logoutBtn" prefHeight="30.0" prefWidth="120.0" text="Log Out" styleClass="dangerZone">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </MFXButton>
+                    </VBox>
+                </VBox>
+            </ScrollPane>
+
+            <!-- Category 1: Game -->
+            <ScrollPane fx:id="gamePane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />

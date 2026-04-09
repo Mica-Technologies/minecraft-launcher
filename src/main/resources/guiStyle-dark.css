@@ -915,37 +915,37 @@
     -fx-font-size: 14;
 }
 .navBar .mfx-button {
-    -fx-background-color: transparent;
+    -fx-background-color: rgba(255, 255, 255, 0.08);
     -fx-text-fill: #CAC4D0;
     -fx-font-size: 12;
     -fx-padding: 4 12 4 12;
     -fx-background-radius: 8;
 }
 .navBar .mfx-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.15);
+    -fx-background-color: rgba(76, 175, 80, 0.2);
     -fx-text-fill: #E6E1E5;
 }
 
 /* Bottom bar (status bar) */
 .bottomBar {
-    -fx-background-color: rgba(73, 69, 79, 0.45);
+    -fx-background-color: rgba(73, 69, 79, 0.55);
     -fx-border-color: #636168 transparent transparent transparent;
     -fx-border-width: 1 0 0 0;
     -fx-padding: 6 16 6 16;
 }
 .bottomBar .label {
-    -fx-text-fill: #938F99;
-    -fx-font-size: 11;
+    -fx-text-fill: #E6E1E5;
+    -fx-font-size: 14;
 }
 .bottomBar .mfx-button {
-    -fx-background-color: transparent;
+    -fx-background-color: rgba(255, 255, 255, 0.08);
     -fx-text-fill: #CAC4D0;
-    -fx-font-size: 11;
-    -fx-padding: 3 10 3 10;
-    -fx-background-radius: 6;
+    -fx-font-size: 12;
+    -fx-padding: 4 12 4 12;
+    -fx-background-radius: 8;
 }
 .bottomBar .mfx-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.15);
+    -fx-background-color: rgba(76, 175, 80, 0.2);
 }
 
 /* Settings sidebar navigation buttons */

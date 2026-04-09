@@ -45,8 +45,8 @@
         <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
         <!-- Row 2: Main content (fills remaining) -->
         <RowConstraints vgrow="ALWAYS"/>
-        <!-- Row 3: Bottom status bar (32px fixed) -->
-        <RowConstraints maxHeight="32.0" minHeight="32.0" prefHeight="32.0"/>
+        <!-- Row 3: Bottom status bar (44px fixed, matches top nav) -->
+        <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
     </rowConstraints>
 
     <!-- Row 0: Announcement banner -->
@@ -94,8 +94,8 @@
             </ListView>
         </VBox>
 
-        <!-- Right: Modpack detail + play panel -->
-        <GridPane fx:id="centerPane" HBox.hgrow="ALWAYS" styleClass="centerPane"
+        <!-- Right: Modpack detail panel -->
+        <GridPane fx:id="centerPane" HBox.hgrow="ALWAYS"
                   alignment="CENTER">
             <columnConstraints>
                 <ColumnConstraints hgrow="ALWAYS"/>
@@ -103,11 +103,7 @@
             <rowConstraints>
                 <!-- Unstable warning (conditional) -->
                 <RowConstraints fx:id="unstableWarningRow" fillHeight="false"/>
-                <!-- Spacer -->
-                <RowConstraints vgrow="ALWAYS"/>
-                <!-- Play + Website buttons -->
-                <RowConstraints maxHeight="60.0" minHeight="50.0" prefHeight="56.0"/>
-                <!-- Spacer below buttons -->
+                <!-- Remaining space -->
                 <RowConstraints vgrow="ALWAYS"/>
             </rowConstraints>
             <padding><Insets bottom="16.0" left="16.0" right="16.0" top="16.0"/></padding>
@@ -122,22 +118,22 @@
                    GridPane.halignment="CENTER">
                 <font><Font size="11.0"/></font>
             </Label>
-
-            <!-- Play and Website buttons (centered) -->
-            <HBox alignment="CENTER" spacing="16.0" GridPane.rowIndex="2" GridPane.halignment="CENTER">
-                <MFXButton fx:id="playBtn" prefHeight="36.0" prefWidth="120.0" text="Play">
-                    <font><Font size="14.0"/></font>
-                </MFXButton>
-                <MFXButton fx:id="websiteBtn" prefHeight="28.0" prefWidth="90.0" text="Website"/>
-            </HBox>
         </GridPane>
     </HBox>
 
-    <!-- Row 3: Bottom status bar -->
+    <!-- Row 3: Bottom status bar with Play/Website integrated -->
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="3">
         <Label fx:id="versionLabel" text="Mica Launcher"/>
+        <Label fx:id="offlineLabel" text="Offline Mode" managed="false" visible="false"
+               style="-fx-background-color: #8b0000; -fx-background-radius: 4; -fx-padding: 2 8 2 8; -fx-text-fill: white;">
+            <font><Font size="11.0"/></font>
+        </Label>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="logoutBtn" text="Log Out" prefHeight="22.0"/>
-        <MFXButton fx:id="exitBtn" text="Exit" prefHeight="22.0"/>
+        <MFXButton fx:id="playBtn" text="Play" prefHeight="28.0" prefWidth="80.0">
+            <font><Font size="14.0"/></font>
+        </MFXButton>
+        <MFXButton fx:id="websiteBtn" text="Website" prefHeight="28.0"/>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <MFXButton fx:id="exitBtn" text="Exit" prefHeight="28.0"/>
     </HBox>
 </GridPane>
