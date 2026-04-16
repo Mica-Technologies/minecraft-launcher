@@ -535,11 +535,15 @@ public class RuntimeManager
             int updateVersion = JsonHelper.getInt( info, "updateVersion", 0 );
             String extractedFolderName = bundleType + featureVersion + "u" + updateVersion;
             File extractedFolder = new File( runtimeFolderPath, extractedFolderName );
+            // On macOS, Liberica JRE bundles extract with a .jre suffix (e.g. jre8u392.jre)
+            File altFolder = new File( runtimeFolderPath, extractedFolderName + "." + bundleType );
+            File effectiveFolder = extractedFolder.exists() ? extractedFolder :
+                                   altFolder.exists() ? altFolder : extractedFolder;
 
-            if ( versionFile.exists() && extractedFolder.exists() ) {
+            if ( versionFile.exists() && effectiveFolder.exists() ) {
                 String installed = org.apache.commons.io.FileUtils.readFileToString( versionFile, "UTF-8" ).trim();
                 if ( installed.equals( newJavaVersion ) ) {
-                    File javaExec = new File( extractedFolder, RuntimeConstants.getJavaExecPathForOs() );
+                    File javaExec = new File( effectiveFolder, RuntimeConstants.getJavaExecPathForOs() );
                     if ( javaExec.exists() ) {
                         Logger.logStd( "JRE 8 (Liberica " + newJavaVersion + ") is already installed." );
                         verifiedPaths.put( component, javaExec.getAbsolutePath() );
@@ -565,6 +569,9 @@ public class RuntimeManager
             if ( extractedFolder.exists() ) {
                 FileUtils.deleteDirectory( extractedFolder );
             }
+            if ( altFolder.exists() ) {
+                FileUtils.deleteDirectory( altFolder );
+            }
             String pkgType = JsonHelper.getString( info, "packageType", "tar.gz" );
             Archiver archiver;
             if ( pkgType.equals( "tar.gz" ) ) {
@@ -575,21 +582,17 @@ public class RuntimeManager
             }
             archiver.extract( archiveFile, runtimeFolder );
 
-            // Find the extracted folder (may have a different suffix)
-            if ( !extractedFolder.exists() ) {
-                File altFolder = new File( runtimeFolderPath, extractedFolderName + "." + bundleType );
-                if ( altFolder.exists() ) {
-                    extractedFolder = altFolder;
-                }
-            }
+            // Find the extracted folder (may have a different suffix, e.g. .jre on macOS)
+            effectiveFolder = extractedFolder.exists() ? extractedFolder :
+                              altFolder.exists() ? altFolder : extractedFolder;
 
             // Resolve java executable
-            File javaExec = new File( extractedFolder, RuntimeConstants.getJavaExecPathForOs() );
+            File javaExec = new File( effectiveFolder, RuntimeConstants.getJavaExecPathForOs() );
             if ( javaExec.exists() ) {
                 newJavaPath = javaExec.getAbsolutePath();
             }
             else {
-                newJavaPath = findJavaExecutable( extractedFolder );
+                newJavaPath = findJavaExecutable( effectiveFolder );
             }
 
             if ( newJavaPath == null ) {
