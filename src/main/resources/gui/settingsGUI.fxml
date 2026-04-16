@@ -63,6 +63,8 @@
             <MFXButton fx:id="navNetwork" text="Network" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navSecurity" text="Security" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navSystem" text="System" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <Pane VBox.vgrow="ALWAYS" />
+            <MFXButton fx:id="navCredits" text="Credits" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
         </VBox>
 
         <!-- Right content area: stacked category panes -->
@@ -223,6 +225,12 @@
                         <MFXToggleButton fx:id="discordCheckBox" text="Discord Integration" />
                         <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="Enhanced Logging" />
                         <MFXToggleButton fx:id="inGameConsoleCheckBox" text="In-Game Console" />
+                        <MFXToggleButton fx:id="lwjglArmPatchCheckBox" text="LWJGL ARM64 Patching" />
+                        <Label text="Replaces x86_64 LWJGL2 natives with ARM64 builds for Minecraft 1.12.2 and below on Apple Silicon / ARM Linux." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -362,6 +370,125 @@
                         </padding>
                         <MFXButton fx:id="openFolderBtn" prefHeight="28.0" prefWidth="180.0" text="Open Launcher Folder" />
                         <Label fx:id="versionLabel" text="Launcher Version: ERR_UNK" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+                </VBox>
+            </ScrollPane>
+
+            <!-- Category 7: Credits -->
+            <ScrollPane fx:id="creditsPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+                <VBox spacing="12" fillWidth="true">
+                    <padding>
+                        <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
+                    </padding>
+                    <Label text="Credits &amp; Third-Party Components" styleClass="settingsCategoryHeader">
+                        <font>
+                            <Font name="System Bold" size="18.0" />
+                        </font>
+                    </Label>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Mica Minecraft Launcher">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="Built by Mica Technologies. Licensed under the GNU General Public License v3." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="LWJGL2 ARM64 Native Libraries">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="For Minecraft 1.12.2 and below on ARM64 (Apple Silicon / ARM Linux), this launcher uses community-built ARM64 native libraries to replace the x86_64-only LWJGL2 and jinput binaries that shipped with older Minecraft versions." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <Label text="LWJGL2 ARM64 macOS natives - MinecraftMachina/lwjgl (BSD License)" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <Label text="https://github.com/MinecraftMachina/lwjgl" wrapText="true">
+                            <font>
+                                <Font size="10.0" />
+                            </font>
+                        </Label>
+                        <Label text="jinput ARM64 macOS natives - r58Playz/jinput-m1" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <Label text="https://github.com/r58Playz/jinput-m1" wrapText="true">
+                            <font>
+                                <Font size="10.0" />
+                            </font>
+                        </Label>
+                        <Label text="LWJGL2 / jinput ARM64 Linux natives - theofficialgman/lwjgl3-binaries-arm64" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <Label text="https://github.com/theofficialgman/lwjgl3-binaries-arm64" wrapText="true">
+                            <font>
+                                <Font size="10.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Malware Scanner">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="JAR security scanning powered by cortex/jarscanner." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Java Runtimes">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="Mojang official Java runtimes for modern Minecraft versions. Bell-SW Liberica JRE 8 for legacy (1.12.2 and below) Forge compatibility." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Authentication">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="Microsoft / Minecraft authentication via minecraft_authenticator by HyCraftHD." wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>

@@ -535,6 +535,44 @@ public class ConfigManager
         writeConfigurationToDisk();
     }
 
+    // region LWJGL ARM64 Patching
+
+    /**
+     * Gets whether LWJGL ARM64 native patching is enabled. When enabled, the launcher replaces LWJGL2 x86_64 native
+     * libraries with ARM64-compatible builds for older Minecraft versions on ARM64 macOS/Linux.
+     *
+     * @return true if LWJGL ARM64 patching is enabled
+     *
+     * @since 3.0
+     */
+    public synchronized static boolean getLwjglArmPatchEnable() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY,
+                                       ConfigConstants.LWJGL_ARM_PATCH_ENABLE_DEFAULT );
+        }
+        return configObject.get( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Sets whether LWJGL ARM64 native patching is enabled.
+     *
+     * @param enable true to enable LWJGL ARM64 patching
+     *
+     * @since 3.0
+     */
+    public synchronized static void setLwjglArmPatchEnable( boolean enable ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY, enable );
+        writeConfigurationToDisk();
+    }
+
+    // endregion
+
     // region Proxy Configuration
 
     /**
@@ -741,6 +779,7 @@ public class ConfigManager
         getProxyPort();
         getProxyType();
         getInstalledVanillaVersions();
+        getLwjglArmPatchEnable();
 
         // Stamp the current version and persist
         configObject.addProperty( ConfigConstants.CONFIG_VERSION_KEY, ConfigConstants.CONFIG_VERSION );

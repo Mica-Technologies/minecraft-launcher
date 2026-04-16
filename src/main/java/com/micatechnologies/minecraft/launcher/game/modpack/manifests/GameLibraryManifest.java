@@ -29,6 +29,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameLibrary;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
+import com.micatechnologies.minecraft.launcher.game.modpack.Lwjgl2ArmPatcher;
 import com.micatechnologies.minecraft.launcher.game.modpack.ManagedGameFile;
 import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
@@ -343,6 +344,19 @@ public class GameLibraryManifest extends ManagedGameFile
         }
         catch ( ExecutionException e ) {
             throw new ModpackException( "Unable to execute runner to retrieve Minecraft libraries!", e );
+        }
+
+        // Patch LWJGL2 natives for ARM64 if needed (replaces x86_64 dylibs/JARs with ARM64 builds)
+        String mcVersion = parentModPack.getMinecraftVersion();
+        if ( Lwjgl2ArmPatcher.isNeeded( mcVersion ) ) {
+            String nativesPath = parentModPack.getPackRootFolder() +
+                    File.separator +
+                    ModPackConstants.MODPACK_MINECRAFT_NATIVES_LOCAL_FOLDER;
+            String librariesPath = parentModPack.getPackRootFolder() +
+                    File.separator +
+                    ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER;
+            String cachePath = librariesPath + File.separator + "arm64-natives";
+            Lwjgl2ArmPatcher.patchNatives( nativesPath, librariesPath, cachePath, progressProvider );
         }
 
         // Download the Minecraft jar

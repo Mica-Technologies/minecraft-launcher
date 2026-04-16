@@ -95,6 +95,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
+    MFXToggleButton lwjglArmPatchCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
     MFXButton scanFolderBtn;
 
     @SuppressWarnings( "unused" )
@@ -217,7 +221,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem;
+    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navCredits;
 
     /**
      * StackPane containing the category content panes.
@@ -386,6 +390,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             // Store enhanced logging to config
             ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
             ConfigManager.setInGameConsoleEnable( inGameConsoleCheckBox.isSelected() );
+
+            // Store LWJGL ARM64 patching to config
+            ConfigManager.setLwjglArmPatchEnable( lwjglArmPatchCheckBox.isSelected() );
 
             // Store theme selection
             if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
@@ -651,6 +658,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Set and configure in-game console check box
         inGameConsoleCheckBox.setSelected( ConfigManager.getInGameConsoleEnable() );
 
+        // Set and configure LWJGL ARM64 patching check box
+        lwjglArmPatchCheckBox.setSelected( ConfigManager.getLwjglArmPatchEnable() );
+
         // Populate proxy settings
         proxyEnableCheckBox.setSelected( ConfigManager.getProxyEnable() );
         proxyHostField.setText( ConfigManager.getProxyHost() );
@@ -773,7 +783,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         } );
 
         // Wire up sidebar navigation buttons
-        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem };
+        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navCredits };
         navAccount.setOnAction( e -> showCategory( 0 ) );
         navGame.setOnAction( e -> showCategory( 1 ) );
         navAppearance.setOnAction( e -> showCategory( 2 ) );
@@ -781,6 +791,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         navNetwork.setOnAction( e -> showCategory( 4 ) );
         navSecurity.setOnAction( e -> showCategory( 5 ) );
         navSystem.setOnAction( e -> showCategory( 6 ) );
+        navCredits.setOnAction( e -> showCategory( 7 ) );
 
         // Populate account tab
         setupAccountTab();
@@ -794,7 +805,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      * state.
      *
      * @param index the zero-based category index (0=Account, 1=Game, 2=Appearance, 3=Advanced, 4=Network, 5=Security,
-     *              6=System)
+     *              6=System, 7=Credits)
      *
      * @since 3.0
      */
@@ -1004,6 +1015,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( windowResizeCheckBox.isSelected() != ConfigManager.getResizableWindows() ) return true;
         if ( enhancedLoggingCheckBox.isSelected() != ConfigManager.getEnhancedLogging() ) return true;
         if ( inGameConsoleCheckBox.isSelected() != ConfigManager.getInGameConsoleEnable() ) return true;
+        if ( lwjglArmPatchCheckBox.isSelected() != ConfigManager.getLwjglArmPatchEnable() ) return true;
         String selectedTheme = themeSelection.getSelectedItem();
         if ( selectedTheme != null && !selectedTheme.equalsIgnoreCase( ConfigManager.getTheme() ) ) return true;
         return false;

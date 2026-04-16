@@ -133,6 +133,12 @@ class GameModPackLauncher
                 progressProvider.startProgressSection( "Downloading mods...", 15.0 );
             }
             fileSync.fetchLatestMods();
+
+            // Disable mods known to be incompatible with ARM64 (missing native libraries)
+            if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
+                Lwjgl2ArmPatcher.disableIncompatibleMods( pack.getPackRootFolder() + File.separator + "mods" );
+            }
+
             if ( progressProvider != null ) {
                 progressProvider.endProgressSection( "Mods ready" );
             }
@@ -345,6 +351,18 @@ class GameModPackLauncher
                     f.setWritable( true );
                 }
             }
+        }
+
+        // On ARM64 with LWJGL2 patching, tell LWJGL and jinput to load natives from our patched
+        // natives folder instead of extracting x86_64 binaries from the classpath JARs.
+        // Also disable the narrator (text2speech) which depends on JNA 4.4 that lacks ARM64 natives,
+        // and force JNA to use the system-installed library if available.
+        if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
+            jvmArgs.append( "-Dorg.lwjgl.librarypath=" ).append( nativesFolder ).append( " " );
+            jvmArgs.append( "-Dnet.java.games.input.librarypath=" ).append( nativesFolder ).append( " " );
+            jvmArgs.append( "-Djna.nosys=false " );
+            jvmArgs.append( "-Djna.boot.library.path= " );
+            jvmArgs.append( "-Dmojang.text2speech.enabled=false " );
         }
 
         // Add manifest JVM arguments (from modern arguments.jvm if available)

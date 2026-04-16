@@ -58,7 +58,7 @@ public class ConfigConstants
      *
      * @since 3.0
      */
-    public static final int CONFIG_VERSION = 2;
+    public static final int CONFIG_VERSION = 3;
 
     /**
      * The default value for minimum RAM.
@@ -376,4 +376,24 @@ public class ConfigConstants
 
     public static final List< String > ALLOWED_THEMES = Arrays.asList( THEME_AUTOMATIC, THEME_DARK, THEME_LIGHT,
                                                                        THEME_BLUE_GRAY, THEME_ORANGE_PURPLE );
+
+    // region LWJGL ARM64 Patching
+
+    /**
+     * Key for the LWJGL ARM64 patching enable flag. When enabled on ARM64 macOS/Linux, the launcher replaces
+     * LWJGL2 x86_64 native libraries with ARM64-compatible builds for Minecraft 1.12.2 and below.
+     *
+     * @since 3.0
+     */
+    public static final String LWJGL_ARM_PATCH_ENABLE_KEY = "lwjglArmPatch";
+
+    /**
+     * Default value for LWJGL ARM64 patching. Enabled by default so ARM64 users get working older MC versions
+     * out of the box.
+     *
+     * @since 3.0
+     */
+    public static final boolean LWJGL_ARM_PATCH_ENABLE_DEFAULT = true;
+
+    // endregion
 }
