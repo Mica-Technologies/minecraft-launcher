@@ -47,7 +47,7 @@
     </rowConstraints>
 
     <!-- Row 0: Announcement banner -->
-    <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" style="-fx-background-color: #8b0000;" text="--" wrapText="true" />
+    <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement" text="--" wrapText="true" />
 
     <!-- Row 1: Sidebar + Content -->
     <HBox GridPane.rowIndex="1" HBox.hgrow="ALWAYS">

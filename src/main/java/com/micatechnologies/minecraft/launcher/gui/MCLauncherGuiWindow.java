@@ -294,79 +294,78 @@ public class MCLauncherGuiWindow extends Application
         }
     }
 
+    /** Resource paths for the four legacy per-theme stylesheets. Loaded first so the new
+     *  base + token sheets layered on top win where they declare the same selectors. */
+    private static final String LEGACY_DARK         = "guiStyle-dark.css";
+    private static final String LEGACY_LIGHT        = "guiStyle-light.css";
+    private static final String LEGACY_BLUE_GRAY    = "guiStyle-bluegray.css";
+    private static final String LEGACY_ORANGE_PURPLE = "guiStyle-orangepurple.css";
+
+    /** Path to the brand-new theme-agnostic base sheet (font stack + component shell). */
+    private static final String UI_BASE_SHEET       = "ui/ui-base.css";
+
+    /** Per-theme token sheets that define `-color-*` lookup variables consumed by ui-base.css. */
+    private static final String UI_TOKENS_DARK         = "ui/ui-tokens-dark.css";
+    private static final String UI_TOKENS_LIGHT        = "ui/ui-tokens-light.css";
+    private static final String UI_TOKENS_BLUE_GRAY    = "ui/ui-tokens-bluegray.css";
+    private static final String UI_TOKENS_ORANGE_PURPLE = "ui/ui-tokens-orangepurple.css";
+
     private void switchToLightTheme() {
-        GUIUtilities.JFXPlatformRun( () -> {
-            gui.rootPane.getStylesheets()
-                        .remove(
-                                Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                       .toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                        .toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) ).toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .add( Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-light.css" ) )
-                                     .toExternalForm() );
-        } );
+        applyTheme( LEGACY_LIGHT, UI_TOKENS_LIGHT );
     }
 
     private void switchToDarkTheme() {
-        GUIUtilities.JFXPlatformRun( () -> {
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) ).toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                        .toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) ).toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .add( Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                     .toExternalForm() );
-        } );
+        applyTheme( LEGACY_DARK, UI_TOKENS_DARK );
     }
 
     private void switchToBlueGrayTheme() {
-        GUIUtilities.JFXPlatformRun( () -> {
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) ).toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                                getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                        .toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .remove(
-                                Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                       .toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .add( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) ).toExternalForm() );
-        } );
+        applyTheme( LEGACY_BLUE_GRAY, UI_TOKENS_BLUE_GRAY );
     }
 
     private void switchToOrangePurpleTheme() {
+        applyTheme( LEGACY_ORANGE_PURPLE, UI_TOKENS_ORANGE_PURPLE );
+    }
+
+    /**
+     * Installs the chosen theme onto the active GUI's root pane. Layering, lowest precedence first:
+     * <ol>
+     *     <li>Legacy single-theme sheet (still defines selectors that the new system has not yet ported)</li>
+     *     <li>{@link #UI_BASE_SHEET} (component shell built on lookup variables)</li>
+     *     <li>The selected token sheet (defines the `-color-*` lookup palette)</li>
+     * </ol>
+     * Any previously-installed theme/token sheets are removed first so we never accumulate stylesheets across
+     * theme switches or scene transitions.
+     */
+    private void applyTheme( String legacySheet, String tokenSheet ) {
         GUIUtilities.JFXPlatformRun( () -> {
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-light.css" ) ).toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .remove( Objects.requireNonNull(
-                                getClass().getClassLoader().getResource( "guiStyle-bluegray.css" ) ).toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .remove(
-                                Objects.requireNonNull( getClass().getClassLoader().getResource( "guiStyle-dark.css" ) )
-                                       .toExternalForm() );
-            gui.rootPane.getStylesheets()
-                        .add( Objects.requireNonNull(
-                                             getClass().getClassLoader().getResource( "guiStyle-orangepurple.css" ) )
-                                     .toExternalForm() );
+            java.util.List< String > stylesheets = gui.rootPane.getStylesheets();
+
+            // Drop every legacy theme sheet. Whichever is "current" gets re-added below.
+            stylesheets.remove( cssUrl( LEGACY_DARK ) );
+            stylesheets.remove( cssUrl( LEGACY_LIGHT ) );
+            stylesheets.remove( cssUrl( LEGACY_BLUE_GRAY ) );
+            stylesheets.remove( cssUrl( LEGACY_ORANGE_PURPLE ) );
+
+            // Drop every token sheet. Whichever is "current" gets re-added below.
+            stylesheets.remove( cssUrl( UI_TOKENS_DARK ) );
+            stylesheets.remove( cssUrl( UI_TOKENS_LIGHT ) );
+            stylesheets.remove( cssUrl( UI_TOKENS_BLUE_GRAY ) );
+            stylesheets.remove( cssUrl( UI_TOKENS_ORANGE_PURPLE ) );
+
+            // Drop the base sheet so we can re-install it in the correct order.
+            stylesheets.remove( cssUrl( UI_BASE_SHEET ) );
+
+            // Add in the layered order: legacy → base → tokens.
+            stylesheets.add( cssUrl( legacySheet ) );
+            stylesheets.add( cssUrl( UI_BASE_SHEET ) );
+            stylesheets.add( cssUrl( tokenSheet ) );
         } );
+    }
+
+    /** Resolves a classpath CSS resource to its external URL form, throwing if missing. */
+    private String cssUrl( String resourcePath ) {
+        return Objects.requireNonNull( getClass().getClassLoader().getResource( resourcePath ),
+                                       "Missing CSS resource: " + resourcePath ).toExternalForm();
     }
 
     /**

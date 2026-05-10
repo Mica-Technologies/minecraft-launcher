@@ -1,0 +1,57 @@
+/*
+ * Copyright (c) 2026 Mica Technologies
+ *
+ * Brand token sheet — BLUE-GRAY theme.
+ * Slate-blue surfaces with a brighter blue accent. Phase-1 placeholder; will
+ * receive deeper polish in phase 4.
+ */
+
+.root {
+    /* === Surfaces === */
+    -color-bg:                hsl(220, 28%, 10%);
+    -color-bg-soft:           hsl(220, 26%, 13%);
+    -color-surface:           hsl(220, 24%, 16%);
+    -color-surface-hover:     hsl(220, 22%, 19%);
+    -color-surface-elevated:  hsl(220, 22%, 22%);
+    -color-overlay:           rgba(0, 0, 0, 0.55);
+
+    /* === Borders === */
+    -color-border:            rgba(200, 215, 240, 0.12);
+    -color-border-strong:     rgba(200, 215, 240, 0.20);
+    -color-divider:           rgba(200, 215, 240, 0.06);
+
+    /* === Text === */
+    -color-text:              hsl(220, 18%, 92%);
+    -color-text-muted:        hsl(220, 14%, 70%);
+    -color-text-subtle:       hsl(220, 12%, 54%);
+    -color-text-inverse:      hsl(220, 28%, 10%);
+    -color-text-on-primary:   white;
+
+    /* === Brand: blue (primary) — slightly cooler than dark theme === */
+    -color-primary:           hsl(218, 90%, 64%);
+    -color-primary-hover:     hsl(218, 90%, 70%);
+    -color-primary-pressed:   hsl(218, 95%, 76%);
+    -color-primary-soft:      rgba(99, 145, 240, 0.20);
+    -color-primary-soft-hov:  rgba(99, 145, 240, 0.28);
+    -color-focus-ring:        rgba(99, 145, 240, 0.50);
+
+    /* === Brand: secondary === */
+    -color-secondary:         hsl(190, 80%, 58%);
+    -color-secondary-hover:   hsl(190, 85%, 64%);
+    -color-secondary-soft:    rgba(80, 200, 230, 0.18);
+
+    /* === Status === */
+    -color-success:           hsl(150, 60%, 52%);
+    -color-warning:           hsl(38, 92%, 60%);
+    -color-warning-soft:      rgba(255, 178, 38, 0.18);
+    -color-danger:            hsl(0, 85%, 62%);
+    -color-danger-hover:      hsl(0, 85%, 68%);
+    -color-danger-soft:       rgba(238, 90, 90, 0.16);
+
+    -color-shadow:            rgba(0, 0, 0, 0.55);
+    -color-shadow-soft:       rgba(0, 0, 0, 0.32);
+
+    -color-hero-stop-1:       rgba(99, 145, 240, 0.18);
+    -color-hero-stop-2:       rgba(80, 200, 230, 0.10);
+    -color-hero-stop-3:       rgba(0, 0, 0, 0);
+}

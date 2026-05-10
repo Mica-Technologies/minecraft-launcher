@@ -1,0 +1,58 @@
+/*
+ * Copyright (c) 2026 Mica Technologies
+ *
+ * Brand token sheet — DARK theme.
+ * Defines lookup variables only. All component styling lives in ui-base.css.
+ */
+
+.root {
+    /* === Surfaces === */
+    -color-bg:                hsl(220, 30%, 7%);
+    -color-bg-soft:           hsl(220, 30%, 9%);
+    -color-surface:           hsl(220, 30%, 11%);
+    -color-surface-hover:     hsl(220, 28%, 14%);
+    -color-surface-elevated:  hsl(220, 26%, 16%);
+    -color-overlay:           rgba(0, 0, 0, 0.55);
+
+    /* === Borders / dividers === */
+    -color-border:            rgba(220, 224, 240, 0.10);
+    -color-border-strong:     rgba(220, 224, 240, 0.18);
+    -color-divider:           rgba(220, 224, 240, 0.06);
+
+    /* === Text === */
+    -color-text:              hsl(220, 15%, 94%);
+    -color-text-muted:        hsl(220, 12%, 68%);
+    -color-text-subtle:       hsl(220, 10%, 50%);
+    -color-text-inverse:      hsl(220, 30%, 7%);
+    -color-text-on-primary:   white;
+
+    /* === Brand: blue (primary) === */
+    -color-primary:           hsl(210, 98%, 60%);
+    -color-primary-hover:     hsl(210, 98%, 68%);
+    -color-primary-pressed:   hsl(210, 100%, 72%);
+    -color-primary-soft:      rgba(56, 160, 255, 0.18);
+    -color-primary-soft-hov:  rgba(56, 160, 255, 0.26);
+    -color-focus-ring:        rgba(56, 160, 255, 0.50);
+
+    /* === Brand: secondary (Minecraft-grass green accent) === */
+    -color-secondary:         hsl(120, 44%, 53%);
+    -color-secondary-hover:   hsl(120, 50%, 60%);
+    -color-secondary-soft:    rgba(96, 200, 120, 0.18);
+
+    /* === Status === */
+    -color-success:           hsl(120, 44%, 53%);
+    -color-warning:           hsl(45, 90%, 55%);
+    -color-warning-soft:      rgba(255, 196, 38, 0.18);
+    -color-danger:            hsl(0, 90%, 60%);
+    -color-danger-hover:      hsl(0, 90%, 66%);
+    -color-danger-soft:       rgba(255, 86, 86, 0.16);
+
+    /* === Effects (used by ui-base.css drop-shadow / inner-shadow) === */
+    -color-shadow:            rgba(0, 0, 0, 0.55);
+    -color-shadow-soft:       rgba(0, 0, 0, 0.32);
+
+    /* === Hero radial-gradient stops === */
+    -color-hero-stop-1:       rgba(56, 160, 255, 0.16);
+    -color-hero-stop-2:       rgba(96, 200, 120, 0.10);
+    -color-hero-stop-3:       rgba(0, 0, 0, 0);
+}

@@ -1,0 +1,57 @@
+/*
+ * Copyright (c) 2026 Mica Technologies
+ *
+ * Brand token sheet — ORANGE-PURPLE theme.
+ * Purple primary + warm orange secondary, on a deep plum background. Phase-1
+ * placeholder; will receive deeper polish in phase 4.
+ */
+
+.root {
+    /* === Surfaces === */
+    -color-bg:                hsl(296, 28%, 10%);
+    -color-bg-soft:           hsl(296, 26%, 13%);
+    -color-surface:           hsl(296, 24%, 17%);
+    -color-surface-hover:     hsl(296, 22%, 21%);
+    -color-surface-elevated:  hsl(296, 22%, 24%);
+    -color-overlay:           rgba(0, 0, 0, 0.55);
+
+    /* === Borders === */
+    -color-border:            rgba(240, 222, 240, 0.12);
+    -color-border-strong:     rgba(240, 222, 240, 0.20);
+    -color-divider:           rgba(240, 222, 240, 0.06);
+
+    /* === Text === */
+    -color-text:              hsl(310, 30%, 94%);
+    -color-text-muted:        hsl(310, 18%, 72%);
+    -color-text-subtle:       hsl(310, 14%, 56%);
+    -color-text-inverse:      hsl(296, 28%, 10%);
+    -color-text-on-primary:   white;
+
+    /* === Brand: purple (primary) === */
+    -color-primary:           hsl(296, 65%, 60%);
+    -color-primary-hover:     hsl(296, 65%, 66%);
+    -color-primary-pressed:   hsl(296, 75%, 72%);
+    -color-primary-soft:      rgba(190, 95, 200, 0.20);
+    -color-primary-soft-hov:  rgba(190, 95, 200, 0.28);
+    -color-focus-ring:        rgba(190, 95, 200, 0.50);
+
+    /* === Brand: orange (secondary) === */
+    -color-secondary:         hsl(28, 92%, 58%);
+    -color-secondary-hover:   hsl(28, 95%, 64%);
+    -color-secondary-soft:    rgba(245, 145, 60, 0.20);
+
+    /* === Status === */
+    -color-success:           hsl(140, 55%, 56%);
+    -color-warning:           hsl(38, 92%, 60%);
+    -color-warning-soft:      rgba(255, 178, 38, 0.18);
+    -color-danger:            hsl(0, 88%, 62%);
+    -color-danger-hover:      hsl(0, 88%, 68%);
+    -color-danger-soft:       rgba(238, 86, 86, 0.16);
+
+    -color-shadow:            rgba(0, 0, 0, 0.55);
+    -color-shadow-soft:       rgba(0, 0, 0, 0.32);
+
+    -color-hero-stop-1:       rgba(190, 95, 200, 0.18);
+    -color-hero-stop-2:       rgba(245, 145, 60, 0.10);
+    -color-hero-stop-3:       rgba(0, 0, 0, 0);
+}

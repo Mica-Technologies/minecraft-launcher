@@ -51,12 +51,8 @@
                 <ColumnConstraints hgrow="ALWAYS"/>
                 <ColumnConstraints minWidth="100.0" prefWidth="100.0"/>
             </columnConstraints>
-            <Label fx:id="titleLabel" text="Game Console" GridPane.columnIndex="0">
-                <font>
-                    <Font name="System Bold" size="16.0"/>
-                </font>
-            </Label>
-            <Label fx:id="statusLabel" text="Running" alignment="CENTER_RIGHT" GridPane.columnIndex="1">
+            <Label fx:id="titleLabel" text="Game Console" styleClass="heading-h2" GridPane.columnIndex="0"/>
+            <Label fx:id="statusLabel" text="Running" alignment="CENTER_RIGHT" styleClass="muted" GridPane.columnIndex="1">
                 <font>
                     <Font size="12.0"/>
                 </font>
@@ -64,8 +60,8 @@
         </GridPane>
 
         <!-- Log output area -->
-        <TextArea fx:id="logArea" editable="false" wrapText="true" GridPane.rowIndex="1"
-                  style="-fx-font-family: monospace; -fx-font-size: 11px;">
+        <TextArea fx:id="logArea" editable="false" wrapText="true" styleClass="text-mono"
+                  style="-fx-font-size: 12px;" GridPane.rowIndex="1">
             <GridPane.margin>
                 <Insets top="5.0" bottom="2.0"/>
             </GridPane.margin>
@@ -74,7 +70,7 @@
         <!-- Truncation notice row -->
         <HBox spacing="5.0" alignment="CENTER_LEFT" GridPane.rowIndex="2">
             <Label fx:id="truncationLabel" text="" visible="false" managed="false"
-                   style="-fx-font-size: 10px; -fx-text-fill: #999999;">
+                   styleClass="subtle" style="-fx-font-size: 10px;">
             </Label>
             <Hyperlink fx:id="openLogLink" text="Open full log file" visible="false" managed="false"
                        style="-fx-font-size: 10px;">

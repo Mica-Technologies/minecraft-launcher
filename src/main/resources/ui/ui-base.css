@@ -1,0 +1,726 @@
+/*
+ * Copyright (c) 2026 Mica Technologies
+ *
+ * Mica Launcher — base component stylesheet (theme-agnostic).
+ * All colors come from `-color-*` lookup variables defined in
+ * `ui-tokens-{theme}.css`. This file is loaded once on stage init and
+ * stays loaded as the theme is swapped.
+ */
+
+
+/* =====================================================================
+ * 1. Root + Typography
+ * ===================================================================== */
+
+.root {
+    -fx-font-family: "Inter", "Segoe UI Variable", "Segoe UI",
+                     "SF Pro Text", "Roboto", "system-ui", sans-serif;
+    -fx-font-size: 14px;
+    -fx-text-fill: -color-text;
+    -fx-font-smoothing-type: gray;
+}
+
+.label,
+.mfx-label {
+    -fx-text-fill: -color-text;
+    -mfx-text-fill: -color-text;
+}
+
+.label.muted,
+.mfx-label.muted {
+    -fx-text-fill: -color-text-muted;
+    -mfx-text-fill: -color-text-muted;
+}
+
+.label.subtle,
+.mfx-label.subtle {
+    -fx-text-fill: -color-text-subtle;
+    -mfx-text-fill: -color-text-subtle;
+}
+
+/* Display heading — used for hero titles. A bold monospaced face gives the
+ * "blocky, terminal-y, Minecrafty" feel without bundling a pixel font. */
+.heading-display {
+    -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
+                     "Consolas", "Menlo", "Courier New", monospace;
+    -fx-font-weight: 700;
+    -fx-font-size: 26px;
+    -fx-text-fill: -color-text;
+    -fx-effect: dropshadow(gaussian, -color-primary-soft, 16, 0.20, 0, 2);
+}
+
+.heading-h1 { -fx-font-weight: 600; -fx-font-size: 28px; -fx-text-fill: -color-text; }
+.heading-h2 { -fx-font-weight: 600; -fx-font-size: 20px; -fx-text-fill: -color-text; }
+.heading-h3 { -fx-font-weight: 600; -fx-font-size: 16px; -fx-text-fill: -color-text; }
+
+.text-mono {
+    -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
+                     "Consolas", "Menlo", monospace;
+}
+
+
+/* =====================================================================
+ * 2. Surfaces (rootPane + pane backgrounds)
+ * ===================================================================== */
+
+.rootPane {
+    -fx-background-color: -color-bg;
+}
+
+/* "Strip" sidebar (modpack list, settings nav) */
+.stripPane {
+    -fx-background-color: -color-bg-soft;
+    -fx-border-color: -color-border;
+    -fx-border-width: 0 1 0 0;
+}
+
+/* Center / detail pane — gets a soft hero radial wash */
+.centerPane,
+.hero-surface {
+    -fx-background-color:
+        radial-gradient(center 25% 0%, radius 80%,
+                        -color-hero-stop-1 0%,
+                        -color-hero-stop-3 100%),
+        radial-gradient(center 110% 100%, radius 70%,
+                        -color-hero-stop-2 0%,
+                        -color-hero-stop-3 100%),
+        -color-bg;
+}
+
+/* Apply when a screen IS the hero (e.g. progress, login splash) — overrides .rootPane fill */
+.rootPane.hero-surface {
+    -fx-background-color:
+        radial-gradient(center 50% 30%, radius 70%,
+                        -color-hero-stop-1 0%,
+                        -color-hero-stop-3 100%),
+        radial-gradient(center 50% 100%, radius 80%,
+                        -color-hero-stop-2 0%,
+                        -color-hero-stop-3 100%),
+        -color-bg;
+}
+
+/* Reusable card */
+.card {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+    -fx-padding: 16;
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 12, 0.10, 0, 4);
+}
+
+.card.elevated {
+    -fx-background-color: -color-surface-elevated;
+    -fx-effect: dropshadow(gaussian, -color-shadow, 18, 0.18, 0, 8);
+}
+
+
+/* =====================================================================
+ * 3. Top navbar / Bottom status bar
+ * ===================================================================== */
+
+.navBar,
+.bottomBar {
+    -fx-background-color: -color-bg-soft;
+    -fx-border-color: -color-border;
+    -fx-padding: 6 12 6 12;
+}
+
+.navBar  { -fx-border-width: 0 0 1 0; }
+.bottomBar { -fx-border-width: 1 0 0 0; }
+
+
+/* =====================================================================
+ * 4. Buttons
+ * ===================================================================== */
+
+/* Default tonal/ghost button — soft surface; reads as a secondary action. */
+.mfx-button,
+.mfx-button:armed,
+.mfx-button:focused {
+    -mfx-button-type: FLAT;
+    -mfx-depth-level: Level0;
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 6 14 6 14;
+    -fx-text-fill: -color-text;
+    -fx-cursor: hand;
+}
+
+.mfx-button .text {
+    -fx-fill: -color-text;
+}
+
+.mfx-button:hover {
+    -fx-background-color: -color-surface-hover;
+    -fx-border-color: -color-border-strong;
+}
+
+.mfx-button:focused {
+    -fx-effect: dropshadow(gaussian, -color-focus-ring, 8, 0.50, 0, 0);
+}
+
+.mfx-button .ripple-generator {
+    -mfx-ripple-color: -color-primary-soft;
+}
+
+/* Primary action — filled brand color, used on Play, Login, Save, Continue */
+.mfx-button.primary,
+.mfx-button.primary:armed,
+.mfx-button.primary:focused,
+.playBtn.mfx-button {
+    -fx-background-color:
+        linear-gradient(to bottom, -color-primary, -color-primary-hover);
+    -fx-border-color: -color-primary-pressed;
+    -fx-text-fill: -color-text-on-primary;
+    -fx-effect: dropshadow(gaussian, -color-primary-soft, 14, 0.10, 0, 4);
+}
+
+.mfx-button.primary .text,
+.playBtn.mfx-button .text {
+    -fx-fill: -color-text-on-primary;
+}
+
+.mfx-button.primary:hover,
+.playBtn.mfx-button:hover {
+    -fx-background-color:
+        linear-gradient(to bottom, -color-primary-hover, -color-primary-pressed);
+}
+
+.mfx-button.primary .ripple-generator,
+.playBtn.mfx-button .ripple-generator {
+    -mfx-ripple-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Secondary — green accent, optional alt-CTA */
+.mfx-button.secondary,
+.mfx-button.secondary:armed,
+.mfx-button.secondary:focused {
+    -fx-background-color: -color-secondary;
+    -fx-border-color: -color-secondary-hover;
+    -fx-text-fill: -color-text-on-primary;
+}
+
+.mfx-button.secondary .text { -fx-fill: -color-text-on-primary; }
+.mfx-button.secondary:hover  { -fx-background-color: -color-secondary-hover; }
+
+/* Danger — destructive actions */
+.mfx-button.danger,
+.mfx-button.danger:armed,
+.mfx-button.danger:focused,
+.mfx-button.dangerZone,
+.dangerZone.mfx-button {
+    -fx-background-color: -color-danger;
+    -fx-border-color: -color-danger-hover;
+    -fx-text-fill: -color-text-on-primary;
+}
+
+.mfx-button.danger .text,
+.mfx-button.dangerZone .text,
+.dangerZone.mfx-button .text {
+    -fx-fill: -color-text-on-primary;
+}
+
+.mfx-button.danger:hover,
+.mfx-button.dangerZone:hover,
+.dangerZone.mfx-button:hover {
+    -fx-background-color: -color-danger-hover;
+}
+
+/* Help button — circular, top-right corner */
+.helpButton {
+    -fx-min-width: 28;
+    -fx-min-height: 28;
+    -fx-pref-width: 28;
+    -fx-pref-height: 28;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-padding: 0;
+    -fx-font-weight: 700;
+    -fx-background-color: -color-surface;
+    -fx-text-fill: -color-text-muted;
+    -fx-border-color: -color-border;
+}
+
+.helpButton .text { -fx-fill: -color-text-muted; }
+.helpButton:hover { -fx-background-color: -color-surface-hover; -fx-text-fill: -color-text; }
+.helpButton:hover .text { -fx-fill: -color-text; }
+
+
+/* =====================================================================
+ * 4b. Plain JavaFX TextArea / TextField / Hyperlink
+ * ===================================================================== */
+
+.text-area,
+.text-area .content,
+.text-field {
+    -fx-background-color: -color-surface;
+    -fx-text-fill: -color-text;
+    -fx-prompt-text-fill: -color-text-subtle;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 6 10 6 10;
+}
+
+.text-area:focused,
+.text-field:focused {
+    -fx-border-color: -color-primary;
+    -fx-effect: dropshadow(gaussian, -color-focus-ring, 6, 0.40, 0, 0);
+}
+
+.text-area.text-mono,
+.text-area.text-mono .content {
+    -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
+                     "Consolas", "Menlo", monospace;
+}
+
+.hyperlink {
+    -fx-text-fill: -color-primary;
+    -fx-border-color: transparent;
+    -fx-padding: 0 4 0 4;
+}
+
+.hyperlink:hover    { -fx-text-fill: -color-primary-hover; -fx-underline: true; }
+.hyperlink:visited  { -fx-text-fill: -color-primary; }
+
+
+/* =====================================================================
+ * 5. Text fields, combos
+ * ===================================================================== */
+
+.mfx-text-field,
+.mfx-password-field {
+    -mfx-main: -color-primary;
+    -mfx-text-fill: -color-text;
+    -fx-text-fill: -color-text;
+    -fx-prompt-text-fill: -color-text-subtle;
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 4 8 4 8;
+}
+
+.mfx-text-field:focus-within,
+.mfx-text-field:focused,
+.mfx-password-field:focus-within,
+.mfx-password-field:focused {
+    -fx-border-color: -color-primary;
+    -fx-effect: dropshadow(gaussian, -color-focus-ring, 6, 0.40, 0, 0);
+}
+
+.mfx-text-field .floating-text,
+.mfx-password-field .floating-text {
+    -fx-fill: -color-text-muted;
+}
+
+.mfx-combo-box {
+    -mfx-main: -color-primary;
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-text-fill: -color-text;
+}
+
+.mfx-combo-box:focused,
+.mfx-combo-box:focus-within {
+    -fx-border-color: -color-primary;
+    -fx-effect: dropshadow(gaussian, -color-focus-ring, 6, 0.40, 0, 0);
+}
+
+.mfx-combo-box .mfx-list-view {
+    -fx-background-color: -color-surface-elevated;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, -color-shadow, 18, 0.18, 0, 8);
+}
+
+
+/* =====================================================================
+ * 6. Toggle / Checkbox
+ * ===================================================================== */
+
+.mfx-toggle-button {
+    -mfx-main: -color-primary;
+    -mfx-secondary: -color-text-subtle;
+    -fx-text-fill: -color-text;
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+}
+
+.mfx-toggle-button:hover,
+.mfx-toggle-button:armed,
+.mfx-toggle-button:focused,
+.mfx-toggle-button:selected,
+.mfx-toggle-button:focused:selected {
+    -fx-text-fill: -color-text;
+    -fx-background-color: transparent;
+}
+
+.mfx-toggle-button .circle      { -fx-fill: -color-text-subtle; }
+.mfx-toggle-button:selected .circle { -fx-fill: -color-primary; }
+.mfx-toggle-button .line        { -fx-stroke: -color-border; -fx-fill: -color-surface; }
+.mfx-toggle-button:selected .line { -fx-fill: -color-primary-soft; }
+
+.mfx-checkbox,
+.mfx-checkbox .text {
+    -fx-text-fill: -color-text;
+    -fx-fill: -color-text;
+}
+
+.mfx-checkbox .box {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-border-strong;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.mfx-checkbox:selected .box {
+    -fx-background-color: -color-primary;
+    -fx-border-color: -color-primary;
+}
+
+.mfx-checkbox:selected .mark {
+    -fx-background-color: -color-text-on-primary;
+}
+
+
+/* =====================================================================
+ * 7. Lists (std + MFX) and cells
+ * ===================================================================== */
+
+.list-view,
+.mfx-list-view {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+}
+
+.list-view .virtual-flow,
+.mfx-list-view .virtual-flow {
+    -fx-background-color: transparent;
+}
+
+.list-cell,
+.mfx-list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text;
+    -mfx-text-fill: -color-text;
+    -fx-padding: 8 12 8 12;
+    -fx-background-radius: 8;
+}
+
+.list-cell:hover,
+.mfx-list-cell:hover {
+    -fx-background-color: -color-surface-hover;
+}
+
+.list-cell:selected,
+.mfx-list-cell:selected {
+    -fx-background-color: -color-primary-soft;
+    -fx-text-fill: -color-text;
+    -mfx-text-fill: -color-text;
+}
+
+.list-cell:selected .label,
+.mfx-list-cell:selected .label {
+    -fx-text-fill: -color-text;
+    -mfx-text-fill: -color-text;
+}
+
+/* Modpack cell labels */
+.packName {
+    -fx-font-weight: 600;
+    -fx-font-size: 14px;
+    -fx-text-fill: -color-text;
+}
+
+.packVersion {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-text-muted;
+}
+
+
+/* =====================================================================
+ * 8. Tables
+ * ===================================================================== */
+
+.table-view {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-table-cell-border-color: -color-divider;
+}
+
+.table-view .column-header,
+.table-view .filler {
+    -fx-background-color: -color-bg-soft;
+    -fx-border-color: -color-border;
+    -fx-border-width: 0 0 1 0;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-weight: 600;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.table-row-cell {
+    -fx-background-color: transparent;
+    -fx-table-cell-border-color: -color-divider;
+}
+
+.table-row-cell:odd  { -fx-background-color: -color-bg-soft; }
+.table-row-cell:hover  { -fx-background-color: -color-surface-hover; }
+.table-row-cell:selected { -fx-background-color: -color-primary-soft; }
+
+.table-view .table-cell {
+    -fx-text-fill: -color-text;
+    -fx-padding: 6 12 6 12;
+}
+
+
+/* =====================================================================
+ * 9. TabPane
+ * ===================================================================== */
+
+.tab-pane {
+    -fx-tab-min-height: 36;
+    -fx-tab-max-height: 36;
+}
+
+.tab-pane .tab-header-area {
+    -fx-padding: 0 0 0 8;
+}
+
+.tab-pane .tab-header-background {
+    -fx-background-color: transparent;
+    -fx-border-color: -color-border;
+    -fx-border-width: 0 0 1 0;
+}
+
+.tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6 6 0 0;
+    -fx-padding: 4 14 4 14;
+}
+
+.tab-pane .tab .tab-label {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-weight: 500;
+}
+
+.tab-pane .tab:hover {
+    -fx-background-color: -color-surface-hover;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-primary;
+    -fx-border-width: 0 0 2 0;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: -color-text;
+    -fx-font-weight: 600;
+}
+
+
+/* =====================================================================
+ * 10. Progress bar
+ * ===================================================================== */
+
+.mfx-progress-bar,
+.progress-bar {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 999;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 999;
+}
+
+.mfx-progress-bar .bar,
+.progress-bar .bar {
+    -fx-background-color:
+        linear-gradient(to right, -color-primary, -color-primary-hover);
+    -fx-background-radius: 999;
+    -fx-padding: 0;
+}
+
+.mfx-progress-bar .track,
+.progress-bar .track {
+    -fx-background-color: transparent;
+}
+
+
+/* =====================================================================
+ * 11. Scroll bar
+ * ===================================================================== */
+
+.scroll-bar {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.scroll-bar .track,
+.scroll-bar .track-background {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -color-border-strong;
+    -fx-background-radius: 4;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: -color-text-subtle;
+}
+
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow,
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-shape: " ";
+}
+
+
+/* =====================================================================
+ * 12. Tooltip / context menu
+ * ===================================================================== */
+
+.tooltip {
+    -fx-background-color: -color-surface-elevated;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-text-fill: -color-text;
+    -fx-font-size: 12px;
+    -fx-padding: 6 10 6 10;
+    -fx-effect: dropshadow(gaussian, -color-shadow, 12, 0.20, 0, 6);
+}
+
+.context-menu {
+    -fx-background-color: -color-surface-elevated;
+    -fx-border-color: -color-border;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-effect: dropshadow(gaussian, -color-shadow, 18, 0.20, 0, 8);
+}
+
+.menu-item .label  { -fx-text-fill: -color-text; }
+.menu-item:focused { -fx-background-color: -color-primary-soft; }
+
+
+/* =====================================================================
+ * 13a. Settings screen — sidebar nav, category headers, container cards
+ * ===================================================================== */
+
+.settingsCategoryHeader {
+    -fx-font-size: 22px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text;
+    -fx-padding: 0 0 8 0;
+}
+
+.settingsContainer {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+}
+
+.settingsContainer.dangerZone {
+    -fx-border-color: -color-danger;
+}
+
+/* Sidebar nav buttons inherit ghost appearance, tightened up for the rail */
+.settingsNavBtn.mfx-button,
+.settingsNavBtn.mfx-button:armed,
+.settingsNavBtn.mfx-button:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 6 12 6 12;
+    -fx-alignment: CENTER_LEFT;
+    -fx-text-fill: -color-text-muted;
+}
+
+.settingsNavBtn.mfx-button .text {
+    -fx-fill: -color-text-muted;
+}
+
+.settingsNavBtn.mfx-button:hover {
+    -fx-background-color: -color-surface-hover;
+    -fx-text-fill: -color-text;
+}
+
+.settingsNavBtn.mfx-button:hover .text {
+    -fx-fill: -color-text;
+}
+
+.settingsNavBtn.mfx-button.selected,
+.settingsNavBtn.mfx-button.selected:focused {
+    -fx-background-color: -color-primary-soft;
+    -fx-text-fill: -color-text;
+    -fx-border-color: transparent;
+}
+
+.settingsNavBtn.mfx-button.selected .text {
+    -fx-fill: -color-text;
+}
+
+
+/* =====================================================================
+ * 13. Banners (announcement / unstable warning / offline chip)
+ * ===================================================================== */
+
+.banner-announcement {
+    -fx-background-color: -color-warning;
+    -fx-text-fill: -color-text-inverse;
+    -fx-padding: 4 12 4 12;
+    -fx-font-weight: 500;
+}
+
+.banner-warning {
+    -fx-background-color: -color-warning-soft;
+    -fx-border-color: -color-warning;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-border-width: 1;
+    -fx-text-fill: -color-text;
+    -fx-padding: 8 14 8 14;
+}
+
+.banner-danger {
+    -fx-background-color: -color-danger-soft;
+    -fx-border-color: -color-danger;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-border-width: 1;
+    -fx-text-fill: -color-text;
+    -fx-padding: 8 14 8 14;
+}
+
+.chip-offline {
+    -fx-background-color: -color-danger;
+    -fx-background-radius: 999;
+    -fx-text-fill: -color-text-on-primary;
+    -fx-padding: 2 10 2 10;
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+}

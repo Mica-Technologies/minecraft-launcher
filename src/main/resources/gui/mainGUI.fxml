@@ -51,7 +51,7 @@
 
     <!-- Row 0: Announcement banner -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308"
-           maxWidth="1.7976931348623157E308" minHeight="0.0" style="-fx-background-color: #8b0000;"
+           maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
            text="--" textAlignment="CENTER" wrapText="true"/>
 
     <!-- Row 1: Compact top navigation bar -->
@@ -112,7 +112,7 @@
             <Label fx:id="unstableWarning"
                    accessibleText="Warning: This mod pack is marked as unstable (beta). Bugs may be present."
                    alignment="CENTER" maxWidth="400.0" minHeight="0.0" prefHeight="37.0"
-                   style="-fx-background-color: #8b0000; -fx-background-radius: 10px;"
+                   styleClass="banner-danger"
                    text="This mod pack is marked as unstable (beta). &#10;Bugs may be present."
                    textAlignment="CENTER" wrapText="true"
                    GridPane.halignment="CENTER">
@@ -125,11 +125,11 @@
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="3">
         <Label fx:id="versionLabel" text="Mica Launcher"/>
         <Label fx:id="offlineLabel" text="Offline Mode" managed="false" visible="false"
-               style="-fx-background-color: #8b0000; -fx-background-radius: 4; -fx-padding: 2 8 2 8; -fx-text-fill: white;">
+               styleClass="chip-offline">
             <font><Font size="11.0"/></font>
         </Label>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="playBtn" text="Play" prefHeight="28.0" prefWidth="80.0">
+        <MFXButton fx:id="playBtn" text="Play" prefHeight="28.0" prefWidth="80.0" styleClass="primary playBtn">
             <font><Font size="14.0"/></font>
         </MFXButton>
         <MFXButton fx:id="websiteBtn" text="Website" prefHeight="28.0"/>
