@@ -8,9 +8,9 @@
 .root {
     /* === Surfaces === */
     -color-bg:                white;
-    -color-bg-soft:           hsl(220, 35%, 98%);
-    -color-surface:           hsl(220, 35%, 97%);
-    -color-surface-hover:     hsl(220, 30%, 94%);
+    -color-bg-soft:           #F8F9FC;
+    -color-surface:           #F5F6FA;
+    -color-surface-hover:     #EBEEF4;
     -color-surface-elevated:  white;
     -color-overlay:           rgba(15, 23, 42, 0.32);
 
@@ -20,31 +20,31 @@
     -color-divider:           rgba(15, 23, 42, 0.06);
 
     /* === Text === */
-    -color-text:              hsl(220, 30%, 12%);
-    -color-text-muted:        hsl(220, 18%, 36%);
-    -color-text-subtle:       hsl(220, 14%, 52%);
+    -color-text:              #151C28;
+    -color-text-muted:        #4B566C;
+    -color-text-subtle:       #737F96;
     -color-text-inverse:      white;
     -color-text-on-primary:   white;
 
     /* === Brand: blue (primary) === */
-    -color-primary:           hsl(210, 98%, 48%);
-    -color-primary-hover:     hsl(210, 98%, 42%);
-    -color-primary-pressed:   hsl(210, 100%, 35%);
+    -color-primary:           #027AF2;
+    -color-primary-hover:     #026BD4;
+    -color-primary-pressed:   #0059B2;
     -color-primary-soft:      rgba(0, 114, 229, 0.10);
     -color-primary-soft-hov:  rgba(0, 114, 229, 0.16);
     -color-focus-ring:        rgba(0, 114, 229, 0.45);
 
     /* === Brand: secondary (Minecraft-grass green accent) === */
-    -color-secondary:         hsl(120, 44%, 40%);
-    -color-secondary-hover:   hsl(120, 44%, 34%);
+    -color-secondary:         #399339;
+    -color-secondary-hover:   #317D31;
     -color-secondary-soft:    rgba(67, 160, 71, 0.12);
 
     /* === Status === */
-    -color-success:           hsl(120, 44%, 40%);
-    -color-warning:           hsl(45, 90%, 40%);
+    -color-success:           #399339;
+    -color-warning:           #C2940A;
     -color-warning-soft:      rgba(217, 158, 0, 0.14);
-    -color-danger:            hsl(0, 90%, 45%);
-    -color-danger-hover:      hsl(0, 90%, 39%);
+    -color-danger:            #DA0B0B;
+    -color-danger-hover:      #BD0A0A;
     -color-danger-soft:       rgba(220, 38, 38, 0.10);
 
     /* === Effects === */

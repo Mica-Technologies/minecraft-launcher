@@ -8,11 +8,11 @@
 
 .root {
     /* === Surfaces === */
-    -color-bg:                hsl(296, 28%, 10%);
-    -color-bg-soft:           hsl(296, 26%, 13%);
-    -color-surface:           hsl(296, 24%, 17%);
-    -color-surface-hover:     hsl(296, 22%, 21%);
-    -color-surface-elevated:  hsl(296, 22%, 24%);
+    -color-bg:                #201221;
+    -color-bg-soft:           #29192A;
+    -color-surface:           #342136;
+    -color-surface-hover:     #402A41;
+    -color-surface-elevated:  #49304B;
     -color-overlay:           rgba(0, 0, 0, 0.55);
 
     /* === Borders === */
@@ -21,31 +21,31 @@
     -color-divider:           rgba(240, 222, 240, 0.06);
 
     /* === Text === */
-    -color-text:              hsl(310, 30%, 94%);
-    -color-text-muted:        hsl(310, 18%, 72%);
-    -color-text-subtle:       hsl(310, 14%, 56%);
-    -color-text-inverse:      hsl(296, 28%, 10%);
+    -color-text:              #F4EBF3;
+    -color-text-muted:        #C4ABC0;
+    -color-text-subtle:       #9F7F99;
+    -color-text-inverse:      #201221;
     -color-text-on-primary:   white;
 
     /* === Brand: purple (primary) === */
-    -color-primary:           hsl(296, 65%, 60%);
-    -color-primary-hover:     hsl(296, 65%, 66%);
-    -color-primary-pressed:   hsl(296, 75%, 72%);
+    -color-primary:           #D257DB;
+    -color-primary-hover:     #D970E1;
+    -color-primary-pressed:   #E682ED;
     -color-primary-soft:      rgba(190, 95, 200, 0.20);
     -color-primary-soft-hov:  rgba(190, 95, 200, 0.28);
     -color-focus-ring:        rgba(190, 95, 200, 0.50);
 
     /* === Brand: orange (secondary) === */
-    -color-secondary:         hsl(28, 92%, 58%);
-    -color-secondary-hover:   hsl(28, 95%, 64%);
+    -color-secondary:         #F68D31;
+    -color-secondary-hover:   #FA9D4C;
     -color-secondary-soft:    rgba(245, 145, 60, 0.20);
 
     /* === Status === */
-    -color-success:           hsl(140, 55%, 56%);
-    -color-warning:           hsl(38, 92%, 60%);
+    -color-success:           #51CD7A;
+    -color-warning:           #F7B23B;
     -color-warning-soft:      rgba(255, 178, 38, 0.18);
-    -color-danger:            hsl(0, 88%, 62%);
-    -color-danger-hover:      hsl(0, 88%, 68%);
+    -color-danger:            #F34949;
+    -color-danger-hover:      #F56666;
     -color-danger-soft:       rgba(238, 86, 86, 0.16);
 
     -color-shadow:            rgba(0, 0, 0, 0.55);

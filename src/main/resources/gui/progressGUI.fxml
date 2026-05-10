@@ -3,11 +3,10 @@
 <?import io.github.palexdev.materialfx.controls.MFXProgressBar?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.image.Image?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.text.Font?>
 
 <!--
@@ -54,12 +53,10 @@
                 <RowConstraints fillHeight="false" maxHeight="25.0" minHeight="15.0" prefHeight="22.0" />
             </rowConstraints>
 
-            <!-- Row 0: Logo -->
-            <ImageView accessibleText="Mica Minecraft Launcher logo" fitHeight="85.0" fitWidth="85.0"
-                       pickOnBounds="true" preserveRatio="true"
-                       GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-                <Image url="@../micaminecraftlauncher.png" />
-            </ImageView>
+            <!-- Row 0: Logo (SVG, scales crisply at any DPI) -->
+            <StackPane GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                <fx:include source="components/micaBrandLogo.fxml"/>
+            </StackPane>
 
             <!-- Row 1: Upper label (overall task title) -->
             <Label fx:id="upperLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"

@@ -8,11 +8,11 @@
 
 .root {
     /* === Surfaces — near-black with a faint green undertone === */
-    -color-bg:                hsl(120, 22%, 6%);
-    -color-bg-soft:           hsl(120, 20%, 9%);
-    -color-surface:           hsl(120, 18%, 12%);
-    -color-surface-hover:     hsl(120, 16%, 16%);
-    -color-surface-elevated:  hsl(120, 14%, 19%);
+    -color-bg:                #0C130C;
+    -color-bg-soft:           #121C12;
+    -color-surface:           #192419;
+    -color-surface-hover:     #222F22;
+    -color-surface-elevated:  #2A372A;
     -color-overlay:           rgba(0, 0, 0, 0.65);
 
     /* === Borders === */
@@ -21,31 +21,31 @@
     -color-divider:           rgba(140, 220, 140, 0.06);
 
     /* === Text — slightly warm bone-white with a hint of green === */
-    -color-text:              hsl(80, 18%, 93%);
-    -color-text-muted:        hsl(110, 14%, 70%);
-    -color-text-subtle:       hsl(110, 12%, 52%);
-    -color-text-inverse:      hsl(120, 22%, 6%);
-    -color-text-on-primary:   hsl(120, 22%, 6%);
+    -color-text:              #EEF0EA;
+    -color-text-muted:        #ABBDA8;
+    -color-text-subtle:       #7B9376;
+    -color-text-inverse:      #0C130C;
+    -color-text-on-primary:   #0C130C;
 
     /* === Brand: creeper green (primary) === */
-    -color-primary:           hsl(112, 65%, 50%);
-    -color-primary-hover:     hsl(112, 65%, 58%);
-    -color-primary-pressed:   hsl(112, 70%, 64%);
+    -color-primary:           #43D22D;
+    -color-primary-hover:     #61DA4E;
+    -color-primary-pressed:   #74E363;
     -color-primary-soft:      rgba(95, 210, 70, 0.20);
     -color-primary-soft-hov:  rgba(95, 210, 70, 0.30);
     -color-focus-ring:        rgba(95, 210, 70, 0.50);
 
     /* === Brand: secondary (lime accent) === */
-    -color-secondary:         hsl(85, 75%, 55%);
-    -color-secondary-hover:   hsl(85, 80%, 62%);
+    -color-secondary:         #9BE236;
+    -color-secondary-hover:   #ABEC51;
     -color-secondary-soft:    rgba(180, 230, 80, 0.20);
 
     /* === Status === */
-    -color-success:           hsl(112, 65%, 50%);
-    -color-warning:           hsl(45, 95%, 55%);
+    -color-success:           #43D22D;
+    -color-warning:           #F9C31F;
     -color-warning-soft:      rgba(255, 196, 38, 0.18);
-    -color-danger:            hsl(0, 90%, 56%);   /* TNT red */
-    -color-danger-hover:      hsl(0, 90%, 64%);
+    -color-danger:            #F42A2A;   /* TNT red */
+    -color-danger-hover:      #F65151;
     -color-danger-soft:       rgba(240, 80, 80, 0.16);
 
     /* === Effects === */
