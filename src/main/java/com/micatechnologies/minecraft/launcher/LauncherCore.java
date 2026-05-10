@@ -609,6 +609,9 @@ public class LauncherCore
             // on a stale HWND lookup. Doing it here also clears the taskbar overlay so a
             // restart doesn't briefly inherit the previous session's progress state.
             com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager.shutdown();
+            // Remove the notification tray icon. Without this, the icon would persist in the
+            // tray after launcher exit until the user clicks it (Windows behavior).
+            com.micatechnologies.minecraft.launcher.utilities.NotificationManager.shutdown();
             MCLauncherGuiController.exit();
             SingleInstanceLock.release();
             Logger.shutdownLogSys();

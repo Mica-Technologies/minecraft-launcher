@@ -37,11 +37,16 @@ import java.net.URI;
  */
 public class UpdateCheckManager
 {
+    /** Track whether we've already toasted the user about this session's update check. Each main-menu
+     *  load re-runs the check, but the user only wants ONE notification per launcher run — once
+     *  dismissed/seen, it's just noise. */
+    private static volatile boolean updateNotificationShown = false;
+
     /**
      * Performs an asynchronous update check and configures the provided UI elements to show an update notification if a
      * newer version is available. The "update available" cue is also pushed to the OS taskbar via
-     * {@link TaskbarProgressManager#showFullError()} (red full-error overlay), so a user with the launcher minimized
-     * still sees the prompt.
+     * {@link TaskbarProgressManager#showFullError()} (red full-error overlay) and a native toast via
+     * {@link NotificationManager#info}, so a user with the launcher minimized still sees the prompt.
      *
      * @param updateImgView the ImageView to show/hide for update notification
      * @param stage         the owning stage (for dialogs and taskbar integration)
@@ -82,6 +87,13 @@ public class UpdateCheckManager
                         } ) );
 
                         TaskbarProgressManager.showFullError();
+
+                        if ( !updateNotificationShown ) {
+                            updateNotificationShown = true;
+                            NotificationManager.info(
+                                    "Update available",
+                                    "Mica Launcher " + latestVersion + " is ready. Click the update icon in the navbar to download." );
+                        }
                     } );
                 }
             }
