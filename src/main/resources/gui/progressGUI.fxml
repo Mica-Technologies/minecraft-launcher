@@ -2,11 +2,14 @@
 
 <?import io.github.palexdev.materialfx.controls.MFXProgressBar?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.Group?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.RowConstraints?>
-<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.shape.SVGPath?>
 <?import javafx.scene.text.Font?>
 
 <!--
@@ -27,70 +30,102 @@
     <rowConstraints>
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
-    <GridPane maxWidth="420.0" minWidth="375.0" prefWidth="400.0" styleClass="card elevated" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+    <GridPane maxWidth="480.0" minWidth="380.0" prefWidth="460.0" styleClass="card elevated,progressCard" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
         </columnConstraints>
         <rowConstraints>
-            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="250.0" prefHeight="340.0" vgrow="SOMETIMES" />
+            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="280.0" prefHeight="380.0" vgrow="SOMETIMES" />
         </rowConstraints>
-        <GridPane prefHeight="380.0" prefWidth="400.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+        <GridPane prefHeight="420.0" prefWidth="460.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+            <padding><Insets top="8.0" bottom="8.0"/></padding>
             <columnConstraints>
                 <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
             </columnConstraints>
             <rowConstraints>
-                <!-- Row 0: Logo -->
-                <RowConstraints fillHeight="false" maxHeight="110.0" minHeight="90.0" prefHeight="100.0" />
+                <!-- Row 0: Voxel cluster accent (Minecraft-themed iso cubes) -->
+                <RowConstraints fillHeight="false" maxHeight="80.0" minHeight="60.0" prefHeight="72.0" />
                 <!-- Row 1: Upper label (overall task title, e.g. "Launching: Forge 1.15.2") -->
                 <RowConstraints fillHeight="false" maxHeight="50.0" minHeight="35.0" prefHeight="42.0" />
-                <!-- Row 2: Section label (current step, e.g. "Downloading mods...") -->
-                <RowConstraints fillHeight="false" maxHeight="30.0" minHeight="20.0" prefHeight="26.0" />
-                <!-- Row 3: Progress bar -->
+                <!-- Row 2: Brand accent underline (thin gradient bar) -->
+                <RowConstraints fillHeight="false" maxHeight="8.0" minHeight="6.0" prefHeight="8.0" />
+                <!-- Row 3: Section label (current step, e.g. "Downloading mods...") -->
+                <RowConstraints fillHeight="false" maxHeight="34.0" minHeight="22.0" prefHeight="30.0" />
+                <!-- Row 4: Progress bar -->
                 <RowConstraints fillHeight="false" maxHeight="35.0" minHeight="25.0" prefHeight="30.0" />
-                <!-- Row 4: Detail label (file-level info below progress bar) -->
+                <!-- Row 5: Detail label (file-level info below progress bar) -->
                 <RowConstraints fillHeight="false" maxHeight="35.0" minHeight="20.0" prefHeight="28.0" />
-                <!-- Row 5: Speed/ETA info label -->
+                <!-- Row 6: Speed/ETA info label -->
                 <RowConstraints fillHeight="false" maxHeight="25.0" minHeight="15.0" prefHeight="22.0" />
             </rowConstraints>
 
-            <!-- Row 0: Logo (SVG, scales crisply at any DPI) -->
-            <StackPane GridPane.halignment="CENTER" GridPane.valignment="CENTER">
-                <fx:include source="components/micaBrandLogo.fxml"/>
-            </StackPane>
+            <!-- Row 0: Minecraft-themed iso-cube voxel cluster.
+                 Three 36×36 cubes (dirt / grass / stone) drawn inline as SVGPath polygons.
+                 No transforms list — coordinates are authored in already-correct screen
+                 pixels so the FXML transform-order gotcha doesn't apply. Replaces the
+                 previous micaBrandLogo.fxml include which was rendering off-screen due
+                 to the transform-order bug in that file. -->
+            <HBox alignment="CENTER" spacing="10.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+                <!-- Cube 1: Dirt brown — flat-shaded with darker left/right faces -->
+                <Group>
+                    <SVGPath fill="#8B6A3F" content="M 18 0 L 36 9 L 18 18 L 0 9 Z"/>
+                    <SVGPath fill="#5C4322" content="M 0 9 L 18 18 L 18 36 L 0 27 Z"/>
+                    <SVGPath fill="#3F2E14" content="M 36 9 L 18 18 L 18 36 L 36 27 Z"/>
+                </Group>
+                <!-- Cube 2: Grass green — slightly larger to anchor the cluster center -->
+                <Group>
+                    <SVGPath fill="#6FCF3D" content="M 18 0 L 36 9 L 18 18 L 0 9 Z"/>
+                    <SVGPath fill="#3C8527" content="M 0 9 L 18 18 L 18 36 L 0 27 Z"/>
+                    <SVGPath fill="#2A6B1E" content="M 36 9 L 18 18 L 18 36 L 36 27 Z"/>
+                </Group>
+                <!-- Cube 3: Stone gray — completes the dirt/grass/stone block trio -->
+                <Group>
+                    <SVGPath fill="#A8AEB8" content="M 18 0 L 36 9 L 18 18 L 0 9 Z"/>
+                    <SVGPath fill="#6B7280" content="M 0 9 L 18 18 L 18 36 L 0 27 Z"/>
+                    <SVGPath fill="#4B5563" content="M 36 9 L 18 18 L 18 36 L 36 27 Z"/>
+                </Group>
+            </HBox>
 
             <!-- Row 1: Upper label (overall task title) -->
-            <Label fx:id="upperLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"
-                   prefWidth="350.0" styleClass="heading-display" text="Just a Moment"
+            <Label fx:id="upperLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="420.0"
+                   prefWidth="400.0" styleClass="heading-display" text="Just a Moment"
                    textAlignment="CENTER" wrapText="true"
                    GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER"/>
 
-            <!-- Row 2: Section label (current step heading) -->
-            <Label fx:id="sectionLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"
-                   prefWidth="350.0" styleClass="muted" text="" textAlignment="CENTER" wrapText="true"
-                   GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER">
+            <!-- Row 2: Brand accent underline — thin horizontal gradient bar that anchors the
+                 heading. Styled in ui-base.css under .progressCard .accentBar; using a Region
+                 (not a Rectangle) so the gradient adapts to theme tokens. -->
+            <Region styleClass="accentBar" maxWidth="120.0" prefWidth="120.0" minWidth="120.0"
+                    maxHeight="3.0" prefHeight="3.0" minHeight="3.0"
+                    GridPane.halignment="CENTER" GridPane.rowIndex="2" GridPane.valignment="CENTER"/>
+
+            <!-- Row 3: Section label (current step heading) -->
+            <Label fx:id="sectionLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
+                   prefWidth="390.0" styleClass="muted" text="" textAlignment="CENTER" wrapText="true"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="3" GridPane.valignment="CENTER">
                 <font>
                     <Font size="13.0" />
                 </font>
             </Label>
 
-            <!-- Row 3: Progress bar -->
-            <MFXProgressBar fx:id="progressBar" maxWidth="300.0" minWidth="300.0" prefWidth="300.0"
-                            progress="0.0" GridPane.halignment="CENTER" GridPane.rowIndex="3"
+            <!-- Row 4: Progress bar -->
+            <MFXProgressBar fx:id="progressBar" maxWidth="360.0" minWidth="360.0" prefWidth="360.0"
+                            progress="0.0" GridPane.halignment="CENTER" GridPane.rowIndex="4"
                             GridPane.valignment="CENTER" />
 
-            <!-- Row 4: Detail label (file-level details below progress bar) -->
-            <Label fx:id="detailLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"
-                   prefWidth="350.0" styleClass="subtle" text="" textAlignment="CENTER" wrapText="true"
-                   GridPane.halignment="CENTER" GridPane.rowIndex="4" GridPane.valignment="CENTER">
+            <!-- Row 5: Detail label (file-level details below progress bar) -->
+            <Label fx:id="detailLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
+                   prefWidth="390.0" styleClass="subtle" text="" textAlignment="CENTER" wrapText="true"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
                 <font>
                     <Font size="11.0" />
                 </font>
             </Label>
 
-            <!-- Row 5: Speed/ETA info below detail label -->
-            <Label fx:id="speedLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="360.0"
-                   prefWidth="350.0" styleClass="subtle" text="" textAlignment="CENTER" wrapText="true"
-                   GridPane.halignment="CENTER" GridPane.rowIndex="5" GridPane.valignment="CENTER">
+            <!-- Row 6: Speed/ETA info below detail label -->
+            <Label fx:id="speedLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="400.0"
+                   prefWidth="390.0" styleClass="subtle" text="" textAlignment="CENTER" wrapText="true"
+                   GridPane.halignment="CENTER" GridPane.rowIndex="6" GridPane.valignment="CENTER">
                 <font>
                     <Font size="10.0" />
                 </font>
