@@ -106,8 +106,19 @@ public class LauncherCore
      * @since 1.0
      */
     public static void main( String[] args ) {
-        // Enforce single instance -- if another instance is already running, notify and exit
+        // Enforce single instance. If another instance is already running:
+        //   - and we have a mmcl:// URI in argv, forward it to the running instance and exit
+        //     silently (the running instance brings itself to focus and dispatches the action).
+        //   - otherwise, show the existing "already running" popup so the user understands
+        //     why nothing happened.
         if ( !SingleInstanceLock.tryAcquire() ) {
+            for ( String arg : args ) {
+                if ( LauncherUriHandler.isLauncherUri( arg ) ) {
+                    boolean forwarded = SingleInstanceLock.forwardToRunningInstance( arg );
+                    System.exit( forwarded ? 0 : 1 );
+                    return;
+                }
+            }
             javax.swing.SwingUtilities.invokeLater( () -> {
                 javax.swing.JOptionPane.showMessageDialog( null,
                         "Mica Minecraft Launcher is already running.",

@@ -37,7 +37,20 @@ public class MCLauncherGuiController
     public static void requestFocus() {
         Stage topStage = getTopStageOrNull();
         if ( topStage != null ) {
-            GUIUtilities.JFXPlatformRun( topStage::requestFocus );
+            GUIUtilities.JFXPlatformRun( () -> {
+                // De-iconify (Windows minimize, macOS minimize-to-dock) before requestFocus
+                // — without this, a user clicking the tray icon or a mmcl:// link with the
+                // launcher minimized would get no visible response. show() + toFront() bring
+                // the window above other apps; requestFocus() handles input focus.
+                if ( topStage.isIconified() ) {
+                    topStage.setIconified( false );
+                }
+                if ( !topStage.isShowing() ) {
+                    topStage.show();
+                }
+                topStage.toFront();
+                topStage.requestFocus();
+            } );
         }
     }
 
