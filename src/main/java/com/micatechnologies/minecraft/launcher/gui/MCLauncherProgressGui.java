@@ -18,10 +18,8 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
-import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
-import com.nativejavafx.taskbar.TaskbarProgressbar;
-import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
+import com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -64,8 +62,6 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     @FXML
     Label speedLabel;
 
-    private TaskbarProgressbar taskbarProgressbar = null;
-
     public MCLauncherProgressGui( Stage stage ) throws IOException {
         super( stage );
     }
@@ -90,7 +86,7 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
             windowEvent.consume();
             LauncherCore.closeApp();
         } );
-        // Note: taskbar progress bar is initialized in afterShow() after the stage is visible,
+        // Note: taskbar progress bar is attached in afterShow() after the stage is visible,
         // to avoid native access violations from uninitialized window handles.
     }
 
@@ -100,34 +96,21 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         setSectionText( "" );
         setDetailText( "" );
         setSpeedText( "" );
-        setProgress( 0.0 );
 
-        // Initialize taskbar progress bar AFTER the stage is shown, so the native HWND is valid.
-        try {
-            if ( TaskbarProgressbar.isSupported() ) {
-                taskbarProgressbar = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
-            }
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( "Unable to initialize taskbar progress bar: " + e.getMessage() );
-            taskbarProgressbar = null;
-        }
+        // Attach the shared taskbar wrapper to this stage on first appearance. Idempotent
+        // across screens — TaskbarProgressManager owns one wrapper for the app lifetime,
+        // so leaving and re-entering this screen never spins up a competing instance.
+        TaskbarProgressManager.attach( stage );
+
+        setProgress( 0.0 );
     }
 
     @Override
     void cleanup() {
-        if ( taskbarProgressbar != null ) {
-            GUIUtilities.JFXPlatformRun( () -> {
-                try {
-                    taskbarProgressbar.stopProgress();
-                    taskbarProgressbar.closeOperations();
-                }
-                catch ( Exception | Error e ) {
-                    Logger.logWarningSilent( "Failed to clean up taskbar progress bar." );
-                }
-                taskbarProgressbar = null;
-            } );
-        }
+        // Always clear the OS-level overlay before the next scene takes over. We don't
+        // close the wrapper here — TaskbarProgressManager keeps it alive until app exit
+        // so transitions never race a release against a fresh init.
+        GUIUtilities.JFXPlatformRun( TaskbarProgressManager::stop );
     }
 
     @Override
@@ -187,23 +170,7 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
 
         GUIUtilities.JFXPlatformRun( () -> {
             progressBar.setProgress( baseProgValue );
-
-            try {
-                if ( taskbarProgressbar != null ) {
-                    if ( baseProgValue == MFXProgressBar.INDETERMINATE_PROGRESS ) {
-                        taskbarProgressbar.showIndeterminateProgress();
-                    }
-                    else {
-                        taskbarProgressbar.showCustomProgress( baseProgValue, TaskbarProgressbar.Type.NORMAL );
-                    }
-                }
-            }
-            catch ( Exception | Error e ) {
-                // Catch both Exception and Error (including native RuntimeException from BridJ/COM)
-                // to prevent taskbar progress issues from crashing the entire application.
-                Logger.logWarningSilent( "Failed to update taskbar progress bar, disabling it." );
-                taskbarProgressbar = null;
-            }
+            TaskbarProgressManager.setProgress( baseProgValue );
         } );
     }
 }

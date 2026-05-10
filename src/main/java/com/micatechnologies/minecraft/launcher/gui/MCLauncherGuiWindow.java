@@ -26,6 +26,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.animation.PauseTransition;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -36,8 +37,10 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.apache.commons.lang3.SystemUtils;
 
 import java.io.InputStream;
+import java.util.List;
 import java.util.Objects;
 
 public class MCLauncherGuiWindow extends Application
@@ -65,6 +68,14 @@ public class MCLauncherGuiWindow extends Application
 
     /** Debounces bounds-change listeners so we don't write the config file on every pixel of a drag/resize. */
     private PauseTransition boundsSaveDebouncer = null;
+
+    /**
+     * Last screen the stage's center was observed on. Used to detect cross-monitor moves so we can nudge the window
+     * position and force Windows' per-monitor taskbar to re-evaluate icon placement. {@code null} until the first
+     * post-show position settle.
+     */
+    private Screen          lastKnownScreen          = null;
+    private PauseTransition monitorChangeDebouncer   = null;
 
     @Override
     public void start( Stage stage ) throws Exception {
@@ -117,6 +128,10 @@ public class MCLauncherGuiWindow extends Application
 
         // Begin tracking bounds changes so we can persist them across launches.
         installBoundsPersistence();
+
+        // Windows-only: nudge the window position when it crosses to a new monitor so the per-monitor
+        // taskbar updates the icon's location. No-op on macOS / Linux.
+        installMonitorChangeNudge();
     }
 
     /**
@@ -210,6 +225,74 @@ public class MCLauncherGuiWindow extends Application
             Logger.logWarningSilent( "Unable to persist launcher window bounds." );
             Logger.logThrowable( e );
         }
+    }
+
+    /**
+     * Windows multi-monitor workaround. With Windows set to "show taskbar icons only on the monitor where the window
+     * is open," the taskbar icon often fails to follow the window when it's dragged between displays — the per-monitor
+     * shell sometimes misses the boundary crossing on JavaFX drag-end events. After the user's drag settles, we detect
+     * whether the stage's center is on a different {@link Screen} than before and, if so, push a 1-px X nudge followed
+     * by an immediate restore on the next pulse. The transient position change forces Windows to fire a fresh
+     * {@code WM_WINDOWPOSCHANGED}, which prompts the shell to re-evaluate which monitor owns the window.
+     *
+     * <p>Gated on {@link SystemUtils#IS_OS_WINDOWS} — on macOS / Linux the listeners are never registered, so the
+     * method is a true no-op there.</p>
+     */
+    private void installMonitorChangeNudge() {
+        if ( !SystemUtils.IS_OS_WINDOWS || stage == null ) {
+            return;
+        }
+
+        monitorChangeDebouncer = new PauseTransition( Duration.millis( 200 ) );
+        monitorChangeDebouncer.setOnFinished( e -> nudgeIfMonitorChanged() );
+
+        ChangeListener< Number > onPositionChanged = ( obs, oldVal, newVal ) -> {
+            if ( stage.isShowing() && !stage.isIconified() ) {
+                monitorChangeDebouncer.playFromStart();
+            }
+        };
+        stage.xProperty().addListener( onPositionChanged );
+        stage.yProperty().addListener( onPositionChanged );
+
+        // Seed the initial screen reference so the *first* boundary crossing after launch registers as a change.
+        // Width may still be 0 here if start() hasn't fully laid out yet; the helper falls back to primary in that case.
+        lastKnownScreen = screenForStageCenter();
+    }
+
+    /** Resolves the {@link Screen} whose bounds contain the stage's geometric center, or the primary screen if the
+     *  stage isn't sized yet / sits across boundaries. */
+    private Screen screenForStageCenter() {
+        if ( stage == null || stage.getWidth() <= 0 || stage.getHeight() <= 0 ) {
+            return Screen.getPrimary();
+        }
+        double cx = stage.getX() + stage.getWidth() / 2.0;
+        double cy = stage.getY() + stage.getHeight() / 2.0;
+        // Use a 1x1 probe at the center point — getScreensForRectangle with the full window bounds returns multiple
+        // screens whenever the window straddles a boundary, which makes the "which monitor owns this" check ambiguous.
+        List< Screen > screens = Screen.getScreensForRectangle( cx, cy, 1, 1 );
+        return screens.isEmpty() ? Screen.getPrimary() : screens.get( 0 );
+    }
+
+    /** Compares the current center-screen against {@link #lastKnownScreen}; on change, queues the position nudge. */
+    private void nudgeIfMonitorChanged() {
+        if ( stage == null || !stage.isShowing() || stage.isIconified() ) {
+            return;
+        }
+
+        Screen current = screenForStageCenter();
+        Screen previous = lastKnownScreen;
+        lastKnownScreen = current;
+
+        if ( previous == null || current == null || previous.equals( current ) ) {
+            return;
+        }
+
+        final double x = stage.getX();
+        stage.setX( x + 1 );
+        // Restore on the next pulse so the visible jump is at most one frame. Two separate setX() calls in the same
+        // synchronous block coalesce into a single Glass position update and don't produce two WM_WINDOWPOSCHANGED
+        // messages — runLater ensures the restore happens in a distinct animation pulse.
+        Platform.runLater( () -> stage.setX( x ) );
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
@@ -454,6 +537,11 @@ public class MCLauncherGuiWindow extends Application
             boundsSaveDebouncer = null;
         }
         persistBoundsNow();
+
+        if ( monitorChangeDebouncer != null ) {
+            monitorChangeDebouncer.stop();
+            monitorChangeDebouncer = null;
+        }
 
         if ( detector != null && themeListener != null ) {
             try {

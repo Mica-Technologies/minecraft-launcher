@@ -604,6 +604,11 @@ public class LauncherCore
         Logger.logStd( LocalizationManager.PERFORMING_APP_CLEANUP_TEXT );
         try {
             DiscordRpcUtility.exit();
+            // Release the shared taskbar wrapper before tearing down the GUI controller —
+            // closing it after the stage is gone occasionally leaves the COM thread blocked
+            // on a stale HWND lookup. Doing it here also clears the taskbar overlay so a
+            // restart doesn't briefly inherit the previous session's progress state.
+            com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager.shutdown();
             MCLauncherGuiController.exit();
             SingleInstanceLock.release();
             Logger.shutdownLogSys();

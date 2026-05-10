@@ -20,8 +20,6 @@ package com.micatechnologies.minecraft.launcher.utilities;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
-import com.nativejavafx.taskbar.TaskbarProgressbar;
-import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
 
@@ -41,14 +39,14 @@ public class UpdateCheckManager
 {
     /**
      * Performs an asynchronous update check and configures the provided UI elements to show an update notification if a
-     * newer version is available.
+     * newer version is available. The "update available" cue is also pushed to the OS taskbar via
+     * {@link TaskbarProgressManager#showFullError()} (red full-error overlay), so a user with the launcher minimized
+     * still sees the prompt.
      *
      * @param updateImgView the ImageView to show/hide for update notification
      * @param stage         the owning stage (for dialogs and taskbar integration)
-     * @param taskbarRef    a single-element array to receive the TaskbarProgressbar reference, or null
      */
-    public static void checkAndConfigureUI( ImageView updateImgView, Stage stage,
-                                             TaskbarProgressbar[] taskbarRef )
+    public static void checkAndConfigureUI( ImageView updateImgView, Stage stage )
     {
         // Hide AND unmanage so the image doesn't reserve layout space when there's no update.
         updateImgView.setVisible( false );
@@ -60,15 +58,8 @@ public class UpdateCheckManager
                 String latestVersion = UpdateCheckUtilities.getLatestReleaseVersion();
 
                 if ( VersionUtilities.compareVersionNumbers( version, latestVersion ) == -1 ) {
-                    TaskbarProgressbar taskbarProgressbar = null;
-                    if ( TaskbarProgressbar.isSupported() ) {
-                        taskbarProgressbar = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
-                    }
-                    if ( taskbarRef != null && taskbarProgressbar != null ) {
-                        taskbarRef[ 0 ] = taskbarProgressbar;
-                    }
+                    TaskbarProgressManager.attach( stage );
 
-                    final TaskbarProgressbar finalTaskbar = taskbarProgressbar;
                     GUIUtilities.JFXPlatformRun( () -> {
                         updateImgView.setVisible( true );
                         updateImgView.setManaged( true );
@@ -90,9 +81,7 @@ public class UpdateCheckManager
                             }
                         } ) );
 
-                        if ( finalTaskbar != null ) {
-                            finalTaskbar.showFullErrorProgress();
-                        }
+                        TaskbarProgressManager.showFullError();
                     } );
                 }
             }

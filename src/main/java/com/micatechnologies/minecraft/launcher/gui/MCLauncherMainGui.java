@@ -28,7 +28,6 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
-import com.nativejavafx.taskbar.TaskbarProgressbar;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -93,8 +92,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML Label offlineLabel;
     @SuppressWarnings( "unused" ) @FXML MFXButton exitBtn;
 
-    private TaskbarProgressbar taskbarProgressbar = null;
-
     public MCLauncherMainGui( Stage stage ) throws IOException {
         super( stage );
     }
@@ -126,14 +123,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
 
-        // Update-available indicator + (lazy) taskbar progress wiring.
-        TaskbarProgressbar[] taskbarRef = new TaskbarProgressbar[ 1 ];
-        UpdateCheckManager.checkAndConfigureUI( updateImgView, stage, taskbarRef );
-        SystemUtilities.spawnNewTask( () -> {
-            if ( taskbarRef[ 0 ] != null ) {
-                taskbarProgressbar = taskbarRef[ 0 ];
-            }
-        } );
+        // Update-available indicator. The async update check pushes its
+        // "update ready" red overlay through TaskbarProgressManager, which owns
+        // a single shared wrapper for the app's lifetime — no per-screen
+        // instances to manage or clean up here.
+        UpdateCheckManager.checkAndConfigureUI( updateImgView, stage );
 
         // Announcements — dev banner if applicable, otherwise whatever the announcement service returns.
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
@@ -226,12 +220,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     @Override
     void cleanup() {
-        if ( taskbarProgressbar != null ) {
-            GUIUtilities.JFXPlatformRun( () -> {
-                taskbarProgressbar.stopProgress();
-                taskbarProgressbar.closeOperations();
-            } );
-        }
+        // Defensive: if the update-check fired showFullError() to flag an
+        // available update, clear it on transition out so the next screen
+        // (e.g. progressGUI for a game launch) isn't competing with a stale
+        // red overlay. Stop only — the wrapper itself is owned by
+        // TaskbarProgressManager and lives until app exit.
+        GUIUtilities.JFXPlatformRun( TaskbarProgressManager::stop );
     }
 
     @Override
