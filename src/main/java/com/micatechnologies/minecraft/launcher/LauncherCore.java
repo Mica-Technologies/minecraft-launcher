@@ -169,6 +169,12 @@ public class LauncherCore
             try {
                 Logger.logDebug( LocalizationManager.LAUNCHING_MOD_PACK_TEXT + ": " + gameModPack.getFriendlyName() );
                 MCLauncherProgressGui finalPlayProgressWindow = playProgressWindow;
+                final long progressStartMs = System.currentTimeMillis();
+                // Latch so the "ready to play" toast fires at most once per play attempt — the
+                // progress handler can be called with percent==100 multiple times as the final
+                // tasks complete.
+                final java.util.concurrent.atomic.AtomicBoolean readyToastFired =
+                        new java.util.concurrent.atomic.AtomicBoolean( false );
                 gameModPack.setProgressProvider( new GameModPackProgressProvider()
                 {
                     @Override
@@ -192,6 +198,24 @@ public class LauncherCore
                                 finalPlayProgressWindow.setSectionText( "Starting Minecraft..." );
                                 finalPlayProgressWindow.setDetailText( "" );
                                 finalPlayProgressWindow.setSpeedText( "" );
+                                // Clear the OS-level progress overlay — the game is about to start,
+                                // not still downloading. Without this the dock/taskbar would sit at
+                                // 100% until the user navigated back to the launcher.
+                                TaskbarProgressManager.stop();
+                                // "Modpack ready" toast — only if there was a meaningful download
+                                // phase. Cached / quick launches finish in well under 10s and don't
+                                // need the cue; long fresh installs are the case where the user
+                                // has likely tabbed away and wants to know it's ready.
+                                if ( readyToastFired.compareAndSet( false, true ) ) {
+                                    long elapsedMs = System.currentTimeMillis() - progressStartMs;
+                                    if ( elapsedMs > 10_000L ) {
+                                        NotificationManager.success(
+                                                "Ready to play",
+                                                gameModPack.getFriendlyName() != null
+                                                        ? gameModPack.getFriendlyName() + " is starting."
+                                                        : "Your modpack is ready and starting." );
+                                    }
+                                }
                                 // Only hide if the in-game console won't be taking over the stage
                                 if ( !ConfigManager.getInGameConsoleEnable() ) {
                                     SystemUtilities.spawnNewTask( () -> {
@@ -224,8 +248,15 @@ public class LauncherCore
                                     // Record session duration
                                     gameModPack.recordSessionEnd(
                                             System.currentTimeMillis() - launchStartMs );
-                                    // On crash, find and display crash report
+                                    // On crash, find and display crash report; also toast so a
+                                    // user who tabbed away mid-session notices.
                                     if ( exitCode != 0 ) {
+                                        NotificationManager.error(
+                                                "Game crashed",
+                                                ( gameModPack.getFriendlyName() != null
+                                                        ? gameModPack.getFriendlyName()
+                                                        : "Minecraft" )
+                                                        + " exited with code " + exitCode + "." );
                                         String crashReport = gameModPack.getLatestCrashReport();
                                         if ( crashReport != null ) {
                                             consoleGui.showCrashReport( crashReport );
@@ -266,6 +297,12 @@ public class LauncherCore
                             gameModPack.recordSessionEnd( System.currentTimeMillis() - launchStartMs );
                             if ( exitCode != 0 ) {
                                 Logger.logError( "Game crashed with exit code " + exitCode );
+                                NotificationManager.error(
+                                        "Game crashed",
+                                        ( gameModPack.getFriendlyName() != null
+                                                ? gameModPack.getFriendlyName()
+                                                : "Minecraft" )
+                                                + " exited with code " + exitCode + "." );
                                 // Show crash console even when console setting is off
                                 String crashReport = gameModPack.getLatestCrashReport();
                                 try {
