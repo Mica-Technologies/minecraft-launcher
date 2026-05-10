@@ -279,7 +279,13 @@ public class MCLauncherGuiWindow extends Application
         return screens.isEmpty() ? Screen.getPrimary() : screens.get( 0 );
     }
 
-    /** Compares the current center-screen against {@link #lastKnownScreen}; on change, queues the position nudge. */
+    /** Compares the current center-screen against {@link #lastKnownScreen}; on change, queues
+     *  the position nudge AND fires a {@code SetWindowPos(SWP_FRAMECHANGED)} on the launcher's
+     *  HWND. The position nudge alone proved unreliable across monitor boundaries on Win11
+     *  — the shell often debounces small position deltas and skips the per-monitor taskbar
+     *  re-evaluation. {@code SWP_FRAMECHANGED} is the canonical "this window's frame state
+     *  may have changed" prod and triggers a {@code WM_NCCALCSIZE} pass that almost always
+     *  wakes the shell up. Both run on monitor-cross so we get the union of their effects. */
     private void nudgeIfMonitorChanged() {
         if ( stage == null || !stage.isShowing() || stage.isIconified() ) {
             return;
@@ -298,7 +304,13 @@ public class MCLauncherGuiWindow extends Application
         // Restore on the next pulse so the visible jump is at most one frame. Two separate setX() calls in the same
         // synchronous block coalesce into a single Glass position update and don't produce two WM_WINDOWPOSCHANGED
         // messages — runLater ensures the restore happens in a distinct animation pulse.
-        Platform.runLater( () -> stage.setX( x ) );
+        Platform.runLater( () -> {
+            stage.setX( x );
+            // After the position settles, force a frame refresh so the shell re-evaluates
+            // which monitor's taskbar should own the window's icon. JNA SetWindowPos with
+            // SWP_FRAMECHANGED on the Glass HWND — Windows-only, no-op elsewhere.
+            com.micatechnologies.minecraft.launcher.utilities.WindowsShellRefresh.forceFrameRefresh( stage );
+        } );
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
