@@ -1,0 +1,59 @@
+/*
+ * Copyright (c) 2026 Mica Technologies
+ *
+ * Brand token sheet — CREEPER theme.
+ * Inspired by the iconic Minecraft creeper: deep night-time green-charcoal
+ * surfaces, vivid creeper-green primary, TNT-red danger.
+ */
+
+.root {
+    /* === Surfaces — near-black with a faint green undertone === */
+    -color-bg:                hsl(120, 22%, 6%);
+    -color-bg-soft:           hsl(120, 20%, 9%);
+    -color-surface:           hsl(120, 18%, 12%);
+    -color-surface-hover:     hsl(120, 16%, 16%);
+    -color-surface-elevated:  hsl(120, 14%, 19%);
+    -color-overlay:           rgba(0, 0, 0, 0.65);
+
+    /* === Borders === */
+    -color-border:            rgba(140, 220, 140, 0.10);
+    -color-border-strong:     rgba(140, 220, 140, 0.18);
+    -color-divider:           rgba(140, 220, 140, 0.06);
+
+    /* === Text — slightly warm bone-white with a hint of green === */
+    -color-text:              hsl(80, 18%, 93%);
+    -color-text-muted:        hsl(110, 14%, 70%);
+    -color-text-subtle:       hsl(110, 12%, 52%);
+    -color-text-inverse:      hsl(120, 22%, 6%);
+    -color-text-on-primary:   hsl(120, 22%, 6%);
+
+    /* === Brand: creeper green (primary) === */
+    -color-primary:           hsl(112, 65%, 50%);
+    -color-primary-hover:     hsl(112, 65%, 58%);
+    -color-primary-pressed:   hsl(112, 70%, 64%);
+    -color-primary-soft:      rgba(95, 210, 70, 0.20);
+    -color-primary-soft-hov:  rgba(95, 210, 70, 0.30);
+    -color-focus-ring:        rgba(95, 210, 70, 0.50);
+
+    /* === Brand: secondary (lime accent) === */
+    -color-secondary:         hsl(85, 75%, 55%);
+    -color-secondary-hover:   hsl(85, 80%, 62%);
+    -color-secondary-soft:    rgba(180, 230, 80, 0.20);
+
+    /* === Status === */
+    -color-success:           hsl(112, 65%, 50%);
+    -color-warning:           hsl(45, 95%, 55%);
+    -color-warning-soft:      rgba(255, 196, 38, 0.18);
+    -color-danger:            hsl(0, 90%, 56%);   /* TNT red */
+    -color-danger-hover:      hsl(0, 90%, 64%);
+    -color-danger-soft:       rgba(240, 80, 80, 0.16);
+
+    /* === Effects === */
+    -color-shadow:            rgba(0, 0, 0, 0.65);
+    -color-shadow-soft:       rgba(0, 0, 0, 0.40);
+
+    /* === Hero stops — subtle creeper-green wash === */
+    -color-hero-stop-1:       rgba(95, 210, 70, 0.16);
+    -color-hero-stop-2:       rgba(180, 230, 80, 0.08);
+    -color-hero-stop-3:       rgba(0, 0, 0, 0);
+}

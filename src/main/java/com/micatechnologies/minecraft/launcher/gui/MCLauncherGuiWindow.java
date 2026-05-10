@@ -291,6 +291,9 @@ public class MCLauncherGuiWindow extends Application
             case ConfigConstants.THEME_ORANGE_PURPLE:
                 switchToOrangePurpleTheme();
                 break;
+            case ConfigConstants.THEME_CREEPER:
+                switchToCreeperTheme();
+                break;
         }
     }
 
@@ -309,6 +312,7 @@ public class MCLauncherGuiWindow extends Application
     private static final String UI_TOKENS_LIGHT        = "ui/ui-tokens-light.css";
     private static final String UI_TOKENS_BLUE_GRAY    = "ui/ui-tokens-bluegray.css";
     private static final String UI_TOKENS_ORANGE_PURPLE = "ui/ui-tokens-orangepurple.css";
+    private static final String UI_TOKENS_CREEPER       = "ui/ui-tokens-creeper.css";
 
     private void switchToLightTheme() {
         applyTheme( LEGACY_LIGHT, UI_TOKENS_LIGHT );
@@ -324,6 +328,12 @@ public class MCLauncherGuiWindow extends Application
 
     private void switchToOrangePurpleTheme() {
         applyTheme( LEGACY_ORANGE_PURPLE, UI_TOKENS_ORANGE_PURPLE );
+    }
+
+    /** Creeper theme has no legacy CSS pair — falls back on the dark legacy sheet for any
+     *  selectors not yet ported into ui-base.css, but uses creeper tokens for everything modern. */
+    private void switchToCreeperTheme() {
+        applyTheme( LEGACY_DARK, UI_TOKENS_CREEPER );
     }
 
     /**

@@ -415,9 +415,11 @@ public class ConfigConstants
     public static final String THEME_AUTOMATIC     = "Automatic";
     public static final String THEME_BLUE_GRAY     = "Blue+gray";
     public static final String THEME_ORANGE_PURPLE = "Orange+purple";
+    public static final String THEME_CREEPER       = "Creeper";
 
     public static final List< String > ALLOWED_THEMES = Arrays.asList( THEME_AUTOMATIC, THEME_DARK, THEME_LIGHT,
-                                                                       THEME_BLUE_GRAY, THEME_ORANGE_PURPLE );
+                                                                       THEME_BLUE_GRAY, THEME_ORANGE_PURPLE,
+                                                                       THEME_CREEPER );
 
     // region LWJGL ARM64 Patching
 
