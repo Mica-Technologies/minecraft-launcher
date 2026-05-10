@@ -74,29 +74,22 @@
     -fx-border-width: 0 1 0 0;
 }
 
-/* Center / detail pane — gets a soft hero radial wash */
+/* Hero background wash — used on inner panes (centerPane). Two stacked
+ * radial-gradients on top of -color-bg create a subtle directional glow. */
 .centerPane,
 .hero-surface {
     -fx-background-color:
-        radial-gradient(center 25% 0%, radius 80%,
-                        -color-hero-stop-1 0%,
-                        -color-hero-stop-3 100%),
-        radial-gradient(center 110% 100%, radius 70%,
-                        -color-hero-stop-2 0%,
-                        -color-hero-stop-3 100%),
-        -color-bg;
+        -color-bg,
+        radial-gradient(center 25% 0%, radius 80%, -color-hero-stop-1, transparent),
+        radial-gradient(center 110% 100%, radius 70%, -color-hero-stop-2, transparent);
 }
 
-/* Apply when a screen IS the hero (e.g. progress, login splash) — overrides .rootPane fill */
-.rootPane.hero-surface {
-    -fx-background-color:
-        radial-gradient(center 50% 30%, radius 70%,
-                        -color-hero-stop-1 0%,
-                        -color-hero-stop-3 100%),
-        radial-gradient(center 50% 100%, radius 80%,
-                        -color-hero-stop-2 0%,
-                        -color-hero-stop-3 100%),
-        -color-bg;
+/* When the rootPane itself uses .hero-surface (login / progress), keep it simple —
+ * a solid -color-bg. Gradient layering on the rootPane proved fragile in some
+ * JavaFX 25 builds and produced a white fallback when any stop failed to parse. */
+.rootPane.hero-surface,
+.rootPane {
+    -fx-background-color: -color-bg;
 }
 
 /* Reusable card */
@@ -143,20 +136,106 @@
     -fx-pref-width: 1;
 }
 
+/* Mica brand logo letterform paths (M, I, C, A backplate). The included
+ * micaBrandLogo-small.fxml deliberately omits inline `fill` so this rule
+ * drives color via theme tokens — keeps the wordmark visible on both the
+ * dark navbar (#10151E) and the light variant. */
+.brand-letterform {
+    -fx-fill: -color-text;
+}
+
 
 /* =====================================================================
  * 3b. Main-screen hero card (selected modpack detail)
  * ===================================================================== */
 
-/* Outer shell — provides the rounded clip + drop shadow; the three child layers
- * (background image, dark veil, foreground content) stack inside it. */
+/* Scrolling list of modpack hero cards (replaces the old sidebar+detail split).
+ * Background uses the same hero wash as .hero-surface so the card list sits in
+ * a soft branded container. */
+.modpackScroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+}
+
+.modpackScroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.modpackCardList {
+    -fx-background-color: -color-bg;
+}
+
+/* Outer shell — tile-shaped (360x320), image on top, content surface below.
+ * The shell handles the outer rounded border and drop shadow; the inner image
+ * box has its own top-only rounding so the image clips cleanly to the card. */
 .heroCardShell {
     -fx-background-color: -color-surface-elevated;
     -fx-background-radius: 14;
     -fx-border-color: -color-border;
     -fx-border-radius: 14;
     -fx-border-width: 1;
-    -fx-effect: dropshadow(gaussian, -color-shadow, 24, 0.30, 0, 10);
+    -fx-effect: dropshadow(gaussian, -color-shadow, 14, 0.22, 0, 4);
+}
+
+/* Keep the shadow stable on hover — changing the dropshadow radius/spread on
+ * hover invalidates the card's bitmap cache (setCache(true) in MCLauncherMainGui),
+ * forcing a full re-rasterize of the gaussian blur on every hover-in/out. The
+ * border-color shift gives enough visual feedback without the perf hit. */
+.heroCardShell:hover {
+    -fx-border-color: -color-primary;
+}
+
+/* Top half of the card — modpack background image. Top corners rounded; bottom
+ * corners square so the image sits flush with the content surface. */
+.heroCardImage {
+    -fx-background-color: -color-bg-soft;
+    -fx-background-radius: 14 14 0 0;
+    -fx-border-color: -color-border;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* Image veil — gradient at the bottom only so the logo (which overlaps the
+ * image/content boundary) has a darker backdrop while the rest of the image
+ * stays vivid. */
+.heroCardImageVeil {
+    -fx-background-radius: 14 14 0 0;
+    -fx-background-color:
+        linear-gradient(to bottom,
+            transparent 0%,
+            transparent 55%,
+            rgba(0, 0, 0, 0.55) 100%);
+}
+
+.heroCardBody {
+    -fx-background-color: transparent;
+}
+
+.heroCardTitle {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 18px;
+    -fx-padding: 0 0 4 0;
+}
+
+.heroLastPlayedSurface {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 11px;
+}
+
+/* Secondary action button INSIDE a hero card sits on the body surface (not the
+ * image) so it uses theme tokens directly, not white-on-glass like .heroWebsiteBtn. */
+.heroCardSecondaryBtn,
+.heroCardSecondaryBtn:armed,
+.heroCardSecondaryBtn:focused {
+    -fx-background-color: -color-surface-hover;
+    -fx-border-color: -color-border-strong;
+    -fx-text-fill: -color-text;
+}
+
+.heroCardSecondaryBtn .text { -fx-fill: -color-text; }
+.heroCardSecondaryBtn:hover {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-primary;
 }
 
 /* Layer 1: modpack background image. The path is set inline by the controller
@@ -174,10 +253,10 @@
 .heroBackgroundVeil {
     -fx-background-radius: 14;
     -fx-background-color:
-        linear-gradient(to bottom,
-            rgba(0, 0, 0, 0.30) 0%,
-            rgba(0, 0, 0, 0.55) 50%,
-            rgba(0, 0, 0, 0.78) 100%);
+        linear-gradient(to right,
+            rgba(0, 0, 0, 0.55) 0%,
+            rgba(0, 0, 0, 0.40) 35%,
+            rgba(0, 0, 0, 0.75) 100%);
 }
 
 .heroCard {
@@ -188,7 +267,40 @@
 /* Override hero name color: when an image is behind, white reads cleanest */
 .heroPackName.heading-display {
     -fx-text-fill: white;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 8, 0.30, 0, 2);
+    -fx-font-size: 22px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.65), 8, 0.30, 0, 2);
+}
+
+.heroLastPlayed {
+    -fx-text-fill: rgba(255, 255, 255, 0.78);
+    -fx-font-size: 11px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 4, 0.20, 0, 1);
+}
+
+.heroWebsiteBtn,
+.heroWebsiteBtn:armed,
+.heroWebsiteBtn:focused {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-border-color: rgba(255, 255, 255, 0.30);
+    -fx-text-fill: white;
+}
+
+.heroWebsiteBtn .text { -fx-fill: white; }
+
+.heroWebsiteBtn:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.16);
+    -fx-border-color: rgba(255, 255, 255, 0.45);
+}
+
+.heroPlayBtn,
+.heroPlayBtn:armed,
+.heroPlayBtn:focused,
+.heroPlayBtn.primary {
+    -fx-text-fill: white;
+}
+
+.heroPlayBtn .text {
+    -fx-fill: white;
 }
 
 .heroPackLogoContainer {
@@ -346,24 +458,46 @@
     -fx-background-color: -color-danger-hover;
 }
 
-/* Help button — circular, top-right corner */
+/* Help button — circular, sits in the navbar (or as a top-right corner overlay
+ * on screens with no navbar). Bulletproofed with explicit font-size and an
+ * always-visible glyph color so it never renders blank. */
 .helpButton {
-    -fx-min-width: 28;
-    -fx-min-height: 28;
-    -fx-pref-width: 28;
-    -fx-pref-height: 28;
-    -fx-background-radius: 14;
-    -fx-border-radius: 14;
+    -fx-min-width: 30;
+    -fx-min-height: 30;
+    -fx-pref-width: 30;
+    -fx-pref-height: 30;
+    -fx-max-width: 30;
+    -fx-max-height: 30;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
     -fx-padding: 0;
-    -fx-font-weight: 700;
-    -fx-background-color: -color-surface;
-    -fx-text-fill: -color-text-muted;
-    -fx-border-color: -color-border;
+    -fx-font-weight: 800;
+    -fx-font-size: 15px;
+    -fx-alignment: CENTER;
+    -fx-content-display: TEXT_ONLY;
+    -fx-background-color: -color-surface-hover;
+    -fx-text-fill: -color-text;
+    -fx-border-color: -color-border-strong;
+    -fx-border-width: 1;
 }
 
-.helpButton .text { -fx-fill: -color-text-muted; }
-.helpButton:hover { -fx-background-color: -color-surface-hover; -fx-text-fill: -color-text; }
-.helpButton:hover .text { -fx-fill: -color-text; }
+.helpButton .text {
+    -fx-fill: -color-text;
+    -fx-font-weight: 800;
+    -fx-font-size: 15px;
+}
+
+.helpButton:hover,
+.helpButton:armed {
+    -fx-background-color: -color-primary-soft;
+    -fx-border-color: -color-primary;
+    -fx-text-fill: -color-primary;
+}
+
+.helpButton:hover .text,
+.helpButton:armed .text {
+    -fx-fill: -color-primary;
+}
 
 
 /* =====================================================================
@@ -450,6 +584,31 @@
 .mfx-combo-box:focus-within {
     -fx-border-color: -color-primary;
     -fx-effect: dropshadow(gaussian, -color-focus-ring, 6, 0.40, 0, 0);
+}
+
+/* Suppress MaterialFX's inner text-field border/background — the outer
+ * .mfx-combo-box wrapper draws the visible border, so the inner field would
+ * otherwise paint a second nested rectangle around the value text. */
+.mfx-combo-box .mfx-text-field,
+.mfx-combo-box .mfx-text-field:focused,
+.mfx-combo-box .mfx-text-field:focus-within,
+.mfx-combo-box .mfx-text-field-content,
+.mfx-combo-box .text-field,
+.mfx-combo-box .text-field:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-effect: null;
+    -fx-padding: 0;
+}
+
+/* Also suppress the underline that MaterialFX uses to indicate focus on its
+ * inner text field — that line was painting on top of our border. */
+.mfx-combo-box .mfx-line,
+.mfx-combo-box .focus-line,
+.mfx-combo-box .unfocused-line {
+    -fx-stroke: transparent;
+    -fx-fill: transparent;
 }
 
 .mfx-combo-box .mfx-list-view {

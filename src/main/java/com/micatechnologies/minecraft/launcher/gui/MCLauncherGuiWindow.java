@@ -372,7 +372,28 @@ public class MCLauncherGuiWindow extends Application
             stylesheets.add( cssUrl( legacySheet ) );
             stylesheets.add( cssUrl( UI_BASE_SHEET ) );
             stylesheets.add( cssUrl( tokenSheet ) );
+
+            // Belt-and-suspenders: paint the rootPane and scene fill with the theme's bg color directly,
+            // so even if a CSS lookup somewhere in the chain fails to resolve, the screen never shows
+            // OS-default white. The token sheet's own `.rootPane` rule still drives the canonical color
+            // — this is just a safety net that updates on every theme change.
+            String bg = themeBgHex( tokenSheet );
+            gui.rootPane.setStyle( "-fx-background-color: " + bg + ";" );
+            if ( gui.scene != null ) {
+                gui.scene.setFill( javafx.scene.paint.Color.web( bg ) );
+            }
         } );
+    }
+
+    /** Mirrors the {@code -color-bg} lookup defined in each ui-tokens-{theme}.css. Used as the inline
+     *  fallback bg color so we never rely solely on lookup-variable resolution. */
+    private static String themeBgHex( String tokenSheet ) {
+        if ( tokenSheet == null ) return "#0C1017";
+        if ( tokenSheet.endsWith( "ui-tokens-light.css" ) )         return "#FFFFFF";
+        if ( tokenSheet.endsWith( "ui-tokens-bluegray.css" ) )      return "#121721";
+        if ( tokenSheet.endsWith( "ui-tokens-orangepurple.css" ) )  return "#201221";
+        if ( tokenSheet.endsWith( "ui-tokens-creeper.css" ) )       return "#0C130C";
+        return "#0C1017";  // dark default
     }
 
     /** Resolves a classpath CSS resource to its external URL form, throwing if missing. */
@@ -382,24 +403,23 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /**
-     * Injects a "?" help button into the screen. Prefers integrating it into an existing top navigation bar (an HBox
-     * with styleClass "navBar") so it reads as a real navbar item rather than a floating overlay. Falls back to a
-     * top-right corner overlay on screens with no navbar (login splash, progress).
+     * Injects a "?" help button into the screen IF the FXML doesn't already supply one. Screens with a nav bar
+     * (mainGUI) are expected to declare their own helpBtn directly in FXML — that is the canonical placement and
+     * its action handler is wired by the screen's controller. This method handles the screens with no navbar
+     * (login splash, progress) by floating a corner overlay help button.
      */
     private void injectHelpButton( MCLauncherAbstractGui gui )
     {
+        // If the FXML already has a help button (any node with styleClass "helpButton"), don't inject another.
+        if ( hasHelpButton( gui.rootPane ) ) {
+            return;
+        }
+
         MFXButton helpBtn = new MFXButton( "?" );
         helpBtn.getStyleClass().add( "helpButton" );
         helpBtn.setOnAction( e -> MCLauncherHelpWindow.show( gui.getHelpTopic() ) );
 
-        javafx.scene.layout.HBox navBar = findNavBar( gui.rootPane );
-        if ( navBar != null ) {
-            // Add as the rightmost item — sits next to the user identity / nav buttons cluster.
-            navBar.getChildren().add( helpBtn );
-            return;
-        }
-
-        // Fallback: anchor to top-right corner of a GridPane root.
+        // Anchor to top-right corner of a GridPane root.
         if ( gui.rootPane instanceof GridPane gridPane ) {
             int col = gridPane.getColumnConstraints().size() - 1;
             if ( col < 0 ) col = 0;
@@ -410,20 +430,15 @@ public class MCLauncherGuiWindow extends Application
         }
     }
 
-    /** Recursively searches for the first node tagged with styleClass "navBar" that is also an HBox. */
-    private javafx.scene.layout.HBox findNavBar( javafx.scene.Parent parent )
+    /** True if any descendant of the given parent has styleClass "helpButton". */
+    private boolean hasHelpButton( javafx.scene.Parent parent )
     {
-        if ( parent == null ) return null;
+        if ( parent == null ) return false;
         for ( javafx.scene.Node child : parent.getChildrenUnmodifiable() ) {
-            if ( child instanceof javafx.scene.layout.HBox hbox && hbox.getStyleClass().contains( "navBar" ) ) {
-                return hbox;
-            }
-            if ( child instanceof javafx.scene.Parent nested ) {
-                javafx.scene.layout.HBox found = findNavBar( nested );
-                if ( found != null ) return found;
-            }
+            if ( child.getStyleClass().contains( "helpButton" ) ) return true;
+            if ( child instanceof javafx.scene.Parent nested && hasHelpButton( nested ) ) return true;
         }
-        return null;
+        return false;
     }
 
     /**

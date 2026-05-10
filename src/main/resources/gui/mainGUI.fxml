@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
-<?import javafx.scene.control.ListView?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.Group?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.ColumnConstraints?>
@@ -16,26 +17,19 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.Priority?>
 <?import javafx.scene.text.Font?>
+<?import javafx.scene.transform.Scale?>
 
 <!--
-  ~ Copyright (c) 2021 Mica Technologies
+  ~ Copyright (c) 2021-2026 Mica Technologies
   ~
   ~ This program is free software: you can redistribute it and/or modify it
   ~ under the terms of the GNU General Public License as published by
   ~ the Free Software Foundation, either version 3 of the License,
   ~ or (at your option) any later version.
-  ~
-  ~ This program is distributed in the hope that it will be useful, but
-  ~ WITHOUT ANY WARRANTY; without even the implied warranty
-  ~ of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  ~ See the GNU General Public License for more details.
-  ~
-  ~ You should have received a copy of the GNU General Public License
-  ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
 <GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
-          prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css"
+          prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane"
           xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
         <ColumnConstraints hgrow="ALWAYS"/>
@@ -43,12 +37,12 @@
     <rowConstraints>
         <!-- Row 0: Announcement banner (conditional, 0-30px) -->
         <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
-        <!-- Row 1: Top navigation bar (44px fixed) -->
-        <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
+        <!-- Row 1: Top navigation bar (52px, taller for brand lockup) -->
+        <RowConstraints maxHeight="52.0" minHeight="52.0" prefHeight="52.0"/>
         <!-- Row 2: Main content (fills remaining) -->
         <RowConstraints vgrow="ALWAYS"/>
-        <!-- Row 3: Bottom status bar (44px fixed) -->
-        <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
+        <!-- Row 3: Bottom status bar -->
+        <RowConstraints maxHeight="40.0" minHeight="40.0" prefHeight="40.0"/>
     </rowConstraints>
 
     <!-- Row 0: Announcement banner -->
@@ -56,125 +50,74 @@
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
            text="--" textAlignment="CENTER" wrapText="true"/>
 
-    <!-- Row 1: Compact top navigation bar -->
-    <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="navBar" GridPane.rowIndex="1">
-        <!-- Brand lockup: small Mica logo + wordmark -->
-        <StackPane>
-            <fx:include source="components/micaBrandLogo.fxml"/>
-            <StackPane.margin><Insets left="4.0"/></StackPane.margin>
-            <scaleX>0.45</scaleX>
-            <scaleY>0.45</scaleY>
-        </StackPane>
-        <Label text="Mica Launcher" styleClass="navBrand"/>
+    <!-- Row 1: Top navigation bar -->
+    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar" GridPane.rowIndex="1">
+        <padding><Insets left="14.0" right="10.0"/></padding>
 
-        <!-- Spacer -->
+        <!-- Brand lockup: pre-scaled SVG Mica logo + wordmark.
+             A fixed-size Pane wrapper bounds the layout. JavaFX Group's layoutBounds
+             reflect the children's untransformed bounds (1024x1024), regardless of any
+             Scale/Translate in its `transforms` list — so dropping the include directly
+             into HBox would allocate ~767 px for the logo and push the wordmark to the
+             middle of the bar. The Pane gives HBox a deterministic 36x36 box; the
+             pre-scaled include renders cleanly inside. -->
+        <Pane prefWidth="36.0" prefHeight="36.0" minWidth="36.0" minHeight="36.0"
+              maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
+            <fx:include source="components/micaBrandLogo-small.fxml"/>
+        </Pane>
+        <Label text="Mica Minecraft" styleClass="navBrand"/>
+
+        <!-- Spacer pushes everything else to the right -->
         <Pane HBox.hgrow="ALWAYS"/>
 
-        <!-- Navigation buttons -->
+        <!-- Navigation actions -->
         <MFXButton fx:id="editButton" text="Edit Packs" prefHeight="28.0"/>
         <MFXButton fx:id="vanillaBtn" text="Vanilla" prefHeight="28.0"/>
         <MFXButton fx:id="settingsBtn" text="Settings" prefHeight="28.0"/>
 
-        <!-- Update icon -->
+        <!-- Update available icon (still wired to the existing handler) -->
         <ImageView fx:id="updateImgView" accessibleText="Update available - click to download"
-                   focusTraversable="true" fitHeight="24.0" fitWidth="18.0"
+                   focusTraversable="true" fitHeight="22.0" fitWidth="18.0"
                    pickOnBounds="true" preserveRatio="true">
             <Image url="@../update.png"/>
         </ImageView>
 
-        <!-- User identity (right-aligned, compact) -->
-        <Region styleClass="navDivider" minWidth="1" prefWidth="1" maxWidth="1" prefHeight="22"/>
+        <!-- Help — a Label rather than a Button to avoid MFXButton text-rendering quirks. Click handler
+             is wired in the controller; pointer cursor and hover styling come from .helpButton CSS. -->
+        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+
+        <!-- Subtle vertical divider between actions and identity -->
+        <Region styleClass="navDivider" prefWidth="1" prefHeight="22"/>
+
+        <!-- User identity, right-aligned -->
         <ImageView fx:id="userImage" accessibleText="Player avatar" fitHeight="28.0" fitWidth="28.0"
                    pickOnBounds="true" preserveRatio="true">
             <Image url="@../no_user.png"/>
         </ImageView>
-        <Label fx:id="playerLabel" text="Player">
-            <HBox.margin><Insets right="4.0"/></HBox.margin>
-        </Label>
+        <Label fx:id="playerLabel" text="Player"/>
     </HBox>
 
-    <!-- Row 2: Main content (pack list + hero detail) -->
-    <HBox GridPane.rowIndex="2">
-        <!-- Left: Pack list sidebar -->
-        <VBox minWidth="260.0" prefWidth="300.0" maxWidth="340.0" styleClass="stripPane">
-            <padding><Insets top="8.0" bottom="8.0" left="8.0" right="8.0"/></padding>
-            <Label text="Library" styleClass="heading-h3 muted">
-                <VBox.margin><Insets top="4.0" bottom="6.0" left="6.0"/></VBox.margin>
-            </Label>
-            <ListView fx:id="packSelectionList" fixedCellSize="56" VBox.vgrow="ALWAYS"
-                      style="-fx-background-color: transparent;">
-                <VBox.margin><Insets top="2.0" bottom="4.0"/></VBox.margin>
-            </ListView>
-        </VBox>
+    <!-- Row 2: Main content — responsive grid of modpack hero cards.
+         FlowPane wraps based on available width, so 1, 2, 3, or 4 cards fit per row
+         depending on how wide the user makes the window. -->
+    <ScrollPane fx:id="modpackScrollPane" GridPane.rowIndex="2"
+                fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+                styleClass="modpackScroll">
+        <javafx.scene.layout.FlowPane fx:id="modpackCardList" styleClass="modpackCardList"
+                                      hgap="20" vgap="20" alignment="TOP_CENTER" prefWrapLength="600">
+            <padding><Insets top="24.0" bottom="32.0" left="32.0" right="32.0"/></padding>
+            <!-- Cards inserted programmatically by MCLauncherMainGui.populateModpackCards() -->
+        </javafx.scene.layout.FlowPane>
+    </ScrollPane>
 
-        <!-- Right: Modpack hero detail panel -->
-        <StackPane fx:id="centerPane" HBox.hgrow="ALWAYS" styleClass="hero-surface">
-            <padding><Insets top="24.0" bottom="24.0" left="24.0" right="24.0"/></padding>
-
-            <!-- Hero card: stacked layers — modpack background image, dark gradient overlay, content -->
-            <StackPane maxWidth="720" maxHeight="-Infinity" styleClass="heroCardShell">
-                <!-- Layer 1: modpack background image (fills card, edges clipped by radius) -->
-                <Region fx:id="heroBackgroundLayer" styleClass="heroBackground"/>
-
-                <!-- Layer 2: dark gradient veil — makes text legible regardless of image -->
-                <Region styleClass="heroBackgroundVeil"/>
-
-                <!-- Layer 3: foreground content -->
-                <VBox alignment="TOP_CENTER" spacing="14" styleClass="heroCard">
-                    <padding><Insets top="32.0" bottom="32.0" left="36.0" right="36.0"/></padding>
-
-                    <!-- Pack logo (square, with subtle border) -->
-                    <StackPane fx:id="heroPackLogoContainer" minWidth="112" minHeight="112"
-                               maxWidth="112" maxHeight="112" styleClass="heroPackLogoContainer">
-                        <ImageView fx:id="heroPackLogo" fitWidth="108" fitHeight="108"
-                                   preserveRatio="true" pickOnBounds="true"/>
-                    </StackPane>
-
-                    <!-- Pack name -->
-                    <Label fx:id="heroPackName" text="" alignment="CENTER" textAlignment="CENTER"
-                           wrapText="true" styleClass="heading-display heroPackName"/>
-
-                    <!-- Stat chip strip: MC version, Forge version, version, beta flag -->
-                    <HBox fx:id="heroChipRow" alignment="CENTER" spacing="8">
-                        <Label fx:id="heroChipMc"      styleClass="stat-chip" text="" managed="false" visible="false"/>
-                        <Label fx:id="heroChipForge"  styleClass="stat-chip" text="" managed="false" visible="false"/>
-                        <Label fx:id="heroChipVersion" styleClass="stat-chip" text="" managed="false" visible="false"/>
-                        <Label fx:id="heroChipBeta"   styleClass="stat-chip stat-chip-warn" text="Beta"
-                                                      managed="false" visible="false"/>
-                    </HBox>
-
-                    <!-- Conditional unstable warning (kept for compatibility) -->
-                    <Label fx:id="unstableWarning"
-                           accessibleText="Warning: This mod pack is marked as unstable (beta). Bugs may be present."
-                           alignment="CENTER" maxWidth="500.0" minHeight="0.0"
-                           styleClass="banner-danger"
-                           text="This mod pack is marked as unstable (beta). Bugs may be present."
-                           textAlignment="CENTER" wrapText="true" managed="false" visible="false">
-                        <font><Font size="11.0"/></font>
-                    </Label>
-
-                    <!-- Action row: big Play CTA + small Website link -->
-                    <HBox alignment="CENTER" spacing="12">
-                        <VBox.margin><Insets top="8.0"/></VBox.margin>
-                        <MFXButton fx:id="playBtn" text="Play" prefHeight="46.0" prefWidth="200.0"
-                                   styleClass="primary playBtn heroPlayBtn">
-                            <font><Font size="16.0"/></font>
-                        </MFXButton>
-                        <MFXButton fx:id="websiteBtn" text="Visit Website" prefHeight="46.0"/>
-                    </HBox>
-                </VBox>
-            </StackPane>
-        </StackPane>
-    </HBox>
-
-    <!-- Row 3: Bottom status bar (now minimal — version + offline + exit only) -->
+    <!-- Row 3: Bottom status bar -->
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="3">
+        <padding><Insets left="14.0" right="14.0"/></padding>
         <Label fx:id="versionLabel" text="Mica Launcher"/>
-        <Label fx:id="offlineLabel" text="Offline Mode" managed="false" visible="false"
-               styleClass="chip-offline">
+        <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false" styleClass="chip-offline">
             <font><Font size="11.0"/></font>
         </Label>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="exitBtn" text="Exit" prefHeight="28.0"/>
+        <MFXButton fx:id="exitBtn" text="Exit" prefHeight="26.0"/>
     </HBox>
 </GridPane>

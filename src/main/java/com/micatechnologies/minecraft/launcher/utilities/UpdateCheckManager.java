@@ -50,7 +50,9 @@ public class UpdateCheckManager
     public static void checkAndConfigureUI( ImageView updateImgView, Stage stage,
                                              TaskbarProgressbar[] taskbarRef )
     {
+        // Hide AND unmanage so the image doesn't reserve layout space when there's no update.
         updateImgView.setVisible( false );
+        updateImgView.setManaged( false );
         SystemUtilities.spawnNewTask( () -> {
             try {
                 String version = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
@@ -69,6 +71,7 @@ public class UpdateCheckManager
                     final TaskbarProgressbar finalTaskbar = taskbarProgressbar;
                     GUIUtilities.JFXPlatformRun( () -> {
                         updateImgView.setVisible( true );
+                        updateImgView.setManaged( true );
                         updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
                             int response = GUIUtilities.showQuestionMessage( "Update Available",
                                                                              "Update Ready to Download",

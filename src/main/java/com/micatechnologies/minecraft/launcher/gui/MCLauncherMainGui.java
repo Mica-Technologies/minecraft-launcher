@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Mica Technologies
+ * Copyright (c) 2021-2026 Mica Technologies
  *
  * This program is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -29,286 +29,120 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
 import com.nativejavafx.taskbar.TaskbarProgressbar;
-import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.CacheHint;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.GridPane;
+import javafx.scene.input.MouseButton;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 
-import java.awt.*;
+import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Main launcher screen — renders an installed-modpack library as a vertical
+ * scrolling list of website-style hero cards (one card per pack/version).
+ * Each card carries its own Play and Visit Website actions.
+ *
+ * @since 1.0
+ */
 public class MCLauncherMainGui extends MCLauncherAbstractGui
 {
-    /**
-     * Installed mod pack select list.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    ListView< GameModPack > packSelectionList;
+    // ===== Top navigation bar =====
+    @SuppressWarnings( "unused" ) @FXML MFXButton editButton;
+    @SuppressWarnings( "unused" ) @FXML MFXButton vanillaBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton settingsBtn;
+    @SuppressWarnings( "unused" ) @FXML Label helpBtn;
+    @SuppressWarnings( "unused" ) @FXML ImageView userImage;
+    @SuppressWarnings( "unused" ) @FXML ImageView updateImgView;
+    @SuppressWarnings( "unused" ) @FXML Label playerLabel;
+    @SuppressWarnings( "unused" ) @FXML Label announcement;
+    @SuppressWarnings( "unused" ) @FXML RowConstraints announcementRow;
 
-    /**
-     * Play button. Starts the current selected mod pack.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton playBtn;
+    // ===== Center: scrolling card list =====
+    @SuppressWarnings( "unused" ) @FXML ScrollPane modpackScrollPane;
+    @SuppressWarnings( "unused" ) @FXML FlowPane modpackCardList;
 
-    /**
-     * Exit button. Closes the application.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton exitBtn;
-
-    /**
-     * Settings button. Opens the settings window.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton settingsBtn;
-
-    /**
-     * Edit mod packs button. Opens the mod pack installation window.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton editButton;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton vanillaBtn;
-
-    /**
-     * Current user avatar image. Displays the avatar of the currently logged in user.
-     *
-     * @since 2.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    ImageView userImage;
-
-    /**
-     * Update available image. Displays a warning icon if there is a launcher update available.
-     *
-     * @since 2.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    ImageView updateImgView;
-
-    /**
-     * Player name label. Displays the user name of the currently logged in user.
-     *
-     * @since 1.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label playerLabel;
-
-    /**
-     * Mod pack website button. Opens the mod pack website.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    MFXButton websiteBtn;
-
-    /**
-     * Announcement banner.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label announcement;
-
-    /**
-     * Unstable mod pack warning banner.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label unstableWarning;
-
-    /**
-     * Announcement banner row constraints.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    RowConstraints announcementRow;
-
-    /**
-     * Center hero pane (replaces the legacy GridPane wrapper). Holds the modpack hero card.
-     *
-     * @since 3.0
-     */
-    @SuppressWarnings( "unused" )
-    @FXML
-    StackPane centerPane;
-
-    // ----- Hero card fields (selected modpack detail) -----
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    ImageView heroPackLogo;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label heroPackName;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    HBox heroChipRow;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label heroChipMc;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label heroChipForge;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label heroChipVersion;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label heroChipBeta;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Region heroBackgroundLayer;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label versionLabel;
-
-    @SuppressWarnings( "unused" )
-    @FXML
-    Label offlineLabel;
+    // ===== Bottom status bar =====
+    @SuppressWarnings( "unused" ) @FXML Label versionLabel;
+    @SuppressWarnings( "unused" ) @FXML Label offlineLabel;
+    @SuppressWarnings( "unused" ) @FXML MFXButton exitBtn;
 
     private TaskbarProgressbar taskbarProgressbar = null;
 
-    /**
-     * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
-     * controller.
-     *
-     * @throws IOException if unable to load FXML file specified
-     */
     public MCLauncherMainGui( Stage stage ) throws IOException {
         super( stage );
     }
 
-    /**
-     * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
-     * controller.
-     *
-     * @throws IOException if unable to load FXML file specified
-     */
     @SuppressWarnings( "unused" )
     public MCLauncherMainGui( Stage stage, double width, double height ) throws IOException {
         super( stage, width, height );
     }
 
-    /**
-     * Abstract method: This method must return the resource path for the JavaFX scene FXML file.
-     *
-     * @return JavaFX scene FXML resource path
-     */
     @Override
     String getSceneFxmlPath() {
         return "gui/mainGUI.fxml";
     }
 
-    /**
-     * Abstract method: This method must return the name of the JavaFX scene.
-     *
-     * @return Java FX scene name
-     */
     @Override
     String getSceneName() {
         return "Home";
     }
 
-    /**
-     * Abstract method: This method must perform initialization and setup of the scene and @FXML components.
-     */
     @Override
     void setup() {
-        // Configure window close
+        // Window close → exit confirmation flow.
         stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();
             exitBtn.fire();
         } );
 
-        // Start Discord rich presence
         SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Selecting a Mod Pack" ) );
 
-        // Configure exit button
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
 
-        // Set unstable mod pack warning hidden by default
-        setUnstableWarning( false );
-
-        // Check for launcher update and show image if there is one
+        // Update-available indicator + (lazy) taskbar progress wiring.
         TaskbarProgressbar[] taskbarRef = new TaskbarProgressbar[ 1 ];
         UpdateCheckManager.checkAndConfigureUI( updateImgView, stage, taskbarRef );
         SystemUtilities.spawnNewTask( () -> {
-            // Capture taskbar reference once the async check completes
             if ( taskbarRef[ 0 ] != null ) {
                 taskbarProgressbar = taskbarRef[ 0 ];
             }
         } );
 
-        // Display announcements if present
+        // Announcements — dev banner if applicable, otherwise whatever the announcement service returns.
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            setAnnouncementRow(
-                    "[DEVELOPMENT MODE: Bugs may be present and not all features may function as intended]" );
+            setAnnouncementRow( "[DEVELOPMENT MODE: Bugs may be present and not all features may function as intended]" );
         }
         else {
             setAnnouncementRow( null );
         }
 
-        // Configure settings button
         settingsBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToSettingsGui();
@@ -320,7 +154,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } ) );
 
-        // Configure modpacks edit button
         editButton.setDisable( AnnouncementManager.getDisableModpacksEdit() );
         editButton.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
@@ -328,13 +161,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Editing Mod Packs" ) );
             }
             catch ( IOException e ) {
-                Logger.logError(
-                        "Unable to load edit mod-packs GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( "Unable to load edit mod-packs GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
         } ) );
 
-        // Configure vanilla versions button
         vanillaBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToVanillaVersionsGui();
@@ -345,68 +176,26 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } ) );
 
-        // Configure play button
-        playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
-        playBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            Platform.setImplicitExit( false );
-            GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
-                                                                          .getSelectedItem();
-            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence(
-                    installedModPackByFriendlyName.getPackName(),
-                    installedModPackByFriendlyName.getCustomDiscordRpc() ) );
-            LauncherCore.play( installedModPackByFriendlyName, () -> GUIUtilities.JFXPlatformRun( () -> {
-                try {
-                    Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
-                    MCLauncherGuiController.goToMainGui();
-                    MCLauncherGuiController.requestFocus();
-                }
-                catch ( Exception e ) {
-                    Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
-                    Logger.logThrowable( e );
-                    LauncherCore.closeApp();
-                }
-            } ) );
-        } ) );
+        helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
+        helpBtn.setCursor( Cursor.HAND );
 
-        // Configure website button
-        websiteBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            GameModPack installedModPackByFriendlyName = packSelectionList.getSelectionModel()
-                                                                          .getSelectedItem();
-            try {
-                Desktop.getDesktop().browse( URI.create( installedModPackByFriendlyName.getPackURL() ) );
-            }
-            catch ( IOException e ) {
-                Logger.logError( "Unable to open your browser. Please visit " +
-                                         installedModPackByFriendlyName.getPackURL() +
-                                         " to view the mod pack's website!" );
-                Logger.logThrowable( e );
-            }
-        } ) );
-
-        // Configure user label (compact — just username for nav bar)
         playerLabel.setText( MCLauncherAuthManager.getLoggedInUser().name() );
-
-        // Configure version label in bottom bar
         versionLabel.setText( "Mica Launcher v" + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
 
-        // Show offline mode indicator if applicable
-        if ( com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.isOffline() ) {
+        if ( NetworkUtilities.isOffline() ) {
             offlineLabel.setVisible( true );
             offlineLabel.setManaged( true );
         }
 
-        // Configure user image
         userImage.setImage( new Image(
                 GUIConstants.URL_MINECRAFT_USER_ICONS.replace( GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
                                                                MCLauncherAuthManager.getLoggedInUser().uuid() ) ) );
 
-        // Configure keyboard shortcuts
+        // Keyboard shortcuts: ENTER plays the last-played pack; F5 refreshes pack metadata.
         scene.setOnKeyPressed( keyEvent -> {
             if ( keyEvent.getCode() == KeyCode.ENTER ) {
                 keyEvent.consume();
-                if ( !playBtn.isDisabled() ) {
-                    playBtn.fire();
-                }
+                playLastSelectedModpack();
             }
             else if ( keyEvent.getCode() == KeyCode.F5 ) {
                 keyEvent.consume();
@@ -424,43 +213,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } );
 
-        // Configure mod pack list
-        packSelectionList.setCellFactory( listView -> new ModPackCellFactory() );
-        packSelectionList.setFixedCellSize( 52 );
-
-        // Populate list of modpacks
-        populateModpackDropdown();
+        populateModpackCards();
     }
 
     @Override
     void afterShow() {
-        // Get last mod pack selected from config
-        String lastModPackSelected = ConfigManager.getLastModPackSelected();
-
-        // Check if it exists/is installed
-        GameModPack lastGameModPack = GameModPackManager.getInstalledModPackByName( lastModPackSelected );
-
-        // Select mod pack
-        if ( lastGameModPack != null ) {
-            selectModpack( lastGameModPack.getFriendlyName() );
-        }
-        else {
-            selectModpack( packSelectionList.getItems().get( 0 ) );
-        }
-
-        // Install tooltips
-        TooltipManager.install( playBtn, "Launch the selected modpack." );
         TooltipManager.install( settingsBtn, "Open launcher settings (RAM, theme, JVM flags, proxy)." );
         TooltipManager.install( vanillaBtn, "Browse and play vanilla (unmodded) Minecraft versions." );
-        TooltipManager.install( websiteBtn, "Open the selected modpack's website in your browser." );
-        TooltipManager.install( packSelectionList, "Right-click a modpack for more options." );
+        TooltipManager.install( editButton, "Add, remove, or edit installed mod packs." );
+        TooltipManager.install( helpBtn, "Open the help window for this screen." );
     }
 
     @Override
     void cleanup() {
-        if ( packSelectionList != null ) {
-            packSelectionList.getSelectionModel().selectedItemProperty().removeListener( packSelectionChangeListener );
-        }
         if ( taskbarProgressbar != null ) {
             GUIUtilities.JFXPlatformRun( () -> {
                 taskbarProgressbar.stopProgress();
@@ -472,358 +237,481 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.MAIN_SCREEN; }
 
-    /**
-     * Custom change listener for handling a change in the selection of the mod pack list. Updates the mod pack logo and
-     * information for the newly selected mod pack.
-     *
-     * @since 1.0
-     */
-    private final ChangeListener< GameModPack > packSelectionChangeListener
-            = ( observable, oldValue, newValue ) -> {
-        // Get selected mod pack
-        GameModPack selectedGameModPack = newValue;
-        if ( selectedGameModPack != null ) {
-            ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
-        }
-
-        // Populate the hero detail card and unstable warning
-        boolean unstableWarningVisible = selectedGameModPack != null && selectedGameModPack.getPackUnstable();
-        setUnstableWarning( unstableWarningVisible );
-        populateHeroFromModpack( selectedGameModPack );
-
-        // Apply the modpack's image to the hero card's background layer (clipped, with veil overlay).
-        applyHeroBackgroundImage( selectedGameModPack );
-    };
-
-    /**
-     * Updates the hero card's background image layer to show the selected modpack's pack-background image. The image
-     * sits behind a dark veil so the foreground hero text stays readable. Falls back to the launcher default
-     * background if the modpack has no image or it can't be loaded.
-     */
-    private void applyHeroBackgroundImage( GameModPack pack )
-    {
-        if ( heroBackgroundLayer == null ) return;
-        String url = null;
-        try {
-            if ( pack != null && pack.getPackBackgroundFilepath() != null ) {
-                File f = new File( pack.getPackBackgroundFilepath() );
-                if ( f.exists() ) {
-                    url = f.toURI().toString();
-                }
-            }
-        }
-        catch ( Exception ignored ) { /* fall through to default */ }
-        if ( url == null ) {
-            url = ModPackConstants.MODPACK_DEFAULT_BG_URL;
-        }
-        // Reset and set inline background-image (size/position/repeat live in ui-base.css).
-        heroBackgroundLayer.setStyle( "-fx-background-image: url('" + url + "');" );
-    }
-
-    /**
-     * Updates the hero card fields (logo, name, stat chips) from the given modpack. A null modpack clears the card.
-     */
-    private void populateHeroFromModpack( GameModPack modPack ) {
-        GUIUtilities.JFXPlatformRun( () -> {
-            if ( modPack == null ) {
-                heroPackName.setText( "" );
-                showChip( heroChipMc, null );
-                showChip( heroChipForge, null );
-                showChip( heroChipVersion, null );
-                showChip( heroChipBeta, null );
-                heroPackLogo.setImage( null );
-                return;
-            }
-
-            // Name
-            String displayName = modPack.getFriendlyName();
-            if ( displayName == null || displayName.isBlank() ) {
-                displayName = modPack.getPackName();
-            }
-            heroPackName.setText( displayName != null ? displayName : "" );
-
-            // Stat chips: MC version, Forge version, pack version, beta flag
-            String mcVer = null;
-            String forgeVer = null;
-            try {
-                mcVer = modPack.getMinecraftVersion();
-            }
-            catch ( Exception ignored ) { /* manifest not yet resolved — chip stays hidden */ }
-            try {
-                forgeVer = modPack.getForgeVersion();
-            }
-            catch ( Exception ignored ) { /* vanilla packs and unresolved packs return nothing */ }
-
-            showChip( heroChipMc,      mcVer    != null && !mcVer.isBlank()    ? "Minecraft " + mcVer  : null );
-            showChip( heroChipForge,   forgeVer != null && !forgeVer.isBlank() ? "Forge " + forgeVer    : null );
-            showChip( heroChipVersion, modPack.getPackVersion() != null && !modPack.getPackVersion().isBlank()
-                                          ? "v" + modPack.getPackVersion() : null );
-            showChip( heroChipBeta,    modPack.getPackUnstable() ? "Beta" : null );
-
-            // Pack logo (file URL for installed packs)
-            try {
-                String logoPath = modPack.getPackLogoFilepath();
-                if ( logoPath != null && !logoPath.isBlank() ) {
-                    File logoFile = new File( logoPath );
-                    if ( logoFile.exists() ) {
-                        heroPackLogo.setImage( new Image( logoFile.toURI().toString(), true ) );
-                    }
-                    else {
-                        heroPackLogo.setImage( null );
-                    }
-                }
-                else {
-                    heroPackLogo.setImage( null );
-                }
-            }
-            catch ( Exception e ) {
-                heroPackLogo.setImage( null );
-            }
-        } );
-    }
-
-    /** Toggles a stat chip's visibility/managed state and sets its text in one call. Pass null/blank to hide. */
-    private static void showChip( Label chip, String text ) {
-        boolean show = text != null && !text.isBlank();
-        if ( chip == null ) return;
-        chip.setText( show ? text : "" );
-        chip.setVisible( show );
-        chip.setManaged( show );
-    }
-
     public void setAnnouncementRow( String extra ) {
+        String homeAnnounce = AnnouncementManager.getAnnouncementHome();
+        if ( homeAnnounce == null ) homeAnnounce = "";
+
         String announcementText;
-        if ( extra != null ) {
-            announcementText = extra + "\n" + AnnouncementManager.getAnnouncementHome();
+        if ( extra != null && !extra.isEmpty() ) {
+            announcementText = homeAnnounce.isEmpty() ? extra : extra + "\n" + homeAnnounce;
         }
         else {
-            announcementText = AnnouncementManager.getAnnouncementHome();
+            announcementText = homeAnnounce;
         }
-        if ( announcementText.length() > 0 ) {
+
+        if ( !announcementText.isEmpty() ) {
             announcement.setText( announcementText );
-            announcement.setMinHeight( 30 );
-            announcementRow.setMinHeight( 30 );
+            // Use explicit fixed sizes — USE_COMPUTED_SIZE was not consistently resolving across
+            // navigation transitions (banner shows on first load, vanishes after settings → main).
+            // A multi-line message wraps within the Label; the row caps at 80 to keep the navbar
+            // layout from collapsing.
+            boolean multiLine = announcementText.contains( "\n" );
+            double targetHeight = multiLine ? 60 : 40;
+            announcement.setMinHeight( targetHeight );
+            announcement.setPrefHeight( targetHeight );
+            announcement.setMaxHeight( targetHeight );
+            announcementRow.setMinHeight( targetHeight );
+            announcementRow.setPrefHeight( targetHeight );
+            announcementRow.setMaxHeight( targetHeight );
         }
         else {
+            announcement.setText( "" );
+            announcement.setMinHeight( 0 );
+            announcement.setPrefHeight( 0 );
             announcement.setMaxHeight( 0 );
+            announcementRow.setMinHeight( 0 );
+            announcementRow.setPrefHeight( 0 );
             announcementRow.setMaxHeight( 0 );
         }
     }
 
-    public void setUnstableWarning( boolean unstable ) {
-        // The unstable banner is now a flow item inside the hero VBox; just toggle managed/visible.
-        unstableWarning.setVisible( unstable );
-        unstableWarning.setManaged( unstable );
+    /**
+     * Builds the combined list (Forge modpacks + installed vanilla versions) and instantiates a
+     * {@link ModpackHeroCard} for each, placing them in the scrolling card list. Last-played pack is
+     * floated to the top so the user lands on what they most likely want next.
+     */
+    private void populateModpackCards()
+    {
+        modpackCardList.getChildren().clear();
+
+        List< GameModPack > allPacks = new ArrayList<>( GameModPackManager.getInstalledModPacks() );
+        for ( String versionId :
+                com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager.getInstalledVersionIds() ) {
+            allPacks.add( GameModPack.createVanillaModPack( versionId ) );
+        }
+
+        if ( allPacks.isEmpty() ) {
+            modpackCardList.getChildren().add( buildEmptyState() );
+            return;
+        }
+
+        // Floa the last-played pack to the top.
+        String last = ConfigManager.getLastModPackSelected();
+        if ( last != null && !last.isBlank() ) {
+            for ( int i = 0; i < allPacks.size(); i++ ) {
+                GameModPack p = allPacks.get( i );
+                if ( last.equals( p.getPackName() ) || last.equals( p.getFriendlyName() ) ) {
+                    allPacks.add( 0, allPacks.remove( i ) );
+                    break;
+                }
+            }
+        }
+
+        for ( GameModPack pack : allPacks ) {
+            modpackCardList.getChildren().add( new ModpackHeroCard( pack ) );
+        }
     }
 
-    public void selectModpack( String modPack ) {
-        // Select supplied mod pack
-        for ( GameModPack mp : packSelectionList.getItems() ) {
-            if ( mp.getFriendlyName().equals( modPack ) ) {
-                packSelectionList.getSelectionModel().select( mp );
+    /** Empty-state placeholder shown when there are no packs installed yet. */
+    private Node buildEmptyState()
+    {
+        VBox box = new VBox( 12 );
+        box.setAlignment( Pos.CENTER );
+        box.setPrefHeight( 320 );
+
+        Label heading = new Label( "No mod packs installed yet" );
+        heading.getStyleClass().add( "heading-h1" );
+
+        Label sub = new Label( "Click \"Edit Packs\" in the top bar to add a modpack from a URL." );
+        sub.getStyleClass().add( "muted" );
+
+        box.getChildren().addAll( heading, sub );
+        return box;
+    }
+
+    /**
+     * Scrolls the matching pack card into view (if found). Used by the CLI launch path
+     * ({@link com.micatechnologies.minecraft.launcher.LauncherCore#main} when invoked with a modpack argument).
+     * No-op if the requested pack isn't present in the list.
+     */
+    public void selectModpack( GameModPack modPack ) {
+        if ( modPack == null ) return;
+        GUIUtilities.JFXPlatformRun( () -> {
+            String wanted = modPack.getFriendlyName();
+            String wantedName = modPack.getPackName();
+            for ( Node n : modpackCardList.getChildren() ) {
+                if ( n instanceof ModpackHeroCard card &&
+                        ( ( wanted     != null && wanted.equals( card.pack.getFriendlyName() ) )
+                       || ( wantedName != null && wantedName.equals( card.pack.getPackName() ) ) ) ) {
+                    card.requestFocus();
+                    // Best-effort scroll-into-view via the parent ScrollPane.
+                    if ( modpackScrollPane != null ) {
+                        double cardY = card.getBoundsInParent().getMinY();
+                        double total = modpackCardList.getBoundsInLocal().getHeight();
+                        if ( total > 0 ) {
+                            modpackScrollPane.setVvalue( Math.min( 1.0, cardY / total ) );
+                        }
+                    }
+                    return;
+                }
+            }
+        } );
+    }
+
+    /**
+     * Plays whichever pack is currently first in the card list (which, after {@link #populateModpackCards()}, is the
+     * last-played pack — or the first installed pack if there's no history). Used by the ENTER key shortcut.
+     */
+    private void playLastSelectedModpack()
+    {
+        for ( Node n : modpackCardList.getChildren() ) {
+            if ( n instanceof ModpackHeroCard card && !card.playBtn.isDisabled() ) {
+                card.playBtn.fire();
                 return;
             }
         }
     }
 
-    public void selectModpack( GameModPack modPack ) {
-        GUIUtilities.JFXPlatformRun( () -> selectModpack( modPack.getFriendlyName() ) );
-    }
+    // =========================================================================================
+    //  Hero card view — one per modpack
+    // =========================================================================================
 
     /**
-     * Populates the contents of the mod pack dropdown list, or disables the pack selection list and displays a message
-     * if no mod packs are installed.
-     *
-     * @since 1.0
+     * Tile-shaped modpack hero card — image-on-top design (closer to micatechnologies.com/projects):
+     * the upper portion shows the modpack's background image; the lower portion is a solid surface
+     * with logo, name, chips, last-played hint, and Play / Website actions. Fixed width so the
+     * parent FlowPane can lay them out as a responsive 1-4 column grid.
      */
-    private void populateModpackDropdown() {
-        // Build combined list: Forge modpacks + vanilla versions
-        List< GameModPack > allPacks = new ArrayList<>();
-        allPacks.addAll( GameModPackManager.getInstalledModPacks() );
-
-        // Add installed vanilla versions
-        for ( String versionId : com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager.getInstalledVersionIds() ) {
-            allPacks.add( GameModPack.createVanillaModPack( versionId ) );
-        }
-
-        // Reset mod pack selector
-        packSelectionList.setDisable( false );
-        packSelectionList.getSelectionModel().selectedItemProperty().removeListener( packSelectionChangeListener );
-        packSelectionList.getItems().clear();
-
-        // Populate mod packs dropdown
-        if ( !allPacks.isEmpty() ) {
-            packSelectionList.setItems( FXCollections.observableArrayList( allPacks ) );
-            packSelectionList.getSelectionModel().selectedItemProperty().addListener( packSelectionChangeListener );
-        }
-        else {
-            packSelectionList.setItems( FXCollections.singletonObservableList( GameModPack.NULL_MODPACK() ) );
-            packSelectionList.setDisable( true );
-            // Show the launcher's default background in the hero card when no packs are installed.
-            applyHeroBackgroundImage( null );
-        }
-        // Let the GridPane layout handle list height naturally via vgrow.
-        // Setting a fixed prefHeight conflicts with the virtual scroll and causes scroll jumping.
-    }
-
-    private static class ModPackCellFactory extends ListCell< GameModPack >
+    private final class ModpackHeroCard extends VBox
     {
-        private final GridPane gridPane;
-        private final ImageView packLogo;
-        private final Label packNameLabel;
-        private final Label packVersionLabel;
-        private final Label updateBadge;
+        private static final double CARD_WIDTH  = 360;
+        private static final double IMAGE_HEIGHT = 150;
 
-        public ModPackCellFactory()
+        private final GameModPack pack;
+        private final MFXButton playBtn;
+
+        ModpackHeroCard( GameModPack pack )
         {
-            setPrefHeight( 52 );
-            getStyleClass().add( "pack-list-cell" );
+            this.pack = pack;
+            getStyleClass().add( "heroCardShell" );
+            // Width is fixed so FlowPane can wrap on a clean grid, but height is content-driven —
+            // we tried capping at 320 and the buttons overflowed into the next row.
+            setPrefWidth( CARD_WIDTH );
+            setMinWidth( CARD_WIDTH );
+            setMaxWidth( CARD_WIDTH );
+            setSpacing( 0 );
 
-            packLogo = new ImageView();
-            packLogo.setFitHeight( 40 );
-            packLogo.setPreserveRatio( true );
-            packLogo.getStyleClass().add( "packLogo" );
-            packNameLabel = new Label();
-            packNameLabel.setAlignment( Pos.CENTER_LEFT );
-            packNameLabel.getStyleClass().add( "packName" );
-            packVersionLabel = new Label();
-            packVersionLabel.setAlignment( Pos.CENTER_LEFT );
-            packVersionLabel.getStyleClass().add( "packVersion" );
-            updateBadge = new Label( "UPDATE" );
-            updateBadge.getStyleClass().addAll( "stat-chip", "stat-chip-success", "updateBadge" );
-            updateBadge.setVisible( false );
-            updateBadge.setManaged( false );
+            // Bitmap-cache the whole card. Each card stacks several expensive layers
+            // (gaussian dropshadow, rounded Rectangle clip on the image, CSS background-image
+            // on the bgLayer Region, secondary shadow on the logo container). Without
+            // caching, the ScrollPane re-rasterizes those effects every frame during scroll,
+            // which produced the severe lag the user reported. CacheHint.SPEED uses bilinear
+            // filtering on the cached bitmap during scroll-translate, which is exactly what
+            // we want for vertical scrolling.
+            setCache( true );
+            setCacheHint( CacheHint.SPEED );
 
-            gridPane = new GridPane();
-            gridPane.getStyleClass().add( "packPane" );
-            gridPane.add( packLogo, 0, 0, 1, 2 );
-            gridPane.add( packNameLabel, 1, 0 );
-            javafx.scene.layout.HBox versionBox = new javafx.scene.layout.HBox( 6, packVersionLabel, updateBadge );
-            versionBox.setAlignment( Pos.CENTER_LEFT );
-            gridPane.add( versionBox, 1, 1 );
-        }
+            // ----- Top half: modpack background image -----
+            StackPane imageBox = new StackPane();
+            imageBox.getStyleClass().add( "heroCardImage" );
+            imageBox.setPrefHeight( IMAGE_HEIGHT );
+            imageBox.setMinHeight( IMAGE_HEIGHT );
+            imageBox.setMaxHeight( IMAGE_HEIGHT );
+            // Clip to rounded top corners. JavaFX background-radius alone doesn't clip
+            // child ImageView/Region overflows — an explicit Rectangle clip does.
+            Rectangle imageClip = new Rectangle( CARD_WIDTH, IMAGE_HEIGHT );
+            imageClip.setArcWidth( 28 );    // 14 px radius * 2
+            imageClip.setArcHeight( 28 );
+            imageClip.heightProperty().bind( imageBox.heightProperty() );
+            imageClip.widthProperty().bind( imageBox.widthProperty() );
+            imageBox.setClip( imageClip );
 
-        @Override
-        protected void updateItem( GameModPack item, boolean empty ) {
-            super.updateItem( item, empty );
-            if ( empty || item == null ) {
-                setText( null );
-                setGraphic( null );
-                setContextMenu( null );
+            Region bgLayer = new Region();
+            bgLayer.getStyleClass().add( "heroBackground" );
+            String bgUrl = resolveBackgroundUrl( pack );
+            if ( bgUrl != null ) {
+                bgLayer.setStyle( "-fx-background-image: url('" + bgUrl + "');" );
+            }
+
+            // Subtle veil along the bottom of the image so the logo reads against it.
+            Region imageVeil = new Region();
+            imageVeil.getStyleClass().add( "heroCardImageVeil" );
+
+            // Optional badge row floats over the top-right of the image.
+            HBox badgeRow = new HBox( 6 );
+            badgeRow.setAlignment( Pos.TOP_RIGHT );
+            badgeRow.setPadding( new javafx.geometry.Insets( 10, 12, 0, 0 ) );
+            if ( pack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
+            if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Update", "stat-chip-success" ) );
+
+            imageBox.getChildren().addAll( bgLayer, imageVeil, badgeRow );
+
+            // Pack logo overlaps the image/content boundary on the left. The container has a
+            // rounded border in CSS; clip its inner ImageView so the bitmap respects the
+            // rounded corners instead of overflowing as a square.
+            StackPane logoContainer = new StackPane();
+            logoContainer.getStyleClass().add( "heroPackLogoContainer" );
+            logoContainer.setMinSize( 72, 72 );
+            logoContainer.setMaxSize( 72, 72 );
+            ImageView logo = new ImageView();
+            logo.setFitWidth( 68 );
+            logo.setFitHeight( 68 );
+            logo.setPreserveRatio( true );
+            logo.setImage( resolveLogoImage( pack ) );
+            Rectangle logoClip = new Rectangle( 68, 68 );
+            logoClip.setArcWidth( 16 );
+            logoClip.setArcHeight( 16 );
+            logo.setClip( logoClip );
+            logoContainer.getChildren().add( logo );
+            logoContainer.setTranslateY( -36 );  // overlap the image
+
+            // ----- Bottom half: content surface -----
+            VBox info = new VBox( 6 );
+            info.getStyleClass().add( "heroCardBody" );
+            info.setAlignment( Pos.TOP_LEFT );
+            info.setPadding( new javafx.geometry.Insets( 0, 18, 16, 18 ) );
+
+            Label name = new Label( resolveDisplayName( pack ) );
+            name.getStyleClass().addAll( "heading-h2", "heroCardTitle" );
+            name.setWrapText( true );
+
+            HBox chips = new HBox( 6 );
+            chips.setAlignment( Pos.CENTER_LEFT );
+            String mc = safeMinecraftVersion( pack );
+            String forge = safeForgeVersion( pack );
+            if ( mc != null && !mc.isBlank() ) chips.getChildren().add( buildChip( "MC " + mc ) );
+            if ( forge != null && !forge.isBlank() ) {
+                String shortForge = forge.contains( "-" ) ? forge.substring( forge.lastIndexOf( '-' ) + 1 ) : forge;
+                chips.getChildren().add( buildChip( "Forge " + shortForge ) );
+            }
+            if ( pack.getPackVersion() != null && !pack.getPackVersion().isBlank() )
+                chips.getChildren().add( buildChip( "v" + pack.getPackVersion() ) );
+
+            String lastPlayed = pack.getLastPlayedFormatted();
+            Label played = new Label();
+            played.getStyleClass().add( "heroLastPlayedSurface" );
+            if ( lastPlayed != null && !"Never played".equals( lastPlayed ) ) {
+                played.setText( "Last played " + lastPlayed.toLowerCase() );
             }
             else {
-                String logoPath;
-                if ( item.getPackLogoFilepath() != null && new File( item.getPackLogoFilepath() ).exists() ) {
-                    logoPath = new File( item.getPackLogoFilepath() ).toURI().toString();
-                }
-                else {
-                    logoPath = ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
-                }
-                packLogo.setImage( new Image( logoPath ) );
-                packNameLabel.setText( item.getPackName() );
-                String versionText = "Version: " + item.getPackVersion();
-                String lastPlayed = item.getLastPlayedFormatted();
-                if ( !"Never played".equals( lastPlayed ) ) {
-                    versionText += "  |  " + lastPlayed;
-                }
-                packVersionLabel.setText( versionText );
+                played.setText( "Never played" );
+            }
 
-                // Show update badge if remote version is newer than installed
-                boolean hasUpdate = item.isUpdateAvailable();
-                updateBadge.setVisible( hasUpdate );
-                updateBadge.setManaged( hasUpdate );
+            info.getChildren().addAll( logoContainer, name, chips, played );
+            VBox.setVgrow( info, Priority.ALWAYS );
 
-                setText( null );
-                setGraphic( gridPane );
-                setContextMenu( buildContextMenu( item ) );
+            // ----- Action row at the bottom -----
+            HBox actions = new HBox( 8 );
+            actions.setAlignment( Pos.CENTER_LEFT );
+            actions.setPadding( new javafx.geometry.Insets( 0, 18, 16, 18 ) );
+
+            playBtn = new MFXButton( "Play" );
+            playBtn.getStyleClass().addAll( "primary", "heroPlayBtn" );
+            playBtn.setPrefHeight( 38 );
+            playBtn.setMaxWidth( Double.MAX_VALUE );
+            HBox.setHgrow( playBtn, Priority.ALWAYS );
+            playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
+            playBtn.setOnAction( e -> startPlay( pack ) );
+
+            MFXButton websiteBtn = new MFXButton( "Website" );
+            websiteBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+            websiteBtn.setPrefHeight( 38 );
+            websiteBtn.setPrefWidth( 96 );
+            websiteBtn.setOnAction( e -> openModpackWebsite( pack ) );
+            if ( pack.getPackURL() == null || pack.getPackURL().isBlank() ) {
+                websiteBtn.setDisable( true );
+            }
+
+            actions.getChildren().addAll( playBtn, websiteBtn );
+
+            // Assemble
+            getChildren().addAll( imageBox, info, actions );
+
+            // Card-level interactions
+            setContextMenu( pack );
+            setCursor( Cursor.HAND );
+            setOnMouseClicked( ev -> {
+                // Double-click anywhere on the card (other than buttons) plays the pack — quick-launch UX.
+                if ( ev.getButton() == MouseButton.PRIMARY && ev.getClickCount() == 2 && !playBtn.isDisabled() ) {
+                    playBtn.fire();
+                }
+            } );
+        }
+
+        private void setContextMenu( GameModPack pack ) {
+            ContextMenu menu = buildPackContextMenu( pack );
+            setOnContextMenuRequested( e -> menu.show( this, e.getScreenX(), e.getScreenY() ) );
+        }
+
+        private void startPlay( GameModPack pack ) {
+            ConfigManager.setLastModPackSelected( pack.getPackName() );
+            SystemUtilities.spawnNewTask( () -> {
+                Platform.setImplicitExit( false );
+                SystemUtilities.spawnNewTask( () ->
+                    DiscordRpcUtility.setGamePresence( pack.getPackName(), pack.getCustomDiscordRpc() ) );
+                LauncherCore.play( pack, () -> GUIUtilities.JFXPlatformRun( () -> {
+                    try {
+                        Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
+                        MCLauncherGuiController.goToMainGui();
+                        MCLauncherGuiController.requestFocus();
+                    }
+                    catch ( Exception e ) {
+                        Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                        Logger.logThrowable( e );
+                        LauncherCore.closeApp();
+                    }
+                } ) );
+            } );
+        }
+
+        private Label buildChip( String text, String... extraClasses ) {
+            Label chip = new Label( text );
+            chip.getStyleClass().add( "stat-chip" );
+            for ( String c : extraClasses ) chip.getStyleClass().add( c );
+            return chip;
+        }
+
+        private Label buildChip( String text ) {
+            return buildChip( text, new String[ 0 ] );
+        }
+    }
+
+    // ---------- helpers used by the card ----------
+
+    private static String resolveDisplayName( GameModPack pack ) {
+        String name = pack.getFriendlyName();
+        if ( name == null || name.isBlank() ) name = pack.getPackName();
+        return name != null ? name : "Unnamed Pack";
+    }
+
+    private static String resolveBackgroundUrl( GameModPack pack ) {
+        try {
+            String path = pack.getPackBackgroundFilepath();
+            if ( path != null ) {
+                File f = new File( path );
+                if ( f.exists() ) return f.toURI().toString();
             }
         }
+        catch ( Exception ignored ) { /* fall through */ }
+        return ModPackConstants.MODPACK_DEFAULT_BG_URL;
+    }
 
-        private ContextMenu buildContextMenu( GameModPack pack ) {
-            ContextMenu menu = new ContextMenu();
-
-            MenuItem openFolder = new MenuItem( "Open Install Folder" );
-            openFolder.setOnAction( e -> openPackSubfolder( pack, "" ) );
-
-            MenuItem openScreenshots = new MenuItem( "Open Screenshots" );
-            openScreenshots.setOnAction( e -> openPackSubfolder( pack, "screenshots" ) );
-
-            MenuItem openResourcePacks = new MenuItem( "Open Resource Packs" );
-            openResourcePacks.setOnAction( e -> openPackSubfolder( pack, "resourcepacks" ) );
-
-            MenuItem openShaderPacks = new MenuItem( "Open Shader Packs" );
-            openShaderPacks.setOnAction( e -> openPackSubfolder( pack, "shaderpacks" ) );
-
-            MenuItem openMods = new MenuItem( "Open Mods Folder" );
-            openMods.setOnAction( e -> openPackSubfolder( pack, "mods" ) );
-
-            MenuItem openConfig = new MenuItem( "Open Config Folder" );
-            openConfig.setOnAction( e -> openPackSubfolder( pack, "config" ) );
-
-            MenuItem createShortcut = new MenuItem( "Create Desktop Shortcut" );
-            createShortcut.setOnAction( e -> createDesktopShortcut( pack ) );
-
-            // Play stats header (non-interactive)
-            MenuItem playStats = new MenuItem( "Played " + pack.getTotalPlayTimeFormatted() +
-                                                       " (" + pack.getLaunchCount() + " launches)" );
-            playStats.setDisable( true );
-
-            menu.getItems().addAll( playStats, new SeparatorMenuItem(),
-                                    openFolder, new SeparatorMenuItem(),
-                                    openScreenshots, openResourcePacks, openShaderPacks,
-                                    new SeparatorMenuItem(), openMods, openConfig,
-                                    new SeparatorMenuItem(), createShortcut );
-            return menu;
+    private static Image resolveLogoImage( GameModPack pack ) {
+        try {
+            String path = pack.getPackLogoFilepath();
+            if ( path != null ) {
+                File f = new File( path );
+                if ( f.exists() ) return new Image( f.toURI().toString(), true );
+            }
         }
-
-        private void createDesktopShortcut( GameModPack pack ) {
-            SystemUtilities.spawnNewTask( () -> {
-                try {
-                    DesktopShortcutManager.createShortcut( pack );
-                    javafx.stage.Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
-                    if ( ownerStage != null ) {
-                        GUIUtilities.JFXPlatformRun( () -> {
-                            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                                    javafx.scene.control.Alert.AlertType.INFORMATION );
-                            alert.setTitle( "Shortcut Created" );
-                            alert.setHeaderText( null );
-                            alert.setContentText(
-                                    "Desktop shortcut created for " + pack.getPackName() + "." );
-                            alert.initOwner( ownerStage );
-                            alert.initStyle( javafx.stage.StageStyle.UTILITY );
-                            alert.showAndWait();
-                        } );
-                    }
-                }
-                catch ( Exception ex ) {
-                    Logger.logError( "Failed to create desktop shortcut: " + ex.getMessage() );
-                    Logger.logThrowable( ex );
-                    javafx.stage.Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
-                    if ( ownerStage != null ) {
-                        GUIUtilities.showErrorMessage(
-                                "Unable to create desktop shortcut: " + ex.getMessage(), ownerStage );
-                    }
-                }
-            } );
+        catch ( Exception ignored ) { /* fall through */ }
+        try {
+            return new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL, true );
         }
-
-        private void openPackSubfolder( GameModPack pack, String subfolder ) {
-            SystemUtilities.spawnNewTask( () -> {
-                try {
-                    String path = pack.getPackRootFolder();
-                    if ( !subfolder.isEmpty() ) {
-                        path += File.separator + subfolder;
-                    }
-                    File folder = new File( path );
-                    if ( !folder.exists() ) {
-                        folder.mkdirs();
-                    }
-                    Desktop.getDesktop().open( folder );
-                }
-                catch ( Exception ex ) {
-                    Logger.logWarningSilent( "Unable to open folder: " + ex.getMessage() );
-                }
-            } );
+        catch ( Exception ignored ) {
+            return null;
         }
+    }
+
+    private static String safeMinecraftVersion( GameModPack pack ) {
+        try { return pack.getMinecraftVersion(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    private static String safeForgeVersion( GameModPack pack ) {
+        try { return pack.getForgeVersion(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    private static void openModpackWebsite( GameModPack pack ) {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                Desktop.getDesktop().browse( URI.create( pack.getPackURL() ) );
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to open your browser. Please visit " + pack.getPackURL() +
+                                         " to view the mod pack's website!" );
+                Logger.logThrowable( e );
+            }
+        } );
+    }
+
+    private static ContextMenu buildPackContextMenu( GameModPack pack ) {
+        ContextMenu menu = new ContextMenu();
+
+        MenuItem playStats = new MenuItem( "Played " + pack.getTotalPlayTimeFormatted() +
+                                                   " (" + pack.getLaunchCount() + " launches)" );
+        playStats.setDisable( true );
+
+        MenuItem openFolder       = new MenuItem( "Open Install Folder" );
+        MenuItem openScreenshots  = new MenuItem( "Open Screenshots" );
+        MenuItem openResourcePks  = new MenuItem( "Open Resource Packs" );
+        MenuItem openShaderPacks  = new MenuItem( "Open Shader Packs" );
+        MenuItem openMods         = new MenuItem( "Open Mods Folder" );
+        MenuItem openConfig       = new MenuItem( "Open Config Folder" );
+        MenuItem createShortcut   = new MenuItem( "Create Desktop Shortcut" );
+
+        openFolder.setOnAction(       e -> openPackSubfolder( pack, "" ) );
+        openScreenshots.setOnAction(  e -> openPackSubfolder( pack, "screenshots" ) );
+        openResourcePks.setOnAction(  e -> openPackSubfolder( pack, "resourcepacks" ) );
+        openShaderPacks.setOnAction(  e -> openPackSubfolder( pack, "shaderpacks" ) );
+        openMods.setOnAction(         e -> openPackSubfolder( pack, "mods" ) );
+        openConfig.setOnAction(       e -> openPackSubfolder( pack, "config" ) );
+        createShortcut.setOnAction(   e -> createDesktopShortcut( pack ) );
+
+        menu.getItems().addAll( playStats, new SeparatorMenuItem(),
+                                openFolder, new SeparatorMenuItem(),
+                                openScreenshots, openResourcePks, openShaderPacks,
+                                new SeparatorMenuItem(), openMods, openConfig,
+                                new SeparatorMenuItem(), createShortcut );
+        return menu;
+    }
+
+    private static void createDesktopShortcut( GameModPack pack ) {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                DesktopShortcutManager.createShortcut( pack );
+                Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+                if ( ownerStage != null ) {
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                                javafx.scene.control.Alert.AlertType.INFORMATION );
+                        alert.setTitle( "Shortcut Created" );
+                        alert.setHeaderText( null );
+                        alert.setContentText( "Desktop shortcut created for " + pack.getPackName() + "." );
+                        alert.initOwner( ownerStage );
+                        alert.initStyle( javafx.stage.StageStyle.UTILITY );
+                        alert.showAndWait();
+                    } );
+                }
+            }
+            catch ( Exception ex ) {
+                Logger.logError( "Failed to create desktop shortcut: " + ex.getMessage() );
+                Logger.logThrowable( ex );
+                Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+                if ( ownerStage != null ) {
+                    GUIUtilities.showErrorMessage( "Unable to create desktop shortcut: " + ex.getMessage(), ownerStage );
+                }
+            }
+        } );
+    }
+
+    private static void openPackSubfolder( GameModPack pack, String subfolder ) {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                String path = pack.getPackRootFolder();
+                if ( !subfolder.isEmpty() ) {
+                    path += File.separator + subfolder;
+                }
+                File folder = new File( path );
+                if ( !folder.exists() ) {
+                    folder.mkdirs();
+                }
+                Desktop.getDesktop().open( folder );
+            }
+            catch ( Exception ex ) {
+                Logger.logWarningSilent( "Unable to open folder: " + ex.getMessage() );
+            }
+        } );
     }
 }
