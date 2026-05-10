@@ -310,6 +310,12 @@ public class MCLauncherGuiWindow extends Application
             // Inject context-sensitive help button into top-right corner
             injectHelpButton( gui );
 
+            // macOS only: reparent the single system menu bar instance into this scene's root.
+            // Win / Linux: no-op (the navbar covers the same actions in-window). The bar is
+            // created lazily here on first use.
+            SystemMenuBarManager.ensureCreated();
+            SystemMenuBarManager.attachTo( gui.rootPane );
+
             // Change stage name
             stage.setTitle(
                     LauncherConstants.LAUNCHER_APPLICATION_NAME + GUIConstants.TITLE_SPLIT_CHAR + gui.getSceneName() );

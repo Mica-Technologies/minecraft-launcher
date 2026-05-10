@@ -592,6 +592,11 @@ public class LauncherCore
                                            "the currently pinned icon, if present." );
             Logger.logThrowable( e );
         }
+
+        // Register macOS application-menu handlers (About / Preferences / Quit). No-op on
+        // Windows and Linux. Must happen before any GUI shows so the system menu reflects
+        // these callbacks the moment the first window opens.
+        com.micatechnologies.minecraft.launcher.gui.SystemMenuBarManager.installDesktopHandlers();
     }
 
     /**
