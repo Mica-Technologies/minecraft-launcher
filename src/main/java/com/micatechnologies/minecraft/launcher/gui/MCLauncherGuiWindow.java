@@ -106,9 +106,11 @@ public class MCLauncherGuiWindow extends Application
         // appears at its final position rather than flashing at the center first.
         boolean restored = restoreSavedBounds();
 
-        // Set scene
-        show();
+        // IMPORTANT: install the scene BEFORE showing the stage. Otherwise stage.show() paints the
+        // OS-default (white) stage background for one frame before the scene is attached, creating a
+        // jarring white flash on top of every theme.
         setScene( progressGui );
+        show();
         if ( !restored ) {
             stage.centerOnScreen();
         }
@@ -361,6 +363,7 @@ public class MCLauncherGuiWindow extends Application
             stylesheets.remove( cssUrl( UI_TOKENS_LIGHT ) );
             stylesheets.remove( cssUrl( UI_TOKENS_BLUE_GRAY ) );
             stylesheets.remove( cssUrl( UI_TOKENS_ORANGE_PURPLE ) );
+            stylesheets.remove( cssUrl( UI_TOKENS_CREEPER ) );
 
             // Drop the base sheet so we can re-install it in the correct order.
             stylesheets.remove( cssUrl( UI_BASE_SHEET ) );
@@ -379,19 +382,25 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /**
-     * Programmatically injects a "?" help button into the top-right corner of the screen's root pane. The button opens
-     * the help window to the topic returned by the GUI's {@link MCLauncherAbstractGui#getHelpTopic()}.
-     *
-     * @param gui the current GUI screen
+     * Injects a "?" help button into the screen. Prefers integrating it into an existing top navigation bar (an HBox
+     * with styleClass "navBar") so it reads as a real navbar item rather than a floating overlay. Falls back to a
+     * top-right corner overlay on screens with no navbar (login splash, progress).
      */
     private void injectHelpButton( MCLauncherAbstractGui gui )
     {
-        if ( gui.rootPane instanceof GridPane gridPane ) {
-            MFXButton helpBtn = new MFXButton( "?" );
-            helpBtn.getStyleClass().add( "helpButton" );
-            helpBtn.setOnAction( e -> MCLauncherHelpWindow.show( gui.getHelpTopic() ) );
+        MFXButton helpBtn = new MFXButton( "?" );
+        helpBtn.getStyleClass().add( "helpButton" );
+        helpBtn.setOnAction( e -> MCLauncherHelpWindow.show( gui.getHelpTopic() ) );
 
-            // Add to column 0, row 0 aligned to top-right so it overlays in the corner
+        javafx.scene.layout.HBox navBar = findNavBar( gui.rootPane );
+        if ( navBar != null ) {
+            // Add as the rightmost item — sits next to the user identity / nav buttons cluster.
+            navBar.getChildren().add( helpBtn );
+            return;
+        }
+
+        // Fallback: anchor to top-right corner of a GridPane root.
+        if ( gui.rootPane instanceof GridPane gridPane ) {
             int col = gridPane.getColumnConstraints().size() - 1;
             if ( col < 0 ) col = 0;
             gridPane.add( helpBtn, col, 0 );
@@ -399,6 +408,22 @@ public class MCLauncherGuiWindow extends Application
             GridPane.setValignment( helpBtn, VPos.TOP );
             GridPane.setMargin( helpBtn, new Insets( 8, 8, 0, 0 ) );
         }
+    }
+
+    /** Recursively searches for the first node tagged with styleClass "navBar" that is also an HBox. */
+    private javafx.scene.layout.HBox findNavBar( javafx.scene.Parent parent )
+    {
+        if ( parent == null ) return null;
+        for ( javafx.scene.Node child : parent.getChildrenUnmodifiable() ) {
+            if ( child instanceof javafx.scene.layout.HBox hbox && hbox.getStyleClass().contains( "navBar" ) ) {
+                return hbox;
+            }
+            if ( child instanceof javafx.scene.Parent nested ) {
+                javafx.scene.layout.HBox found = findNavBar( nested );
+                if ( found != null ) return found;
+            }
+        }
+        return null;
     }
 
     /**

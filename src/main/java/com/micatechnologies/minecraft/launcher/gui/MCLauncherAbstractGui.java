@@ -22,6 +22,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -69,6 +70,7 @@ public abstract class MCLauncherAbstractGui
                 else {
                     scene = new Scene( fxmlLoader.load() );
                 }
+                applySafeSceneFill( scene );
             }
             catch ( Exception e ) {
                 Logger.logError( "Unable to build FXML loader for the application GUI." );
@@ -102,6 +104,7 @@ public abstract class MCLauncherAbstractGui
                 else {
                     scene = new Scene( fxmlLoader.load() );
                 }
+                applySafeSceneFill( scene );
             }
             catch ( Exception e ) {
                 Logger.logError( "Unable to build FXML loader for the application GUI." );
@@ -113,6 +116,16 @@ public abstract class MCLauncherAbstractGui
 
         if ( scene == null ) {
             throw new IOException( "The internal GUI scene object was null due to an initialization failure!" );
+        }
+    }
+
+    /**
+     * Replaces the scene's default white fill with a near-black so an unstyled scene (e.g. before the theme stylesheet
+     * resolves) doesn't flash a bright background. The themed root pane paints over this immediately.
+     */
+    private static void applySafeSceneFill( Scene scene ) {
+        if ( scene != null ) {
+            scene.setFill( Color.web( "#0C1017" ) );
         }
     }
 

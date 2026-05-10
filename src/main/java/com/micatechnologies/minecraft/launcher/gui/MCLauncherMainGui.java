@@ -46,7 +46,10 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.RowConstraints;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 import java.awt.*;
@@ -173,22 +176,47 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     RowConstraints announcementRow;
 
     /**
-     * Unstable mod pack warning banner row constraints.
+     * Center hero pane (replaces the legacy GridPane wrapper). Holds the modpack hero card.
      *
      * @since 3.0
      */
     @SuppressWarnings( "unused" )
     @FXML
-    RowConstraints unstableWarningRow;
+    StackPane centerPane;
 
-    /**
-     * Center content/button pane.
-     *
-     * @since 3.0
-     */
+    // ----- Hero card fields (selected modpack detail) -----
+
     @SuppressWarnings( "unused" )
     @FXML
-    GridPane centerPane;
+    ImageView heroPackLogo;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label heroPackName;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    HBox heroChipRow;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label heroChipMc;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label heroChipForge;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label heroChipVersion;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label heroChipBeta;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Region heroBackgroundLayer;
 
     @SuppressWarnings( "unused" )
     @FXML
@@ -458,29 +486,110 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             ConfigManager.setLastModPackSelected( selectedGameModPack.getPackName() );
         }
 
-        // Set unstable warning
-        boolean unstableWarningVisible = false;
-        if ( selectedGameModPack != null ) {
-            unstableWarningVisible = selectedGameModPack.getPackUnstable();
-        }
+        // Populate the hero detail card and unstable warning
+        boolean unstableWarningVisible = selectedGameModPack != null && selectedGameModPack.getPackUnstable();
         setUnstableWarning( unstableWarningVisible );
+        populateHeroFromModpack( selectedGameModPack );
 
-        // Set modpack background image on root pane
-        if ( selectedGameModPack != null ) {
-            // noinspection All
-            rootPane.setStyle( rootPane.getStyle() +
-                                       "-fx-background-image: url('" +
-                                       new File( selectedGameModPack.getPackBackgroundFilepath() ).toURI() +
-                                       "');" );
-        }
-        else {
-            rootPane.setStyle( rootPane.getStyle() +
-                                       "-fx-background-image: url('" +
-                                       ModPackConstants.MODPACK_DEFAULT_BG_URL +
-                                       "');" );
-        }
-        rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
+        // Apply the modpack's image to the hero card's background layer (clipped, with veil overlay).
+        applyHeroBackgroundImage( selectedGameModPack );
     };
+
+    /**
+     * Updates the hero card's background image layer to show the selected modpack's pack-background image. The image
+     * sits behind a dark veil so the foreground hero text stays readable. Falls back to the launcher default
+     * background if the modpack has no image or it can't be loaded.
+     */
+    private void applyHeroBackgroundImage( GameModPack pack )
+    {
+        if ( heroBackgroundLayer == null ) return;
+        String url = null;
+        try {
+            if ( pack != null && pack.getPackBackgroundFilepath() != null ) {
+                File f = new File( pack.getPackBackgroundFilepath() );
+                if ( f.exists() ) {
+                    url = f.toURI().toString();
+                }
+            }
+        }
+        catch ( Exception ignored ) { /* fall through to default */ }
+        if ( url == null ) {
+            url = ModPackConstants.MODPACK_DEFAULT_BG_URL;
+        }
+        // Reset and set inline background-image (size/position/repeat live in ui-base.css).
+        heroBackgroundLayer.setStyle( "-fx-background-image: url('" + url + "');" );
+    }
+
+    /**
+     * Updates the hero card fields (logo, name, stat chips) from the given modpack. A null modpack clears the card.
+     */
+    private void populateHeroFromModpack( GameModPack modPack ) {
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( modPack == null ) {
+                heroPackName.setText( "" );
+                showChip( heroChipMc, null );
+                showChip( heroChipForge, null );
+                showChip( heroChipVersion, null );
+                showChip( heroChipBeta, null );
+                heroPackLogo.setImage( null );
+                return;
+            }
+
+            // Name
+            String displayName = modPack.getFriendlyName();
+            if ( displayName == null || displayName.isBlank() ) {
+                displayName = modPack.getPackName();
+            }
+            heroPackName.setText( displayName != null ? displayName : "" );
+
+            // Stat chips: MC version, Forge version, pack version, beta flag
+            String mcVer = null;
+            String forgeVer = null;
+            try {
+                mcVer = modPack.getMinecraftVersion();
+            }
+            catch ( Exception ignored ) { /* manifest not yet resolved — chip stays hidden */ }
+            try {
+                forgeVer = modPack.getForgeVersion();
+            }
+            catch ( Exception ignored ) { /* vanilla packs and unresolved packs return nothing */ }
+
+            showChip( heroChipMc,      mcVer    != null && !mcVer.isBlank()    ? "Minecraft " + mcVer  : null );
+            showChip( heroChipForge,   forgeVer != null && !forgeVer.isBlank() ? "Forge " + forgeVer    : null );
+            showChip( heroChipVersion, modPack.getPackVersion() != null && !modPack.getPackVersion().isBlank()
+                                          ? "v" + modPack.getPackVersion() : null );
+            showChip( heroChipBeta,    modPack.getPackUnstable() ? "Beta" : null );
+
+            // Pack logo (file URL for installed packs)
+            try {
+                String logoPath = modPack.getPackLogoFilepath();
+                if ( logoPath != null && !logoPath.isBlank() ) {
+                    File logoFile = new File( logoPath );
+                    if ( logoFile.exists() ) {
+                        heroPackLogo.setImage( new Image( logoFile.toURI().toString(), true ) );
+                    }
+                    else {
+                        heroPackLogo.setImage( null );
+                    }
+                }
+                else {
+                    heroPackLogo.setImage( null );
+                }
+            }
+            catch ( Exception e ) {
+                heroPackLogo.setImage( null );
+            }
+        } );
+    }
+
+    /** Toggles a stat chip's visibility/managed state and sets its text in one call. Pass null/blank to hide. */
+    private static void showChip( Label chip, String text ) {
+        boolean show = text != null && !text.isBlank();
+        if ( chip == null ) return;
+        chip.setText( show ? text : "" );
+        chip.setVisible( show );
+        chip.setManaged( show );
+    }
 
     public void setAnnouncementRow( String extra ) {
         String announcementText;
@@ -502,13 +611,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     }
 
     public void setUnstableWarning( boolean unstable ) {
+        // The unstable banner is now a flow item inside the hero VBox; just toggle managed/visible.
         unstableWarning.setVisible( unstable );
-        unstableWarningRow.setMaxHeight( unstable ? 37 : 0 );
-        unstableWarningRow.setPrefHeight( unstable ? 37 : 0 );
-        unstableWarningRow.setMinHeight( unstable ? 37 : 0 );
-        centerPane.setPrefHeight( unstable ? 100 : 60 );
-        centerPane.setMaxHeight( unstable ? 100 : 60 );
-        centerPane.setMinHeight( unstable ? 100 : 60 );
+        unstableWarning.setManaged( unstable );
     }
 
     public void selectModpack( String modPack ) {
@@ -554,11 +659,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         else {
             packSelectionList.setItems( FXCollections.singletonObservableList( GameModPack.NULL_MODPACK() ) );
             packSelectionList.setDisable( true );
-            rootPane.setStyle( rootPane.getStyle() +
-                                       "-fx-background-image: url('" +
-                                       ModPackConstants.MODPACK_DEFAULT_BG_URL +
-                                       "');" );
-            rootPane.setStyle( rootPane.getStyle() + "-fx-background-size: cover; -fx-background-repeat: no-repeat;" );
+            // Show the launcher's default background in the hero card when no packs are installed.
+            applyHeroBackgroundImage( null );
         }
         // Let the GridPane layout handle list height naturally via vgrow.
         // Setting a fixed prefHeight conflicts with the virtual scroll and causes scroll jumping.
@@ -588,9 +690,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             packVersionLabel.setAlignment( Pos.CENTER_LEFT );
             packVersionLabel.getStyleClass().add( "packVersion" );
             updateBadge = new Label( "UPDATE" );
-            updateBadge.getStyleClass().add( "updateBadge" );
-            updateBadge.setStyle( "-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-padding: 1 6; " +
-                                          "-fx-background-radius: 3; -fx-font-size: 9; -fx-font-weight: bold;" );
+            updateBadge.getStyleClass().addAll( "stat-chip", "stat-chip-success", "updateBadge" );
             updateBadge.setVisible( false );
             updateBadge.setManaged( false );
 

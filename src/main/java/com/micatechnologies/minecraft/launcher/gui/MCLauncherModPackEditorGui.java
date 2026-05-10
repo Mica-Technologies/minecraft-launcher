@@ -1538,15 +1538,22 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     /**
      * Determines the current theme's background and text colors based on ConfigManager.
      */
+    /**
+     * Returns 5-element array [bg, fg, surfaceRecessed, accent, surfaceCard] for the current theme.
+     * Mirrors the {@code -color-bg}, {@code -color-text}, {@code -color-bg-soft}, {@code -color-primary},
+     * and {@code -color-surface} lookups defined in {@code ui-tokens-{theme}.css} so dynamic-styled
+     * dialogs/cells stay in sync with the static stylesheet.
+     */
     private String[] getThemeColors()
     {
         String theme = com.micatechnologies.minecraft.launcher.config.ConfigManager.getTheme();
         return switch ( theme.toLowerCase() )
         {
-            case "light" -> new String[]{ "#FFFBFE", "#1C1B1F", "#F4EFF4", "#2E7D32", "rgba(231,224,236,0.55)" };
-            case "blue+gray" -> new String[]{ "#111318", "#E2E2E9", "#0C0E13", "#4D82F0", "rgba(68,71,79,0.55)" };
-            case "orange+purple" -> new String[]{ "#1F1019", "#F0DEE6", "#140B11", "#9C3587", "rgba(79,55,70,0.55)" };
-            default -> new String[]{ "#1C1B1F", "#E6E1E5", "#131316", "#4CAF50", "rgba(73,69,79,0.55)" };
+            case "light"         -> new String[]{ "#FFFFFF", "#151C28", "#F8F9FC", "#027AF2", "#F5F6FA" };
+            case "blue+gray"     -> new String[]{ "#121721", "#E7E9EE", "#191E2A", "#518DF6", "#1F2633" };
+            case "orange+purple" -> new String[]{ "#201221", "#F4EBF3", "#29192A", "#D257DB", "#342136" };
+            case "creeper"       -> new String[]{ "#0C130C", "#EEF0EA", "#121C12", "#43D22D", "#192419" };
+            default              -> new String[]{ "#0C1017", "#EDEFF2", "#10151E", "#3599FD", "#141924" };
         };
     }
 

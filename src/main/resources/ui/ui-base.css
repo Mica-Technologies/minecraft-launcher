@@ -130,6 +130,121 @@
 .navBar  { -fx-border-width: 0 0 1 0; }
 .bottomBar { -fx-border-width: 1 0 0 0; }
 
+.navBrand {
+    -fx-font-weight: 700;
+    -fx-font-size: 14px;
+    -fx-text-fill: -color-text;
+    -fx-padding: 0 4 0 4;
+}
+
+.navDivider {
+    -fx-background-color: -color-border;
+    -fx-min-width: 1;
+    -fx-pref-width: 1;
+}
+
+
+/* =====================================================================
+ * 3b. Main-screen hero card (selected modpack detail)
+ * ===================================================================== */
+
+/* Outer shell — provides the rounded clip + drop shadow; the three child layers
+ * (background image, dark veil, foreground content) stack inside it. */
+.heroCardShell {
+    -fx-background-color: -color-surface-elevated;
+    -fx-background-radius: 14;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, -color-shadow, 24, 0.30, 0, 10);
+}
+
+/* Layer 1: modpack background image. The path is set inline by the controller
+ * via setStyle(...). This rule provides defaults (clipping, sizing). */
+.heroBackground {
+    -fx-background-color: transparent;
+    -fx-background-radius: 14;
+    -fx-background-size: cover;
+    -fx-background-position: center;
+    -fx-background-repeat: no-repeat;
+}
+
+/* Layer 2: dark gradient veil so the foreground text reads cleanly over any
+ * modpack image. Slight tint of -color-bg at top, more opacity at bottom. */
+.heroBackgroundVeil {
+    -fx-background-radius: 14;
+    -fx-background-color:
+        linear-gradient(to bottom,
+            rgba(0, 0, 0, 0.30) 0%,
+            rgba(0, 0, 0, 0.55) 50%,
+            rgba(0, 0, 0, 0.78) 100%);
+}
+
+.heroCard {
+    -fx-spacing: 14;
+    -fx-background-color: transparent;
+}
+
+/* Override hero name color: when an image is behind, white reads cleanest */
+.heroPackName.heading-display {
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 8, 0.30, 0, 2);
+}
+
+.heroPackLogoContainer {
+    -fx-background-color: rgba(255, 255, 255, 0.06);
+    -fx-border-color: rgba(255, 255, 255, 0.30);
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 18, 0.30, 0, 6);
+}
+
+/* Stat chips inside the hero card need a glass treatment (white text, translucent
+ * surface) since they sit over the dark image veil. */
+.heroCard .stat-chip {
+    -fx-background-color: rgba(255, 255, 255, 0.10);
+    -fx-border-color: rgba(255, 255, 255, 0.22);
+    -fx-text-fill: white;
+}
+
+.heroCard .stat-chip-warn {
+    -fx-background-color: -color-warning-soft;
+    -fx-border-color: -color-warning;
+    -fx-text-fill: white;
+}
+
+.heroPlayBtn {
+    -fx-font-weight: 700;
+    -fx-font-size: 16px;
+    -fx-padding: 8 18 8 18;
+}
+
+/* Compact stat chips used in the hero meta row (MC version, Forge, etc.) */
+.stat-chip {
+    -fx-background-color: -color-surface-hover;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 999;
+    -fx-background-radius: 999;
+    -fx-border-width: 1;
+    -fx-text-fill: -color-text-muted;
+    -fx-padding: 2 12 2 12;
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+}
+
+.stat-chip-warn {
+    -fx-background-color: -color-warning-soft;
+    -fx-border-color: -color-warning;
+    -fx-text-fill: -color-warning;
+}
+
+.stat-chip-success {
+    -fx-background-color: -color-secondary-soft;
+    -fx-border-color: -color-secondary;
+    -fx-text-fill: -color-secondary;
+}
+
 
 /* =====================================================================
  * 4. Buttons
@@ -438,7 +553,17 @@
     -mfx-text-fill: -color-text;
 }
 
-/* Modpack cell labels */
+/* Modpack cell layout (sidebar list) */
+.pack-list-cell .packPane {
+    -fx-hgap: 12;
+    -fx-vgap: 0;
+    -fx-padding: 4 8 4 8;
+}
+
+.packLogo {
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 6, 0.20, 0, 2);
+}
+
 .packName {
     -fx-font-weight: 600;
     -fx-font-size: 14px;
@@ -446,7 +571,7 @@
 }
 
 .packVersion {
-    -fx-font-size: 12px;
+    -fx-font-size: 11px;
     -fx-text-fill: -color-text-muted;
 }
 

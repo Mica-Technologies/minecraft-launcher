@@ -10,7 +10,9 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.Priority?>
 <?import javafx.scene.text.Font?>
@@ -45,7 +47,7 @@
         <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
         <!-- Row 2: Main content (fills remaining) -->
         <RowConstraints vgrow="ALWAYS"/>
-        <!-- Row 3: Bottom status bar (44px fixed, matches top nav) -->
+        <!-- Row 3: Bottom status bar (44px fixed) -->
         <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
     </rowConstraints>
 
@@ -55,16 +57,15 @@
            text="--" textAlignment="CENTER" wrapText="true"/>
 
     <!-- Row 1: Compact top navigation bar -->
-    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar" GridPane.rowIndex="1">
-        <!-- Player identity (compact) -->
-        <ImageView fx:id="userImage" accessibleText="Player avatar" fitHeight="28.0" fitWidth="28.0"
-                   pickOnBounds="true" preserveRatio="true">
-            <HBox.margin><Insets left="4.0"/></HBox.margin>
-            <Image url="@../no_user.png"/>
-        </ImageView>
-        <Label fx:id="playerLabel" text="Player">
-            <font><Font size="14.0"/></font>
-        </Label>
+    <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="navBar" GridPane.rowIndex="1">
+        <!-- Brand lockup: small Mica logo + wordmark -->
+        <StackPane>
+            <fx:include source="components/micaBrandLogo.fxml"/>
+            <StackPane.margin><Insets left="4.0"/></StackPane.margin>
+            <scaleX>0.45</scaleX>
+            <scaleY>0.45</scaleY>
+        </StackPane>
+        <Label text="Mica Launcher" styleClass="navBrand"/>
 
         <!-- Spacer -->
         <Pane HBox.hgrow="ALWAYS"/>
@@ -79,60 +80,100 @@
                    focusTraversable="true" fitHeight="24.0" fitWidth="18.0"
                    pickOnBounds="true" preserveRatio="true">
             <Image url="@../update.png"/>
-            <HBox.margin><Insets right="4.0"/></HBox.margin>
         </ImageView>
+
+        <!-- User identity (right-aligned, compact) -->
+        <Region styleClass="navDivider" minWidth="1" prefWidth="1" maxWidth="1" prefHeight="22"/>
+        <ImageView fx:id="userImage" accessibleText="Player avatar" fitHeight="28.0" fitWidth="28.0"
+                   pickOnBounds="true" preserveRatio="true">
+            <Image url="@../no_user.png"/>
+        </ImageView>
+        <Label fx:id="playerLabel" text="Player">
+            <HBox.margin><Insets right="4.0"/></HBox.margin>
+        </Label>
     </HBox>
 
-    <!-- Row 2: Main content (pack list + detail panel) -->
+    <!-- Row 2: Main content (pack list + hero detail) -->
     <HBox GridPane.rowIndex="2">
         <!-- Left: Pack list sidebar -->
         <VBox minWidth="260.0" prefWidth="300.0" maxWidth="340.0" styleClass="stripPane">
             <padding><Insets top="8.0" bottom="8.0" left="8.0" right="8.0"/></padding>
-            <ListView fx:id="packSelectionList" fixedCellSize="52" VBox.vgrow="ALWAYS"
+            <Label text="Library" styleClass="heading-h3 muted">
+                <VBox.margin><Insets top="4.0" bottom="6.0" left="6.0"/></VBox.margin>
+            </Label>
+            <ListView fx:id="packSelectionList" fixedCellSize="56" VBox.vgrow="ALWAYS"
                       style="-fx-background-color: transparent;">
-                <VBox.margin><Insets top="4.0" bottom="4.0"/></VBox.margin>
+                <VBox.margin><Insets top="2.0" bottom="4.0"/></VBox.margin>
             </ListView>
         </VBox>
 
-        <!-- Right: Modpack detail panel -->
-        <GridPane fx:id="centerPane" HBox.hgrow="ALWAYS"
-                  alignment="CENTER">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS"/>
-            </columnConstraints>
-            <rowConstraints>
-                <!-- Unstable warning (conditional) -->
-                <RowConstraints fx:id="unstableWarningRow" fillHeight="false"/>
-                <!-- Remaining space -->
-                <RowConstraints vgrow="ALWAYS"/>
-            </rowConstraints>
-            <padding><Insets bottom="16.0" left="16.0" right="16.0" top="16.0"/></padding>
+        <!-- Right: Modpack hero detail panel -->
+        <StackPane fx:id="centerPane" HBox.hgrow="ALWAYS" styleClass="hero-surface">
+            <padding><Insets top="24.0" bottom="24.0" left="24.0" right="24.0"/></padding>
 
-            <!-- Unstable warning -->
-            <Label fx:id="unstableWarning"
-                   accessibleText="Warning: This mod pack is marked as unstable (beta). Bugs may be present."
-                   alignment="CENTER" maxWidth="400.0" minHeight="0.0" prefHeight="37.0"
-                   styleClass="banner-danger"
-                   text="This mod pack is marked as unstable (beta). &#10;Bugs may be present."
-                   textAlignment="CENTER" wrapText="true"
-                   GridPane.halignment="CENTER">
-                <font><Font size="11.0"/></font>
-            </Label>
-        </GridPane>
+            <!-- Hero card: stacked layers — modpack background image, dark gradient overlay, content -->
+            <StackPane maxWidth="720" maxHeight="-Infinity" styleClass="heroCardShell">
+                <!-- Layer 1: modpack background image (fills card, edges clipped by radius) -->
+                <Region fx:id="heroBackgroundLayer" styleClass="heroBackground"/>
+
+                <!-- Layer 2: dark gradient veil — makes text legible regardless of image -->
+                <Region styleClass="heroBackgroundVeil"/>
+
+                <!-- Layer 3: foreground content -->
+                <VBox alignment="TOP_CENTER" spacing="14" styleClass="heroCard">
+                    <padding><Insets top="32.0" bottom="32.0" left="36.0" right="36.0"/></padding>
+
+                    <!-- Pack logo (square, with subtle border) -->
+                    <StackPane fx:id="heroPackLogoContainer" minWidth="112" minHeight="112"
+                               maxWidth="112" maxHeight="112" styleClass="heroPackLogoContainer">
+                        <ImageView fx:id="heroPackLogo" fitWidth="108" fitHeight="108"
+                                   preserveRatio="true" pickOnBounds="true"/>
+                    </StackPane>
+
+                    <!-- Pack name -->
+                    <Label fx:id="heroPackName" text="" alignment="CENTER" textAlignment="CENTER"
+                           wrapText="true" styleClass="heading-display heroPackName"/>
+
+                    <!-- Stat chip strip: MC version, Forge version, version, beta flag -->
+                    <HBox fx:id="heroChipRow" alignment="CENTER" spacing="8">
+                        <Label fx:id="heroChipMc"      styleClass="stat-chip" text="" managed="false" visible="false"/>
+                        <Label fx:id="heroChipForge"  styleClass="stat-chip" text="" managed="false" visible="false"/>
+                        <Label fx:id="heroChipVersion" styleClass="stat-chip" text="" managed="false" visible="false"/>
+                        <Label fx:id="heroChipBeta"   styleClass="stat-chip stat-chip-warn" text="Beta"
+                                                      managed="false" visible="false"/>
+                    </HBox>
+
+                    <!-- Conditional unstable warning (kept for compatibility) -->
+                    <Label fx:id="unstableWarning"
+                           accessibleText="Warning: This mod pack is marked as unstable (beta). Bugs may be present."
+                           alignment="CENTER" maxWidth="500.0" minHeight="0.0"
+                           styleClass="banner-danger"
+                           text="This mod pack is marked as unstable (beta). Bugs may be present."
+                           textAlignment="CENTER" wrapText="true" managed="false" visible="false">
+                        <font><Font size="11.0"/></font>
+                    </Label>
+
+                    <!-- Action row: big Play CTA + small Website link -->
+                    <HBox alignment="CENTER" spacing="12">
+                        <VBox.margin><Insets top="8.0"/></VBox.margin>
+                        <MFXButton fx:id="playBtn" text="Play" prefHeight="46.0" prefWidth="200.0"
+                                   styleClass="primary playBtn heroPlayBtn">
+                            <font><Font size="16.0"/></font>
+                        </MFXButton>
+                        <MFXButton fx:id="websiteBtn" text="Visit Website" prefHeight="46.0"/>
+                    </HBox>
+                </VBox>
+            </StackPane>
+        </StackPane>
     </HBox>
 
-    <!-- Row 3: Bottom status bar with Play/Website integrated -->
+    <!-- Row 3: Bottom status bar (now minimal — version + offline + exit only) -->
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="3">
         <Label fx:id="versionLabel" text="Mica Launcher"/>
         <Label fx:id="offlineLabel" text="Offline Mode" managed="false" visible="false"
                styleClass="chip-offline">
             <font><Font size="11.0"/></font>
         </Label>
-        <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="playBtn" text="Play" prefHeight="28.0" prefWidth="80.0" styleClass="primary playBtn">
-            <font><Font size="14.0"/></font>
-        </MFXButton>
-        <MFXButton fx:id="websiteBtn" text="Website" prefHeight="28.0"/>
         <Pane HBox.hgrow="ALWAYS"/>
         <MFXButton fx:id="exitBtn" text="Exit" prefHeight="28.0"/>
     </HBox>

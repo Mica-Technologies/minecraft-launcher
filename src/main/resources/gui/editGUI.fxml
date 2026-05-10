@@ -31,7 +31,7 @@
   -->
 
 <GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
-          prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane" stylesheets="@../guiStyle-dark.css"
+          prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane hero-surface" stylesheets="@../guiStyle-dark.css"
           xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
@@ -41,7 +41,7 @@
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
     </rowConstraints>
 
-    <GridPane maxWidth="450.0" minWidth="375.0" prefWidth="420.0" styleClass="stripPane"
+    <GridPane maxWidth="540.0" minWidth="420.0" prefWidth="500.0" styleClass="card elevated"
               GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS"/>
