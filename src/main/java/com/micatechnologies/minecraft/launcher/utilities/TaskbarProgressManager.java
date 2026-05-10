@@ -95,18 +95,22 @@ public final class TaskbarProgressManager
      */
     public static synchronized void setProgress( double fraction )
     {
-        if ( instance == null ) return;
-        try {
-            if ( fraction == MFXProgressBar.INDETERMINATE_PROGRESS ) {
-                instance.showIndeterminateProgress();
+        // Windows path: FXTaskbarProgressBar via the cached instance.
+        if ( instance != null ) {
+            try {
+                if ( fraction == MFXProgressBar.INDETERMINATE_PROGRESS ) {
+                    instance.showIndeterminateProgress();
+                }
+                else {
+                    instance.showCustomProgress( fraction, TaskbarProgressbar.Type.NORMAL );
+                }
             }
-            else {
-                instance.showCustomProgress( fraction, TaskbarProgressbar.Type.NORMAL );
+            catch ( Exception | Error e ) {
+                Logger.logWarningSilent( "Failed to update taskbar progress: " + e.getMessage() );
             }
         }
-        catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Failed to update taskbar progress: " + e.getMessage() );
-        }
+        // macOS / Linux path: java.awt.Taskbar. No-op where unsupported.
+        MacOsDockManager.setProgress( fraction );
     }
 
     /**
@@ -116,13 +120,15 @@ public final class TaskbarProgressManager
      */
     public static synchronized void stop()
     {
-        if ( instance == null ) return;
-        try {
-            instance.stopProgress();
+        if ( instance != null ) {
+            try {
+                instance.stopProgress();
+            }
+            catch ( Exception | Error e ) {
+                Logger.logWarningSilent( "Failed to stop taskbar progress: " + e.getMessage() );
+            }
         }
-        catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Failed to stop taskbar progress: " + e.getMessage() );
-        }
+        MacOsDockManager.stop();
     }
 
     /**
@@ -132,13 +138,17 @@ public final class TaskbarProgressManager
      */
     public static synchronized void showFullError()
     {
-        if ( instance == null ) return;
-        try {
-            instance.showFullErrorProgress();
+        if ( instance != null ) {
+            try {
+                instance.showFullErrorProgress();
+            }
+            catch ( Exception | Error e ) {
+                Logger.logWarningSilent( "Failed to set taskbar error overlay: " + e.getMessage() );
+            }
         }
-        catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Failed to set taskbar error overlay: " + e.getMessage() );
-        }
+        // macOS / Linux: red-tinted progress + bounce the dock icon to draw attention.
+        MacOsDockManager.setError();
+        MacOsDockManager.requestAttention( false );
     }
 
     /**
@@ -148,16 +158,18 @@ public final class TaskbarProgressManager
      */
     public static synchronized void shutdown()
     {
-        if ( instance == null ) return;
-        try {
-            instance.stopProgress();
+        if ( instance != null ) {
+            try {
+                instance.stopProgress();
+            }
+            catch ( Exception | Error ignored ) { /* best-effort clear */ }
+            try {
+                instance.closeOperations();
+            }
+            catch ( Exception | Error ignored ) { /* best-effort release */ }
+            instance = null;
+            attachedStage = null;
         }
-        catch ( Exception | Error ignored ) { /* best-effort clear */ }
-        try {
-            instance.closeOperations();
-        }
-        catch ( Exception | Error ignored ) { /* best-effort release */ }
-        instance = null;
-        attachedStage = null;
+        MacOsDockManager.shutdown();
     }
 }
