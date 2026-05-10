@@ -10,6 +10,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
 <!--
@@ -59,13 +60,26 @@
             </Label>
         </GridPane>
 
-        <!-- Log output area -->
-        <TextArea fx:id="logArea" editable="false" wrapText="true" styleClass="text-mono"
-                  style="-fx-font-size: 12px;" GridPane.rowIndex="1">
+        <!-- Log area row: diagnosis card stacks above the live log/crash text. The card is
+             hidden+unmanaged unless CrashReportAnalyzer returned a non-UNKNOWN diagnosis. -->
+        <VBox spacing="8.0" GridPane.rowIndex="1">
             <GridPane.margin>
                 <Insets top="5.0" bottom="2.0"/>
             </GridPane.margin>
-        </TextArea>
+
+            <!-- Crash diagnosis panel — populated by MCLauncherGameConsoleGui.showDiagnosis() -->
+            <VBox fx:id="diagnosisCard" visible="false" managed="false" spacing="6.0"
+                  styleClass="card,crashDiagnosisCard">
+                <padding><Insets top="12.0" bottom="12.0" left="14.0" right="14.0"/></padding>
+                <Label fx:id="diagnosisTitleLabel" styleClass="heading-h3,crashDiagnosisTitle"/>
+                <Label fx:id="diagnosisSummaryLabel" wrapText="true" styleClass="crashDiagnosisSummary"/>
+                <HBox fx:id="diagnosisActionsBox" spacing="6.0" alignment="CENTER_LEFT"/>
+            </VBox>
+
+            <!-- Live game log / crash report text -->
+            <TextArea fx:id="logArea" editable="false" wrapText="true" styleClass="text-mono"
+                      style="-fx-font-size: 12px;" VBox.vgrow="ALWAYS"/>
+        </VBox>
 
         <!-- Truncation notice row -->
         <HBox spacing="5.0" alignment="CENTER_LEFT" GridPane.rowIndex="2">

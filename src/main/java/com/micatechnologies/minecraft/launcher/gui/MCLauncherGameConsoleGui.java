@@ -13,6 +13,10 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.game.crash.CrashDiagnosis;
+import com.micatechnologies.minecraft.launcher.game.crash.CrashReportAnalyzer;
+import com.micatechnologies.minecraft.launcher.game.crash.Suggestion;
+import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
@@ -22,6 +26,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.awt.Desktop;
@@ -83,6 +89,12 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     Hyperlink openLogLink;
+
+    // ===== Crash diagnosis card =====
+    @SuppressWarnings( "unused" ) @FXML VBox  diagnosisCard;
+    @SuppressWarnings( "unused" ) @FXML Label diagnosisTitleLabel;
+    @SuppressWarnings( "unused" ) @FXML Label diagnosisSummaryLabel;
+    @SuppressWarnings( "unused" ) @FXML HBox  diagnosisActionsBox;
 
     private Process gameProcess;
     private long startTimeMs;
@@ -343,11 +355,23 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Shows a crash report in the console. Can be called after the game has exited.
+     * Shows a crash report in the console. Can be called after the game has exited. The crash text
+     * is also run through {@link CrashReportAnalyzer} and any non-UNKNOWN diagnosis is surfaced
+     * in the panel above the log area. Use {@link #showCrashReport(String, GameModPack, int)}
+     * to enable pack-specific suggestions (open mods folder, etc.); this overload uses a null
+     * pack and exit-code 0 fallback.
      *
      * @param crashReport the crash report text content
      */
     public void showCrashReport( String crashReport ) {
+        showCrashReport( crashReport, null, 0 );
+    }
+
+    /**
+     * Shows a crash report and renders the pack-aware diagnosis. Used by the in-game-console
+     * exit handler in {@link LauncherCore#play}.
+     */
+    public void showCrashReport( String crashReport, GameModPack pack, int exitCode ) {
         this.crashReportContent = crashReport;
         GUIUtilities.JFXPlatformRun( () -> {
             crashReportBtn.setVisible( true );
@@ -358,6 +382,8 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
             logArea.positionCaret( 0 );
             crashReportBtn.setText( "Game Log" );
             showingCrashReport = true;
+
+            populateDiagnosisCard( CrashReportAnalyzer.analyze( crashReport, pack, exitCode ) );
         } );
     }
 
@@ -371,12 +397,29 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
      * @param gameLog     the captured game log (may be null)
      */
     public void showCrashOnly( String packName, int exitCode, String crashReport, String gameLog ) {
+        showCrashOnly( packName, exitCode, crashReport, gameLog, null );
+    }
+
+    /**
+     * Pack-aware crash-only mode. {@code pack} is used by {@link CrashReportAnalyzer} to build
+     * suggestions that reference the pack's install folder. Pass {@code null} if the pack
+     * reference isn't available; the analyzer falls back to non-pack-specific suggestions.
+     */
+    public void showCrashOnly( String packName, int exitCode, String crashReport, String gameLog,
+                                GameModPack pack ) {
         GUIUtilities.JFXPlatformRun( () -> {
             titleLabel.setText( "Game Crashed: " + packName );
             statusLabel.setText( "Exit code " + exitCode );
             killBtn.setDisable( true );
             closeBtn.setDisable( false );
             uptimeLabel.setText( "" );
+
+            // Diagnose from whichever text we have. Crash report is preferred (more structured);
+            // game log is a noisy fallback that still has useful exception lines; with neither
+            // we synthesize an "exit code N" message and the analyzer returns UNKNOWN.
+            String analyzeText = crashReport != null ? crashReport
+                                                     : ( gameLog != null ? gameLog : "" );
+            populateDiagnosisCard( CrashReportAnalyzer.analyze( analyzeText, pack, exitCode ) );
 
             if ( crashReport != null ) {
                 crashReportContent = crashReport;
@@ -399,6 +442,66 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                                          ".\nNo crash report was generated." );
             }
         } );
+    }
+
+    // =========================================================================================
+    //  Crash diagnosis card rendering
+    // =========================================================================================
+
+    /**
+     * Builds the diagnosis panel above the log area from a {@link CrashDiagnosis}. Sets title,
+     * summary, a styleClass that drives the panel color (severity), and one button per
+     * {@link Suggestion} (primary suggestion gets the brand-blue primary button style; the
+     * rest are tonal). Must be called on the FX thread.
+     */
+    private void populateDiagnosisCard( CrashDiagnosis diagnosis )
+    {
+        if ( diagnosis == null ) {
+            diagnosisCard.setVisible( false );
+            diagnosisCard.setManaged( false );
+            return;
+        }
+
+        diagnosisCard.setVisible( true );
+        diagnosisCard.setManaged( true );
+
+        diagnosisTitleLabel.setText( diagnosis.title() );
+        diagnosisSummaryLabel.setText( diagnosis.summary() );
+
+        // Severity drives the card color via styleClass — defined in ui-base.css. We clear any
+        // previous severity class first so re-populating the card on a new crash doesn't stack
+        // colors. The "crashDiagnosisCard" base class is left alone.
+        diagnosisCard.getStyleClass().removeAll( "crashSeverityCritical", "crashSeverityWarning",
+                                                  "crashSeverityInfo" );
+        diagnosisCard.getStyleClass().add( severityStyleClass( diagnosis.severity() ) );
+
+        // Rebuild the action button row. Each Suggestion with an action becomes a button;
+        // hint-only suggestions (action == null) become a muted Label.
+        diagnosisActionsBox.getChildren().clear();
+        for ( Suggestion suggestion : diagnosis.suggestions() ) {
+            if ( suggestion.action() == null ) {
+                Label hint = new Label( suggestion.label() );
+                hint.getStyleClass().add( "muted" );
+                diagnosisActionsBox.getChildren().add( hint );
+                continue;
+            }
+            MFXButton btn = new MFXButton( suggestion.label() );
+            btn.setPrefHeight( 30.0 );
+            if ( suggestion.primary() ) {
+                btn.getStyleClass().add( "primary" );
+            }
+            btn.setOnAction( e -> SystemUtilities.spawnNewTask( suggestion.action() ) );
+            diagnosisActionsBox.getChildren().add( btn );
+        }
+    }
+
+    private static String severityStyleClass( CrashDiagnosis.Severity severity )
+    {
+        return switch ( severity ) {
+            case CRITICAL -> "crashSeverityCritical";
+            case WARNING  -> "crashSeverityWarning";
+            case INFO     -> "crashSeverityInfo";
+        };
     }
 
     /**

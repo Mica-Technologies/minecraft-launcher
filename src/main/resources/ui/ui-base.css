@@ -144,6 +144,54 @@
     -fx-fill: -color-text;
 }
 
+/* =====================================================================
+ *  Crash diagnosis card
+ *  Rendered above the game-console log area when CrashReportAnalyzer
+ *  returns a non-UNKNOWN diagnosis. Severity-tinted left border + a
+ *  matching color accent on the title, calmer body text below.
+ * ===================================================================== */
+
+.crashDiagnosisCard {
+    -fx-background-color: -color-surface-elevated;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-width: 1 1 1 4;
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 10, 0.18, 0, 3);
+}
+
+.crashDiagnosisTitle {
+    -fx-font-weight: 700;
+}
+
+.crashDiagnosisSummary {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 13px;
+}
+
+/* Severity tints. Critical is the default we expect 99% of the time
+ * (most crashes can't be recovered without action). Warning + Info are
+ * reserved for future cues. */
+.crashDiagnosisCard.crashSeverityCritical {
+    -fx-border-color: -color-border -color-border -color-border -color-danger;
+}
+.crashDiagnosisCard.crashSeverityCritical .crashDiagnosisTitle {
+    -fx-text-fill: -color-danger;
+}
+
+.crashDiagnosisCard.crashSeverityWarning {
+    -fx-border-color: -color-border -color-border -color-border -color-warning;
+}
+.crashDiagnosisCard.crashSeverityWarning .crashDiagnosisTitle {
+    -fx-text-fill: -color-warning;
+}
+
+.crashDiagnosisCard.crashSeverityInfo {
+    -fx-border-color: -color-border -color-border -color-border -color-primary;
+}
+.crashDiagnosisCard.crashSeverityInfo .crashDiagnosisTitle {
+    -fx-text-fill: -color-primary;
+}
+
 
 /* =====================================================================
  * 3b. Main-screen hero card (selected modpack detail)

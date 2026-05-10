@@ -270,7 +270,9 @@ public class LauncherCore
                                                         + " exited with code " + exitCode + "." );
                                         String crashReport = gameModPack.getLatestCrashReport();
                                         if ( crashReport != null ) {
-                                            consoleGui.showCrashReport( crashReport );
+                                            // Pack-aware overload so CrashReportAnalyzer can build
+                                            // pack-specific suggestions (Open Mods Folder, etc.).
+                                            consoleGui.showCrashReport( crashReport, gameModPack, exitCode );
                                         }
                                     }
                                 } );
@@ -320,8 +322,10 @@ public class LauncherCore
                                     MCLauncherGameConsoleGui crashGui =
                                             MCLauncherGuiController.goToGameConsoleGui();
                                     if ( crashGui != null ) {
+                                        // Pack-aware overload so CrashReportAnalyzer can build
+                                        // pack-specific suggestions (Open Mods Folder, etc.).
                                         crashGui.showCrashOnly( gameModPack.getPackName(), exitCode,
-                                                                 crashReport, null );
+                                                                 crashReport, null, gameModPack );
                                     }
                                 }
                                 catch ( IOException e ) {
