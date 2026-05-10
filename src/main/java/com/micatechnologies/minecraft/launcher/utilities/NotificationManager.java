@@ -17,15 +17,24 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
+import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
+import javafx.application.Platform;
 
 import javax.imageio.ImageIO;
+import java.awt.Desktop;
 import java.awt.Image;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
+import java.io.File;
 import java.io.InputStream;
 
 /**
@@ -132,11 +141,15 @@ public final class NotificationManager
             trayIcon = new TrayIcon( image, LauncherConstants.LAUNCHER_APPLICATION_NAME );
             trayIcon.setImageAutoSize( true );
 
-            // Left-click the tray icon → bring the launcher to focus. Cheap to wire here so the
-            // icon is at least somewhat interactive; the full right-click menu (recent modpacks,
-            // play last, quit) is Tier 2 follow-up work tracked in OS_INTEGRATION_POLISH.md.
+            // Left-click / double-click → focus the launcher window.
             trayIcon.addActionListener( e ->
                 GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus ) );
+
+            // Right-click → popup menu with the common cross-app actions. We rebuild this once
+            // at icon-creation time rather than on every right-click because AWT PopupMenu doesn't
+            // expose an on-show hook; items reflect "no last modpack" via toasts when fired
+            // rather than via greyed-out items.
+            trayIcon.setPopupMenu( buildTrayPopupMenu() );
 
             SystemTray.getSystemTray().add( trayIcon );
             return true;
@@ -163,6 +176,124 @@ public final class NotificationManager
         catch ( Exception e ) {
             return null;
         }
+    }
+
+    // =========================================================================================
+    //  Tray right-click menu
+    // =========================================================================================
+
+    /**
+     * Builds the AWT {@link PopupMenu} that hangs off the tray icon. Items mirror the most
+     * common cross-app actions a user would reach for without having to focus the launcher
+     * window first: bring it to focus, replay their last modpack, jump to the last pack's
+     * mods folder, or quit cleanly.
+     *
+     * <p>AWT {@code PopupMenu} doesn't surface an on-show event, so we can't disable items
+     * based on whether a last-played pack exists. Instead, the action handlers themselves
+     * emit a {@link #warn(String, String) warn toast} when invoked without a pack — feels
+     * the same in practice and avoids rebuilding the menu on every right-click.</p>
+     */
+    private static PopupMenu buildTrayPopupMenu()
+    {
+        PopupMenu menu = new PopupMenu();
+
+        MenuItem show = new MenuItem( "Show " + LauncherConstants.LAUNCHER_APPLICATION_NAME );
+        show.addActionListener( e -> GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus ) );
+
+        MenuItem playLast = new MenuItem( "Play Last Modpack" );
+        playLast.addActionListener( e -> trayPlayLast() );
+
+        MenuItem openMods = new MenuItem( "Open Last Pack's Mods Folder" );
+        openMods.addActionListener( e -> trayOpenLastModsFolder() );
+
+        MenuItem quit = new MenuItem( "Quit " + LauncherConstants.LAUNCHER_APPLICATION_NAME );
+        quit.addActionListener( e -> LauncherCore.closeApp() );
+
+        menu.add( show );
+        menu.addSeparator();
+        menu.add( playLast );
+        menu.add( openMods );
+        menu.addSeparator();
+        menu.add( quit );
+        return menu;
+    }
+
+    /** Resolves the {@link GameModPack} for {@link ConfigManager#getLastModPackSelected()} —
+     *  tries pack name first, then friendly name. Returns {@code null} if the user hasn't
+     *  played anything yet or the saved pack is no longer installed. */
+    private static GameModPack lastPlayedModpack()
+    {
+        String lastName = ConfigManager.getLastModPackSelected();
+        if ( lastName == null || lastName.isBlank() ) {
+            return null;
+        }
+        GameModPack pack = GameModPackManager.getInstalledModPackByName( lastName );
+        if ( pack != null ) {
+            return pack;
+        }
+        for ( GameModPack p : GameModPackManager.getInstalledModPacks() ) {
+            if ( lastName.equals( p.getFriendlyName() ) ) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /** Tray "Play Last Modpack" handler. Same launch flow as the in-window hero card's Play
+     *  button — sets implicit-exit-false so the launcher can hide during the game, kicks off
+     *  the play pipeline, and returns to the main GUI on game exit. Warning toast if there's
+     *  no last-played pack to launch. */
+    private static void trayPlayLast()
+    {
+        GameModPack pack = lastPlayedModpack();
+        if ( pack == null ) {
+            warn( "No recent modpack",
+                  "Open the launcher and play a modpack at least once to enable Play Last." );
+            return;
+        }
+        ConfigManager.setLastModPackSelected( pack.getPackName() );
+        final GameModPack finalPack = pack;
+        SystemUtilities.spawnNewTask( () -> {
+            Platform.setImplicitExit( false );
+            SystemUtilities.spawnNewTask( () ->
+                DiscordRpcUtility.setGamePresence( finalPack.getPackName(),
+                                                  finalPack.getCustomDiscordRpc() ) );
+            LauncherCore.play( finalPack, () -> GUIUtilities.JFXPlatformRun( () -> {
+                try {
+                    java.util.Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
+                    MCLauncherGuiController.goToMainGui();
+                    MCLauncherGuiController.requestFocus();
+                }
+                catch ( Exception ex ) {
+                    Logger.logError( "Unable to return to main GUI after tray Play Last." );
+                    Logger.logThrowable( ex );
+                }
+            } ) );
+        } );
+    }
+
+    /** Tray "Open Last Pack's Mods Folder" handler. Creates the folder if it doesn't exist yet
+     *  (consistent with the in-window context-menu equivalent). Warning toast on no last pack. */
+    private static void trayOpenLastModsFolder()
+    {
+        GameModPack pack = lastPlayedModpack();
+        if ( pack == null ) {
+            warn( "No recent modpack",
+                  "Play a modpack at least once before opening its mods folder." );
+            return;
+        }
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                File folder = new File( pack.getPackRootFolder() + File.separator + "mods" );
+                if ( !folder.exists() ) {
+                    folder.mkdirs();
+                }
+                Desktop.getDesktop().open( folder );
+            }
+            catch ( Exception ex ) {
+                Logger.logWarningSilent( "Unable to open mods folder from tray: " + ex.getMessage() );
+            }
+        } );
     }
 
     /** Removes the tray icon and resets state. Call exactly once at app exit. Idempotent. */
