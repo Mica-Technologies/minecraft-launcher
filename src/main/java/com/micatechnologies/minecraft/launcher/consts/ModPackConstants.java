@@ -33,6 +33,27 @@ import java.net.URL;
 public class ModPackConstants
 {
     /**
+     * Canonical file extension for Mica Minecraft modpack manifest files. Distinct from a
+     * generic {@code .json} so the OS can associate it with this launcher (planned
+     * jpackage {@code --file-associations} hook), and the website can serve modpack
+     * manifests with a content-type / name that's unambiguously ours rather than
+     * looking like a random JSON download.
+     *
+     * <p>The leading dot is included to keep call-sites tidy: {@code "pack" + EXTENSION}
+     * gives {@code "pack.mmcjson"}.</p>
+     *
+     * @since 3.1
+     */
+    public static final String MODPACK_FILE_EXTENSION = ".mmcjson";
+
+    /** Glob pattern for file-chooser filters. Matches {@link #MODPACK_FILE_EXTENSION}. */
+    public static final String MODPACK_FILE_GLOB = "*" + MODPACK_FILE_EXTENSION;
+
+    /** Human-readable description shown in file-chooser filters and (eventually) by the
+     *  installer when registering the file association. */
+    public static final String MODPACK_FILE_DESCRIPTION = "Mica Minecraft Modpack";
+
+    /**
      * Modpack install folder relative path to Forge jar
      *
      * @since 1.0

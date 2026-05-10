@@ -22,6 +22,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.CacheManager;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
@@ -287,9 +288,14 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         GUIUtilities.JFXPlatformRun( () -> {
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle( "Open Modpack JSON" );
-            fileChooser.getExtensionFilters().add(
-                    new FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+            fileChooser.setTitle( "Open Modpack" );
+            // Primary filter is the canonical .mmcjson extension; .json kept as a secondary
+            // filter so users with existing manifests on disk can still open them. Order
+            // matters — JavaFX shows the first as the default selection.
+            fileChooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter( ModPackConstants.MODPACK_FILE_DESCRIPTION,
+                                                     ModPackConstants.MODPACK_FILE_GLOB ),
+                    new FileChooser.ExtensionFilter( "Legacy JSON Modpack", "*.json" ) );
             File file = fileChooser.showOpenDialog( stage );
             if ( file != null ) {
                 SystemUtilities.spawnNewTask( () -> {
@@ -363,9 +369,14 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         GUIUtilities.JFXPlatformRun( () -> {
             collectFieldsToDocument();
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle( "Save Modpack JSON" );
-            fileChooser.getExtensionFilters().add(
-                    new FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+            fileChooser.setTitle( "Save Modpack" );
+            // Save defaults to the canonical .mmcjson extension so new files get the unique
+            // identity that lets the OS associate them with the launcher. .json remains an
+            // option for users who specifically want a generic-looking file.
+            fileChooser.getExtensionFilters().addAll(
+                    new FileChooser.ExtensionFilter( ModPackConstants.MODPACK_FILE_DESCRIPTION,
+                                                     ModPackConstants.MODPACK_FILE_GLOB ),
+                    new FileChooser.ExtensionFilter( "Legacy JSON Modpack", "*.json" ) );
             if ( currentFile != null ) {
                 fileChooser.setInitialDirectory( currentFile.getParentFile() );
                 fileChooser.setInitialFileName( currentFile.getName() );
@@ -373,7 +384,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             else if ( workingDocument.has( "packName" ) &&
                     !workingDocument.get( "packName" ).getAsString().isEmpty() ) {
                 fileChooser.setInitialFileName(
-                        workingDocument.get( "packName" ).getAsString().replaceAll( "[^a-zA-Z0-9]", "" ) + ".json" );
+                        workingDocument.get( "packName" ).getAsString().replaceAll( "[^a-zA-Z0-9]", "" )
+                                + ModPackConstants.MODPACK_FILE_EXTENSION );
             }
             File file = fileChooser.showSaveDialog( stage );
             if ( file != null ) {
