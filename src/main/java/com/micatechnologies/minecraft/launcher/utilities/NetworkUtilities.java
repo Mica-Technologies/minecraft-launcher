@@ -305,6 +305,10 @@ public class NetworkUtilities
                             if ( tracker != null ) {
                                 tracker.addBytes( bytesRead );
                             }
+                            // Battery saver: when on battery + the user hasn't disabled throttling,
+                            // sleep just enough per chunk to cap this stream at the configured rate.
+                            // No-op on AC, on desktops, or when disabled.
+                            PowerStateManager.maybeThrottle( bytesRead );
                         }
                     }
                     Files.move( tempFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING );

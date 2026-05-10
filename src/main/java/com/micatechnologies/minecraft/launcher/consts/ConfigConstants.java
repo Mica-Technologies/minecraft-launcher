@@ -410,6 +410,32 @@ public class ConfigConstants
      */
     public static final boolean WINDOW_MAXIMIZED_DEFAULT = false;
 
+    /**
+     * Key for accessing the "throttle downloads while on battery" toggle.
+     *
+     * @since 3.1
+     */
+    public static final String BATTERY_THROTTLE_ENABLE_KEY = "batteryThrottleEnable";
+
+    /**
+     * Default value for "throttle downloads while on battery". On by default — laptops are the
+     * common case and a half-full battery dropped during a fresh modpack install is a poor
+     * first impression. Desktops have no battery, so this never engages there.
+     *
+     * @since 3.1
+     */
+    public static final boolean BATTERY_THROTTLE_ENABLE_DEFAULT = true;
+
+    /**
+     * Per-download-stream cap (in bytes per second) when battery throttling is engaged. With the
+     * library/asset/manifest pipeline running ~4-8 parallel downloads during a modpack install,
+     * 512 KiB/s × 4-8 = 2-4 MiB/s aggregate — fast enough that an install in a coffee-shop trip
+     * still completes, slow enough that the user's laptop fan doesn't spin up.
+     *
+     * @since 3.1
+     */
+    public static final long BATTERY_THROTTLE_BYTES_PER_SEC = 512L * 1024L;
+
     public static final String THEME_DARK          = "Dark";
     public static final String THEME_LIGHT         = "Light";
     public static final String THEME_AUTOMATIC     = "Automatic";

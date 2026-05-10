@@ -275,6 +275,41 @@ public class ConfigManager
     }
 
     /**
+     * Gets whether downloads should throttle while running on battery power. Engaged only when the
+     * host actually has a battery (laptops); on desktops {@code PowerStateManager.isOnBattery()}
+     * always reports false, so the flag is dormant regardless of its value.
+     *
+     * @return true if battery throttling is enabled
+     *
+     * @since 3.1
+     */
+    public synchronized static boolean getBatteryThrottleEnable() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY,
+                                      ConfigConstants.BATTERY_THROTTLE_ENABLE_DEFAULT );
+        }
+        return configObject.get( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Sets whether downloads should throttle while running on battery power.
+     *
+     * @param enable true to throttle downloads on battery
+     *
+     * @since 3.1
+     */
+    public synchronized static void setBatteryThrottleEnable( boolean enable ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY, enable );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Gets the configured state of enhanced logging for the application.
      *
      * @return true if enhanced logging enabled, otherwise false
