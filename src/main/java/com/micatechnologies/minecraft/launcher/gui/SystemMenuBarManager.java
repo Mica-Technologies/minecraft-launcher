@@ -79,8 +79,23 @@ public final class SystemMenuBarManager
             try {
                 Desktop desktop = Desktop.getDesktop();
                 if ( desktop.isSupported( Desktop.Action.APP_OPEN_URI ) ) {
-                    desktop.setOpenURIHandler( event ->
-                        LauncherUriHandler.handle( event.getURI() == null ? null : event.getURI().toString() ) );
+                    desktop.setOpenURIHandler( event -> {
+                        String uri = event.getURI() == null ? null : event.getURI().toString();
+                        if ( uri == null ) {
+                            return;
+                        }
+                        // macOS delivers cold-start mmcl:// URIs through this handler (not argv —
+                        // that's the Win/Linux path). If the main GUI isn't up yet, stash via
+                        // the same pendingLauncherUri channel the argv parser uses; LauncherSession
+                        // dispatches once auth + modpack list are ready. If the launcher is
+                        // already running, dispatch immediately.
+                        if ( MCLauncherGuiController.getTopStageOrNull() == null ) {
+                            LauncherCore.setPendingLauncherUri( uri );
+                        }
+                        else {
+                            LauncherUriHandler.handle( uri );
+                        }
+                    } );
                 }
             }
             catch ( Exception | Error e ) {

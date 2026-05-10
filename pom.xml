@@ -366,6 +366,19 @@
                                         <argument>dmg</argument>
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
+                                        <!-- Register the .mmcjson modpack manifest extension with macOS Launch
+                                             Services. jpackage emits the matching CFBundleDocumentTypes entry
+                                             in the bundled Info.plist so double-clicking a .mmcjson file in
+                                             Finder routes through to the launcher. -->
+                                        <argument>--file-associations</argument>
+                                        <argument>${project.basedir}/deploy/mac/file-associations.properties</argument>
+                                        <!-- Use our custom Info.plist template (deploy/mac/Info.plist) so the
+                                             bundled .app declares CFBundleURLTypes for the mmcl:// scheme.
+                                             The template preserves the DEPLOY_FILE_ASSOCIATIONS placeholder
+                                             jpackage substitutes for file-associations content, so the URL
+                                             scheme + file association coexist in one plist. -->
+                                        <argument>--resource-dir</argument>
+                                        <argument>${project.basedir}/deploy/mac</argument>
                                         <!-- CODE SIGNING (macOS): Uncomment when an Apple Developer
                                              ID certificate is available. Requires the cert imported
                                              via apple-actions/import-codesign-certs in CI. Set
@@ -427,6 +440,12 @@
                                         <argument>--license-file</argument>
                                         <argument>${project.basedir}/LICENSE</argument>
                                         <argument>--linux-shortcut</argument>
+                                        <!-- Register the .mmcjson modpack manifest extension with the Linux
+                                             desktop environment via the installed .desktop file's MimeType
+                                             field. SchemeRegistrar also writes a user-level .desktop file at
+                                             runtime as a fallback for users running from a portable JAR. -->
+                                        <argument>--file-associations</argument>
+                                        <argument>${project.basedir}/deploy/linux/file-associations.properties</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

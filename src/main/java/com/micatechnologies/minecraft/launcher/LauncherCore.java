@@ -681,6 +681,13 @@ public class LauncherCore
         // Windows and Linux. Must happen before any GUI shows so the system menu reflects
         // these callbacks the moment the first window opens.
         com.micatechnologies.minecraft.launcher.gui.SystemMenuBarManager.installDesktopHandlers();
+
+        // Idempotently register the mmcl:// URL scheme + .mmcjson file extension with the OS
+        // so website "Open in Desktop Launcher" links and double-clicks on .mmcjson files
+        // route through us. Async — Linux's optional update-desktop-database sub-process can
+        // take a hundred ms and we'd rather not delay the splash. Dev mode / non-jpackage
+        // launches are no-ops inside SchemeRegistrar.
+        SystemUtilities.spawnNewTask( SchemeRegistrar::registerIfNeeded );
     }
 
     /**
