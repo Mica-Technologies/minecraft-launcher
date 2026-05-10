@@ -665,6 +665,119 @@ public class ConfigManager
 
     // endregion
 
+    // region Window Bounds Persistence
+
+    /**
+     * Gets the persisted launcher window X coordinate.
+     *
+     * @return saved X coordinate, or {@link Double#NaN} if not previously saved
+     *
+     * @since 3.0
+     */
+    public synchronized static double getWindowX() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.WINDOW_X_KEY ) ) {
+            return Double.NaN;
+        }
+        return configObject.get( ConfigConstants.WINDOW_X_KEY ).getAsDouble();
+    }
+
+    /**
+     * Gets the persisted launcher window Y coordinate.
+     *
+     * @return saved Y coordinate, or {@link Double#NaN} if not previously saved
+     *
+     * @since 3.0
+     */
+    public synchronized static double getWindowY() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.WINDOW_Y_KEY ) ) {
+            return Double.NaN;
+        }
+        return configObject.get( ConfigConstants.WINDOW_Y_KEY ).getAsDouble();
+    }
+
+    /**
+     * Gets the persisted launcher window width.
+     *
+     * @return saved width, or {@link Double#NaN} if not previously saved
+     *
+     * @since 3.0
+     */
+    public synchronized static double getWindowWidth() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.WINDOW_WIDTH_KEY ) ) {
+            return Double.NaN;
+        }
+        return configObject.get( ConfigConstants.WINDOW_WIDTH_KEY ).getAsDouble();
+    }
+
+    /**
+     * Gets the persisted launcher window height.
+     *
+     * @return saved height, or {@link Double#NaN} if not previously saved
+     *
+     * @since 3.0
+     */
+    public synchronized static double getWindowHeight() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.WINDOW_HEIGHT_KEY ) ) {
+            return Double.NaN;
+        }
+        return configObject.get( ConfigConstants.WINDOW_HEIGHT_KEY ).getAsDouble();
+    }
+
+    /**
+     * Gets the persisted launcher window maximized state.
+     *
+     * @return true if the window was maximized when last saved
+     *
+     * @since 3.0
+     */
+    public synchronized static boolean getWindowMaximized() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.WINDOW_MAXIMIZED_KEY ) ) {
+            return ConfigConstants.WINDOW_MAXIMIZED_DEFAULT;
+        }
+        return configObject.get( ConfigConstants.WINDOW_MAXIMIZED_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Persists the launcher window bounds (position, size, and maximized state) in a single atomic write.
+     *
+     * @param x         window X coordinate (last unmaximized position)
+     * @param y         window Y coordinate (last unmaximized position)
+     * @param width     window width (last unmaximized size)
+     * @param height    window height (last unmaximized size)
+     * @param maximized true if the window was maximized at save time
+     *
+     * @since 3.0
+     */
+    public synchronized static void setWindowBounds( double x, double y, double width, double height,
+                                                     boolean maximized ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.WINDOW_X_KEY, x );
+        configObject.addProperty( ConfigConstants.WINDOW_Y_KEY, y );
+        configObject.addProperty( ConfigConstants.WINDOW_WIDTH_KEY, width );
+        configObject.addProperty( ConfigConstants.WINDOW_HEIGHT_KEY, height );
+        configObject.addProperty( ConfigConstants.WINDOW_MAXIMIZED_KEY, maximized );
+        writeConfigurationToDisk();
+    }
+
+    // endregion
+
     /**
      * Gets the configured list of installed vanilla Minecraft version IDs.
      *

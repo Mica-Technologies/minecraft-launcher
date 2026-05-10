@@ -368,6 +368,48 @@ public class ConfigConstants
     {
     }.getType();
 
+    /**
+     * Key for accessing the persisted launcher window X coordinate.
+     *
+     * @since 3.0
+     */
+    public static final String WINDOW_X_KEY = "windowX";
+
+    /**
+     * Key for accessing the persisted launcher window Y coordinate.
+     *
+     * @since 3.0
+     */
+    public static final String WINDOW_Y_KEY = "windowY";
+
+    /**
+     * Key for accessing the persisted launcher window width.
+     *
+     * @since 3.0
+     */
+    public static final String WINDOW_WIDTH_KEY = "windowWidth";
+
+    /**
+     * Key for accessing the persisted launcher window height.
+     *
+     * @since 3.0
+     */
+    public static final String WINDOW_HEIGHT_KEY = "windowHeight";
+
+    /**
+     * Key for accessing the persisted launcher window maximized state.
+     *
+     * @since 3.0
+     */
+    public static final String WINDOW_MAXIMIZED_KEY = "windowMaximized";
+
+    /**
+     * Default value for the launcher window maximized state.
+     *
+     * @since 3.0
+     */
+    public static final boolean WINDOW_MAXIMIZED_DEFAULT = false;
+
     public static final String THEME_DARK          = "Dark";
     public static final String THEME_LIGHT         = "Light";
     public static final String THEME_AUTOMATIC     = "Automatic";

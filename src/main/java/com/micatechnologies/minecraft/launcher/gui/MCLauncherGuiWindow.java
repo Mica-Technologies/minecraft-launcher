@@ -24,13 +24,18 @@ import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import javafx.animation.PauseTransition;
 import javafx.application.Application;
+import javafx.beans.value.ChangeListener;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
+import javafx.geometry.Rectangle2D;
 import javafx.geometry.VPos;
 import javafx.scene.image.Image;
 import javafx.scene.layout.GridPane;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.InputStream;
 import java.util.Objects;
@@ -47,6 +52,19 @@ public class MCLauncherGuiWindow extends Application
 
     private OsThemeDetector detector = null;
     private java.util.function.Consumer< Boolean > themeListener = null;
+
+    /**
+     * Last unmaximized window bounds. Tracked separately from the live stage because, while the stage is maximized,
+     * its X/Y/width/height reflect the screen (not what we want to persist for "restore on next launch").
+     */
+    private double  lastNormalX      = Double.NaN;
+    private double  lastNormalY      = Double.NaN;
+    private double  lastNormalWidth  = Double.NaN;
+    private double  lastNormalHeight = Double.NaN;
+    private boolean normalBoundsSeen = false;
+
+    /** Debounces bounds-change listeners so we don't write the config file on every pixel of a drag/resize. */
+    private PauseTransition boundsSaveDebouncer = null;
 
     @Override
     public void start( Stage stage ) throws Exception {
@@ -84,10 +102,112 @@ public class MCLauncherGuiWindow extends Application
             Logger.logThrowable( e );
         }
 
+        // Restore saved window bounds (or fall back to centered default). Done before show() so the window
+        // appears at its final position rather than flashing at the center first.
+        boolean restored = restoreSavedBounds();
+
         // Set scene
         show();
         setScene( progressGui );
-        stage.centerOnScreen();
+        if ( !restored ) {
+            stage.centerOnScreen();
+        }
+
+        // Begin tracking bounds changes so we can persist them across launches.
+        installBoundsPersistence();
+    }
+
+    /**
+     * Reads previously saved window bounds from the config and applies them to the stage if they refer to a
+     * currently-connected screen. Saved bounds with no overlapping screen (e.g. the user disconnected a monitor) are
+     * discarded so the window doesn't open off-screen.
+     *
+     * @return true if saved bounds were applied, false if defaults should be used instead
+     */
+    private boolean restoreSavedBounds() {
+        double savedX = ConfigManager.getWindowX();
+        double savedY = ConfigManager.getWindowY();
+        double savedWidth = ConfigManager.getWindowWidth();
+        double savedHeight = ConfigManager.getWindowHeight();
+        boolean savedMaximized = ConfigManager.getWindowMaximized();
+
+        boolean haveBounds = !Double.isNaN( savedX ) && !Double.isNaN( savedY )
+                && !Double.isNaN( savedWidth ) && !Double.isNaN( savedHeight )
+                && savedWidth >= MIN_WIDTH && savedHeight >= MIN_HEIGHT;
+        if ( !haveBounds ) {
+            return false;
+        }
+
+        // Verify the saved rectangle still overlaps an attached screen before applying it.
+        Rectangle2D savedRect = new Rectangle2D( savedX, savedY, savedWidth, savedHeight );
+        if ( Screen.getScreensForRectangle( savedRect ).isEmpty() ) {
+            Logger.logDebug( "Saved launcher window bounds are off-screen; using default position." );
+            return false;
+        }
+
+        stage.setX( savedX );
+        stage.setY( savedY );
+        stage.setWidth( savedWidth );
+        stage.setHeight( savedHeight );
+
+        // Seed the "last normal bounds" tracker so an immediate maximize still has values to persist.
+        lastNormalX = savedX;
+        lastNormalY = savedY;
+        lastNormalWidth = savedWidth;
+        lastNormalHeight = savedHeight;
+        normalBoundsSeen = true;
+
+        if ( savedMaximized ) {
+            stage.setMaximized( true );
+        }
+        return true;
+    }
+
+    /**
+     * Wires listeners on the stage's bounds and maximized properties so changes get persisted (debounced) to the
+     * config. Bounds saved are always the "last unmaximized" values, alongside a flag for the maximized state — that
+     * way restoring a maximized window unmaximizes back to a sensible size and position.
+     */
+    private void installBoundsPersistence() {
+        boundsSaveDebouncer = new PauseTransition( Duration.millis( 500 ) );
+        boundsSaveDebouncer.setOnFinished( e -> persistBoundsNow() );
+
+        ChangeListener< Number > onBoundsChanged = ( obs, oldVal, newVal ) -> {
+            if ( !stage.isMaximized() && !stage.isIconified()
+                    && stage.getWidth() > 0 && stage.getHeight() > 0 ) {
+                lastNormalX = stage.getX();
+                lastNormalY = stage.getY();
+                lastNormalWidth = stage.getWidth();
+                lastNormalHeight = stage.getHeight();
+                normalBoundsSeen = true;
+            }
+            boundsSaveDebouncer.playFromStart();
+        };
+        ChangeListener< Boolean > onFlagChanged = ( obs, oldVal, newVal ) -> boundsSaveDebouncer.playFromStart();
+
+        stage.xProperty().addListener( onBoundsChanged );
+        stage.yProperty().addListener( onBoundsChanged );
+        stage.widthProperty().addListener( onBoundsChanged );
+        stage.heightProperty().addListener( onBoundsChanged );
+        stage.maximizedProperty().addListener( onFlagChanged );
+    }
+
+    /**
+     * Writes the current "last unmaximized" bounds and current maximized flag to the config. Called by the debouncer
+     * after bounds settle, and synchronously during {@link #cleanup()} to flush any pending change at exit.
+     */
+    private void persistBoundsNow() {
+        if ( stage == null || !normalBoundsSeen ) {
+            return;
+        }
+        try {
+            ConfigManager.setWindowBounds( lastNormalX, lastNormalY, lastNormalWidth, lastNormalHeight,
+                                           stage.isMaximized() );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Unable to persist launcher window bounds." );
+            Logger.logThrowable( e );
+        }
     }
 
     void setScene( MCLauncherAbstractGui gui ) {
@@ -279,6 +399,13 @@ public class MCLauncherGuiWindow extends Application
      */
     public void cleanup()
     {
+        // Flush any pending bounds change synchronously so it isn't lost if the user closes during the debounce window.
+        if ( boundsSaveDebouncer != null ) {
+            boundsSaveDebouncer.stop();
+            boundsSaveDebouncer = null;
+        }
+        persistBoundsNow();
+
         if ( detector != null && themeListener != null ) {
             try {
                 detector.removeListener( themeListener );
