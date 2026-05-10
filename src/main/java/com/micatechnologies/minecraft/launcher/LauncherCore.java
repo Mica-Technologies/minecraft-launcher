@@ -76,6 +76,29 @@ public class LauncherCore
     private static LauncherSession currentSession;
 
     /**
+     * Pending {@code mmcl://} URI captured from argv at startup, awaiting dispatch once the
+     * main GUI is up. Cleared by {@link #consumePendingLauncherUri()}. {@code null} when no URI
+     * is pending. Volatile because it's set on the main thread and read by the session thread.
+     */
+    private static volatile String pendingLauncherUri = null;
+
+    /** Sets a pending launcher URI to be dispatched after the main GUI is up. Used by the
+     *  argv parser and (on macOS) the {@code Desktop.setOpenURIHandler} bridge. Idempotent —
+     *  subsequent URIs overwrite the previous one if the launcher hasn't gotten around to
+     *  dispatching yet. */
+    public static void setPendingLauncherUri( String uri ) {
+        pendingLauncherUri = uri;
+    }
+
+    /** Returns and clears the pending launcher URI, or {@code null} if there is none. Called
+     *  by the launcher session right after the main GUI loads. */
+    public static String consumePendingLauncherUri() {
+        String result = pendingLauncherUri;
+        pendingLauncherUri = null;
+        return result;
+    }
+
+    /**
      * Launcher application main method/entry point.
      *
      * @param args launcher arguments
@@ -533,6 +556,19 @@ public class LauncherCore
      * @since 2.0
      */
     public static String parseLauncherArgs( String[] args ) {
+        // mmcl:// deep-link from the website / OS scheme handler. The OS hands us the URI as
+        // argv when the launcher cold-starts via the scheme. Stash it for the session to
+        // dispatch once the main GUI is up — we deliberately don't dispatch from here so the
+        // user still flows through auth + mod-pack-info-fetch normally before the URI action
+        // fires (e.g. for mmcl://add, the installed-list needs to be populated first).
+        for ( int i = 0; i < args.length; i++ ) {
+            if ( LauncherUriHandler.isLauncherUri( args[ i ] ) ) {
+                setPendingLauncherUri( args[ i ] );
+                GameModeManager.setCurrentGameMode( GameMode.CLIENT );
+                return "";
+            }
+        }
+
         String initialModPackSelection = "";
         if ( args.length == 0 ) {
             GameModeManager.inferGameMode();

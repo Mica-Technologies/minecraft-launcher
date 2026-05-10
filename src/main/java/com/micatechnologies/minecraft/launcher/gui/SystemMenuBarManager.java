@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
+import com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Menu;
@@ -70,6 +71,23 @@ public final class SystemMenuBarManager
      */
     public static void installDesktopHandlers()
     {
+        // OPEN_URI handler is the cross-platform piece — on macOS it makes mmcl:// links
+        // delivered to an already-running launcher work correctly. Win / Linux Desktop
+        // doesn't currently surface the action, so this is effectively macOS-only today,
+        // but the API is portable so we don't gate it on SystemUtils.IS_OS_MAC.
+        if ( Desktop.isDesktopSupported() ) {
+            try {
+                Desktop desktop = Desktop.getDesktop();
+                if ( desktop.isSupported( Desktop.Action.APP_OPEN_URI ) ) {
+                    desktop.setOpenURIHandler( event ->
+                        LauncherUriHandler.handle( event.getURI() == null ? null : event.getURI().toString() ) );
+                }
+            }
+            catch ( Exception | Error e ) {
+                Logger.logWarningSilent( "Unable to install OPEN_URI handler: " + e.getMessage() );
+            }
+        }
+
         if ( !SystemUtils.IS_OS_MAC ) {
             return;
         }

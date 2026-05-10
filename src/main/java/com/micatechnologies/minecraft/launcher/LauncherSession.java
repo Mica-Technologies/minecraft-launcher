@@ -142,6 +142,16 @@ class LauncherSession
         // Show main (mod pack selection) window
         LauncherCore.doModpackSelection( initialModPackSelection, previousRestartError );
 
+        // Deferred mmcl:// dispatch. If the launcher was cold-started via the scheme handler
+        // (the OS pushed `mmcl://add?url=...` into argv), the parser stashed the URI; now that
+        // auth + the modpack list are ready, dispatch the action. Cross-platform — the
+        // already-running case is handled separately by Desktop.setOpenURIHandler on macOS
+        // and (eventually) by IPC through the SingleInstanceLock channel on Win/Linux.
+        String pendingUri = LauncherCore.consumePendingLauncherUri();
+        if ( pendingUri != null ) {
+            com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler.handle( pendingUri );
+        }
+
         // Wait for exit latch
         try {
             exitLatch.await();
