@@ -18,10 +18,13 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import com.nativejavafx.taskbar.TaskbarProgressbar;
 import com.nativejavafx.taskbar.TaskbarProgressbarFactory;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
+import javafx.event.EventHandler;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 /**
  * Process-wide owner of the native taskbar progress overlay.
@@ -59,7 +62,7 @@ public final class TaskbarProgressManager
      *
      * @return true if a usable wrapper exists after this call
      */
-    public static synchronized boolean attach( Stage stage )
+    public static boolean attach( Stage stage )
     {
         if ( stage == null ) return instance != null;
 
@@ -67,24 +70,46 @@ public final class TaskbarProgressManager
             return true;
         }
 
-        try {
-            if ( !TaskbarProgressbar.isSupported() ) {
-                // NullTaskbarProgressbar — every method is a silent no-op, but we
-                // still cache it so callers don't keep hitting the factory.
-                instance = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
-                attachedStage = stage;
-                return false;
+        // FXTaskbarProgressBar wraps an ITaskbarList3 COM object that must be touched only
+        // from the JavaFX Application Thread, AND the underlying showCustomProgress call
+        // checks stage.isShowing() — calling before the stage is on screen yields
+        // "The given Stage is not showing". The screen lifecycle calls attach() during
+        // afterShow() which runs after setScene() but before stage.show(), so the wrapper
+        // must defer COM init until WINDOW_SHOWN fires.
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( instance != null ) {
+                return;
             }
+            if ( stage.isShowing() ) {
+                createInstance( stage );
+            }
+            else {
+                EventHandler< WindowEvent > onShown = new EventHandler< WindowEvent >() {
+                    @Override
+                    public void handle( WindowEvent event ) {
+                        stage.removeEventHandler( WindowEvent.WINDOW_SHOWN, this );
+                        createInstance( stage );
+                    }
+                };
+                stage.addEventHandler( WindowEvent.WINDOW_SHOWN, onShown );
+            }
+        } );
+        return instance != null;
+    }
 
+    /** Builds the FXTaskbarProgressBar wrapper. Caller must be on the FX thread and the
+     *  stage must be showing (or about to be — the WINDOW_SHOWN handler fires after the
+     *  native HWND is realized). */
+    private static void createInstance( Stage stage )
+    {
+        try {
             instance = TaskbarProgressbarFactory.getTaskbarProgressbar( stage );
             attachedStage = stage;
-            return instance != null;
         }
         catch ( Exception | Error e ) {
             Logger.logWarningSilent( "Unable to initialize taskbar progress bar: " + e.getMessage() );
             instance = null;
             attachedStage = null;
-            return false;
         }
     }
 
@@ -93,22 +118,25 @@ public final class TaskbarProgressManager
      * {@link MFXProgressBar#INDETERMINATE_PROGRESS} for the indeterminate
      * marquee). Pass values already converted from the 0..100 percent scale.
      */
-    public static synchronized void setProgress( double fraction )
+    public static void setProgress( double fraction )
     {
-        // Windows path: FXTaskbarProgressBar via the cached instance.
-        if ( instance != null ) {
-            try {
-                if ( fraction == MFXProgressBar.INDETERMINATE_PROGRESS ) {
-                    instance.showIndeterminateProgress();
+        // FXTaskbarProgressBar requires the FX thread; route every call there. Queue order
+        // is preserved when multiple progress updates come from different workers.
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( instance != null ) {
+                try {
+                    if ( fraction == MFXProgressBar.INDETERMINATE_PROGRESS ) {
+                        instance.showIndeterminateProgress();
+                    }
+                    else {
+                        instance.showCustomProgress( fraction, TaskbarProgressbar.Type.NORMAL );
+                    }
                 }
-                else {
-                    instance.showCustomProgress( fraction, TaskbarProgressbar.Type.NORMAL );
+                catch ( Exception | Error e ) {
+                    Logger.logWarningSilent( "Failed to update taskbar progress: " + e.getMessage() );
                 }
             }
-            catch ( Exception | Error e ) {
-                Logger.logWarningSilent( "Failed to update taskbar progress: " + e.getMessage() );
-            }
-        }
+        } );
         // macOS / Linux path: java.awt.Taskbar. No-op where unsupported.
         MacOsDockManager.setProgress( fraction );
     }
@@ -118,16 +146,18 @@ public final class TaskbarProgressManager
      * replaced — guarantees the bar doesn't carry state across scene
      * transitions even if the next screen never touches the taskbar.
      */
-    public static synchronized void stop()
+    public static void stop()
     {
-        if ( instance != null ) {
-            try {
-                instance.stopProgress();
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( instance != null ) {
+                try {
+                    instance.stopProgress();
+                }
+                catch ( Exception | Error e ) {
+                    Logger.logWarningSilent( "Failed to stop taskbar progress: " + e.getMessage() );
+                }
             }
-            catch ( Exception | Error e ) {
-                Logger.logWarningSilent( "Failed to stop taskbar progress: " + e.getMessage() );
-            }
-        }
+        } );
         MacOsDockManager.stop();
     }
 
@@ -136,16 +166,18 @@ public final class TaskbarProgressManager
      * attention cue — the user can spot it from any window without the
      * launcher having focus.
      */
-    public static synchronized void showFullError()
+    public static void showFullError()
     {
-        if ( instance != null ) {
-            try {
-                instance.showFullErrorProgress();
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( instance != null ) {
+                try {
+                    instance.showFullErrorProgress();
+                }
+                catch ( Exception | Error e ) {
+                    Logger.logWarningSilent( "Failed to set taskbar error overlay: " + e.getMessage() );
+                }
             }
-            catch ( Exception | Error e ) {
-                Logger.logWarningSilent( "Failed to set taskbar error overlay: " + e.getMessage() );
-            }
-        }
+        } );
         // macOS / Linux: red-tinted progress + bounce the dock icon to draw attention.
         MacOsDockManager.setError();
         MacOsDockManager.requestAttention( false );
@@ -156,20 +188,22 @@ public final class TaskbarProgressManager
      * exactly once during app shutdown. Idempotent — repeated calls are
      * harmless no-ops.
      */
-    public static synchronized void shutdown()
+    public static void shutdown()
     {
-        if ( instance != null ) {
-            try {
-                instance.stopProgress();
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( instance != null ) {
+                try {
+                    instance.stopProgress();
+                }
+                catch ( Exception | Error ignored ) { /* best-effort clear */ }
+                try {
+                    instance.closeOperations();
+                }
+                catch ( Exception | Error ignored ) { /* best-effort release */ }
+                instance = null;
+                attachedStage = null;
             }
-            catch ( Exception | Error ignored ) { /* best-effort clear */ }
-            try {
-                instance.closeOperations();
-            }
-            catch ( Exception | Error ignored ) { /* best-effort release */ }
-            instance = null;
-            attachedStage = null;
-        }
+        } );
         MacOsDockManager.shutdown();
     }
 }
