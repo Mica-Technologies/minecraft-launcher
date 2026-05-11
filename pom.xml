@@ -49,6 +49,11 @@
         <java.version>25</java.version>
         <javafx.version>25</javafx.version>
         <jdk.version>25.0.0.36.2</jdk.version>
+        <!-- mvn-jlink-wrapper arch for the bundled Corretto JDK download. Defaults
+             to x64; the jdk-arch-mac-arm profile below flips it to aarch64 on
+             Apple Silicon so the macOS ARM build doesn't ship an x86_64 runtime
+             that requires Rosetta. -->
+        <jdk.target.arch>x64</jdk.target.arch>
         <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
         </jfxtaskbarprogressbar.export>
         <!-- Java 22+ deprecates implicit native access from unnamed modules. JNA (oshi,
@@ -173,7 +178,7 @@
                             <providerConfig>
                                 <type>jdk</type>
                                 <version>${jdk.version}</version>
-                                <arch>x64</arch>
+                                <arch>${jdk.target.arch}</arch>
                             </providerConfig>
                             <jdkCachePath>${project.basedir}${file.separator}build${file.separator}jdk</jdkCachePath>
                             <jdkPathProperty>jlink.jdk.path</jdkPathProperty>
@@ -294,6 +299,24 @@
     </build>
 
     <profiles>
+        <!-- Auto-activated on Apple Silicon: flip the bundled Corretto download
+             from x86_64 to aarch64 so the macOS arm64 DMG/PKG ships a native
+             ARM runtime instead of an Intel one that requires Rosetta to launch.
+             Activates by os.family + os.arch so it triggers identically on
+             local Apple Silicon dev machines and on macos-latest CI runners. -->
+        <profile>
+            <id>jdk-arch-mac-arm</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <jdk.target.arch>aarch64</jdk.target.arch>
+            </properties>
+        </profile>
+
         <!-- Platform-specific jpackage configuration -->
         <!-- Platform-specific jpackage configurations. Each profile provides the full
              jpackage execution with platform-specific flags (icon, installer type, UX options). -->
@@ -556,8 +579,13 @@
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <executions>
+                            <!-- DMG build (drag-to-Applications disk image). Run by default
+                                 in the package phase alongside the PKG build below; `mvn package`
+                                 on macOS produces both installers. The two executions only differ
+                                 in their type flag; jpackage names the outputs with distinct
+                                 extensions (.dmg / .pkg) so they coexist in the same dest dir. -->
                             <execution>
-                                <id>jpackage</id>
+                                <id>jpackage-dmg</id>
                                 <phase>package</phase>
                                 <goals><goal>exec</goal></goals>
                                 <configuration>
@@ -615,6 +643,52 @@
                                         <argument>- -mac-signing-key-user-name</argument>
                                         <argument>${env.MAC_SIGNING_IDENTITY}</argument>
                                         -->
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- PKG build (macOS Installer-app package). Same args as DMG
+                                 except for the type flag. PKG is preferred for managed
+                                 deployments and unattended installs; DMG remains the
+                                 typical drag-and-drop experience for individual users. -->
+                            <execution>
+                                <id>jpackage-pkg</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.basedir}/build/packaging</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.native.access}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
+                                        <argument>--type</argument>
+                                        <argument>pkg</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${project.basedir}/LICENSE</argument>
+                                        <argument>--file-associations</argument>
+                                        <argument>${project.build.directory}/jpackage-file-assoc/mac.properties</argument>
+                                        <argument>--resource-dir</argument>
+                                        <argument>${project.build.directory}/jpackage-mac-resources</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

@@ -24,7 +24,7 @@ jobs:
       win_version: ${{ steps.version.outputs.win_version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -68,10 +68,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 25 (Zulu FX)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '25'
@@ -110,7 +110,7 @@ jobs:
           ls -la windows-dist/
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-x64
           path: windows-dist/*
@@ -121,10 +121,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 25 (Zulu FX)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '25'
@@ -137,10 +137,12 @@ jobs:
           -Drevision=${{ needs.prepare.outputs.version }}
 
       - name: Upload macOS arm64 artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-arm64
-          path: build/packaging/*.dmg
+          path: |
+            build/packaging/*.dmg
+            build/packaging/*.pkg
 
   build-macos-intel:
     name: Build macOS (x64 Intel)
@@ -148,10 +150,10 @@ jobs:
     runs-on: macos-13
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 25 (Zulu FX)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '25'
@@ -164,10 +166,12 @@ jobs:
           -Drevision=${{ needs.prepare.outputs.version }}
 
       - name: Upload macOS x64 artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-x64
-          path: build/packaging/*.dmg
+          path: |
+            build/packaging/*.dmg
+            build/packaging/*.pkg
 
   build-linux:
     name: Build Linux (x64)
@@ -175,10 +179,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up JDK 25 (Zulu FX)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '25'
@@ -199,7 +203,7 @@ jobs:
           -Drevision=${{ needs.prepare.outputs.version }}
 
       - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-x64
           path: |
@@ -207,7 +211,7 @@ jobs:
             build/packaging/*.rpm
 
       - name: Upload fat JAR (platform-independent)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fat-jar
           path: build/target/*-jar-with-dependencies.jar
@@ -219,7 +223,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
@@ -229,7 +233,7 @@ jobs:
           cd artifacts
           echo "## Checksums (SHA-256)" > checksums.txt
           echo '```' >> checksums.txt
-          find . -type f \( -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "*-jar-with-dependencies.jar" \) \
+          find . -type f \( -name "*.msi" -o -name "*.exe" -o -name "*.dmg" -o -name "*.pkg" -o -name "*.deb" -o -name "*.rpm" -o -name "*-jar-with-dependencies.jar" \) \
             -exec sha256sum {} \; | sort >> checksums.txt
           echo '```' >> checksums.txt
           cat checksums.txt
@@ -240,7 +244,7 @@ jobs:
 
       - name: Create Release
         if: needs.prepare.outputs.is_release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -257,13 +261,14 @@ jobs:
             artifacts/**/*.msi
             artifacts/**/*.exe
             artifacts/**/*.dmg
+            artifacts/**/*.pkg
             artifacts/**/*.deb
             artifacts/**/*.rpm
             artifacts/**/*-jar-with-dependencies.jar
 
       - name: Create Pre-Release
         if: needs.prepare.outputs.is_release != 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -283,6 +288,7 @@ jobs:
             artifacts/**/*.msi
             artifacts/**/*.exe
             artifacts/**/*.dmg
+            artifacts/**/*.pkg
             artifacts/**/*.deb
             artifacts/**/*.rpm
             artifacts/**/*-jar-with-dependencies.jar
