@@ -24,11 +24,16 @@ import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Objects;
 
 /**
@@ -139,47 +144,76 @@ class GameModPackEnvironment
         }
     }
 
+    /**
+     * Returns the absolute on-disk path for the modpack logo. Resolution order:
+     * <ol>
+     *   <li>If the manifest declares a SHA-1, use {@code metadata/<declaredSha1>.png}.</li>
+     *   <li>Else if the {@code .image_cache} sidecar has a previously-computed SHA-1 for
+     *       the current effective URL, use {@code metadata/<cachedSha1>.png}.</li>
+     *   <li>Else fall back to the legacy per-pack filename so first-launch callers still
+     *       get a stable path (the file may not exist yet — {@link #fetchLatestModpackLogo()}
+     *       will create the content-addressed copy on first download).</li>
+     * </ol>
+     */
     private String getRawLogoFilePath()
     {
-        String filename;
-        if ( metadata.packLogoSha1 != null ) {
-            filename = metadata.packLogoSha1 + ".png";
-        }
-        else {
-            filename = "logo_" + metadata.getPackSanitizedName() + ".png";
-        }
+        String sha1 = ( metadata.packLogoSha1 != null )
+                      ? metadata.packLogoSha1
+                      : loadImageCacheSafe().logoSha1;
+        String filename = ( sha1 != null )
+                          ? sha1 + ".png"
+                          : "logo_" + metadata.getPackSanitizedName() + ".png";
         return LocalPathManager.getLauncherMetadataFolderPath() + File.separator + filename;
     }
 
+    /**
+     * Returns the absolute on-disk path for the modpack background image. See
+     * {@link #getRawLogoFilePath()} for the resolution order.
+     */
     private String getRawBackgroundFilePath()
     {
-        String filename;
-        if ( metadata.packBackgroundSha1 != null ) {
-            filename = metadata.packBackgroundSha1 + ".png";
-        }
-        else {
-            filename = "background_" + metadata.getPackSanitizedName() + ".png";
-        }
+        String sha1 = ( metadata.packBackgroundSha1 != null )
+                      ? metadata.packBackgroundSha1
+                      : loadImageCacheSafe().backgroundSha1;
+        String filename = ( sha1 != null )
+                          ? sha1 + ".png"
+                          : "background_" + metadata.getPackSanitizedName() + ".png";
         return LocalPathManager.getLauncherMetadataFolderPath() + File.separator + filename;
     }
 
     private synchronized void fetchLatestModpackLogo() throws ModpackException
     {
         try {
-            File syncFile = SynchronizedFileManager.getSynchronizedFile( getRawLogoFilePath() );
-            boolean redownload = false;
-            if ( metadata.packLogoSha1 == null ) {
-                redownload = true;
+            String effectiveUrl = Objects.requireNonNullElse(
+                    metadata.packLogoURL, ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
+
+            // Declared-SHA1 path: download once to <declaredSha1>.png and verify on subsequent
+            // launches. Naturally dedupes across packs that declare the same hash.
+            if ( metadata.packLogoSha1 != null ) {
+                File destFile = SynchronizedFileManager.getSynchronizedFile(
+                        computedImageFile( metadata.packLogoSha1 ) );
+                if ( !HashUtilities.verifySHA1( destFile, metadata.packLogoSha1 ) ) {
+                    NetworkUtilities.downloadFileFromURL( new URL( effectiveUrl ), destFile );
+                }
+                return;
             }
-            else if ( !HashUtilities.verifySHA1( syncFile, metadata.packLogoSha1 ) ) {
-                redownload = true;
+
+            // Undeclared-SHA1 path: if the sidecar already cached a SHA-1 for this exact URL
+            // and the corresponding file still exists, we're done — no network at all.
+            ImageCacheInfo cache = loadImageCacheSafe();
+            if ( cache.logoSha1 != null
+                 && Objects.equals( cache.logoUrl, effectiveUrl )
+                 && new File( computedImageFile( cache.logoSha1 ) ).exists() ) {
+                return;
             }
-            if ( redownload ) {
-                NetworkUtilities.downloadFileFromURL(
-                        new URL( Objects.requireNonNullElse( metadata.packLogoURL,
-                                                             ModPackConstants.MODPACK_DEFAULT_LOGO_URL ) ),
-                        syncFile );
-            }
+
+            // Otherwise download to a per-pack temp file, hash, then move into the shared
+            // content-addressed slot. Two packs sharing the same fallback URL converge on the
+            // same <sha1>.png and the second one's move becomes a no-op delete.
+            String computedSha1 = downloadAndHashToContentAddressedFile( effectiveUrl, ".logo_download.tmp" );
+            cache.logoUrl = effectiveUrl;
+            cache.logoSha1 = computedSha1;
+            saveImageCache( cache );
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to download/fetch mod pack logo.", e );
@@ -189,23 +223,131 @@ class GameModPackEnvironment
     private synchronized void fetchLatestModpackBackground() throws ModpackException
     {
         try {
-            File syncFile = SynchronizedFileManager.getSynchronizedFile( getRawBackgroundFilePath() );
-            boolean redownload = false;
-            if ( metadata.packBackgroundSha1 == null ) {
-                redownload = true;
+            String effectiveUrl = Objects.requireNonNullElse(
+                    metadata.packBackgroundURL, ModPackConstants.MODPACK_DEFAULT_BG_URL );
+
+            if ( metadata.packBackgroundSha1 != null ) {
+                File destFile = SynchronizedFileManager.getSynchronizedFile(
+                        computedImageFile( metadata.packBackgroundSha1 ) );
+                if ( !HashUtilities.verifySHA1( destFile, metadata.packBackgroundSha1 ) ) {
+                    NetworkUtilities.downloadFileFromURL( new URL( effectiveUrl ), destFile );
+                }
+                return;
             }
-            else if ( !HashUtilities.verifySHA1( syncFile, metadata.packBackgroundSha1 ) ) {
-                redownload = true;
+
+            ImageCacheInfo cache = loadImageCacheSafe();
+            if ( cache.backgroundSha1 != null
+                 && Objects.equals( cache.backgroundUrl, effectiveUrl )
+                 && new File( computedImageFile( cache.backgroundSha1 ) ).exists() ) {
+                return;
             }
-            if ( redownload ) {
-                NetworkUtilities.downloadFileFromURL( new URL(
-                                                              Objects.requireNonNullElse( metadata.packBackgroundURL,
-                                                                                          ModPackConstants.MODPACK_DEFAULT_BG_URL ) ),
-                                                      syncFile );
-            }
+
+            String computedSha1 = downloadAndHashToContentAddressedFile( effectiveUrl, ".background_download.tmp" );
+            cache.backgroundUrl = effectiveUrl;
+            cache.backgroundSha1 = computedSha1;
+            saveImageCache( cache );
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to download/fetch mod pack background.", e );
         }
     }
+
+    // region Content-addressed image cache
+
+    /**
+     * Per-pack sidecar file holding locally-computed SHA-1 hashes for fallback images
+     * (those without a manifest-declared {@code packLogoSha1} / {@code packBackgroundSha1}).
+     * Lives at {@code <packRoot>/.image_cache} alongside {@code .installed_version} and
+     * {@code .launch_history}; survives remote manifest refreshes because nothing in the
+     * GSON-deserialized {@link GameModPackMetadata} ever touches it.
+     */
+    private static final String IMAGE_CACHE_FILE = ".image_cache";
+
+    /**
+     * Schema for the {@code .image_cache} sidecar. URL is recorded alongside the hash so
+     * a future URL change (custom logo added to an existing pack, default URL swapped,
+     * etc.) invalidates the entry and triggers a re-download.
+     */
+    private static class ImageCacheInfo
+    {
+        String logoUrl;
+        String logoSha1;
+        String backgroundUrl;
+        String backgroundSha1;
+    }
+
+    private transient ImageCacheInfo imageCache;
+
+    private synchronized ImageCacheInfo loadImageCacheSafe()
+    {
+        if ( imageCache != null ) {
+            return imageCache;
+        }
+        Path file = Path.of( metadata.getPackRootFolder(), IMAGE_CACHE_FILE );
+        if ( Files.exists( file ) ) {
+            try {
+                String json = Files.readString( file, StandardCharsets.UTF_8 );
+                imageCache = JSONUtilities.getGson().fromJson( json, ImageCacheInfo.class );
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "Unable to read image cache for " + metadata.getPackName() );
+            }
+        }
+        if ( imageCache == null ) {
+            imageCache = new ImageCacheInfo();
+        }
+        return imageCache;
+    }
+
+    private synchronized void saveImageCache( ImageCacheInfo cache )
+    {
+        Path file = Path.of( metadata.getPackRootFolder(), IMAGE_CACHE_FILE );
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            file.getParent().toFile().mkdirs();
+            Files.writeString( file, JSONUtilities.getGson().toJson( cache ), StandardCharsets.UTF_8 );
+            imageCache = cache;
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "Unable to save image cache for " + metadata.getPackName() );
+        }
+    }
+
+    private static String computedImageFile( String sha1 )
+    {
+        return LocalPathManager.getLauncherMetadataFolderPath() + File.separator + sha1 + ".png";
+    }
+
+    /**
+     * Downloads {@code url} into a per-pack temp file under the pack's root folder, hashes
+     * it, then atomically moves it to {@code metadata/<sha1>.png}. If a file with the same
+     * SHA-1 already exists (i.e. another pack downloaded the identical bytes), the temp
+     * file is deleted instead. Returns the computed SHA-1.
+     */
+    private String downloadAndHashToContentAddressedFile( String url, String tempFileName ) throws IOException
+    {
+        File tempFile = SynchronizedFileManager.getSynchronizedFile(
+                metadata.getPackRootFolder() + File.separator + tempFileName );
+        //noinspection ResultOfMethodCallIgnored
+        tempFile.getParentFile().mkdirs();
+        NetworkUtilities.downloadFileFromURL( new URL( url ), tempFile );
+
+        String sha1 = HashUtilities.getFileSHA1( tempFile );
+        if ( sha1 == null ) {
+            throw new IOException( "Failed to hash downloaded image from " + url );
+        }
+        File finalFile = new File( computedImageFile( sha1 ) );
+        //noinspection ResultOfMethodCallIgnored
+        finalFile.getParentFile().mkdirs();
+        if ( finalFile.exists() ) {
+            //noinspection ResultOfMethodCallIgnored
+            tempFile.delete();
+        }
+        else {
+            Files.move( tempFile.toPath(), finalFile.toPath(), StandardCopyOption.REPLACE_EXISTING );
+        }
+        return sha1;
+    }
+
+    // endregion
 }

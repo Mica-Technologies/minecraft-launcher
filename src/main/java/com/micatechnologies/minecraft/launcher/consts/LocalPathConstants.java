@@ -137,6 +137,22 @@ public class LocalPathConstants
     public static final String MINECRAFT_ASSET_RELATIVE_FOLDER = "assets";
 
     /**
+     * Launcher-root relative folder for cross-modpack shared data. Currently only houses
+     * shared assets; reserved for future shared resources (e.g. common libraries) if the
+     * de-duplication is extended.
+     *
+     * @since 3.2
+     */
+    public static final String SHARED_FOLDER = File.separator + "shared";
+
+    /**
+     * Subfolder name appended after {@link #SHARED_FOLDER} for shared MC assets.
+     *
+     * @since 3.2
+     */
+    public static final String MINECRAFT_ASSET_SUBFOLDER = File.separator + MINECRAFT_ASSET_RELATIVE_FOLDER;
+
+    /**
      * The mod pack relative path where asset indexes are stored.
      *
      * @since 1.0
@@ -153,6 +169,28 @@ public class LocalPathConstants
     public static final String MINECRAFT_ASSET_RELATIVE_OBJECTS_FOLDER = MINECRAFT_ASSET_RELATIVE_FOLDER +
             File.separator +
             "objects";
+
+    /**
+     * The mod pack relative path where the legacy "virtual" flat asset tree lives. Pre-1.7
+     * Minecraft (and any index marked {@code virtual: true}) reads assets by their virtual
+     * name (e.g. {@code sound/random/click.ogg}) rather than by SHA-1, so we materialize a
+     * flat copy of the hashed objects under this folder per asset-index id and point
+     * {@code --assetsDir} at it.
+     *
+     * @since 3.2
+     */
+    public static final String MINECRAFT_ASSET_RELATIVE_VIRTUAL_FOLDER = MINECRAFT_ASSET_RELATIVE_FOLDER +
+            File.separator +
+            "virtual";
+
+    /**
+     * The mod pack relative path used by indexes marked {@code map_to_resources: true}
+     * (1.6.x — assets are copied into the game directory's {@code resources/} folder).
+     * Mostly historical; modern packs don't use this.
+     *
+     * @since 3.2
+     */
+    public static final String MINECRAFT_RESOURCES_FOLDER = "resources";
 
     /**
      * The name of the file used to store the Minecraft library manifest

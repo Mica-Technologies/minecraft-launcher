@@ -99,6 +99,21 @@ public class LocalPathManager
     }
 
     /**
+     * Gets the launcher-wide shared assets folder path. Multiple modpacks targeting the same
+     * Minecraft version share the same SHA-1 keyed asset objects, so storing them once at the
+     * launcher root instead of duplicating per-pack saves significant disk space (a typical
+     * modern asset tree is ~300 MB).
+     *
+     * @return shared assets folder path (contains {@code indexes/} and {@code objects/})
+     *
+     * @since 3.2
+     */
+    public static String getLauncherSharedAssetsFolderPath() {
+        return getLauncherLocalPath() + LocalPathConstants.SHARED_FOLDER +
+                LocalPathConstants.MINECRAFT_ASSET_SUBFOLDER;
+    }
+
+    /**
      * Gets the local path to the client token file.
      *
      * @return client token file path

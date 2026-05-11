@@ -31,6 +31,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
+import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameAssetManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest;
 import com.micatechnologies.minecraft.launcher.utilities.ProcessUtilities;
@@ -422,19 +423,17 @@ class GameModPackLauncher
             fullArgs = fullArgs.replace( "${version_name}",
                                           pack.isVanillaVersion() ? pack.getMinecraftVersion() :
                                           pack.getForgeVersion() );
+            // Modern MC reads assets through the shared launcher-wide tree by hash, so the
+            // ${assets_root} placeholder points at the deduplicated location instead of a
+            // per-pack copy. Legacy MC uses ${game_assets} which is handled below.
+            String sharedAssetsRoot = GameAssetManifest.getSharedAssetsRoot();
             if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
                 fullArgs = fullArgs.replace( "${game_directory}", "\"" + pack.getPackRootFolder() + "\"" );
-                fullArgs = fullArgs.replace( "${assets_root}", "\"" +
-                        pack.getPackRootFolder() +
-                        File.separator +
-                        ModPackConstants.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER +
-                        "\"" );
+                fullArgs = fullArgs.replace( "${assets_root}", "\"" + sharedAssetsRoot + "\"" );
             }
             else {
                 fullArgs = fullArgs.replace( "${game_directory}", pack.getPackRootFolder() );
-                fullArgs = fullArgs.replace( "${assets_root}", pack.getPackRootFolder() +
-                        File.separator +
-                        ModPackConstants.MODPACK_MINECRAFT_ASSETS_LOCAL_FOLDER );
+                fullArgs = fullArgs.replace( "${assets_root}", sharedAssetsRoot );
             }
 
             fullArgs = fullArgs.replace( "${assets_index_name}", libraryManifest.getAssetIndexVersion() );
@@ -445,6 +444,44 @@ class GameModPackLauncher
             fullArgs = fullArgs.replace( "${clientid}", "" );
             fullArgs = fullArgs.replace( "${auth_xuid}", "" );
             fullArgs = fullArgs.replace( "${user_properties}", "{}" );
+
+            // Legacy minecraftArguments (pre-1.6) placeholders. ${auth_session} carries the
+            // session token in Mojang's old "token:<accessToken>:<uuid>" form; ${game_assets}
+            // is the path the game treats as the legacy flat-assets directory. Without these
+            // replacements, launchwrapper sees the literal "${...}" strings and the launch
+            // either fails to auth (vanilla 1.0-1.5) or fails to find assets.
+            String authSession = "token:" + MCLauncherAuthManager.getLoggedInUser().accessToken()
+                    + ":" + MCLauncherAuthManager.getLoggedInUser().uuid();
+            fullArgs = fullArgs.replace( "${auth_session}", authSession );
+
+            // ${game_assets} needs to point to the directory layout the game version expects:
+            //   - virtual: true (pre-1.6) → assets/virtual/<id>/ per-pack (flat tree, built
+            //     by GameAssetManifest.materializeVirtualTree at download time)
+            //   - map_to_resources: true (1.6.x) → <gameDir>/resources/ per-pack
+            //   - everything else → shared assets root (modern hash-keyed layout)
+            // Modern packs share a single tree; legacy needs the flat layout under gameDir.
+            String gameAssetsPath;
+            try {
+                GameAssetManifest assetManifest = libraryManifest.getAssetManifest();
+                if ( assetManifest.isVirtual() ) {
+                    gameAssetsPath = assetManifest.getVirtualAssetsPath();
+                }
+                else if ( assetManifest.mapsToResources() ) {
+                    gameAssetsPath = assetManifest.getResourcesPath();
+                }
+                else {
+                    gameAssetsPath = sharedAssetsRoot;
+                }
+            }
+            catch ( ModpackException e ) {
+                gameAssetsPath = sharedAssetsRoot;
+            }
+            if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+                fullArgs = fullArgs.replace( "${game_assets}", "\"" + gameAssetsPath + "\"" );
+            }
+            else {
+                fullArgs = fullArgs.replace( "${game_assets}", gameAssetsPath );
+            }
 
             // Add title and icon to arguments
             fullArgs += " --title \"" + pack.getPackName() + "\"";
