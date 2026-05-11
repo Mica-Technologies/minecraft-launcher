@@ -254,7 +254,7 @@
                         <MFXToggleButton fx:id="inGameConsoleCheckBox" text="In-Game Console" />
                         <MFXToggleButton fx:id="batteryThrottleCheckBox" text="Throttle Downloads on Battery" />
                         <MFXToggleButton fx:id="lwjglArmPatchCheckBox" text="LWJGL ARM64 Patching" />
-                        <Label text="Replaces x86_64 LWJGL2 natives with ARM64 builds for Minecraft 1.12.2 and below on Apple Silicon / ARM Linux." wrapText="true">
+                        <Label styleClass="muted" text="Replaces x86_64 LWJGL2 natives with ARM64 builds for Minecraft 1.12.2 and below on Apple Silicon / ARM Linux." wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -492,6 +492,47 @@
                         <Label text="Full license texts ship with the installed launcher under the LICENSES folder, and are available in this project's source repository." wrapText="true">
                             <font>
                                 <Font size="10.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+
+                    <!-- Runtime dependencies — Java distributions pulled at run time,
+                         distinct from the bundled libraries above. -->
+                    <VBox styleClass="settingsContainer" spacing="6">
+                        <padding>
+                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
+                        </padding>
+                        <Label text="Java Runtimes">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="Modern Minecraft versions use Mojang's official Java runtime distributions. Legacy Forge (Minecraft 1.12.2 and below) uses Bell-SW Liberica JRE 8 for compatibility." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+
+                    <!-- ARM64 native library credits — community-built binaries the
+                         launcher downloads on demand when LWJGL ARM Patching is enabled. -->
+                    <VBox styleClass="settingsContainer" spacing="6">
+                        <padding>
+                            <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
+                        </padding>
+                        <Label text="ARM64 Native Libraries">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="When LWJGL ARM Patching is enabled, the launcher replaces x86_64 LWJGL2 and jinput natives shipped with Minecraft 1.12.2 and below with community-built ARM64 binaries. Thanks to the maintainers of these projects:" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <Label text="• MinecraftMachina/lwjgl — LWJGL2 ARM64 macOS natives (BSD)&#10;• r58Playz/jinput-m1 — jinput ARM64 macOS natives&#10;• theofficialgman/lwjgl3-binaries-arm64 — LWJGL2 / jinput ARM64 Linux natives" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
                             </font>
                         </Label>
                     </VBox>
