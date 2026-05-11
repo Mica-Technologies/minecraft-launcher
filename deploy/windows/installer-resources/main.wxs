@@ -16,21 +16,39 @@
   <?define JpInstallerVersion=200 ?>
   <?define JpCompressedMsi=yes ?>
 
+  <!-- Branding metadata. The base jpackage template references these via
+       ?ifdef? blocks but never defines them — jpackage doesn't expose CLI
+       flags for them either, so define them here so the Add/Remove Programs
+       entry has working Help / About / Update buttons. -->
+  <?define JpHelpURL   = "https://github.com/Mica-Technologies/minecraft-launcher/issues" ?>
+  <?define JpAboutURL  = "https://minecraft.micatechnologies.com/" ?>
+  <?define JpUpdateURL = "https://github.com/Mica-Technologies/minecraft-launcher/releases" ?>
+
+  <!-- Always allow upgrades + downgrades + same-version reinstall. jpackage's
+       stock template gates this behind ?ifdef JpAllowUpgrades?, which jpackage
+       never passes, so the resulting MSI refuses every reinstall + version
+       transition. We always perform the upgrade (OnlyDetect=no) and always
+       remove the previous install (RemoveExistingProducts below) so dev
+       builds can be reinstalled without uninstalling first, and any user
+       can switch between a stable and a dev build cleanly. -->
+
   <?include $(var.JpConfigDir)/overrides.wxi ?>
 
-  <?ifdef JpAllowUpgrades ?>
-    <?define JpUpgradeVersionOnlyDetectUpgrade="no"?>
-  <?else?>
-    <?define JpUpgradeVersionOnlyDetectUpgrade="yes"?>
-  <?endif?>
-  <?ifdef JpAllowDowngrades ?>
-    <?define JpUpgradeVersionOnlyDetectDowngrade="no"?>
-  <?else?>
-    <?define JpUpgradeVersionOnlyDetectDowngrade="yes"?>
-  <?endif?>
+  <!-- ProductCode is intentionally randomized per build via "*" instead of
+       jpackage's $(var.JpProductCode). jpackage derives JpProductCode
+       deterministically from name+version (UUID.nameUUIDFromBytes of
+       "ProductCode|name|version|..."), so two builds of the same dev version
+       share a ProductCode. Windows Installer then rejects the second install
+       as "already installed" before our Upgrade block can run — the only
+       workaround was a manual uninstall.
 
+       With "*" each build gets a fresh GUID, the existing install is found
+       by UpgradeCode (which IS stable), and RemoveExistingProducts below
+       cleanly removes it before laying down the new version. This restores
+       same-version reinstalls + upgrades + downgrades without requiring the
+       user to uninstall first. -->
   <Product
-    Id="$(var.JpProductCode)"
+    Id="*"
     Name="$(var.JpAppName)"
     Language="$(var.JpProductLanguage)"
     Version="$(var.JpAppVersion)"
@@ -52,26 +70,25 @@
     <Media Id="1" Cabinet="Data.cab" EmbedCab="yes" />
 
     <Upgrade Id="$(var.JpProductUpgradeCode)">
+      <!-- Upgrade: any installed version <= the new version is removed and the
+           new one installed. IncludeMaximum=yes catches same-version installs
+           so dev-build reinstalls work without an uninstall step. -->
       <UpgradeVersion
-        OnlyDetect="$(var.JpUpgradeVersionOnlyDetectUpgrade)"
+        OnlyDetect="no"
         Property="JP_UPGRADABLE_FOUND"
         Maximum="$(var.JpAppVersion)"
         MigrateFeatures="yes"
-        IncludeMaximum="$(var.JpUpgradeVersionOnlyDetectUpgrade)" />
+        IncludeMaximum="yes" />
+      <!-- Downgrade: any installed version > the new version is also removed
+           and the older version installed. Lets users freely switch between
+           a newer stable and an older dev build (or vice versa). -->
       <UpgradeVersion
-        OnlyDetect="$(var.JpUpgradeVersionOnlyDetectDowngrade)"
+        OnlyDetect="no"
         Property="JP_DOWNGRADABLE_FOUND"
         Minimum="$(var.JpAppVersion)"
         MigrateFeatures="yes"
-        IncludeMinimum="$(var.JpUpgradeVersionOnlyDetectDowngrade)" />
+        IncludeMinimum="no" />
     </Upgrade>
-
-    <?ifndef JpAllowUpgrades ?>
-    <CustomAction Id="JpDisallowUpgrade" Error="!(loc.DisallowUpgradeErrorMessage)" />
-    <?endif?>
-    <?ifndef JpAllowDowngrades ?>
-    <CustomAction Id="JpDisallowDowngrade" Error="!(loc.DowngradeErrorMessage)" />
-    <?endif?>
 
     <Binary Id="JpCaDll" SourceFile="wixhelper.dll"/>
 
@@ -126,12 +143,8 @@
         <Custom Action="JpSetARPURLUPDATEINFO" After="CostFinalize">Not Installed</Custom>
       <?endif?>
 
-      <?ifndef JpAllowUpgrades ?>
-      <Custom Action="JpDisallowUpgrade" After="JpFindRelatedProducts">JP_UPGRADABLE_FOUND</Custom>
-      <?endif?>
-      <?ifndef JpAllowDowngrades ?>
-      <Custom Action="JpDisallowDowngrade" After="JpFindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
-      <?endif?>
+      <!-- Upgrades + downgrades + same-version reinstalls are always allowed
+           (see Upgrade element above) — no JpDisallow* error actions here. -->
       <LaunchConditions Before="AppSearch"/>
       <RemoveExistingProducts Before="CostInitialize"/>
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>

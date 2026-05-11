@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Custom WiX UI string overrides for the Mica Minecraft Launcher installer.
+
+  jpackage's MSI build glob-scans the resource directory for *.wxl files and
+  passes each one to light.exe with `-loc`. Since the stock WiX UI English
+  strings (WixUI_en-us.wxl) mark every string as Overridable="yes", any
+  String Id we define here wins over the WiX-bundled default at link time.
+
+  We keep the overrides scoped to the dialog title and description lines —
+  the parts the user actually reads — so the installer feels like a real
+  product onboarding rather than a generic wizard. Untouched IDs continue
+  to fall back to WiX's stock strings.
+
+  [ProductName] is replaced at install time with the value passed to
+  jpackage's name argument (e.g. "Mica Minecraft Launcher" or
+  "Mica Minecraft Launcher DEV"). All copy is intentionally version-agnostic
+  so it reads naturally for both flavors.
+-->
+<WixLocalization Culture="en-us" Codepage="1252"
+                 xmlns="http://schemas.microsoft.com/wix/2006/localization">
+
+  <!-- Welcome screen — the first thing every installer user sees. -->
+  <String Id="WelcomeDlgTitle" Overridable="yes">{\WixUI_Font_Bigger}Install Mica Minecraft Launcher</String>
+  <String Id="WelcomeDlgDescription" Overridable="yes">This wizard will install [ProductName] on your computer. The launcher manages Minecraft Forge modpacks, downloads Java runtimes on demand, and signs you in with your Microsoft account.&#x0D;&#x0A;&#x0D;&#x0A;Click Next to continue, or Cancel to exit.</String>
+
+  <!-- License agreement screen. Banner subtitle = 280 IU wide, one line; keep
+       it tight so WiX doesn't clip the trailing characters. -->
+  <String Id="LicenseAgreementDlgTitle" Overridable="yes">{\WixUI_Font_Title}License Agreement</String>
+  <String Id="LicenseAgreementDlgDescription" Overridable="yes">[ProductName] is free software, licensed under the GNU GPL v3.</String>
+
+  <!-- Install location screen. Banner subtitle stays one line. -->
+  <String Id="InstallDirDlgTitle" Overridable="yes">{\WixUI_Font_Title}Choose Install Location</String>
+  <String Id="InstallDirDlgDescription" Overridable="yes">Accept the default folder, or click Change to pick another.</String>
+
+  <!-- Shortcut prompt screen (jpackage-provided dialog). -->
+  <String Id="ShortcutPromptDlgTitle" Overridable="yes">{\WixUI_Font_Title}Shortcuts</String>
+  <String Id="ShortcutPromptDlgDescription" Overridable="yes">Choose where to place the launcher's shortcuts.</String>
+  <String Id="ShortcutPromptDlgDesktopShortcutControlLabel" Overridable="yes">Create a Desktop shortcut</String>
+  <String Id="ShortcutPromptDlgStartMenuShortcutControlLabel" Overridable="yes">Create a Start menu shortcut</String>
+
+  <!-- Ready-to-install confirmation screen. -->
+  <String Id="VerifyReadyDlgInstallTitle" Overridable="yes">{\WixUI_Font_Title}Ready to Install</String>
+  <String Id="VerifyReadyDlgInstallText" Overridable="yes">Setup will now install [ProductName] using the options you selected. Click Install to begin, Back to review your choices, or Cancel to exit.</String>
+  <String Id="VerifyReadyDlgRemoveTitle" Overridable="yes">{\WixUI_Font_Title}Ready to Uninstall</String>
+  <String Id="VerifyReadyDlgRemoveText" Overridable="yes">Setup will now remove [ProductName] from your computer. Your modpacks, Java runtimes, and saved games stored under your user profile are not affected. Click Remove to continue.</String>
+  <String Id="VerifyReadyDlgUpdateTitle" Overridable="yes">{\WixUI_Font_Title}Ready to Update</String>
+  <String Id="VerifyReadyDlgUpdateText" Overridable="yes">Setup will now update [ProductName] to the new version. Your modpacks and saved games are preserved. Click Update to continue.</String>
+
+  <!-- Progress screen text lines. -->
+  <String Id="ProgressDlgTitleInstalling" Overridable="yes">{\WixUI_Font_Title}Installing [ProductName]</String>
+  <String Id="ProgressDlgTextInstalling" Overridable="yes">Setting up [ProductName]. This usually takes under a minute.</String>
+  <String Id="ProgressDlgTitleUpdating" Overridable="yes">{\WixUI_Font_Title}Updating [ProductName]</String>
+  <String Id="ProgressDlgTextUpdating" Overridable="yes">Updating [ProductName] to the new version.</String>
+  <String Id="ProgressDlgTitleRemoving" Overridable="yes">{\WixUI_Font_Title}Uninstalling [ProductName]</String>
+  <String Id="ProgressDlgTextRemoving" Overridable="yes">Removing [ProductName] files.</String>
+
+  <!-- Finish screen — uses the dialog (full background) bitmap. The stock
+       WixUI ExitDialog body sets Height=40 IU (≈3 lines at 12pt) so the copy
+       has to be short. Keep it under ~140 chars so it never gets clipped. -->
+  <String Id="ExitDialogTitle" Overridable="yes">{\WixUI_Font_Bigger}Installation Complete</String>
+  <String Id="ExitDialogDescription" Overridable="yes">[ProductName] is ready. On first run, sign in with your Microsoft account to authenticate with Mojang.</String>
+
+  <!-- Per-user / per-machine install scope screen. Only rendered when the MSI
+       is built with the per-user-install jpackage flag; harmless otherwise. -->
+  <String Id="InstallScopeDlgTitle" Overridable="yes">{\WixUI_Font_Title}Choose Who Installs</String>
+  <String Id="InstallScopeDlgDescription" Overridable="yes">Decide whether [ProductName] should be installed for everyone on this PC, or only for your account.</String>
+  <String Id="InstallScopeDlgPerUserDescription" Overridable="yes">Installs [ProductName] under your user profile. No administrator rights are required.</String>
+  <String Id="InstallScopeDlgPerMachineDescription" Overridable="yes">Installs [ProductName] for every user on this PC. This requires administrator rights.</String>
+
+</WixLocalization>

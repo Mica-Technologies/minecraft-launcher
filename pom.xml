@@ -266,6 +266,15 @@
                      Install via: winget install WiXToolset.WiX
                      Override with -Djpackage.type=app-image if WiX is not available. -->
                 <jpackage.type>msi</jpackage.type>
+                <!-- Root of the WiX 3.x install. CI may override via -Dwix.toolset.bin
+                     when WiX lives somewhere other than the default Program Files path. -->
+                <wix.toolset.bin>C:/Program Files (x86)/WiX Toolset v3.14/bin</wix.toolset.bin>
+                <!-- Per-scope MSI staging directories. Each jpackage execution writes
+                     its MSI here, then the Burn bootstrapper bundles both. -->
+                <msi.user.dir>${project.basedir}/build/packaging/user</msi.user.dir>
+                <msi.machine.dir>${project.basedir}/build/packaging/machine</msi.machine.dir>
+                <msi.user.path>${msi.user.dir}/${packaging.name}-${jpackage.app.version}.msi</msi.user.path>
+                <msi.machine.path>${msi.machine.dir}/${packaging.name}-${jpackage.app.version}.msi</msi.machine.path>
             </properties>
             <build>
                 <plugins>
@@ -273,8 +282,11 @@
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <executions>
+                            <!-- Per-user MSI. Installs under %LOCALAPPDATA%\Programs, no
+                                 admin rights required. Matches the convention used by
+                                 Minecraft Launcher, MultiMC, and similar modpack launchers. -->
                             <execution>
-                                <id>jpackage</id>
+                                <id>jpackage-user</id>
                                 <phase>package</phase>
                                 <goals><goal>exec</goal></goals>
                                 <configuration>
@@ -293,8 +305,10 @@
                                         <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
-                                        <argument>${project.basedir}/build/packaging</argument>
+                                        <argument>${msi.user.dir}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--icon</argument>
@@ -305,18 +319,120 @@
                                         <argument>${project.basedir}/LICENSE</argument>
                                         <argument>--win-dir-chooser</argument>
                                         <argument>--win-menu</argument>
+                                        <argument>--win-menu-group</argument>
+                                        <argument>Mica Minecraft Launcher</argument>
                                         <argument>--win-shortcut</argument>
                                         <argument>--win-shortcut-prompt</argument>
+                                        <argument>--win-per-user-install</argument>
                                         <argument>--win-upgrade-uuid</argument>
                                         <argument>3699f9a3-0d10-4228-ab2f-b86ca9a500ac</argument>
                                         <argument>--resource-dir</argument>
                                         <argument>${project.build.directory}/installer-resources</argument>
-                                        <!-- CODE SIGNING (Windows): Uncomment when a code signing
-                                             certificate is available. Requires signtool.exe on the
-                                             PATH and the certificate installed in the Windows cert
-                                             store. In CI, import via a GitHub secret and certutil.
-                                        <argument>- -win-sign</argument>
-                                        -->
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Per-machine MSI. Installs under %ProgramFiles%, requires
+                                 elevation. The Burn bootstrapper picks this one when the
+                                 user selects "All users" on the scope chooser screen. -->
+                            <execution>
+                                <id>jpackage-machine</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${jpackage.app.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${msi.machine.dir}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
+                                        <argument>--type</argument>
+                                        <argument>${jpackage.type}</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${project.basedir}/LICENSE</argument>
+                                        <argument>--win-dir-chooser</argument>
+                                        <argument>--win-menu</argument>
+                                        <argument>--win-menu-group</argument>
+                                        <argument>Mica Minecraft Launcher</argument>
+                                        <argument>--win-shortcut</argument>
+                                        <argument>--win-shortcut-prompt</argument>
+                                        <!-- Per-machine variant: no per-user-install flag, so jpackage
+                                             stages this MSI under %ProgramFiles% and registers it
+                                             under HKLM. -->
+                                        <argument>--win-upgrade-uuid</argument>
+                                        <argument>3699f9a3-0d10-4228-ab2f-b86ca9a500ac</argument>
+                                        <argument>--resource-dir</argument>
+                                        <argument>${project.build.directory}/installer-resources</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Burn bootstrapper compile. candle.exe compiles the bundle.wxs
+                                 source into an intermediate .wixobj. -->
+                            <execution>
+                                <id>burn-candle</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>${wix.toolset.bin}/candle.exe</executable>
+                                    <arguments>
+                                        <argument>-nologo</argument>
+                                        <argument>-ext</argument>
+                                        <argument>WixBalExtension</argument>
+                                        <argument>-ext</argument>
+                                        <argument>WixUtilExtension</argument>
+                                        <argument>-arch</argument>
+                                        <argument>x64</argument>
+                                        <argument>-dProjectDir=${project.basedir}</argument>
+                                        <argument>-dMsiUserPath=${msi.user.path}</argument>
+                                        <argument>-dMsiMachinePath=${msi.machine.path}</argument>
+                                        <argument>-dAppName=${packaging.displayName}</argument>
+                                        <argument>-dAppVersion=${jpackage.app.version}</argument>
+                                        <argument>-dAppDescription=Mica Minecraft Launcher — Forge modpacks, made simple.</argument>
+                                        <argument>-out</argument>
+                                        <argument>${project.build.directory}/burn/bundle.wixobj</argument>
+                                        <argument>${project.basedir}/deploy/windows/bootstrapper/bundle.wxs</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- Burn bootstrapper link. light.exe stitches the .wixobj + the
+                                 two MSI payloads + the theme resources into the final
+                                 self-extracting bootstrapper .exe. -->
+                            <execution>
+                                <id>burn-light</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>${wix.toolset.bin}/light.exe</executable>
+                                    <arguments>
+                                        <argument>-nologo</argument>
+                                        <argument>-ext</argument>
+                                        <argument>WixBalExtension</argument>
+                                        <argument>-ext</argument>
+                                        <argument>WixUtilExtension</argument>
+                                        <argument>-b</argument>
+                                        <argument>${project.basedir}/deploy/windows/bootstrapper</argument>
+                                        <argument>-out</argument>
+                                        <argument>${project.basedir}/build/packaging/${packaging.name} Setup.exe</argument>
+                                        <argument>${project.build.directory}/burn/bundle.wixobj</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -356,6 +472,8 @@
                                         <argument>${project.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.basedir}/build/packaging</argument>
                                         <argument>--java-options</argument>
@@ -429,6 +547,8 @@
                                         <argument>${project.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
                                         <argument>${project.basedir}/build/packaging</argument>
                                         <argument>--java-options</argument>

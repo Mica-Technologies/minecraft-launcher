@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX Burn bundle for the Mica Minecraft Launcher.
+
+  Bundles the two scope-specific MSIs (user / machine) into a single self-
+  extracting .exe and provides a custom themed UI where the user picks the
+  install scope at run time.
+
+  The Burn variable MMCL_INSTALL_FOR_ALL_USERS toggles between scopes:
+    0 → per-user MSI runs (no elevation, installs under %LOCALAPPDATA%\Programs)
+    1 → per-machine MSI runs (UAC elevation, installs under %ProgramFiles%)
+
+  jpackage cannot emit a single dual-scope MSI (its generated WiX hard-codes
+  the install root directory at build time), so we build two MSIs and let
+  Burn pick the right one based on the user's choice.
+
+  Variables passed in from Maven (via candle -d):
+    MsiUserPath        absolute path to the per-user MSI
+    MsiMachinePath     absolute path to the per-machine MSI
+    AppName            display name (e.g. "Mica Minecraft Launcher" or "...DEV")
+    AppVersion         version string (e.g. "25.1.2")
+    AppDescription     tagline shown on the bundle's ARP entry
+    ProjectDir         absolute path to the project root (for asset lookups)
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:bal="http://schemas.microsoft.com/wix/BalExtension"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <Bundle Name="$(var.AppName)"
+          Version="$(var.AppVersion)"
+          Manufacturer="Mica Technologies"
+          AboutUrl="https://minecraft.micatechnologies.com/"
+          HelpUrl="https://github.com/Mica-Technologies/minecraft-launcher/issues"
+          UpdateUrl="https://github.com/Mica-Technologies/minecraft-launcher/releases"
+          UpgradeCode="b3a4f7c2-1d9e-4f88-9b06-3a2c1c7e9501"
+          IconSourceFile="$(var.ProjectDir)/deploy/windows/Mica Minecraft Launcher.ico"
+          DisableModify="yes"
+          Compressed="yes">
+
+    <!-- Use the WixStdBA HyperlinkLargeLicense theme with our customized
+         theme + localization files. The theme XML adds a scope-chooser
+         checkbox to the install page; the .wxl file localizes the strings. -->
+    <!-- HyperlinkLargeLicense BA needs LicenseUrl (a URL, not a file path) —
+         the EULA link in the theme opens this URL in the user's browser.
+         Use the canonical GPL v3 URL since that's the project license; this
+         also avoids shipping a local copy that could drift from the canonical
+         text. The local LICENSE file inside each MSI is still presented by
+         the underlying jpackage installer flow. -->
+    <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLargeLicense">
+      <bal:WixStandardBootstrapperApplication
+          LicenseUrl="https://www.gnu.org/licenses/gpl-3.0.en.html"
+          ThemeFile="$(var.ProjectDir)/deploy/windows/bootstrapper/theme.xml"
+          LocalizationFile="$(var.ProjectDir)/deploy/windows/bootstrapper/theme.wxl"
+          LogoFile="$(var.ProjectDir)/deploy/windows/Mica Minecraft Launcher.ico"
+          ShowVersion="yes"/>
+    </BootstrapperApplicationRef>
+
+    <!-- Scope choice. 0 = per-user (default), 1 = per-machine.
+         Persisted="no" because the choice should not survive across runs —
+         each install starts from the same default. -->
+    <Variable Name="MMCL_INSTALL_FOR_ALL_USERS" Type="numeric" Value="0"
+              Persisted="no" bal:Overridable="yes"/>
+
+    <!-- Pre-populated install-location text shown in the Options page's
+         FolderEditbox. WixStdBA binds the editbox to the InstallFolder
+         variable; we set it as a `formatted` string so [LocalAppDataFolder]
+         and [WixBundleName] expand at run time to a concrete path.
+
+         Caveat: the underlying MSIs hardcode their install directories at
+         jpackage build time (LocalAppData\Programs\Mica Minecraft Launcher
+         for the per-user variant, ProgramFiles\Mica Minecraft Launcher for
+         per-machine), so editing this field doesn't actually move the
+         install — it's display-only. The value reflects the per-user path
+         since that's the default scope; if the user toggles "Install for
+         all users", the real path is ProgramFiles even though this field
+         still shows the per-user path. -->
+    <Variable Name="InstallFolder" Type="string"
+              Value="[LocalAppDataFolder]Programs\[WixBundleName]"
+              Persisted="no"/>
+
+    <!-- Detection: if any prior Mica Minecraft Launcher install exists at
+         either scope, the chain's RemoveExistingProducts logic in the
+         per-MSI Upgrade element handles the upgrade. We expose a Variable
+         for the BA so the UI can show "Update" instead of "Install" when an
+         existing version is detected. -->
+    <util:RegistrySearch
+        Id="PerUserInstallSearch"
+        Root="HKCU"
+        Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\{3699f9a3-0d10-4228-ab2f-b86ca9a500ac}"
+        Value="DisplayVersion"
+        Variable="MMCL_EXISTING_USER_VERSION"
+        Result="value"
+        Format="raw"/>
+    <util:RegistrySearch
+        Id="PerMachineInstallSearch"
+        Root="HKLM"
+        Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\{3699f9a3-0d10-4228-ab2f-b86ca9a500ac}"
+        Value="DisplayVersion"
+        Variable="MMCL_EXISTING_MACHINE_VERSION"
+        Result="value"
+        Format="raw"/>
+
+    <Chain>
+      <!-- Per-user MSI. Installs under %LOCALAPPDATA%\Programs. No elevation.
+           ForcePerMachine="no" tells Burn to NOT request UAC for this one. -->
+      <MsiPackage Id="UserMsi"
+                  SourceFile="$(var.MsiUserPath)"
+                  InstallCondition="MMCL_INSTALL_FOR_ALL_USERS = 0"
+                  Compressed="yes"
+                  Vital="yes"
+                  Visible="no"
+                  ForcePerMachine="no"
+                  DisplayInternalUI="no"/>
+
+      <!-- Per-machine MSI. Installs under %ProgramFiles%. ForcePerMachine="yes"
+           triggers Burn's UAC shield + elevation when the chain runs. -->
+      <MsiPackage Id="MachineMsi"
+                  SourceFile="$(var.MsiMachinePath)"
+                  InstallCondition="MMCL_INSTALL_FOR_ALL_USERS = 1"
+                  Compressed="yes"
+                  Vital="yes"
+                  Visible="no"
+                  ForcePerMachine="yes"
+                  DisplayInternalUI="no"/>
+    </Chain>
+  </Bundle>
+</Wix>
