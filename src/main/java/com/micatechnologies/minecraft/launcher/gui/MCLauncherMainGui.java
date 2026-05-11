@@ -491,6 +491,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             chips.setAlignment( Pos.CENTER_LEFT );
             String mc = safeMinecraftVersion( pack );
             String forge = safeForgeVersion( pack );
+            String packVersion = pack.getPackVersion();
+
+            // "Vanilla" chip — placed first so it's the first visual cue that this card
+            // is a stock Minecraft version, not a Forge modpack.
+            if ( pack.isVanillaVersion() ) {
+                chips.getChildren().add( buildChip( "Vanilla" ) );
+            }
             // "Minecraft 1.20.4" (not "MC 1.20.4") — full name reads clearer and the chip
             // has room. Minecraft is a trademark of Mojang Synergies AB / Microsoft;
             // attribution is surfaced in the Settings → About / Attributions section.
@@ -499,8 +506,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 String shortForge = forge.contains( "-" ) ? forge.substring( forge.lastIndexOf( '-' ) + 1 ) : forge;
                 chips.getChildren().add( buildChip( "Forge " + shortForge ) );
             }
-            if ( pack.getPackVersion() != null && !pack.getPackVersion().isBlank() )
-                chips.getChildren().add( buildChip( "v" + pack.getPackVersion() ) );
+            // Pack-version chip: skip when it would just duplicate the MC version chip.
+            // Vanilla packs by construction have packVersion == mcVersion, so this drops
+            // the redundant "v1.21.11" alongside "Minecraft 1.21.11". Modded packs with
+            // a distinct pack version (e.g. "v26.5.2" vs "Minecraft 1.12.2") keep theirs.
+            if ( packVersion != null && !packVersion.isBlank() && !packVersion.equals( mc ) ) {
+                chips.getChildren().add( buildChip( "v" + packVersion ) );
+            }
 
             String lastPlayed = pack.getLastPlayedFormatted();
             Label played = new Label();
@@ -594,6 +606,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     // ---------- helpers used by the card ----------
 
     private static String resolveDisplayName( GameModPack pack ) {
+        // Vanilla packs use the standard friendly-name template "%s: %s" which expands to
+        // e.g. "Minecraft 1.21.11: 1.21.11" — the pack name already contains the version,
+        // so the duplicated suffix is just noise. Use the bare pack name in that case.
+        if ( pack.isVanillaVersion() ) {
+            String name = pack.getPackName();
+            if ( name != null && !name.isBlank() ) return name;
+        }
         String name = pack.getFriendlyName();
         if ( name == null || name.isBlank() ) name = pack.getPackName();
         return name != null ? name : "Unnamed Pack";
