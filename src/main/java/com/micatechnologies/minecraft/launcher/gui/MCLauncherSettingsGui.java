@@ -221,7 +221,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navCredits;
+    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navAbout;
 
     /**
      * StackPane containing the category content panes.
@@ -231,6 +231,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" )
     @FXML
     StackPane settingsContent;
+
+    /**
+     * About / Attributions tab FXML controls.
+     *
+     * @since 3.2
+     */
+    @SuppressWarnings( "unused" ) @FXML Label     aboutAppNameLabel;
+    @SuppressWarnings( "unused" ) @FXML Label     aboutVersionLabel;
+    @SuppressWarnings( "unused" ) @FXML MFXButton aboutWebsiteBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton aboutSourceBtn;
 
     /**
      * Account tab FXML controls.
@@ -783,7 +793,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         } );
 
         // Wire up sidebar navigation buttons
-        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navCredits };
+        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navAbout };
         navAccount.setOnAction( e -> showCategory( 0 ) );
         navGame.setOnAction( e -> showCategory( 1 ) );
         navAppearance.setOnAction( e -> showCategory( 2 ) );
@@ -791,7 +801,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         navNetwork.setOnAction( e -> showCategory( 4 ) );
         navSecurity.setOnAction( e -> showCategory( 5 ) );
         navSystem.setOnAction( e -> showCategory( 6 ) );
-        navCredits.setOnAction( e -> showCategory( 7 ) );
+        navAbout.setOnAction( e -> showCategory( 7 ) );
+
+        setupAboutTab();
 
         // Populate account tab
         setupAccountTab();
@@ -805,7 +817,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      * state.
      *
      * @param index the zero-based category index (0=Account, 1=Game, 2=Appearance, 3=Advanced, 4=Network, 5=Security,
-     *              6=System, 7=Credits)
+     *              6=System, 7=About)
      *
      * @since 3.0
      */
@@ -876,6 +888,40 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
             } );
         } );
+    }
+
+    /**
+     * Populates the About / Attributions tab. Sets the version label and wires the two action
+     * buttons (Visit Website + View Source). The trademark notice and open-source acknowledgments
+     * are static text in the FXML — no controller wiring needed.
+     */
+    private void setupAboutTab()
+    {
+        if ( aboutVersionLabel != null ) {
+            aboutVersionLabel.setText( "Version " + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+        }
+        if ( aboutWebsiteBtn != null ) {
+            aboutWebsiteBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+                try {
+                    java.awt.Desktop.getDesktop().browse(
+                            java.net.URI.create( "https://micatechnologies.com" ) );
+                }
+                catch ( Exception ex ) {
+                    Logger.logWarningSilent( "Couldn't open website: " + ex.getMessage() );
+                }
+            } ) );
+        }
+        if ( aboutSourceBtn != null ) {
+            aboutSourceBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+                try {
+                    java.awt.Desktop.getDesktop().browse(
+                            java.net.URI.create( "https://github.com/MicaTechnologies/Mica-Minecraft-Launcher" ) );
+                }
+                catch ( Exception ex ) {
+                    Logger.logWarningSilent( "Couldn't open source repo: " + ex.getMessage() );
+                }
+            } ) );
+        }
     }
 
     /**
