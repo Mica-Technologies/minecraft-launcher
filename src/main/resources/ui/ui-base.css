@@ -144,6 +144,19 @@
     -fx-fill: -color-text;
 }
 
+/* Navbar "update available" download-arrow SVG icon. Inline-defined in
+ * mainGUI.fxml (no fill attribute), so this rule drives the color via
+ * theme tokens. Hover state pulls the hover token for a subtle hint that
+ * it's clickable. */
+.navUpdateIcon {
+    -fx-fill: -color-primary;
+    -fx-cursor: hand;
+}
+
+.navUpdateIcon:hover {
+    -fx-fill: -color-primary-hover;
+}
+
 /* =====================================================================
  *  Progress GUI card
  *  Visual upgrade for the modpack-install / auth-renewal / etc. progress

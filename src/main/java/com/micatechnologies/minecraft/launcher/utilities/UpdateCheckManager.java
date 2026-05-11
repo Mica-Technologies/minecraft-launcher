@@ -20,7 +20,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
-import javafx.scene.image.ImageView;
+import javafx.scene.Node;
 import javafx.stage.Stage;
 
 import java.awt.*;
@@ -48,10 +48,12 @@ public class UpdateCheckManager
      * {@link TaskbarProgressManager#showFullError()} (red full-error overlay) and a native toast via
      * {@link NotificationManager#info}, so a user with the launcher minimized still sees the prompt.
      *
-     * @param updateImgView the ImageView to show/hide for update notification
+     * @param updateImgView the icon node to show/hide for update notification (typed as
+     *                      {@link Node} so the FXML side can swap between ImageView /
+     *                      SVGPath / etc. without churning this signature)
      * @param stage         the owning stage (for dialogs and taskbar integration)
      */
-    public static void checkAndConfigureUI( ImageView updateImgView, Stage stage )
+    public static void checkAndConfigureUI( Node updateImgView, Stage stage )
     {
         // Hide AND unmanage so the image doesn't reserve layout space when there's no update.
         updateImgView.setVisible( false );

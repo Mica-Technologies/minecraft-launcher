@@ -16,6 +16,7 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.Priority?>
+<?import javafx.scene.shape.SVGPath?>
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.transform.Scale?>
 
@@ -75,12 +76,13 @@
         <MFXButton fx:id="vanillaBtn" text="Vanilla" prefHeight="28.0"/>
         <MFXButton fx:id="settingsBtn" text="Settings" prefHeight="28.0"/>
 
-        <!-- Update available icon (still wired to the existing handler) -->
-        <ImageView fx:id="updateImgView" accessibleText="Update available - click to download"
-                   focusTraversable="true" fitHeight="22.0" fitWidth="18.0"
-                   pickOnBounds="true" preserveRatio="true">
-            <Image url="@../update.png"/>
-        </ImageView>
+        <!-- Update available icon. Inline SVG (download-arrow over a tray bar) instead of
+             a PNG file so it's theme-coloured via -fx-fill: -color-primary and never breaks
+             when the PNG resource lookup misbehaves. The previous @../update.png include
+             intermittently rendered as empty space — replaced wholesale with this vector. -->
+        <SVGPath fx:id="updateImgView" accessibleText="Update available - click to download"
+                 focusTraversable="true" pickOnBounds="true" styleClass="navUpdateIcon"
+                 content="M 9 3 L 13 3 L 13 11 L 17 11 L 11 18 L 5 11 L 9 11 Z M 4 20 L 18 20 L 18 22 L 4 22 Z"/>
 
         <!-- Help — a Label rather than a Button to avoid MFXButton text-rendering quirks. Click handler
              is wired in the controller; pointer cursor and hover styling come from .helpButton CSS. -->

@@ -80,7 +80,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML MFXButton settingsBtn;
     @SuppressWarnings( "unused" ) @FXML Label helpBtn;
     @SuppressWarnings( "unused" ) @FXML ImageView userImage;
-    @SuppressWarnings( "unused" ) @FXML ImageView updateImgView;
+    @SuppressWarnings( "unused" ) @FXML javafx.scene.shape.SVGPath updateImgView;
     @SuppressWarnings( "unused" ) @FXML Label playerLabel;
     @SuppressWarnings( "unused" ) @FXML Label announcement;
     @SuppressWarnings( "unused" ) @FXML RowConstraints announcementRow;
