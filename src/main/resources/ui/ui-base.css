@@ -524,10 +524,18 @@
  * 4. Buttons
  * ===================================================================== */
 
-/* Default tonal/ghost button — soft surface; reads as a secondary action. */
+/* Default tonal/ghost button — soft surface; reads as a secondary action.
+ *
+ * `:hover` is intentionally part of this selector group so our 8px radius wins
+ * on hover. MaterialFX's bundled MFXButton.css sets `-fx-background-radius: 3px`
+ * on `.mfx-button:hover`, and because that's added to the Parent's stylesheets
+ * (same author origin as ours), it would otherwise beat our radius-less
+ * `.mfx-button { -fx-background-radius: 8 }` on hover purely on specificity —
+ * giving a clearly visible inner-vs-outer radius mismatch on hovered buttons. */
 .mfx-button,
 .mfx-button:armed,
-.mfx-button:focused {
+.mfx-button:focused,
+.mfx-button:hover {
     -mfx-button-type: FLAT;
     -mfx-depth-level: Level0;
     -fx-background-color: -color-surface;
