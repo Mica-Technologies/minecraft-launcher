@@ -452,7 +452,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             badgeRow.setAlignment( Pos.TOP_RIGHT );
             badgeRow.setPadding( new javafx.geometry.Insets( 10, 12, 0, 0 ) );
             if ( pack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
-            if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Update", "stat-chip-success" ) );
+            // "Updated" rather than "Update" — reads as "this pack received an upstream
+            // update, you have the older version" rather than the ambiguous imperative.
+            if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Updated", "stat-chip-success" ) );
 
             imageBox.getChildren().addAll( bgLayer, imageVeil, badgeRow );
 
