@@ -218,17 +218,37 @@
                                      `icon=...` value is opened against the build CWD later in the
                                      pipeline and fails with NoSuchFileException somewhere deep in
                                      icon processing. Staging a copy with an absolute path sidesteps
-                                     the issue without depending on jpackage's relative-path semantics. -->
+                                     the issue without depending on jpackage's relative-path semantics.
+                                     The icon file is ALSO copied under a renamed basename so jpackage's
+                                     copy of it into Contents/Resources/ doesn't collide with the
+                                     identically-named app-icon copy (same source, same destination
+                                     basename when the FA icon reuses the app icon). -->
+                                <copy file="${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns"
+                                      tofile="${project.build.directory}/jpackage-file-assoc/mmcjson-document.icns"/>
                                 <copy file="${project.basedir}/deploy/mac/file-associations.properties"
                                       tofile="${project.build.directory}/jpackage-file-assoc/mac.properties"/>
                                 <replace file="${project.build.directory}/jpackage-file-assoc/mac.properties"
                                          token="icon=Mica Minecraft Launcher.icns"
-                                         value="icon=${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns"/>
+                                         value="icon=${project.build.directory}/jpackage-file-assoc/mmcjson-document.icns"/>
+                                <copy file="${project.basedir}/deploy/linux/Mica Minecraft Launcher.png"
+                                      tofile="${project.build.directory}/jpackage-file-assoc/mmcjson-document.png"/>
                                 <copy file="${project.basedir}/deploy/linux/file-associations.properties"
                                       tofile="${project.build.directory}/jpackage-file-assoc/linux.properties"/>
                                 <replace file="${project.build.directory}/jpackage-file-assoc/linux.properties"
                                          token="icon=Mica Minecraft Launcher.png"
-                                         value="icon=${project.basedir}/deploy/linux/Mica Minecraft Launcher.png"/>
+                                         value="icon=${project.build.directory}/jpackage-file-assoc/mmcjson-document.png"/>
+
+                                <!-- Stage a clean macOS resource-dir containing only Info.plist.
+                                     jpackage's macOS app-image builder walks the resource-dir for
+                                     conventional filenames including `<name>.icns`, and if it
+                                     finds one it copies that into Contents/Resources/. With our
+                                     icon flag also pointing at deploy/mac/Mica Minecraft Launcher.icns,
+                                     both copy paths target the same destination and the second
+                                     one fails with FileAlreadyExistsException. Staging a dir that
+                                     only holds Info.plist sidesteps the collision while preserving
+                                     the custom Info.plist template (CFBundleURLTypes for mmcl://). -->
+                                <copy file="${project.basedir}/deploy/mac/Info.plist"
+                                      todir="${project.build.directory}/jpackage-mac-resources"/>
                             </target>
                         </configuration>
                     </execution>
@@ -581,9 +601,12 @@
                                              bundled .app declares CFBundleURLTypes for the mmcl:// scheme.
                                              The template preserves the DEPLOY_FILE_ASSOCIATIONS placeholder
                                              jpackage substitutes for file-associations content, so the URL
-                                             scheme + file association coexist in one plist. -->
+                                             scheme + file association coexist in one plist.
+                                             Points at a staged dir holding only Info.plist (see
+                                             stage-jar-for-jpackage); pointing at deploy/mac directly
+                                             causes jpackage to double-copy the .icns into the bundle. -->
                                         <argument>--resource-dir</argument>
-                                        <argument>${project.basedir}/deploy/mac</argument>
+                                        <argument>${project.build.directory}/jpackage-mac-resources</argument>
                                         <!-- CODE SIGNING (macOS): Uncomment when an Apple Developer
                                              ID certificate is available. Requires the cert imported
                                              via apple-actions/import-codesign-certs in CI. Set
