@@ -21,11 +21,18 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
+import javafx.animation.Animation;
+import javafx.animation.Interpolator;
+import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
+import javafx.scene.Group;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Progress GUI with three text labels:
@@ -62,6 +69,17 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     @FXML
     Label speedLabel;
 
+    /** Three iso-cube voxel groups at the top of the progress card. Animated in
+     *  {@link #afterShow()} with a staggered bounce so the screen feels alive while a
+     *  long-running download is in flight. */
+    @SuppressWarnings( "unused" ) @FXML Group voxelCube1;
+    @SuppressWarnings( "unused" ) @FXML Group voxelCube2;
+    @SuppressWarnings( "unused" ) @FXML Group voxelCube3;
+
+    /** Running animations on the voxel cubes. Held so {@link #cleanup()} can stop them
+     *  on scene transition rather than leaking timeline state across scene changes. */
+    private final List< TranslateTransition > voxelAnimations = new ArrayList<>();
+
     public MCLauncherProgressGui( Stage stage ) throws IOException {
         super( stage );
     }
@@ -92,6 +110,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
+        startVoxelBounceAnimation();
+
         setUpperLabelText( "Just a Moment" );
         setSectionText( "" );
         setDetailText( "" );
@@ -111,6 +131,54 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         // close the wrapper here — TaskbarProgressManager keeps it alive until app exit
         // so transitions never race a release against a fresh init.
         GUIUtilities.JFXPlatformRun( TaskbarProgressManager::stop );
+        stopVoxelBounceAnimation();
+    }
+
+    /**
+     * Kicks off the staggered bounce animation on the three voxel cubes at the top of the
+     * progress card. Each cube bobs up-down (Y translate 0 → -8 → 0) on an indefinite
+     * cycle, with the second and third cubes starting ~150 ms and ~300 ms after the first
+     * so the cluster looks like a Mexican wave rather than three things blinking in sync.
+     *
+     * <p>Easing is {@link Interpolator#EASE_BOTH} for a gentle, "watching a loading dots"
+     * feel rather than a snappy bounce. Translates use the Node's {@code translateY}
+     * property which doesn't affect layout — the HBox row size stays stable; only the
+     * cube's draw position moves within its layout slot. That's why the row's
+     * {@code prefHeight} got bumped up a few px in the FXML — to give the cubes 8 px of
+     * vertical travel room without clipping at the top edge of the row.</p>
+     */
+    private void startVoxelBounceAnimation() {
+        stopVoxelBounceAnimation();
+        startBounceOn( voxelCube1,   0 );
+        startBounceOn( voxelCube2, 150 );
+        startBounceOn( voxelCube3, 300 );
+    }
+
+    private void startBounceOn( Group cube, int delayMs ) {
+        if ( cube == null ) {
+            return;
+        }
+        TranslateTransition tt = new TranslateTransition( Duration.millis( 500 ), cube );
+        tt.setFromY( 0 );
+        tt.setToY( -8 );
+        tt.setAutoReverse( true );
+        tt.setCycleCount( Animation.INDEFINITE );
+        tt.setInterpolator( Interpolator.EASE_BOTH );
+        tt.setDelay( Duration.millis( delayMs ) );
+        tt.play();
+        voxelAnimations.add( tt );
+    }
+
+    /** Stops every running voxel bounce. Called from {@link #cleanup()} so the timelines
+     *  don't keep ticking on a hidden / disposed scene. */
+    private void stopVoxelBounceAnimation() {
+        for ( TranslateTransition tt : voxelAnimations ) {
+            try {
+                tt.stop();
+            }
+            catch ( Exception | Error ignored ) { /* best-effort */ }
+        }
+        voxelAnimations.clear();
     }
 
     @Override

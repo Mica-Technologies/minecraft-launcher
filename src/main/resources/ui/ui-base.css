@@ -155,22 +155,10 @@
 .progressCard {
     /* The card.elevated base already provides the surface color, border,
      * and shadow. We add a top inner highlight via inner-shadow to suggest
-     * a soft brand glow under the voxel cluster, without making the
-     * whole card glow primary-blue. */
+     * a soft brand glow under the bouncing voxel cluster, without making
+     * the whole card glow primary-blue. */
     -fx-effect: dropshadow(gaussian, -color-shadow, 24, 0.22, 0, 10),
                 innershadow(gaussian, -color-primary-soft, 18, 0.20, 0, -10);
-}
-
-/* Thin brand-colored accent bar under the heading. Linear gradient from
- * transparent → primary → transparent fades the edges so the bar looks
- * intentional and not chopped. */
-.progressCard .accentBar {
-    -fx-background-color: linear-gradient(to right,
-        transparent 0%,
-        -color-primary 20%,
-        -color-primary 80%,
-        transparent 100%);
-    -fx-background-radius: 999;
 }
 
 
