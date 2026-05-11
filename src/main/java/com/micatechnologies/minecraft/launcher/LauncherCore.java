@@ -31,10 +31,10 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGameConsoleGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
-import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
@@ -390,20 +390,44 @@ public class LauncherCore
 
         // Show gui or start start
         if ( GameModeManager.isClient() ) {
-            MCLauncherMainGui mainWindow = null;
+            if ( initialErrorMessage != null && initialErrorMessage.length() > 0 ) {
+                Logger.logError( initialErrorMessage );
+            }
+
+            // CLI auto-launch path: when a valid modpack name was passed on the command
+            // line (typical desktop-shortcut flow), skip the main menu and kick off the
+            // pack's launch pipeline directly. Mirrors the GUI Play-button code path in
+            // MCLauncherMainGui.ModpackHeroCard.startPlay — set last-played + Discord
+            // presence, then call play() with an after-callback that surfaces the main
+            // GUI once the game exits so the user has somewhere to land.
+            if ( finalGameModPack != null ) {
+                final GameModPack autoPack = finalGameModPack;
+                ConfigManager.setLastModPackSelected( autoPack.getPackName() );
+                SystemUtilities.spawnNewTask( () -> {
+                    SystemUtilities.spawnNewTask( () ->
+                            DiscordRpcUtility.setGamePresence( autoPack.getPackName(),
+                                                                autoPack.getCustomDiscordRpc() ) );
+                    play( autoPack, () -> GUIUtilities.JFXPlatformRun( () -> {
+                        try {
+                            MCLauncherGuiController.goToMainGui();
+                            MCLauncherGuiController.requestFocus();
+                        }
+                        catch ( IOException e ) {
+                            Logger.logError( "Unable to load main GUI after auto-launched pack exited." );
+                            Logger.logThrowable( e );
+                            closeApp();
+                        }
+                    } ) );
+                } );
+                return;
+            }
+
             try {
-                mainWindow = MCLauncherGuiController.goToMainGui();
+                MCLauncherGuiController.goToMainGui();
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
-            }
-            if ( finalGameModPack != null && mainWindow != null ) {
-                mainWindow.selectModpack( finalGameModPack );
-            }
-
-            if ( initialErrorMessage != null && initialErrorMessage.length() > 0 ) {
-                Logger.logError( initialErrorMessage );
             }
         }
         else if ( GameModeManager.isServer() ) {
