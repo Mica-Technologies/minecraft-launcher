@@ -1,0 +1,115 @@
+/*
+ * Copyright (c) 2026 Mica Technologies
+ *
+ * Brand token sheet — NATIVE theme.
+ *
+ * Originally targeted Windows 11 Mica via DwmSetWindowAttribute, but JavaFX's
+ * StageStyle.DECORATED on Windows doesn't expose a transparent client area
+ * (Mica requires WS_EX_NOREDIRECTIONBITMAP at window creation time, which
+ * JavaFX doesn't expose). With a transparent JavaFX scene over an opaque
+ * Windows window background, the result is the OS default fill (white) —
+ * not Mica. So this palette is now a Mica-INSPIRED solid dark theme: deeper
+ * cool-toned surfaces with a subtle blue undertone that reads as "OS-native"
+ * without depending on platform compositing.
+ *
+ * The DWM Mica request is still made from MCLauncherGuiWindow.show() as a
+ * best-effort no-op — if a future JavaFX release adds transparent client
+ * areas on DECORATED stages, the visual will upgrade for free.
+ */
+
+.root {
+    /* === Surfaces ===
+     * Inverted from the usual dark-overlay approach: Windows 11 Mica already
+     * handles dark mode by tinting wallpaper darkly — layering MORE dark on
+     * top kills the wallpaper signal that makes Mica look like Mica.
+     * Real Win11 first-party apps (Settings, File Explorer, Calculator) use
+     * faint WHITE highlights instead, creating the "frosted glass" feel
+     * where cards have slightly brighter luminance than the bare Mica
+     * around them.
+     *
+     *   - bg / bg-soft  : FULLY transparent (pure Mica)
+     *   - surface       : ~5% white — text inputs, faint frost indicating
+     *                     a field outline; the border + focus ring carry
+     *                     the rest of the visual weight
+     *   - surface-hover : ~10% white — hover/pressed state
+     *   - surface-elev. : ~8% white — content cards lifted slightly above
+     *                     bare Mica via this brighter frost + a bright
+     *                     hairline border
+     *   - overlay       : kept dark since it's used for modal dimming */
+    -color-bg:                rgba(0, 0, 0, 0.0);
+    -color-bg-soft:           rgba(0, 0, 0, 0.0);
+    -color-surface:           rgba(255, 255, 255, 0.05);
+    -color-surface-hover:     rgba(255, 255, 255, 0.10);
+    -color-surface-elevated:  rgba(255, 255, 255, 0.08);
+    -color-overlay:           rgba(0, 0, 0, 0.55);
+
+    /* === Borders / dividers — significantly brighter than the Dark theme to
+     *      carry the visual weight of card edges. With surfaces at 14-30%
+     *      opacity, the border is what tells the user "there's a card here"
+     *      against any wallpaper Mica picks up. */
+    -color-border:            rgba(220, 230, 245, 0.26);
+    -color-border-strong:     rgba(220, 230, 245, 0.40);
+    -color-divider:           rgba(220, 230, 245, 0.14);
+
+    /* === Text === */
+    -color-text:              #F2F4F8;
+    -color-text-muted:        #B8BFCC;
+    -color-text-subtle:       #828B9C;
+    -color-text-inverse:      #14181F;
+    -color-text-on-primary:   white;
+
+    /* === Brand: blue (primary) — Windows accent-ish blue === */
+    -color-primary:           #4CA0F5;
+    -color-primary-hover:     #66B0F8;
+    -color-primary-pressed:   #80BFFA;
+    -color-primary-soft:      rgba(76, 160, 245, 0.20);
+    -color-primary-soft-hov:  rgba(76, 160, 245, 0.30);
+    -color-focus-ring:        rgba(76, 160, 245, 0.55);
+
+    /* === Brand: secondary (Minecraft-grass green accent) === */
+    -color-secondary:         #52BC52;
+    -color-secondary-hover:   #66CC66;
+    -color-secondary-soft:    rgba(96, 200, 120, 0.22);
+
+    /* === Status === */
+    -color-success:           #52BC52;
+    -color-warning:           #F4C025;
+    -color-warning-soft:      rgba(255, 196, 38, 0.22);
+    -color-danger:            #F53D3D;
+    -color-danger-hover:      #F65A5A;
+    -color-danger-soft:       rgba(255, 86, 86, 0.20);
+
+    /* === Effects === */
+    /* Heavy dark drop shadows fight the bright-frost surface treatment and
+     * create dark halos around cards. Win11 Mica cards lean on hairline
+     * borders for elevation, not shadow — these are softened accordingly. */
+    -color-shadow:            rgba(0, 0, 0, 0.22);
+    -color-shadow-soft:       rgba(0, 0, 0, 0.12);
+
+    /* === Hero radial-gradient stops === */
+    -color-hero-stop-1:       rgba(76, 160, 245, 0.18);
+    -color-hero-stop-2:       rgba(96, 200, 120, 0.10);
+    -color-hero-stop-3:       rgba(0, 0, 0, 0);
+}
+
+/* ----- Native rootPane: transparent so DWM Mica composites through -----
+ *
+ * With StageStyle.UNIFIED on Windows the JavaFX HWND now allows DWM to paint
+ * a system Mica backdrop behind the client area. For Mica to actually appear
+ * the JavaFX scene must paint transparent pixels — so .rootPane goes fully
+ * transparent here and MCLauncherGuiWindow.applyTheme() sets the JavaFX
+ * Scene fill to Color.TRANSPARENT specifically for this theme.
+ *
+ * Match BOTH `.rootPane` (main / library / settings / editor / runtime /
+ * console) AND `.rootPane.hero-surface` (progress + login) so the
+ * higher-specificity hero-surface rule in ui-base.css doesn't keep them
+ * opaque while every other screen goes transparent.
+ *
+ * On platforms where Mica isn't available (Win10, Linux, etc.), the OS
+ * paints the default window background behind our transparent JavaFX scene.
+ * For those cases the user falls back to one of the other dark themes; the
+ * Native theme is explicitly a Win11-22H2+ feature. */
+.rootPane,
+.rootPane.hero-surface {
+    -fx-background-color: transparent;
+}

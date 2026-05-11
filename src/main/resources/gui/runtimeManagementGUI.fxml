@@ -34,23 +34,23 @@
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
-        <!-- Row 0: announcement banner (conditional, 0-60 px) -->
-        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
-        <!-- Row 1: top navbar -->
+        <!-- Row 0: top navbar -->
         <RowConstraints maxHeight="52.0" minHeight="52.0" prefHeight="52.0"/>
+        <!-- Row 1: announcement banner (conditional, 0-60 px) — below the navbar -->
+        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
         <!-- Row 2: content fills remaining space -->
         <RowConstraints vgrow="ALWAYS"/>
         <!-- Row 3: bottom action bar -->
         <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
     </rowConstraints>
 
-    <!-- Row 0: Announcement -->
+    <!-- Row 1: Announcement (below the navbar) -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308"
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
-           text="--" wrapText="true"/>
+           text="--" wrapText="true" GridPane.rowIndex="1"/>
 
-    <!-- Row 1: Top navbar -->
-    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar" GridPane.rowIndex="1">
+    <!-- Row 0: Top navbar -->
+    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar">
         <padding><Insets left="14.0" right="10.0"/></padding>
 
         <Pane prefWidth="36.0" prefHeight="36.0" minWidth="36.0" minHeight="36.0"

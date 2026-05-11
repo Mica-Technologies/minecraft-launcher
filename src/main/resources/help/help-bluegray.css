@@ -1,18 +1,25 @@
-/* Blue-gray theme colors - matches guiStyle-bluegray.css */
+/* Blue-gray theme — mirrors ui-tokens-bluegray.css. */
 
-body { background-color: #1A1C2E; color: #E0E1EC; }
-h1 { color: #FFFFFF; border-bottom: 1px solid #5C5E72; }
-h2 { color: #E0E1EC; }
-h3 { color: #C2C3D0; }
-a { color: #81C784; }
-a:hover { color: #A5D6A7; }
-code { background-color: #2A2C40; color: #A5D6A7; }
-pre { background-color: #2A2C40; color: #E0E1EC; }
-th { border-bottom-color: #5C5E72; background-color: rgba(60, 62, 82, 0.55); color: #FFFFFF; }
-td { border-bottom-color: #3A3C50; }
-kbd { background-color: #2A2C40; border-color: #5C5E72; color: #E0E1EC; }
-.tip { background-color: rgba(76, 175, 80, 0.1); }
-.warning { background-color: rgba(255, 152, 0, 0.1); }
-.note { background-color: rgba(33, 150, 243, 0.1); }
-.callout-title { color: #FFFFFF; }
-.steps li::before { background-color: #4CAF50; color: #FFFFFF; }
+:root {
+    --color-bg:              #121721;
+    --color-bg-soft:         #191E2A;
+    --color-surface:         #1F2633;
+    --color-surface-hover:   #262D3B;
+    --color-surface-elev:    #2C3444;
+
+    --color-border:          rgba(200, 215, 240, 0.12);
+    --color-border-strong:   rgba(200, 215, 240, 0.20);
+    --color-divider:         rgba(200, 215, 240, 0.06);
+
+    --color-text:            #E7E9EE;
+    --color-text-muted:      #A8AFBD;
+    --color-text-subtle:     #7C8598;
+
+    --color-primary:         #518DF6;
+    --color-primary-hover:   #6EA0F7;
+    --color-primary-soft:    rgba(99, 145, 240, 0.20);
+
+    --color-secondary:       #3ECDEA;
+    --color-warning:         #F7B23B;
+    --color-danger:          #F04C4C;
+}

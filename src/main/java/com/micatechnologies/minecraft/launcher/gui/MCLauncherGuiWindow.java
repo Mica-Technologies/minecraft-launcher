@@ -355,13 +355,39 @@ public class MCLauncherGuiWindow extends Application
             gui.afterShow();
         } );
 
-        // Setup theme detector change listener (unregister previous to avoid accumulation)
+        // Setup theme detector change listener (unregister previous to avoid accumulation).
+        //
+        // The listener runs on jthemedetecor's internal watcher thread, which restarts
+        // itself mid-flight when Windows fires multiple registry-change events for a
+        // single OS theme switch (Win11 fires updates for AppsUseLightTheme +
+        // SystemUsesLightTheme + ColorPrevalence back-to-back). That restart interrupts
+        // our previous listener-thread that was awaiting JFXPlatformRun's CountDownLatch,
+        // which surfaces to the user as "Unable to wait for a user interface task to
+        // complete". Two defenses:
+        //
+        //   1. Only re-apply the theme when the user actually has Automatic selected.
+        //      For every other theme, the OS toggle is informational and should be
+        //      ignored entirely.
+        //   2. Dispatch the re-apply via Platform.runLater (fire-and-forget) instead of
+        //      JFXPlatformRun's blocking wait, so an interrupted watcher thread can't
+        //      leak through as a UI error.
         if ( detector != null ) {
             try {
                 if ( themeListener != null ) {
                     detector.removeListener( themeListener );
                 }
-                themeListener = isDark -> forceThemeChange();
+                themeListener = isDark -> {
+                    // Only re-apply the theme when the user has picked one that follows
+                    // the OS. Automatic flips dark/light root themes; Native (Mica)
+                    // flips between its dark + light Mica-frost variants. Every other
+                    // theme is explicit and ignores the OS toggle.
+                    String current = ConfigManager.getTheme();
+                    if ( !ConfigConstants.THEME_AUTOMATIC.equals( current )
+                            && !ConfigConstants.THEME_NATIVE.equals( current ) ) {
+                        return;
+                    }
+                    Platform.runLater( this::forceThemeChange );
+                };
                 detector.registerListener( themeListener );
             }
             catch ( Exception e ) {
@@ -372,7 +398,72 @@ public class MCLauncherGuiWindow extends Application
     }
 
     public void show() {
-        GUIUtilities.JFXPlatformRun( () -> stage.show() );
+        GUIUtilities.JFXPlatformRun( () -> {
+            boolean firstShow = !stage.isShowing();
+            stage.show();
+            // Re-apply DWM chrome attributes only on the *first* show. applyTheme() runs
+            // before the HWND exists, so the very first paint needs a post-show retry —
+            // but subsequent show() calls (each screen navigation re-calls show()) hit
+            // an already-visible stage with a known HWND, and re-firing DWM there has
+            // been observed to cause perceptible freezes on focus regain. Theme switches
+            // call applyTheme() directly anyway, so we don't lose the chrome update.
+            if ( firstShow ) {
+                String tokenSheet = currentTokenSheet();
+                boolean lightTheme = tokenSheet != null
+                                  && ( tokenSheet.endsWith( "ui-tokens-light.css" )
+                                    || tokenSheet.endsWith( "ui-tokens-native-light.css" ) );
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .applyTitleBarDarkMode( stage, !lightTheme );
+                boolean isNative = tokenSheet != null
+                                && ( tokenSheet.endsWith( "ui-tokens-native.css" )
+                                  || tokenSheet.endsWith( "ui-tokens-native-light.css" ) );
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.applyBackdrop(
+                        stage,
+                        isNative
+                          ? com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_MICA
+                          : com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_NONE );
+                // Color-match chrome on first show too. applyTheme() ran before show() so
+                // its caption-color call hit a not-yet-realized HWND; repeat here so the
+                // very first paint already has the seamless title bar.
+                javafx.scene.paint.Color chrome = javafx.scene.paint.Color.web( themeBgHex( tokenSheet ) );
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .applyCaptionColor( stage, chrome );
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .applyBorderColor( stage, chrome );
+
+                // Force a non-client frame recalc so DWM repaints the title bar with
+                // the chrome attributes we just set.
+                com.micatechnologies.minecraft.launcher.utilities.WindowsShellRefresh
+                        .forceFrameRefresh( stage );
+                // SWP_FRAMECHANGED only touches the non-client area. The CLIENT area
+                // (where the JavaFX scene paints) won't be invalidated by it, so on
+                // Native theme the very first paint — which happened before Mica was
+                // enabled — leaves a white client rectangle on screen until something
+                // else triggers a repaint (focus, move, resize). RedrawWindow with
+                // RDW_INVALIDATE | RDW_ERASE | RDW_FRAME flags forces both client and
+                // non-client repaints synchronously, so Mica shows up on the very next
+                // frame regardless of whether the first paint beat us to it.
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .forceFullRepaint( stage );
+            }
+        } );
+    }
+
+    /** Returns the currently-loaded ui-tokens-*.css path (one of {@link #UI_TOKENS_DARK} et al.)
+     *  or null if no token sheet has been installed yet. Used to derive title-bar dark mode
+     *  without re-reading the config in tight loops. */
+    private String currentTokenSheet() {
+        if ( gui == null || gui.rootPane == null ) return null;
+        for ( String sheet : gui.rootPane.getStylesheets() ) {
+            if ( sheet.endsWith( "ui-tokens-dark.css" ) )         return UI_TOKENS_DARK;
+            if ( sheet.endsWith( "ui-tokens-light.css" ) )        return UI_TOKENS_LIGHT;
+            if ( sheet.endsWith( "ui-tokens-bluegray.css" ) )     return UI_TOKENS_BLUE_GRAY;
+            if ( sheet.endsWith( "ui-tokens-orangepurple.css" ) ) return UI_TOKENS_ORANGE_PURPLE;
+            if ( sheet.endsWith( "ui-tokens-creeper.css" ) )      return UI_TOKENS_CREEPER;
+            if ( sheet.endsWith( "ui-tokens-native.css" ) )       return UI_TOKENS_NATIVE;
+            if ( sheet.endsWith( "ui-tokens-native-light.css" ) ) return UI_TOKENS_NATIVE_LIGHT;
+        }
+        return null;
     }
 
     public Stage getStage() {
@@ -411,6 +502,9 @@ public class MCLauncherGuiWindow extends Application
             case ConfigConstants.THEME_CREEPER:
                 switchToCreeperTheme();
                 break;
+            case ConfigConstants.THEME_NATIVE:
+                switchToNativeTheme();
+                break;
         }
     }
 
@@ -430,6 +524,8 @@ public class MCLauncherGuiWindow extends Application
     private static final String UI_TOKENS_BLUE_GRAY    = "ui/ui-tokens-bluegray.css";
     private static final String UI_TOKENS_ORANGE_PURPLE = "ui/ui-tokens-orangepurple.css";
     private static final String UI_TOKENS_CREEPER       = "ui/ui-tokens-creeper.css";
+    private static final String UI_TOKENS_NATIVE        = "ui/ui-tokens-native.css";
+    private static final String UI_TOKENS_NATIVE_LIGHT  = "ui/ui-tokens-native-light.css";
 
     private void switchToLightTheme() {
         applyTheme( LEGACY_LIGHT, UI_TOKENS_LIGHT );
@@ -451,6 +547,20 @@ public class MCLauncherGuiWindow extends Application
      *  selectors not yet ported into ui-base.css, but uses creeper tokens for everything modern. */
     private void switchToCreeperTheme() {
         applyTheme( LEGACY_DARK, UI_TOKENS_CREEPER );
+    }
+
+    /** Native theme — translucent surface palette with the OS Mica backdrop showing
+     *  through. Follows OS dark/light: picks the dark or light Native token sheet based
+     *  on {@link OsThemeDetector#isDark()}. The legacy companion sheet matches too so
+     *  selectors not yet ported into ui-base.css get the right palette. */
+    private void switchToNativeTheme() {
+        boolean osDark = detector == null || detector.isDark();
+        if ( osDark ) {
+            applyTheme( LEGACY_DARK, UI_TOKENS_NATIVE );
+        }
+        else {
+            applyTheme( LEGACY_LIGHT, UI_TOKENS_NATIVE_LIGHT );
+        }
     }
 
     /**
@@ -479,6 +589,8 @@ public class MCLauncherGuiWindow extends Application
             stylesheets.remove( cssUrl( UI_TOKENS_BLUE_GRAY ) );
             stylesheets.remove( cssUrl( UI_TOKENS_ORANGE_PURPLE ) );
             stylesheets.remove( cssUrl( UI_TOKENS_CREEPER ) );
+            stylesheets.remove( cssUrl( UI_TOKENS_NATIVE ) );
+            stylesheets.remove( cssUrl( UI_TOKENS_NATIVE_LIGHT ) );
 
             // Drop the base sheet so we can re-install it in the correct order.
             stylesheets.remove( cssUrl( UI_BASE_SHEET ) );
@@ -488,15 +600,82 @@ public class MCLauncherGuiWindow extends Application
             stylesheets.add( cssUrl( UI_BASE_SHEET ) );
             stylesheets.add( cssUrl( tokenSheet ) );
 
-            // Belt-and-suspenders: paint the rootPane and scene fill with the theme's bg color directly,
-            // so even if a CSS lookup somewhere in the chain fails to resolve, the screen never shows
-            // OS-default white. The token sheet's own `.rootPane` rule still drives the canonical color
-            // — this is just a safety net that updates on every theme change.
+            // Belt-and-suspenders: paint the rootPane and scene fill with the theme's bg color
+            // directly, so even if a CSS lookup somewhere in the chain fails to resolve, the
+            // screen never shows OS-default white.
+            //
+            // Native theme is the exception: with StageStyle.UNIFIED on Windows, DWM can
+            // composite a Mica backdrop through the JavaFX scene — but only if the scene
+            // and rootPane both render transparent pixels. So for Native we clear the
+            // inline rootPane bg (the ui-tokens-native.css `.rootPane { background: transparent }`
+            // rule wins) and set scene fill to TRANSPARENT. For any other theme the inline
+            // override paints the solid bg.
             String bg = themeBgHex( tokenSheet );
-            gui.rootPane.setStyle( "-fx-background-color: " + bg + ";" );
-            if ( gui.scene != null ) {
-                gui.scene.setFill( javafx.scene.paint.Color.web( bg ) );
+            boolean isNative = tokenSheet.endsWith( "ui-tokens-native.css" )
+                            || tokenSheet.endsWith( "ui-tokens-native-light.css" );
+            if ( isNative ) {
+                // Force transparent via inline style — strongest override available so any
+                // other stylesheet rule (legacy `.rootPane { background: #1C1B1F }`,
+                // ui-base `.rootPane.hero-surface { background: -color-bg }`, etc.) loses
+                // regardless of cascade order or selector specificity.
+                gui.rootPane.setStyle( "-fx-background-color: transparent;" );
+                if ( gui.scene != null ) {
+                    gui.scene.setFill( javafx.scene.paint.Color.TRANSPARENT );
+                }
             }
+            else {
+                gui.rootPane.setStyle( "-fx-background-color: " + bg + ";" );
+                if ( gui.scene != null ) {
+                    gui.scene.setFill( javafx.scene.paint.Color.web( bg ) );
+                }
+            }
+
+            // Native theme: request the Mica backdrop via DWM. For non-Native themes,
+            // clear any previously-set backdrop so the solid bg paints normally.
+            //
+            // On OS dark→light flips (and vice versa) we toggle backdrop NONE → MICA
+            // before re-requesting MICA, since DWM otherwise caches the prior Mica
+            // state and silently ignores the duplicate "use Mica" call — the new
+            // OS-theme-tinted wallpaper composition never gets established and the
+            // window paints with the prior tint or none at all.
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyBackdrop( stage,
+                            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_NONE );
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyBackdrop( stage,
+                            isNative
+                              ? com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_MICA
+                              : com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_NONE );
+
+            // Flip the OS title bar to match the theme. Themes that paint a bright bg
+            // (Light, Native light variant) need the light Windows chrome; everything
+            // else reads dark and gets the immersive-dark chrome.
+            boolean lightTheme = tokenSheet.endsWith( "ui-tokens-light.css" )
+                              || tokenSheet.endsWith( "ui-tokens-native-light.css" );
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyTitleBarDarkMode( stage, !lightTheme );
+
+            // Color-match the chrome to the theme bg so the title bar blends seamlessly
+            // with the client area. Windows' default "dark mode" caption is near-black
+            // (#000000) — fine in a pinch, but produces a hard horizontal seam against
+            // any of our themed dark bgs. DWMWA_CAPTION_COLOR + DWMWA_BORDER_COLOR are
+            // Win11 22H2+ attrs; older Windows silently ignore the calls and keep the
+            // immersive-dark fallback we set above.
+            javafx.scene.paint.Color chromeColor = javafx.scene.paint.Color.web( bg );
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyCaptionColor( stage, chromeColor );
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyBorderColor( stage, chromeColor );
+
+            // Force a full client + non-client repaint after every theme change. Without
+            // this, DWM accepts the new attributes but doesn't immediately invalidate
+            // existing pixels — especially on OS-driven theme flips (dark→light Mica)
+            // where the old wallpaper-tinted bitmap can persist until the next ambient
+            // repaint event. RedrawWindow synchronously kicks WM_PAINT for both the
+            // client area (JavaFX scene) and the non-client frame (title bar) so the
+            // new theme + Mica backdrop show up immediately.
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .forceFullRepaint( stage );
         } );
     }
 
@@ -508,6 +687,11 @@ public class MCLauncherGuiWindow extends Application
         if ( tokenSheet.endsWith( "ui-tokens-bluegray.css" ) )      return "#121721";
         if ( tokenSheet.endsWith( "ui-tokens-orangepurple.css" ) )  return "#201221";
         if ( tokenSheet.endsWith( "ui-tokens-creeper.css" ) )       return "#0C130C";
+        if ( tokenSheet.endsWith( "ui-tokens-native.css" ) )        return "#14181F";
+        // Native light variant uses a near-white safety floor so the caption color
+        // and the brief pre-Mica frame don't flash dark when running over light
+        // wallpaper + dark OS chrome would normally not apply.
+        if ( tokenSheet.endsWith( "ui-tokens-native-light.css" ) )  return "#F5F6FA";
         return "#0C1017";  // dark default
     }
 

@@ -36,23 +36,25 @@
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
-        <!-- Row 0: Announcement banner (conditional, 0-30px) -->
-        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
-        <!-- Row 1: Top navigation bar (52px, taller for brand lockup) -->
+        <!-- Row 0: Top navigation bar (52px, taller for brand lockup) -->
         <RowConstraints maxHeight="52.0" minHeight="52.0" prefHeight="52.0"/>
+        <!-- Row 1: Announcement banner (conditional, 0-30px) — sits BELOW the
+             navbar so the chrome stays anchored at the top edge and banners
+             read as in-app notifications rather than chrome overlays. -->
+        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
         <!-- Row 2: Main content (fills remaining) -->
         <RowConstraints vgrow="ALWAYS"/>
         <!-- Row 3: Bottom status bar -->
         <RowConstraints maxHeight="40.0" minHeight="40.0" prefHeight="40.0"/>
     </rowConstraints>
 
-    <!-- Row 0: Announcement banner -->
+    <!-- Row 1: Announcement banner (below the navbar) -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308"
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
-           text="--" textAlignment="CENTER" wrapText="true"/>
+           text="--" textAlignment="CENTER" wrapText="true" GridPane.rowIndex="1"/>
 
-    <!-- Row 1: Top navigation bar -->
-    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar" GridPane.rowIndex="1">
+    <!-- Row 0: Top navigation bar -->
+    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar">
         <padding><Insets left="14.0" right="10.0"/></padding>
 
         <!-- Brand lockup: pre-scaled SVG Mica logo + wordmark.

@@ -1,0 +1,25 @@
+/* Creeper theme — mirrors ui-tokens-creeper.css. */
+
+:root {
+    --color-bg:              #0C130C;
+    --color-bg-soft:         #121C12;
+    --color-surface:         #192419;
+    --color-surface-hover:   #222F22;
+    --color-surface-elev:    #2A372A;
+
+    --color-border:          rgba(140, 220, 140, 0.10);
+    --color-border-strong:   rgba(140, 220, 140, 0.18);
+    --color-divider:         rgba(140, 220, 140, 0.06);
+
+    --color-text:            #EEF0EA;
+    --color-text-muted:      #ABBDA8;
+    --color-text-subtle:     #7B9376;
+
+    --color-primary:         #43D22D;
+    --color-primary-hover:   #61DA4E;
+    --color-primary-soft:    rgba(95, 210, 70, 0.20);
+
+    --color-secondary:       #9BE236;
+    --color-warning:         #F9C31F;
+    --color-danger:          #F42A2A;
+}

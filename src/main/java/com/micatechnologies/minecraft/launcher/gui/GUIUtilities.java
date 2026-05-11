@@ -316,7 +316,16 @@ public class GUIUtilities
                 doneLatch.await();
             }
             catch ( InterruptedException e ) {
-                Logger.logError( "Unable to wait for a user interface task to complete!" );
+                // Some background threads (jthemedetecor's watcher, especially during a
+                // Windows dark/light flip that fires multiple registry events) get
+                // interrupted by their own framework mid-await. Surfacing that as a
+                // modal error dialog is wrong — the FX work either completed already
+                // or will complete shortly, and the calling thread just lost its right
+                // to wait. Restore the interrupt flag for any caller that wants to act
+                // on it, and log silently.
+                Thread.currentThread().interrupt();
+                Logger.logWarningSilent(
+                        "Interrupted while awaiting FX task; continuing without blocking." );
             }
         }
     }

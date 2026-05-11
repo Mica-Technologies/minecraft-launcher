@@ -229,6 +229,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         TooltipManager.install( settingsBtn, "Open launcher settings (RAM, theme, JVM flags, proxy)." );
         TooltipManager.install( libraryBtn, "Browse, install, and manage modpacks + vanilla Minecraft versions." );
         TooltipManager.install( helpBtn, "Open the help window for this screen." );
+
+        // Push focus onto the rootPane so JavaFX's default focus traversal doesn't
+        // land on the first focus-traversable child (the Library button), which
+        // gives it a visible focus-ring treatment as soon as the screen opens.
+        // runLater defers past the layout pass where JavaFX assigns initial focus.
+        Platform.runLater( () -> {
+            if ( rootPane != null ) {
+                rootPane.requestFocus();
+            }
+        } );
     }
 
     @Override

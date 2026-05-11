@@ -34,10 +34,10 @@
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
-        <!-- Row 0: announcement banner (conditional, 0-60 px) -->
-        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
-        <!-- Row 1: top navbar (brand + title + help), ~52 px to match mainGUI -->
+        <!-- Row 0: top navbar (brand + title + help), ~52 px to match mainGUI -->
         <RowConstraints maxHeight="52.0" minHeight="52.0" prefHeight="52.0"/>
+        <!-- Row 1: announcement banner (conditional, 0-60 px) — below the navbar -->
+        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
         <!-- Row 2: file/document toolbar (New / Open / Validate / Diff) -->
         <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
         <!-- Row 3: TabPane fills remaining space -->
@@ -46,17 +46,17 @@
         <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
     </rowConstraints>
 
-    <!-- Row 0: Announcement -->
+    <!-- Row 1: Announcement (below the navbar) -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308"
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
-           text="--" wrapText="true"/>
+           text="--" wrapText="true" GridPane.rowIndex="1"/>
 
-    <!-- Row 1: Top navbar — matches mainGUI / library / settings so the editor
+    <!-- Row 0: Top navbar — matches mainGUI / library / settings so the editor
          reads as part of the same app shell. Brand lockup on the left, screen
          title alongside, help button on the right. File-operation tools live
          in the sub-toolbar below; document state (Save/Return) lives in the
          bottom action bar. -->
-    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar" GridPane.rowIndex="1">
+    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar">
         <padding><Insets left="14.0" right="10.0"/></padding>
 
         <Pane prefWidth="36.0" prefHeight="36.0" minWidth="36.0" minHeight="36.0"

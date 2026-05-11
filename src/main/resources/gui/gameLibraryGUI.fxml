@@ -36,10 +36,11 @@
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
-        <!-- Row 0: announcement banner (conditional 0/40/60 px) -->
-        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
-        <!-- Row 1: top navbar (title + search + filters), ~80 px -->
+        <!-- Row 0: top navbar (title + search + filters), ~80 px -->
         <RowConstraints minHeight="80.0" prefHeight="80.0" maxHeight="80.0"/>
+        <!-- Row 1: announcement banner (conditional 0/40/60 px) — below the navbar
+             so the chrome stays anchored at the top. -->
+        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
         <!-- Row 2: pagination bar (prev / page X of Y / next + per-page selector), ~40 px -->
         <RowConstraints minHeight="40.0" prefHeight="40.0" maxHeight="40.0"/>
         <!-- Row 3: card grid (fills available space) -->
@@ -48,16 +49,16 @@
         <RowConstraints minHeight="52.0" prefHeight="52.0" maxHeight="52.0"/>
     </rowConstraints>
 
-    <!-- Row 0: Announcement banner -->
+    <!-- Row 1: Announcement banner (below the navbar) -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308"
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
-           text="--" textAlignment="CENTER" wrapText="true"/>
+           text="--" textAlignment="CENTER" wrapText="true" GridPane.rowIndex="1"/>
 
-    <!-- Row 1: Top navbar — title + filter controls. Label prefixes instead of MFX's
+    <!-- Row 0: Top navbar — title + filter controls. Label prefixes instead of MFX's
          floatingText property: floatingText renders the label inside the control's vertical
          envelope and clips when the control isn't tall enough; external labels are cleaner
          and don't fight the navbar's compact height. -->
-    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar" GridPane.rowIndex="1">
+    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar">
         <padding><Insets left="14.0" right="14.0"/></padding>
 
         <!-- Brand lockup — matches mainGUI / settings navbars. Bounded 36×36 Pane keeps
@@ -82,6 +83,11 @@
         <Label text="Status:" styleClass="muted"/>
         <MFXComboBox fx:id="statusFilter" minWidth="120.0" prefWidth="130.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
+
+        <!-- Navbar-anchored help button, same pattern as mainGUI / settings / editor /
+             runtime / console so MCLauncherGuiWindow.injectHelpButton's corner-overlay
+             fallback doesn't drop it on top of the navbar at runtime. -->
+        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
     </HBox>
 
     <!-- Row 2: Pagination bar. Sits between the filters and the cards so the user can see

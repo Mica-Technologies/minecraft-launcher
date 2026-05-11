@@ -29,12 +29,17 @@
     <rowConstraints>
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
-    <GridPane maxWidth="480.0" minWidth="380.0" prefWidth="460.0" styleClass="card elevated,progressCard" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+    <GridPane maxWidth="480.0" minWidth="380.0" prefWidth="460.0"
+              maxHeight="-Infinity" prefHeight="320.0"
+              styleClass="card,elevated,progressCard" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
         </columnConstraints>
         <rowConstraints>
-            <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="280.0" prefHeight="380.0" vgrow="SOMETIMES" />
+            <!-- vgrow="NEVER" keeps the card sized to its content rather than filling the
+                 available vertical space; the outer rootPane row grows around it, and
+                 GridPane.valignment="CENTER" above places the card in the middle. -->
+            <RowConstraints fillHeight="false" minHeight="280.0" prefHeight="280.0" vgrow="NEVER" />
         </rowConstraints>
         <GridPane prefHeight="420.0" prefWidth="460.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
             <padding><Insets top="8.0" bottom="8.0"/></padding>

@@ -60,7 +60,17 @@ public class MCLauncherGuiController
             GUIUtilities.JFXPlatformRun( () -> {
                 try {
                     guiWindow = new MCLauncherGuiWindow();
-                    guiWindow.start( new Stage() );
+                    Stage stage = new Stage();
+                    // StageStyle.UNIFIED makes JavaFX create the HWND in a way Windows DWM
+                    // can composite a Mica system backdrop through. Plain DECORATED keeps an
+                    // opaque redirection bitmap so DwmSetWindowAttribute(SYSTEMBACKDROP_TYPE)
+                    // is silently ignored. UNIFIED is supported on Windows + macOS; falls
+                    // back to a normal decorated window on Linux. Visually it removes the
+                    // title-bar / content separator line — since we color-match the caption
+                    // to the theme bg via DWMWA_CAPTION_COLOR, the seam was already invisible
+                    // on most themes, so adopting UNIFIED everywhere costs nothing.
+                    stage.initStyle( javafx.stage.StageStyle.UNIFIED );
+                    guiWindow.start( stage );
                     guiWindow.show();
                     startSuccess.set( true );
                 }

@@ -1034,10 +1034,22 @@
 .tab-pane {
     -fx-tab-min-height: 36;
     -fx-tab-max-height: 36;
+    -fx-background-color: transparent;
+}
+
+/* The legacy guiStyle-{theme}.css sheets paint .tab-content-area with an
+ * opaque dark color (~90%), which blocks the Native theme's Mica backdrop
+ * across the entire form area of the Modpack Editor. Force the content area
+ * to use the theme bg token so it inherits whatever the active theme decides
+ * — transparent on Native (Mica shines through), solid on every other dark
+ * theme (matches the rootPane). */
+.tab-pane > .tab-content-area {
+    -fx-background-color: -color-bg;
 }
 
 .tab-pane .tab-header-area {
     -fx-padding: 0 0 0 8;
+    -fx-background-color: transparent;
 }
 
 .tab-pane .tab-header-background {
@@ -1259,4 +1271,26 @@
     -fx-padding: 2 10 2 10;
     -fx-font-size: 11px;
     -fx-font-weight: 600;
+}
+
+
+/* =====================================================================
+ * 14. Help window
+ *
+ * The help window is a Stage outside the main app shell, but we want it to
+ * read as part of the same launcher. Its content area is a WebView styled
+ * by help-style.css + help-{theme}.css; here we only style the JavaFX bits
+ * (sidebar, root pane).
+ * ===================================================================== */
+
+.helpRoot {
+    -fx-background-color: -color-bg;
+}
+
+.helpSidebarHeader {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-text-transform: uppercase;
+    -fx-padding: 14 14 8 14;
 }

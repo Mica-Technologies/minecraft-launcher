@@ -70,8 +70,32 @@ public class MCLauncherHelpWindow
                 buildStage();
             }
             loadTopic( topic );
+            boolean firstShow = !helpStage.isShowing();
             helpStage.show();
             helpStage.toFront();
+
+            // Re-apply DWM chrome attributes once the HWND is real. The applyTheme()
+            // call inside buildStage() runs before the stage has a window handle, so
+            // any DWM call there silently no-ops. On first show, the very first paint
+            // happens with no Mica enabled — same white-flash problem the main stage
+            // had — so we follow up with a full RedrawWindow to invalidate the client
+            // area and force DWM to repaint with Mica active.
+            String theme = ConfigManager.getTheme();
+            boolean isNative = ConfigConstants.THEME_NATIVE.equals( theme );
+            boolean lightChrome = ConfigConstants.THEME_LIGHT.equals( theme )
+                                 || ( isNative && !isOsDark() );
+            boolean dark = !lightChrome;
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyTitleBarDarkMode( helpStage, dark );
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyBackdrop( helpStage,
+                            isNative
+                              ? com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_MICA
+                              : com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_NONE );
+            if ( firstShow ) {
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .forceFullRepaint( helpStage );
+            }
         } );
     }
 
@@ -108,7 +132,11 @@ public class MCLauncherHelpWindow
     {
         helpStage = new Stage();
         helpStage.setTitle( "Mica Minecraft Launcher Help" );
-        helpStage.initStyle( StageStyle.DECORATED );
+        // StageStyle.UNIFIED is required for Mica to composite through the JavaFX scene
+        // on Windows. Same reason the main stage uses it — DECORATED keeps an opaque
+        // redirection bitmap so DwmSetWindowAttribute(SYSTEMBACKDROP_TYPE) is silently
+        // dropped. UNIFIED falls back gracefully on macOS / Linux.
+        helpStage.initStyle( StageStyle.UNIFIED );
 
         // Set owner so help stays above launcher
         Stage owner = MCLauncherGuiController.getTopStageOrNull();
@@ -135,12 +163,14 @@ public class MCLauncherHelpWindow
             }
         } );
 
-        // Sidebar header
+        // Sidebar header — uses the same heading scale + muted caption pattern as the
+        // app's navbar so the help window reads as a part of the same shell.
         Label sidebarHeader = new Label( "Help Topics" );
-        sidebarHeader.getStyleClass().add( "helpSidebarHeader" );
-        sidebarHeader.setStyle( "-fx-font-size: 14; -fx-font-weight: bold; -fx-padding: 10 10 6 10;" );
+        sidebarHeader.getStyleClass().addAll( "heading-h3", "helpSidebarHeader" );
+        sidebarHeader.setPadding( new Insets( 14, 14, 8, 14 ) );
 
         VBox sidebar = new VBox( sidebarHeader, topicList );
+        sidebar.getStyleClass().add( "stripPane" );
         VBox.setVgrow( topicList, javafx.scene.layout.Priority.ALWAYS );
 
         // Content area
@@ -240,29 +270,129 @@ public class MCLauncherHelpWindow
     }
 
     /**
-     * Applies the current launcher theme CSS to the help window's JavaFX sidebar.
+     * Applies the current launcher theme CSS to the help window's JavaFX sidebar. Loads
+     * the legacy theme sheet first (for compatibility selectors), then the modern UI
+     * base + tokens sheets so the sidebar styling reads as part of the same app shell
+     * as the main launcher window.
      */
     private static void applyTheme()
     {
         if ( root == null ) return;
-        String themeCss = resolveActiveThemeCss();
         root.getStylesheets().clear();
-        if ( themeCss != null ) {
-            root.getStylesheets().add( themeCss );
+
+        // Legacy sheet (still defines some baseline selectors not yet ported)
+        String legacy = resolveActiveThemeCss();
+        if ( legacy != null ) {
+            root.getStylesheets().add( legacy );
+        }
+        // Modern base sheet
+        String base = resolveResourceUrl( "ui/ui-base.css" );
+        if ( base != null && !base.isEmpty() ) {
+            root.getStylesheets().add( base );
+        }
+        // Per-theme token sheet — defines the -color-* lookups used by ui-base.css.
+        String tokens = resolveResourceUrl( resolveUiTokensPath() );
+        if ( tokens != null && !tokens.isEmpty() ) {
+            root.getStylesheets().add( tokens );
+        }
+
+        // Native theme: paint the help root + scene transparent so DWM Mica composites
+        // through, the way the main stage does. Other themes get a solid bg via the
+        // theme stylesheets (no inline override needed — the legacy / token rules win
+        // their cascade since root has no inline style here).
+        String activeTheme = ConfigManager.getTheme();
+        boolean isNative = ConfigConstants.THEME_NATIVE.equals( activeTheme );
+        if ( isNative ) {
+            root.setStyle( "-fx-background-color: transparent;" );
+            if ( helpStage != null && helpStage.getScene() != null ) {
+                helpStage.getScene().setFill( javafx.scene.paint.Color.TRANSPARENT );
+            }
+        }
+        else {
+            root.setStyle( "" );
+            if ( helpStage != null && helpStage.getScene() != null ) {
+                // Default scene fill — the theme stylesheets paint the rootPane bg over
+                // it; this is just the safety floor so an unstyled scene never flashes
+                // white.
+                helpStage.getScene().setFill( javafx.scene.paint.Color.web( "#0C1017" ) );
+            }
+        }
+
+        // Match the title bar of the help stage to the app theme. Light themes (Light
+        // and Native running over OS light mode) need the bright Windows chrome;
+        // everything else uses the immersive-dark chrome.
+        if ( helpStage != null ) {
+            boolean lightChrome = ConfigConstants.THEME_LIGHT.equals( activeTheme )
+                                 || ( isNative && !isOsDark() );
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyTitleBarDarkMode( helpStage, !lightChrome );
+            // Request / clear the Mica backdrop to match the active theme. The call
+            // is harmless on non-Windows / older Win11 builds and silently no-ops
+            // before show() if the HWND doesn't exist yet — show() re-applies it
+            // after the window is real.
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyBackdrop( helpStage,
+                            isNative
+                              ? com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_MICA
+                              : com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_NONE );
         }
     }
 
+    /** Cheap wrapper around OsThemeDetector for places that need the OS state but
+     *  shouldn't blow up if the detector can't init on a weird platform. */
+    private static boolean isOsDark()
+    {
+        try {
+            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
+        }
+        catch ( Throwable ignored ) {
+            return true;
+        }
+    }
+
+    /** Returns the ui-tokens-*.css resource path for the active launcher theme.
+     *  Native theme picks its dark or light variant based on OS dark/light state. */
+    private static String resolveUiTokensPath()
+    {
+        String theme = ConfigManager.getTheme();
+        if ( ConfigConstants.THEME_NATIVE.equals( theme ) ) {
+            boolean osDark = true;
+            try {
+                osDark = com.jthemedetecor.OsThemeDetector.getDetector().isDark();
+            }
+            catch ( Throwable ignored ) { /* fall through with dark default */ }
+            return osDark ? "ui/ui-tokens-native.css" : "ui/ui-tokens-native-light.css";
+        }
+        return switch ( theme ) {
+            case ConfigConstants.THEME_LIGHT         -> "ui/ui-tokens-light.css";
+            case ConfigConstants.THEME_BLUE_GRAY     -> "ui/ui-tokens-bluegray.css";
+            case ConfigConstants.THEME_ORANGE_PURPLE -> "ui/ui-tokens-orangepurple.css";
+            case ConfigConstants.THEME_CREEPER       -> "ui/ui-tokens-creeper.css";
+            default                                  -> "ui/ui-tokens-dark.css";
+        };
+    }
+
     /**
-     * Returns the help-specific theme CSS resource path based on the current launcher theme.
+     * Returns the help-specific theme CSS resource path based on the current launcher
+     * theme. Themes that follow the OS (Automatic, Native) pick their light or dark
+     * companion based on the OS dark/light state — otherwise the help WebView content
+     * stayed dark even when the rest of the app was light.
      */
     private static String resolveThemeCssPath()
     {
         String theme = ConfigManager.getTheme();
+        if ( ConfigConstants.THEME_NATIVE.equals( theme ) ) {
+            return isOsDark() ? "help/help-native.css" : "help/help-light.css";
+        }
+        if ( ConfigConstants.THEME_AUTOMATIC.equals( theme ) ) {
+            return isOsDark() ? "help/help-dark.css" : "help/help-light.css";
+        }
         return switch ( theme ) {
-            case ConfigConstants.THEME_LIGHT -> "help/help-light.css";
-            case ConfigConstants.THEME_BLUE_GRAY -> "help/help-bluegray.css";
+            case ConfigConstants.THEME_LIGHT         -> "help/help-light.css";
+            case ConfigConstants.THEME_BLUE_GRAY     -> "help/help-bluegray.css";
             case ConfigConstants.THEME_ORANGE_PURPLE -> "help/help-orangepurple.css";
-            default -> "help/help-dark.css";
+            case ConfigConstants.THEME_CREEPER       -> "help/help-creeper.css";
+            default                                  -> "help/help-dark.css";
         };
     }
 
@@ -272,12 +402,27 @@ public class MCLauncherHelpWindow
     private static String resolveActiveThemeCss()
     {
         String theme = ConfigManager.getTheme();
-        String cssName = switch ( theme ) {
-            case ConfigConstants.THEME_LIGHT -> "guiStyle-light.css";
-            case ConfigConstants.THEME_BLUE_GRAY -> "guiStyle-bluegray.css";
-            case ConfigConstants.THEME_ORANGE_PURPLE -> "guiStyle-orangepurple.css";
-            default -> "guiStyle-dark.css";
-        };
+        String cssName;
+        if ( ConfigConstants.THEME_NATIVE.equals( theme ) ) {
+            // Native follows OS dark/light: pair the matching legacy sheet so list-cell /
+            // scroll-bar / etc. baseline rules carry the right palette.
+            boolean osDark = true;
+            try {
+                osDark = com.jthemedetecor.OsThemeDetector.getDetector().isDark();
+            }
+            catch ( Throwable ignored ) { /* fall through with dark default */ }
+            cssName = osDark ? "guiStyle-dark.css" : "guiStyle-light.css";
+        }
+        else {
+            cssName = switch ( theme ) {
+                case ConfigConstants.THEME_LIGHT         -> "guiStyle-light.css";
+                case ConfigConstants.THEME_BLUE_GRAY     -> "guiStyle-bluegray.css";
+                case ConfigConstants.THEME_ORANGE_PURPLE -> "guiStyle-orangepurple.css";
+                // Creeper has no legacy companion; fall back to dark.
+                case ConfigConstants.THEME_CREEPER       -> "guiStyle-dark.css";
+                default                                  -> "guiStyle-dark.css";
+            };
+        }
         URL url = MCLauncherHelpWindow.class.getClassLoader().getResource( cssName );
         return url != null ? url.toExternalForm() : null;
     }

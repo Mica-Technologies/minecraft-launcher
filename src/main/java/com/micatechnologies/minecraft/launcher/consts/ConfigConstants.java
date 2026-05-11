@@ -442,10 +442,14 @@ public class ConfigConstants
     public static final String THEME_BLUE_GRAY     = "Blue+gray";
     public static final String THEME_ORANGE_PURPLE = "Orange+purple";
     public static final String THEME_CREEPER       = "Creeper";
+    /** Lets the OS-native window material (Windows Mica) show through the app
+     *  background. Falls back to a translucent dark look on macOS/Linux until
+     *  the corresponding native bridges are implemented. */
+    public static final String THEME_NATIVE        = "Native (Mica)";
 
     public static final List< String > ALLOWED_THEMES = Arrays.asList( THEME_AUTOMATIC, THEME_DARK, THEME_LIGHT,
                                                                        THEME_BLUE_GRAY, THEME_ORANGE_PURPLE,
-                                                                       THEME_CREEPER );
+                                                                       THEME_CREEPER, THEME_NATIVE );
 
     // region LWJGL ARM64 Patching
 

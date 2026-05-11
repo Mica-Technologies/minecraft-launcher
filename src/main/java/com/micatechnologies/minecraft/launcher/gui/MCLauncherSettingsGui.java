@@ -992,14 +992,19 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
-        // Select current theme in dropdown
+        // Select current theme in dropdown. Match case-insensitively against the canonical
+        // ALLOWED_THEMES list so themes with mixed-case display names (e.g. "Native (Mica)")
+        // survive a round-trip through config without being mangled by single-word
+        // capitalization normalization. The previous logic always reset such themes to
+        // Automatic on every launch because StringUtils.capitalize lowercased everything
+        // past the first character.
         String currentConfigTheme = ConfigManager.getTheme();
+        String safeCurrentConfigTheme = ConfigConstants.ALLOWED_THEMES.stream()
+                .filter( t -> t.equalsIgnoreCase( currentConfigTheme ) )
+                .findFirst()
+                .orElse( null );
 
-        // Convert to standard capital first letter, lowercase rest format
-        String safeCurrentConfigTheme = StringUtils.capitalize( currentConfigTheme.toLowerCase() );
-
-        // Check if valid option
-        if ( !ConfigConstants.ALLOWED_THEMES.contains( safeCurrentConfigTheme ) ) {
+        if ( safeCurrentConfigTheme == null ) {
             safeCurrentConfigTheme = ConfigConstants.THEME_AUTOMATIC;
             ConfigManager.setTheme( ConfigConstants.THEME_AUTOMATIC );
         }

@@ -1,4 +1,39 @@
-/* Base help content styles - theme-agnostic typography and layout */
+/*
+ * Help content — theme-agnostic base.
+ *
+ * Mirrors the launcher's UI token system: each per-theme help-*.css overrides
+ * the CSS variables below, this sheet provides the layout + typography. The
+ * naming intentionally parallels ui-tokens-*.css (e.g. --color-bg) so
+ * adjusting one palette in both contexts is a single mental model.
+ */
+
+:root {
+    /* Defaults — overridden per-theme. */
+    --color-bg:              #0C1017;
+    --color-bg-soft:         #10151E;
+    --color-surface:         #141924;
+    --color-surface-hover:   #1A202E;
+    --color-surface-elev:    #1E2533;
+
+    --color-border:          rgba(220, 224, 240, 0.10);
+    --color-border-strong:   rgba(220, 224, 240, 0.18);
+    --color-divider:         rgba(220, 224, 240, 0.06);
+
+    --color-text:            #EDEFF2;
+    --color-text-muted:      #A4AAB7;
+    --color-text-subtle:     #737B8C;
+
+    --color-primary:         #3599FD;
+    --color-primary-hover:   #5DADFD;
+    --color-primary-soft:    rgba(56, 160, 255, 0.18);
+
+    --color-secondary:       #52BC52;
+    --color-warning:         #F4C025;
+    --color-danger:          #F53D3D;
+
+    --shadow-card:           0 1px 0 rgba(255, 255, 255, 0.04) inset,
+                             0 8px 24px rgba(0, 0, 0, 0.35);
+}
 
 * {
     margin: 0;
@@ -6,140 +41,221 @@
     box-sizing: border-box;
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-    padding: 24px 32px;
-    max-width: 700px;
+html, body {
+    height: 100%;
 }
 
+body {
+    /* Match the app's font stack: Inter primary, fall through to Segoe UI etc.
+     * "Segoe UI Variable" comes first so Windows users get the high-quality
+     * variant when present. */
+    font-family: "Inter", "Segoe UI Variable", "Segoe UI", "SF Pro Text",
+                 "Roboto", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+    padding: 28px 36px 36px;
+    max-width: 740px;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ===== Headings ===== */
+
 h1 {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 700;
-    margin-bottom: 16px;
-    padding-bottom: 8px;
+    margin-bottom: 6px;
+    color: var(--color-text);
+    letter-spacing: -0.01em;
+}
+
+/* Hairline subtitle bar under the h1 — purely decorative, matches the .navBar
+ * underline in the app shell. */
+h1::after {
+    content: "";
+    display: block;
+    margin-top: 14px;
+    margin-bottom: 18px;
+    height: 1px;
+    background-color: var(--color-border);
 }
 
 h2 {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
-    margin-top: 24px;
+    margin-top: 28px;
     margin-bottom: 10px;
+    color: var(--color-text);
 }
 
 h3 {
     font-size: 15px;
     font-weight: 600;
-    margin-top: 18px;
+    margin-top: 20px;
     margin-bottom: 8px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
+
+/* ===== Body ===== */
 
 p {
     margin-bottom: 12px;
+    color: var(--color-text);
+}
+
+p.lead {
+    font-size: 15px;
+    color: var(--color-text-muted);
+    margin-bottom: 18px;
 }
 
 ul, ol {
-    margin-bottom: 12px;
-    padding-left: 24px;
+    margin-bottom: 14px;
+    padding-left: 22px;
 }
 
 li {
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
+strong, b {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+em, i {
+    color: var(--color-text);
+}
+
+/* ===== Code ===== */
+
 code {
-    font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
-    font-size: 13px;
-    padding: 2px 6px;
+    font-family: "JetBrains Mono", "Cascadia Code", "Consolas", "Menlo", monospace;
+    font-size: 12.5px;
+    padding: 1px 6px;
     border-radius: 4px;
+    background-color: var(--color-surface);
+    color: var(--color-primary);
+    border: 1px solid var(--color-border);
 }
 
 pre {
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: 14px 16px;
+    border-radius: 10px;
     overflow-x: auto;
-    margin-bottom: 12px;
-    font-size: 13px;
-    line-height: 1.5;
+    margin: 12px 0 16px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
 }
 
 pre code {
     padding: 0;
-    background: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
 }
+
+/* ===== Tables ===== */
 
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 16px;
+    margin: 8px 0 18px;
     font-size: 13px;
+    background-color: var(--color-surface);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
 }
 
 th, td {
     text-align: left;
-    padding: 8px 12px;
-    border-bottom-width: 1px;
-    border-bottom-style: solid;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--color-divider);
 }
+
+tr:last-child td { border-bottom: 0; }
 
 th {
     font-weight: 600;
+    color: var(--color-text-muted);
+    background-color: var(--color-bg-soft);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-/* Callout boxes */
+/* Settings reference table: emphasis on the key column */
+.settings-table td:first-child,
+.settings-table th:first-child {
+    font-weight: 600;
+    white-space: nowrap;
+    width: 180px;
+    color: var(--color-text);
+}
+
+/* ===== Callout boxes ===== */
+
 .tip, .warning, .note {
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
-    border-left: 4px solid;
+    padding: 12px 16px 12px 14px;
+    border-radius: 10px;
+    margin: 8px 0 16px;
+    border-left: 3px solid;
+    background-color: var(--color-surface);
 }
 
-.tip {
-    border-left-color: #4CAF50;
-}
-
-.warning {
-    border-left-color: #FF9800;
-}
-
-.note {
-    border-left-color: #2196F3;
-}
+.tip      { border-left-color: var(--color-secondary); }
+.warning  { border-left-color: var(--color-warning);   }
+.note     { border-left-color: var(--color-primary);   }
 
 .callout-title {
     font-weight: 600;
     margin-bottom: 4px;
+    color: var(--color-text);
 }
 
-/* Keyboard shortcuts */
+.tip .callout-title     { color: var(--color-secondary); }
+.warning .callout-title { color: var(--color-warning);   }
+.note .callout-title    { color: var(--color-primary);   }
+
+/* ===== Keyboard ===== */
+
 kbd {
     display: inline-block;
-    padding: 2px 6px;
-    font-size: 12px;
-    font-family: inherit;
-    border-radius: 4px;
-    border-width: 1px;
-    border-style: solid;
+    padding: 1px 7px;
+    font-size: 11.5px;
+    font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
+    border-radius: 5px;
+    border: 1px solid var(--color-border-strong);
+    background-color: var(--color-bg-soft);
+    color: var(--color-text);
+    box-shadow: 0 1px 0 var(--color-border-strong) inset, 0 1px 0 var(--color-divider);
+    min-width: 18px;
+    text-align: center;
 }
 
-/* Links */
+/* ===== Links ===== */
+
 a {
+    color: var(--color-primary);
     text-decoration: none;
+    border-bottom: 1px dotted transparent;
+    transition: border-color 120ms ease;
 }
 
 a:hover {
-    text-decoration: underline;
+    color: var(--color-primary-hover);
+    border-bottom-color: var(--color-primary-hover);
 }
 
-/* Settings table */
-.settings-table td:first-child {
-    font-weight: 600;
-    white-space: nowrap;
-    width: 180px;
-}
+/* ===== Step indicators ===== */
 
-/* Step indicators */
 .steps {
     counter-reset: step-counter;
     list-style: none;
@@ -148,21 +264,24 @@ a:hover {
 
 .steps li {
     counter-increment: step-counter;
-    padding-left: 32px;
+    padding: 6px 0 6px 38px;
     position: relative;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .steps li::before {
     content: counter(step-counter);
     position: absolute;
     left: 0;
-    top: 0;
-    width: 22px;
-    height: 22px;
+    top: 6px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     text-align: center;
-    line-height: 22px;
+    line-height: 24px;
     font-size: 12px;
     font-weight: 700;
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
 }

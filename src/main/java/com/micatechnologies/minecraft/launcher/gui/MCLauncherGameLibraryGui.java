@@ -107,6 +107,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     // ===== FXML — announcement banner =====
     @SuppressWarnings( "unused" ) @FXML Label announcement;
     @SuppressWarnings( "unused" ) @FXML RowConstraints announcementRow;
+    @SuppressWarnings( "unused" ) @FXML Label helpBtn;
 
     // Filter options exposed in the dropdowns. Strings rather than enum so FXML/MFX can
     // bind them directly.
@@ -196,6 +197,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // and the UI shows a ghost label that doesn't go anywhere.
         searchField.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
         urlAddField.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
+
+        // Wire the navbar help button — same pattern as the other screens with a
+        // declared helpBtn in FXML. MCLauncherGuiWindow.injectHelpButton sees this
+        // exists and skips the corner-overlay fallback.
+        if ( helpBtn != null ) {
+            helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
+            helpBtn.setCursor( javafx.scene.Cursor.HAND );
+        }
 
         // Pagination controls
         pageSizeFilter.setItems( FXCollections.observableArrayList( PAGE_SIZES ) );

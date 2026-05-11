@@ -1,18 +1,25 @@
-/* Orange-purple theme colors - matches guiStyle-orangepurple.css */
+/* Orange-purple theme — mirrors ui-tokens-orangepurple.css. */
 
-body { background-color: #1E1A2E; color: #E6E0EC; }
-h1 { color: #FFFFFF; border-bottom: 1px solid #6E5C82; }
-h2 { color: #E6E0EC; }
-h3 { color: #CAC0D8; }
-a { color: #FFB74D; }
-a:hover { color: #FFCC80; }
-code { background-color: #2E2A40; color: #FFB74D; }
-pre { background-color: #2E2A40; color: #E6E0EC; }
-th { border-bottom-color: #6E5C82; background-color: rgba(80, 60, 100, 0.55); color: #FFFFFF; }
-td { border-bottom-color: #3E3A50; }
-kbd { background-color: #2E2A40; border-color: #6E5C82; color: #E6E0EC; }
-.tip { background-color: rgba(255, 183, 77, 0.1); }
-.warning { background-color: rgba(255, 152, 0, 0.1); }
-.note { background-color: rgba(156, 39, 176, 0.1); }
-.callout-title { color: #FFFFFF; }
-.steps li::before { background-color: #FF9800; color: #FFFFFF; }
+:root {
+    --color-bg:              #201221;
+    --color-bg-soft:         #29192A;
+    --color-surface:         #342136;
+    --color-surface-hover:   #402A41;
+    --color-surface-elev:    #49304B;
+
+    --color-border:          rgba(240, 222, 240, 0.12);
+    --color-border-strong:   rgba(240, 222, 240, 0.20);
+    --color-divider:         rgba(240, 222, 240, 0.06);
+
+    --color-text:            #F4EBF3;
+    --color-text-muted:      #C4ABC0;
+    --color-text-subtle:     #9F7F99;
+
+    --color-primary:         #D257DB;
+    --color-primary-hover:   #D970E1;
+    --color-primary-soft:    rgba(190, 95, 200, 0.20);
+
+    --color-secondary:       #F68D31;
+    --color-warning:         #F7B23B;
+    --color-danger:          #F34949;
+}

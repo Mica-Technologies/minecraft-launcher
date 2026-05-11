@@ -159,10 +159,30 @@ public class LauncherConstants
     public static final int SINGLE_INSTANCE_PORT_DEV = 47822;
 
     /**
-     * Map containing the JVM properties that must be applied at startup of each instance of the application.
+     * Map containing the JVM properties that must be applied at startup of each instance
+     * of the application.
+     *
+     * <p>Pipeline selection: previously this map forced {@code prism.order=sw} (CPU
+     * software rendering). That predated JavaFX 25 and the move to MaterialFX /
+     * Mica / GPU-composited surfaces; on modern hardware it just made scroll lag
+     * and made the Mica focus-regain repaint stall. We let JavaFX pick the best
+     * available pipeline now: D3D on Windows, Metal on macOS, ES2 on Linux, with
+     * software as the implicit fallback.</p>
+     *
+     * <p>{@code prism.forceUploadingPainter=true} switches Prism from the default
+     * {@code PresentingPainter} to {@code UploadingPainter}. The PresentingPainter
+     * uses the GPU compositor's back-buffer directly — fast for opaque windows,
+     * but on Windows it doesn't preserve alpha through the DWM redirection bitmap,
+     * so a transparent JavaFX scene over Mica comes out solid black. The
+     * UploadingPainter rasterizes to a CPU buffer first and uploads with an
+     * alpha-aware texture, which gives DWM/Mica the transparent pixels it needs
+     * while still keeping the rest of the rendering on the GPU.</p>
      *
      * @since 1.1
      */
-    public static final Map< String, String > JVM_PROPERTIES = Map.of( "prism.lcdtext", "false", "prism.text", "t2k",
-                                                                       "prism.order", "sw","sun.net.http.allowRestrictedHeaders","true" );
+    public static final Map< String, String > JVM_PROPERTIES = Map.of(
+            "prism.lcdtext", "false",
+            "prism.text", "t2k",
+            "prism.forceUploadingPainter", "true",
+            "sun.net.http.allowRestrictedHeaders", "true" );
 }

@@ -1,0 +1,84 @@
+/*
+ * Copyright (c) 2026 Mica Technologies
+ *
+ * Brand token sheet — NATIVE theme, LIGHT mode variant.
+ *
+ * Paired with ui-tokens-native.css (dark variant). MCLauncherGuiWindow's
+ * switchToNativeTheme() picks between them based on the OS dark/light state
+ * via OsThemeDetector, mirroring how first-party Win11 apps follow the
+ * system appearance when running with Mica.
+ *
+ * The compositing strategy is the same as the dark variant — let Mica's
+ * wallpaper tint show through, use a faint frost on surfaces for the
+ * "card here" cue — but inverted for light Mica: dark frost over bright
+ * wallpaper, dark text over Mica's bright base, dark borders to keep card
+ * edges visible against the wallpaper.
+ */
+
+.root {
+    /* === Surfaces ===
+     *   - bg / bg-soft  : FULLY transparent (pure Mica)
+     *   - surface       : ~5% dark frost — text inputs / light surfaces
+     *   - surface-hover : ~10% dark frost — hover state
+     *   - surface-elev. : ~7% dark frost — content cards
+     *   - overlay       : strong dark for modal dimming
+     */
+    -color-bg:                rgba(255, 255, 255, 0.0);
+    -color-bg-soft:           rgba(255, 255, 255, 0.0);
+    -color-surface:           rgba(0, 0, 0, 0.05);
+    -color-surface-hover:     rgba(0, 0, 0, 0.10);
+    -color-surface-elevated:  rgba(0, 0, 0, 0.07);
+    -color-overlay:           rgba(0, 0, 0, 0.40);
+
+    /* === Borders / dividers — dark with enough opacity to read against
+     *      wallpaper-tinted bright Mica. */
+    -color-border:            rgba(15, 23, 42, 0.18);
+    -color-border-strong:     rgba(15, 23, 42, 0.30);
+    -color-divider:           rgba(15, 23, 42, 0.10);
+
+    /* === Text — dark for legibility on bright Mica. */
+    -color-text:              #151C28;
+    -color-text-muted:        #4B566C;
+    -color-text-subtle:       #737F96;
+    -color-text-inverse:      #FFFFFF;
+    -color-text-on-primary:   white;
+
+    /* === Brand: blue (primary) — slightly deeper blue than the dark variant
+     *      so it stays readable on light Mica. Matches the Light theme's primary. */
+    -color-primary:           #027AF2;
+    -color-primary-hover:     #026BD4;
+    -color-primary-pressed:   #0059B2;
+    -color-primary-soft:      rgba(0, 114, 229, 0.12);
+    -color-primary-soft-hov:  rgba(0, 114, 229, 0.20);
+    -color-focus-ring:        rgba(0, 114, 229, 0.45);
+
+    /* === Brand: secondary (green accent) === */
+    -color-secondary:         #399339;
+    -color-secondary-hover:   #317D31;
+    -color-secondary-soft:    rgba(67, 160, 71, 0.14);
+
+    /* === Status === */
+    -color-success:           #399339;
+    -color-warning:           #C2940A;
+    -color-warning-soft:      rgba(217, 158, 0, 0.14);
+    -color-danger:            #DA0B0B;
+    -color-danger-hover:      #BD0A0A;
+    -color-danger-soft:       rgba(220, 38, 38, 0.10);
+
+    /* === Effects === */
+    -color-shadow:            rgba(15, 23, 42, 0.18);
+    -color-shadow-soft:       rgba(15, 23, 42, 0.10);
+
+    /* === Hero radial-gradient stops (same brand wash as Light theme) === */
+    -color-hero-stop-1:       rgba(0, 114, 229, 0.10);
+    -color-hero-stop-2:       rgba(67, 160, 71, 0.06);
+    -color-hero-stop-3:       rgba(255, 255, 255, 0);
+}
+
+/* See ui-tokens-native.css for the rationale on this rule. Same need: make
+ * both `.rootPane` and `.rootPane.hero-surface` paint transparent so DWM
+ * Mica composites through the JavaFX scene. */
+.rootPane,
+.rootPane.hero-surface {
+    -fx-background-color: transparent;
+}
