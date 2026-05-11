@@ -240,6 +240,40 @@ public class GameModPack extends GameModPackMetadata
         return getEnvironment().getPackBackgroundFilepath();
     }
 
+    /**
+     * Returns true if this pack ships its own background image (i.e. the manifest specified a
+     * {@code packBackgroundURL} other than the bundled default). Vanilla versions and any
+     * modded pack whose manifest left the field blank both return false here — both end up
+     * with {@link ModPackConstants#MODPACK_DEFAULT_BG_URL} as their backing URL, which the
+     * environment dutifully downloads into a local cached file. That cache file isn't useful
+     * for hero-card rendering (the bundled-default PNG path doesn't render cleanly through
+     * the {@code -fx-background-image} pipeline), so the UI layer asks this method first and
+     * switches to a procedural background when it returns false.
+     *
+     * @return true iff the pack has its own custom background image
+     *
+     * @since 3.2
+     */
+    public boolean hasCustomBackground()
+    {
+        return packBackgroundURL != null
+                && !packBackgroundURL.equals( ModPackConstants.MODPACK_DEFAULT_BG_URL );
+    }
+
+    /**
+     * Returns true if this pack ships its own logo image (i.e. the manifest specified a
+     * {@code packLogoURL} other than the bundled default). Symmetric to {@link #hasCustomBackground()}.
+     *
+     * @return true iff the pack has its own custom logo image
+     *
+     * @since 3.2
+     */
+    public boolean hasCustomLogo()
+    {
+        return packLogoURL != null
+                && !packLogoURL.equals( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
+    }
+
     public void setProgressProvider( GameModPackProgressProvider progressProvider )
     {
         this.progressProvider = progressProvider;

@@ -314,6 +314,43 @@
     -fx-background-repeat: no-repeat;
 }
 
+/* Default backgrounds for packs without their own per-pack image. Triggered by
+ * MCLauncherMainGui.applyDynamicBackground when pack.getPackBackgroundFilepath()
+ * returns null/missing. Three branches:
+ *   - Vanilla MC versions (heroBackgroundDefaultVanilla)
+ *   - Modded packs with a logo: inline-style gradient derived from the logo's
+ *     dominant color (no CSS class needed)
+ *   - Modded packs without a logo (rare): heroBackgroundDefaultForge
+ */
+
+.heroBackgroundDefaultVanilla {
+    /* Sky → horizon → grass. Reads as "vanilla Minecraft default biome" at a
+     * glance without using any actual Minecraft texture asset. Horizon sits at
+     * 38% so the grass band is the dominant visual weight, which the
+     * .heroCardImageVeil's bottom dim then sells as "ground under the open sky." */
+    -fx-background-color:
+        linear-gradient(to bottom,
+            #4A8FD0 0%,
+            #6FB3DC 35%,
+            #5BA84E 40%,
+            #3C8527 100%);
+}
+
+.heroBackgroundDefaultForge {
+    /* Dark anvil + warm forge-fire glow centered at the bottom. The radial
+     * gradient is layered ABOVE the linear gradient (JavaFX CSS layers stack
+     * leftmost-on-top), so the orange glow rides on the dark anvil base. */
+    -fx-background-color:
+        radial-gradient(center 50% 95%, radius 65%,
+            rgba(255, 107, 53, 0.50) 0%,
+            rgba(255, 107, 53, 0.20) 35%,
+            transparent 60%),
+        linear-gradient(to bottom,
+            #2B2D31 0%,
+            #1F2125 60%,
+            #3D2D1F 100%);
+}
+
 /* Layer 2: dark gradient veil so the foreground text reads cleanly over any
  * modpack image. Slight tint of -color-bg at top, more opacity at bottom. */
 .heroBackgroundVeil {
@@ -390,6 +427,27 @@
     -fx-background-color: -color-warning-soft;
     -fx-border-color: -color-warning;
     -fx-text-fill: white;
+}
+
+/* Badges that float over the hero-card image (Update / Beta) need to be legible
+ * against arbitrary modpack imagery — the prior translucent-soft styling was too
+ * faint against bright images. Solid bright fill + white text + a tight drop
+ * shadow gives consistent readability regardless of what's behind. */
+.heroCardImage .stat-chip-success,
+.heroCardImage .stat-chip-warn {
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-padding: 3 12 3 12;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 6, 0.30, 0, 1);
+}
+
+.heroCardImage .stat-chip-success {
+    -fx-background-color: -color-success;
+}
+
+.heroCardImage .stat-chip-warn {
+    -fx-background-color: -color-warning;
 }
 
 .heroPlayBtn {

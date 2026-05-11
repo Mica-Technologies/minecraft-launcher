@@ -42,6 +42,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelReader;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.FlowPane;
@@ -52,6 +53,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 
@@ -420,11 +422,25 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             imageClip.widthProperty().bind( imageBox.widthProperty() );
             imageBox.setClip( imageClip );
 
+            // Load the pack's logo image up front. The logoContainer in the lower half of
+            // the card uses it directly; we also use it as the seed for the bgLayer's
+            // derived-gradient fallback when the pack doesn't ship its own background image.
+            Image packLogoImage = resolveLogoImage( pack );
+
             Region bgLayer = new Region();
             bgLayer.getStyleClass().add( "heroBackground" );
             String bgUrl = resolveBackgroundUrl( pack );
             if ( bgUrl != null ) {
                 bgLayer.setStyle( "-fx-background-image: url('" + bgUrl + "');" );
+            }
+            else {
+                // No per-pack background image — drive a procedural visual:
+                //   • vanilla versions get a sky → grass gradient
+                //   • modded packs with a logo get a gradient derived from the logo's
+                //     dominant color, so each pack feels visually individuated
+                //   • modded packs without a logo fall back to a Forge-themed gradient
+                //     (dark anvil + warm forge-fire glow)
+                applyDynamicBackground( bgLayer, pack, packLogoImage );
             }
 
             // Subtle veil along the bottom of the image so the logo reads against it.
@@ -451,7 +467,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             logo.setFitWidth( 68 );
             logo.setFitHeight( 68 );
             logo.setPreserveRatio( true );
-            logo.setImage( resolveLogoImage( pack ) );
+            logo.setImage( packLogoImage );
             Rectangle logoClip = new Rectangle( 68, 68 );
             logoClip.setArcWidth( 16 );
             logoClip.setArcHeight( 16 );
@@ -473,7 +489,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             chips.setAlignment( Pos.CENTER_LEFT );
             String mc = safeMinecraftVersion( pack );
             String forge = safeForgeVersion( pack );
-            if ( mc != null && !mc.isBlank() ) chips.getChildren().add( buildChip( "MC " + mc ) );
+            // "Minecraft 1.20.4" (not "MC 1.20.4") — full name reads clearer and the chip
+            // has room. Minecraft is a trademark of Mojang Synergies AB / Microsoft;
+            // attribution is surfaced in the Settings → About / Attributions section.
+            if ( mc != null && !mc.isBlank() ) chips.getChildren().add( buildChip( "Minecraft " + mc ) );
             if ( forge != null && !forge.isBlank() ) {
                 String shortForge = forge.contains( "-" ) ? forge.substring( forge.lastIndexOf( '-' ) + 1 ) : forge;
                 chips.getChildren().add( buildChip( "Forge " + shortForge ) );
@@ -578,16 +597,167 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return name != null ? name : "Unnamed Pack";
     }
 
+    /** Resolves the pack's own background image to a file URL, or null when no per-pack image
+     *  exists. The caller (ModpackHeroCard.<init>) handles the null path with a procedural
+     *  gradient via {@link #applyDynamicBackground}.
+     *
+     *  <p>Important: {@code pack.hasCustomBackground()} is the canonical "does this pack ship
+     *  its own image" signal. The local-cache file at {@code getPackBackgroundFilepath()}
+     *  exists for default-image packs too (the environment downloads MODPACK_DEFAULT_BG_URL
+     *  into a local cache), so checking just file existence would wrongly point at the
+     *  cached-bundled-default and skip the procedural-background path. We gate on
+     *  hasCustomBackground first.</p>
+     */
     private static String resolveBackgroundUrl( GameModPack pack ) {
         try {
+            if ( !pack.hasCustomBackground() ) {
+                return null;
+            }
             String path = pack.getPackBackgroundFilepath();
             if ( path != null ) {
                 File f = new File( path );
-                if ( f.exists() ) return f.toURI().toString();
+                if ( f.exists() && f.length() > 0 ) return f.toURI().toString();
             }
         }
         catch ( Exception ignored ) { /* fall through */ }
-        return ModPackConstants.MODPACK_DEFAULT_BG_URL;
+        return null;
+    }
+
+    // =========================================================================================
+    //  Dynamic background derivation (no-image fallback)
+    // =========================================================================================
+
+    /**
+     * Sets up the bg-layer's visual when the pack doesn't ship its own background image.
+     * Three branches:
+     * <ul>
+     *     <li><b>Vanilla version:</b> apply a static sky → grass CSS class so the card
+     *         visually signals "this is a vanilla MC version" at a glance.</li>
+     *     <li><b>Modded pack with a logo:</b> sample the logo's dominant color and build
+     *         a tinted linear gradient from it. Each pack ends up with a bg that matches
+     *         its branding (red logo → reddish bg, green logo → greenish bg, etc).</li>
+     *     <li><b>Modded pack without a logo (rare):</b> apply a static Forge-themed CSS
+     *         class — dark anvil tones with a warm forge-fire glow at the bottom.</li>
+     * </ul>
+     *
+     * <p>Logo sampling is asynchronous-safe: if the logo {@link Image} hasn't finished
+     * loading yet (the launcher requests background-loading), we install the Forge default
+     * up front and replace it with the sampled gradient once {@code progressProperty} hits 1.0.</p>
+     */
+    private static void applyDynamicBackground( Region bgLayer, GameModPack pack, Image logoImage )
+    {
+        if ( pack.isVanillaVersion() ) {
+            bgLayer.getStyleClass().add( "heroBackgroundDefaultVanilla" );
+            return;
+        }
+        if ( logoImage == null ) {
+            bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
+            return;
+        }
+
+        // If the logo is already loaded (cached or synchronously-loaded), derive immediately.
+        if ( logoImage.getProgress() >= 1.0 && !logoImage.isError() ) {
+            String derived = buildLogoGradient( logoImage );
+            if ( derived != null ) {
+                bgLayer.setStyle( derived );
+                return;
+            }
+            bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
+            return;
+        }
+
+        // Logo still loading: show the Forge default while we wait, swap in the derived
+        // gradient as soon as the load completes. The progress listener fires on the FX
+        // thread so it's safe to mutate styleClass / setStyle directly.
+        bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
+        logoImage.progressProperty().addListener( ( obs, oldVal, newVal ) -> {
+            if ( newVal.doubleValue() < 1.0 || logoImage.isError() ) {
+                return;
+            }
+            String derived = buildLogoGradient( logoImage );
+            if ( derived != null ) {
+                bgLayer.getStyleClass().remove( "heroBackgroundDefaultForge" );
+                bgLayer.setStyle( derived );
+            }
+        } );
+    }
+
+    /** Samples the dominant color from {@code image} and returns a JavaFX CSS inline-style
+     *  string ({@code -fx-background-color: linear-gradient(...)}) or {@code null} if sampling
+     *  failed (image had no pixel data, was all transparent, etc.). */
+    private static String buildLogoGradient( Image image )
+    {
+        Color dominant = computeDominantColor( image );
+        if ( dominant == null ) {
+            return null;
+        }
+        // Two derived stops keep the gradient feeling lit-from-the-top-left without going
+        // pitch black at the bottom-right. 60% and 35% relative brightness chosen by eye —
+        // brighter than half because the .heroCardImageVeil already dims the bottom 45%.
+        Color mid    = dominant.deriveColor( 0.0, 1.0, 0.60, 1.0 );
+        Color shadow = dominant.deriveColor( 0.0, 1.0, 0.35, 1.0 );
+        return String.format(
+                "-fx-background-color: linear-gradient(to bottom right, %s 0%%, %s 55%%, %s 100%%);",
+                toHexRgb( dominant ), toHexRgb( mid ), toHexRgb( shadow ) );
+    }
+
+    /** Approximate-dominant-color sample of {@code image}. Pixels are weighted by their
+     *  saturation so a logo's distinctive accent colors pull harder on the average than the
+     *  often-large neutral / transparent backdrop. Returns null when no usable opaque
+     *  pixels were found (fully transparent or one-color images). */
+    private static Color computeDominantColor( Image image )
+    {
+        if ( image == null || image.isError() ) {
+            return null;
+        }
+        PixelReader reader = image.getPixelReader();
+        if ( reader == null ) {
+            return null;
+        }
+        int w = ( int ) image.getWidth();
+        int h = ( int ) image.getHeight();
+        if ( w <= 0 || h <= 0 ) {
+            return null;
+        }
+
+        // Stride keeps the sample cheap regardless of image size — we hit ~24×24 = 576
+        // points max, plenty for an average-color read.
+        int step = Math.max( 1, Math.min( w, h ) / 24 );
+
+        double rTotal = 0.0, gTotal = 0.0, bTotal = 0.0, weightTotal = 0.0;
+        for ( int y = 0; y < h; y += step ) {
+            for ( int x = 0; x < w; x += step ) {
+                Color c = reader.getColor( x, y );
+                if ( c.getOpacity() < 0.5 ) {
+                    continue;
+                }
+                // Saturation weight: max-channel minus min-channel. Gray pixels (0..0.1)
+                // contribute almost nothing; vivid pixels (0.6..1.0) dominate the average.
+                // The +0.1 baseline lets near-gray neutrals still register so we don't
+                // return null on logos that are mostly off-white / pale.
+                double saturation = Math.max( c.getRed(), Math.max( c.getGreen(), c.getBlue() ) )
+                                  - Math.min( c.getRed(), Math.min( c.getGreen(), c.getBlue() ) );
+                double weight = 0.1 + saturation;
+                rTotal      += c.getRed()   * weight;
+                gTotal      += c.getGreen() * weight;
+                bTotal      += c.getBlue()  * weight;
+                weightTotal += weight;
+            }
+        }
+        if ( weightTotal <= 0.0 ) {
+            return null;
+        }
+        return new Color( rTotal / weightTotal, gTotal / weightTotal, bTotal / weightTotal, 1.0 );
+    }
+
+    /** Formats a JavaFX {@link Color} as a six-digit hex literal usable in JavaFX CSS
+     *  ({@code #RRGGBB}). Alpha is dropped — the bg-layer always renders fully opaque. */
+    private static String toHexRgb( Color c )
+    {
+        return String.format( "#%02X%02X%02X",
+                ( int ) Math.round( c.getRed()   * 255 ),
+                ( int ) Math.round( c.getGreen() * 255 ),
+                ( int ) Math.round( c.getBlue()  * 255 ) );
     }
 
     private static Image resolveLogoImage( GameModPack pack ) {
