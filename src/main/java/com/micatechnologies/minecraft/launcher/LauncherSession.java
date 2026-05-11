@@ -107,31 +107,40 @@ class LauncherSession
         }
         boolean online = com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.checkNetworkAvailability();
 
-        // Load announcements (skip if offline to avoid timeout delays)
-        if ( online ) {
-            if ( startupProgressWindow != null ) {
-                startupProgressWindow.setSectionText( "Checking for announcements..." );
-                startupProgressWindow.setDetailText( "Contacting announcement server" );
-                startupProgressWindow.setProgress( 25 );
-            }
-            AnnouncementManager.checkAnnouncements();
-        }
-        else {
-            if ( startupProgressWindow != null ) {
-                startupProgressWindow.setSectionText( "Offline mode" );
-                startupProgressWindow.setDetailText( "Skipping announcements" );
-                startupProgressWindow.setProgress( 25 );
-            }
+        // Run announcements + installed-modpacks fetch in parallel — they're independent
+        // network calls that previously ran serially and were a significant chunk of cold
+        // startup time. Available-modpacks fetch is kicked off as a fire-and-forget below;
+        // the main menu only needs installed packs to render so we don't gate startup on
+        // available-pack metadata. The Library screen blocks on
+        // GameModPackManager.waitForAvailableFetch (via getAvailableModPacks()) the first
+        // time it actually needs the data, while the main menu shows a loading indicator.
+        if ( startupProgressWindow != null ) {
+            startupProgressWindow.setSectionText( online ? "Loading mod packs and announcements..."
+                                                          : "Loading cached mod pack data" );
+            startupProgressWindow.setDetailText( "" );
+            startupProgressWindow.setProgress( 30 );
         }
 
-        // Load mod pack information
-        if ( startupProgressWindow != null ) {
-            startupProgressWindow.setSectionText( "Loading mod packs..." );
-            startupProgressWindow.setDetailText( online ? "Fetching installed and available mod packs"
-                                                        : "Loading cached mod pack data" );
-            startupProgressWindow.setProgress( 60 );
+        java.util.concurrent.CompletableFuture< Void > announcementsFuture = online
+                ? java.util.concurrent.CompletableFuture.runAsync( AnnouncementManager::checkAnnouncements )
+                : java.util.concurrent.CompletableFuture.completedFuture( null );
+        java.util.concurrent.CompletableFuture< Void > installedFuture =
+                java.util.concurrent.CompletableFuture.runAsync(
+                        () -> GameModPackManager.fetchInstalledModPacks( null ) );
+
+        try {
+            java.util.concurrent.CompletableFuture.allOf( announcementsFuture, installedFuture ).get();
         }
-        GameModPackManager.fetchModPackInfo();
+        catch ( Exception e ) {
+            Logger.logError( "Startup network task failed." );
+            Logger.logThrowable( e );
+        }
+
+        // Available-modpacks fetch — fire-and-forget. Main menu shows a "loading available
+        // packs" indicator while this runs; Library screen waits on its completion.
+        if ( online ) {
+            GameModPackManager.startAvailableModPacksFetchAsync();
+        }
 
         // Kick off background prefetch of dominant-color gradients for every available modpack.
         // Async — the launcher doesn't wait for it before continuing to the main GUI. By the

@@ -34,6 +34,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -61,6 +62,19 @@ public class GameModPackManager
     private static List< GameModPack > installedGameModPacks = null;
 
     /**
+     * In-flight (or completed) future for the background available-modpacks fetch kicked off
+     * at launcher startup. Read by the main GUI to show a "loading available packs" indicator
+     * and by {@link #getAvailableModPacks()} to block on completion when a caller actually
+     * needs the data (e.g. the Game Library screen).
+     *
+     * <p>Volatile so the unsynchronized read in {@link #startAvailableModPacksFetchAsync()}'s
+     * double-checked initialization is safe.</p>
+     *
+     * @since 3.4
+     */
+    private static volatile CompletableFuture< Void > availableFetchFuture = null;
+
+    /**
      * Method to handle populating the list of available mod packs from the available mod packs manifest referenced in
      * {@link ModPackConstants#AVAILABLE_PACKS_MANIFEST_URL}.
      *
@@ -68,7 +82,7 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    private synchronized static void fetchAvailableModPacks( MCLauncherProgressGui progressWindow ) {
+    public synchronized static void fetchAvailableModPacks( MCLauncherProgressGui progressWindow ) {
         // Update progress window
         if ( progressWindow != null ) {
             progressWindow.setSectionText( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT );
@@ -103,25 +117,29 @@ public class GameModPackManager
         // Store list of installed mod pack manifest URLs for filtering available
         List< String > installedModPackManifestUrls = getInstalledModPackURLs();
 
-        // Parse available mod pack manifest contents
+        // Parse available mod pack manifest contents. Per-pack manifest fetches are
+        // network-bound and independent — parallelStream cuts wall time roughly N-fold
+        // for N available packs, the single biggest hit to launcher startup latency
+        // when there's a meaningful number of available packs in the manifest.
         JsonObject installableManifestUrls = JSONUtilities.getGson().fromJson( availableModPackManifestBody, JsonObject.class );
-        for ( JsonElement manifestUrl : installableManifestUrls.getAsJsonArray(
-                ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY ) ) {
+        final MCLauncherProgressGui finalProgressWindow = progressWindow;
+        installableManifestUrls.getAsJsonArray( ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY )
+                .asList().parallelStream().forEach( manifestUrl -> {
             final String manifestUrlVal = manifestUrl.getAsString();
             if ( !installedModPackManifestUrls.contains( manifestUrlVal ) ) {
-                GameModPack gameModPack = GameModPackFetcher.get( manifestUrlVal,false );
+                GameModPack gameModPack = GameModPackFetcher.get( manifestUrlVal, false );
                 if ( gameModPack.getFriendlyName() != null ) {
                     availableGameModPacks.add( gameModPack );
 
                     // Update progress window
-                    if ( progressWindow != null ) {
-                        progressWindow.setDetailText( LocalizationManager.ADDED_TEXT +
-                                                               " " +
-                                                               gameModPack.getPackName() +
-                                                               " v" +
-                                                               gameModPack.getPackVersion() +
-                                                               " " +
-                                                               LocalizationManager.TO_AVAILABLE_MOD_PACKS_TEXT );
+                    if ( finalProgressWindow != null ) {
+                        finalProgressWindow.setDetailText( LocalizationManager.ADDED_TEXT +
+                                                                   " " +
+                                                                   gameModPack.getPackName() +
+                                                                   " v" +
+                                                                   gameModPack.getPackVersion() +
+                                                                   " " +
+                                                                   LocalizationManager.TO_AVAILABLE_MOD_PACKS_TEXT );
                     }
                     else {
                         Logger.logStd( LocalizationManager.DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT +
@@ -141,8 +159,8 @@ public class GameModPackManager
                         LocalizationManager.NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT + ": " + manifestUrlVal );
 
                 // Update progress window
-                if ( progressWindow != null ) {
-                    progressWindow.setDetailText(
+                if ( finalProgressWindow != null ) {
+                    finalProgressWindow.setDetailText(
                             LocalizationManager.ALREADY_INSTALLED_TEXT + ": " + manifestUrlVal );
                 }
                 else {
@@ -153,8 +171,7 @@ public class GameModPackManager
                                            manifestUrlVal );
                 }
             }
-
-        }
+        } );
         // Update progress window
         if ( progressWindow != null ) {
             progressWindow.setDetailText( LocalizationManager.COMPLETED_TEXT );
@@ -173,7 +190,7 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    private synchronized static void fetchInstalledModPacks( MCLauncherProgressGui progressWindow ) {
+    public synchronized static void fetchInstalledModPacks( MCLauncherProgressGui progressWindow ) {
         // Update progress window to show start of fetch installed
         if ( progressWindow != null ) {
             progressWindow.setSectionText( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT );
@@ -196,20 +213,24 @@ public class GameModPackManager
             installedGameModPacks.clear();
         }
 
-        // For each mod pack, get object from latest manifest
-        for ( String manifestUrl : installedModPackManifestUrls ) {
+        // For each mod pack, get object from latest manifest. Per-pack manifest fetches
+        // are network-bound and independent — running them in parallel via parallelStream
+        // shrinks wall time roughly N-fold for N installed packs, which is the dominant
+        // cost in launcher startup for users with several packs installed.
+        final MCLauncherProgressGui finalProgressWindow = progressWindow;
+        installedModPackManifestUrls.parallelStream().forEach( manifestUrl -> {
             try {
-                GameModPack gameModPack = GameModPackFetcher.get( manifestUrl,true );
+                GameModPack gameModPack = GameModPackFetcher.get( manifestUrl, true );
                 installedGameModPacks.add( gameModPack );
 
                 // Update progress window
-                if ( progressWindow != null ) {
-                    progressWindow.setDetailText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +
-                                                           " " +
-                                                           gameModPack.getPackName() +
-                                                           " (v" +
-                                                           gameModPack.getPackVersion() +
-                                                           ")" );
+                if ( finalProgressWindow != null ) {
+                    finalProgressWindow.setDetailText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +
+                                                               " " +
+                                                               gameModPack.getPackName() +
+                                                               " (v" +
+                                                               gameModPack.getPackVersion() +
+                                                               ")" );
                 }
                 else {
                     Logger.logStd( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT +
@@ -227,7 +248,7 @@ public class GameModPackManager
                         LocalizationManager.UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT + " " + manifestUrl );
                 Logger.logThrowable( e );
             }
-        }
+        } );
 
         // Update progress window
         if ( progressWindow != null ) {
@@ -283,19 +304,123 @@ public class GameModPackManager
     }
 
     /**
+     * Kicks off an async fetch of the available-modpacks list and returns the in-flight future.
+     * Idempotent: if a fetch has already been started (or completed), returns the existing
+     * future without starting a second one.
+     *
+     * <p>Used by the launcher startup path to keep the available-packs fetch off the critical
+     * path — the main menu only needs installed packs to render, so available packs can load
+     * in the background while the user is already looking at the modpack list. Callers that
+     * actually need the data (e.g. the Game Library screen) hit
+     * {@link #getAvailableModPacks()}, which blocks on this future when it's still running.</p>
+     *
+     * <p>No-op when offline — there's nothing to fetch, the returned future completes
+     * immediately so {@link #isAvailableModPacksFetchPending()} reports false.</p>
+     *
+     * @return the future representing the background fetch (never null)
+     *
+     * @since 3.4
+     */
+    public static CompletableFuture< Void > startAvailableModPacksFetchAsync() {
+        CompletableFuture< Void > existing = availableFetchFuture;
+        if ( existing != null ) {
+            return existing;
+        }
+        synchronized ( GameModPackManager.class ) {
+            if ( availableFetchFuture != null ) {
+                return availableFetchFuture;
+            }
+            if ( NetworkUtilities.isOffline() ) {
+                availableFetchFuture = CompletableFuture.completedFuture( null );
+                return availableFetchFuture;
+            }
+            availableFetchFuture = CompletableFuture.runAsync( () -> {
+                try {
+                    fetchAvailableModPacks( null );
+                }
+                catch ( Throwable t ) {
+                    Logger.logErrorSilent( "Background available-modpacks fetch failed." );
+                    Logger.logThrowable( t );
+                }
+            } );
+            return availableFetchFuture;
+        }
+    }
+
+    /**
+     * Reports whether the background available-modpacks fetch is still running. Used by the
+     * main menu to surface a tiny "loading available packs" indicator that disappears once the
+     * background fetch completes.
+     *
+     * @return {@code true} if a fetch is in flight, {@code false} if not started, completed, or failed
+     *
+     * @since 3.4
+     */
+    public static boolean isAvailableModPacksFetchPending() {
+        CompletableFuture< Void > f = availableFetchFuture;
+        return f != null && !f.isDone();
+    }
+
+    /**
+     * Returns the in-flight available-modpacks fetch future, or {@code null} if no fetch has
+     * been started. Callers can attach a completion handler (e.g. to hide a "loading"
+     * indicator in the UI) via {@link CompletableFuture#whenComplete(java.util.function.BiConsumer)}.
+     *
+     * @return the in-flight future, or {@code null} if not started
+     *
+     * @since 3.4
+     */
+    public static CompletableFuture< Void > getAvailableFetchFuture() {
+        return availableFetchFuture;
+    }
+
+    /**
      * Gets and returns a list of the mod packs that are available for install.
      *
      * @return list of available mod packs
      *
      * @since 1.0
      */
-    public synchronized static List< GameModPack > getAvailableModPacks() {
-        // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+    public static List< GameModPack > getAvailableModPacks() {
+        // Wait for the background available-modpacks fetch BEFORE entering any synchronized
+        // block — the background task acquires the class monitor when it runs
+        // fetchAvailableModPacks, so if we held it here while waiting we'd deadlock against it.
+        // The Library screen wants a complete view rather than a partial in-flight one.
+        waitForAvailableFetch();
+
+        return getAvailableModPacksLocked();
+    }
+
+    /**
+     * Synchronized inner accessor — kept separate from {@link #getAvailableModPacks()} so the
+     * caller can safely wait on {@link #availableFetchFuture} before entering the lock.
+     */
+    private synchronized static List< GameModPack > getAvailableModPacksLocked() {
+        // Populate lists if not already done (legacy fallback for callers that bypass the
+        // async startup path — e.g. tests or future entry points that never call
+        // startAvailableModPacksFetchAsync).
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
-
         return availableGameModPacks;
+    }
+
+    /**
+     * Blocks the calling thread until the background available-modpacks fetch finishes. No-op
+     * if no fetch was ever started or the existing fetch has already completed. Must be called
+     * outside any GameModPackManager.class synchronized block (the background fetch acquires
+     * the same monitor — see {@link #getAvailableModPacks()} for the deadlock note).
+     */
+    private static void waitForAvailableFetch() {
+        CompletableFuture< Void > f = availableFetchFuture;
+        if ( f != null && !f.isDone() ) {
+            try {
+                f.get();
+            }
+            catch ( Exception e ) {
+                Logger.logErrorSilent( "Wait for available-modpacks fetch was interrupted." );
+            }
+        }
     }
 
     /**
@@ -306,8 +431,11 @@ public class GameModPackManager
      * @since 1.0
      */
     public synchronized static List< String > getInstalledModPackURLs() {
-        // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        // Populate lists if not already done. Only installed packs are needed here, so
+        // we deliberately skip the availableGameModPacks null check — that list lazy-loads
+        // in the background after startup and would otherwise spuriously trigger a full
+        // fetchModPackInfo() re-fetch on every call until the background task settles.
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -326,9 +454,17 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    public synchronized static List< String > getAvailableModPackFriendlyNames() {
-        // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+    public static List< String > getAvailableModPackFriendlyNames() {
+        // Wait for the background fetch outside the class lock — same deadlock note as
+        // getAvailableModPacks().
+        waitForAvailableFetch();
+        return getAvailableModPackFriendlyNamesLocked();
+    }
+
+    private synchronized static List< String > getAvailableModPackFriendlyNamesLocked() {
+        // Populate lists if not already done (legacy fallback for callers that bypass the
+        // async startup path).
+        if ( availableGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -349,7 +485,7 @@ public class GameModPackManager
      */
     public synchronized static List< String > getInstalledModPackFriendlyNames() {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -374,7 +510,7 @@ public class GameModPackManager
      */
     public synchronized static GameModPack getInstalledModPackByName( String packName ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -399,7 +535,7 @@ public class GameModPackManager
      */
     public synchronized static GameModPack getInstalledModPackByURL( String packUrl ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -424,7 +560,7 @@ public class GameModPackManager
      */
     public synchronized static GameModPack getInstalledModPackByFriendlyName( String friendlyName ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -448,7 +584,7 @@ public class GameModPackManager
      */
     public synchronized static void uninstallModPack( GameModPack gameModPack ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -472,7 +608,7 @@ public class GameModPackManager
      */
     public synchronized static void uninstallModPackByURL( String url ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -494,7 +630,7 @@ public class GameModPackManager
      */
     public synchronized static void uninstallModPackByFriendlyName( String friendlyName ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -517,7 +653,7 @@ public class GameModPackManager
      */
     public synchronized static void installModPack( GameModPack gameModPack ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -541,7 +677,7 @@ public class GameModPackManager
      */
     public synchronized static void installModPackByFriendlyName( String friendlyName ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -583,7 +719,7 @@ public class GameModPackManager
      */
     public synchronized static void installModPackByURL( String url ) {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 
@@ -613,7 +749,7 @@ public class GameModPackManager
      */
     public synchronized static List< GameModPack > getInstalledModPacks() {
         // Populate lists if not already done
-        if ( availableGameModPacks == null || installedGameModPacks == null ) {
+        if ( installedGameModPacks == null ) {
             fetchModPackInfo();
         }
 

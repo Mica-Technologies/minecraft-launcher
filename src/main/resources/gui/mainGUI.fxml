@@ -121,6 +121,16 @@
         <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false" styleClass="chip-offline">
             <font><Font size="11.0"/></font>
         </Label>
+        <!-- Background-fetch indicator. Visible while the available-modpacks fetch
+             kicked off at startup is still running (see
+             GameModPackManager.startAvailableModPacksFetchAsync); hidden as soon as
+             that future completes. Lets the main menu render immediately without
+             waiting for the available-packs network call, but still signals to the
+             user that the Library screen will catch up shortly. -->
+        <Label fx:id="backgroundFetchLabel" text="Loading available packs…"
+               managed="false" visible="false" styleClass="muted">
+            <font><Font size="11.0"/></font>
+        </Label>
         <Pane HBox.hgrow="ALWAYS"/>
         <MFXButton fx:id="exitBtn" text="Exit" prefHeight="26.0"/>
     </HBox>

@@ -93,6 +93,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     // ===== Bottom status bar =====
     @SuppressWarnings( "unused" ) @FXML Label versionLabel;
     @SuppressWarnings( "unused" ) @FXML Label offlineLabel;
+    @SuppressWarnings( "unused" ) @FXML Label backgroundFetchLabel;
     @SuppressWarnings( "unused" ) @FXML MFXButton exitBtn;
 
     public MCLauncherMainGui( Stage stage ) throws IOException {
@@ -193,6 +194,24 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         if ( NetworkUtilities.isOffline() ) {
             offlineLabel.setVisible( true );
             offlineLabel.setManaged( true );
+        }
+
+        // "Loading available packs…" indicator. Show only while the background available-
+        // modpacks fetch (kicked off at startup, see
+        // GameModPackManager.startAvailableModPacksFetchAsync) is still running; hide as
+        // soon as the future completes. Attaches the hide-on-complete callback via
+        // whenComplete so we don't need a polling timer — the FX thread is woken
+        // exactly once when the fetch finishes.
+        java.util.concurrent.CompletableFuture< Void > availableFuture =
+                com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager
+                        .getAvailableFetchFuture();
+        if ( availableFuture != null && !availableFuture.isDone() ) {
+            backgroundFetchLabel.setVisible( true );
+            backgroundFetchLabel.setManaged( true );
+            availableFuture.whenComplete( ( v, t ) -> GUIUtilities.JFXPlatformRun( () -> {
+                backgroundFetchLabel.setVisible( false );
+                backgroundFetchLabel.setManaged( false );
+            } ) );
         }
 
         userImage.setImage( new Image(
