@@ -211,6 +211,24 @@
                                 <replace file="${project.build.directory}/installer-resources/main.wxs"
                                          token="@@DIALOG_BMP_PATH@@"
                                          value="${project.basedir}/deploy/windows/installer-resources/installer-background.bmp"/>
+
+                                <!-- Stage file-associations.properties with an absolute icon path.
+                                     jpackage 25's FA_ICON parser is just `Path.of(string)` with no
+                                     resolution against the properties file's directory — a relative
+                                     `icon=...` value is opened against the build CWD later in the
+                                     pipeline and fails with NoSuchFileException somewhere deep in
+                                     icon processing. Staging a copy with an absolute path sidesteps
+                                     the issue without depending on jpackage's relative-path semantics. -->
+                                <copy file="${project.basedir}/deploy/mac/file-associations.properties"
+                                      tofile="${project.build.directory}/jpackage-file-assoc/mac.properties"/>
+                                <replace file="${project.build.directory}/jpackage-file-assoc/mac.properties"
+                                         token="icon=Mica Minecraft Launcher.icns"
+                                         value="icon=${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns"/>
+                                <copy file="${project.basedir}/deploy/linux/file-associations.properties"
+                                      tofile="${project.build.directory}/jpackage-file-assoc/linux.properties"/>
+                                <replace file="${project.build.directory}/jpackage-file-assoc/linux.properties"
+                                         token="icon=Mica Minecraft Launcher.png"
+                                         value="icon=${project.basedir}/deploy/linux/Mica Minecraft Launcher.png"/>
                             </target>
                         </configuration>
                     </execution>
@@ -555,9 +573,10 @@
                                         <!-- Register the .mmcjson modpack manifest extension with macOS Launch
                                              Services. jpackage emits the matching CFBundleDocumentTypes entry
                                              in the bundled Info.plist so double-clicking a .mmcjson file in
-                                             Finder routes through to the launcher. -->
+                                             Finder routes through to the launcher. The .properties file is
+                                             staged with an absolute icon path (see stage-jar-for-jpackage). -->
                                         <argument>--file-associations</argument>
-                                        <argument>${project.basedir}/deploy/mac/file-associations.properties</argument>
+                                        <argument>${project.build.directory}/jpackage-file-assoc/mac.properties</argument>
                                         <!-- Use our custom Info.plist template (deploy/mac/Info.plist) so the
                                              bundled .app declares CFBundleURLTypes for the mmcl:// scheme.
                                              The template preserves the DEPLOY_FILE_ASSOCIATIONS placeholder
@@ -633,9 +652,11 @@
                                         <!-- Register the .mmcjson modpack manifest extension with the Linux
                                              desktop environment via the installed .desktop file's MimeType
                                              field. SchemeRegistrar also writes a user-level .desktop file at
-                                             runtime as a fallback for users running from a portable JAR. -->
+                                             runtime as a fallback for users running from a portable JAR.
+                                             The .properties file is staged with an absolute icon path
+                                             (see stage-jar-for-jpackage). -->
                                         <argument>--file-associations</argument>
-                                        <argument>${project.basedir}/deploy/linux/file-associations.properties</argument>
+                                        <argument>${project.build.directory}/jpackage-file-assoc/linux.properties</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
