@@ -82,28 +82,38 @@ jobs:
         run: echo "C:\Program Files (x86)\WiX Toolset v3.14\bin" >> $GITHUB_PATH
         shell: bash
 
-      - name: Build and package (MSI)
+      # The Windows packaging profile produces three artifacts in `package`:
+      #   build/packaging/user/<name>-<ver>.msi      (per-user MSI, no UAC)
+      #   build/packaging/machine/<name>-<ver>.msi   (per-machine MSI, requires UAC)
+      #   build/packaging/<name> Setup.exe           (Burn bootstrapper, picks scope)
+      # A single `mvn -B package` runs all of jpackage-user, jpackage-machine,
+      # burn-candle and burn-light — no follow-up `exec:exec@jpackage` is needed.
+      - name: Build and package (Burn bootstrapper EXE + per-user MSI + per-machine MSI)
         run: >
           mvn -B package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}
           -Djpackage.app.version=${{ needs.prepare.outputs.win_version }}
-          -Djpackage.type=msi
 
-      - name: Build EXE installer
-        run: >
-          mvn -B exec:exec@jpackage --file pom.xml
-          -Drevision=${{ needs.prepare.outputs.version }}
-          -Djpackage.app.version=${{ needs.prepare.outputs.win_version }}
-          -Djpackage.type=exe
-        continue-on-error: true
+      # Both per-scope MSIs land at the same jpackage-chosen filename — `user/`
+      # and `machine/` directory prefixes are the only thing distinguishing them.
+      # Collapse them to a flat staging dir with `-user` / `-system` suffixes so
+      # the release page surfaces three clearly-labeled downloads.
+      - name: Stage Windows installers with scope-suffixed names
+        shell: bash
+        run: |
+          mkdir -p windows-dist
+          cp "build/packaging/Mica Minecraft Launcher Setup.exe" windows-dist/
+          cp "build/packaging/user/Mica Minecraft Launcher-${{ needs.prepare.outputs.win_version }}.msi" \
+             "windows-dist/Mica Minecraft Launcher-${{ needs.prepare.outputs.win_version }}-user.msi"
+          cp "build/packaging/machine/Mica Minecraft Launcher-${{ needs.prepare.outputs.win_version }}.msi" \
+             "windows-dist/Mica Minecraft Launcher-${{ needs.prepare.outputs.win_version }}-system.msi"
+          ls -la windows-dist/
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-x64
-          path: |
-            build/packaging/*.msi
-            build/packaging/*.exe
+          path: windows-dist/*
 
   build-macos-arm:
     name: Build macOS (arm64)
@@ -175,20 +185,18 @@ jobs:
           java-package: jdk+fx
           cache: 'maven'
 
+      # `rpmbuild` (from the `rpm` package) is required by jpackage's RPM type
+      # — it's not preinstalled on ubuntu-latest. `dpkg` and `fakeroot` are
+      # already present but listed for completeness/forward-compat.
       - name: Install packaging tools
         run: sudo apt-get install -y dpkg fakeroot rpm
 
-      - name: Build and package (DEB)
+      # Single `mvn package` produces both DEB and RPM via the two jpackage
+      # executions in the linux-packaging profile (jpackage-deb + jpackage-rpm).
+      - name: Build and package (DEB + RPM)
         run: >
           mvn -B package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}
-
-      - name: Build RPM
-        run: >
-          mvn -B exec:exec@jpackage --file pom.xml
-          -Drevision=${{ needs.prepare.outputs.version }}
-          -Djpackage.type=rpm
-        continue-on-error: true
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4

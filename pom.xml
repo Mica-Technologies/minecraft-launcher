@@ -614,8 +614,14 @@
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
                         <executions>
+                            <!-- DEB build for Debian/Ubuntu family. Run by default in the
+                                 package phase alongside the RPM build below; `mvn package`
+                                 on Linux produces both installers in a single invocation.
+                                 The two executions only differ in their `type` flag; jpackage
+                                 names the outputs distinctly (`*_amd64.deb` vs `*.x86_64.rpm`)
+                                 so they coexist in the same dest directory. -->
                             <execution>
-                                <id>jpackage</id>
+                                <id>jpackage-deb</id>
                                 <phase>package</phase>
                                 <goals><goal>exec</goal></goals>
                                 <configuration>
@@ -655,6 +661,50 @@
                                              runtime as a fallback for users running from a portable JAR.
                                              The .properties file is staged with an absolute icon path
                                              (see stage-jar-for-jpackage). -->
+                                        <argument>--file-associations</argument>
+                                        <argument>${project.build.directory}/jpackage-file-assoc/linux.properties</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+
+                            <!-- RPM build for Fedora/RHEL/openSUSE family. Requires
+                                 `rpmbuild` from the `rpm` package on the build host
+                                 (`sudo apt-get install rpm` on Ubuntu CI runners). -->
+                            <execution>
+                                <id>jpackage-rpm</id>
+                                <phase>package</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <executable>${jlink.jdk.path}/bin/jpackage</executable>
+                                    <arguments>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>${project.artifactId}-${project.version}-jar-with-dependencies.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>--name</argument>
+                                        <argument>${packaging.name}</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>Mica Technologies</argument>
+                                        <argument>--description</argument>
+                                        <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.basedir}/build/packaging</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.native.access}</argument>
+                                        <argument>--icon</argument>
+                                        <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
+                                        <argument>--type</argument>
+                                        <argument>rpm</argument>
+                                        <argument>--license-file</argument>
+                                        <argument>${project.basedir}/LICENSE</argument>
+                                        <argument>--linux-shortcut</argument>
                                         <argument>--file-associations</argument>
                                         <argument>${project.build.directory}/jpackage-file-assoc/linux.properties</argument>
                                     </arguments>

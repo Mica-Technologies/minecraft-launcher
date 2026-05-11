@@ -18,6 +18,10 @@ jobs:
           java-package: jdk+fx
           cache: 'maven'
 
+      # WiX 3.14 ships on windows-latest runners but isn't on PATH. jpackage's
+      # MSI generation shells out to `light.exe`, and the Burn bootstrapper
+      # steps need `candle.exe` / `light.exe` too — without this the Windows
+      # `package` phase fails before the first MSI is written.
       - name: Set path for WiX Toolset
         run: echo "C:\Program Files (x86)\WiX Toolset v3.14\bin" >> $GITHUB_PATH
         shell: bash
