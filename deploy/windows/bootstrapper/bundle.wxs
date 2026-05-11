@@ -15,19 +15,36 @@
   Burn pick the right one based on the user's choice.
 
   Variables passed in from Maven (via candle -d):
-    MsiUserPath        absolute path to the per-user MSI
-    MsiMachinePath     absolute path to the per-machine MSI
-    AppName            display name (e.g. "Mica Minecraft Launcher" or "...DEV")
-    AppVersion         version string (e.g. "25.1.2")
-    AppDescription     tagline shown on the bundle's ARP entry
-    ProjectDir         absolute path to the project root (for asset lookups)
+    MsiUserPath          absolute path to the per-user MSI
+    MsiMachinePath       absolute path to the per-machine MSI
+    AppName              display name (e.g. "Mica Minecraft Launcher" or "...DEV")
+    AppVersion           3-component version string (e.g. "25.1.2") used by the
+                         bare MSIs and by the bundle's ARP DisplayVersion text
+    BundleBuildRevision  16-bit monotonic build-revision number, appended to
+                         AppVersion as the 4th component of Bundle/@Version so
+                         each build supersedes the previous (see pom.xml)
+    AppDescription       tagline shown on the bundle's ARP entry
+    ProjectDir           absolute path to the project root (for asset lookups)
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
      xmlns:bal="http://schemas.microsoft.com/wix/BalExtension"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
+  <!-- Bundle/@Version takes a 4-component a.b.c.d value. We append the
+       monotonic BundleBuildRevision computed in pom.xml as the 4th component
+       so every build is strictly greater than the previous one — Burn's
+       same-UpgradeCode upgrade detection compares all 4 components and only
+       marks STRICTLY-OLDER installs for uninstall during the chain. Without
+       this, same-version reinstalls stack a new ARP entry each time, which
+       is what produced the duplicate "Mica Minecraft Launcher DEV" entries
+       during dev iteration.
+
+       The bare MSIs (jpackage app-version arg) stay at AppVersion (3 components,
+       Windows Installer's ProductVersion comparison ignores the 4th anyway),
+       so this trick is invisible to the bare MSI side. -->
+  <?define BundleVersion = "$(var.AppVersion).$(var.BundleBuildRevision)" ?>
   <Bundle Name="$(var.AppName)"
-          Version="$(var.AppVersion)"
+          Version="$(var.BundleVersion)"
           Manufacturer="Mica Technologies"
           AboutUrl="https://minecraft.micatechnologies.com/"
           HelpUrl="https://github.com/Mica-Technologies/minecraft-launcher/issues"
@@ -36,6 +53,16 @@
           IconSourceFile="$(var.ProjectDir)/deploy/windows/Mica Minecraft Launcher.ico"
           DisableModify="yes"
           Compressed="yes">
+
+    <!-- Belt-and-suspenders for the upgrade behavior above: explicitly declare
+         this bundle's own UpgradeCode as an "Upgrade" relationship so Burn
+         treats every detected sibling bundle as an upgrade target regardless
+         of version. This catches any leftover same-version duplicates that
+         already exist in HKCU/HKLM from prior builds (which all registered
+         with the same BundleVersion of "25.1.2.0") — without this, those
+         pre-existing entries would never be cleaned up because the version-
+         comparison path only fires for strictly-older versions. -->
+    <RelatedBundle Id="b3a4f7c2-1d9e-4f88-9b06-3a2c1c7e9501" Action="Upgrade"/>
 
     <!-- Use the WixStdBA HyperlinkLargeLicense theme with our customized
          theme + localization files. The theme XML adds a scope-chooser

@@ -51,6 +51,12 @@
         <jdk.version>25.0.0.36.2</jdk.version>
         <jfxtaskbarprogressbar.export>--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED
         </jfxtaskbarprogressbar.export>
+        <!-- Java 22+ deprecates implicit native access from unnamed modules. JNA (oshi,
+             FXTaskbarProgressBar, jSystemThemeDetector) loads native libs via System.load,
+             which is restricted; without this option the runtime prints a deprecation
+             warning on first JNA call and will block the call entirely in a future release.
+             ALL-UNNAMED grants the permission to every classpath-loaded class. -->
+        <jpackage.native.access>--enable-native-access=ALL-UNNAMED</jpackage.native.access>
         <launcher.environment>RELEASE</launcher.environment>
     </properties>
 
@@ -275,9 +281,64 @@
                 <msi.machine.dir>${project.basedir}/build/packaging/machine</msi.machine.dir>
                 <msi.user.path>${msi.user.dir}/${packaging.name}-${jpackage.app.version}.msi</msi.user.path>
                 <msi.machine.path>${msi.machine.dir}/${packaging.name}-${jpackage.app.version}.msi</msi.machine.path>
+                <!-- ${bundle.build.revision} is computed at build time by the
+                     compute-bundle-revision antrun step below (scripts/compute_bundle_revision.ps1)
+                     and exported as a Maven property via exportAntProperties=true. Each
+                     new build produces a strictly-greater 16-bit value so the Burn
+                     bootstrapper's same-UpgradeCode upgrade detection kicks in and
+                     replaces the previous ARP entry instead of stacking a new one. The
+                     MSI's ProductVersion only compares 3 components, so its own Upgrade
+                     element is unaffected by this 4th component.
+                     NOTE: we deliberately do NOT declare a default value for this
+                     property here — exportAntProperties only fills in properties that
+                     are NOT already defined in Maven, so a default would shadow the
+                     computed value and pin every build to the same revision. -->
             </properties>
             <build>
                 <plugins>
+                    <!-- Compute a monotonic 16-bit revision number that becomes the 4th
+                         component of the Burn bundle's Version. Burn compares all 4
+                         components when deciding whether an installed sibling bundle
+                         (same UpgradeCode) is an upgrade target; same-version installs
+                         are NOT marked for uninstall, which is what produced the stack
+                         of duplicate "Mica Minecraft Launcher DEV" ARP entries during
+                         dev iteration. Giving each build a strictly-greater revision
+                         flips the comparison to "older → upgrade", so the previous
+                         entry gets cleanly replaced.
+
+                         Encoding: minutes since 2024-01-01 UTC, mod 65536. 1-minute
+                         granularity (any two builds ≥ 1 minute apart get distinct
+                         values). The mod-65536 wrap happens every ~45 days; within a
+                         dev-iteration window (hours / days) the value is always
+                         strictly increasing. MSI ProductVersion only compares 3
+                         components, so the bare MSIs still see clean "25.1.2" and
+                         their own Upgrade element handles same-version reinstalls. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions combine.children="append">
+                            <execution>
+                                <id>compute-bundle-revision</id>
+                                <phase>initialize</phase>
+                                <goals><goal>run</goal></goals>
+                                <configuration>
+                                    <exportAntProperties>true</exportAntProperties>
+                                    <target>
+                                        <exec executable="powershell.exe"
+                                              outputproperty="bundle.build.revision"
+                                              failonerror="true">
+                                            <arg value="-NoProfile"/>
+                                            <arg value="-ExecutionPolicy"/>
+                                            <arg value="Bypass"/>
+                                            <arg value="-File"/>
+                                            <arg value="${project.basedir}/scripts/compute_bundle_revision.ps1"/>
+                                        </exec>
+                                        <echo>Burn bundle revision suffix: ${bundle.build.revision}</echo>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
@@ -311,6 +372,8 @@
                                         <argument>${msi.user.dir}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.native.access}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
                                         <argument>--type</argument>
@@ -361,6 +424,8 @@
                                         <argument>${msi.machine.dir}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.native.access}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
                                         <argument>--type</argument>
@@ -405,6 +470,7 @@
                                         <argument>-dMsiMachinePath=${msi.machine.path}</argument>
                                         <argument>-dAppName=${packaging.displayName}</argument>
                                         <argument>-dAppVersion=${jpackage.app.version}</argument>
+                                        <argument>-dBundleBuildRevision=${bundle.build.revision}</argument>
                                         <argument>-dAppDescription=Mica Minecraft Launcher — Forge modpacks, made simple.</argument>
                                         <argument>-out</argument>
                                         <argument>${project.build.directory}/burn/bundle.wixobj</argument>
@@ -478,6 +544,8 @@
                                         <argument>${project.basedir}/build/packaging</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.native.access}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
                                         <argument>--type</argument>
@@ -553,6 +621,8 @@
                                         <argument>${project.basedir}/build/packaging</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.native.access}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
                                         <argument>--type</argument>
