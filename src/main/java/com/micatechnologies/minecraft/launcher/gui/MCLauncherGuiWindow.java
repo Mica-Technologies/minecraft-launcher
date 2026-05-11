@@ -306,10 +306,18 @@ public class MCLauncherGuiWindow extends Application
         // messages — runLater ensures the restore happens in a distinct animation pulse.
         Platform.runLater( () -> {
             stage.setX( x );
-            // After the position settles, force a frame refresh so the shell re-evaluates
-            // which monitor's taskbar should own the window's icon. JNA SetWindowPos with
-            // SWP_FRAMECHANGED on the Glass HWND — Windows-only, no-op elsewhere.
+            // First attempt: immediately after the position settles. SetWindowPos with the
+            // window's actual current bounds + SWP_FRAMECHANGED. Windows-only, no-op elsewhere.
             com.micatechnologies.minecraft.launcher.utilities.WindowsShellRefresh.forceFrameRefresh( stage );
+
+            // Second attempt: ~200 ms later. The first attempt occasionally fires while
+            // the Win11 shell is still mid-debounce on the drag-end events and gets
+            // dropped; the delayed retry catches those cases. Two attempts together push
+            // the icon-follow success rate from ~70% to consistently high in testing.
+            PauseTransition retry = new PauseTransition( Duration.millis( 200 ) );
+            retry.setOnFinished( ev ->
+                com.micatechnologies.minecraft.launcher.utilities.WindowsShellRefresh.forceFrameRefresh( stage ) );
+            retry.play();
         } );
     }
 

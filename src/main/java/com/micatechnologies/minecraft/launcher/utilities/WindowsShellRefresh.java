@@ -22,6 +22,7 @@ import com.sun.glass.ui.Window;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef.HWND;
+import com.sun.jna.platform.win32.WinDef.RECT;
 import javafx.stage.Stage;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -53,11 +54,20 @@ public final class WindowsShellRefresh
     private static final int SWP_NOSIZE        = 0x0001;
     private static final int SWP_NOMOVE        = 0x0002;
     private static final int SWP_NOZORDER      = 0x0004;
+    private static final int SWP_NOACTIVATE    = 0x0010;
     private static final int SWP_FRAMECHANGED  = 0x0020;
 
-    /** Mask: refresh the frame without moving / resizing / restacking. */
-    private static final int REFRESH_FLAGS =
+    /** Mask: refresh the frame without moving / resizing / restacking. Fallback when we
+     *  can't read the window's current bounds. */
+    private static final int REFRESH_FLAGS_NOOP =
             SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER;
+
+    /** Mask: re-assert the current position + size with FRAMECHANGED set. Including the
+     *  real position turns the call into a "real move" event from the shell's perspective —
+     *  more attention-grabbing than the NOMOVE variant, which Win11's per-monitor taskbar
+     *  appears to debounce. */
+    private static final int REFRESH_FLAGS_MOVE =
+            SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOACTIVATE;
 
     private WindowsShellRefresh() { /* static-only */ }
 
@@ -80,7 +90,23 @@ public final class WindowsShellRefresh
         }
         try {
             HWND hwnd = new HWND( new Pointer( handle ) );
-            User32.INSTANCE.SetWindowPos( hwnd, null, 0, 0, 0, 0, REFRESH_FLAGS );
+
+            // Read the window's current bounds so we can re-assert them with FRAMECHANGED
+            // set. Including the actual position turns this into a real "move" event,
+            // which Win11's per-monitor taskbar tracks more reliably than the no-op
+            // SWP_NOMOVE | SWP_NOSIZE variant. Falls back to the no-op variant if
+            // GetWindowRect fails for some reason.
+            RECT bounds = new RECT();
+            if ( User32.INSTANCE.GetWindowRect( hwnd, bounds ) ) {
+                int x = bounds.left;
+                int y = bounds.top;
+                int w = bounds.right  - bounds.left;
+                int h = bounds.bottom - bounds.top;
+                User32.INSTANCE.SetWindowPos( hwnd, null, x, y, w, h, REFRESH_FLAGS_MOVE );
+            }
+            else {
+                User32.INSTANCE.SetWindowPos( hwnd, null, 0, 0, 0, 0, REFRESH_FLAGS_NOOP );
+            }
         }
         catch ( Exception | Error e ) {
             Logger.logWarningSilent( "SetWindowPos frame-refresh failed: " + e.getMessage() );
