@@ -95,6 +95,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
+    MFXToggleButton batteryThrottleCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
     MFXToggleButton lwjglArmPatchCheckBox;
 
     @SuppressWarnings( "unused" )
@@ -413,6 +417,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
             ConfigManager.setInGameConsoleEnable( inGameConsoleCheckBox.isSelected() );
 
+            // Store battery throttle preference
+            ConfigManager.setBatteryThrottleEnable( batteryThrottleCheckBox.isSelected() );
+
             // Store LWJGL ARM64 patching to config
             ConfigManager.setLwjglArmPatchEnable( lwjglArmPatchCheckBox.isSelected() );
 
@@ -679,6 +686,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Set and configure in-game console check box
         inGameConsoleCheckBox.setSelected( ConfigManager.getInGameConsoleEnable() );
+
+        // Set and configure battery throttle check box
+        batteryThrottleCheckBox.setSelected( ConfigManager.getBatteryThrottleEnable() );
 
         // Set and configure LWJGL ARM64 patching check box
         lwjglArmPatchCheckBox.setSelected( ConfigManager.getLwjglArmPatchEnable() );
@@ -1026,6 +1036,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 "Writes additional diagnostic info to log files." );
         TooltipManager.install( inGameConsoleCheckBox,
                 "Shows a real-time game output console while playing. Useful for debugging." );
+        TooltipManager.install( batteryThrottleCheckBox,
+                "Slows downloads on laptops running on battery to conserve power. "
+                        + "Desktops and devices on AC are never throttled." );
         TooltipManager.install( themeSelection,
                 "Choose the launcher's visual theme. Automatic matches your OS setting." );
         TooltipManager.install( jvmPresetSelection,
@@ -1087,6 +1100,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( windowResizeCheckBox.isSelected() != ConfigManager.getResizableWindows() ) return true;
         if ( enhancedLoggingCheckBox.isSelected() != ConfigManager.getEnhancedLogging() ) return true;
         if ( inGameConsoleCheckBox.isSelected() != ConfigManager.getInGameConsoleEnable() ) return true;
+        if ( batteryThrottleCheckBox.isSelected() != ConfigManager.getBatteryThrottleEnable() ) return true;
         if ( lwjglArmPatchCheckBox.isSelected() != ConfigManager.getLwjglArmPatchEnable() ) return true;
         String selectedTheme = themeSelection.getSelectedItem();
         if ( selectedTheme != null && !selectedTheme.equalsIgnoreCase( ConfigManager.getTheme() ) ) return true;

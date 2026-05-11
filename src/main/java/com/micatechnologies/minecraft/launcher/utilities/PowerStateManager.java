@@ -76,8 +76,9 @@ public final class PowerStateManager
         return computed;
     }
 
-    /** Returns the remaining battery percentage (0..100) of the first detected battery, or -1 if
-     *  no battery is present / the probe fails. Not currently consumed by anything in-launcher;
+    /** Returns the remaining battery percentage (0..100) of the first detected internal battery
+     *  (UPS sources are skipped — a desktop with a UPS isn't what this is for), or -1 if no
+     *  battery is present / the probe fails. Not currently consumed by anything in-launcher;
      *  exposed for a future "battery low" UI cue. */
     public static int getBatteryPercentage()
     {
@@ -86,8 +87,13 @@ public final class PowerStateManager
             if ( sources == null || sources.isEmpty() ) {
                 return -1;
             }
-            double pct = sources.get( 0 ).getRemainingCapacityPercent();
-            return ( int ) Math.round( pct * 100.0 );
+            for ( PowerSource ps : sources ) {
+                if ( isInternalBattery( ps ) ) {
+                    double pct = ps.getRemainingCapacityPercent();
+                    return ( int ) Math.round( pct * 100.0 );
+                }
+            }
+            return -1;
         }
         catch ( Exception | Error e ) {
             return -1;
@@ -169,15 +175,25 @@ public final class PowerStateManager
             if ( sources == null || sources.isEmpty() ) {
                 return false;
             }
-            // "On battery" iff every detected source reports !isPowerOnLine(). A single-battery
-            // laptop reports one source; a multi-battery laptop reports one per cell. If ANY
-            // source reports AC online, treat as plugged in.
+            // Only count internal laptop batteries. A desktop with a UPS still appears here as
+            // a PowerSource — but a UPS is for outage ride-through, not a "save juice" signal,
+            // and on some platforms (notably Windows) oshi reports a UPS as !isPowerOnLine even
+            // when it's plugged in and at 100%. Filter UPS sources out entirely.
+            boolean sawBattery = false;
             for ( PowerSource ps : sources ) {
-                if ( ps.isPowerOnLine() ) {
+                if ( !isInternalBattery( ps ) ) {
+                    continue;
+                }
+                sawBattery = true;
+                // "On battery" requires the source to be actively discharging — not just
+                // "not on AC line". On some hardware a fully-charged battery reports
+                // !isPowerOnLine() during a momentary capacity-balance step even when the
+                // adapter is plugged in; isDischarging() is the more reliable positive signal.
+                if ( ps.isPowerOnLine() || ps.isCharging() || !ps.isDischarging() ) {
                     return false;
                 }
             }
-            return true;
+            return sawBattery;
         }
         catch ( Exception | Error e ) {
             // Probe failed — safest default is "not on battery" so we never throttle
@@ -185,5 +201,51 @@ public final class PowerStateManager
             Logger.logWarningSilent( "Power-state probe failed: " + e.getMessage() );
             return false;
         }
+    }
+
+    /** True iff this source looks like an internal laptop battery — i.e. not a UPS or some
+     *  other non-laptop power-source entry oshi happens to enumerate. oshi 6.3.1 doesn't
+     *  expose a power-source type enum, so we fall back to a name-based check against the
+     *  Windows-reported device name / display name and manufacturer. The check is fuzzy by
+     *  design: false-negatives (a real laptop battery filtered out) just disable throttling,
+     *  which is the safe direction. */
+    private static boolean isInternalBattery( PowerSource ps )
+    {
+        try {
+            if ( containsUpsSignal( ps.getName() ) ) {
+                return false;
+            }
+            if ( containsUpsSignal( ps.getDeviceName() ) ) {
+                return false;
+            }
+            if ( containsUpsSignal( ps.getManufacturer() ) ) {
+                return false;
+            }
+            return true;
+        }
+        catch ( Exception | Error e ) {
+            // If we can't classify, conservatively treat it as NOT an internal battery so
+            // we don't throttle a desktop user because of an unknown source.
+            return false;
+        }
+    }
+
+    /** Case-insensitive substring match for tokens that strongly indicate a UPS rather than
+     *  an internal laptop battery. Names like "APC UPS" / "Back-UPS" / "CyberPower UPS" all
+     *  trip the "UPS" check; the manufacturer-only entries cover units whose display name is
+     *  just a model code. */
+    private static boolean containsUpsSignal( String s )
+    {
+        if ( s == null || s.isEmpty() ) {
+            return false;
+        }
+        String upper = s.toUpperCase();
+        return upper.contains( "UPS" )
+                || upper.contains( "APC " )
+                || upper.contains( "CYBERPOWER" )
+                || upper.contains( "TRIPP LITE" )
+                || upper.contains( "TRIPPLITE" )
+                || upper.contains( "EATON" )
+                || upper.contains( "MINUTEMAN" );
     }
 }

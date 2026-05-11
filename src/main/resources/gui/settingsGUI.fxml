@@ -252,6 +252,7 @@
                         <MFXToggleButton fx:id="discordCheckBox" text="Discord Integration" />
                         <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="Enhanced Logging" />
                         <MFXToggleButton fx:id="inGameConsoleCheckBox" text="In-Game Console" />
+                        <MFXToggleButton fx:id="batteryThrottleCheckBox" text="Throttle Downloads on Battery" />
                         <MFXToggleButton fx:id="lwjglArmPatchCheckBox" text="LWJGL ARM64 Patching" />
                         <Label text="Replaces x86_64 LWJGL2 natives with ARM64 builds for Minecraft 1.12.2 and below on Apple Silicon / ARM Linux." wrapText="true">
                             <font>
