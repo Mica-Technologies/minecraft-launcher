@@ -324,16 +324,25 @@
  */
 
 .heroBackgroundDefaultVanilla {
-    /* Sky → horizon → grass. Reads as "vanilla Minecraft default biome" at a
-     * glance without using any actual Minecraft texture asset. Horizon sits at
-     * 38% so the grass band is the dominant visual weight, which the
-     * .heroCardImageVeil's bottom dim then sells as "ground under the open sky." */
+    /* Wider Minecraft-palette gradient: sky blue → pale horizon → warm golden
+     * sunset glow → grass green → dirt brown. The hard sky/grass horizon line
+     * the prior version had (5-pixel-wide transition at 35-40%) is gone — every
+     * adjacent stop is now ~20% apart so the blends are gentle and the gradient
+     * reads as "a Minecraft landscape at golden hour" rather than two stripes.
+     *
+     * Angled "to bottom right" (~135° / ~22° below horizontal on the card's
+     * 360×150 aspect) so the bands tilt diagonally instead of stacking
+     * horizontally — more visual interest, less wallpaper-y.
+     *
+     * Bottom stop #7A5C36 (dirt brown) matches the leftmost cube on the
+     * progress-screen voxel cluster, so the two screens share a palette cue. */
     -fx-background-color:
-        linear-gradient(to bottom,
+        linear-gradient(to bottom right,
             #4A8FD0 0%,
-            #6FB3DC 35%,
-            #5BA84E 40%,
-            #3C8527 100%);
+            #8FC8E8 22%,
+            #E0CC7E 42%,
+            #5BA84E 62%,
+            #7A5C36 100%);
 }
 
 .heroBackgroundDefaultForge {

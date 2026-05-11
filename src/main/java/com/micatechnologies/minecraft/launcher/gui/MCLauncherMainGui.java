@@ -657,11 +657,24 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             return;
         }
 
-        // If the logo is already loaded (cached or synchronously-loaded), derive immediately.
+        // Cache hit path — when the user navigates away and back, the logo file path is
+        // stable per pack, so we skip the histogram work entirely.
+        String cacheKey = packLogoCacheKey( pack );
+        DominantColors cached = ( cacheKey != null ) ? DOMINANT_COLOR_CACHE.get( cacheKey ) : null;
+        if ( cached != null ) {
+            bgLayer.setStyle( buildGradientStyle( cached ) );
+            return;
+        }
+
+        // Logo loaded: sample immediately. May still return null if the logo is fully
+        // transparent / monochrome — fall through to Forge default in that case.
         if ( logoImage.getProgress() >= 1.0 && !logoImage.isError() ) {
-            String derived = buildLogoGradient( logoImage );
-            if ( derived != null ) {
-                bgLayer.setStyle( derived );
+            DominantColors fresh = computeDominantColors( logoImage );
+            if ( fresh != null ) {
+                if ( cacheKey != null ) {
+                    DOMINANT_COLOR_CACHE.put( cacheKey, fresh );
+                }
+                bgLayer.setStyle( buildGradientStyle( fresh ) );
                 return;
             }
             bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
@@ -669,45 +682,107 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
 
         // Logo still loading: show the Forge default while we wait, swap in the derived
-        // gradient as soon as the load completes. The progress listener fires on the FX
-        // thread so it's safe to mutate styleClass / setStyle directly.
+        // gradient as soon as the load completes. Listener fires on the FX thread so it's
+        // safe to mutate styleClass / setStyle directly. The result is cached so a future
+        // re-construction of this card doesn't repeat the sample.
         bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
         logoImage.progressProperty().addListener( ( obs, oldVal, newVal ) -> {
             if ( newVal.doubleValue() < 1.0 || logoImage.isError() ) {
                 return;
             }
-            String derived = buildLogoGradient( logoImage );
-            if ( derived != null ) {
+            DominantColors fresh = computeDominantColors( logoImage );
+            if ( fresh != null ) {
+                if ( cacheKey != null ) {
+                    DOMINANT_COLOR_CACHE.put( cacheKey, fresh );
+                }
                 bgLayer.getStyleClass().remove( "heroBackgroundDefaultForge" );
-                bgLayer.setStyle( derived );
+                bgLayer.setStyle( buildGradientStyle( fresh ) );
             }
         } );
     }
 
-    /** Samples the dominant color from {@code image} and returns a JavaFX CSS inline-style
-     *  string ({@code -fx-background-color: linear-gradient(...)}) or {@code null} if sampling
-     *  failed (image had no pixel data, was all transparent, etc.). */
-    private static String buildLogoGradient( Image image )
+    // -----------------------------------------------------------------------------------------
+    //  Dominant-color extraction + cache
+    // -----------------------------------------------------------------------------------------
+
+    /** Process-wide cache of dominant-color results, keyed by logo file path. Survives FXML
+     *  reloads (main GUI re-creation on navigation) so the user-perceived "every card has its
+     *  bg right away" is real after the first visit to the main menu. The cache is bounded by
+     *  the number of distinct logo files the user has installed (typically 5–50) and entry
+     *  size is ~64 bytes — memory cost is trivial. Logo file paths only change on pack
+     *  reinstall, so stale entries are extremely rare and never incorrect (they're just
+     *  recomputed once the file path differs). */
+    private static final java.util.concurrent.ConcurrentHashMap< String, DominantColors >
+            DOMINANT_COLOR_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Cache key for a pack's logo. Falls back to the pack's name when the logo file path
+     *  isn't available so we still hit the cache on subsequent navigations. */
+    private static String packLogoCacheKey( GameModPack pack )
     {
-        Color dominant = computeDominantColor( image );
-        if ( dominant == null ) {
-            return null;
+        try {
+            String path = pack.getPackLogoFilepath();
+            if ( path != null && !path.isBlank() ) {
+                return path;
+            }
         }
-        // Two derived stops keep the gradient feeling lit-from-the-top-left without going
-        // pitch black at the bottom-right. 60% and 35% relative brightness chosen by eye —
-        // brighter than half because the .heroCardImageVeil already dims the bottom 45%.
-        Color mid    = dominant.deriveColor( 0.0, 1.0, 0.60, 1.0 );
-        Color shadow = dominant.deriveColor( 0.0, 1.0, 0.35, 1.0 );
-        return String.format(
-                "-fx-background-color: linear-gradient(to bottom right, %s 0%%, %s 55%%, %s 100%%);",
-                toHexRgb( dominant ), toHexRgb( mid ), toHexRgb( shadow ) );
+        catch ( Exception ignored ) { /* fall through */ }
+        return pack != null ? pack.getPackName() : null;
     }
 
-    /** Approximate-dominant-color sample of {@code image}. Pixels are weighted by their
-     *  saturation so a logo's distinctive accent colors pull harder on the average than the
-     *  often-large neutral / transparent backdrop. Returns null when no usable opaque
-     *  pixels were found (fully transparent or one-color images). */
-    private static Color computeDominantColor( Image image )
+    /** Two-color result of the histogram sample. {@code secondary} is null when the logo is
+     *  too monochrome to identify a second distinct hue — the gradient renderer then derives
+     *  the second stop algorithmically. */
+    private record DominantColors( Color primary, Color secondary )
+    {
+        boolean hasSecondary() { return secondary != null; }
+    }
+
+    /** Builds the CSS {@code -fx-background-color: linear-gradient(...)} declaration from
+     *  a sampled {@link DominantColors}. When two distinct colors were found the gradient
+     *  uses them directly with a 50%-blended midpoint for a smoother transition; when only
+     *  one color was found the second stop is derived as a darker variant of the first. */
+    private static String buildGradientStyle( DominantColors colors )
+    {
+        if ( colors.hasSecondary() ) {
+            // Linear gradient diagonally across the card image, primary at the top-left
+            // corner, secondary at the bottom-right, 50/50 blend in the middle. The
+            // midpoint blend smooths out the transition so the gradient doesn't feel like
+            // two-stripe poster art.
+            Color mid = blend( colors.primary(), colors.secondary(), 0.5 );
+            return String.format(
+                    "-fx-background-color: linear-gradient(to bottom right, %s 0%%, %s 50%%, %s 100%%);",
+                    toHexRgb( colors.primary() ), toHexRgb( mid ), toHexRgb( colors.secondary() ) );
+        }
+        // Single-color fallback — pair primary with a derived darker stop for depth.
+        Color dim    = colors.primary().deriveColor( 0.0, 1.0, 0.60, 1.0 );
+        Color shadow = colors.primary().deriveColor( 0.0, 1.0, 0.35, 1.0 );
+        return String.format(
+                "-fx-background-color: linear-gradient(to bottom right, %s 0%%, %s 55%%, %s 100%%);",
+                toHexRgb( colors.primary() ), toHexRgb( dim ), toHexRgb( shadow ) );
+    }
+
+    /** Linear blend between two colors at parameter t ∈ [0, 1]. t=0 returns a; t=1 returns b. */
+    private static Color blend( Color a, Color b, double t )
+    {
+        return new Color(
+                a.getRed()   * ( 1.0 - t ) + b.getRed()   * t,
+                a.getGreen() * ( 1.0 - t ) + b.getGreen() * t,
+                a.getBlue()  * ( 1.0 - t ) + b.getBlue()  * t,
+                1.0 );
+    }
+
+    /** Histogram-based two-color extraction. Bins pixels into a coarse 16-per-channel RGB
+     *  histogram (4096 buckets), weights each entry by the pixel's saturation so vivid
+     *  accents dominate, then picks the heaviest bucket as primary and the heaviest
+     *  *sufficiently-distinct* bucket as secondary. "Sufficiently distinct" = RGB Euclidean
+     *  distance ≥ 0.25 in normalized space (~64 / 255 per channel on average), which keeps
+     *  the gradient from collapsing to two near-identical shades.
+     *
+     *  <p>Returns null when no usable opaque pixels exist (fully transparent images);
+     *  returns a {@code DominantColors} with {@code secondary == null} when the logo is
+     *  too monochrome to find a second distinct hue (e.g. one-color logos on transparent
+     *  backgrounds). Callers handle both null and no-secondary cases.</p> */
+    private static DominantColors computeDominantColors( Image image )
     {
         if ( image == null || image.isError() ) {
             return null;
@@ -722,34 +797,79 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             return null;
         }
 
-        // Stride keeps the sample cheap regardless of image size — we hit ~24×24 = 576
-        // points max, plenty for an average-color read.
-        int step = Math.max( 1, Math.min( w, h ) / 24 );
+        final int LEVELS  = 16;
+        final int BUCKETS = LEVELS * LEVELS * LEVELS;
+        int[]    counts = new int[ BUCKETS ];
+        double[] rSum   = new double[ BUCKETS ];
+        double[] gSum   = new double[ BUCKETS ];
+        double[] bSum   = new double[ BUCKETS ];
 
-        double rTotal = 0.0, gTotal = 0.0, bTotal = 0.0, weightTotal = 0.0;
+        int step = Math.max( 1, Math.min( w, h ) / 32 );
         for ( int y = 0; y < h; y += step ) {
             for ( int x = 0; x < w; x += step ) {
                 Color c = reader.getColor( x, y );
                 if ( c.getOpacity() < 0.5 ) {
                     continue;
                 }
-                // Saturation weight: max-channel minus min-channel. Gray pixels (0..0.1)
-                // contribute almost nothing; vivid pixels (0.6..1.0) dominate the average.
-                // The +0.1 baseline lets near-gray neutrals still register so we don't
-                // return null on logos that are mostly off-white / pale.
-                double saturation = Math.max( c.getRed(), Math.max( c.getGreen(), c.getBlue() ) )
-                                  - Math.min( c.getRed(), Math.min( c.getGreen(), c.getBlue() ) );
-                double weight = 0.1 + saturation;
-                rTotal      += c.getRed()   * weight;
-                gTotal      += c.getGreen() * weight;
-                bTotal      += c.getBlue()  * weight;
-                weightTotal += weight;
+                double sat = Math.max( c.getRed(), Math.max( c.getGreen(), c.getBlue() ) )
+                           - Math.min( c.getRed(), Math.min( c.getGreen(), c.getBlue() ) );
+                // Saturated pixels weigh up to ~21× more than gray pixels, so a logo's
+                // accent hues dominate the histogram even when they cover fewer pixels
+                // than the (often gray / white / dark) backdrop.
+                int weight = 1 + ( int ) ( sat * 20 );
+
+                int rIdx = Math.min( LEVELS - 1, ( int ) ( c.getRed()   * LEVELS ) );
+                int gIdx = Math.min( LEVELS - 1, ( int ) ( c.getGreen() * LEVELS ) );
+                int bIdx = Math.min( LEVELS - 1, ( int ) ( c.getBlue()  * LEVELS ) );
+                int idx  = ( rIdx * LEVELS + gIdx ) * LEVELS + bIdx;
+
+                counts[ idx ] += weight;
+                rSum  [ idx ] += c.getRed()   * weight;
+                gSum  [ idx ] += c.getGreen() * weight;
+                bSum  [ idx ] += c.getBlue()  * weight;
             }
         }
-        if ( weightTotal <= 0.0 ) {
+
+        int topIdx = -1, topCount = 0;
+        for ( int i = 0; i < BUCKETS; i++ ) {
+            if ( counts[ i ] > topCount ) {
+                topCount = counts[ i ];
+                topIdx = i;
+            }
+        }
+        if ( topIdx < 0 ) {
             return null;
         }
-        return new Color( rTotal / weightTotal, gTotal / weightTotal, bTotal / weightTotal, 1.0 );
+        Color primary = bucketAverage( topIdx, counts, rSum, gSum, bSum );
+
+        final double DIST_THRESHOLD = 0.25;
+        int secIdx = -1, secCount = 0;
+        for ( int i = 0; i < BUCKETS; i++ ) {
+            if ( i == topIdx || counts[ i ] == 0 ) {
+                continue;
+            }
+            Color candidate = bucketAverage( i, counts, rSum, gSum, bSum );
+            if ( colorDistance( candidate, primary ) > DIST_THRESHOLD && counts[ i ] > secCount ) {
+                secCount = counts[ i ];
+                secIdx = i;
+            }
+        }
+        Color secondary = ( secIdx >= 0 ) ? bucketAverage( secIdx, counts, rSum, gSum, bSum ) : null;
+        return new DominantColors( primary, secondary );
+    }
+
+    private static Color bucketAverage( int idx, int[] counts, double[] rSum, double[] gSum, double[] bSum )
+    {
+        int c = counts[ idx ];
+        return new Color( rSum[ idx ] / c, gSum[ idx ] / c, bSum[ idx ] / c, 1.0 );
+    }
+
+    private static double colorDistance( Color a, Color b )
+    {
+        double dr = a.getRed()   - b.getRed();
+        double dg = a.getGreen() - b.getGreen();
+        double db = a.getBlue()  - b.getBlue();
+        return Math.sqrt( dr * dr + dg * dg + db * db );
     }
 
     /** Formats a JavaFX {@link Color} as a six-digit hex literal usable in JavaFX CSS
