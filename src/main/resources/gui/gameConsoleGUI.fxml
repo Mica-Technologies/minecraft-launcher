@@ -11,7 +11,6 @@
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 
 <!--
   ~ Copyright (c) 2026 Mica Technologies
@@ -22,6 +21,14 @@
   ~ or (at your option) any later version.
   -->
 
+<!--
+  Game Console — restructured to share the app-shell pattern: brand-logo
+  navbar carrying the dynamic title ("Game Console: <pack>" / "Game Crashed:
+  <pack>") and the running/exited status on the right; content area for the
+  diagnosis card + log; bottomBar with uptime + Copy/Crash Report/Kill/Close.
+  No announcement banner here — the console runs while a game session is
+  active and we don't want unrelated banners competing for attention.
+-->
 <GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
           prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane"
           xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
@@ -29,81 +36,67 @@
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
-        <RowConstraints vgrow="SOMETIMES"/>
+        <!-- Row 0: top navbar -->
+        <RowConstraints maxHeight="52.0" minHeight="52.0" prefHeight="52.0"/>
+        <!-- Row 1: content fills remaining -->
+        <RowConstraints vgrow="ALWAYS"/>
+        <!-- Row 2: bottom action bar -->
+        <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
     </rowConstraints>
 
-    <GridPane styleClass="stripPane">
-        <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS"/>
-        </columnConstraints>
-        <rowConstraints>
-            <RowConstraints minHeight="45.0" prefHeight="45.0"/>
-            <RowConstraints vgrow="ALWAYS"/>
-            <RowConstraints minHeight="25.0" prefHeight="25.0"/>
-            <RowConstraints minHeight="45.0" prefHeight="45.0"/>
-        </rowConstraints>
-        <padding>
-            <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
-        </padding>
+    <!-- Row 0: Top navbar — brand + dynamic title + status chip on the right. -->
+    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar">
+        <padding><Insets left="14.0" right="10.0"/></padding>
 
-        <!-- Header -->
-        <GridPane GridPane.rowIndex="0">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints minWidth="100.0" prefWidth="100.0"/>
-            </columnConstraints>
-            <Label fx:id="titleLabel" text="Game Console" styleClass="heading-h2" GridPane.columnIndex="0"/>
-            <Label fx:id="statusLabel" text="Running" alignment="CENTER_RIGHT" styleClass="muted" GridPane.columnIndex="1">
-                <font>
-                    <Font size="12.0"/>
-                </font>
-            </Label>
-        </GridPane>
+        <Pane prefWidth="36.0" prefHeight="36.0" minWidth="36.0" minHeight="36.0"
+              maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
+            <fx:include source="components/micaBrandLogo-small.fxml"/>
+        </Pane>
+        <Label fx:id="titleLabel" text="Game Console" styleClass="heading-h2"/>
 
-        <!-- Log area row: diagnosis card stacks above the live log/crash text. The card is
-             hidden+unmanaged unless CrashReportAnalyzer returned a non-UNKNOWN diagnosis. -->
-        <VBox spacing="8.0" GridPane.rowIndex="1">
-            <GridPane.margin>
-                <Insets top="5.0" bottom="2.0"/>
-            </GridPane.margin>
+        <Pane HBox.hgrow="ALWAYS"/>
 
-            <!-- Crash diagnosis panel — populated by MCLauncherGameConsoleGui.showDiagnosis() -->
-            <VBox fx:id="diagnosisCard" visible="false" managed="false" spacing="6.0"
-                  styleClass="card,crashDiagnosisCard">
-                <padding><Insets top="12.0" bottom="12.0" left="14.0" right="14.0"/></padding>
-                <Label fx:id="diagnosisTitleLabel" styleClass="heading-h3,crashDiagnosisTitle"/>
-                <Label fx:id="diagnosisSummaryLabel" wrapText="true" styleClass="crashDiagnosisSummary"/>
-                <HBox fx:id="diagnosisActionsBox" spacing="6.0" alignment="CENTER_LEFT"/>
-            </VBox>
+        <Label fx:id="statusLabel" text="Running" styleClass="muted"/>
+        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+    </HBox>
 
-            <!-- Live game log / crash report text -->
-            <TextArea fx:id="logArea" editable="false" wrapText="true" styleClass="text-mono"
-                      style="-fx-font-size: 12px;" VBox.vgrow="ALWAYS"/>
+    <!-- Row 1: Content — diagnosis card stacks above the log; truncation hint sits at the bottom. -->
+    <VBox spacing="8.0" GridPane.rowIndex="1">
+        <padding><Insets top="14.0" bottom="6.0" left="20.0" right="20.0"/></padding>
+
+        <!-- Crash diagnosis panel — populated by MCLauncherGameConsoleGui.showDiagnosis() -->
+        <VBox fx:id="diagnosisCard" visible="false" managed="false" spacing="6.0"
+              styleClass="card,crashDiagnosisCard">
+            <padding><Insets top="12.0" bottom="12.0" left="14.0" right="14.0"/></padding>
+            <Label fx:id="diagnosisTitleLabel" styleClass="heading-h3,crashDiagnosisTitle"/>
+            <Label fx:id="diagnosisSummaryLabel" wrapText="true" styleClass="crashDiagnosisSummary"/>
+            <HBox fx:id="diagnosisActionsBox" spacing="6.0" alignment="CENTER_LEFT"/>
         </VBox>
 
-        <!-- Truncation notice row -->
-        <HBox spacing="5.0" alignment="CENTER_LEFT" GridPane.rowIndex="2">
-            <Label fx:id="truncationLabel" text="" visible="false" managed="false"
-                   styleClass="subtle" style="-fx-font-size: 10px;">
-            </Label>
-            <Hyperlink fx:id="openLogLink" text="Open full log file" visible="false" managed="false"
-                       style="-fx-font-size: 10px;">
-            </Hyperlink>
-        </HBox>
+        <!-- Live game log / crash report text -->
+        <TextArea fx:id="logArea" editable="false" wrapText="true" styleClass="text-mono"
+                  style="-fx-font-size: 12px;" VBox.vgrow="ALWAYS"/>
 
-        <!-- Bottom bar -->
-        <HBox styleClass="bottomBar" alignment="CENTER_LEFT" spacing="8.0" minHeight="44.0" maxHeight="44.0" prefHeight="44.0" GridPane.rowIndex="3">
-            <padding>
-                <Insets left="8.0" right="8.0"/>
-            </padding>
-            <Label fx:id="uptimeLabel" text=""/>
-            <Pane HBox.hgrow="ALWAYS"/>
-            <MFXButton fx:id="copyBtn" prefHeight="30.0" prefWidth="70.0" text="Copy"/>
-            <MFXButton fx:id="crashReportBtn" prefHeight="30.0" prefWidth="110.0"
-                       text="Crash Report" visible="false" managed="false"/>
-            <MFXButton fx:id="killBtn" prefHeight="30.0" prefWidth="100.0" styleClass="dangerZone"
-                       text="Kill Game"/>
-            <MFXButton fx:id="closeBtn" prefHeight="30.0" prefWidth="155.0" text="Close"/>
+        <!-- Truncation notice row -->
+        <HBox spacing="5.0" alignment="CENTER_LEFT">
+            <Label fx:id="truncationLabel" text="" visible="false" managed="false"
+                   styleClass="subtle" style="-fx-font-size: 10px;"/>
+            <Hyperlink fx:id="openLogLink" text="Open full log file" visible="false" managed="false"
+                       style="-fx-font-size: 10px;"/>
         </HBox>
-    </GridPane>
+    </VBox>
+
+    <!-- Row 2: Bottom action bar -->
+    <HBox styleClass="bottomBar" alignment="CENTER_LEFT" spacing="8.0"
+          GridPane.rowIndex="2">
+        <padding><Insets left="14.0" right="14.0"/></padding>
+        <Label fx:id="uptimeLabel" text="" styleClass="muted"/>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <MFXButton fx:id="copyBtn" prefHeight="28.0" prefWidth="70.0" text="Copy"/>
+        <MFXButton fx:id="crashReportBtn" prefHeight="28.0" prefWidth="110.0"
+                   text="Crash Report" visible="false" managed="false"/>
+        <MFXButton fx:id="killBtn" prefHeight="28.0" prefWidth="100.0" styleClass="dangerZone"
+                   text="Kill Game"/>
+        <MFXButton fx:id="closeBtn" prefHeight="28.0" prefWidth="120.0" text="Close"/>
+    </HBox>
 </GridPane>

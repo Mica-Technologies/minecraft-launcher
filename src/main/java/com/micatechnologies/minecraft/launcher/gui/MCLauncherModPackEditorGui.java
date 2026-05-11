@@ -81,6 +81,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @FXML TabPane editorTabPane;
     @FXML Label statusLabel;
     @FXML Label announcement;
+    @FXML Label helpBtn;
     @FXML RowConstraints announcementRow;
 
     // Version bump buttons
@@ -193,13 +194,22 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 }
             }
             try {
-                MCLauncherGuiController.goToEditModpacksGui();
+                // The editor is launched from the unified Game Library now (the
+                // old standalone Edit Packs screen is gone), so Return navigates
+                // back there instead.
+                MCLauncherGuiController.goToGameLibraryGui();
             }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to return to edit modpacks screen." );
+                Logger.logError( "Unable to return to library screen." );
                 Logger.logThrowable( ex );
             }
         } ) );
+
+        // Wire the navbar help button — same pattern as mainGUI / settings.
+        if ( helpBtn != null ) {
+            helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
+            helpBtn.setCursor( javafx.scene.Cursor.HAND );
+        }
 
         // Configure image preview refresh on URL field focus loss
         packLogoURLField.focusedProperty().addListener( ( obs, wasFocused, isFocused ) -> {

@@ -13,6 +13,7 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
@@ -33,13 +34,16 @@
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
+        <!-- Row 0: announcement banner (conditional, 0-60 px) -->
         <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
-        <!-- Toolbar row -->
-        <RowConstraints maxHeight="50.0" minHeight="50.0" prefHeight="50.0"/>
-        <!-- TabPane row (fills remaining space) -->
+        <!-- Row 1: top navbar (brand + title + help), ~52 px to match mainGUI -->
+        <RowConstraints maxHeight="52.0" minHeight="52.0" prefHeight="52.0"/>
+        <!-- Row 2: file/document toolbar (New / Open / Validate / Diff) -->
+        <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
+        <!-- Row 3: TabPane fills remaining space -->
         <RowConstraints vgrow="ALWAYS"/>
-        <!-- Status bar row -->
-        <RowConstraints maxHeight="28.0" minHeight="28.0" prefHeight="28.0"/>
+        <!-- Row 4: bottom action bar (status + Save + Return), ~44 px -->
+        <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
     </rowConstraints>
 
     <!-- Row 0: Announcement -->
@@ -47,22 +51,42 @@
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
            text="--" wrapText="true"/>
 
-    <!-- Row 1: Toolbar -->
-    <HBox alignment="CENTER" spacing="8.0" styleClass="stripPane" GridPane.rowIndex="1">
+    <!-- Row 1: Top navbar — matches mainGUI / library / settings so the editor
+         reads as part of the same app shell. Brand lockup on the left, screen
+         title alongside, help button on the right. File-operation tools live
+         in the sub-toolbar below; document state (Save/Return) lives in the
+         bottom action bar. -->
+    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar" GridPane.rowIndex="1">
+        <padding><Insets left="14.0" right="10.0"/></padding>
+
+        <Pane prefWidth="36.0" prefHeight="36.0" minWidth="36.0" minHeight="36.0"
+              maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
+            <fx:include source="components/micaBrandLogo-small.fxml"/>
+        </Pane>
+        <Label text="Modpack Editor" styleClass="heading-h2"/>
+
+        <Pane HBox.hgrow="ALWAYS"/>
+
+        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+    </HBox>
+
+    <!-- Row 2: File / document tools. These are contextual to the editor
+         (load a manifest, validate it, diff against a reference) so they live
+         immediately below the navbar instead of cluttering it. -->
+    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="stripPane" GridPane.rowIndex="2">
         <padding>
-            <Insets bottom="8.0" left="16.0" right="16.0" top="8.0"/>
+            <Insets bottom="6.0" left="16.0" right="16.0" top="6.0"/>
         </padding>
         <MFXButton fx:id="newBtn" prefHeight="28.0" text="New"/>
         <MFXButton fx:id="openFileBtn" prefHeight="28.0" text="Open File"/>
         <MFXButton fx:id="openUrlBtn" prefHeight="28.0" text="Open URL"/>
-        <MFXButton fx:id="saveBtn" prefHeight="28.0" text="Save"/>
+        <Pane HBox.hgrow="SOMETIMES" minWidth="16.0"/>
         <MFXButton fx:id="validateBtn" prefHeight="28.0" text="Validate"/>
         <MFXButton fx:id="diffBtn" prefHeight="28.0" text="Diff"/>
-        <MFXButton fx:id="returnBtn" prefHeight="28.0" text="Return"/>
     </HBox>
 
-    <!-- Row 2: TabPane -->
-    <TabPane fx:id="editorTabPane" tabClosingPolicy="UNAVAILABLE" GridPane.rowIndex="2">
+    <!-- Row 3: TabPane -->
+    <TabPane fx:id="editorTabPane" tabClosingPolicy="UNAVAILABLE" GridPane.rowIndex="3">
         <Tab text="Metadata" closable="false">
             <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
                 <VBox fx:id="metadataVBox" spacing="12.0" style="-fx-background-color: transparent;">
@@ -75,18 +99,18 @@
                         <font><Font size="14.0"/></font>
                     </Label>
                     <MFXTextField fx:id="packNameField" floatingText="Pack Name" maxWidth="500.0"
-                                  prefWidth="500.0" minHeight="36.0"/>
+                                  prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
                         <MFXTextField fx:id="packVersionField" floatingText="Pack Version" maxWidth="300.0"
-                                      prefWidth="300.0" minHeight="36.0"/>
+                                      prefWidth="300.0" minHeight="48.0" prefHeight="48.0"/>
                         <MFXButton fx:id="bumpMajorBtn" text="Major" prefHeight="28.0"/>
                         <MFXButton fx:id="bumpMinorBtn" text="Minor" prefHeight="28.0"/>
                         <MFXButton fx:id="bumpPatchBtn" text="Patch" prefHeight="28.0"/>
                     </HBox>
                     <MFXTextField fx:id="packURLField" floatingText="Pack Website URL" maxWidth="500.0"
-                                  prefWidth="500.0" minHeight="36.0"/>
+                                  prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                     <MFXTextField fx:id="packMinRAMField" floatingText="Minimum RAM (GB)" maxWidth="500.0"
-                                  prefWidth="500.0" minHeight="36.0"/>
+                                  prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
 
                     <!-- Flags -->
                     <Label text="Flags" style="-fx-font-weight: bold;">
@@ -104,9 +128,9 @@
                         <MFXButton fx:id="forgePickerBtn" text="Pick Forge Version" prefHeight="28.0"/>
                     </HBox>
                     <MFXTextField fx:id="packForgeURLField" floatingText="Forge Installer URL" maxWidth="500.0"
-                                  prefWidth="500.0" minHeight="36.0"/>
+                                  prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                     <MFXTextField fx:id="packForgeHashField" floatingText="Forge Installer SHA-1" maxWidth="500.0"
-                                  prefWidth="500.0" minHeight="36.0"/>
+                                  prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
 
                     <!-- Images -->
                     <Label text="Images" style="-fx-font-weight: bold;">
@@ -116,9 +140,9 @@
                     <HBox spacing="16.0" alignment="CENTER_LEFT">
                         <VBox spacing="4.0">
                             <MFXTextField fx:id="packLogoURLField" floatingText="Logo URL" maxWidth="400.0"
-                                          prefWidth="400.0" minHeight="36.0"/>
+                                          prefWidth="400.0" minHeight="48.0" prefHeight="48.0"/>
                             <MFXTextField fx:id="packLogoSha1Field" floatingText="Logo SHA-1" maxWidth="400.0"
-                                          prefWidth="400.0" minHeight="36.0"/>
+                                          prefWidth="400.0" minHeight="48.0" prefHeight="48.0"/>
                         </VBox>
                         <ImageView fx:id="logoPreview" fitHeight="64.0" fitWidth="64.0" preserveRatio="true"
                                    accessibleText="Logo preview"/>
@@ -126,9 +150,9 @@
                     <HBox spacing="16.0" alignment="CENTER_LEFT">
                         <VBox spacing="4.0">
                             <MFXTextField fx:id="packBgURLField" floatingText="Background URL" maxWidth="400.0"
-                                          prefWidth="400.0" minHeight="36.0"/>
+                                          prefWidth="400.0" minHeight="48.0" prefHeight="48.0"/>
                             <MFXTextField fx:id="packBgSha1Field" floatingText="Background SHA-1" maxWidth="400.0"
-                                          prefWidth="400.0" minHeight="36.0"/>
+                                          prefWidth="400.0" minHeight="48.0" prefHeight="48.0"/>
                         </VBox>
                         <ImageView fx:id="bgPreview" fitHeight="64.0" fitWidth="128.0" preserveRatio="true"
                                    accessibleText="Background preview"/>
@@ -146,7 +170,14 @@
         </Tab>
     </TabPane>
 
-    <!-- Row 3: Status bar -->
-    <Label fx:id="statusLabel" text="No file loaded" style="-fx-padding: 4 8 4 8;"
-           GridPane.rowIndex="3"/>
+    <!-- Row 4: Bottom action bar — status text + Save/Return. Mirrors the
+         Settings screen's bottom-bar pattern (primary actions right-aligned,
+         contextual info on the left). -->
+    <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="4">
+        <padding><Insets left="14.0" right="14.0"/></padding>
+        <Label fx:id="statusLabel" text="No file loaded" styleClass="muted"/>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="Save"/>
+        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="Return"/>
+    </HBox>
 </GridPane>

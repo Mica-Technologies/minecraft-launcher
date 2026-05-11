@@ -179,6 +179,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     Label announcement;
 
     /**
+     * Help button in the top navbar. The button is declared in FXML to suppress the
+     * corner-overlay injection done by {@link MCLauncherGuiWindow}; we wire its click
+     * handler here using the same pattern as the main menu so the help topic comes
+     * from {@link #getHelpTopic()}.
+     *
+     * @since 3.3
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label helpBtn;
+
+    /**
      * Announcement banner row constraints.
      *
      * @since 3.0
@@ -821,7 +833,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      *
      * @since 3.0
      */
-    private void showCategory( int index )
+    void showCategory( int index )
     {
         ObservableList< Node > children = settingsContent.getChildren();
         for ( int i = 0; i < children.size(); i++ ) {
@@ -1029,6 +1041,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 "Save your current launcher settings to a JSON file for backup or sharing." );
         TooltipManager.install( importSettingsBtn,
                 "Load settings from a previously exported JSON file." );
+
+        // Navbar help button — same pattern the main menu uses (Label with .helpButton
+        // styleClass). MCLauncherGuiWindow.injectHelpButton() detects the navbar entry
+        // and skips its corner-overlay fallback. Wire the click handler + tooltip here.
+        if ( helpBtn != null ) {
+            helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
+            helpBtn.setCursor( javafx.scene.Cursor.HAND );
+            TooltipManager.install( helpBtn, "Open the help window for this screen." );
+        }
     }
 
     @Override

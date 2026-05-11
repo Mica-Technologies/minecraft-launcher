@@ -30,6 +30,7 @@ import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.CacheHint;
@@ -45,6 +46,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
@@ -75,8 +77,7 @@ import java.util.Objects;
 public class MCLauncherMainGui extends MCLauncherAbstractGui
 {
     // ===== Top navigation bar =====
-    @SuppressWarnings( "unused" ) @FXML MFXButton editButton;
-    @SuppressWarnings( "unused" ) @FXML MFXButton vanillaBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton libraryBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton settingsBtn;
     @SuppressWarnings( "unused" ) @FXML Label helpBtn;
     @SuppressWarnings( "unused" ) @FXML ImageView userImage;
@@ -150,30 +151,41 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } ) );
 
-        editButton.setDisable( AnnouncementManager.getDisableModpacksEdit() );
-        editButton.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+        libraryBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
+        libraryBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
-                MCLauncherGuiController.goToEditModpacksGui();
-                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Editing Mod Packs" ) );
+                MCLauncherGuiController.goToGameLibraryGui();
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Browsing Library" ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load edit mod-packs GUI due to an incomplete response from the GUI subsystem." );
-                Logger.logThrowable( e );
-            }
-        } ) );
-
-        vanillaBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            try {
-                MCLauncherGuiController.goToVanillaVersionsGui();
-            }
-            catch ( IOException e ) {
-                Logger.logError( "Unable to open vanilla versions GUI." );
+                Logger.logError( "Unable to load library GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
         } ) );
 
         helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
         helpBtn.setCursor( Cursor.HAND );
+
+        // Player avatar + name act as a clickable shortcut into the Settings → Account
+        // category, since that's where users manage their identity. Both nodes share the
+        // same handler so a click anywhere on the lockup works.
+        EventHandler< MouseEvent > openAccountSettings = e -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                MCLauncherSettingsGui settingsGui = MCLauncherGuiController.goToSettingsGui();
+                if ( settingsGui != null ) {
+                    GUIUtilities.JFXPlatformRun( () -> settingsGui.showCategory( 0 ) );
+                }
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Settings" ) );
+            }
+            catch ( IOException ex ) {
+                Logger.logError( "Unable to load settings GUI from account label click." );
+                Logger.logThrowable( ex );
+            }
+        } );
+        userImage.setOnMouseClicked( openAccountSettings );
+        userImage.setCursor( Cursor.HAND );
+        playerLabel.setOnMouseClicked( openAccountSettings );
+        playerLabel.setCursor( Cursor.HAND );
 
         playerLabel.setText( MCLauncherAuthManager.getLoggedInUser().name() );
         versionLabel.setText( "Mica Launcher v" + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
@@ -215,8 +227,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @Override
     void afterShow() {
         TooltipManager.install( settingsBtn, "Open launcher settings (RAM, theme, JVM flags, proxy)." );
-        TooltipManager.install( vanillaBtn, "Browse and play vanilla (unmodded) Minecraft versions." );
-        TooltipManager.install( editButton, "Add, remove, or edit installed mod packs." );
+        TooltipManager.install( libraryBtn, "Browse, install, and manage modpacks + vanilla Minecraft versions." );
         TooltipManager.install( helpBtn, "Open the help window for this screen." );
     }
 
@@ -665,7 +676,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * loading yet (the launcher requests background-loading), we install the Forge default
      * up front and replace it with the sampled gradient once {@code progressProperty} hits 1.0.</p>
      */
-    private static void applyDynamicBackground( Region bgLayer, GameModPack pack, Image logoImage )
+    /** Package-private so {@link MCLauncherGameLibraryGui}'s LibraryCard can reuse the same
+     *  procedural-background logic (vanilla sky-grass, modded logo-derived gradient, default
+     *  Forge) without duplicating the histogram code. */
+    static void applyDynamicBackground( Region bgLayer, GameModPack pack, Image logoImage )
     {
         if ( pack.isVanillaVersion() ) {
             bgLayer.getStyleClass().add( "heroBackgroundDefaultVanilla" );
@@ -734,10 +748,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     private static final java.util.concurrent.ConcurrentHashMap< String, DominantColors >
             DOMINANT_COLOR_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** Cache key for a pack's logo. Falls back to the pack's name when the logo file path
-     *  isn't available so we still hit the cache on subsequent navigations. */
+    /** Cache key for a pack's logo. Prefers the URL (stable per-manifest, doesn't trigger
+     *  the environment's image-cache download) before falling back to file path / pack name.
+     *  Using the URL-first ordering means the library prefetch — which only has URLs — and
+     *  the main-menu sampling — which has files — write the SAME cache entry per pack. */
     private static String packLogoCacheKey( GameModPack pack )
     {
+        if ( pack == null ) {
+            return null;
+        }
+        String url = pack.getPackLogoURL();
+        if ( url != null && !url.isBlank() ) {
+            return url;
+        }
         try {
             String path = pack.getPackLogoFilepath();
             if ( path != null && !path.isBlank() ) {
@@ -745,7 +768,65 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         }
         catch ( Exception ignored ) { /* fall through */ }
-        return pack != null ? pack.getPackName() : null;
+        return pack.getPackName();
+    }
+
+    /**
+     * Pre-warms the dominant-color cache for every modpack the manifest knows about, so by
+     * the time the user opens the Game Library the gradients render instantly instead of
+     * histogram-sampling 30+ logos one-after-another on the FX thread.
+     *
+     * <p>Runs on a background worker thread. For each available pack:</p>
+     * <ol>
+     *     <li>Skip if the URL-keyed cache already has an entry.</li>
+     *     <li>Construct a {@link Image} synchronously (we're off the FX thread, so blocking
+     *         is fine) from the pack's logo URL.</li>
+     *     <li>Sample dominant colors via the existing histogram path.</li>
+     *     <li>Stash the result in {@link #DOMINANT_COLOR_CACHE} keyed by URL.</li>
+     * </ol>
+     *
+     * <p>The Library GUI's per-card resolution reads from the same cache via
+     * {@link #packLogoCacheKey} (URL-preferred), so the prefetch and the main-menu
+     * single-card sampling both hit the same cache entries.</p>
+     *
+     * <p>Call this from launcher session startup, after {@code GameModPackManager.fetchModPackInfo()}
+     * has populated the available-modpacks list. Idempotent — re-running on an already-warm
+     * cache is cheap.</p>
+     */
+    public static void prefetchAvailableModpackBackgrounds()
+    {
+        com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask( () -> {
+            java.util.List< GameModPack > available;
+            try {
+                available = com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager.getAvailableModPacks();
+            }
+            catch ( Exception | Error e ) {
+                return;
+            }
+            if ( available == null ) {
+                return;
+            }
+            for ( GameModPack pack : available ) {
+                if ( pack == null ) continue;
+                String url = pack.getPackLogoURL();
+                if ( url == null || url.isBlank() ) continue;
+                if ( DOMINANT_COLOR_CACHE.containsKey( url ) ) continue;
+
+                try {
+                    // Synchronous Image construction off the FX thread — the loader runs on
+                    // *this* worker thread rather than spawning a JavaFX image-loader task,
+                    // which is what we want because we're prefetching specifically to avoid
+                    // FX-thread work later.
+                    Image img = new Image( url );
+                    if ( img.isError() ) continue;
+                    DominantColors colors = computeDominantColors( img );
+                    if ( colors != null ) {
+                        DOMINANT_COLOR_CACHE.put( url, colors );
+                    }
+                }
+                catch ( Exception | Error ignored ) { /* skip on any failure */ }
+            }
+        } );
     }
 
     /** Two-color result of the histogram sample. {@code secondary} is null when the logo is

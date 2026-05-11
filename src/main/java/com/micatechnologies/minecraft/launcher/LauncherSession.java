@@ -133,6 +133,12 @@ class LauncherSession
         }
         GameModPackManager.fetchModPackInfo();
 
+        // Kick off background prefetch of dominant-color gradients for every available modpack.
+        // Async — the launcher doesn't wait for it before continuing to the main GUI. By the
+        // time the user opens the Game Library, the cache is warm and gradients render
+        // instantly instead of stalling the FX thread on per-card histogram work.
+        com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui.prefetchAvailableModpackBackgrounds();
+
         if ( startupProgressWindow != null ) {
             startupProgressWindow.setSectionText( "Ready!" );
             startupProgressWindow.setDetailText( "" );

@@ -6,8 +6,10 @@
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.RowConstraints?>
-<?import javafx.scene.text.Font?>
+<?import javafx.scene.layout.VBox?>
 
 <!--
   ~ Copyright (c) 2026 Mica Technologies
@@ -18,129 +20,75 @@
   ~ or (at your option) any later version.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="400.0" minWidth="600.0"
-          prefHeight="550.0" prefWidth="800.0" styleClass="rootPane"
+<!--
+  Runtime Management — restructured to share the app-shell pattern used by
+  mainGUI / library / settings / editor: top navbar (brand + title + help),
+  a content card in the middle, and a bottom action bar carrying the info
+  text + Return. The prior layout used three nested .settingsContainer
+  boxes that looked unrelated to the rest of the app.
+-->
+<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
+          prefHeight="600.0" prefWidth="900.0" styleClass="rootPane"
           xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
-        <RowConstraints minHeight="0.0" prefHeight="0.0"/>
-        <RowConstraints vgrow="SOMETIMES"/>
+        <!-- Row 0: announcement banner (conditional, 0-60 px) -->
+        <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
+        <!-- Row 1: top navbar -->
+        <RowConstraints maxHeight="52.0" minHeight="52.0" prefHeight="52.0"/>
+        <!-- Row 2: content fills remaining space -->
+        <RowConstraints vgrow="ALWAYS"/>
+        <!-- Row 3: bottom action bar -->
+        <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0"/>
     </rowConstraints>
 
-    <!-- Announcement Row -->
-    <Label fx:id="announcement" maxHeight="0.0" maxWidth="1.7976931348623157E308" minHeight="0.0"
-           styleClass="announcementLabel" text="" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+    <!-- Row 0: Announcement -->
+    <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308"
+           maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
+           text="--" wrapText="true"/>
 
-    <!-- Main Content -->
-    <GridPane styleClass="stripPane" GridPane.columnIndex="0" GridPane.rowIndex="1">
-        <columnConstraints>
-            <ColumnConstraints hgrow="ALWAYS"/>
-        </columnConstraints>
-        <rowConstraints>
-            <RowConstraints minHeight="50.0" prefHeight="50.0"/>
-            <RowConstraints vgrow="ALWAYS"/>
-            <RowConstraints minHeight="50.0" prefHeight="60.0"/>
-        </rowConstraints>
+    <!-- Row 1: Top navbar -->
+    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar" GridPane.rowIndex="1">
+        <padding><Insets left="14.0" right="10.0"/></padding>
 
-        <!-- Title Section -->
-        <GridPane styleClass="settingsContainer" GridPane.rowIndex="0">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS"/>
-            </columnConstraints>
-            <padding>
-                <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
-            </padding>
-            <Label fx:id="titleLabel" maxWidth="1.7976931348623157E308" text="Runtime Management">
-                <font>
-                    <Font name="System Bold" size="18.0"/>
-                </font>
-            </Label>
-        </GridPane>
+        <Pane prefWidth="36.0" prefHeight="36.0" minWidth="36.0" minHeight="36.0"
+              maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
+            <fx:include source="components/micaBrandLogo-small.fxml"/>
+        </Pane>
+        <Label text="Runtime Management" styleClass="heading-h2"/>
 
-        <!-- Runtime List Section -->
-        <GridPane styleClass="settingsContainer" GridPane.rowIndex="1">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints minWidth="140.0" prefWidth="140.0"/>
-            </columnConstraints>
-            <rowConstraints>
-                <RowConstraints minHeight="30.0" prefHeight="30.0"/>
-                <RowConstraints vgrow="ALWAYS"/>
-                <RowConstraints minHeight="30.0" prefHeight="30.0"/>
-            </rowConstraints>
-            <padding>
-                <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
-            </padding>
+        <Pane HBox.hgrow="ALWAYS"/>
 
-            <!-- Column Headers -->
-            <Label text="Installed Java Runtimes" GridPane.columnIndex="0" GridPane.rowIndex="0">
-                <font>
-                    <Font name="System Bold" size="13.0"/>
-                </font>
-            </Label>
+        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+    </HBox>
 
-            <!-- Runtime List -->
-            <ListView fx:id="runtimeListView" GridPane.columnIndex="0" GridPane.columnSpan="2"
-                      GridPane.rowIndex="1">
-                <padding>
-                    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0"/>
-                </padding>
-            </ListView>
+    <!-- Row 2: Content card — list of installed runtimes with row of actions -->
+    <VBox spacing="10.0" GridPane.rowIndex="2">
+        <padding><Insets top="16.0" bottom="16.0" left="24.0" right="24.0"/></padding>
 
-            <!-- Action Buttons Row -->
-            <GridPane GridPane.columnIndex="0" GridPane.columnSpan="2" GridPane.rowIndex="2">
-                <columnConstraints>
-                    <ColumnConstraints hgrow="ALWAYS"/>
-                    <ColumnConstraints minWidth="120.0" prefWidth="120.0"/>
-                    <ColumnConstraints minWidth="120.0" prefWidth="120.0"/>
-                    <ColumnConstraints minWidth="120.0" prefWidth="120.0"/>
-                </columnConstraints>
-                <padding>
-                    <Insets top="5.0"/>
-                </padding>
+        <Label text="Installed Java Runtimes" styleClass="heading-h3"/>
 
-                <Label fx:id="statusLabel" text="Select a runtime to manage it." GridPane.columnIndex="0"/>
+        <ListView fx:id="runtimeListView" VBox.vgrow="ALWAYS"/>
 
-                <MFXButton fx:id="refreshBtn" prefHeight="25.0" prefWidth="110.0" text="Refresh"
-                           GridPane.columnIndex="1">
-                    <GridPane.margin>
-                        <Insets left="5.0" right="5.0"/>
-                    </GridPane.margin>
-                </MFXButton>
+        <HBox spacing="10.0" alignment="CENTER_LEFT">
+            <Label fx:id="statusLabel" text="Select a runtime to manage it." styleClass="muted"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <MFXButton fx:id="refreshBtn" prefHeight="28.0" prefWidth="110.0" text="Refresh"/>
+            <MFXButton fx:id="deleteBtn" prefHeight="28.0" prefWidth="110.0" styleClass="dangerZone"
+                       text="Delete"/>
+            <MFXButton fx:id="deleteAllBtn" prefHeight="28.0" prefWidth="110.0" styleClass="dangerZone"
+                       text="Delete All"/>
+        </HBox>
+    </VBox>
 
-                <MFXButton fx:id="deleteBtn" prefHeight="25.0" prefWidth="110.0" styleClass="dangerZone"
-                           text="Delete" GridPane.columnIndex="2">
-                    <GridPane.margin>
-                        <Insets left="5.0" right="5.0"/>
-                    </GridPane.margin>
-                </MFXButton>
-
-                <MFXButton fx:id="deleteAllBtn" prefHeight="25.0" prefWidth="110.0" styleClass="dangerZone"
-                           text="Delete All" GridPane.columnIndex="3">
-                    <GridPane.margin>
-                        <Insets left="5.0" right="5.0"/>
-                    </GridPane.margin>
-                </MFXButton>
-            </GridPane>
-        </GridPane>
-
-        <!-- Bottom Navigation -->
-        <GridPane styleClass="settingsContainer" GridPane.rowIndex="2">
-            <columnConstraints>
-                <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints minWidth="80.0" prefWidth="80.0"/>
-            </columnConstraints>
-            <padding>
-                <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
-            </padding>
-
-            <Label fx:id="infoLabel" text="Runtimes are downloaded automatically when launching a modpack."
-                   GridPane.columnIndex="0"/>
-
-            <MFXButton fx:id="returnBtn" prefHeight="30.0" prefWidth="80.0" text="Return"
-                       GridPane.columnIndex="1"/>
-        </GridPane>
-    </GridPane>
+    <!-- Row 3: Bottom action bar — info text on the left, Return on the right -->
+    <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="3">
+        <padding><Insets left="14.0" right="14.0"/></padding>
+        <Label fx:id="infoLabel" text="Runtimes are downloaded automatically when launching a modpack."
+               styleClass="muted"/>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="Return"/>
+    </HBox>
 </GridPane>

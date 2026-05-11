@@ -96,6 +96,8 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML Label diagnosisSummaryLabel;
     @SuppressWarnings( "unused" ) @FXML HBox  diagnosisActionsBox;
 
+    @SuppressWarnings( "unused" ) @FXML Label helpBtn;
+
     private Process gameProcess;
     private long startTimeMs;
     private volatile boolean processRunning = false;
@@ -206,6 +208,12 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         openLogLink.setVisible( false );
         openLogLink.setManaged( false );
         openLogLink.setOnAction( event -> openLogFileInEditor() );
+
+        // Wire the navbar help button.
+        if ( helpBtn != null ) {
+            helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
+            helpBtn.setCursor( javafx.scene.Cursor.HAND );
+        }
     }
 
     @Override

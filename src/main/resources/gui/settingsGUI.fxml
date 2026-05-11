@@ -41,16 +41,40 @@
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
     </columnConstraints>
     <rowConstraints>
+        <!-- Row 0: announcement banner (conditional 0/30 px) -->
         <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0" />
+        <!-- Row 1: top navbar — matches main-menu + library pattern (~52 px) -->
+        <RowConstraints maxHeight="52.0" minHeight="52.0" prefHeight="52.0" />
+        <!-- Row 2: sidebar + content -->
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+        <!-- Row 3: bottom bar (Save / Return), ~44 px -->
         <RowConstraints maxHeight="44.0" minHeight="44.0" prefHeight="44.0" />
     </rowConstraints>
 
     <!-- Row 0: Announcement banner -->
     <Label fx:id="announcement" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement" text="--" wrapText="true" />
 
-    <!-- Row 1: Sidebar + Content -->
-    <HBox GridPane.rowIndex="1" HBox.hgrow="ALWAYS">
+    <!-- Row 1: Top navbar — mirrors mainGUI / library navbars so the Settings screen
+         reads as part of the same app shell rather than a one-off layout. Brand
+         lockup on the left (matching main menu), screen title next to it, then the
+         help button on the right. Save + Return stay on the bottom action bar so
+         they're easy to reach without scrolling. -->
+    <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="navBar" GridPane.rowIndex="1">
+        <padding><Insets left="14.0" right="10.0"/></padding>
+
+        <Pane prefWidth="36.0" prefHeight="36.0" minWidth="36.0" minHeight="36.0"
+              maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
+            <fx:include source="components/micaBrandLogo-small.fxml"/>
+        </Pane>
+        <Label text="Settings" styleClass="heading-h2"/>
+
+        <Pane HBox.hgrow="ALWAYS"/>
+
+        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+    </HBox>
+
+    <!-- Row 2: Sidebar + Content -->
+    <HBox GridPane.rowIndex="2" HBox.hgrow="ALWAYS">
         <!-- Left sidebar navigation -->
         <VBox minWidth="180.0" maxWidth="180.0" prefWidth="180.0" styleClass="stripPane" spacing="2">
             <padding>
@@ -182,7 +206,7 @@
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
                         <Label text="JVM Preset" />
-                        <MFXComboBox fx:id="jvmPresetSelection" floatingText="JVM Preset" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
+                        <MFXComboBox fx:id="jvmPresetSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -203,7 +227,7 @@
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
                         <Label text="Theme" />
-                        <MFXComboBox fx:id="themeSelection" floatingText="Theme" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
+                        <MFXComboBox fx:id="themeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -255,7 +279,7 @@
                         </padding>
                         <MFXToggleButton fx:id="proxyEnableCheckBox" text="Enable Proxy" />
                         <Label text="Proxy Type" />
-                        <MFXComboBox fx:id="proxyTypeSelection" floatingText="Type" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="120.0" />
+                        <MFXComboBox fx:id="proxyTypeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="120.0" />
                         <Label text="Proxy Host" />
                         <TextField fx:id="proxyHostField" promptText="Proxy Host (e.g. 127.0.0.1)" prefWidth="250.0" />
                         <Label text="Proxy Port" />
@@ -476,11 +500,13 @@
         </StackPane>
     </HBox>
 
-    <!-- Row 2: Bottom bar with Save + Return -->
-    <HBox styleClass="bottomBar" alignment="CENTER" spacing="16" minHeight="44.0" maxHeight="44.0" prefHeight="44.0" GridPane.rowIndex="2">
+    <!-- Row 3: Bottom bar with Save + Return — right-aligned via a flex spacer
+         to match the modpack editor / runtime / library / main-menu pattern. -->
+    <HBox styleClass="bottomBar" alignment="CENTER_LEFT" spacing="10.0" minHeight="44.0" maxHeight="44.0" prefHeight="44.0" GridPane.rowIndex="3">
         <padding>
-            <Insets left="16.0" right="16.0" />
+            <Insets left="14.0" right="14.0" />
         </padding>
+        <Pane HBox.hgrow="ALWAYS"/>
         <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="Save" />
         <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="Return" />
     </HBox>

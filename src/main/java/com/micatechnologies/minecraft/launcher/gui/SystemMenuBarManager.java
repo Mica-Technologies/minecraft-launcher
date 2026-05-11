@@ -197,17 +197,19 @@ public final class SystemMenuBarManager
 
     private static Menu buildModpacksMenu()
     {
-        Menu menu = new Menu( "Modpacks" );
+        Menu menu = new Menu( "Library" );
 
-        MenuItem edit = new MenuItem( "Edit Modpacks…" );
-        edit.setAccelerator( new KeyCodeCombination( KeyCode.E, KeyCombination.SHORTCUT_DOWN ) );
-        edit.setOnAction( e -> openEditPacks() );
+        // "Open Library" replaces the prior "Edit Modpacks…" + "Vanilla Versions…" entries —
+        // the combined screen lives behind one menu item now.
+        MenuItem library = new MenuItem( "Open Library…" );
+        library.setAccelerator( new KeyCodeCombination( KeyCode.L, KeyCombination.SHORTCUT_DOWN ) );
+        library.setOnAction( e -> openLibrary() );
 
         MenuItem refresh = new MenuItem( "Refresh Pack List" );
         refresh.setAccelerator( new KeyCodeCombination( KeyCode.R, KeyCombination.SHORTCUT_DOWN ) );
         refresh.setOnAction( e -> refreshMain() );
 
-        menu.getItems().addAll( edit, new SeparatorMenuItem(), refresh );
+        menu.getItems().addAll( library, new SeparatorMenuItem(), refresh );
         return menu;
     }
 
@@ -215,13 +217,10 @@ public final class SystemMenuBarManager
     {
         Menu menu = new Menu( "Game" );
 
-        MenuItem vanilla = new MenuItem( "Vanilla Versions…" );
-        vanilla.setOnAction( e -> openVanilla() );
-
         MenuItem runtimes = new MenuItem( "Runtime Management…" );
         runtimes.setOnAction( e -> openRuntime() );
 
-        menu.getItems().addAll( vanilla, runtimes );
+        menu.getItems().add( runtimes );
         return menu;
     }
 
@@ -260,27 +259,14 @@ public final class SystemMenuBarManager
         } );
     }
 
-    private static void openEditPacks()
+    private static void openLibrary()
     {
         SystemUtilities.spawnNewTask( () -> {
             try {
-                MCLauncherGuiController.goToEditModpacksGui();
+                MCLauncherGuiController.goToGameLibraryGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open Edit Modpacks from system menu." );
-                Logger.logThrowable( e );
-            }
-        } );
-    }
-
-    private static void openVanilla()
-    {
-        SystemUtilities.spawnNewTask( () -> {
-            try {
-                MCLauncherGuiController.goToVanillaVersionsGui();
-            }
-            catch ( IOException e ) {
-                Logger.logError( "Unable to open Vanilla Versions from system menu." );
+                Logger.logError( "Unable to open Library from system menu." );
                 Logger.logThrowable( e );
             }
         } );

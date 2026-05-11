@@ -71,9 +71,9 @@
         <!-- Spacer pushes everything else to the right -->
         <Pane HBox.hgrow="ALWAYS"/>
 
-        <!-- Navigation actions -->
-        <MFXButton fx:id="editButton" text="Edit Packs" prefHeight="28.0"/>
-        <MFXButton fx:id="vanillaBtn" text="Vanilla" prefHeight="28.0"/>
+        <!-- Navigation actions. "Library" replaces what used to be two separate buttons
+             (Edit Packs + Vanilla) and routes to the combined Game Library screen. -->
+        <MFXButton fx:id="libraryBtn" text="Library" prefHeight="28.0"/>
         <MFXButton fx:id="settingsBtn" text="Settings" prefHeight="28.0"/>
 
         <!-- Update available icon. Inline SVG (download-arrow over a tray bar) instead of

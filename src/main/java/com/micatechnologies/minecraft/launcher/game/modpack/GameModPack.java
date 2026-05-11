@@ -69,14 +69,32 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
+     * Cached Forge mod-loader instance for this pack. Constructing a
+     * {@link GameModLoaderForge} eagerly verifies the on-disk Forge installer JAR
+     * (and re-downloads it on hash mismatch), so we cache the instance to avoid
+     * paying that verification cost — and emitting "FILE FAILED VERIFICATION"
+     * console spam — on every UI card render that asks for the pack's MC or
+     * Forge version. The cache is {@code transient} so a re-fetch of the
+     * modpack list still produces a fresh verification on the new instance.
+     *
+     * @since 3.3
+     */
+    private transient GameModLoaderForge cachedForgeApp;
+
+    /**
      * Get a Forge application object referencing the Forge application jar in this modpack.
+     * Cached per pack instance so repeat callers (card rendering, classpath build,
+     * launch sequence) all share the same verification result.
      *
      * @return mod pack MCForgeApp
      *
      * @throws ModpackException if unable to get Forge app object
      */
     GameModLoaderForge getForgeApp() throws ModpackException {
-        return new GameModLoaderForge( packForgeURL, packForgeHash, this );
+        if ( cachedForgeApp == null ) {
+            cachedForgeApp = new GameModLoaderForge( packForgeURL, packForgeHash, this );
+        }
+        return cachedForgeApp;
     }
 
     /**
@@ -95,14 +113,21 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
-     * Get the Forge version of this modpack.
+     * Get the Forge version of this modpack. Vanilla packs have no Forge loader,
+     * so this returns {@code null} for them instead of attempting to construct a
+     * {@link GameModLoaderForge} against null URL/hash fields (which previously
+     * triggered a misleading "FILE FAILED VERIFICATION" message every time the
+     * main-menu card builder asked vanilla packs for a Forge version).
      *
-     * @return modpack Forge version
+     * @return modpack Forge version, or {@code null} for vanilla packs
      *
      * @throws ModpackException if unable to get Forge version
      */
     @SuppressWarnings( "WeakerAccess" )
     public String getForgeVersion() throws ModpackException {
+        if ( vanillaVersion ) {
+            return null;
+        }
         return getForgeApp().getForgeVersion();
     }
 
@@ -272,6 +297,28 @@ public class GameModPack extends GameModPackMetadata
     {
         return packLogoURL != null
                 && !packLogoURL.equals( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
+    }
+
+    /** Source URL of the pack's logo image as declared in the manifest. Distinct from
+     *  {@link #getPackLogoFilepath()} — the latter triggers a download into a local cache the
+     *  first time it's called, which is fine for installed packs but expensive when we have
+     *  dozens of available-but-not-installed packs to render. Use this URL with JavaFX's
+     *  {@code Image(url, true)} to fetch asynchronously without touching the cache machinery.
+     *
+     *  @since 3.2 */
+    public String getPackLogoURL()
+    {
+        return packLogoURL;
+    }
+
+    /** Source URL of the pack's background image as declared in the manifest. Same rationale
+     *  as {@link #getPackLogoURL()} — use directly with {@code Image(url, true)} to avoid the
+     *  file-cache trigger that {@link #getPackBackgroundFilepath()} would cause.
+     *
+     *  @since 3.2 */
+    public String getPackBackgroundURL()
+    {
+        return packBackgroundURL;
     }
 
     public void setProgressProvider( GameModPackProgressProvider progressProvider )

@@ -108,19 +108,19 @@ public class MCLauncherGuiController
     }
 
     @SuppressWarnings( "UnusedReturnValue" )
-    public static MCLauncherEditModPacksGui goToEditModpacksGui() throws IOException {
-        MCLauncherEditModPacksGui newEditModpacksGui = null;
+    public static MCLauncherGameLibraryGui goToGameLibraryGui() throws IOException {
+        MCLauncherGameLibraryGui newLibraryGui = null;
         boolean guiStarted = startGui();
         if ( guiStarted ) {
-            newEditModpacksGui = new MCLauncherEditModPacksGui( guiWindow.getStage() );
-            guiWindow.setScene( newEditModpacksGui );
+            newLibraryGui = new MCLauncherGameLibraryGui( guiWindow.getStage() );
+            guiWindow.setScene( newLibraryGui );
             guiWindow.show();
         }
         else {
-            Logger.logError( "The edit mod-packs GUI could not be displayed due to the application GUI not " +
+            Logger.logError( "The game library GUI could not be displayed due to the application GUI not " +
                                      "being started." );
         }
-        return newEditModpacksGui;
+        return newLibraryGui;
     }
 
     @SuppressWarnings( "UnusedReturnValue" )
@@ -153,21 +153,6 @@ public class MCLauncherGuiController
                     "The progress GUI could not be displayed due to the application GUI not " + "being started." );
         }
         return newProgressGui;
-    }
-
-    @SuppressWarnings( "UnusedReturnValue" )
-    public static MCLauncherVanillaVersionsGui goToVanillaVersionsGui() throws IOException {
-        MCLauncherVanillaVersionsGui newGui = null;
-        boolean guiStarted = startGui();
-        if ( guiStarted ) {
-            newGui = new MCLauncherVanillaVersionsGui( guiWindow.getStage() );
-            guiWindow.setScene( newGui );
-            guiWindow.show();
-        }
-        else {
-            Logger.logError( "The vanilla versions GUI could not be displayed." );
-        }
-        return newGui;
     }
 
     @SuppressWarnings( "UnusedReturnValue" )

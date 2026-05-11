@@ -44,11 +44,15 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
 {
     @SuppressWarnings( "unused" )
     @FXML
-    Label titleLabel;
+    Label announcement;
 
     @SuppressWarnings( "unused" )
     @FXML
-    Label announcement;
+    javafx.scene.layout.RowConstraints announcementRow;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label helpBtn;
 
     @SuppressWarnings( "unused" )
     @FXML
@@ -115,6 +119,12 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
                 Logger.logThrowable( e );
             }
         } ) );
+
+        // Wire the navbar help button.
+        if ( helpBtn != null ) {
+            helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
+            helpBtn.setCursor( javafx.scene.Cursor.HAND );
+        }
 
         // Refresh button
         refreshBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( this::refreshRuntimeList ) );

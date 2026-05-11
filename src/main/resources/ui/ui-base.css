@@ -470,6 +470,22 @@
 
 .heroCardImage .stat-chip-warn {
     -fx-background-color: -color-warning;
+    /* Yellow background needs a darker text for legibility — white-on-yellow was the
+     * "harsh and hard to read" combo flagged in the library badge. */
+    -fx-text-fill: #1F1A05;
+}
+
+/* Informational badge — brand-blue background, white bold text. Used for "Available"
+ * / "From manifest" / generic info status on hero-card images. Replaces the previous
+ * yellow-warn styling for those badges which had a white-on-yellow contrast problem. */
+.heroCardImage .stat-chip-info,
+.stat-chip-info {
+    -fx-background-color: -color-primary;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-padding: 3 12 3 12;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 6, 0.30, 0, 1);
 }
 
 .heroPlayBtn {
@@ -711,9 +727,77 @@
     -fx-effect: dropshadow(gaussian, -color-focus-ring, 6, 0.40, 0, 0);
 }
 
+/* Floating-text label color in the resting (non-focused, non-floating) state.
+ * MaterialFX's BoundLabel uses -fx-text-fill (it's a Label, not a raw Text);
+ * we also set -fx-fill so the inner Text node picks it up if the label
+ * doesn't propagate the value. */
 .mfx-text-field .floating-text,
 .mfx-password-field .floating-text {
+    -fx-text-fill: -color-text-muted;
     -fx-fill: -color-text-muted;
+}
+
+/* MaterialFX paints `-fx-background-color: white` on the floating-text label
+ * whenever the field enters the `:floating` pseudo-state — which happens on
+ * focus / content presence regardless of whether floatingText was actually
+ * set. Match the plate to our field surface so a populated floatingText label
+ * (modpack editor) still cuts the border cleanly without a stark white tile.
+ * (Fields that don't use floatingText at all should use `.no-floating-label`
+ *  below to fully suppress the placeholder, not rely on color matching.) */
+.mfx-text-field:floating .floating-text,
+.mfx-text-field:focus-within .floating-text,
+.mfx-password-field:floating .floating-text,
+.mfx-password-field:focus-within .floating-text {
+    -fx-background-color: -color-surface;
+    -fx-padding: 0 4 0 4;
+}
+
+/* Opt-out class for fields that intentionally use `promptText` only. Setting
+ * MaterialFX's float-mode to DISABLED stops the skin from creating/laying out
+ * the floating-text label at all — the empty plate in the upper-left corner
+ * disappears entirely, and the field behaves like a plain text input with a
+ * prompt that disappears on typing. */
+.mfx-text-field.no-floating-label,
+.mfx-password-field.no-floating-label {
+    -mfx-float-mode: disabled;
+}
+
+/* On focus, MaterialFX defaults the floating-text text color to its primary
+ * accent; we tint to ours so the label colour follows the active border. */
+.mfx-text-field:focus-within .floating-text,
+.mfx-password-field:focus-within .floating-text {
+    -fx-text-fill: -color-primary;
+    -fx-fill: -color-primary;
+}
+
+/* Suppress the inner BoundTextField that MaterialFX's MFXTextField skin places
+ * inside the outer .mfx-text-field shell. Without this, the inner TextField
+ * picks up the .text-field rule above and paints a second nested border/box. */
+.mfx-text-field .text-field,
+.mfx-text-field .text-field:focused,
+.mfx-text-field .text-field:focus-within,
+.mfx-password-field .text-field,
+.mfx-password-field .text-field:focused,
+.mfx-password-field .text-field:focus-within {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-effect: null;
+    -fx-padding: 0;
+}
+
+/* Same suppression for MaterialFX's focus/unfocus underline that the inner
+ * BoundTextField paints — it would otherwise draw a thin line through our
+ * outer border. */
+.mfx-text-field .mfx-line,
+.mfx-text-field .focus-line,
+.mfx-text-field .unfocused-line,
+.mfx-password-field .mfx-line,
+.mfx-password-field .focus-line,
+.mfx-password-field .unfocused-line {
+    -fx-stroke: transparent;
+    -fx-fill: transparent;
 }
 
 .mfx-combo-box {
@@ -787,10 +871,32 @@
     -fx-background-color: transparent;
 }
 
-.mfx-toggle-button .circle      { -fx-fill: -color-text-subtle; }
-.mfx-toggle-button:selected .circle { -fx-fill: -color-primary; }
-.mfx-toggle-button .line        { -fx-stroke: -color-border; -fx-fill: -color-surface; }
-.mfx-toggle-button:selected .line { -fx-fill: -color-primary-soft; }
+/* Toggle knob (.circle) and track (.line) — both must be token-driven so dark / light
+ * / blue-gray / creeper themes share one source of truth. The legacy guiStyle-*.css
+ * files still ship :selected .line strokes hardcoded to a Material green (#2E7D32);
+ * those rules apply because the new sheets previously only set -fx-fill on the .line,
+ * but .line is a javafx.scene.shape.Line where fill is meaningless — stroke is what
+ * paints. We now set stroke explicitly so the track follows -color-primary and the
+ * knob+track read as one accent color. */
+.mfx-toggle-button .circle {
+    -fx-fill: -color-text-subtle;
+}
+
+.mfx-toggle-button:selected .circle {
+    -fx-fill: -color-primary;
+}
+
+.mfx-toggle-button .line {
+    -fx-stroke: -color-text-subtle;
+    -fx-stroke-width: 14;
+    -fx-stroke-line-cap: round;
+    -fx-opacity: 0.45;
+}
+
+.mfx-toggle-button:selected .line {
+    -fx-stroke: -color-primary;
+    -fx-opacity: 0.55;
+}
 
 .mfx-checkbox,
 .mfx-checkbox .text {
