@@ -655,9 +655,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         debugCheckBox.setSelected( ConfigManager.getDebugLogging() );
         debugCheckBox.setDisable( LauncherConstants.LAUNCHER_IS_DEV );
 
-        // Set and configure Discord RPC check box
+        // Set and configure Discord RPC check box. Previously disabled in dev mode to
+        // keep the prod Discord app cleaner, but there's no actual technical restriction
+        // — the IPC client doesn't care about LAUNCHER_IS_DEV. With dev-mode RPC unlocked,
+        // contributors can verify rich-presence behavior end-to-end without needing a
+        // production build. (If a distinct dev Discord application is set up later, swap
+        // DiscordRpcUtility.CLIENT_ID to a LAUNCHER_IS_DEV-gated picker so dev sessions
+        // surface as "Mica Minecraft DEV" instead of polluting the prod app's stats.)
         discordCheckBox.setSelected( ConfigManager.getDiscordRpcEnable() );
-        discordCheckBox.setDisable( LauncherConstants.LAUNCHER_IS_DEV );
 
         // Populate theme selection dropdown
         themeSelection.getItems().clear();
