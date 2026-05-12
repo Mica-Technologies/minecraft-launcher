@@ -1,6 +1,5 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Core (Automatic)" type="Application" factoryName="Application">
-    <option name="ALTERNATIVE_JRE_PATH" value="liberica-16" />
     <option name="MAIN_CLASS_NAME" value="com.micatechnologies.minecraft.launcher.LauncherCore" />
     <module name="launcher" />
     <option name="VM_PARAMETERS" value="--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED" />
@@ -10,8 +9,18 @@
         <option name="ENABLED" value="true" />
       </pattern>
     </extension>
+    <!-- Run a real `mvn compile` (via the bundled "Compile" run config) before every
+         launch in addition to IntelliJ's incremental Make. Make alone has been
+         unreliable in this project: build/target is set as the Maven output via the
+         pom, and IntelliJ auto-marks build/target as an excludeFolder during the
+         Maven import, so JPS sometimes silently skips recompiling resources (FXML /
+         CSS) when the source changes happen outside the IDE (e.g. via terminal /
+         agentic edits / git). The Maven step closes that gap — it's a no-op when
+         everything is already up to date, but it guarantees a fresh classpath when
+         it isn't, so Run never picks up stale views. -->
     <method v="2">
       <option name="Make" enabled="true" />
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="Compile" run_configuration_type="MavenRunConfiguration" />
     </method>
   </configuration>
 </component>

@@ -1,7 +1,5 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Core (Client)" type="Application" factoryName="Application">
-    <option name="ALTERNATIVE_JRE_PATH" value="azul-25" />
-    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="MAIN_CLASS_NAME" value="com.micatechnologies.minecraft.launcher.LauncherCore" />
     <module name="launcher" />
     <option name="PROGRAM_PARAMETERS" value="-c" />
@@ -12,8 +10,10 @@
         <option name="ENABLED" value="true" />
       </pattern>
     </extension>
+    <!-- See Core (Automatic) for the rationale on chaining Compile before launch. -->
     <method v="2">
       <option name="Make" enabled="true" />
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="Compile" run_configuration_type="MavenRunConfiguration" />
     </method>
   </configuration>
 </component>
