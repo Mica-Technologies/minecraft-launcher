@@ -85,6 +85,13 @@
              warning on first JNA call and will block the call entirely in a future release.
              ALL-UNNAMED grants the permission to every classpath-loaded class. -->
         <jpackage.native.access>--enable-native-access=ALL-UNNAMED</jpackage.native.access>
+        <!-- JDK 26 deprecates reflective mutation of final fields from unnamed modules.
+             Gson's ReflectiveTypeAdapterFactory mutates final fields on deserialized
+             objects (e.g. OAuthTokenResponse.tokenType in the Microsoft auth library),
+             which prints a deprecation warning on first occurrence and will be blocked
+             outright in a future release. ALL-UNNAMED grants permission to every
+             classpath-loaded class — the same scope as the native-access flag. -->
+        <jpackage.final.field.mutation>--enable-final-field-mutation=ALL-UNNAMED</jpackage.final.field.mutation>
         <!-- Required for MCLauncherHelpWindow.makeWebViewTransparent: reflective
              access to the private WebEngine.page field needs the javafx.scene.web
              package opened to ALL-UNNAMED on JDK 17+. Without this, the
@@ -590,6 +597,8 @@
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
                                         <argument>--java-options</argument>
+                                        <argument>${jpackage.final.field.mutation}</argument>
+                                        <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
@@ -645,6 +654,8 @@
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.final.field.mutation}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
@@ -773,6 +784,8 @@
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
                                         <argument>--java-options</argument>
+                                        <argument>${jpackage.final.field.mutation}</argument>
+                                        <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
@@ -842,6 +855,8 @@
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
                                         <argument>--java-options</argument>
+                                        <argument>${jpackage.final.field.mutation}</argument>
+                                        <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
@@ -910,6 +925,8 @@
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
                                         <argument>--java-options</argument>
+                                        <argument>${jpackage.final.field.mutation}</argument>
+                                        <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
@@ -961,6 +978,8 @@
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.final.field.mutation}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>

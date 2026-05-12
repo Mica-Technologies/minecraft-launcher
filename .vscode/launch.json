@@ -6,7 +6,7 @@
       "name": "Core (Automatic)",
       "request": "launch",
       "mainClass": "com.micatechnologies.minecraft.launcher.LauncherCore",
-      "vmArgs": "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
+      "vmArgs": "--enable-native-access=ALL-UNNAMED --enable-final-field-mutation=ALL-UNNAMED"
     },
     {
       "type": "java",
@@ -14,7 +14,7 @@
       "request": "launch",
       "mainClass": "com.micatechnologies.minecraft.launcher.LauncherCore",
       "args": "-c",
-      "vmArgs": "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
+      "vmArgs": "--enable-native-access=ALL-UNNAMED --enable-final-field-mutation=ALL-UNNAMED"
     },
     {
       "type": "java",
@@ -22,7 +22,7 @@
       "request": "launch",
       "mainClass": "com.micatechnologies.minecraft.launcher.LauncherCore",
       "args": "-s",
-      "vmArgs": "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
+      "vmArgs": "--enable-native-access=ALL-UNNAMED --enable-final-field-mutation=ALL-UNNAMED"
     }
   ]
 }
