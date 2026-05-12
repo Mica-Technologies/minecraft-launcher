@@ -38,8 +38,13 @@ import java.util.Map;
  * <pre>
  *   mmcl://add?url=&lt;url-encoded modpack manifest URL&gt;     — install/register a modpack
  *   mmcl://play?name=&lt;pack name or friendly name&gt;          — launch a specific installed pack
+ *   mmcl://join?url=&lt;url-encoded modpack manifest URL&gt;    — install (if needed) AND launch a modpack
  *   mmcl://open                                                  — just bring the launcher to focus
  * </pre>
+ *
+ * <p>{@code mmcl://join} is the action Discord's "Join Game" button hands back through
+ * {@link DiscordRpcUtility}'s onActivityJoin callback when a friend clicks to join a session.
+ * It combines add + play so the friend doesn't have to install the pack manually first.</p>
  *
  * <p>Two delivery paths into this handler:</p>
  * <ol>
@@ -112,6 +117,7 @@ public final class LauncherUriHandler
         switch ( action.toLowerCase() ) {
             case "add"  -> handleAdd( params.get( "url" ) );
             case "play" -> handlePlay( params.get( "name" ) );
+            case "join" -> handleJoin( params.get( "url" ) );
             case "open" -> handleOpen();
             default     -> Logger.logWarningSilent( "Unknown mmcl:// action: " + action );
         }
@@ -177,6 +183,51 @@ public final class LauncherUriHandler
                 return;
             }
             LauncherCore.play( pack );
+        } );
+    }
+
+    /** {@code mmcl://join?url=...} — install the modpack at the given manifest URL if it
+     *  isn't already, then launch it. This is what Discord's "Join Game" button delivers
+     *  via DiscordRpcUtility's onActivityJoin callback when a friend clicks to join a
+     *  running session. Idempotent on the install step — if the friend already has the
+     *  pack, install is a no-op and we go straight to play. */
+    private static void handleJoin( String url )
+    {
+        if ( url == null || url.isBlank() ) {
+            Logger.logWarningSilent( "mmcl://join missing required url parameter" );
+            return;
+        }
+        SystemUtilities.spawnNewTask( () -> {
+            // If the pack is already installed at this URL, skip straight to play. Otherwise
+            // install first, then play. installModPackByURL is itself idempotent — calling it
+            // on an already-installed URL is a no-op.
+            GameModPack existing = GameModPackManager.getInstalledModPackByURL( url );
+            if ( existing != null ) {
+                LauncherCore.play( existing );
+                return;
+            }
+
+            try {
+                GameModPackManager.installModPackByURL( url );
+                NotificationManager.success( "Joining via Discord",
+                                             "Installed the modpack — starting it now." );
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Failed to install modpack via mmcl://join — " + e.getMessage() );
+                Logger.logThrowable( e );
+                NotificationManager.error( "Couldn't join",
+                                           "Tried to install the friend's modpack but it failed. See log." );
+                return;
+            }
+
+            // After install, the manager's installed-pack list should now contain the URL.
+            GameModPack installed = GameModPackManager.getInstalledModPackByURL( url );
+            if ( installed != null ) {
+                LauncherCore.play( installed );
+            }
+            else {
+                Logger.logErrorSilent( "mmcl://join: install reported success but pack not found in installed list." );
+            }
         } );
     }
 

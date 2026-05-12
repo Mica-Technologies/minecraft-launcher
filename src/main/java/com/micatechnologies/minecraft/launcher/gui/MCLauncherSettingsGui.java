@@ -87,6 +87,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
+    MFXToggleButton discordInvitesCheckBox;
+
+    @SuppressWarnings( "unused" )
+    @FXML
     MFXToggleButton enhancedLoggingCheckBox;
 
     @SuppressWarnings( "unused" )
@@ -237,7 +241,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navAbout;
+    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navDiscord, navAbout;
 
     /**
      * StackPane containing the category content panes.
@@ -408,6 +412,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             if ( !discordCheckBox.isSelected() ) {
                 DiscordRpcUtility.exit();
             }
+
+            // Store Discord invites enable to config
+            ConfigManager.setDiscordInvitesEnable( discordInvitesCheckBox.isSelected() );
 
             // Store resizable windows to config
             ConfigManager.setResizableWindows( windowResizeCheckBox.isSelected() );
@@ -664,6 +671,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // surface as "Mica Minecraft DEV" instead of polluting the prod app's stats.)
         discordCheckBox.setSelected( ConfigManager.getDiscordRpcEnable() );
 
+        // Set and configure Discord invites check box
+        discordInvitesCheckBox.setSelected( ConfigManager.getDiscordInvitesEnable() );
+
         // Populate theme selection dropdown
         themeSelection.getItems().clear();
         themeSelection.getItems().addAll( ConfigConstants.ALLOWED_THEMES );
@@ -820,7 +830,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         } );
 
         // Wire up sidebar navigation buttons
-        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navAbout };
+        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navDiscord, navAbout };
         navAccount.setOnAction( e -> showCategory( 0 ) );
         navGame.setOnAction( e -> showCategory( 1 ) );
         navAppearance.setOnAction( e -> showCategory( 2 ) );
@@ -828,7 +838,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         navNetwork.setOnAction( e -> showCategory( 4 ) );
         navSecurity.setOnAction( e -> showCategory( 5 ) );
         navSystem.setOnAction( e -> showCategory( 6 ) );
-        navAbout.setOnAction( e -> showCategory( 7 ) );
+        navDiscord.setOnAction( e -> showCategory( 7 ) );
+        navAbout.setOnAction( e -> showCategory( 8 ) );
 
         setupAboutTab();
 
@@ -844,7 +855,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      * state.
      *
      * @param index the zero-based category index (0=Account, 1=Game, 2=Appearance, 3=Advanced, 4=Network, 5=Security,
-     *              6=System, 7=About)
+     *              6=System, 7=Discord, 8=About)
      *
      * @since 3.0
      */
@@ -1037,6 +1048,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 "Allows the launcher window to be resized freely." );
         TooltipManager.install( discordCheckBox,
                 "Shows your current modpack and play status in Discord." );
+        TooltipManager.install( discordInvitesCheckBox,
+                "When in-game, friends see a Join Game button on your Discord status that installs and launches the same modpack on their machine." );
         TooltipManager.install( enhancedLoggingCheckBox,
                 "Writes additional diagnostic info to log files." );
         TooltipManager.install( inGameConsoleCheckBox,
@@ -1102,6 +1115,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( currentMaxRamMb != ConfigManager.getMaxRam() ) return true;
         if ( debugCheckBox.isSelected() != ConfigManager.getDebugLogging() ) return true;
         if ( discordCheckBox.isSelected() != ConfigManager.getDiscordRpcEnable() ) return true;
+        if ( discordInvitesCheckBox.isSelected() != ConfigManager.getDiscordInvitesEnable() ) return true;
         if ( windowResizeCheckBox.isSelected() != ConfigManager.getResizableWindows() ) return true;
         if ( enhancedLoggingCheckBox.isSelected() != ConfigManager.getEnhancedLogging() ) return true;
         if ( inGameConsoleCheckBox.isSelected() != ConfigManager.getInGameConsoleEnable() ) return true;

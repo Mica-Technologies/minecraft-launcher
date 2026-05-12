@@ -87,6 +87,7 @@
             <MFXButton fx:id="navNetwork" text="Network" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navSecurity" text="Security" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navSystem" text="System" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navDiscord" text="Discord" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <!-- About pinned to the bottom of the sidebar via a flex spacer — it's
                  a destination users rarely visit, so we get it out of the primary
                  settings rhythm without hiding it entirely. -->
@@ -249,7 +250,6 @@
                         </padding>
                         <MFXToggleButton fx:id="debugCheckBox" text="Debug Mode" />
                         <MFXToggleButton fx:id="windowResizeCheckBox" text="Window Resizing" />
-                        <MFXToggleButton fx:id="discordCheckBox" text="Discord Integration" />
                         <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="Enhanced Logging" />
                         <MFXToggleButton fx:id="inGameConsoleCheckBox" text="In-Game Console" />
                         <MFXToggleButton fx:id="batteryThrottleCheckBox" text="Throttle Downloads on Battery" />
@@ -406,7 +406,63 @@
                 </VBox>
             </ScrollPane>
 
-            <!-- Category 7: About / Attributions -->
+            <!-- Category 7: Discord -->
+            <ScrollPane fx:id="discordPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+                <VBox spacing="12" fillWidth="true">
+                    <padding>
+                        <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
+                    </padding>
+                    <Label text="Discord" styleClass="settingsCategoryHeader">
+                        <font>
+                            <Font name="System Bold" size="18.0" />
+                        </font>
+                    </Label>
+
+                    <!-- Rich presence toggle (moved here from Advanced for grouping). -->
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Rich Presence">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="discordCheckBox" text="Discord Integration" />
+                        <Label styleClass="muted" text="Show what you're playing on your Discord profile. Requires the Discord desktop app to be running on the same machine — the launcher talks to it locally via IPC, no token or login required." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+
+                    <!-- "Join Game" invite toggle — Discord-specific party + joinSecret on
+                         the in-game presence so friends see a "Join Game" button. -->
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Friend Invites">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="discordInvitesCheckBox" text="Allow Discord Invites" />
+                        <Label styleClass="muted" text="When enabled, friends who see your Discord status while you're in-game get a &quot;Join Game&quot; button on your profile that auto-installs and launches the same modpack on their machine. Disables only the join button — the rich presence itself is controlled by the toggle above." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <Label styleClass="muted" text="You can also right-click any modpack card on the main menu and pick &quot;Copy Discord Invite Link&quot; to share the join URL directly in any chat." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+                </VBox>
+            </ScrollPane>
+
+            <!-- Category 8: About / Attributions -->
             <ScrollPane fx:id="aboutPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>

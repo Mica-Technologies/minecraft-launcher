@@ -404,9 +404,7 @@ public class LauncherCore
                 final GameModPack autoPack = finalGameModPack;
                 ConfigManager.setLastModPackSelected( autoPack.getPackName() );
                 SystemUtilities.spawnNewTask( () -> {
-                    SystemUtilities.spawnNewTask( () ->
-                            DiscordRpcUtility.setGamePresence( autoPack.getPackName(),
-                                                                autoPack.getCustomDiscordRpc() ) );
+                    SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( autoPack ) );
                     play( autoPack, () -> GUIUtilities.JFXPlatformRun( () -> {
                         try {
                             MCLauncherGuiController.goToMainGui();

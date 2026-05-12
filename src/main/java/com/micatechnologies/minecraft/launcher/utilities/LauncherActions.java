@@ -107,9 +107,7 @@ public final class LauncherActions
         final GameModPack finalPack = pack;
         SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
-            SystemUtilities.spawnNewTask( () ->
-                DiscordRpcUtility.setGamePresence( finalPack.getPackName(),
-                                                  finalPack.getCustomDiscordRpc() ) );
+            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( finalPack ) );
             LauncherCore.play( finalPack, () -> GUIUtilities.JFXPlatformRun( () -> {
                 try {
                     Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();

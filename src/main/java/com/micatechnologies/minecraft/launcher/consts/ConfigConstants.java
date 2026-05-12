@@ -58,7 +58,7 @@ public class ConfigConstants
      *
      * @since 3.0
      */
-    public static final int CONFIG_VERSION = 3;
+    public static final int CONFIG_VERSION = 4;
 
     /**
      * The default value for minimum RAM.
@@ -87,6 +87,16 @@ public class ConfigConstants
      * @since 1.0
      */
     public static final boolean DISCORD_RPC_ENABLE_DEFAULT = true;
+
+    /**
+     * The default value for the Discord invites feature being enabled. When enabled, an
+     * "In Game" rich presence includes a {@code joinSecret} and party info so Discord friends
+     * see a "Join Game" button that auto-installs and launches the same modpack on their end.
+     * Only takes effect when Discord RPC itself is enabled.
+     *
+     * @since 3.4
+     */
+    public static final boolean DISCORD_INVITES_ENABLE_DEFAULT = true;
 
     /**
      * The default value for resizable windows being enabled.
@@ -259,6 +269,13 @@ public class ConfigConstants
      * @since 1.0
      */
     public static final String DISCORD_RPC_ENABLE_KEY = "discordRpc";
+
+    /**
+     * Key for accessing the Discord invites enable value.
+     *
+     * @since 3.4
+     */
+    public static final String DISCORD_INVITES_ENABLE_KEY = "discordInvites";
 
     /**
      * Key for accessing the resizable windows enable value.

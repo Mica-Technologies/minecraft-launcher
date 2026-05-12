@@ -897,7 +897,7 @@
         <dependency>
             <groupId>io.github.CDAGaming</groupId>
             <artifactId>DiscordIPC</artifactId>
-            <version>0.6.1</version>
+            <version>0.10.2</version>
         </dependency>
         <dependency>
             <groupId>com.github.Dansoftowner</groupId>

@@ -206,9 +206,12 @@ public class ConfigManager
                                       ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
         }
 
-        // Get and return value of min RAM (or false if in dev mode)
-        return !LauncherConstants.LAUNCHER_IS_DEV &&
-                configObject.get( ConfigConstants.DISCORD_RPC_ENABLE_KEY ).getAsBoolean();
+        // Honor the user's setting in all environments — historically dev builds
+        // hard-disabled RPC here to keep dev sessions out of the prod Discord app,
+        // but the matching setDisable() on the settings checkbox is gone now too
+        // (see MCLauncherSettingsGui), so contributors can verify rich-presence
+        // and the new invite plumbing end-to-end without a release build.
+        return configObject.get( ConfigConstants.DISCORD_RPC_ENABLE_KEY ).getAsBoolean();
     }
 
     /**
@@ -228,6 +231,42 @@ public class ConfigManager
         configObject.addProperty( ConfigConstants.DISCORD_RPC_ENABLE_KEY, discordRpcEnable );
 
         // Save configuration to disk
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Returns whether Discord rich-presence "Join Game" invites are enabled. When true (and
+     * Discord RPC itself is enabled), an in-game presence carries a {@code joinSecret} so
+     * friends see a "Join Game" button that auto-installs and launches the same modpack on
+     * their end.
+     *
+     * @return true if Discord invites are enabled, otherwise false
+     *
+     * @since 3.4
+     */
+    public synchronized static boolean getDiscordInvitesEnable() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.DISCORD_INVITES_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.DISCORD_INVITES_ENABLE_KEY,
+                                      ConfigConstants.DISCORD_INVITES_ENABLE_DEFAULT );
+        }
+        return configObject.get( ConfigConstants.DISCORD_INVITES_ENABLE_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Sets whether Discord rich-presence "Join Game" invites are enabled.
+     *
+     * @param discordInvitesEnable true to enable Discord invites, otherwise false
+     *
+     * @since 3.4
+     */
+    public synchronized static void setDiscordInvitesEnable( boolean discordInvitesEnable ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.DISCORD_INVITES_ENABLE_KEY, discordInvitesEnable );
         writeConfigurationToDisk();
     }
 
@@ -928,6 +967,7 @@ public class ConfigManager
         getProxyType();
         getInstalledVanillaVersions();
         getLwjglArmPatchEnable();
+        getDiscordInvitesEnable();
 
         // Stamp the current version and persist
         configObject.addProperty( ConfigConstants.CONFIG_VERSION_KEY, ConfigConstants.CONFIG_VERSION );
