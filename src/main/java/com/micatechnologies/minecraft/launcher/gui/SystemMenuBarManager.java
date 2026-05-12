@@ -152,11 +152,19 @@ public final class SystemMenuBarManager
             if ( instance == null ) {
                 instance = buildMenuBar();
                 instance.setUseSystemMenuBar( true );
-                // managed=false ensures the in-window MenuBar reserves zero layout space.
-                // useSystemMenuBar already moves the visual representation to the macOS bar,
-                // but the unmanaged flag belts-and-suspenders against any JavaFX build that
-                // briefly renders the in-window node before the system-menu swap.
+                // managed=false: don't reserve layout space for the in-window peer.
+                // visible=false: don't render it either. The system-menu-bar hook reads the
+                // MenuBar's menu data structure, not the node's visibility, so when
+                // useSystemMenuBar takes effect (properly bundled .app, correct AWT/FX init
+                // order) the macOS screen-top bar still shows the menus. When it doesn't
+                // (dev launch where Desktop.getDesktop() initialized NSApp before JavaFX's
+                // Glass backend could claim the main menu), the MenuBarSkin falls back to
+                // in-window rendering — without these flags the menu buttons appear as
+                // three transparent, unstyled nodes at (0,0) of whatever pane we're parented
+                // to, overlapping content and (when clicked) wedging the FX thread mid
+                // popup-teardown as the menu bar is reparented across scene changes.
                 instance.setManaged( false );
+                instance.setVisible( false );
             }
         } );
     }
