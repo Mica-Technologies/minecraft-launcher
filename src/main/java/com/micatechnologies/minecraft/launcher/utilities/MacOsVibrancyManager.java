@@ -100,27 +100,38 @@ public final class MacOsVibrancyManager
             // NSWindow not realized yet — defer until WINDOW_SHOWN. forceThemeChange()
             // during initial setScene runs before stage.show(), so this is the cold-start
             // path.
+            //
+            // WINDOW_SHOWN fires inside Glass's window-shown notification before Cocoa
+            // has fully finished wiring up the NSWindow's native peer — calling FXThemes
+            // synchronously from inside that handler installs vibrancy "too early" and
+            // it doesn't actually render until the user kicks Cocoa with another
+            // event (which is why the bug presented as "doesn't work on launch but
+            // works after theme-switch"). Bouncing the apply through Platform.runLater
+            // lets the current Glass event finish and runs us on a fresh FX-thread
+            // tick, after Cocoa has settled.
             EventHandler< WindowEvent > onShown = new EventHandler< WindowEvent >()
             {
                 @Override
                 public void handle( WindowEvent event )
                 {
                     stage.removeEventHandler( WindowEvent.WINDOW_SHOWN, this );
-                    apply( stage, dark );
+                    javafx.application.Platform.runLater( () -> apply( stage, dark ) );
                 }
             };
             stage.addEventHandler( WindowEvent.WINDOW_SHOWN, onShown );
             return;
         }
-        // Fast-path: already vibrant with the same dark/light setting, nothing to do.
-        // FXThemes' native side rebuilds the NSVisualEffectView on every setAppearance
-        // call (remove-old + create-new), which churns the Metal compositor and can
-        // contribute to visible artifacts on subsequent renders. Skipping the redundant
-        // call avoids that.
-        Boolean priorDark = currentDark.get( stage );
-        if ( priorDark != null && priorDark == dark ) {
-            return;
-        }
+        // No short-circuit on "already applied" — the first install via WINDOW_SHOWN
+        // sometimes lands while Cocoa is still finalizing the contentView, producing
+        // a brief flash of vibrancy that then reverts to opaque-bg as soon as
+        // anything else touches the window state (next setScene, layout pass, etc.).
+        // Re-running FXThemes' setAppearanceByName on every scene transition
+        // re-installs the NSVisualEffectView fresh, which sticks correctly the
+        // second time. The cost is one extra JNI call per scene change (4-5 across
+        // a launcher session); the visible benefit is vibrancy staying on. We had a
+        // priorDark fast-path here but it was preventing exactly this recovery
+        // re-apply, leaving cold-launch users with a broken-vibrancy state until
+        // they manually theme-switched.
         try {
             MacThemeWindowManager mgr = manager();
             if ( mgr == null ) {
