@@ -559,29 +559,39 @@ public class MCLauncherGuiWindow extends Application
         applyTheme( LEGACY_CREEPER, UI_TOKENS_CREEPER );
     }
 
-    /** Native theme — translucent surface palette with the OS Mica backdrop showing
-     *  through on Win11. Follows OS dark/light via {@link OsThemeDetector#isDark()};
-     *  the legacy companion sheet matches so selectors not yet ported into ui-base.css
-     *  get the right palette.
+    /** Native theme — translucent surface palette with a real OS backdrop showing
+     *  through. Win11 gets DWM Mica via WindowChromeManager; macOS gets
+     *  NSVisualEffectView via FXThemes' native helper in
+     *  {@link com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager}.
+     *  Linux has no system-wide equivalent and falls back to the opaque Dark/Light
+     *  palette matching the OS dark/light preference.
      *
-     *  <p>The Native token sheets (ui-tokens-native*.css) are tuned specifically for
-     *  Win11 Mica: {@code -color-bg: rgba(0,0,0,0)} with 5–10% white surfaces that read
-     *  as frosted glass when DWM composites a Mica backdrop behind the JavaFX scene's
-     *  transparent pixels. macOS and Linux have no equivalent compositor — the
-     *  transparent scene fill falls through to whatever the OS draws as the window's
-     *  default bg, leaving near-invisible 5% white surfaces with dark-Mica light text
-     *  on top, and on macOS the alpha compositing produces ghosting/misalignment. We
-     *  attempted to wire NSVisualEffectView on macOS via JFA (commits 8b6eb66 ..
-     *  38e39d4, reverted): the vfx swap succeeded but Glass's Metal compositor on
-     *  JavaFX 25 didn't participate in NSVisualEffectView's behindWindow blending, so
-     *  the material never rendered. Reaching real vibrancy on macOS likely needs
-     *  either first-party JFX support for translucent windows or a small native
-     *  helper; until then, Native on macOS/Linux falls back to opaque Dark/Light.</p>
+     *  <p>The Native token sheets (ui-tokens-native*.css) define {@code -color-bg:
+     *  rgba(0,0,0,0)} with 5–10% white surfaces that read as frosted glass when a real
+     *  backdrop composites through the JavaFX scene's transparent pixels. Without a
+     *  backdrop (Linux) those tokens produce near-invisible surfaces, so we route
+     *  there to the opaque Dark/Light tokens instead.</p>
      */
     private void switchToNativeTheme() {
         boolean osDark = detector == null || detector.isDark();
 
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+            // Native tokens first so the scene fill is transparent and the 5–10% white
+            // surfaces are loaded, THEN install the vibrancy via FXThemes so the JFX
+            // content composites over the real desktop-tinted backdrop.
+            if ( osDark ) {
+                applyTheme( LEGACY_DARK, UI_TOKENS_NATIVE );
+            }
+            else {
+                applyTheme( LEGACY_LIGHT, UI_TOKENS_NATIVE_LIGHT );
+            }
+            com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager
+                    .apply( stage, osDark );
+            return;
+        }
+
         if ( !org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            // Linux: no system vibrancy. Opaque palettes following OS dark/light.
             if ( osDark ) {
                 applyTheme( LEGACY_DARK, UI_TOKENS_DARK );
             }
@@ -651,11 +661,30 @@ public class MCLauncherGuiWindow extends Application
             boolean isNative = tokenSheet.endsWith( "ui-tokens-native.css" )
                             || tokenSheet.endsWith( "ui-tokens-native-light.css" );
             if ( isNative ) {
-                // Force transparent via inline style — strongest override available so any
-                // other stylesheet rule (legacy `.rootPane { background: #1C1B1F }`,
-                // ui-base `.rootPane.hero-surface { background: -color-bg }`, etc.) loses
-                // regardless of cascade order or selector specificity.
-                gui.rootPane.setStyle( "-fx-background-color: transparent;" );
+                // The official FXThemes macOS recipe (DarkThemeSampleMac.java in the
+                // FXThemes-samples repo): with StageStyle.UNIFIED, vibrancy renders
+                // correctly when scene.fill is Color.TRANSPARENT AND the root pane has
+                // a NON-transparent alpha background via inline style. The non-transparent
+                // root bg is what makes JFX's renderer treat each frame as a real render
+                // pass (no "everything's transparent, skip" path) — that, not a particular
+                // scene-fill RGB or alpha value, is what prevents the alpha-accumulation
+                // we were chasing with scene-fill tricks.
+                //
+                // 5% alpha is a low frosted-glass tint that lets vibrancy dominate while
+                // still being non-transparent enough to trigger the proper render pipeline.
+                // Dark variant uses white tint (frosted-light over dark vibrancy);
+                // light variant uses black tint (subtle darken over light vibrancy).
+                // Windows DWM Mica path uses pure transparent — its renderer doesn't
+                // share macOS's transparent-skip behavior.
+                if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+                    boolean lightNative = tokenSheet.endsWith( "ui-tokens-native-light.css" );
+                    String rootBg = lightNative ? "rgba(0, 0, 0, 0.05)"
+                                                : "rgba(255, 255, 255, 0.05)";
+                    gui.rootPane.setStyle( "-fx-background-color: " + rootBg + ";" );
+                }
+                else {
+                    gui.rootPane.setStyle( "-fx-background-color: transparent;" );
+                }
                 if ( gui.scene != null ) {
                     gui.scene.setFill( javafx.scene.paint.Color.TRANSPARENT );
                 }
@@ -665,6 +694,12 @@ public class MCLauncherGuiWindow extends Application
                 if ( gui.scene != null ) {
                     gui.scene.setFill( javafx.scene.paint.Color.web( bg ) );
                 }
+                // Tear down any prior macOS NSVisualEffectView so the opaque theme
+                // paints over a normal opaque-ish window. No-op on non-macOS and when
+                // vibrancy was never applied. Skipped in the isNative branch — the
+                // caller (switchToNativeTheme) installs fresh vibrancy after this.
+                com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager
+                        .clear( stage );
             }
 
             // Native theme: request the Mica backdrop via DWM. For non-Native themes,

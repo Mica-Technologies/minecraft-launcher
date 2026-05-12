@@ -922,6 +922,31 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- FXThemes — PixelDuke. Ships a precompiled libFXThemes.dylib that drives
+             NSVisualEffectView from native Obj-C code (sidesteps the JFA/Glass
+             compositor incompatibility we hit trying to drive it from pure-Java
+             objc_msgSend in commits 8b6eb66..38e39d4, since reverted). We use only
+             MacThemeWindowManager.setWindowFrameAppearance(stage, Backdrop) to flip
+             between Aqua / DarkAqua (no vibrancy) and VibrantLight / VibrantDark
+             (real macOS frosted-glass behind the JFX content). License is
+             GPL v2 + Classpath Exception, compatible with our GPL v3.
+             JNA excluded because FXThemes pins to an older JNA than oshi's 5.12.1
+             requires; we provide JNA via oshi already. -->
+        <dependency>
+            <groupId>com.pixelduke</groupId>
+            <artifactId>fxthemes</artifactId>
+            <version>1.5.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.java.dev.jna</groupId>
+                    <artifactId>jna</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.java.dev.jna</groupId>
+                    <artifactId>jna-platform</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <dependency>
             <groupId>io.github.palexdev</groupId>
             <artifactId>materialfx</artifactId>
