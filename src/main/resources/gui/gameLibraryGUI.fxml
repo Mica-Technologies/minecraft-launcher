@@ -29,7 +29,7 @@
   / "Generate Manifest" actions. Cards are populated programmatically by the
   controller via LibraryCard, mirroring the main-menu pattern.
 -->
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
+<GridPane fx:id="rootPane" minHeight="475.0" minWidth="750.0"
           prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane"
           xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>

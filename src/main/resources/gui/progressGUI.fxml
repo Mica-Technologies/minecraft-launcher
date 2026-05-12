@@ -21,7 +21,7 @@
   ~ or (at your option) any later version.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="475.0" minWidth="750.0"
+<GridPane fx:id="rootPane" minHeight="475.0" minWidth="750.0"
           prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane hero-surface"
           xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
