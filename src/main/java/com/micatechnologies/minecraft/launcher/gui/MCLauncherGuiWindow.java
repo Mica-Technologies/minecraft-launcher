@@ -788,6 +788,44 @@ public class MCLauncherGuiWindow extends Application
         stylesheets.add( resolver.apply( legacy ) );
         stylesheets.add( resolver.apply( UI_BASE_SHEET ) );
         stylesheets.add( resolver.apply( tokens ) );
+
+        // Belt-and-suspenders: paint the root's inline bg color and (if the
+        // root is attached to a Scene) the scene fill directly. Without this
+        // the native-theme variants — whose ui-tokens-native*.css sheets set
+        // `-color-bg: transparent` so DWM Mica can composite through the MAIN
+        // window — render auxiliary scenes (wizards, popups) as whatever the
+        // JavaFX default fill is (white). Auxiliary windows aren't wired up
+        // for Mica composition (no WindowChromeManager.applyBackdrop call),
+        // so transparency just means "see-through to whatever is behind, or
+        // default white if nothing." Solid bg avoids the resulting
+        // white-on-white unreadability.
+        //
+        // Native themes get their solid bg hex here (themeBgHexStatic returns
+        // the post-Mica solid for native variants) — the auxiliary window
+        // gives up Mica composition in exchange for legibility.
+        String bgHex = themeBgHexStatic( tokens );
+        root.setStyle( "-fx-background-color: " + bgHex + ";" );
+        if ( root.getScene() != null ) {
+            root.getScene().setFill( javafx.scene.paint.Color.web( bgHex ) );
+        }
+    }
+
+    /** Static mirror of {@link #themeBgHex(String)} so the public
+     *  {@link #installCurrentThemeStylesheets(javafx.scene.Parent)} helper can
+     *  resolve a fallback bg color without needing an instance. Kept duplicated
+     *  rather than refactored because the values rarely change and matching
+     *  the per-token-sheet lookup table here keeps the static helper independent
+     *  of the main GUI window's lifecycle. */
+    private static String themeBgHexStatic( String tokenSheet ) {
+        if ( tokenSheet.endsWith( "ui-tokens-light.css" ) )         return "#FFFFFF";
+        if ( tokenSheet.endsWith( "ui-tokens-blue-gray.css" )
+                || tokenSheet.endsWith( "ui-tokens-bluegray.css" ) ) return "#0E141D";
+        if ( tokenSheet.endsWith( "ui-tokens-orange-purple.css" )
+                || tokenSheet.endsWith( "ui-tokens-orangepurple.css" ) ) return "#201221";
+        if ( tokenSheet.endsWith( "ui-tokens-creeper.css" ) )       return "#0C130C";
+        if ( tokenSheet.endsWith( "ui-tokens-native.css" ) )        return "#1C1B1F";
+        if ( tokenSheet.endsWith( "ui-tokens-native-light.css" ) )  return "#F5F6FA";
+        return "#0C1017";  // dark default
     }
 
     /**
