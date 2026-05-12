@@ -1075,11 +1075,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         createShortcut.setOnAction(   e -> createDesktopShortcut( pack ) );
         copyInviteLink.setOnAction(   e -> copyInviteLinkToClipboard( pack ) );
 
-        // The invite-link item only makes sense for packs we know how to point friends at
-        // (custom-Discord-RPC packs run their own presence so a launcher invite would
-        // collide; packs without a manifest URL can't be installed by URL on the receiver).
-        if ( pack.getManifestUrl() == null || pack.getManifestUrl().isBlank()
-                || pack.getCustomDiscordRpc() ) {
+        // Disable only when there's truly nothing to invite friends to — i.e. no manifest
+        // URL AND no vanilla version ID. The customDiscordRpc gate that used to live here
+        // was overzealous: it applies to the LIVE "Join Game" button on the running
+        // presence (handled in DiscordRpcUtility.setGamePresence) but not to this
+        // copy-link action, which produces a static URL the user manually shares. A
+        // custom-RPC pack is still installable + playable from the join URL on the
+        // receiver's launcher.
+        if ( com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility
+                .buildInviteLinkFromPack( pack ) == null ) {
             copyInviteLink.setDisable( true );
         }
 
@@ -1091,17 +1095,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return menu;
     }
 
-    /** Copies an {@code mmcl://join?url=...} invite link for the given pack to the system
-     *  clipboard. The user can paste it into Discord, a chat message, etc.; clicking the link
-     *  on another machine with the launcher installed installs the pack (if needed) and
-     *  launches it via LauncherUriHandler. */
+    /** Copies an {@code mmcl://join?url=...} or {@code mmcl://join?vanilla=...} invite link
+     *  for the given pack to the system clipboard. The user can paste it into Discord, a
+     *  chat message, etc.; clicking the link on another machine with the launcher installed
+     *  installs the pack/version (if needed) and launches it via LauncherUriHandler. */
     private static void copyInviteLinkToClipboard( GameModPack pack )
     {
         String invite = com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility
-                .buildInviteLink( pack.getManifestUrl() );
+                .buildInviteLinkFromPack( pack );
         if ( invite == null ) {
             NotificationManager.warn( "No invite link",
-                                      "This pack doesn't have a manifest URL to invite friends to." );
+                                      "This pack doesn't have anything to invite friends to (no manifest URL or vanilla version)." );
             return;
         }
         GUIUtilities.JFXPlatformRun( () -> {

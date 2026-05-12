@@ -117,7 +117,7 @@ public final class LauncherUriHandler
         switch ( action.toLowerCase() ) {
             case "add"  -> handleAdd( params.get( "url" ) );
             case "play" -> handlePlay( params.get( "name" ) );
-            case "join" -> handleJoin( params.get( "url" ) );
+            case "join" -> handleJoin( params.get( "url" ), params.get( "vanilla" ) );
             case "open" -> handleOpen();
             default     -> Logger.logWarningSilent( "Unknown mmcl:// action: " + action );
         }
@@ -190,11 +190,19 @@ public final class LauncherUriHandler
      *  isn't already, then launch it. This is what Discord's "Join Game" button delivers
      *  via DiscordRpcUtility's onActivityJoin callback when a friend clicks to join a
      *  running session. Idempotent on the install step — if the friend already has the
-     *  pack, install is a no-op and we go straight to play. */
-    private static void handleJoin( String url )
+     *  pack, install is a no-op and we go straight to play.
+     *
+     *  Vanilla flavor: {@code mmcl://join?vanilla=&lt;version-id&gt;} — install the Mojang
+     *  vanilla version if needed, then launch it. Used for invite links built from
+     *  vanilla-version packs in the main-menu context menu. */
+    private static void handleJoin( String url, String vanillaVersionId )
     {
+        if ( vanillaVersionId != null && !vanillaVersionId.isBlank() ) {
+            handleJoinVanilla( vanillaVersionId );
+            return;
+        }
         if ( url == null || url.isBlank() ) {
-            Logger.logWarningSilent( "mmcl://join missing required url parameter" );
+            Logger.logWarningSilent( "mmcl://join missing required url or vanilla parameter" );
             return;
         }
         SystemUtilities.spawnNewTask( () -> {
@@ -227,6 +235,33 @@ public final class LauncherUriHandler
             }
             else {
                 Logger.logErrorSilent( "mmcl://join: install reported success but pack not found in installed list." );
+            }
+        } );
+    }
+
+    /** Handles {@code mmcl://join?vanilla=&lt;version-id&gt;} — installs the Mojang vanilla
+     *  version if not already present, then launches it. */
+    private static void handleJoinVanilla( String versionId )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                if ( !com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager
+                        .isInstalled( versionId ) ) {
+                    com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager
+                            .installVersion( versionId );
+                    NotificationManager.success( "Joining via Discord",
+                                                 "Installed Minecraft " + versionId + " — starting it now." );
+                }
+                GameModPack vanilla = GameModPack.createVanillaModPack( versionId );
+                LauncherCore.play( vanilla );
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Failed to join vanilla via mmcl://join?vanilla=" + versionId + " — "
+                                         + e.getMessage() );
+                Logger.logThrowable( e );
+                NotificationManager.error( "Couldn't join",
+                                           "Tried to install Minecraft " + versionId
+                                                   + " but it failed. See log." );
             }
         } );
     }

@@ -345,15 +345,70 @@ public class DiscordRpcUtility
         return LauncherUriHandler.SCHEME + "://join?url=" + encoded;
     }
 
+    /**
+     * Builds a join deep-link from a {@link GameModPack}, handling both flavors:
+     * modpacks (manifest URL → {@code mmcl://join?url=...}) and vanilla Minecraft versions
+     * ({@code mmcl://join?vanilla=&lt;version-id&gt;} so the receiver's launcher can install
+     * the matching Mojang version on demand).
+     *
+     * @param pack the pack to build the invite for
+     *
+     * @return the invite URL, or {@code null} if the pack has neither a manifest URL nor a
+     *         vanilla version ID (e.g. a failed-load placeholder pack)
+     *
+     * @since 3.4
+     */
+    public static String buildInviteLinkFromPack( GameModPack pack )
+    {
+        if ( pack == null ) return null;
+        if ( pack.isVanillaVersion() ) {
+            // getMinecraftVersion() declares ModpackException for the Forge branch, but for
+            // vanilla packs it just returns the vanillaMinecraftVersion field — never throws.
+            // Catch anyway so we degrade to null rather than propagating an unexpected error.
+            try {
+                String version = pack.getMinecraftVersion();
+                if ( version != null && !version.isBlank() ) {
+                    String encoded = URLEncoder.encode( version, StandardCharsets.UTF_8 );
+                    return LauncherUriHandler.SCHEME + "://join?vanilla=" + encoded;
+                }
+            }
+            catch ( Exception ignored ) {
+                // Fall through to manifest-URL path
+            }
+        }
+        return buildInviteLink( pack.getManifestUrl() );
+    }
+
     public static void exit() {
         if ( discordRpcClient != null ) {
             try {
+                // IPCClient.close() just shuts the pipe — it doesn't tell Discord to clear
+                // the activity. Discord's own grace window for noticing the IPC disconnect
+                // and wiping a stale presence is a few seconds long, but on a fast app exit
+                // (closeApp → System.exit) the process is gone before Discord notices,
+                // leaving the user's status stuck at the launcher's last state ("In Menus"
+                // / "In Game") indefinitely.
+                //
+                // Send a null rich presence first so Discord wipes the launcher activity
+                // immediately, then a short pause to let the named-pipe write reach the
+                // Discord client before we tear the pipe down.
+                try { discordRpcClient.sendRichPresence( null ); }
+                catch ( Exception ignored ) { /* best-effort */ }
+                try { Thread.sleep( 150 ); }
+                catch ( InterruptedException ie ) { Thread.currentThread().interrupt(); }
+
                 discordRpcClient.close();
-                discordRpcClient = null;
             }
             catch ( Exception e ) {
                 Logger.logWarningSilent( "An exception occurred while exiting the Discord rich presence client!" );
                 Logger.logThrowable( e );
+            }
+            finally {
+                discordRpcClient = null;
+                // Reset cached party data so a subsequent init() (e.g. a launcher restart
+                // without process exit) doesn't carry the previous session's join secret
+                // into the new presence.
+                clearJoinParty();
             }
         }
     }
