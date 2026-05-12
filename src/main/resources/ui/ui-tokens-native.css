@@ -113,3 +113,20 @@
 .rootPane.hero-surface {
     -fx-background-color: transparent;
 }
+
+/* ----- Popup surfaces: force a solid background in the Native theme -----
+ *
+ * `-color-surface-elevated` is intentionally translucent (8% white) so
+ * in-window cards let the Mica backdrop bleed through. That trick only
+ * works for content painted INSIDE the launcher window — popup nodes
+ * (context menus, tooltips, combo-box dropdowns) live in their own
+ * top-level popup windows that have NO Mica backdrop and NO underlying
+ * launcher surface. At 8% white over the bare desktop they read as
+ * nearly invisible. Override with an opaque, cool-toned dark so the
+ * popup carries its own visual weight independent of whatever the user
+ * has behind the launcher. */
+.context-menu,
+.tooltip,
+.mfx-combo-box .mfx-list-view {
+    -fx-background-color: #1C2230;
+}
