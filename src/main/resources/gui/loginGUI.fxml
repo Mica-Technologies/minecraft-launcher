@@ -29,7 +29,17 @@
   ~ along with this program. If not, see <https://www.gnu.org/licenses/>.
   -->
 
-<GridPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="990.0" minWidth="850.0" prefHeight="1010.0" prefWidth="1000.0" styleClass="rootPane hero-surface" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
+<!-- maxHeight/maxWidth are intentionally NOT set to -Infinity (USE_PREF_SIZE)
+     here, unlike on most other screens. The login layout centers its content
+     (brand HBox + auth card) in the rootPane via GridPane.halignment=CENTER,
+     so pinning the rootPane to prefWidth=1000 made the GridPane stay 1000 px
+     wide even when the scene was wider. The rootPane sat at the scene's
+     top-left with the empty space on the right, and the "centered" content
+     ended up centered relative to the pinned rootPane rather than the
+     window, i.e. visibly shifted left. Letting max default to unbounded
+     lets the rootPane fill the scene, so the center alignment lands on the
+     window's actual center. -->
+<GridPane fx:id="rootPane" minHeight="990.0" minWidth="850.0" prefHeight="1010.0" prefWidth="1000.0" styleClass="rootPane hero-surface" xmlns="http://javafx.com/javafx/18" xmlns:fx="http://javafx.com/fxml/1">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
     </columnConstraints>
