@@ -900,10 +900,7 @@ public class LauncherCore
      * @since 2.0
      */
     public static void restartApp() {
-        restartFlag = true;
-        restartError = null;
-        cleanupApp();
-        currentSession.exitLatch.countDown();
+        restartAppWithError( null );
     }
 
     /**
@@ -915,6 +912,27 @@ public class LauncherCore
     public static void restartAppWithError( String restartErrorString ) {
         restartFlag = true;
         restartError = restartErrorString;
+        // Same FX-thread hazard as closeApp() above: cleanupApp() makes AWT calls that
+        // dispatch_sync to AppKit (Taskbar, SystemTray, Stage.close via JFXPlatformRun),
+        // and on macOS the JavaFX Application Thread IS the AppKit main thread, so any
+        // dispatch_sync to AppKit from the FX thread deadlocks. The Settings screen's
+        // Logout button reproduced this exactly — clicking Confirm called restartApp()
+        // straight from the FX-thread onAction handler, the launcher logged "Performing
+        // application cleanup..." and froze until SIGTERM. Hop to a fresh thread when
+        // called from FX so the dispatch_sync targets land on AppKit through the
+        // normal cross-thread path. Background-thread callers (e.g. Reset Launcher,
+        // which already wraps itself in SystemUtilities.spawnNewTask) fall straight
+        // through to the synchronous path.
+        if ( javafx.application.Platform.isFxApplicationThread() ) {
+            Thread restarter = new Thread( LauncherCore::restartAppNow, "Launcher-Restart" );
+            restarter.setDaemon( false );
+            restarter.start();
+            return;
+        }
+        restartAppNow();
+    }
+
+    private static void restartAppNow() {
         cleanupApp();
         currentSession.exitLatch.countDown();
     }
