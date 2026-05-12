@@ -320,6 +320,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         setupFilterAndPaginationControls();
         rebuildCards();
 
+        // Smooth animated wheel-scroll for the card grid. Replaces JavaFX's default
+        // snappy step-scroll with an eased glide that matches what native apps feel
+        // like. See SmoothScroll for tuning.
+        SmoothScroll.install( modpackScrollPane );
+
         // Build and attach the expanded modpack-detail modal overlay. The modal is a
         // StackPane that spans the entire GridPane (all rows + columns) and is hidden
         // until a hero card is clicked. Attaching here — after the populate call —

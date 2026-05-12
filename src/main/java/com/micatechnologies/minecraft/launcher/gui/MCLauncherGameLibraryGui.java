@@ -306,6 +306,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         SystemUtilities.spawnNewTask( () -> {
             GUIUtilities.JFXPlatformRun( this::rebuildCards );
         } );
+
+        // Apply smooth-scroll behavior to the card grid. Matches the main menu's
+        // feel so users get a consistent scroll experience across the two
+        // hero-card screens.
+        SmoothScroll.install( libraryScrollPane );
     }
 
     @Override

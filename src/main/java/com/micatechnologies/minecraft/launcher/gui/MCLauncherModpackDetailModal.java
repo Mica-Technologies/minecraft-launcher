@@ -344,6 +344,10 @@ public class MCLauncherModpackDetailModal extends StackPane
         bodyScroll.setHbarPolicy( ScrollPane.ScrollBarPolicy.NEVER );
         bodyScroll.setVbarPolicy( ScrollPane.ScrollBarPolicy.AS_NEEDED );
         bodyScroll.getStyleClass().add( "modpackDetailScroll" );
+        // Eased wheel-scroll so the modal body scrolls with the same feel as the
+        // main menu's card grid. SmoothScroll.install handles its own no-op case
+        // when the body fits without scrolling.
+        SmoothScroll.install( bodyScroll );
         VBox.setVgrow( bodyScroll, Priority.ALWAYS );
 
         // ----- Action row at the bottom (sticky, primary actions) -----
