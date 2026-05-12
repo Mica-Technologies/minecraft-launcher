@@ -28,27 +28,70 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Mirrors the date-based version scheme from our Gradle Minecraft mod projects
+      # (see e.g. minecraft-city-super-mod). Three deviations worth flagging:
+      #   - The mod uses SemVer `+N` build metadata for same-day re-releases
+      #     (e.g. `2026.05.12+1`). jpackage on macOS rejects `+` in --app-version
+      #     (it requires pure N.N.N), AND the in-app update comparator's
+      #     SemVer-correct treatment of build metadata is "ignore for precedence",
+      #     so two same-day `+N` bumps would compare as equal and users would
+      #     never be prompted to grab the bump. We use a 4th numeric tuple (.N)
+      #     instead — installs cleanly via jpackage, sorts correctly in the
+      #     comparator, and stays human-readable on the GH releases page.
+      #   - Pre-release format matches the mod's verbatim, including the slightly
+      #     redundant `%Z%z` (yields `UTC+0000` under -u) for parity with the
+      #     mod's existing tag history.
+      #   - Windows MSI ProductVersion's major <= 255 constraint forces a 2-digit
+      #     year, so the win_version is derived from the release version by
+      #     stripping the first two chars of the year (e.g. `2026.05.12.1`
+      #     -> `26.05.12.1`). 4-tuple is valid for MSI.
       - name: Calculate version numbers
         id: version
         run: |
           SHORT_SHA=$(git rev-parse --short "${{ github.sha }}")
           IS_RELEASE=${{ github.event.inputs.release == 'true' && github.event.inputs.release || 'false' }}
 
-          # Full version: YYYY.MM.DD
-          REL_VERSION=$(date -u +'%Y.%-m.%-d')
+          BASE_VERSION=$(date -u +'%Y.%m.%d')
 
           if [ "$IS_RELEASE" = "true" ]; then
+            # If today's base tag (or any `.N` bump of it) already exists, claim
+            # the next sequential .N. Otherwise use the bare base version.
+            git fetch --tags --quiet origin || true
+            REL_VERSION="$BASE_VERSION"
+            maxN=-1
+            if git rev-parse -q --verify "refs/tags/$BASE_VERSION" >/dev/null 2>&1; then
+              maxN=0
+            fi
+            for existingTag in $(git tag -l "${BASE_VERSION}.*"); do
+              suffix="${existingTag#${BASE_VERSION}.}"
+              if [[ "$suffix" =~ ^[0-9]+$ ]] && [ "$suffix" -gt "$maxN" ]; then
+                maxN="$suffix"
+              fi
+            done
+            if [ "$maxN" -ge 0 ]; then
+              REL_VERSION="${BASE_VERSION}.$((maxN + 1))"
+            fi
             TAG="$REL_VERSION"
             VERSION="$REL_VERSION"
           else
-            # Pre-release: YYYY.MM.DD-pre.HHMM.UTC+SHORTSHA
-            PRE_SUFFIX=$(date -u +'pre.%H%M.UTC')+$SHORT_SHA
-            TAG="${REL_VERSION}-${PRE_SUFFIX}"
-            VERSION="${REL_VERSION}-${PRE_SUFFIX}"
+            # Pre-release: YYYY.MM.DD-pre.HHMM.UTC+0000+SHORTSHA. Matches the mod
+            # workflow's format. The double `+` (UTC+0000+sha) is intentional —
+            # `%Z%z` under `date -u` emits `UTC+0000`, and the SHA is concatenated
+            # after as additional build metadata. Pre-release tags never feed
+            # the in-app update comparator (GH /releases/latest filters them).
+            PRE_SUFFIX=$(date -u +'pre.%H%M.%Z%z')"+$SHORT_SHA"
+            TAG="${BASE_VERSION}-${PRE_SUFFIX}"
+            VERSION="${BASE_VERSION}-${PRE_SUFFIX}"
           fi
 
-          # Windows MSI requires major version <= 255, use 2-digit year
-          WIN_VERSION=$(date -u +'%-y.%-m.%-d')
+          # win_version: strip the first 2 digits of the year (2026 -> 26) to keep
+          # MSI ProductVersion major <= 255. Keep everything after the year intact,
+          # which preserves any .N same-day bump.
+          WIN_VERSION="${VERSION#??}"
+          # Strip pre-release/build-metadata suffix from win_version; MSI doesn't
+          # accept those characters either.
+          WIN_VERSION="${WIN_VERSION%%-*}"
+          WIN_VERSION="${WIN_VERSION%%+*}"
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT

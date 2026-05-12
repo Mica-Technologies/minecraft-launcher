@@ -48,15 +48,20 @@ public class LauncherConstants
     public final static String LAUNCHER_APPLICATION_NAME = resolveAppName();
 
     /**
-     * Launcher application version. Auto-filled from manifest, defaults to "0.0.1" in IDE dev mode.
+     * Launcher application version. Resolved at class-init time in this order:
+     * <ol>
+     *   <li>JAR manifest's {@code Implementation-Version} (packaged builds — set by Maven from
+     *       {@code ${project.version}}, which the {@code derive-revision-from-git} step in pom.xml
+     *       resolves from git describe or {@code -Drevision=})</li>
+     *   <li>{@code git describe --tags --dirty=.dirty --always} run against the repo containing
+     *       the running class (IDE / unpackaged runs — same string the packaged build would have
+     *       baked in)</li>
+     *   <li>{@code "0.0.0-dev"} (no manifest, no .git ancestor found, or git unavailable)</li>
+     * </ol>
      *
      * @since 1.0
      */
-    public final static String LAUNCHER_APPLICATION_VERSION = LauncherCore.class.getPackage()
-                                                                                .getImplementationVersion() != null ?
-                                                              LauncherCore.class.getPackage()
-                                                                                .getImplementationVersion() :
-                                                              "0.0.1";
+    public final static String LAUNCHER_APPLICATION_VERSION = resolveAppVersion();
 
     /**
      * Launcher application name without spaces.
@@ -92,6 +97,70 @@ public class LauncherConstants
             return title;
         }
         return "Mica Minecraft Launcher DEV";
+    }
+
+    private static String resolveAppVersion() {
+        String fromManifest = LauncherCore.class.getPackage().getImplementationVersion();
+        if ( fromManifest != null ) {
+            return fromManifest;
+        }
+        String fromGit = tryGitDescribe();
+        return fromGit != null ? fromGit : "0.0.0-dev";
+    }
+
+    private static String tryGitDescribe() {
+        java.nio.file.Path repoRoot = findRepoRoot();
+        if ( repoRoot == null ) {
+            return null;
+        }
+        try {
+            Process p = new ProcessBuilder( "git", "describe", "--tags", "--dirty=.dirty", "--always" )
+                    .directory( repoRoot.toFile() )
+                    .redirectErrorStream( true )
+                    .start();
+            // 2s is comfortable headroom for a local git describe; we'd rather fall back to
+            // the "0.0.0-dev" sentinel than hang the splash screen on a stuck git invocation.
+            if ( !p.waitFor( 2, java.util.concurrent.TimeUnit.SECONDS ) ) {
+                p.destroyForcibly();
+                return null;
+            }
+            if ( p.exitValue() != 0 ) {
+                return null;
+            }
+            try ( java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader( p.getInputStream(),
+                                                   java.nio.charset.StandardCharsets.UTF_8 ) ) ) {
+                String line = reader.readLine();
+                return ( line != null && !line.isBlank() ) ? line.trim() : null;
+            }
+        }
+        catch ( Exception ignored ) {
+            return null;
+        }
+    }
+
+    // Walks up from the running class's CodeSource until it hits a `.git` entry — works for the
+    // regular IDE case (target/classes or out/production/...) and for git worktrees (where .git
+    // is a file, not a directory). Returns null if invoked from a JAR URL outside a repo, in
+    // which case getImplementationVersion() was almost certainly non-null and we never reach here.
+    private static java.nio.file.Path findRepoRoot() {
+        try {
+            java.net.URL location = LauncherCore.class.getProtectionDomain().getCodeSource().getLocation();
+            if ( location == null ) {
+                return null;
+            }
+            java.nio.file.Path current = java.nio.file.Paths.get( location.toURI() );
+            while ( current != null ) {
+                java.nio.file.Path git = current.resolve( ".git" );
+                if ( java.nio.file.Files.isDirectory( git ) || java.nio.file.Files.isRegularFile( git ) ) {
+                    return current;
+                }
+                current = current.getParent();
+            }
+        }
+        catch ( Exception ignored ) {
+        }
+        return null;
     }
 
     /**

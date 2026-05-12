@@ -34,16 +34,27 @@
 
     <!-- PROJECT AND CUSTOM PROPERTIES -->
     <properties>
-        <!-- CI-friendly version: override via -Drevision=YYYY.MM.DD in CI.
-             Default value is used for local/IDE builds.
-             Format constraint: VersionUtilities.compareVersionNumbers (used by
-             the in-app update check) splits on `.` and Integer.parseInts every
-             segment, so this must stay pure dot-delimited integers. A version
-             like "2026.1-b1" would NumberFormatException inside the comparator,
-             silently disabling update detection for everyone running the build.
-             "Beta" status is communicated via the GH release prerelease flag
-             and a UI label, not embedded in the version string. -->
-        <revision>2026.1.0</revision>
+        <!-- CI-friendly version. Resolution order:
+               1. `-Drevision=YYYY.MM.DD[+N]` on the CLI (what the release workflow passes)
+               2. The derive-revision-from-git gmavenplus-plugin execution below, which
+                  shells out to git describe with the tags + dirty + always flags. This
+                  mirrors the com.palantir.git-version plugin used by our Gradle Minecraft
+                  mod projects: a clean tag becomes the bare tag (e.g. "2026.5.12"),
+                  past-a-tag becomes "tag-count-gsha", uncommitted appends ".dirty".
+               3. This sentinel default, visible if neither of the above produces a value
+                  (e.g. building from a source tarball with no git metadata).
+
+             VersionUtilities.compareVersionNumbers strips everything from the first dash
+             or plus before parsing, so dev-derived versions like "2026.5.12-15-gabc1234.dirty"
+             and same-day-bumped release tags like "2026.5.12+1" sort correctly by their
+             numeric prefix (SemVer 2.0 section 11 semantics).
+
+             jpackage caveat: macOS's app-version flag requires pure N.N.N numeric, so
+             local `mvn package` on macOS WILL fail if the git-derived revision contains
+             a suffix. Pass an explicit `-Drevision=N.N.N` when packaging locally, or
+             stick to `mvn compile` for local iteration. CI release builds always pass
+             a clean numeric revision so this only affects local packaging runs. -->
+        <revision>0.0.0-no-git-tag</revision>
         <main.class>com.micatechnologies.minecraft.launcher.LauncherCore</main.class>
         <packaging.displayName>Mica Minecraft Launcher</packaging.displayName>
         <packaging.name>${packaging.displayName}</packaging.name>
@@ -110,6 +121,108 @@
     <build>
         <directory>${project.basedir}/build/target</directory>
         <plugins>
+            <!-- DERIVE REVISION FROM GIT (mirrors com.palantir.git-version from our Gradle
+                 mod projects). When CI passes -Drevision=YYYY.MM.DD this is a no-op; when
+                 there's no explicit revision, run git describe (with tags + dirty + always
+                 flags) and stuff the result into project.properties['revision'] so
+                 flatten-maven-plugin picks it up downstream. gmavenplus is the only Maven
+                 plugin that can mutate project properties from a script: antrun's
+                 exportAntProperties only sets NEW properties (see the existing
+                 compute-bundle-revision comment in the windows-packaging profile), and
+                 properties-maven-plugin's read-project-properties doesn't override either. -->
+            <plugin>
+                <groupId>org.codehaus.gmavenplus</groupId>
+                <artifactId>gmavenplus-plugin</artifactId>
+                <version>4.0.1</version>
+                <dependencies>
+                    <!-- gmavenplus needs an explicit Groovy runtime; the plugin doesn't bundle
+                         one. Groovy 4.x can't parse class file major version 70 (JDK 26), so
+                         we need Groovy 5.x, which targets JDK 17+ and handles newer class
+                         file versions. -->
+                    <dependency>
+                        <groupId>org.apache.groovy</groupId>
+                        <artifactId>groovy</artifactId>
+                        <version>5.0.0</version>
+                        <scope>runtime</scope>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>derive-revision-from-git</id>
+                        <phase>initialize</phase>
+                        <goals><goal>execute</goal></goals>
+                        <configuration>
+                            <scripts>
+                                <script><![CDATA[
+                                    // -Drevision=... wins. session.userProperties holds CLI -D
+                                    // overrides; project.properties currently holds the POM default
+                                    // sentinel "0.0.0-no-git-tag". If the user passed -D, just
+                                    // propagate it into project.properties so flatten sees it.
+                                    def cli = session.userProperties.getProperty('revision')
+                                    if (cli != null && !cli.isEmpty()) {
+                                        project.properties['revision'] = cli
+                                        log.info("[derive-revision] using CLI -Drevision=" + cli)
+                                    } else {
+                                        // Otherwise mirror palantir.git-version: a clean tag becomes
+                                        // the bare tag, past-a-tag becomes "<tag>-<count>-g<sha>", and
+                                        // uncommitted changes append ".dirty". `--always` falls back
+                                        // to a short SHA if no tags exist (shallow clones, fresh
+                                        // repos).
+                                        try {
+                                            def proc = ['git', 'describe', '--tags', '--dirty=.dirty', '--always'].execute(null, project.basedir)
+                                            proc.waitForOrKill(5000)
+                                            if (proc.exitValue() == 0) {
+                                                def described = proc.text.trim()
+                                                if (!described.isEmpty()) {
+                                                    project.properties['revision'] = described
+                                                    log.info("[derive-revision] resolved from git: " + described)
+                                                } else {
+                                                    log.warn("[derive-revision] git describe empty output, keeping default revision=" + project.properties['revision'])
+                                                }
+                                            } else {
+                                                log.warn("[derive-revision] git describe exit=" + proc.exitValue() + ", keeping default revision=" + project.properties['revision'])
+                                            }
+                                        } catch (Exception e) {
+                                            log.warn("[derive-revision] git describe threw " + e.class.simpleName + ": " + e.message + ", keeping default revision=" + project.properties['revision'])
+                                        }
+                                    }
+
+                                    // Derive a sanitized "revision.numeric" by stripping everything
+                                    // from the first - or +. jpackage on macOS rejects --app-version
+                                    // values containing anything other than N.N.N (no pre-release
+                                    // suffixes, no build metadata), so the mac and linux packaging
+                                    // profiles point at this property instead of ${project.version}.
+                                    // If -Drevision.numeric=... is passed explicitly on the CLI,
+                                    // respect that. The Windows profile keeps its own separate
+                                    // ${jpackage.app.version} mechanism (it has its own MSI major-
+                                    // <=255 constraint that needs 2-digit year handling, which the
+                                    // workflow already manages).
+                                    def cliNumeric = session.userProperties.getProperty('revision.numeric')
+                                    if (cliNumeric != null && !cliNumeric.isEmpty()) {
+                                        project.properties['revision.numeric'] = cliNumeric
+                                        log.info("[derive-revision] using CLI -Drevision.numeric=" + cliNumeric)
+                                    } else {
+                                        def rev = project.properties['revision']
+                                        def numeric = rev
+                                        def dash = numeric.indexOf('-')
+                                        if (dash >= 0) numeric = numeric.substring(0, dash)
+                                        def plus = numeric.indexOf('+')
+                                        if (plus >= 0) numeric = numeric.substring(0, plus)
+                                        if (numeric.isEmpty()) numeric = '0.0.0'
+                                        project.properties['revision.numeric'] = numeric
+                                        if (numeric != rev) {
+                                            log.warn("[derive-revision] revision \"" + rev + "\" has pre-release/build suffix; using \"" + numeric + "\" for jpackage --app-version. Pass -Drevision.numeric=N.N.N to override.")
+                                        } else {
+                                            log.info("[derive-revision] revision.numeric=" + numeric)
+                                        }
+                                    }
+                                ]]></script>
+                            </scripts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- CLEANUP UNWANTED FILES AND BINARIES -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -648,7 +761,7 @@
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
                                         <argument>--description</argument>
@@ -717,7 +830,7 @@
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
                                         <argument>--description</argument>
@@ -785,7 +898,7 @@
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
                                         <argument>--description</argument>
@@ -837,7 +950,7 @@
                                         <argument>--name</argument>
                                         <argument>${packaging.name}</argument>
                                         <argument>--app-version</argument>
-                                        <argument>${project.version}</argument>
+                                        <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
                                         <argument>--description</argument>

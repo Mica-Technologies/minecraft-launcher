@@ -7,8 +7,11 @@ jobs:
     name: Test Build (Windows)
     runs-on: windows-latest
     steps:
+      # fetch-depth: 0 lets the derive-revision-from-git step in pom.xml call git describe --tags.
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -52,8 +55,11 @@ jobs:
     name: Test Build (macOS arm64)
     runs-on: macos-latest
     steps:
+      # fetch-depth: 0 lets the derive-revision-from-git step in pom.xml call git describe --tags.
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -98,8 +104,11 @@ jobs:
     name: Test Build (macOS x64 Intel)
     runs-on: macos-13
     steps:
+      # fetch-depth: 0 lets the derive-revision-from-git step in pom.xml call git describe --tags.
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -138,8 +147,11 @@ jobs:
     name: Test Build (Linux)
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 lets the derive-revision-from-git step in pom.xml call git describe --tags.
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
