@@ -195,6 +195,27 @@ public class MCLauncherHelpWindow
         webEngine = webView.getEngine();
         webView.setContextMenuEnabled( false );
 
+        // Make the WebView's webkit canvas transparent so the HTML content composites
+        // over the BorderPane's `.helpRoot` background (`-color-bg`) instead of WebKit's
+        // default opaque-white fill. With this in place, every theme's help content
+        // area paints the theme bg from a single source (the JFX root), and on the
+        // Native macOS theme the content area composites over the NSVisualEffectView
+        // backdrop just like the sidebar does — no more solid dark rectangle in the
+        // middle of an otherwise-vibrant window. Body bg in help-style.css must also
+        // be set to `transparent` for the transparency to propagate through the HTML.
+        // Reflective because JavaFX exposes no public WebView transparency API and
+        // WebPage lives in the non-exported com.sun.webkit package; the launcher's
+        // VM args pass --add-opens javafx.web/javafx.scene.web=ALL-UNNAMED so the
+        // setAccessible(true) on the private `page` field works on JDK 17+.
+        makeWebViewTransparent( webView );
+
+        // Wheel scrolling on the WebView matches the rest of the app's smooth-scroll
+        // surfaces (modpack list, library) — exponential chase toward a target
+        // scrollY rather than JavaFX's default discrete-tick behavior. See
+        // SmoothScroll.install(WebView) for the per-frame math and per-event
+        // re-anchor logic.
+        SmoothScroll.install( webView );
+
         // Intercept internal help links via JavaScript bridge.
         // The locationProperty approach doesn't work with loadContent() since WebView can't
         // navigate to help:// URLs (not a real protocol). Instead, we inject JS after each
@@ -332,6 +353,24 @@ public class MCLauncherHelpWindow
                 // it; this is just the safety floor so an unstyled scene never flashes
                 // white.
                 helpStage.getScene().setFill( javafx.scene.paint.Color.web( "#0C1017" ) );
+            }
+        }
+
+        // macOS Native: install the NSVisualEffectView vibrancy on the help stage so
+        // the transparent JavaFX scene + sidebar actually composite over a frosted
+        // backdrop instead of the NSWindow's default opaque black contentView. Without
+        // this, Native theme made the help sidebar render as a solid black strip —
+        // the "pitch black sidebar" the user reported. On non-Native themes the
+        // contentView is opaque (theme bg via CSS), so we clear any prior vibrancy.
+        // No-op on non-macOS.
+        if ( helpStage != null ) {
+            if ( isNative ) {
+                com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager
+                        .apply( helpStage, isOsDark() );
+            }
+            else {
+                com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager
+                        .clear( helpStage );
             }
         }
 
@@ -485,4 +524,37 @@ public class MCLauncherHelpWindow
      * Prevent the HelpBridge from being garbage collected (JavaScript weak references).
      */
     private static HelpBridge helpBridge = new HelpBridge();
+
+    /**
+     * Switches a WebView's underlying WebKit canvas to a fully-transparent fill so its
+     * HTML content composites over the JavaFX parent's background instead of WebKit's
+     * default opaque-white. See the explanatory comment at the call site in
+     * {@link #buildStage()} for rationale.
+     *
+     * <p>Implementation: reach into {@code WebEngine.page} (private field) and invoke
+     * {@code com.sun.webkit.WebPage#setBackgroundColor(int)} with ARGB=0x00000000.
+     * Both accesses are gated by --add-opens javafx.web/javafx.scene.web=ALL-UNNAMED.
+     * Best-effort: failure (missing flag, JFX internal rename, future API change)
+     * logs silently and leaves the WebView opaque — the user just sees the old solid
+     * fill, not a crash.
+     */
+    private static void makeWebViewTransparent( WebView wv )
+    {
+        try {
+            java.lang.reflect.Field pageField = wv.getEngine().getClass()
+                                                   .getDeclaredField( "page" );
+            pageField.setAccessible( true );
+            Object page = pageField.get( wv.getEngine() );
+            if ( page != null ) {
+                page.getClass()
+                    .getMethod( "setBackgroundColor", int.class )
+                    .invoke( page, 0 );
+            }
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent(
+                    "Help WebView transparency setup failed (" + t.getClass().getSimpleName()
+                            + "): " + t.getMessage() );
+        }
+    }
 }

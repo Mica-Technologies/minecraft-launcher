@@ -21,6 +21,7 @@ import javafx.animation.AnimationTimer;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.web.WebView;
 
 /**
  * Applies a smooth (animated, eased) wheel-scroll behavior to a JavaFX
@@ -174,5 +175,103 @@ public final class SmoothScroll
     private static double clamp( double v, double lo, double hi )
     {
         return Math.max( lo, Math.min( hi, v ) );
+    }
+
+    /**
+     * Installs smooth wheel-scroll behavior on a {@link WebView}. Same chase-the-target
+     * model as the {@link ScrollPane} overload, but the read/write target is the
+     * WebKit canvas's window.scrollY (driven via {@code executeScript}) since WebView
+     * doesn't expose its scroll position as a JavaFX property. JavaFX's default
+     * WebView wheel handling is identical to its ScrollPane handling — bumps in
+     * discrete chunks per tick — and on the help window it felt especially rigid
+     * next to the rest of the app's smooth-scrolling surfaces.
+     *
+     * <p>Per-event flow:
+     * <ol>
+     *   <li>Read the current scrollY and the document's scrollable extent. If the
+     *       page can't scroll, bail and let JavaFX's no-op wheel behavior stand.</li>
+     *   <li>If the chase animation isn't currently running, re-anchor target to
+     *       current — handles the case where the user scrolled via the WebView's
+     *       internal scrollbar drag or keyboard between wheel events.</li>
+     *   <li>Add the wheel delta to target (clamped to [0, maxScroll]) and start
+     *       the ticker. AnimationTimer.start() is idempotent.</li>
+     * </ol>
+     *
+     * <p>Per-frame ticker: pulls current via executeScript, advances by
+     * {@link #FOLLOW_RATE} of the remaining distance, and writes back via
+     * {@code window.scrollTo}. Stops on snap. Failures (engine not ready,
+     * page navigating) silently stop the ticker — next wheel event restarts it.
+     *
+     * @param webView the WebView to wire up; null is a no-op
+     */
+    public static void install( WebView webView )
+    {
+        if ( webView == null ) return;
+
+        final double[] target = { 0 };
+        final boolean[] timerActive = { false };
+
+        final AnimationTimer ticker = new AnimationTimer()
+        {
+            @Override
+            public void handle( long now )
+            {
+                try {
+                    Object curObj = webView.getEngine().executeScript( "window.pageYOffset" );
+                    if ( curObj == null ) { timerActive[ 0 ] = false; stop(); return; }
+                    double current = ( ( Number ) curObj ).doubleValue();
+                    double diff = target[ 0 ] - current;
+                    if ( Math.abs( diff ) < 1.0 ) {
+                        webView.getEngine().executeScript(
+                                "window.scrollTo(0, " + Math.round( target[ 0 ] ) + ")" );
+                        timerActive[ 0 ] = false;
+                        stop();
+                        return;
+                    }
+                    double next = current + diff * FOLLOW_RATE;
+                    webView.getEngine().executeScript(
+                            "window.scrollTo(0, " + Math.round( next ) + ")" );
+                }
+                catch ( Throwable t ) {
+                    timerActive[ 0 ] = false;
+                    stop();
+                }
+            }
+        };
+
+        webView.addEventFilter( ScrollEvent.SCROLL, event -> {
+            try {
+                Object curObj = webView.getEngine().executeScript( "window.pageYOffset" );
+                Object maxObj = webView.getEngine().executeScript(
+                        "document.documentElement.scrollHeight - window.innerHeight" );
+                if ( curObj == null || maxObj == null ) return;
+
+                double current = ( ( Number ) curObj ).doubleValue();
+                double maxScroll = ( ( Number ) maxObj ).doubleValue();
+                if ( maxScroll <= 0 ) return;
+
+                event.consume();
+
+                // Animation not in flight → re-anchor to where the page actually
+                // is so a wheel tick after a drag-scrollbar / keyboard scroll
+                // continues from the current position rather than the stale
+                // target from the last chase cycle.
+                if ( !timerActive[ 0 ] ) {
+                    target[ 0 ] = current;
+                }
+                double deltaY = -event.getDeltaY() * SCROLL_SPEED;
+                target[ 0 ] = clamp( target[ 0 ] + deltaY, 0, maxScroll );
+
+                if ( !timerActive[ 0 ] ) {
+                    timerActive[ 0 ] = true;
+                    ticker.start();
+                }
+            }
+            catch ( Throwable t ) {
+                // Engine not ready or page mid-navigation — let the default
+                // wheel behavior handle this one event; next event will
+                // try again.
+            }
+        } );
     }
 }

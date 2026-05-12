@@ -44,8 +44,17 @@
     box-sizing: border-box;
 }
 
-html, body {
+/* html stays locked to viewport so the help body always covers the WebView area
+   even when a topic is short. body uses min-height instead of height so it grows
+   with longer content — without that, `body { padding-bottom: 56px }` lives
+   inside a fixed-100%-height body, content overflows OUT the bottom, and the
+   padding never actually creates the breathing gap at the end of a scrolled
+   page that we want. */
+html {
     height: 100%;
+}
+body {
+    min-height: 100%;
 }
 
 body {
@@ -56,9 +65,20 @@ body {
                  "Roboto", system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.65;
-    padding: 28px 36px 36px;
+    /* Bottom padding deliberately larger than top + sides so the last line of
+       a long topic doesn't sit flush against the window's bottom edge — even
+       when the user has scrolled to the end, there's a comfortable breathing
+       gap before the chrome. */
+    padding: 28px 36px 56px;
     max-width: 740px;
-    background-color: var(--color-bg);
+    /* Transparent so the JavaFX BorderPane's `.helpRoot` background (the active
+     * theme's `-color-bg`) shows through, instead of WebKit's default opaque
+     * white fill or the per-theme --color-bg we used to paint here. The
+     * WebView is also made transparent via MCLauncherHelpWindow's reflective
+     * WebPage.setBackgroundColor(0), so on macOS Native this lets the content
+     * area composite over the NSVisualEffectView the same way the sidebar does
+     * — no more solid dark rectangle inside an otherwise-vibrant window. */
+    background-color: transparent;
     color: var(--color-text);
     -webkit-font-smoothing: antialiased;
 }

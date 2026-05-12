@@ -67,6 +67,14 @@
              warning on first JNA call and will block the call entirely in a future release.
              ALL-UNNAMED grants the permission to every classpath-loaded class. -->
         <jpackage.native.access>--enable-native-access=ALL-UNNAMED</jpackage.native.access>
+        <!-- Required for MCLauncherHelpWindow.makeWebViewTransparent: reflective
+             access to the private WebEngine.page field needs the javafx.scene.web
+             package opened to ALL-UNNAMED on JDK 17+. Without this, the
+             WebView's WebKit canvas stays at its default opaque-white fill and
+             the help content area renders as a solid rectangle that doesn't
+             pick up the theme bg (and breaks the macOS Native theme's vibrancy
+             continuity inside the help window). -->
+        <webview.transparency.opens>--add-opens=javafx.web/javafx.scene.web=ALL-UNNAMED</webview.transparency.opens>
         <launcher.environment>RELEASE</launcher.environment>
     </properties>
 
@@ -461,6 +469,8 @@
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
                                         <argument>--type</argument>
@@ -515,6 +525,8 @@
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
                                         <argument>--type</argument>
@@ -640,6 +652,8 @@
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
                                         <argument>--type</argument>
@@ -707,6 +721,8 @@
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
                                         <argument>--type</argument>
@@ -773,6 +789,8 @@
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
                                         <argument>--type</argument>
@@ -823,6 +841,8 @@
                                         <argument>${jfxtaskbarprogressbar.export}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${jpackage.native.access}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${webview.transparency.opens}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
                                         <argument>--type</argument>
