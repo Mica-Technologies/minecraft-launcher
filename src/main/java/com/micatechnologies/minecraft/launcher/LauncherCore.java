@@ -928,6 +928,21 @@ public class LauncherCore
      * @since 1.1
      */
     public static void closeApp() {
+        // When invoked from the FX thread, defer the actual cleanup to the next event-loop
+        // tick. A direct close from the macOS red-X button arrives here via
+        // WINDOW_CLOSE_REQUEST → setOnCloseRequest handler → exit button action, all
+        // synchronously inside Glass's notifyClose stack. cleanupApp() ultimately calls
+        // Stage.close(), which re-enters Glass and deadlocks the Cocoa main-thread lock
+        // still held by the outer notifyClose. runLater lets that frame unwind first;
+        // Windows doesn't hit the same lock so the synchronous path was historically OK.
+        if ( javafx.application.Platform.isFxApplicationThread() ) {
+            javafx.application.Platform.runLater( LauncherCore::closeAppNow );
+            return;
+        }
+        closeAppNow();
+    }
+
+    private static void closeAppNow() {
         cleanupApp();
         currentSession.exitLatch.countDown();
         Logger.logStd( LocalizationManager.SEE_YOU_SOON_TEXT );
