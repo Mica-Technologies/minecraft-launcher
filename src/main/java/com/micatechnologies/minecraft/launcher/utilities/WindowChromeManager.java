@@ -82,15 +82,26 @@ public final class WindowChromeManager
     }
 
     /**
-     * Switches the title-bar appearance to match the app's selected theme. Reflects on
-     * the FX thread is fine — DWM calls don't block the UI message pump.
+     * Switches the title-bar appearance to match the app's selected theme. Cross-platform
+     * entry point — on Windows this calls DWM's immersive-dark-mode attribute, on macOS
+     * it routes to {@link com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager#applyTitleBarAppearance}
+     * which sets the NSWindow's NSAppearance (DarkAqua / Aqua). Linux falls through as a
+     * no-op since there's no system-wide title-bar API.
      *
      * @param stage    the Stage whose native window should be flipped
      * @param darkMode true to render the title bar in dark mode, false for light
      */
     public static void applyTitleBarDarkMode( Stage stage, boolean darkMode )
     {
-        if ( !SystemUtils.IS_OS_WINDOWS || stage == null ) {
+        if ( stage == null ) {
+            return;
+        }
+        if ( SystemUtils.IS_OS_MAC ) {
+            com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager
+                    .applyTitleBarAppearance( stage, darkMode );
+            return;
+        }
+        if ( !SystemUtils.IS_OS_WINDOWS ) {
             return;
         }
         HWND hwnd = resolveHwnd( stage );

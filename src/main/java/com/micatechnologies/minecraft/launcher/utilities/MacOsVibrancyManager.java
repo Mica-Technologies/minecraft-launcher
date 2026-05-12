@@ -195,6 +195,23 @@ public final class MacOsVibrancyManager
         }
     }
 
+    /**
+     * Public title-bar-only variant of {@link #applyWindowAppearance}: switches the
+     * NSWindow's chrome (close/min/max buttons, title text, frame) between Dark and
+     * Aqua appearances WITHOUT installing the vibrancy NSVisualEffectView. Use this
+     * on macOS secondary windows (help, dialogs) that want the title bar to follow
+     * the launcher theme but keep their content surface opaque. No-op on non-macOS
+     * and when the NSWindow handle isn't realized yet — callers should re-invoke
+     * after WINDOW_SHOWN if they need the chrome to flip at first show.
+     */
+    public static void applyTitleBarAppearance( Stage stage, boolean dark )
+    {
+        if ( !SystemUtils.IS_OS_MAC || stage == null ) {
+            return;
+        }
+        applyWindowAppearance( stage, dark );
+    }
+
     /** Sets NSAppearance directly on the NSWindow (not the contentView). FXThemes'
      *  setAppearanceByName only writes to contentView's appearance, which doesn't
      *  propagate to the title bar — the title bar's chrome (close/min/max buttons,
