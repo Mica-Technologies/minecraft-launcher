@@ -643,9 +643,17 @@ public class MCLauncherModpackDetailModal extends StackPane
         actions.setPadding( new Insets( 14, 24, 18, 24 ) );
         actions.getStyleClass().add( "modpackDetailActions" );
 
+        // Pin both buttons to identical heights via min + pref + max so the
+        // .modpackDetailPlayBtn rule's bigger font + heavier padding doesn't make
+        // Play taller than its Website neighbour. Same fix the hero card buttons
+        // received — see the BTN_H comment in MCLauncherMainGui.ModpackHeroCard.
+        final double BTN_H = 42;
+
         MFXButton playBtn = new MFXButton( "Play" );
         playBtn.getStyleClass().addAll( "primary", "modpackDetailPlayBtn" );
-        playBtn.setPrefHeight( 42 );
+        playBtn.setMinHeight( BTN_H );
+        playBtn.setPrefHeight( BTN_H );
+        playBtn.setMaxHeight( BTN_H );
         HBox.setHgrow( playBtn, Priority.ALWAYS );
         playBtn.setMaxWidth( Double.MAX_VALUE );
         playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
@@ -656,7 +664,9 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         MFXButton websiteBtn = new MFXButton( "Website" );
         websiteBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
-        websiteBtn.setPrefHeight( 42 );
+        websiteBtn.setMinHeight( BTN_H );
+        websiteBtn.setPrefHeight( BTN_H );
+        websiteBtn.setMaxHeight( BTN_H );
         websiteBtn.setPrefWidth( 110 );
         websiteBtn.setOnAction( e -> openModpackWebsite( pack ) );
         if ( pack.getPackURL() == null || pack.getPackURL().isBlank() ) {
