@@ -87,7 +87,12 @@
               maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
             <fx:include source="components/micaBrandLogo-small.fxml"/>
         </Pane>
-        <Label text="Mica Minecraft" styleClass="navBrand"/>
+        <!-- Wordmark area shows the SCREEN name ("Library") rather than the app name —
+             the OS window title bar right above already advertises "Mica Minecraft
+             Launcher", so repeating the app name inside the navbar was redundant. The
+             screen name reads more like a section header pattern (cf. Win11 Settings'
+             sidebar / page-title layout) and gives the navbar a clearer purpose. -->
+        <Label text="Library" styleClass="navBrand"/>
 
         <!-- Spacer pushes everything else to the right -->
         <Pane HBox.hgrow="ALWAYS"/>
@@ -101,9 +106,12 @@
                  focusTraversable="true" pickOnBounds="true" styleClass="navRefreshIcon"
                  content="M 17.65 6.35 C 16.2 4.9 14.21 4 12 4 C 7.58 4 4.01 7.58 4.01 12 C 4.01 16.42 7.58 20 12 20 C 15.73 20 18.84 17.45 19.73 14 H 17.65 C 16.83 16.33 14.61 18 12 18 C 8.69 18 6 15.31 6 12 C 6 8.69 8.69 6 12 6 C 13.66 6 15.14 6.69 16.22 7.78 L 13 11 H 20 V 4 L 17.65 6.35 Z"/>
 
-        <!-- Navigation actions. "Library" replaces what used to be two separate buttons
-             (Edit Packs + Vanilla) and routes to the combined Game Library screen. -->
-        <MFXButton fx:id="libraryBtn" text="Library" prefHeight="28.0"/>
+        <!-- "Browse" routes to the install + manage screen (formerly "Library", and
+             before that the separate Edit Packs / Vanilla screens). Renamed because
+             the wordmark area above now uses "Library" as the screen-name header
+             for the main menu itself — "Browse" reads better as the verb for going
+             out to find more packs to add to that library. -->
+        <MFXButton fx:id="libraryBtn" text="Browse" prefHeight="28.0"/>
         <MFXButton fx:id="settingsBtn" text="Settings" prefHeight="28.0"/>
 
         <!-- Update available icon. Inline SVG (download-arrow over a tray bar) instead of

@@ -235,7 +235,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         libraryBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             try {
                 MCLauncherGuiController.goToGameLibraryGui();
-                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Browsing Library" ) );
+                SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Browsing modpacks" ) );
             }
             catch ( IOException e ) {
                 Logger.logError( "Unable to load library GUI due to an incomplete response from the GUI subsystem." );
@@ -414,6 +414,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     void afterShow() {
         TooltipManager.install( settingsBtn, "Open launcher settings (RAM, theme, JVM flags, proxy)." );
         TooltipManager.install( libraryBtn, "Browse, install, and manage modpacks + vanilla Minecraft versions." );
+        // Tooltip text intentionally still uses "Browse, install, manage" — matches
+        // the button's new "Browse" label.
         TooltipManager.install( helpBtn, "Open the help window for this screen." );
         if ( refreshIcon != null ) {
             TooltipManager.install( refreshIcon,

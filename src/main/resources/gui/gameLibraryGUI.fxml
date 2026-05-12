@@ -67,7 +67,11 @@
               maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
             <fx:include source="components/micaBrandLogo-small.fxml"/>
         </Pane>
-        <Label text="Game Library" styleClass="heading-h2"/>
+        <!-- Screen header: matches the navbar button on the main menu that brings
+             users here. The main menu's wordmark area uses "Library" for the
+             installed-packs surface, so this screen — the install / manage / browse
+             surface — uses "Browse" to mirror the entry point's verb. -->
+        <Label text="Browse" styleClass="heading-h2"/>
 
         <Pane HBox.hgrow="ALWAYS" minWidth="20.0"/>
 

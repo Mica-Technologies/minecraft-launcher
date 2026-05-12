@@ -197,11 +197,12 @@ public final class SystemMenuBarManager
 
     private static Menu buildModpacksMenu()
     {
-        Menu menu = new Menu( "Library" );
+        Menu menu = new Menu( "Browse" );
 
-        // "Open Library" replaces the prior "Edit Modpacks…" + "Vanilla Versions…" entries —
-        // the combined screen lives behind one menu item now.
-        MenuItem library = new MenuItem( "Open Library…" );
+        // "Open Browse" routes to the install + manage screen — formerly "Library",
+        // renamed so the main menu's wordmark area can use "Library" as the screen
+        // name for the home/installed-packs surface.
+        MenuItem library = new MenuItem( "Open Browse…" );
         library.setAccelerator( new KeyCodeCombination( KeyCode.L, KeyCombination.SHORTCUT_DOWN ) );
         library.setOnAction( e -> openLibrary() );
 

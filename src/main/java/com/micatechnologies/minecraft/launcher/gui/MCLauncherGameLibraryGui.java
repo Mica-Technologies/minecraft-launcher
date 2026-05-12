@@ -136,7 +136,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     String getSceneFxmlPath() { return "gui/gameLibraryGUI.fxml"; }
 
     @Override
-    String getSceneName() { return "Library"; }
+    String getSceneName() { return "Browse"; }
 
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.EDIT_MODPACKS; }
