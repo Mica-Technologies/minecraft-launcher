@@ -560,11 +560,34 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /** Native theme — translucent surface palette with the OS Mica backdrop showing
-     *  through. Follows OS dark/light: picks the dark or light Native token sheet based
-     *  on {@link OsThemeDetector#isDark()}. The legacy companion sheet matches too so
-     *  selectors not yet ported into ui-base.css get the right palette. */
+     *  through on Win11. Follows OS dark/light via {@link OsThemeDetector#isDark()};
+     *  the legacy companion sheet matches so selectors not yet ported into ui-base.css
+     *  get the right palette.
+     *
+     *  <p>The Native token sheets (ui-tokens-native*.css) are tuned specifically for
+     *  Win11 Mica: {@code -color-bg: rgba(0,0,0,0)} with 5–10% white surfaces that read
+     *  as frosted glass when DWM composites a Mica backdrop behind the JavaFX scene's
+     *  transparent pixels. macOS and Linux have no equivalent compositor — the
+     *  transparent scene fill falls through to whatever the OS draws as the window's
+     *  default bg, leaving near-invisible 5% white surfaces with dark-Mica light text
+     *  on top, and the alpha-compositing math on Retina produces visible ghosting and
+     *  subpixel misalignment between the OS-drawn window bg and the JavaFX layer. On
+     *  those hosts, fall back to the regular opaque Dark/Light palettes; "Native"
+     *  still follows the OS dark/light preference, just without the Mica visual.</p>
+     */
     private void switchToNativeTheme() {
         boolean osDark = detector == null || detector.isDark();
+
+        if ( !org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            if ( osDark ) {
+                applyTheme( LEGACY_DARK, UI_TOKENS_DARK );
+            }
+            else {
+                applyTheme( LEGACY_LIGHT, UI_TOKENS_LIGHT );
+            }
+            return;
+        }
+
         if ( osDark ) {
             applyTheme( LEGACY_DARK, UI_TOKENS_NATIVE );
         }
