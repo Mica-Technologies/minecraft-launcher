@@ -48,8 +48,8 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-  build-macos:
-    name: Test Build (macOS)
+  build-macos-arm:
+    name: Test Build (macOS arm64)
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -66,13 +66,71 @@ jobs:
       - name: Build and package
         run: mvn -B package --file pom.xml
 
-      - name: Upload macOS test-build artifacts
+      # Mirror the release workflow's flat staging + arch-suffix rename so
+      # PR downloads are labeled the same way the eventual release will be,
+      # and so the arm/intel uploads don't share filenames.
+      - name: Stage macOS arm64 installers with arch-suffixed names
+        shell: bash
+        run: |
+          mkdir -p macos-arm-dist
+          for f in build/packaging/*.dmg; do
+            base=$(basename "$f" .dmg)
+            cp "$f" "macos-arm-dist/${base}-arm64.dmg"
+          done
+          for f in build/packaging/*.pkg; do
+            base=$(basename "$f" .pkg)
+            cp "$f" "macos-arm-dist/${base}-arm64.pkg"
+          done
+          ls -la macos-arm-dist/
+
+      - name: Upload macOS arm64 test-build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: macos-arm64-pr${{ github.event.pull_request.number }}
-          path: |
-            build/packaging/*.dmg
-            build/packaging/*.pkg
+          path: macos-arm-dist/*
+          retention-days: 14
+          if-no-files-found: error
+
+  # Intel coverage on PRs so x64-specific regressions surface before merge,
+  # not after the release workflow runs on main. macos-13 is currently the
+  # last Intel-capable GHA runner.
+  build-macos-intel:
+    name: Test Build (macOS x64 Intel)
+    runs-on: macos-13
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 26 (Zulu FX)
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '26'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Build and package
+        run: mvn -B package --file pom.xml
+
+      - name: Stage macOS Intel installers with arch-suffixed names
+        shell: bash
+        run: |
+          mkdir -p macos-intel-dist
+          for f in build/packaging/*.dmg; do
+            base=$(basename "$f" .dmg)
+            cp "$f" "macos-intel-dist/${base}-intel.dmg"
+          done
+          for f in build/packaging/*.pkg; do
+            base=$(basename "$f" .pkg)
+            cp "$f" "macos-intel-dist/${base}-intel.pkg"
+          done
+          ls -la macos-intel-dist/
+
+      - name: Upload macOS x64 test-build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-x64-pr${{ github.event.pull_request.number }}
+          path: macos-intel-dist/*
           retention-days: 14
           if-no-files-found: error
 
