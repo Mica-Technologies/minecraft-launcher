@@ -29,8 +29,12 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXCheckbox;
+import io.github.palexdev.materialfx.controls.MFXComboBox;
+import io.github.palexdev.materialfx.controls.MFXTextField;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
@@ -67,7 +71,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -89,6 +95,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML Label announcement;
     @SuppressWarnings( "unused" ) @FXML RowConstraints announcementRow;
 
+    // ===== Filter row =====
+    @SuppressWarnings( "unused" ) @FXML MFXTextField searchField;
+    @SuppressWarnings( "unused" ) @FXML MFXComboBox< String > typeFilter;
+    @SuppressWarnings( "unused" ) @FXML MFXComboBox< String > sortFilter;
+    @SuppressWarnings( "unused" ) @FXML MFXCheckbox recentlyUpdatedOnlyCheck;
+
+    // ===== Pagination row =====
+    @SuppressWarnings( "unused" ) @FXML Label paginationRangeLabel;
+    @SuppressWarnings( "unused" ) @FXML Label paginationPageLabel;
+    @SuppressWarnings( "unused" ) @FXML MFXButton prevPageBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton nextPageBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXComboBox< Integer > pageSizeFilter;
+
     // ===== Center: scrolling card list =====
     @SuppressWarnings( "unused" ) @FXML ScrollPane modpackScrollPane;
     @SuppressWarnings( "unused" ) @FXML FlowPane modpackCardList;
@@ -103,6 +122,33 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  single-clicks a hero card. Constructed lazily in {@link #setup()} so the
      *  rootPane is real and the GridPane attachment works. */
     private MCLauncherModpackDetailModal detailModal;
+
+    // ===== Filter / sort / pagination state =====
+
+    private static final String TYPE_ALL      = "All";
+    private static final String TYPE_MODPACKS = "Modpacks";
+    private static final String TYPE_VANILLA  = "Vanilla";
+
+    private static final String SORT_LAST_PLAYED  = "Last Played";
+    private static final String SORT_NAME_AZ      = "Name (A–Z)";
+    private static final String SORT_NAME_ZA      = "Name (Z–A)";
+    private static final String SORT_RECENT_UPDATE = "Recently Updated";
+
+    /** Page-size options exposed in the per-page dropdown. 12 is the default since
+     *  the hero cards are 360px wide and wrap to 3-4 per row on typical window
+     *  widths — a 12-item page fills 3-4 rows without needing to scroll past the
+     *  pagination controls. */
+    private static final List< Integer > PAGE_SIZES = List.of( 12, 24, 48 );
+    private static final int DEFAULT_PAGE_SIZE = 12;
+
+    private int pageSize    = DEFAULT_PAGE_SIZE;
+    private int currentPage = 1;
+
+    /** When true, the rebuild pass keeps only packs with isUpdateAvailable() == true.
+     *  Mirror of {@link #recentlyUpdatedOnlyCheck}'s selected state, cached here so
+     *  the rebuild pipeline doesn't have to null-check the FXML field on every
+     *  invocation. */
+    private boolean updatesOnly = false;
 
     public MCLauncherMainGui( Stage stage ) throws IOException {
         super( stage );
@@ -248,7 +294,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } );
 
-        populateModpackCards();
+        setupFilterAndPaginationControls();
+        rebuildCards();
 
         // Build and attach the expanded modpack-detail modal overlay. The modal is a
         // StackPane that spans the entire GridPane (all rows + columns) and is hidden
@@ -259,6 +306,85 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             detailModal = new MCLauncherModpackDetailModal( gridRoot );
             detailModal.attachToGridPane( gridRoot );
         }
+    }
+
+    /**
+     * Wires up the filter row (search / type / sort / Updates-Only) and the
+     * pagination row (prev / next / per-page) so each input triggers a card
+     * rebuild on change. Defaults are picked to match the screen's pre-filter
+     * behavior: "All / Last Played" surfaces every installed pack with the
+     * last-played one floated to the top, exactly like the original layout.
+     */
+    private void setupFilterAndPaginationControls()
+    {
+        // Type filter — Modpacks vs Vanilla. The main menu only shows INSTALLED
+        // entries, so there's no need for a status filter (that's the Library
+        // screen's job). "All" matches both kinds.
+        typeFilter.setItems( FXCollections.observableArrayList(
+                TYPE_ALL, TYPE_MODPACKS, TYPE_VANILLA ) );
+        typeFilter.selectItem( TYPE_ALL );
+        typeFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
+
+        // Sort filter — Last Played mirrors the pre-filter "float last-played to
+        // top" behavior. Name A→Z / Z→A and Recently Updated round out the most
+        // common needs.
+        sortFilter.setItems( FXCollections.observableArrayList(
+                SORT_LAST_PLAYED, SORT_NAME_AZ, SORT_NAME_ZA, SORT_RECENT_UPDATE ) );
+        sortFilter.selectItem( SORT_LAST_PLAYED );
+        sortFilter.setOnAction( e -> rebuildCards() );
+
+        // Search — rebuild on each character. FlowPane rebuild is cheap and a
+        // PauseTransition-style debounce only matters once a user has 100+ packs.
+        searchField.textProperty().addListener( ( obs, oldVal, newVal ) -> {
+            currentPage = 1;
+            rebuildCards();
+        } );
+        // Same float-mode kill switch the Library screen uses — no floating label
+        // wanted, just promptText.
+        searchField.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
+
+        // "Recently updated only" checkbox — flips the boolean filter on selection
+        // change. A checkbox communicates the dual on/off state more clearly than
+        // the previous toggle button did (the button needed a styled `.selected`
+        // class to indicate active state, which was easy to miss).
+        recentlyUpdatedOnlyCheck.setSelected( false );
+        recentlyUpdatedOnlyCheck.selectedProperty().addListener( ( obs, oldVal, newVal ) -> {
+            updatesOnly = Boolean.TRUE.equals( newVal );
+            currentPage = 1;
+            rebuildCards();
+        } );
+
+        // Pagination controls
+        pageSizeFilter.setItems( FXCollections.observableArrayList( PAGE_SIZES ) );
+        pageSizeFilter.selectItem( DEFAULT_PAGE_SIZE );
+        pageSizeFilter.setOnAction( e -> {
+            Integer selected = pageSizeFilter.getValue();
+            if ( selected != null ) {
+                pageSize = selected;
+                currentPage = 1;
+                rebuildCards();
+            }
+        } );
+        prevPageBtn.setOnAction( e -> {
+            if ( currentPage > 1 ) {
+                currentPage--;
+                rebuildCards();
+            }
+        } );
+        nextPageBtn.setOnAction( e -> {
+            currentPage++;  // rebuildCards clamps + redraws
+            rebuildCards();
+        } );
+
+        // Tooltips so the controls are discoverable. Help text matches the
+        // Library screen's hints where applicable so users get a consistent
+        // mental model across the two screens.
+        TooltipManager.install( searchField,    "Filter packs by name." );
+        TooltipManager.install( typeFilter,     "Filter by Modpack or Vanilla version." );
+        TooltipManager.install( sortFilter,     "Choose how packs are ordered in the grid." );
+        TooltipManager.install( recentlyUpdatedOnlyCheck,
+                                "Show only packs whose manifest has changed since last launch." );
+        TooltipManager.install( pageSizeFilter, "How many cards to render per page." );
     }
 
     @Override
@@ -330,53 +456,195 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Builds the combined list (Forge modpacks + installed vanilla versions) and instantiates a
-     * {@link ModpackHeroCard} for each, placing them in the scrolling card list. Last-played pack is
-     * floated to the top so the user lands on what they most likely want next.
+     * Builds the visible card grid from the current filter / search / sort /
+     * pagination state. Replaces the previous flat populateModpackCards() so
+     * the main menu can now scale up to tens of packs without becoming an
+     * unscannable wall.
+     *
+     * <p>Pipeline:
+     * <ol>
+     *   <li>Collect installed Forge modpacks + installed vanilla versions into a
+     *       single {@code GameModPack} list.</li>
+     *   <li>Apply the type filter (All / Modpacks / Vanilla).</li>
+     *   <li>Apply the Updates-Only toggle.</li>
+     *   <li>Apply the free-text search against display name.</li>
+     *   <li>Sort by the selected sort key.</li>
+     *   <li>Slice to the current page and instantiate hero cards for the slice.</li>
+     * </ol>
+     *
+     * <p>Must run on the FX thread — touches FXML-injected controls and mutates
+     * the FlowPane's child list.
      */
-    private void populateModpackCards()
+    private void rebuildCards()
     {
-        modpackCardList.getChildren().clear();
-
-        List< GameModPack > allPacks = new ArrayList<>( GameModPackManager.getInstalledModPacks() );
+        // Step 1 — collect the union of installed modpacks + vanilla versions.
+        List< GameModPack > all = new ArrayList<>( GameModPackManager.getInstalledModPacks() );
         for ( String versionId :
                 com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager.getInstalledVersionIds() ) {
-            allPacks.add( GameModPack.createVanillaModPack( versionId ) );
+            all.add( GameModPack.createVanillaModPack( versionId ) );
         }
 
-        if ( allPacks.isEmpty() ) {
-            modpackCardList.getChildren().add( buildEmptyState() );
+        // Step 2 — type filter
+        String typeSel = typeFilter == null ? TYPE_ALL :
+                Objects.requireNonNullElse( typeFilter.getValue(), TYPE_ALL );
+        if ( TYPE_MODPACKS.equals( typeSel ) ) {
+            all.removeIf( GameModPack::isVanillaVersion );
+        }
+        else if ( TYPE_VANILLA.equals( typeSel ) ) {
+            all.removeIf( p -> !p.isVanillaVersion() );
+        }
+
+        // Step 3 — Updates-Only
+        if ( updatesOnly ) {
+            all.removeIf( p -> !p.isUpdateAvailable() );
+        }
+
+        // Step 4 — search
+        String search = ( searchField == null || searchField.getText() == null )
+                ? "" : searchField.getText().trim().toLowerCase( Locale.ROOT );
+        if ( !search.isEmpty() ) {
+            all.removeIf( p -> !displayNameOf( p ).toLowerCase( Locale.ROOT ).contains( search ) );
+        }
+
+        // Step 5 — sort
+        String sortSel = sortFilter == null ? SORT_LAST_PLAYED :
+                Objects.requireNonNullElse( sortFilter.getValue(), SORT_LAST_PLAYED );
+        sortPacks( all, sortSel );
+
+        // Step 6 — paginate + render
+        int totalItems = all.size();
+        int totalPages = Math.max( 1, ( totalItems + pageSize - 1 ) / pageSize );
+        if ( currentPage < 1 ) currentPage = 1;
+        if ( currentPage > totalPages ) currentPage = totalPages;
+        int startIdx = ( currentPage - 1 ) * pageSize;
+        int endIdx   = Math.min( totalItems, startIdx + pageSize );
+
+        updatePaginationControls( totalItems, totalPages, startIdx, endIdx );
+
+        modpackCardList.getChildren().clear();
+        if ( totalItems == 0 ) {
+            modpackCardList.getChildren().add( buildEmptyState( typeSel, search ) );
             return;
         }
-
-        // Floa the last-played pack to the top.
-        String last = ConfigManager.getLastModPackSelected();
-        if ( last != null && !last.isBlank() ) {
-            for ( int i = 0; i < allPacks.size(); i++ ) {
-                GameModPack p = allPacks.get( i );
-                if ( last.equals( p.getPackName() ) || last.equals( p.getFriendlyName() ) ) {
-                    allPacks.add( 0, allPacks.remove( i ) );
-                    break;
-                }
-            }
-        }
-
-        for ( GameModPack pack : allPacks ) {
-            modpackCardList.getChildren().add( new ModpackHeroCard( pack ) );
+        for ( int i = startIdx; i < endIdx; i++ ) {
+            modpackCardList.getChildren().add( new ModpackHeroCard( all.get( i ) ) );
         }
     }
 
-    /** Empty-state placeholder shown when there are no packs installed yet. */
-    private Node buildEmptyState()
+    /**
+     * Reorders the pack list per the selected sort key. Mutates in place to
+     * avoid an extra list allocation — the caller is the one-shot
+     * {@link #rebuildCards()} pipeline that doesn't reuse the list.
+     */
+    private void sortPacks( List< GameModPack > packs, String sortKey )
+    {
+        switch ( sortKey ) {
+            case SORT_NAME_AZ -> packs.sort( Comparator.comparing(
+                    p -> displayNameOf( p ).toLowerCase( Locale.ROOT ) ) );
+            case SORT_NAME_ZA -> packs.sort( Comparator.comparing(
+                    ( GameModPack p ) -> displayNameOf( p ).toLowerCase( Locale.ROOT ) ).reversed() );
+            case SORT_RECENT_UPDATE -> {
+                // Sort by the timestamp of the newest update-log entry for the pack
+                // (proxy for "this manifest changed recently"). Packs with no update
+                // history fall to the bottom — getUpdateRank returns Long.MIN_VALUE
+                // for those, which sorts last under reversed-natural ordering.
+                packs.sort( Comparator.comparingLong( MCLauncherMainGui::lastUpdateTimestamp ).reversed() );
+            }
+            default -> {
+                // SORT_LAST_PLAYED — reuse the pre-filter behavior: float the
+                // last-played pack to position 0, then sort the rest by lastPlayedMs
+                // descending (most recently played near the top, never-played at
+                // the bottom).
+                packs.sort( Comparator.comparingLong( GameModPack::getLastPlayedMs ).reversed() );
+                String lastSelected = ConfigManager.getLastModPackSelected();
+                if ( lastSelected != null && !lastSelected.isBlank() ) {
+                    for ( int i = 0; i < packs.size(); i++ ) {
+                        GameModPack p = packs.get( i );
+                        if ( lastSelected.equals( p.getPackName() )
+                                || lastSelected.equals( p.getFriendlyName() ) ) {
+                            packs.add( 0, packs.remove( i ) );
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Returns the newest update-log timestamp for the pack, or {@code Long.MIN_VALUE}
+     *  if the pack has no recorded updates. Used by the "Recently Updated" sort. */
+    private static long lastUpdateTimestamp( GameModPack pack )
+    {
+        try {
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog.Entry > entries
+                    = com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog.readEntries( pack );
+            if ( entries.isEmpty() ) return Long.MIN_VALUE;
+            return entries.get( 0 ).timestampMs();  // readEntries returns newest-first
+        }
+        catch ( Exception ignored ) {
+            return Long.MIN_VALUE;
+        }
+    }
+
+    /** Updates the prev/next/page-label state to match the new pagination math. */
+    private void updatePaginationControls( int totalItems, int totalPages, int startIdx, int endIdx )
+    {
+        if ( totalItems == 0 ) {
+            paginationRangeLabel.setText( "No packs" );
+            paginationPageLabel.setText( "Page 1 of 1" );
+        }
+        else {
+            paginationRangeLabel.setText( "Showing " + ( startIdx + 1 ) + "–" + endIdx
+                                                  + " of " + totalItems );
+            paginationPageLabel.setText( "Page " + currentPage + " of " + totalPages );
+        }
+        prevPageBtn.setDisable( currentPage <= 1 );
+        nextPageBtn.setDisable( currentPage >= totalPages );
+    }
+
+    /** Display name resolver — mirrors {@link #resolveDisplayName(GameModPack)} but
+     *  exposed as an instance method for filtering / sorting in this class. */
+    private static String displayNameOf( GameModPack p )
+    {
+        String name = resolveDisplayName( p );
+        return name == null ? "" : name;
+    }
+
+    /**
+     * Empty-state placeholder. Two flavors:
+     * <ul>
+     *   <li>"No mod packs installed yet" — when there's literally nothing in
+     *       the installed list (fresh launcher, no filters applied).</li>
+     *   <li>"No packs match those filters" — when filtering produced an empty
+     *       slice from a non-empty source.</li>
+     * </ul>
+     */
+    private Node buildEmptyState( String typeSel, String search )
     {
         VBox box = new VBox( 12 );
         box.setAlignment( Pos.CENTER );
         box.setPrefHeight( 320 );
 
-        Label heading = new Label( "No mod packs installed yet" );
-        heading.getStyleClass().add( "heading-h1" );
+        boolean hasAnyInstalled = !GameModPackManager.getInstalledModPacks().isEmpty()
+                || !com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager
+                       .getInstalledVersionIds().isEmpty();
+        boolean filtersActive = updatesOnly
+                || ( typeSel != null && !TYPE_ALL.equals( typeSel ) )
+                || ( search != null && !search.isEmpty() );
 
-        Label sub = new Label( "Click \"Edit Packs\" in the top bar to add a modpack from a URL." );
+        Label heading;
+        Label sub;
+        if ( hasAnyInstalled && filtersActive ) {
+            heading = new Label( "No packs match those filters" );
+            sub = new Label( search != null && !search.isEmpty()
+                    ? "Clear the search box or switch filters to see more."
+                    : "Switch filters to see more." );
+        }
+        else {
+            heading = new Label( "No mod packs installed yet" );
+            sub = new Label( "Click \"Library\" in the top bar to add a modpack from a URL." );
+        }
+        heading.getStyleClass().add( "heading-h1" );
         sub.getStyleClass().add( "muted" );
 
         box.getChildren().addAll( heading, sub );
@@ -386,11 +654,30 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     /**
      * Scrolls the matching pack card into view (if found). Used by the CLI launch path
      * ({@link com.micatechnologies.minecraft.launcher.LauncherCore#main} when invoked with a modpack argument).
-     * No-op if the requested pack isn't present in the list.
+     *
+     * <p>Now also clears active filters and jumps to the page containing the
+     * requested pack — without this, a pack that's on page 3 of a filtered view
+     * would silently fail the "scroll into view" because its card wouldn't be in
+     * the FlowPane at all. Clearing filters guarantees the pack is reachable
+     * regardless of UI state.
+     *
+     * <p>No-op if the requested pack isn't installed.
      */
     public void selectModpack( GameModPack modPack ) {
         if ( modPack == null ) return;
         GUIUtilities.JFXPlatformRun( () -> {
+            // Reset filters so the requested pack is guaranteed to be in the result set.
+            if ( searchField != null ) searchField.clear();
+            if ( typeFilter != null ) typeFilter.selectItem( TYPE_ALL );
+            if ( recentlyUpdatedOnlyCheck != null && recentlyUpdatedOnlyCheck.isSelected() ) {
+                // Unticking the checkbox fires the listener which already calls
+                // rebuildCards(), so the explicit rebuild below is redundant in
+                // that branch but harmless.
+                recentlyUpdatedOnlyCheck.setSelected( false );
+            }
+            currentPage = 1;
+            rebuildCards();
+
             String wanted = modPack.getFriendlyName();
             String wantedName = modPack.getPackName();
             for ( Node n : modpackCardList.getChildren() ) {
@@ -524,9 +811,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             badgeRow.setAlignment( Pos.TOP_RIGHT );
             badgeRow.setPadding( new javafx.geometry.Insets( 10, 12, 0, 0 ) );
             if ( pack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
-            // "Updated" rather than "Update" — reads as "this pack received an upstream
-            // update, you have the older version" rather than the ambiguous imperative.
-            if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Updated", "stat-chip-success" ) );
+            // "Recently updated" matches the terminology the Library screen uses on
+            // installed-pack cards — keeping the two screens phrased the same way so
+            // users learn one vocabulary, not two. Avoids the ambiguous imperative
+            // ("Update!") that "Update" alone would imply.
+            if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Recently updated", "stat-chip-success" ) );
 
             imageBox.getChildren().addAll( bgLayer, imageVeil, badgeRow );
 

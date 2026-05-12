@@ -404,7 +404,9 @@ public class MCLauncherModpackDetailModal extends StackPane
         HBox badgeRow = new HBox( 6 );
         badgeRow.setAlignment( Pos.TOP_LEFT );
         if ( pack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
-        if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Updated", "stat-chip-success" ) );
+        // "Recently updated" matches the Library screen's badge text — keeping
+        // the same vocabulary across surfaces so the user learns one term.
+        if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Recently updated", "stat-chip-success" ) );
         StackPane.setAlignment( badgeRow, Pos.TOP_LEFT );
         StackPane.setMargin( badgeRow, new Insets( 14, 0, 0, 18 ) );
 

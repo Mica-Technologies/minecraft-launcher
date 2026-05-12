@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
+<?import io.github.palexdev.materialfx.controls.MFXCheckbox?>
+<?import io.github.palexdev.materialfx.controls.MFXComboBox?>
+<?import io.github.palexdev.materialfx.controls.MFXTextField?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.Group?>
 <?import javafx.scene.control.Label?>
@@ -42,9 +45,17 @@
              navbar so the chrome stays anchored at the top edge and banners
              read as in-app notifications rather than chrome overlays. -->
         <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
-        <!-- Row 2: Main content (fills remaining) -->
+        <!-- Row 2: Filter / search row — mirrors the Game Library screen's
+             top-bar pattern so the launcher shell feels consistent. Search by
+             name, filter by type (modpack vs vanilla), and pick a sort order. -->
+        <RowConstraints maxHeight="48.0" minHeight="48.0" prefHeight="48.0"/>
+        <!-- Row 3: Pagination bar — prev / page X of Y / next + per-page
+             selector. Sits between the filter row and the cards so the user
+             can see where they are without scrolling. -->
+        <RowConstraints maxHeight="40.0" minHeight="40.0" prefHeight="40.0"/>
+        <!-- Row 4: Main content (fills remaining) -->
         <RowConstraints vgrow="ALWAYS"/>
-        <!-- Row 3: Bottom status bar -->
+        <!-- Row 5: Bottom status bar -->
         <RowConstraints maxHeight="40.0" minHeight="40.0" prefHeight="40.0"/>
     </rowConstraints>
 
@@ -101,10 +112,54 @@
         <Label fx:id="playerLabel" text="Player"/>
     </HBox>
 
-    <!-- Row 2: Main content — responsive grid of modpack hero cards.
+    <!-- Row 2: Filter / search row. Label prefixes (Search / Type / Sort) rather
+         than MFX's floatingText so the row stays compact at 48 px. The combo
+         boxes default to "All" / "Last Played" so the initial render matches
+         the previous behavior (no filter, last-played pack at top). -->
+    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar" GridPane.rowIndex="2">
+        <padding><Insets left="14.0" right="14.0"/></padding>
+
+        <Label text="Search:" styleClass="muted"/>
+        <MFXTextField fx:id="searchField" promptText="Name…" minWidth="180.0" prefWidth="220.0"
+                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"
+                      styleClass="no-floating-label"/>
+
+        <Label text="Type:" styleClass="muted"/>
+        <MFXComboBox fx:id="typeFilter" minWidth="120.0" prefWidth="130.0"
+                     minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
+
+        <Label text="Sort:" styleClass="muted"/>
+        <MFXComboBox fx:id="sortFilter" minWidth="150.0" prefWidth="170.0"
+                     minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
+
+        <!-- Optional filter for update-available items. Off by default; flipping it
+             on hides packs that are already up to date so the user can focus on
+             the ones with new manifest content. Phrased "Recently updated" to
+             match the same terminology the Library screen uses on its badges. -->
+        <Pane HBox.hgrow="ALWAYS" minWidth="10.0"/>
+        <MFXCheckbox fx:id="recentlyUpdatedOnlyCheck" text="Recently updated only"/>
+    </HBox>
+
+    <!-- Row 3: Pagination bar — matches the Game Library screen's layout so the
+         two screens read as the same shell. Per-page selector lives on the
+         right, prev/next + page label in the center. -->
+    <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="3">
+        <padding><Insets left="20.0" right="20.0"/></padding>
+        <Label fx:id="paginationRangeLabel" text="" styleClass="muted"/>
+        <Pane HBox.hgrow="ALWAYS"/>
+        <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="70.0" text="◀ Prev"/>
+        <Label fx:id="paginationPageLabel" text="Page 1 of 1" styleClass="muted"/>
+        <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="Next ▶"/>
+        <Pane HBox.hgrow="SOMETIMES" minWidth="20.0"/>
+        <Label text="Per page:" styleClass="muted"/>
+        <MFXComboBox fx:id="pageSizeFilter" minWidth="80.0" prefWidth="80.0"
+                     minHeight="28.0" prefHeight="28.0" maxHeight="28.0"/>
+    </HBox>
+
+    <!-- Row 4: Main content — responsive grid of modpack hero cards.
          FlowPane wraps based on available width, so 1, 2, 3, or 4 cards fit per row
          depending on how wide the user makes the window. -->
-    <ScrollPane fx:id="modpackScrollPane" GridPane.rowIndex="2"
+    <ScrollPane fx:id="modpackScrollPane" GridPane.rowIndex="4"
                 fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
                 styleClass="modpackScroll">
         <javafx.scene.layout.FlowPane fx:id="modpackCardList" styleClass="modpackCardList"
@@ -114,8 +169,8 @@
         </javafx.scene.layout.FlowPane>
     </ScrollPane>
 
-    <!-- Row 3: Bottom status bar -->
-    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="3">
+    <!-- Row 5: Bottom status bar -->
+    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="5">
         <padding><Insets left="14.0" right="14.0"/></padding>
         <Label fx:id="versionLabel" text="Mica Launcher"/>
         <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false" styleClass="chip-offline">

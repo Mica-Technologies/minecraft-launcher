@@ -816,6 +816,27 @@
 .mfx-button.secondary .text { -fx-fill: -color-text-on-primary; }
 .mfx-button.secondary:hover  { -fx-background-color: -color-secondary-hover; }
 
+/* Toggle state — applied via stylesheet class (not the :selected pseudo class)
+ * to any .mfx-button to visually indicate "this control is currently active."
+ * Soft-tinted background + accent border is loud enough to read as "active"
+ * without competing with the primary CTA on the page. Generic primitive so
+ * any screen that needs a "toggled-on button" look can opt in by appending
+ * the .selected class. */
+.mfx-button.selected,
+.mfx-button.selected:armed,
+.mfx-button.selected:focused {
+    -fx-background-color: -color-primary-soft;
+    -fx-border-color: -color-primary;
+    -fx-text-fill: -color-primary;
+}
+
+.mfx-button.selected .text { -fx-fill: -color-primary; }
+
+.mfx-button.selected:hover {
+    -fx-background-color: -color-primary-soft-hov;
+    -fx-border-color: -color-primary-pressed;
+}
+
 /* Danger — destructive actions */
 .mfx-button.danger,
 .mfx-button.danger:armed,
@@ -1366,29 +1387,46 @@
 
 /* =====================================================================
  * 12. Tooltip / context menu
+ *
+ * JavaFX gotcha: tooltips and context menus are rendered into separate
+ * popup windows whose scene root is the popup content — NOT the launcher
+ * window's rootPane. Lookup variables defined on `:root` (which is what
+ * the ui-tokens-*.css sheets do) DO NOT propagate down into popup-window
+ * scenes, so referencing `-color-*` inside a rule that matches a popup
+ * node produces a runtime String→Paint ClassCastException and the rule
+ * silently drops on the floor.
+ *
+ * Workaround: use literal hex values in these rules instead of lookup
+ * variables. The defaults below are tuned for dark themes (matching
+ * ui-tokens-dark.css surface / border / text); light-themed token sheets
+ * (ui-tokens-light.css, ui-tokens-native-light.css) override these with
+ * their own literal-hex versions for proper contrast.
+ *
+ * The native (Mica) token sheet has its own override too — see the
+ * popup-surfaces section in ui-tokens-native.css.
  * ===================================================================== */
 
 .tooltip {
-    -fx-background-color: -color-surface-elevated;
-    -fx-border-color: -color-border;
+    -fx-background-color: #1E2533;
+    -fx-border-color: rgba(220, 224, 240, 0.12);
     -fx-border-radius: 8;
     -fx-background-radius: 8;
-    -fx-text-fill: -color-text;
+    -fx-text-fill: #EDEFF2;
     -fx-font-size: 12px;
     -fx-padding: 6 10 6 10;
-    -fx-effect: dropshadow(gaussian, -color-shadow, 12, 0.20, 0, 6);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 12, 0.20, 0, 6);
 }
 
 .context-menu {
-    -fx-background-color: -color-surface-elevated;
-    -fx-border-color: -color-border;
+    -fx-background-color: #1E2533;
+    -fx-border-color: rgba(220, 224, 240, 0.12);
     -fx-background-radius: 8;
     -fx-border-radius: 8;
-    -fx-effect: dropshadow(gaussian, -color-shadow, 18, 0.20, 0, 8);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 18, 0.20, 0, 8);
 }
 
-.menu-item .label  { -fx-text-fill: -color-text; }
-.menu-item:focused { -fx-background-color: -color-primary-soft; }
+.menu-item .label  { -fx-text-fill: #EDEFF2; }
+.menu-item:focused { -fx-background-color: rgba(76, 160, 245, 0.20); }
 
 
 /* =====================================================================
