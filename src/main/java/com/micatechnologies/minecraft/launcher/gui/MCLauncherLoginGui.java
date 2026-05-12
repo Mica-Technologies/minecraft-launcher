@@ -150,6 +150,23 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
             exitBtn.fire();
         } );
 
+        // Grow the stage to the login FXML's preferred size if it's currently
+        // smaller. The progress screen opens the stage at the global PREF_HEIGHT
+        // (~800), which is shorter than the login screen needs to fit the
+        // Microsoft sign-in WebView without an internal scrollbar. setScene()
+        // doesn't resize the stage, so without this shim the FXML's prefHeight
+        // is effectively ignored on the progress -> login transition and the
+        // WebView opens clipped. Only grow, never shrink — a user who has
+        // resized the window larger keeps their layout.
+        double prefH = rootPane.getPrefHeight();
+        double prefW = rootPane.getPrefWidth();
+        if ( !Double.isNaN( prefH ) && prefH > 0 && stage.getHeight() < prefH ) {
+            stage.setHeight( prefH );
+        }
+        if ( !Double.isNaN( prefW ) && prefW > 0 && stage.getWidth() < prefW ) {
+            stage.setWidth( prefW );
+        }
+
         // Setup auth web view engine
         authWebView.getEngine().setJavaScriptEnabled( true );
         authWebView.getEngine().setUserAgent( "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0" );
