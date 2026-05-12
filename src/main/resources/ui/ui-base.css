@@ -160,6 +160,21 @@
     -fx-fill: -color-primary-hover;
 }
 
+/* Navbar refresh icon — sits to the left of the Library button on the main
+ * menu and re-fetches modpack manifests when clicked. Filled with the muted
+ * navbar text colour rather than the primary colour because, unlike the
+ * update-available indicator, refreshing isn't urgent — it shouldn't draw
+ * the eye every render. Hover brightens to full text colour so the
+ * affordance is still discoverable. */
+.navRefreshIcon {
+    -fx-fill: -color-text-muted;
+    -fx-cursor: hand;
+}
+
+.navRefreshIcon:hover {
+    -fx-fill: -color-text;
+}
+
 /* =====================================================================
  *  Progress GUI card
  *  Visual upgrade for the modpack-install / auth-renewal / etc. progress

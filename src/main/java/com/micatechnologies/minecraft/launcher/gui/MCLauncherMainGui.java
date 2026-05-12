@@ -86,6 +86,7 @@ import java.util.Objects;
 public class MCLauncherMainGui extends MCLauncherAbstractGui
 {
     // ===== Top navigation bar =====
+    @SuppressWarnings( "unused" ) @FXML javafx.scene.shape.SVGPath refreshIcon;
     @SuppressWarnings( "unused" ) @FXML MFXButton libraryBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton settingsBtn;
     @SuppressWarnings( "unused" ) @FXML Label helpBtn;
@@ -280,19 +281,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
             else if ( keyEvent.getCode() == KeyCode.F5 ) {
                 keyEvent.consume();
-                SystemUtilities.spawnNewTask( () -> {
-                    AnnouncementManager.checkAnnouncements();
-                    GameModPackManager.fetchModPackInfo();
-                    try {
-                        MCLauncherGuiController.goToMainGui();
-                    }
-                    catch ( Exception e ) {
-                        Logger.logError( "Oops! Unable to refresh." );
-                        Logger.logThrowable( e );
-                    }
-                } );
+                refreshAvailablePacks();
             }
         } );
+
+        // Click handler for the navbar refresh icon. Same behavior as F5 — fires
+        // an asynchronous announcement + modpack-manifest fetch, then reloads
+        // the main GUI so the freshly-fetched data is rendered.
+        if ( refreshIcon != null ) {
+            refreshIcon.setOnMouseClicked( e -> refreshAvailablePacks() );
+            refreshIcon.setCursor( Cursor.HAND );
+        }
 
         setupFilterAndPaginationControls();
         rebuildCards();
@@ -392,6 +391,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         TooltipManager.install( settingsBtn, "Open launcher settings (RAM, theme, JVM flags, proxy)." );
         TooltipManager.install( libraryBtn, "Browse, install, and manage modpacks + vanilla Minecraft versions." );
         TooltipManager.install( helpBtn, "Open the help window for this screen." );
+        if ( refreshIcon != null ) {
+            TooltipManager.install( refreshIcon,
+                                    "Refresh modpack data (same as pressing F5)." );
+        }
 
         // Push focus onto the rootPane so JavaFX's default focus traversal doesn't
         // land on the first focus-traversable child (the Library button), which
@@ -695,6 +698,27 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     }
                     return;
                 }
+            }
+        } );
+    }
+
+    /**
+     * Refreshes announcements + modpack manifest data, then reloads the main GUI so
+     * the new data is rendered. Fired by both the F5 shortcut and the navbar
+     * refresh icon. Runs the network work on a background thread; the GUI reload
+     * runs on the FX thread via MCLauncherGuiController.goToMainGui()'s internals.
+     */
+    private void refreshAvailablePacks()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            AnnouncementManager.checkAnnouncements();
+            GameModPackManager.fetchModPackInfo();
+            try {
+                MCLauncherGuiController.goToMainGui();
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Oops! Unable to refresh." );
+                Logger.logThrowable( e );
             }
         } );
     }
