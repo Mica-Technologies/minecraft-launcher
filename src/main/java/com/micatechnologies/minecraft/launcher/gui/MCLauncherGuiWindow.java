@@ -333,6 +333,28 @@ public class MCLauncherGuiWindow extends Application
             // Prepare scene environment
             gui.setup();
 
+            // Sync the stage's min size to the new scene's rootPane min so each
+            // screen enforces its own minimum. The global MIN_WIDTH/MIN_HEIGHT
+            // set once in start() is the most permissive default; individual
+            // screens that need more room (notably the login screen, whose
+            // embedded MS sign-in WebView starts clipping the logo above and
+            // the Exit button below at anything under ~990 px tall) declare a
+            // larger min via FXML and have it applied here. Pane.getMinHeight
+            // returns USE_COMPUTED_SIZE (-1) when no explicit min is set in
+            // the FXML; only apply when the value is a positive concrete
+            // number. Setting min above the current stage size also auto-
+            // grows the stage, so a user transitioning from the smaller
+            // progress screen into login immediately sees the larger layout
+            // without us having to drive the resize manually.
+            double minH = gui.rootPane.getMinHeight();
+            double minW = gui.rootPane.getMinWidth();
+            if ( minH > 0 && !Double.isInfinite( minH ) ) {
+                stage.setMinHeight( minH );
+            }
+            if ( minW > 0 && !Double.isInfinite( minW ) ) {
+                stage.setMinWidth( minW );
+            }
+
             // Inject context-sensitive help button into top-right corner
             injectHelpButton( gui );
 
