@@ -208,7 +208,19 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         // Load MS login website
         CookieManager cookieManager = new CookieManager();
         CookieHandler.setDefault( cookieManager );
-        authWebView.getEngine().load( MicrosoftService.oAuthLoginUrl().toString() );
+        // Force the account picker on every visit. JavaFX WebView keeps its own
+        // cookie jar in com.sun.webkit.network.CookieManager which is *not*
+        // touched by CookieHandler.setDefault above (the new java.net.CookieManager
+        // applies to HttpURLConnection traffic, not WebView). The MS sign-in
+        // cookies therefore survive a logout-then-relaunch-of-the-login-screen
+        // within a single launcher session, and without prompt= MS silently
+        // honours the cached session and redirects straight to the OAuth
+        // callback — i.e. it "signs the user back in" before they can pick a
+        // different account. prompt=select_account forces MS to render the
+        // account picker even when the session is live, so logging out and
+        // signing in as someone else is a single click instead of impossible.
+        String loginUrl = MicrosoftService.oAuthLoginUrl().toString() + "&prompt=select_account";
+        authWebView.getEngine().load( loginUrl );
 
         // Set waiting on web view response flag to true
         waitingOnWebViewResponse.set( true );
