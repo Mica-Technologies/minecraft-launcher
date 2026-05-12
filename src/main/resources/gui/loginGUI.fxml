@@ -79,15 +79,29 @@
              takes effect — without that, the stage carries over the progress
              screen's smaller starting height and the WebView gets clipped. -->
         <GridPane fx:id="msAuthPane" maxWidth="780.0" minWidth="500.0" prefWidth="720.0" styleClass="card elevated">
+             <!-- Both columns use hgrow=ALWAYS so they split available card width
+                  symmetrically (50/50). The previous SOMETIMES + ALWAYS pair gave
+                  col 1 all the extra space, which made the WebView's columnSpan=2
+                  span asymmetric and offset its content within the card. The row 1
+                  controls (toggle + exit) still align inside their own cells via
+                  the GridPane.halignment values set on those controls themselves. -->
              <columnConstraints>
-                 <ColumnConstraints fillWidth="false" halignment="LEFT" hgrow="SOMETIMES" />
+                 <ColumnConstraints halignment="LEFT" hgrow="ALWAYS" />
                  <ColumnConstraints halignment="RIGHT" hgrow="ALWAYS" />
              </columnConstraints>
              <rowConstraints>
                  <RowConstraints maxHeight="1.7976931348623157E308" minHeight="300.0" prefHeight="780.0" vgrow="ALWAYS" />
                  <RowConstraints fillHeight="false" maxHeight="1.7976931348623157E308" minHeight="38.666636149088504" prefHeight="56.33332316080731" vgrow="SOMETIMES" />
              </rowConstraints>
-             <WebView fx:id="authWebView" prefHeight="780.0" prefWidth="720.0" GridPane.columnSpan="2" GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS" />
+             <!-- Explicit halignment=CENTER on the spanning WebView. Without it,
+                  JavaFX uses the FIRST spanned column's halignment for spanning
+                  children (LEFT here), which left-anchored the WebView in the
+                  span whenever the inner card width exceeded the WebView's
+                  prefWidth (e.g. when the card grew toward its maxWidth=780).
+                  maxWidth=Infinity makes the WebView fill the span when the
+                  card has extra room, so the inner padding is symmetric on
+                  both sides regardless of the card's current width. -->
+             <WebView fx:id="authWebView" prefHeight="780.0" prefWidth="720.0" maxWidth="1.7976931348623157E308" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS" />
              <MFXToggleButton fx:id="msStayLoggedInCheckBox" text="Stay Logged In" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
                 <GridPane.margin>
                     <Insets left="20.0" />
