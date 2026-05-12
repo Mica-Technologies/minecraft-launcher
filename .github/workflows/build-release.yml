@@ -206,7 +206,10 @@ jobs:
   build-macos-intel:
     name: Build macOS (x64 Intel)
     needs: prepare
-    runs-on: macos-13
+    # macos-15-intel: the macos-13 image was retired by GitHub on 2025-12-08
+    # so jobs targeting it now hang queued forever. macos-15-intel is the
+    # current x86_64 runner; Apple Silicon macos-latest only emits arm64.
+    runs-on: macos-15-intel
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

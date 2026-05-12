@@ -98,11 +98,15 @@ jobs:
           if-no-files-found: error
 
   # Intel coverage on PRs so x64-specific regressions surface before merge,
-  # not after the release workflow runs on main. macos-13 is currently the
-  # last Intel-capable GHA runner.
+  # not after the release workflow runs on main. macos-15-intel is the
+  # current x86_64-capable GHA runner — GitHub retired the macos-13 image
+  # on 2025-12-08, so jobs requesting `macos-13` now queue indefinitely
+  # (no runner with that label exists). Apple Silicon `macos-latest` only
+  # produces arm64 binaries, so a distinct Intel runner is still needed
+  # until GitHub fully drops x86_64 macOS support in Fall 2027.
   build-macos-intel:
     name: Test Build (macOS x64 Intel)
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       # fetch-depth: 0 lets the derive-revision-from-git step in pom.xml call git describe --tags.
       - name: Checkout code
