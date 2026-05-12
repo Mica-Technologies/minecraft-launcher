@@ -820,19 +820,17 @@ public class LauncherCore
     public static void applySystemProperties() {
         LauncherConstants.JVM_PROPERTIES.forEach( System::setProperty );
 
-        // macOS-only: force JFX to pick the Metal prism pipeline. JFX 25 defaults to
-        // OpenGL ES2 on macOS for backwards compatibility, but the es2 backend has
-        // long-standing issues with transparent-window rendering on Apple Silicon —
-        // partial repaints don't clear their dirty regions properly, which is exactly
-        // the alpha-accumulation symptom we've been fighting against the
-        // NSVisualEffectView vibrancy backdrop. Metal handles transparent backbuffer
-        // attachments correctly. JFX 26 is reportedly making Metal the default on
-        // macOS; this gets us there ahead of the upgrade.
+        // macOS-only: force the Metal prism pipeline. JFX 26 makes Metal the default
+        // on macOS so this is technically redundant on the supported runtime, but
+        // it's harmless belt-and-suspenders against accidental runs on an older
+        // bundled JFX. The es2 (OpenGL) backend has long-standing transparent-
+        // backbuffer bugs on Apple Silicon that produce alpha accumulation on every
+        // translucent surface — exactly the symptom that disappeared once Metal took
+        // over on the JFX 26 upgrade.
         //
         // prism.order is a comma-separated preference list; mtl,es2,sw means "try
-        // Metal first, fall back to es2 or software if it's unavailable." The Metal
-        // pipeline shipped enabled (just not default-selected) in JFX 23+.
-        // Must be set before any JFX init -- this method runs before Platform.startup.
+        // Metal first, fall back to es2 or software if unavailable." Must be set
+        // before any JFX init -- this method runs before Platform.startup.
         if ( SystemUtils.IS_OS_MAC ) {
             System.setProperty( "prism.order", "mtl,es2,sw" );
         }

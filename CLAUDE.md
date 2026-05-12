@@ -4,23 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Mica Minecraft Launcher -- a cross-platform Minecraft Forge modpack launcher built with Java 25 and JavaFX. Supports client (GUI) and server (headless) modes on Windows, macOS, and Linux. Modpacks are defined as JSON files hosted at URLs.
+Mica Minecraft Launcher -- a cross-platform Minecraft Forge modpack launcher built with Java 26 and JavaFX. Supports client (GUI) and server (headless) modes on Windows, macOS, and Linux. Modpacks are defined as JSON files hosted at URLs.
 
 ## Build & Run
 
-Requires JDK 25 with JavaFX (e.g. Azul Zulu `jdk+fx` or AWS Corretto). Maven handles JDK download for packaging via `mvn-jlink-wrapper`.
+Requires JDK 26 with JavaFX (e.g. Azul Zulu `jdk+fx` or AWS Corretto). Maven handles JDK download for packaging via `mvn-jlink-wrapper`.
 
 ### Maven & JDK Location (Windows / IntelliJ)
 
 Maven is not typically on the system PATH. Use IntelliJ's bundled Maven with the project's configured JDK:
 
 - **Maven:** `C:\Users\[username]\AppData\Local\Programs\IntelliJ IDEA\plugins\maven\lib\maven3\bin\mvn.cmd`
-- **JDKs (IntelliJ-managed):** `C:\Users\[username]\.jdks\` -- check `.idea/misc.xml` `project-jdk-name` attribute for the configured SDK name (e.g. `azul-25`), then find the matching folder under `.jdks/`
+- **JDKs (IntelliJ-managed):** `C:\Users\[username]\.jdks\` -- check `.idea/misc.xml` `project-jdk-name` attribute for the configured SDK name (e.g. `azul-26`), then find the matching folder under `.jdks/`
 - **JAVA_HOME** must be set when invoking Maven from the command line:
 
 ```bash
 # Set JAVA_HOME and compile (replace [username] with your Windows user)
-JAVA_HOME="C:/Users/[username]/.jdks/azul-25.0.1" "C:/Users/[username]/AppData/Local/Programs/IntelliJ IDEA/plugins/maven/lib/maven3/bin/mvn.cmd" compile
+JAVA_HOME="C:/Users/[username]/.jdks/azul-26.0.1" "C:/Users/[username]/AppData/Local/Programs/IntelliJ IDEA/plugins/maven/lib/maven3/bin/mvn.cmd" compile
 ```
 
 ### Standard Maven Commands

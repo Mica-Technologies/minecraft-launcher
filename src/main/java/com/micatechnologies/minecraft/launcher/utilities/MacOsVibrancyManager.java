@@ -21,6 +21,10 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.pixelduke.window.MacThemeWindowManager;
 import com.pixelduke.window.ThemeWindowManager;
 import com.pixelduke.window.ThemeWindowManagerFactory;
+import com.pixelduke.window.WindowUtils;
+import com.sun.jna.NativeLong;
+import de.jangassen.jfa.foundation.Foundation;
+import de.jangassen.jfa.foundation.ID;
 import javafx.event.EventHandler;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -122,12 +126,24 @@ public final class MacOsVibrancyManager
             if ( mgr == null ) {
                 return;
             }
-            mgr.setWindowFrameAppearance( stage,
-                    dark ? MacThemeWindowManager.Backdrop.NSAppearanceNameVibrantDark
-                         : MacThemeWindowManager.Backdrop.NSAppearanceNameVibrantLight );
+            // setDarkModeForWindowFrame uses NSAppearanceNameDarkAqua/Aqua (the modern
+            // Big Sur+ standard window appearances) and installs the NSVisualEffectView
+            // either way. We previously used setWindowFrameAppearance with
+            // NSAppearanceNameVibrantDark/VibrantLight, but those Vibrant appearances are
+            // intended for vibrancy-material views (sidebar, menu, popover) and don't
+            // reliably theme a window frame on modern macOS — the title bar would stay
+            // light even in vibrant-dark mode.
+            mgr.setDarkModeForWindowFrame( stage, dark );
+
+            // FXThemes' native code only calls [contentView setAppearance:...] which
+            // doesn't propagate to the title bar — the title bar uses the *NSWindow's*
+            // own appearance, not the content view's. Set it directly via JFA so the
+            // title bar follows the chosen dark/light theme to match the macOS system.
+            applyWindowAppearance( stage, dark );
+
             currentDark.put( stage, dark );
-            Logger.logDebug( "MacOsVibrancy: applied vibrant " + ( dark ? "dark" : "light" )
-                                     + " appearance to \"" + stage.getTitle() + "\"" );
+            Logger.logDebug( "MacOsVibrancy: applied " + ( dark ? "DarkAqua" : "Aqua" )
+                                     + " (vibrancy + title-bar) to \"" + stage.getTitle() + "\"" );
         }
         catch ( Throwable t ) {
             Logger.logWarningSilent( "MacOsVibrancy: apply failed — "
@@ -165,6 +181,38 @@ public final class MacOsVibrancyManager
         }
         catch ( Throwable t ) {
             Logger.logWarningSilent( "MacOsVibrancy: clear failed — " + t.getMessage() );
+        }
+    }
+
+    /** Sets NSAppearance directly on the NSWindow (not the contentView). FXThemes'
+     *  setAppearanceByName only writes to contentView's appearance, which doesn't
+     *  propagate to the title bar — the title bar's chrome (close/min/max buttons,
+     *  text color, background) comes from the NSWindow's own appearance. Without
+     *  this, the title bar stays in the OS default (often Aqua light) even when the
+     *  contentView is DarkAqua, producing the "dark window with light title bar"
+     *  mismatch.
+     *
+     *  Uses FXThemes' WindowUtils to grab the raw NSWindow pointer (reflection on
+     *  Window.getPeer().getRawHandle()), then drives [NSWindow setAppearance:] via
+     *  JFA's Foundation.invoke. */
+    private static void applyWindowAppearance( Stage stage, boolean dark )
+    {
+        try {
+            NativeLong handle = WindowUtils.getNativeHandleOfStageAsNativeLong( stage );
+            if ( handle == null || handle.longValue() == 0 ) {
+                return;
+            }
+            ID nsWindow = new ID( handle.longValue() );
+            String name = dark ? "NSAppearanceNameDarkAqua" : "NSAppearanceNameAqua";
+            ID appearance = Foundation.invoke( "NSAppearance", "appearanceNamed:",
+                                               Foundation.nsString( name ) );
+            if ( !Foundation.isNil( appearance ) ) {
+                Foundation.invoke( nsWindow, "setAppearance:", appearance );
+            }
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "MacOsVibrancy: NSWindow appearance set failed — "
+                                             + t.getMessage() );
         }
     }
 

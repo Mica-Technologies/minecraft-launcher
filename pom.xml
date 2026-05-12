@@ -44,11 +44,16 @@
         <maven.build.timestamp.format>dd-MM-yyyy HH:mm</maven.build.timestamp.format>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>25</maven.compiler.source>
-        <maven.compiler.target>25</maven.compiler.target>
-        <java.version>25</java.version>
-        <javafx.version>25</javafx.version>
-        <jdk.version>25.0.0.36.2</jdk.version>
+        <maven.compiler.source>26</maven.compiler.source>
+        <maven.compiler.target>26</maven.compiler.target>
+        <java.version>26</java.version>
+        <javafx.version>26</javafx.version>
+        <!-- mvn-jlink-wrapper's CORRETTO provider expects featureVersion to be the
+             major version only (e.g. "26"); it resolves to the latest patch via the
+             corretto.aws "/latest/" path. Passing a fully-qualified version like
+             "26.0.1.8.1" causes the plugin to fall back to its hardcoded default
+             feature version (25) and silently ship a 25.x runtime in packaged builds. -->
+        <jdk.major.version>26</jdk.major.version>
         <!-- mvn-jlink-wrapper arch for the bundled Corretto JDK download. Defaults
              to x64; the jdk-arch-mac-arm profile below flips it to aarch64 on
              Apple Silicon so the macOS ARM build doesn't ship an x86_64 runtime
@@ -119,8 +124,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <source>25</source>
-                    <target>25</target>
+                    <source>26</source>
+                    <target>26</target>
                     <encoding>UTF-8</encoding>
                     <parameters>true</parameters>
                     <compilerArgs>
@@ -176,8 +181,8 @@
                         <configuration>
                             <provider>CORRETTO</provider>
                             <providerConfig>
-                                <type>jdk</type>
-                                <version>${jdk.version}</version>
+                                <imageType>jdk</imageType>
+                                <featureVersion>${jdk.major.version}</featureVersion>
                                 <arch>${jdk.target.arch}</arch>
                             </providerConfig>
                             <jdkCachePath>${project.basedir}${file.separator}build${file.separator}jdk</jdkCachePath>
@@ -923,19 +928,39 @@
             </exclusions>
         </dependency>
         <!-- FXThemes — PixelDuke. Ships a precompiled libFXThemes.dylib that drives
-             NSVisualEffectView from native Obj-C code (sidesteps the JFA/Glass
-             compositor incompatibility we hit trying to drive it from pure-Java
-             objc_msgSend in commits 8b6eb66..38e39d4, since reverted). We use only
-             MacThemeWindowManager.setWindowFrameAppearance(stage, Backdrop) to flip
-             between Aqua / DarkAqua (no vibrancy) and VibrantLight / VibrantDark
-             (real macOS frosted-glass behind the JFX content). License is
-             GPL v2 + Classpath Exception, compatible with our GPL v3.
-             JNA excluded because FXThemes pins to an older JNA than oshi's 5.12.1
+             NSVisualEffectView from native Obj-C code. MacThemeWindowManager flips
+             between Aqua / DarkAqua appearances and installs vibrancy under the
+             content view either way. License is GPL v2 + Classpath Exception,
+             compatible with our GPL v3.
+             JNA excluded because FXThemes pins an older JNA than oshi's 5.12.1
              requires; we provide JNA via oshi already. -->
         <dependency>
             <groupId>com.pixelduke</groupId>
             <artifactId>fxthemes</artifactId>
             <version>1.5.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.java.dev.jna</groupId>
+                    <artifactId>jna</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.java.dev.jna</groupId>
+                    <artifactId>jna-platform</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- JFA — Java Foundation Accessor. Pulled in transitively by
+             jSystemThemeDetector as a runtime dep, but we now use it directly in
+             MacOsVibrancyManager to set NSAppearance on the NSWindow (FXThemes only
+             writes appearance to contentView, not to the window itself, which
+             leaves the title bar untheme'd). Every call site is guarded by
+             SystemUtils.IS_OS_MAC so JNA's macOS native libs never load on
+             Windows or Linux. JNA excluded to avoid version-conflict with oshi's
+             5.12.1. -->
+        <dependency>
+            <groupId>de.jangassen</groupId>
+            <artifactId>jfa</artifactId>
+            <version>1.2.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>net.java.dev.jna</groupId>

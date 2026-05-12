@@ -70,11 +70,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up JDK 25 (Zulu FX)
+      - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: '25'
+          java-version: '26'
           java-package: jdk+fx
           cache: 'maven'
 
@@ -123,11 +123,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up JDK 25 (Zulu FX)
+      - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: '25'
+          java-version: '26'
           java-package: jdk+fx
           cache: 'maven'
 
@@ -152,11 +152,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up JDK 25 (Zulu FX)
+      - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: '25'
+          java-version: '26'
           java-package: jdk+fx
           cache: 'maven'
 
@@ -181,11 +181,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up JDK 25 (Zulu FX)
+      - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: '25'
+          java-version: '26'
           java-package: jdk+fx
           cache: 'maven'
 
