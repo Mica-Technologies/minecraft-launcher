@@ -93,7 +93,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML ImageView userImage;
     @SuppressWarnings( "unused" ) @FXML javafx.scene.shape.SVGPath updateImgView;
     @SuppressWarnings( "unused" ) @FXML Label playerLabel;
+    @SuppressWarnings( "unused" ) @FXML HBox announcementBar;
     @SuppressWarnings( "unused" ) @FXML Label announcement;
+    @SuppressWarnings( "unused" ) @FXML Label announcementClose;
     @SuppressWarnings( "unused" ) @FXML RowConstraints announcementRow;
 
     // ===== Filter row =====
@@ -194,6 +196,28 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
         else {
             setAnnouncementRow( null );
+        }
+
+        // Announcement bar ✕ — dismiss for this session (resets on next launch).
+        // Captures the currently-displayed text so AnnouncementManager keys on what
+        // the user actually saw rather than what's currently in the manifest, which
+        // could differ if a refresh races with the click.
+        if ( announcementClose != null ) {
+            announcementClose.setCursor( Cursor.HAND );
+            announcementClose.setOnMouseClicked( e -> {
+                String shown = announcement.getText();
+                if ( shown != null && !shown.isEmpty() ) {
+                    AnnouncementManager.dismissAnnouncementForSession( shown );
+                }
+                // Re-run setAnnouncementRow with the same "extra" dev banner so the
+                // dismissal logic collapses the row in a single code path.
+                if ( LauncherConstants.LAUNCHER_IS_DEV ) {
+                    setAnnouncementRow( "[DEVELOPMENT MODE: Bugs may be present and not all features may function as intended]" );
+                }
+                else {
+                    setAnnouncementRow( null );
+                }
+            } );
         }
 
         settingsBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
@@ -432,8 +456,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             announcementText = homeAnnounce;
         }
 
+        // Session-scoped dismissal: if the user clicked the banner's ✕ for the
+        // exact same text earlier in this launcher session, collapse the row.
+        // Treated as "no announcement" for sizing purposes — the user will see
+        // the banner again on next launch since the dismissal set is in-memory.
+        if ( !announcementText.isEmpty() && AnnouncementManager.isAnnouncementDismissed( announcementText ) ) {
+            announcementText = "";
+        }
+
         if ( !announcementText.isEmpty() ) {
             announcement.setText( announcementText );
+            announcementBar.setVisible( true );
+            announcementBar.setManaged( true );
             // Use explicit fixed sizes — USE_COMPUTED_SIZE was not consistently resolving across
             // navigation transitions (banner shows on first load, vanishes after settings → main).
             // A multi-line message wraps within the Label; the row caps at 80 to keep the navbar
@@ -443,15 +477,23 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             announcement.setMinHeight( targetHeight );
             announcement.setPrefHeight( targetHeight );
             announcement.setMaxHeight( targetHeight );
+            announcementBar.setMinHeight( targetHeight );
+            announcementBar.setPrefHeight( targetHeight );
+            announcementBar.setMaxHeight( targetHeight );
             announcementRow.setMinHeight( targetHeight );
             announcementRow.setPrefHeight( targetHeight );
             announcementRow.setMaxHeight( targetHeight );
         }
         else {
             announcement.setText( "" );
+            announcementBar.setVisible( false );
+            announcementBar.setManaged( false );
             announcement.setMinHeight( 0 );
             announcement.setPrefHeight( 0 );
             announcement.setMaxHeight( 0 );
+            announcementBar.setMinHeight( 0 );
+            announcementBar.setPrefHeight( 0 );
+            announcementBar.setMaxHeight( 0 );
             announcementRow.setMinHeight( 0 );
             announcementRow.setPrefHeight( 0 );
             announcementRow.setMaxHeight( 0 );
@@ -703,22 +745,69 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Refreshes announcements + modpack manifest data, then reloads the main GUI so
-     * the new data is rendered. Fired by both the F5 shortcut and the navbar
-     * refresh icon. Runs the network work on a background thread; the GUI reload
-     * runs on the FX thread via MCLauncherGuiController.goToMainGui()'s internals.
+     * Refreshes announcements + modpack manifest data WITHOUT taking over the screen
+     * with the full-page progress GUI. Fired by both the F5 shortcut and the navbar
+     * refresh icon.
+     *
+     * <p>The previous version called {@link GameModPackManager#fetchModPackInfo()}
+     * which opens the progress GUI as a side effect, then re-navigated to the main
+     * GUI — a heavy, screen-takeover refresh that interrupted whatever the user was
+     * doing on the main menu. The main menu is already where the user lives; the
+     * refresh should feel like background work.
+     *
+     * <p>New flow: surface the existing "Loading available packs…" status indicator
+     * at the bottom of the screen (repurposed text), fire the same underlying
+     * fetches with a {@code null} progress window so they don't try to manage their
+     * own UI, then rebuild the card grid in place once the network calls complete.
+     * The main menu stays visible the entire time.
      */
     private void refreshAvailablePacks()
     {
-        SystemUtilities.spawnNewTask( () -> {
-            AnnouncementManager.checkAnnouncements();
-            GameModPackManager.fetchModPackInfo();
-            try {
-                MCLauncherGuiController.goToMainGui();
+        // Quick visual feedback so the user knows their click registered. Repurpose
+        // the existing bottom-bar indicator (same one used during the deferred
+        // startup fetch) — re-text it to "Refreshing modpacks…" so the verb matches
+        // a manual refresh rather than the passive startup language.
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( backgroundFetchLabel != null ) {
+                backgroundFetchLabel.setText( "Refreshing modpacks…" );
+                backgroundFetchLabel.setVisible( true );
+                backgroundFetchLabel.setManaged( true );
             }
-            catch ( Exception e ) {
-                Logger.logError( "Oops! Unable to refresh." );
-                Logger.logThrowable( e );
+            if ( refreshIcon != null ) {
+                // Disable the icon to prevent spam-clicks while a refresh is in flight.
+                refreshIcon.setDisable( true );
+            }
+        } );
+
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                AnnouncementManager.checkAnnouncements();
+                // Direct calls with a null progress window skip the screen-takeover
+                // progress GUI that fetchModPackInfo() opens — these methods do their
+                // own logging when the window is null, which is what we want for a
+                // background refresh on the main menu.
+                GameModPackManager.fetchInstalledModPacks( null );
+                if ( !NetworkUtilities.isOffline() ) {
+                    GameModPackManager.fetchAvailableModPacks( null );
+                }
+            }
+            finally {
+                GUIUtilities.JFXPlatformRun( () -> {
+                    if ( backgroundFetchLabel != null ) {
+                        backgroundFetchLabel.setVisible( false );
+                        backgroundFetchLabel.setManaged( false );
+                        // Reset to the canonical startup-fetch text in case the
+                        // deferred startup fetch hasn't fired yet on this session.
+                        backgroundFetchLabel.setText( "Loading available packs…" );
+                    }
+                    if ( refreshIcon != null ) {
+                        refreshIcon.setDisable( false );
+                    }
+                    // Rebuild the card grid in place using the freshly-fetched data —
+                    // no goToMainGui navigation, no scene flicker, no scroll-position
+                    // reset.
+                    rebuildCards();
+                } );
             }
         } );
     }

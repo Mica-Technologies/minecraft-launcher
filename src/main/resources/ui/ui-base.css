@@ -1554,6 +1554,31 @@
     -fx-font-weight: 500;
 }
 
+/* When the banner is structured as an HBox container (mainGUI's announcement
+ * bar with a ✕ close button), JavaFX doesn't propagate -fx-text-fill through
+ * the HBox to its child Labels — those need their own rule. Same warning-text
+ * colour as the Label-only variant above. */
+.banner-announcement > .label {
+    -fx-text-fill: -color-text-inverse;
+    -fx-font-weight: 500;
+}
+
+/* ✕ close button on the announcement banner — a Label with the same inverse
+ * text colour as the rest of the banner content, slightly muted at rest and
+ * full-opacity on hover to make the affordance discoverable without dominating
+ * the banner's text. */
+.bannerCloseBtn {
+    -fx-text-fill: -color-text-inverse;
+    -fx-font-weight: 700;
+    -fx-font-size: 14px;
+    -fx-padding: 0 8 0 8;
+    -fx-opacity: 0.70;
+}
+
+.bannerCloseBtn:hover {
+    -fx-opacity: 1.0;
+}
+
 .banner-warning {
     -fx-background-color: -color-warning-soft;
     -fx-border-color: -color-warning;

@@ -227,6 +227,45 @@ public class AnnouncementManager
     }
 
     /**
+     * Session-scoped dismissed-announcement registry. A {@link java.util.Set} of
+     * announcement strings the user has dismissed via the banner's ✕ button —
+     * deliberately in-memory only so dismissal resets on next launcher startup
+     * (the user explicitly asked for "show up again on the next app launch"
+     * behavior rather than persistent muting).
+     *
+     * <p>Keyed by the exact announcement text the user saw, so if the announcement
+     * content changes mid-session the new text doesn't match a dismissed entry and
+     * the banner reappears — which is the right call: a CHANGED announcement is
+     * new information the user hasn't yet been shown.
+     */
+    private static final java.util.Set< String > dismissedAnnouncements =
+            java.util.Collections.synchronizedSet( new java.util.HashSet<>() );
+
+    /**
+     * Marks the given announcement text as dismissed for the remainder of this
+     * launcher session. Idempotent — re-dismissing the same text is a no-op.
+     *
+     * @param text the announcement string the user just dismissed
+     *
+     * @since 3.4
+     */
+    public static void dismissAnnouncementForSession( String text ) {
+        if ( text != null && !text.isEmpty() ) {
+            dismissedAnnouncements.add( text );
+        }
+    }
+
+    /**
+     * @param text the announcement string to test
+     * @return true iff this exact announcement text has been dismissed in this session
+     *
+     * @since 3.4
+     */
+    public static boolean isAnnouncementDismissed( String text ) {
+        return text != null && dismissedAnnouncements.contains( text );
+    }
+
+    /**
      * Gets the boolean which controls whether gameplay is disabled based on the announcements.
      *
      * @return Boolean which controls whether gameplay is disabled based on the announcements.
