@@ -282,6 +282,18 @@
     -fx-text-fill: #1C1B1F;
 }
 
+/* Explicit -fx-background-color is required here. The `-mfx-selected` pseudo
+ * property declared on .mfx-combo-box-cell above is MaterialFX's own selection-
+ * paint hook, but at runtime it doesn't reliably colour the popup's selected
+ * row, so without this rule the selected combo-box item ends up white-text on
+ * the default light pink-gray cell background and disappears. The other
+ * themes have the same shape but the bug only reads as a contrast failure on
+ * light surfaces — kept the rules symmetric across all four legacy themes for
+ * consistency. */
+.mfx-combo-box-cell:selected {
+    -fx-background-color: #2E7D32;
+}
+
 .mfx-combo-box-cell:selected .data-label {
     -fx-text-fill: white;
 }

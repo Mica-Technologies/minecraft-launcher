@@ -223,6 +223,20 @@ public class GameModPackManager
                 GameModPack gameModPack = GameModPackFetcher.get( manifestUrl, true );
                 installedGameModPacks.add( gameModPack );
 
+                // Detect upstream manifest version changes and write to the per-pack
+                // update log. Compares the just-fetched packVersion against a tracker
+                // file written on the last fetch; differences append a "vX → vY" entry
+                // that the expanded modpack-detail modal surfaces as the pack's recent
+                // update history. Best-effort — never let a logging hiccup break the
+                // manifest fetch loop.
+                try {
+                    ModPackUpdateLog.recordRemoteVersionSeen( gameModPack );
+                }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( "Update-log record failed for "
+                                                     + gameModPack.getPackName() + ": " + t.getMessage() );
+                }
+
                 // Update progress window
                 if ( finalProgressWindow != null ) {
                     finalProgressWindow.setDetailText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +

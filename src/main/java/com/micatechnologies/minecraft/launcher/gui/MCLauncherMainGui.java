@@ -29,6 +29,7 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -48,6 +49,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -58,6 +60,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -95,6 +98,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML Label offlineLabel;
     @SuppressWarnings( "unused" ) @FXML Label backgroundFetchLabel;
     @SuppressWarnings( "unused" ) @FXML MFXButton exitBtn;
+
+    /** Expanded modpack-detail modal — overlays the main GUI when the user
+     *  single-clicks a hero card. Constructed lazily in {@link #setup()} so the
+     *  rootPane is real and the GridPane attachment works. */
+    private MCLauncherModpackDetailModal detailModal;
 
     public MCLauncherMainGui( Stage stage ) throws IOException {
         super( stage );
@@ -241,6 +249,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
 
         populateModpackCards();
+
+        // Build and attach the expanded modpack-detail modal overlay. The modal is a
+        // StackPane that spans the entire GridPane (all rows + columns) and is hidden
+        // until a hero card is clicked. Attaching here — after the populate call —
+        // means it z-orders above every card in the scroll list as well as above the
+        // navbar / bottom bar / announcement banner.
+        if ( rootPane instanceof GridPane gridRoot ) {
+            detailModal = new MCLauncherModpackDetailModal( gridRoot );
+            detailModal.attachToGridPane( gridRoot );
+        }
     }
 
     @Override
@@ -392,6 +410,20 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 }
             }
         } );
+    }
+
+    /**
+     * Opens the expanded pack-detail modal for the given pack. No-op if the modal
+     * hasn't been initialized yet (which shouldn't happen in practice — setup()
+     * always builds it before any card is clickable).
+     *
+     * @param pack the pack to display in the modal
+     */
+    private void openDetailModal( GameModPack pack )
+    {
+        if ( detailModal != null ) {
+            detailModal.show( pack );
+        }
     }
 
     /**
@@ -597,10 +629,33 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // Card-level interactions
             setContextMenu( pack );
             setCursor( Cursor.HAND );
+
+            // Click behavior:
+            //   • single primary click → open the expanded modpack detail modal
+            //   • double primary click  → quick-launch the pack (preserved from the
+            //     pre-modal flow so power users don't lose their muscle memory)
+            //
+            // JavaFX fires click-count=1 immediately and click-count=2 after the
+            // platform's double-click interval. Without a delay, a real double-click
+            // would briefly flash the modal open between the two events. The
+            // PauseTransition defers the single-click action by ~220ms — long enough
+            // for the second click to arrive and cancel the timer, short enough that
+            // a single click still feels responsive. Buttons inside the card
+            // (Play / Website) consume their own events, so the card-level handler
+            // never fires for those.
+            PauseTransition singleClickTimer = new PauseTransition( Duration.millis( 220 ) );
+            singleClickTimer.setOnFinished( ev -> openDetailModal( pack ) );
             setOnMouseClicked( ev -> {
-                // Double-click anywhere on the card (other than buttons) plays the pack — quick-launch UX.
-                if ( ev.getButton() == MouseButton.PRIMARY && ev.getClickCount() == 2 && !playBtn.isDisabled() ) {
-                    playBtn.fire();
+                if ( ev.getButton() != MouseButton.PRIMARY ) return;
+                int count = ev.getClickCount();
+                if ( count == 1 ) {
+                    singleClickTimer.playFromStart();
+                }
+                else if ( count == 2 ) {
+                    singleClickTimer.stop();
+                    if ( !playBtn.isDisabled() ) {
+                        playBtn.fire();
+                    }
                 }
             } );
         }

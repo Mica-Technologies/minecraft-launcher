@@ -1,0 +1,915 @@
+/*
+ * Copyright (c) 2021-2026 Mica Technologies
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package com.micatechnologies.minecraft.launcher.gui;
+
+import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog;
+import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
+import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
+import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
+import com.micatechnologies.minecraft.launcher.utilities.NotificationManager;
+import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import io.github.palexdev.materialfx.controls.MFXButton;
+import javafx.animation.FadeTransition;
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
+import javafx.stage.Stage;
+import javafx.util.Duration;
+
+import java.awt.Desktop;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Supplier;
+
+/**
+ * In-scene modal overlay that presents an expanded view of a single mod pack. Triggered
+ * by a single-click on a {@code ModpackHeroCard} in the main menu — the card list is
+ * dense by design (~360×320 tiles), so this modal gives the user a roomier surface to
+ * see the pack's background art, glance at usage stats, and reach the same set of
+ * actions that the right-click context menu exposes without having to right-click.
+ *
+ * <p>The overlay is a {@link StackPane} the caller drops onto an existing root pane
+ * (typically the main GUI's GridPane), sized to span the full window. The overlay
+ * itself is transparent until {@link #show(GameModPack)} is called, at which point a
+ * dim backdrop fades in and the centered modal card slides into view.
+ *
+ * <p>Dismissal channels (any of these closes the modal):
+ * <ul>
+ *   <li>Clicking the backdrop region outside the modal card</li>
+ *   <li>Clicking the explicit close button (the ✕ in the modal's top-right corner)</li>
+ *   <li>Pressing ESC while the modal has focus</li>
+ *   <li>Clicking Play (which transitions to the progress screen anyway)</li>
+ * </ul>
+ *
+ * <p>Sections rendered top-down, mirroring the hierarchy of "what does the user need
+ * about this pack right now":
+ * <ol>
+ *   <li><b>Hero image</b> — large pack background (or procedural gradient when none),
+ *       overlaid with the pack logo, friendly name, badges (Beta / Updated), and the
+ *       close button.</li>
+ *   <li><b>Stat chips</b> — Minecraft version, Forge version, pack version, RAM
+ *       requirement, mod count. Read-at-a-glance metadata.</li>
+ *   <li><b>Quick Actions</b> — the right-click context menu surfaced as a button grid:
+ *       Open Folder / Mods / Screenshots / Resource Packs / Shaders / Config /
+ *       Create Shortcut / Copy Invite Link.</li>
+ *   <li><b>Stats</b> — Last played, total play time, launch count.</li>
+ *   <li><b>Update Log</b> — Chronological per-pack record of manifest packVersion
+ *       changes (see {@link ModPackUpdateLog}).</li>
+ *   <li><b>Coming Soon</b> — empty section reserved for future per-pack news, custom
+ *       buttons, and other manifest-driven content.</li>
+ * </ol>
+ *
+ * <p>The Play and Website buttons live in a sticky action row pinned below the
+ * scrollable body so the primary actions remain reachable regardless of how far the
+ * user has scrolled the metadata.
+ *
+ * @since 3.4
+ */
+public class MCLauncherModpackDetailModal extends StackPane
+{
+    /** Minimum width of the centered modal card. The launcher's own minimum window width
+     *  is 750 (see mainGUI.fxml), so 600 leaves comfortable margin around the modal
+     *  even at the smallest supported window. */
+    private static final double MODAL_MIN_WIDTH  = 600;
+    /** Minimum height of the centered modal card. Picked so the hero image + chip row
+     *  + sticky action row all fit without the scroll pane being collapsed to zero. */
+    private static final double MODAL_MIN_HEIGHT = 480;
+
+    /** Hard upper cap on the modal card's width. Past this point the modal stops
+     *  growing even on extra-wide / 4K windows — a 1100-wide modal already gives the
+     *  hero image and the section grid plenty of room, and going wider just makes
+     *  long lines of body text harder to scan. */
+    private static final double MODAL_MAX_WIDTH  = 1100;
+    /** Hard upper cap on the modal card's height. Mirrors the width cap: the body is
+     *  scrollable so a taller modal mostly just adds whitespace. */
+    private static final double MODAL_MAX_HEIGHT = 950;
+
+    /** Fraction of the parent layout's width/height the modal card targets. ~85/88%
+     *  leaves the dim backdrop visible as a frame around the modal so the user
+     *  always sees there's content behind it. */
+    private static final double MODAL_WIDTH_FRACTION  = 0.86;
+    private static final double MODAL_HEIGHT_FRACTION = 0.88;
+
+    /** Height of the hero image section at the top of the modal. ~2× the hero-card
+     *  image height (150 → 320) so background art is genuinely "viewed bigger" rather
+     *  than just "viewed slightly bigger." */
+    private static final double HERO_HEIGHT      = 320;
+
+    /** How many update-log entries to render. The full log is bounded at 200 entries
+     *  (see {@link ModPackUpdateLog}) but the modal only shows the most recent slice —
+     *  anything older is reachable by opening the .update_log.txt file directly from
+     *  the Open Folder action. */
+    private static final int MAX_LOG_ENTRIES_SHOWN = 12;
+
+    private final Region backdrop;
+    private final VBox modalCard;
+    private final Pane parentRoot;
+
+    /** Whether the modal is currently shown. Used to gate ESC handling so we don't
+     *  steal escape from other modals/screens when this one isn't active. */
+    private boolean visibleState = false;
+
+    /** Captured key handler — installed on show, removed on hide so we don't leak
+     *  filters when the modal goes back to invisible. */
+    private final javafx.event.EventHandler< KeyEvent > escHandler = e -> {
+        if ( e.getCode() == KeyCode.ESCAPE && visibleState ) {
+            e.consume();
+            hide();
+        }
+    };
+
+    /**
+     * Constructs the overlay and registers it as a child of the supplied parent. The
+     * overlay is initially invisible/unmanaged so it doesn't intercept layout or
+     * mouse events until {@link #show(GameModPack)} is called.
+     *
+     * <p>The parent should be a layout that allows arbitrary positioning of children
+     * (StackPane is ideal; GridPane works if the overlay is configured to span all
+     * cells — see {@link #attachToGridPane(GridPane)}). We pin the overlay to fill
+     * the parent so the dim backdrop covers the entire window.
+     *
+     * @param parentRoot the layout that should host this overlay
+     */
+    public MCLauncherModpackDetailModal( Pane parentRoot )
+    {
+        this.parentRoot = parentRoot;
+
+        // Dim backdrop — sits behind the modal card, captures clicks for dismissal.
+        backdrop = new Region();
+        backdrop.getStyleClass().add( "modpackDetailBackdrop" );
+        backdrop.setOnMouseClicked( e -> {
+            // Only close when the click target is the backdrop itself — clicks on the
+            // modal card or its children bubble up but the card's own onMouseClicked
+            // handler consumes them, so they won't reach here.
+            if ( e.getTarget() == backdrop ) {
+                hide();
+            }
+        } );
+
+        // Modal card placeholder — content is rebuilt on every show(pack) so the
+        // overlay can be reused across packs without dragging stale views around.
+        modalCard = new VBox();
+        modalCard.getStyleClass().add( "modpackDetailCard" );
+        modalCard.setMinWidth( MODAL_MIN_WIDTH );
+        modalCard.setMinHeight( MODAL_MIN_HEIGHT );
+        modalCard.setPickOnBounds( true );
+        // Consume clicks on the card so they don't fall through to the backdrop and
+        // close the modal when the user is just clicking around inside.
+        modalCard.setOnMouseClicked( javafx.event.Event::consume );
+
+        // Bind the card's pref + max size to a clamped fraction of the overlay's own
+        // bounds so a maximized 1920×1080 launcher gets a comfortably-large modal
+        // (~1100×950 capped) while a 750×475 minimum-size launcher gets a sensible
+        // 645×419-ish modal that still respects the min floors above. The overlay
+        // itself spans the entire window (GridPane.REMAINING on attach), so its
+        // width/height properties track the launcher window minus any chrome.
+        javafx.beans.binding.DoubleBinding cardPrefWidth = javafx.beans.binding.Bindings
+                .createDoubleBinding( () -> {
+                    double w = getWidth() * MODAL_WIDTH_FRACTION;
+                    return Math.max( MODAL_MIN_WIDTH, Math.min( MODAL_MAX_WIDTH, w ) );
+                }, widthProperty() );
+        javafx.beans.binding.DoubleBinding cardPrefHeight = javafx.beans.binding.Bindings
+                .createDoubleBinding( () -> {
+                    double h = getHeight() * MODAL_HEIGHT_FRACTION;
+                    return Math.max( MODAL_MIN_HEIGHT, Math.min( MODAL_MAX_HEIGHT, h ) );
+                }, heightProperty() );
+        modalCard.prefWidthProperty().bind( cardPrefWidth );
+        modalCard.maxWidthProperty().bind( cardPrefWidth );
+        modalCard.prefHeightProperty().bind( cardPrefHeight );
+        modalCard.maxHeightProperty().bind( cardPrefHeight );
+
+        getChildren().addAll( backdrop, modalCard );
+        StackPane.setAlignment( modalCard, Pos.CENTER );
+
+        setPickOnBounds( true );
+        setVisible( false );
+        setManaged( false );
+    }
+
+    /**
+     * Convenience wrapper that adds this overlay to a {@link GridPane} root such that
+     * it spans every row and column — the common case for the main menu, whose
+     * rootPane is a 1-column / 4-row GridPane.
+     *
+     * <p>Adds the overlay as the last child so it z-orders above all existing content.
+     *
+     * @param gridPane the GridPane to attach to (must be the same instance passed to
+     *                 the constructor as {@code parentRoot})
+     */
+    public void attachToGridPane( GridPane gridPane )
+    {
+        GridPane.setRowIndex( this, 0 );
+        GridPane.setColumnIndex( this, 0 );
+        GridPane.setRowSpan( this, GridPane.REMAINING );
+        GridPane.setColumnSpan( this, GridPane.REMAINING );
+        if ( !gridPane.getChildren().contains( this ) ) {
+            gridPane.getChildren().add( this );
+        }
+    }
+
+    /**
+     * Renders the modal for the given pack and fades it in. Idempotent: calling
+     * {@code show} while already visible swaps content to the new pack without an
+     * extra fade animation, which is the right behavior when the user closes one
+     * pack's modal via dismiss-then-click but a rare edge case in practice.
+     *
+     * @param pack the pack to display (must be non-null)
+     */
+    public void show( GameModPack pack )
+    {
+        if ( pack == null ) return;
+        rebuildModalContent( pack );
+
+        boolean alreadyShown = visibleState;
+        visibleState = true;
+        setVisible( true );
+        setManaged( true );
+
+        // Install the ESC handler on the scene only after the overlay enters the scene
+        // graph. We use addEventFilter (not setOnKeyPressed) so we don't clobber
+        // existing scene-level key handlers (e.g. the F5 refresh on the main GUI).
+        Scene s = getScene();
+        if ( s != null ) {
+            s.removeEventFilter( KeyEvent.KEY_PRESSED, escHandler );
+            s.addEventFilter( KeyEvent.KEY_PRESSED, escHandler );
+        }
+
+        if ( !alreadyShown ) {
+            FadeTransition fade = new FadeTransition( Duration.millis( 140 ), this );
+            fade.setFromValue( 0.0 );
+            fade.setToValue( 1.0 );
+            fade.play();
+        }
+        else {
+            setOpacity( 1.0 );
+        }
+
+        // Push focus onto the modal card so ESC reaches the scene filter without
+        // having to click through some focus-traversable child first.
+        Platform.runLater( modalCard::requestFocus );
+    }
+
+    /** Fades the modal out and returns it to its hidden, unmanaged state so no input
+     *  events leak through. Safe to call when already hidden. */
+    public void hide()
+    {
+        if ( !visibleState ) return;
+        visibleState = false;
+
+        Scene s = getScene();
+        if ( s != null ) {
+            s.removeEventFilter( KeyEvent.KEY_PRESSED, escHandler );
+        }
+
+        FadeTransition fade = new FadeTransition( Duration.millis( 120 ), this );
+        fade.setFromValue( getOpacity() );
+        fade.setToValue( 0.0 );
+        fade.setOnFinished( e -> {
+            setVisible( false );
+            setManaged( false );
+            modalCard.getChildren().clear();
+        } );
+        fade.play();
+    }
+
+    public boolean isShown()
+    {
+        return visibleState;
+    }
+
+    // =============================================================================
+    //  Content construction
+    // =============================================================================
+
+    private void rebuildModalContent( GameModPack pack )
+    {
+        modalCard.getChildren().clear();
+
+        // ----- Hero image at the top of the modal (large pack background) -----
+        Node hero = buildHeroSection( pack );
+
+        // ----- Body content (scrollable) -----
+        VBox body = new VBox( 16 );
+        body.setPadding( new Insets( 20, 24, 20, 24 ) );
+        body.getStyleClass().add( "modpackDetailBody" );
+
+        body.getChildren().add( buildChipsRow( pack ) );
+        body.getChildren().add( buildQuickActionsSection( pack ) );
+        body.getChildren().add( buildStatsSection( pack ) );
+        body.getChildren().add( buildUpdateLogSection( pack ) );
+        body.getChildren().add( buildComingSoonSection() );
+
+        ScrollPane bodyScroll = new ScrollPane( body );
+        bodyScroll.setFitToWidth( true );
+        bodyScroll.setHbarPolicy( ScrollPane.ScrollBarPolicy.NEVER );
+        bodyScroll.setVbarPolicy( ScrollPane.ScrollBarPolicy.AS_NEEDED );
+        bodyScroll.getStyleClass().add( "modpackDetailScroll" );
+        VBox.setVgrow( bodyScroll, Priority.ALWAYS );
+
+        // ----- Action row at the bottom (sticky, primary actions) -----
+        HBox actions = buildActionRow( pack );
+
+        modalCard.getChildren().addAll( hero, bodyScroll, actions );
+    }
+
+    private Node buildHeroSection( GameModPack pack )
+    {
+        StackPane hero = new StackPane();
+        hero.getStyleClass().add( "modpackDetailHero" );
+        hero.setMinHeight( HERO_HEIGHT );
+        hero.setPrefHeight( HERO_HEIGHT );
+        hero.setMaxHeight( HERO_HEIGHT );
+
+        // Rounded-top clip so the hero image respects the modal card's corner radius.
+        Rectangle clip = new Rectangle();
+        clip.setArcWidth( 32 );
+        clip.setArcHeight( 32 );
+        clip.widthProperty().bind( hero.widthProperty() );
+        clip.heightProperty().bind( hero.heightProperty() );
+        hero.setClip( clip );
+
+        // Background image / dynamic gradient — same resolution rules as the hero card
+        // (custom bg → file URL; vanilla → sky gradient; modded w/ logo → derived
+        // gradient; modded w/o logo → Forge default).
+        Image logoImage = resolveLogoImage( pack );
+        Region bgLayer = new Region();
+        bgLayer.getStyleClass().add( "heroBackground" );
+        String bgUrl = resolveBackgroundUrl( pack );
+        if ( bgUrl != null ) {
+            bgLayer.setStyle( "-fx-background-image: url('" + bgUrl + "');" );
+        }
+        else {
+            MCLauncherMainGui.applyDynamicBackground( bgLayer, pack, logoImage );
+        }
+
+        // Veil — heavier at the bottom-left where the logo and title sit, so they read
+        // cleanly over arbitrary bright pack imagery.
+        Region veil = new Region();
+        veil.getStyleClass().add( "modpackDetailHeroVeil" );
+
+        // Close button — top-right, sits above the veil.
+        // pickOnBounds(true) is required: Label nodes default to picking on the painted
+        // glyph only, so clicks on the styled 32×32 circular background (everything
+        // OUTSIDE the tiny ✕ character) would fall straight through to the hero
+        // region behind and the X would visually exist but be effectively a no-op.
+        Label closeBtn = new Label( "✕" );
+        closeBtn.getStyleClass().add( "modpackDetailClose" );
+        closeBtn.setCursor( Cursor.HAND );
+        closeBtn.setPickOnBounds( true );
+        closeBtn.setOnMouseClicked( e -> { e.consume(); hide(); } );
+        StackPane.setAlignment( closeBtn, Pos.TOP_RIGHT );
+        StackPane.setMargin( closeBtn, new Insets( 14, 18, 0, 0 ) );
+
+        // Badge row — top-left so it doesn't collide with the close button.
+        HBox badgeRow = new HBox( 6 );
+        badgeRow.setAlignment( Pos.TOP_LEFT );
+        if ( pack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
+        if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Updated", "stat-chip-success" ) );
+        StackPane.setAlignment( badgeRow, Pos.TOP_LEFT );
+        StackPane.setMargin( badgeRow, new Insets( 14, 0, 0, 18 ) );
+
+        // Logo + title — bottom-left of the hero image, mirroring the layout language
+        // of the hero card but scaled up so it reads at modal size.
+        HBox titleRow = new HBox( 14 );
+        titleRow.setAlignment( Pos.CENTER_LEFT );
+        titleRow.setPadding( new Insets( 0, 18, 18, 18 ) );
+        StackPane.setAlignment( titleRow, Pos.BOTTOM_LEFT );
+
+        StackPane logoBox = new StackPane();
+        logoBox.getStyleClass().add( "modpackDetailLogo" );
+        logoBox.setMinSize( 96, 96 );
+        logoBox.setMaxSize( 96, 96 );
+        ImageView logoView = new ImageView();
+        logoView.setFitWidth( 88 );
+        logoView.setFitHeight( 88 );
+        logoView.setPreserveRatio( true );
+        logoView.setImage( logoImage );
+        Rectangle logoClip = new Rectangle( 88, 88 );
+        logoClip.setArcWidth( 18 );
+        logoClip.setArcHeight( 18 );
+        logoView.setClip( logoClip );
+        logoBox.getChildren().add( logoView );
+
+        VBox titleBox = new VBox( 4 );
+        titleBox.setAlignment( Pos.CENTER_LEFT );
+
+        Label nameLabel = new Label( resolveDisplayName( pack ) );
+        nameLabel.getStyleClass().add( "modpackDetailTitle" );
+        nameLabel.setWrapText( true );
+
+        String lastPlayed = pack.getLastPlayedFormatted();
+        Label playedLabel = new Label();
+        playedLabel.getStyleClass().add( "modpackDetailSubtitle" );
+        if ( lastPlayed != null && !"Never played".equals( lastPlayed ) ) {
+            playedLabel.setText( "Last played " + lastPlayed.toLowerCase() );
+        }
+        else {
+            playedLabel.setText( "Never played" );
+        }
+
+        titleBox.getChildren().addAll( nameLabel, playedLabel );
+        titleRow.getChildren().addAll( logoBox, titleBox );
+
+        hero.getChildren().addAll( bgLayer, veil, badgeRow, closeBtn, titleRow );
+        return hero;
+    }
+
+    private Node buildChipsRow( GameModPack pack )
+    {
+        HBox chips = new HBox( 6 );
+        chips.setAlignment( Pos.CENTER_LEFT );
+
+        if ( pack.isVanillaVersion() ) {
+            chips.getChildren().add( buildChip( "Vanilla", "stat-chip" ) );
+        }
+        String mc = safeMinecraftVersion( pack );
+        if ( mc != null && !mc.isBlank() ) {
+            chips.getChildren().add( buildChip( "Minecraft " + mc, "stat-chip" ) );
+        }
+        String forge = safeForgeVersion( pack );
+        if ( forge != null && !forge.isBlank() ) {
+            // Same short-Forge formatting as the hero card so the two surfaces match.
+            String shortForge = forge.contains( "-" ) ? forge.substring( forge.lastIndexOf( '-' ) + 1 ) : forge;
+            chips.getChildren().add( buildChip( "Forge " + shortForge, "stat-chip" ) );
+        }
+        String packVersion = pack.getPackVersion();
+        if ( packVersion != null && !packVersion.isBlank() && !packVersion.equals( mc ) ) {
+            chips.getChildren().add( buildChip( "v" + packVersion, "stat-chip" ) );
+        }
+
+        // RAM chip — the manifest declares a minimum, which is genuinely useful for
+        // "should I bump my allocation?" decisions. Parse failures (unset / malformed)
+        // just skip the chip.
+        Double ramGB = safeCall( () -> {
+            try { return pack.getPackMinRAMGB(); }
+            catch ( Exception ignored ) { return null; }
+        } );
+        if ( ramGB != null && ramGB > 0 ) {
+            String ramText = ( ramGB == Math.floor( ramGB ) )
+                    ? String.format( "Minimum RAM: %.0f GB", ramGB )
+                    : String.format( "Minimum RAM: %.1f GB", ramGB );
+            chips.getChildren().add( buildChip( ramText, "stat-chip" ) );
+        }
+
+        int modCount = safePackModCount( pack );
+        if ( modCount > 0 ) {
+            chips.getChildren().add( buildChip( modCount + " mods", "stat-chip" ) );
+        }
+
+        return chips;
+    }
+
+    private Node buildQuickActionsSection( GameModPack pack )
+    {
+        VBox section = buildSectionBox( "Quick Actions" );
+        // Tile-style grid of action buttons — uses a FlowPane so it reflows on
+        // narrower modal widths (e.g. when the user has a small window) instead of
+        // overflowing horizontally.
+        javafx.scene.layout.FlowPane grid = new javafx.scene.layout.FlowPane( 8, 8 );
+        grid.setAlignment( Pos.CENTER_LEFT );
+
+        grid.getChildren().add( buildQuickActionBtn( "Open Folder",
+                () -> openPackSubfolder( pack, "" ) ) );
+        // Mods/config/resourcepacks/shaderpacks only make sense for modded packs —
+        // vanilla versions don't have a separate Forge config dir, no mods, etc.
+        if ( !pack.isVanillaVersion() ) {
+            grid.getChildren().add( buildQuickActionBtn( "Mods",
+                    () -> openPackSubfolder( pack, "mods" ) ) );
+            grid.getChildren().add( buildQuickActionBtn( "Config",
+                    () -> openPackSubfolder( pack, "config" ) ) );
+        }
+        grid.getChildren().add( buildQuickActionBtn( "Screenshots",
+                () -> openPackSubfolder( pack, "screenshots" ) ) );
+        grid.getChildren().add( buildQuickActionBtn( "Resource Packs",
+                () -> openPackSubfolder( pack, "resourcepacks" ) ) );
+        grid.getChildren().add( buildQuickActionBtn( "Shaders",
+                () -> openPackSubfolder( pack, "shaderpacks" ) ) );
+        grid.getChildren().add( buildQuickActionBtn( "Desktop Shortcut",
+                () -> createDesktopShortcut( pack ) ) );
+
+        // Copy Invite Link — only enabled when the pack has something to invite to.
+        MFXButton inviteBtn = buildQuickActionBtn( "Copy Invite Link",
+                () -> copyInviteLinkToClipboard( pack ) );
+        if ( DiscordRpcUtility.buildInviteLinkFromPack( pack ) == null ) {
+            inviteBtn.setDisable( true );
+            TooltipManager.install( inviteBtn,
+                    "This pack has no manifest URL or vanilla ID to invite friends to." );
+        }
+        grid.getChildren().add( inviteBtn );
+
+        section.getChildren().add( grid );
+        return section;
+    }
+
+    private Node buildStatsSection( GameModPack pack )
+    {
+        VBox section = buildSectionBox( "Stats" );
+
+        VBox rows = new VBox( 4 );
+        rows.getChildren().add( buildStatRow( "Last played", pack.getLastPlayedFormatted() ) );
+        rows.getChildren().add( buildStatRow( "Total play time", pack.getTotalPlayTimeFormatted() ) );
+        rows.getChildren().add( buildStatRow( "Launches", String.valueOf( pack.getLaunchCount() ) ) );
+
+        String installed = pack.getInstalledVersion();
+        if ( installed != null && !installed.isBlank() ) {
+            String remote = pack.getPackVersion();
+            String installedDisplay = pack.isUpdateAvailable() && remote != null && !remote.equals( installed )
+                    ? installed + " (update " + remote + " available)"
+                    : installed;
+            rows.getChildren().add( buildStatRow( "Installed version", installedDisplay ) );
+        }
+
+        String manifestUrl = pack.getManifestUrl();
+        if ( manifestUrl != null && !manifestUrl.isBlank() ) {
+            rows.getChildren().add( buildStatRow( "Manifest", manifestUrl ) );
+        }
+
+        section.getChildren().add( rows );
+        return section;
+    }
+
+    private Node buildUpdateLogSection( GameModPack pack )
+    {
+        VBox section = buildSectionBox( "Update Log" );
+
+        List< ModPackUpdateLog.Entry > entries = ModPackUpdateLog.readEntries( pack );
+        if ( entries.isEmpty() ) {
+            Label empty = new Label(
+                    pack.isVanillaVersion()
+                            ? "Vanilla versions don't track manifest updates."
+                            : "No manifest updates have been observed for this pack yet. "
+                                    + "When the upstream pack version changes, the change will be recorded here." );
+            empty.setWrapText( true );
+            empty.getStyleClass().add( "muted" );
+            section.getChildren().add( empty );
+            return section;
+        }
+
+        VBox list = new VBox( 4 );
+        int shown = Math.min( entries.size(), MAX_LOG_ENTRIES_SHOWN );
+        for ( int i = 0; i < shown; i++ ) {
+            ModPackUpdateLog.Entry e = entries.get( i );
+            list.getChildren().add( buildUpdateLogRow( e ) );
+        }
+        if ( entries.size() > MAX_LOG_ENTRIES_SHOWN ) {
+            Label more = new Label( "+ " + ( entries.size() - MAX_LOG_ENTRIES_SHOWN )
+                                            + " older entries" );
+            more.getStyleClass().add( "muted" );
+            list.getChildren().add( more );
+        }
+
+        section.getChildren().add( list );
+        return section;
+    }
+
+    private Node buildComingSoonSection()
+    {
+        VBox section = buildSectionBox( "Coming Soon" );
+        Label hint = new Label(
+                "This area will eventually host per-pack news, custom action buttons "
+                        + "defined by the pack manifest, and more — let us know what you'd like to see!" );
+        hint.setWrapText( true );
+        hint.getStyleClass().add( "muted" );
+        section.getChildren().add( hint );
+        return section;
+    }
+
+    private HBox buildActionRow( GameModPack pack )
+    {
+        HBox actions = new HBox( 10 );
+        actions.setAlignment( Pos.CENTER_LEFT );
+        actions.setPadding( new Insets( 14, 24, 18, 24 ) );
+        actions.getStyleClass().add( "modpackDetailActions" );
+
+        MFXButton playBtn = new MFXButton( "Play" );
+        playBtn.getStyleClass().addAll( "primary", "modpackDetailPlayBtn" );
+        playBtn.setPrefHeight( 42 );
+        HBox.setHgrow( playBtn, Priority.ALWAYS );
+        playBtn.setMaxWidth( Double.MAX_VALUE );
+        playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
+        playBtn.setOnAction( e -> {
+            hide();
+            startPlay( pack );
+        } );
+
+        MFXButton websiteBtn = new MFXButton( "Website" );
+        websiteBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
+        websiteBtn.setPrefHeight( 42 );
+        websiteBtn.setPrefWidth( 110 );
+        websiteBtn.setOnAction( e -> openModpackWebsite( pack ) );
+        if ( pack.getPackURL() == null || pack.getPackURL().isBlank() ) {
+            websiteBtn.setDisable( true );
+        }
+
+        actions.getChildren().addAll( playBtn, websiteBtn );
+        return actions;
+    }
+
+    // =============================================================================
+    //  Small builders / helpers
+    // =============================================================================
+
+    private VBox buildSectionBox( String heading )
+    {
+        VBox section = new VBox( 8 );
+        section.getStyleClass().add( "modpackDetailSection" );
+        Label title = new Label( heading );
+        title.getStyleClass().add( "modpackDetailSectionHeading" );
+        section.getChildren().add( title );
+        return section;
+    }
+
+    private Label buildChip( String text, String... classes )
+    {
+        Label chip = new Label( text );
+        for ( String c : classes ) chip.getStyleClass().add( c );
+        return chip;
+    }
+
+    private MFXButton buildQuickActionBtn( String text, Runnable action )
+    {
+        MFXButton btn = new MFXButton( text );
+        btn.getStyleClass().add( "modpackDetailQuickAction" );
+        btn.setPrefHeight( 34 );
+        btn.setOnAction( e -> {
+            try { action.run(); }
+            catch ( Throwable t ) {
+                Logger.logErrorSilent( "Modal quick-action failed: " + t.getMessage() );
+                Logger.logThrowable( t );
+            }
+        } );
+        return btn;
+    }
+
+    private HBox buildStatRow( String label, String value )
+    {
+        HBox row = new HBox( 8 );
+        row.setAlignment( Pos.CENTER_LEFT );
+        Label k = new Label( label );
+        k.getStyleClass().add( "modpackDetailStatKey" );
+        k.setMinWidth( 140 );
+        Label v = new Label( value != null && !value.isBlank() ? value : "—" );
+        v.getStyleClass().add( "modpackDetailStatValue" );
+        v.setWrapText( true );
+        HBox.setHgrow( v, Priority.ALWAYS );
+        row.getChildren().addAll( k, v );
+        return row;
+    }
+
+    private HBox buildUpdateLogRow( ModPackUpdateLog.Entry e )
+    {
+        HBox row = new HBox( 10 );
+        row.setAlignment( Pos.CENTER_LEFT );
+        row.getStyleClass().add( "modpackDetailLogRow" );
+
+        Label date = new Label( ModPackUpdateLog.formatTimestamp( e ) );
+        date.getStyleClass().add( "modpackDetailLogDate" );
+        date.setMinWidth( 96 );
+
+        Label arrow = new Label( "v" + e.oldVersion() + "  →  v" + e.newVersion() );
+        arrow.getStyleClass().add( "modpackDetailLogArrow" );
+
+        row.getChildren().addAll( date, arrow );
+        return row;
+    }
+
+    // =============================================================================
+    //  Pack helpers (mirror the ones in MCLauncherMainGui so the modal stays
+    //  self-contained — the small duplication is preferable to making private
+    //  helpers package-visible across the gui package).
+    // =============================================================================
+
+    private static Image resolveLogoImage( GameModPack pack )
+    {
+        try {
+            String path = pack.getPackLogoFilepath();
+            if ( path != null ) {
+                File f = new File( path );
+                if ( f.exists() ) return new Image( f.toURI().toString(), true );
+            }
+        }
+        catch ( Exception ignored ) { /* fall through */ }
+        try {
+            return new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL, true );
+        }
+        catch ( Exception ignored ) {
+            return null;
+        }
+    }
+
+    private static String resolveBackgroundUrl( GameModPack pack )
+    {
+        try {
+            if ( !pack.hasCustomBackground() ) return null;
+            String path = pack.getPackBackgroundFilepath();
+            if ( path != null ) {
+                File f = new File( path );
+                if ( f.exists() && f.length() > 0 ) return f.toURI().toString();
+            }
+        }
+        catch ( Exception ignored ) { /* fall through */ }
+        return null;
+    }
+
+    private static String resolveDisplayName( GameModPack pack )
+    {
+        if ( pack.isVanillaVersion() ) {
+            String name = pack.getPackName();
+            if ( name != null && !name.isBlank() ) return name;
+        }
+        String name = pack.getFriendlyName();
+        if ( name == null || name.isBlank() ) name = pack.getPackName();
+        return name != null ? name : "Unnamed Pack";
+    }
+
+    /** Counts mods on the pack metadata, swallowing exceptions for vanilla / null cases. */
+    private static int safePackModCount( GameModPack pack )
+    {
+        try {
+            // Reflectively access the mod list via the metadata accessor — vanilla packs
+            // get an empty list assigned at createVanillaModPack time, modded packs get
+            // whatever the manifest declared. A null packMods (older manifests without
+            // the field at all) is treated as zero.
+            java.lang.reflect.Field f = pack.getClass().getSuperclass().getDeclaredField( "packMods" );
+            f.setAccessible( true );
+            Object mods = f.get( pack );
+            if ( mods instanceof java.util.Collection< ? > c ) {
+                return c.size();
+            }
+        }
+        catch ( Exception ignored ) { /* fall through */ }
+        return 0;
+    }
+
+    /** Wraps a value supplier in a try/catch so resolution exceptions don't break the
+     *  modal build. Returns null on failure. */
+    private static < T > T safeCall( Supplier< T > supplier )
+    {
+        try { return supplier.get(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    private static String safeMinecraftVersion( GameModPack pack )
+    {
+        try { return pack.getMinecraftVersion(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    private static String safeForgeVersion( GameModPack pack )
+    {
+        try { return pack.getForgeVersion(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    // =============================================================================
+    //  Action wiring (these mirror what's in MCLauncherMainGui's context-menu
+    //  helpers; consolidating them in a shared utility is a future refactor).
+    // =============================================================================
+
+    private static void startPlay( GameModPack pack )
+    {
+        ConfigManager.setLastModPackSelected( pack.getPackName() );
+        SystemUtilities.spawnNewTask( () -> {
+            Platform.setImplicitExit( false );
+            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( pack ) );
+            LauncherCore.play( pack, () -> GUIUtilities.JFXPlatformRun( () -> {
+                try {
+                    Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
+                    MCLauncherGuiController.goToMainGui();
+                    MCLauncherGuiController.requestFocus();
+                }
+                catch ( Exception e ) {
+                    Logger.logError(
+                            "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                    Logger.logThrowable( e );
+                    LauncherCore.closeApp();
+                }
+            } ) );
+        } );
+    }
+
+    private static void openModpackWebsite( GameModPack pack )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                Desktop.getDesktop().browse( URI.create( pack.getPackURL() ) );
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to open your browser. Please visit " + pack.getPackURL() +
+                                         " to view the mod pack's website!" );
+                Logger.logThrowable( e );
+            }
+        } );
+    }
+
+    private static void openPackSubfolder( GameModPack pack, String subfolder )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                String path = pack.getPackRootFolder();
+                if ( !subfolder.isEmpty() ) {
+                    path += File.separator + subfolder;
+                }
+                File folder = new File( path );
+                if ( !folder.exists() ) {
+                    //noinspection ResultOfMethodCallIgnored
+                    folder.mkdirs();
+                }
+                Desktop.getDesktop().open( folder );
+            }
+            catch ( Exception ex ) {
+                Logger.logWarningSilent( "Unable to open folder: " + ex.getMessage() );
+            }
+        } );
+    }
+
+    private static void createDesktopShortcut( GameModPack pack )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                DesktopShortcutManager.createShortcut( pack );
+                Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+                if ( ownerStage != null ) {
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                                javafx.scene.control.Alert.AlertType.INFORMATION );
+                        alert.setTitle( "Shortcut Created" );
+                        alert.setHeaderText( null );
+                        alert.setContentText( "Desktop shortcut created for " + pack.getPackName() + "." );
+                        alert.initOwner( ownerStage );
+                        alert.initStyle( javafx.stage.StageStyle.UTILITY );
+                        alert.showAndWait();
+                    } );
+                }
+            }
+            catch ( Exception ex ) {
+                Logger.logError( "Failed to create desktop shortcut: " + ex.getMessage() );
+                Logger.logThrowable( ex );
+                Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+                if ( ownerStage != null ) {
+                    GUIUtilities.showErrorMessage( "Unable to create desktop shortcut: "
+                                                           + ex.getMessage(), ownerStage );
+                }
+            }
+        } );
+    }
+
+    private static void copyInviteLinkToClipboard( GameModPack pack )
+    {
+        String invite = DiscordRpcUtility.buildInviteLinkFromPack( pack );
+        if ( invite == null ) {
+            NotificationManager.warn( "No invite link",
+                                      "This pack doesn't have anything to invite friends to "
+                                              + "(no manifest URL or vanilla version)." );
+            return;
+        }
+        GUIUtilities.JFXPlatformRun( () -> {
+            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+            content.putString( invite );
+            javafx.scene.input.Clipboard.getSystemClipboard().setContent( content );
+            NotificationManager.success( "Invite link copied",
+                                         "Paste it in Discord or anywhere else to invite friends." );
+        } );
+    }
+
+}

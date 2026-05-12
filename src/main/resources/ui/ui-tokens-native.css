@@ -130,3 +130,46 @@
 .mfx-combo-box .mfx-list-view {
     -fx-background-color: #1C2230;
 }
+
+/* ----- Modpack-detail modal: force opaque surfaces in the Native theme -----
+ *
+ * The expanded modpack-detail modal is an in-scene StackPane overlay (not
+ * a popup), but its card surface uses `-color-surface-elevated` which is
+ * the 8% translucent frost — the same trick that gives in-window cards
+ * their Mica look. For a modal that's supposed to BE the user's focus,
+ * 8% white over the Mica backdrop bleeds the wallpaper straight through
+ * the modal and the result reads as ghostly text floating over the
+ * desktop. The dim backdrop already separates the modal from the rest of
+ * the launcher; the card itself just needs to read as a solid panel.
+ *
+ * Mirrors the rationale of the popup-surface fix above: keep the token
+ * translucent so other in-window cards (hero cards, library cards) still
+ * get the frosted-glass treatment, but override modal-specific selectors
+ * to paint solid. */
+.modpackDetailCard {
+    -fx-background-color: #1C2230;
+}
+.modpackDetailCard .modpackDetailSection {
+    -fx-background-color: #252B3A;
+    -fx-border-color: rgba(220, 230, 245, 0.18);
+}
+.modpackDetailCard .modpackDetailActions {
+    -fx-background-color: #161A23;
+    -fx-border-color: rgba(220, 230, 245, 0.18);
+}
+.modpackDetailCard .modpackDetailQuickAction,
+.modpackDetailCard .modpackDetailQuickAction:armed,
+.modpackDetailCard .modpackDetailQuickAction:focused {
+    -fx-background-color: #2B3144;
+}
+.modpackDetailCard .modpackDetailQuickAction:hover {
+    -fx-background-color: #353C52;
+}
+.modpackDetailCard .modpackDetailSecondaryBtn,
+.modpackDetailCard .modpackDetailSecondaryBtn:armed,
+.modpackDetailCard .modpackDetailSecondaryBtn:focused {
+    -fx-background-color: #2B3144;
+}
+.modpackDetailCard .modpackDetailSecondaryBtn:hover {
+    -fx-background-color: #353C52;
+}

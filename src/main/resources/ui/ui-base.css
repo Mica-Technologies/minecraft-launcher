@@ -519,6 +519,217 @@
     -fx-text-fill: -color-secondary;
 }
 
+/* =====================================================================
+ * 3.5 Expanded modpack-detail modal
+ *
+ * Triggered by single-clicking a hero card on the main menu. Overlay
+ * StackPane spans the entire window; a dim backdrop captures the click
+ * outside the modal card. The modal card itself is a roomier surface
+ * (~760x720) showing the pack's background image at hero scale, a chip
+ * summary, quick actions, stats, the per-pack update log, and a sticky
+ * action row. See MCLauncherModpackDetailModal.
+ * ===================================================================== */
+
+/* The full-window overlay. Backdrop+card sit on top of this. */
+.modpackDetailBackdrop {
+    -fx-background-color: rgba(0, 0, 0, 0.55);
+}
+
+/* The centered modal card surface. */
+.modpackDetailCard {
+    -fx-background-color: -color-surface-elevated;
+    -fx-background-radius: 18;
+    -fx-border-color: -color-border-strong;
+    -fx-border-radius: 18;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 32, 0.30, 0, 12);
+}
+
+/* Hero image section at the top of the modal card. Top corners rounded to
+ * match the card; bottom corners square so the image sits flush with the body. */
+.modpackDetailHero {
+    -fx-background-color: -color-bg-soft;
+    -fx-background-radius: 18 18 0 0;
+    -fx-border-color: -color-border;
+    -fx-border-width: 0 0 1 0;
+}
+
+/* Veil on the hero image — heavier on the bottom-left where the logo + title
+ * sit, so they read against bright pack imagery without darkening the entire
+ * hero. */
+.modpackDetailHeroVeil {
+    -fx-background-radius: 18 18 0 0;
+    -fx-background-color:
+        linear-gradient(to bottom right,
+            rgba(0, 0, 0, 0.70) 0%,
+            rgba(0, 0, 0, 0.30) 35%,
+            rgba(0, 0, 0, 0.10) 65%,
+            transparent 100%),
+        linear-gradient(to bottom,
+            transparent 50%,
+            rgba(0, 0, 0, 0.45) 100%);
+}
+
+/* Title typography over the hero image — large, bold, white with a tight
+ * drop shadow so it reads against any background. */
+.modpackDetailTitle {
+    -fx-text-fill: white;
+    -fx-font-size: 26px;
+    -fx-font-weight: 700;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.75), 10, 0.30, 0, 2);
+}
+
+.modpackDetailSubtitle {
+    -fx-text-fill: rgba(255, 255, 255, 0.85);
+    -fx-font-size: 12px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.65), 5, 0.25, 0, 1);
+}
+
+/* Logo container — same glass treatment as the hero card but scaled to 96px
+ * to match the bigger modal hero. */
+.modpackDetailLogo {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-border-color: rgba(255, 255, 255, 0.32);
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 20, 0.30, 0, 6);
+}
+
+/* Close button in the top-right of the hero image. Glass-treatment surface
+ * so it works over arbitrary backgrounds. */
+.modpackDetailClose {
+    -fx-background-color: rgba(0, 0, 0, 0.45);
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-min-width: 32;
+    -fx-min-height: 32;
+    -fx-pref-width: 32;
+    -fx-pref-height: 32;
+    -fx-background-radius: 999;
+    -fx-alignment: center;
+    -fx-border-color: rgba(255, 255, 255, 0.22);
+    -fx-border-width: 1;
+    -fx-border-radius: 999;
+}
+
+.modpackDetailClose:hover {
+    -fx-background-color: rgba(0, 0, 0, 0.65);
+    -fx-border-color: rgba(255, 255, 255, 0.42);
+}
+
+/* Body of the modal (scrollable). */
+.modpackDetailBody {
+    -fx-background-color: transparent;
+}
+
+.modpackDetailScroll,
+.modpackDetailScroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* Section panels inside the modal body — soft surface, padded, separates the
+ * Quick Actions / Stats / Update Log / Coming Soon groups visually. */
+.modpackDetailSection {
+    -fx-background-color: -color-bg-soft;
+    -fx-background-radius: 12;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-padding: 14;
+}
+
+.modpackDetailSectionHeading {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-padding: 0 0 4 0;
+}
+
+.modpackDetailStatKey {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 12px;
+}
+
+.modpackDetailStatValue {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 12px;
+}
+
+/* Quick-action buttons — slightly smaller than primary actions so the grid
+ * doesn't dominate the modal. */
+.modpackDetailQuickAction,
+.modpackDetailQuickAction:armed,
+.modpackDetailQuickAction:focused {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-border;
+    -fx-text-fill: -color-text;
+    -fx-padding: 4 14 4 14;
+}
+
+.modpackDetailQuickAction:hover {
+    -fx-background-color: -color-surface-hover;
+    -fx-border-color: -color-primary;
+}
+
+/* Update log rows — keep the date column visually separated from the version
+ * arrow so the entries scan vertically at a glance. */
+.modpackDetailLogRow {
+    -fx-padding: 4 0 4 0;
+}
+
+.modpackDetailLogDate {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 11px;
+    -fx-font-family: "Consolas", "Menlo", "Monaco", monospace;
+}
+
+.modpackDetailLogArrow {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+}
+
+/* Sticky action row at the bottom of the modal. Slightly elevated surface +
+ * top divider so it reads as a distinct pinned region rather than continuous
+ * with the scrolled body. */
+.modpackDetailActions {
+    -fx-background-color: -color-surface;
+    -fx-background-radius: 0 0 18 0;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1 0 0 0;
+}
+
+.modpackDetailPlayBtn,
+.modpackDetailPlayBtn:armed,
+.modpackDetailPlayBtn:focused,
+.modpackDetailPlayBtn.primary {
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-font-size: 16px;
+    -fx-padding: 10 22 10 22;
+}
+
+.modpackDetailPlayBtn .text {
+    -fx-fill: white;
+}
+
+.modpackDetailSecondaryBtn,
+.modpackDetailSecondaryBtn:armed,
+.modpackDetailSecondaryBtn:focused {
+    -fx-background-color: -color-surface-hover;
+    -fx-border-color: -color-border-strong;
+    -fx-text-fill: -color-text;
+}
+
+.modpackDetailSecondaryBtn .text { -fx-fill: -color-text; }
+
+.modpackDetailSecondaryBtn:hover {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-primary;
+}
+
 
 /* =====================================================================
  * 4. Buttons

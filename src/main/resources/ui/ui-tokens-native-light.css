@@ -82,3 +82,39 @@
 .rootPane.hero-surface {
     -fx-background-color: transparent;
 }
+
+/* ----- Modpack-detail modal: force opaque surfaces in the Native theme -----
+ *
+ * Same rationale as the dark Native variant — the modal card uses the
+ * translucent `-color-surface-elevated` token, which over a bright Mica
+ * wallpaper drops to nearly invisible. Override modal-specific selectors
+ * with a clean opaque white card and faintly tinted section panels so the
+ * modal reads as a discrete panel regardless of what the user has behind
+ * the launcher window. */
+.modpackDetailCard {
+    -fx-background-color: #FFFFFF;
+}
+.modpackDetailCard .modpackDetailSection {
+    -fx-background-color: #F4F5F8;
+    -fx-border-color: rgba(15, 23, 42, 0.12);
+}
+.modpackDetailCard .modpackDetailActions {
+    -fx-background-color: #F0F2F6;
+    -fx-border-color: rgba(15, 23, 42, 0.12);
+}
+.modpackDetailCard .modpackDetailQuickAction,
+.modpackDetailCard .modpackDetailQuickAction:armed,
+.modpackDetailCard .modpackDetailQuickAction:focused {
+    -fx-background-color: #FFFFFF;
+}
+.modpackDetailCard .modpackDetailQuickAction:hover {
+    -fx-background-color: #EDEFF3;
+}
+.modpackDetailCard .modpackDetailSecondaryBtn,
+.modpackDetailCard .modpackDetailSecondaryBtn:armed,
+.modpackDetailCard .modpackDetailSecondaryBtn:focused {
+    -fx-background-color: #FFFFFF;
+}
+.modpackDetailCard .modpackDetailSecondaryBtn:hover {
+    -fx-background-color: #EDEFF3;
+}

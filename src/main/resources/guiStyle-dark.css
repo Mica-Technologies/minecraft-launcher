@@ -293,6 +293,15 @@
     -fx-text-fill: white;
 }
 
+/* See guiStyle-light.css for the rationale on this rule — MFX's `-mfx-selected`
+ * pseudo-property doesn't reliably paint the dropdown's selected row, so set
+ * the background explicitly. Same shape across all four legacy themes for
+ * consistency even though the contrast bug only reads as a failure on the
+ * light theme. */
+.mfx-combo-box-cell:selected {
+    -fx-background-color: #4CAF50;
+}
+
 .mfx-combo-box-cell:selected .data-label {
     -fx-text-fill: white;
 }
