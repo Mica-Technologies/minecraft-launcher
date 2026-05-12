@@ -141,14 +141,33 @@ public class SystemUtilities
     }
 
     /**
-     * Executes the specified runnable task on a newly created thread.
+     * Executes the specified runnable task on a newly created DAEMON thread.
+     *
+     * <p>Daemon-by-default is deliberate: the launcher calls
+     * {@code Platform.setImplicitExit(false)} in several code paths so the JVM
+     * stays alive when the last JavaFX window closes (e.g. while a game is
+     * running). A non-daemon background thread spawned via this helper would,
+     * combined with that flag, keep the JVM alive indefinitely after the user
+     * closes the launcher — orphaned stale process per IDE-force-stop or
+     * abnormal exit.
+     *
+     * <p>Daemon threads are torn down automatically when the JVM exits, so
+     * normal {@code System.exit()} still works and orphan processes can't
+     * accumulate even if the in-flight task is mid-HTTP-read.
+     *
+     * <p>Most callers want background fire-and-forget behavior anyway — there
+     * is no expectation that the work outlives the launcher. The few cases
+     * that genuinely need a non-daemon (e.g. the actual game launch process)
+     * spawn their own threads directly.
      *
      * @param runnable task
      *
      * @since 1.1
      */
     public static void spawnNewTask( Runnable runnable ) {
-        new Thread( runnable ).start();
+        Thread t = new Thread( runnable );
+        t.setDaemon( true );
+        t.start();
     }
 
     /**
