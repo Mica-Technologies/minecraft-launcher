@@ -1024,6 +1024,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
+        // Wire smooth-scroll on every tab's inner ScrollPane so wheel scrolling
+        // in settings feels the same as the modpack list / library / help WebView
+        // instead of JavaFX's default discrete-tick behavior. Using lookupAll
+        // on the JavaFX-supplied .scroll-pane CSS class catches all nine tab
+        // panes (and any future ones added to the FXML) without forcing the
+        // controller to inject each by fx:id.
+        for ( javafx.scene.Node node : rootPane.lookupAll( ".scroll-pane" ) ) {
+            if ( node instanceof javafx.scene.control.ScrollPane sp ) {
+                SmoothScroll.install( sp );
+            }
+        }
+
         // Select current theme in dropdown. Match case-insensitively against the canonical
         // ALLOWED_THEMES list so themes with mixed-case display names (e.g. "Native (Mica)")
         // survive a round-trip through config without being mangled by single-word

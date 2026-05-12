@@ -245,7 +245,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @Override
     void afterShow()
     {
-        // Nothing needed
+        // Wire smooth-scroll on the editor's inner ScrollPane so wheel scrolling
+        // matches the rest of the app. The ScrollPane in modpackEditorGUI.fxml
+        // has no fx:id, so look it up via the JavaFX-supplied .scroll-pane CSS
+        // class instead of injecting a field. If the FXML ever grows multiple
+        // ScrollPanes, lookupAll handles them too.
+        for ( javafx.scene.Node node : rootPane.lookupAll( ".scroll-pane" ) ) {
+            if ( node instanceof javafx.scene.control.ScrollPane sp ) {
+                SmoothScroll.install( sp );
+            }
+        }
     }
 
     @Override

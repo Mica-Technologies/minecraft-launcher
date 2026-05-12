@@ -189,6 +189,11 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
+        // Smooth wheel-scroll inside the MS sign-in WebView so account-picker
+        // and consent screens scroll the same way as the help WebView and the
+        // app's other surfaces, instead of JavaFX's default discrete bumps.
+        SmoothScroll.install( authWebView );
+
         // Load MS auth
         loadMsAuthFrame();
 
