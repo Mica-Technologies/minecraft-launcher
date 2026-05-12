@@ -50,6 +50,7 @@ public final class PowerStateManager
     private static final long CACHE_TTL_NANOS = 5L * 1_000_000_000L;
 
     private static volatile boolean cachedOnBattery   = false;
+    private static volatile int     cachedBatteryPct  = -1;
     private static volatile long    cacheExpiryNanos  = 0L;
 
     /** Latches to "true" once we've engaged battery throttling at least once in this session.
@@ -66,42 +67,24 @@ public final class PowerStateManager
      */
     public static boolean isOnBattery()
     {
-        long now = System.nanoTime();
-        if ( now < cacheExpiryNanos ) {
-            return cachedOnBattery;
-        }
-        boolean computed = computeOnBattery();
-        cachedOnBattery = computed;
-        cacheExpiryNanos = now + CACHE_TTL_NANOS;
-        return computed;
+        refreshCacheIfStale();
+        return cachedOnBattery;
     }
 
     /** Returns the remaining battery percentage (0..100) of the first detected internal battery
      *  (UPS sources are skipped — a desktop with a UPS isn't what this is for), or -1 if no
-     *  battery is present / the probe fails. Not currently consumed by anything in-launcher;
-     *  exposed for a future "battery low" UI cue. */
+     *  battery is present / the probe fails. */
     public static int getBatteryPercentage()
     {
-        try {
-            List< PowerSource > sources = new SystemInfo().getHardware().getPowerSources();
-            if ( sources == null || sources.isEmpty() ) {
-                return -1;
-            }
-            for ( PowerSource ps : sources ) {
-                if ( isInternalBattery( ps ) ) {
-                    double pct = ps.getRemainingCapacityPercent();
-                    return ( int ) Math.round( pct * 100.0 );
-                }
-            }
-            return -1;
-        }
-        catch ( Exception | Error e ) {
-            return -1;
-        }
+        refreshCacheIfStale();
+        return cachedBatteryPct;
     }
 
-    /** True if the user has enabled the throttle and the host is currently on battery. The actual
-     *  throttling decision in {@link #maybeThrottle(int)}. */
+    /** True if the user has enabled the throttle, the host is on battery, AND the battery is
+     *  low enough that saving juice actually matters. Above
+     *  {@link ConfigConstants#BATTERY_THROTTLE_PCT_THRESHOLD}% there's plenty of charge to
+     *  finish an install, so we don't strangle downloads. If the percentage can't be read we
+     *  fall back to the historical "throttle whenever on battery" behavior. */
     public static boolean shouldThrottleDownloads()
     {
         try {
@@ -112,7 +95,14 @@ public final class PowerStateManager
         catch ( Exception e ) {
             // Config not initialized yet (very early in startup) — assume default-on.
         }
-        return isOnBattery();
+        if ( !isOnBattery() ) {
+            return false;
+        }
+        int pct = getBatteryPercentage();
+        if ( pct < 0 ) {
+            return true;
+        }
+        return pct < ConfigConstants.BATTERY_THROTTLE_PCT_THRESHOLD;
     }
 
     /** Reports whether the throttle has fired at least once in this launcher session. Lets a UI
@@ -168,39 +158,62 @@ public final class PowerStateManager
         }
     }
 
-    private static boolean computeOnBattery()
+    private static void refreshCacheIfStale()
     {
+        long now = System.nanoTime();
+        if ( now < cacheExpiryNanos ) {
+            return;
+        }
+        probeAndCache();
+        cacheExpiryNanos = now + CACHE_TTL_NANOS;
+    }
+
+    private static void probeAndCache()
+    {
+        boolean onBattery = false;
+        int pct = -1;
         try {
             List< PowerSource > sources = new SystemInfo().getHardware().getPowerSources();
-            if ( sources == null || sources.isEmpty() ) {
-                return false;
-            }
-            // Only count internal laptop batteries. A desktop with a UPS still appears here as
-            // a PowerSource — but a UPS is for outage ride-through, not a "save juice" signal,
-            // and on some platforms (notably Windows) oshi reports a UPS as !isPowerOnLine even
-            // when it's plugged in and at 100%. Filter UPS sources out entirely.
-            boolean sawBattery = false;
-            for ( PowerSource ps : sources ) {
-                if ( !isInternalBattery( ps ) ) {
-                    continue;
+            if ( sources != null && !sources.isEmpty() ) {
+                // Only count internal laptop batteries. A desktop with a UPS still appears here as
+                // a PowerSource — but a UPS is for outage ride-through, not a "save juice" signal,
+                // and on some platforms (notably Windows) oshi reports a UPS as !isPowerOnLine even
+                // when it's plugged in and at 100%. Filter UPS sources out entirely.
+                boolean sawBattery = false;
+                boolean anyOnAc = false;
+                for ( PowerSource ps : sources ) {
+                    if ( !isInternalBattery( ps ) ) {
+                        continue;
+                    }
+                    sawBattery = true;
+                    if ( pct < 0 ) {
+                        try {
+                            pct = ( int ) Math.round( ps.getRemainingCapacityPercent() * 100.0 );
+                        }
+                        catch ( Exception | Error ignored ) {
+                            // pct stays -1
+                        }
+                    }
+                    // "On battery" requires the source to be actively discharging — not just
+                    // "not on AC line". On some hardware a fully-charged battery reports
+                    // !isPowerOnLine() during a momentary capacity-balance step even when the
+                    // adapter is plugged in; isDischarging() is the more reliable positive signal.
+                    if ( ps.isPowerOnLine() || ps.isCharging() || !ps.isDischarging() ) {
+                        anyOnAc = true;
+                    }
                 }
-                sawBattery = true;
-                // "On battery" requires the source to be actively discharging — not just
-                // "not on AC line". On some hardware a fully-charged battery reports
-                // !isPowerOnLine() during a momentary capacity-balance step even when the
-                // adapter is plugged in; isDischarging() is the more reliable positive signal.
-                if ( ps.isPowerOnLine() || ps.isCharging() || !ps.isDischarging() ) {
-                    return false;
-                }
+                onBattery = sawBattery && !anyOnAc;
             }
-            return sawBattery;
         }
         catch ( Exception | Error e ) {
             // Probe failed — safest default is "not on battery" so we never throttle
             // unexpectedly because of an oshi quirk on an obscure platform.
             Logger.logWarningSilent( "Power-state probe failed: " + e.getMessage() );
-            return false;
+            onBattery = false;
+            pct = -1;
         }
+        cachedOnBattery = onBattery;
+        cachedBatteryPct = pct;
     }
 
     /** True iff this source looks like an internal laptop battery — i.e. not a UPS or some

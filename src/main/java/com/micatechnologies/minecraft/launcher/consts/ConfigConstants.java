@@ -472,6 +472,17 @@ public class ConfigConstants
      */
     public static final long BATTERY_THROTTLE_BYTES_PER_SEC = 512L * 1024L;
 
+    /**
+     * Battery-level (percent, 0-100) below which the saver actually engages. Above this, the
+     * launcher behaves as if on AC even if the OS reports "on battery" — at high charge there's
+     * plenty of juice for an install and strangling downloads is just an annoyance the user
+     * didn't ask for. Picked low enough that there's still meaningful runtime left when saver
+     * kicks in, high enough that fresh installs after a couple hours unplugged still benefit.
+     *
+     * @since 3.1
+     */
+    public static final int BATTERY_THROTTLE_PCT_THRESHOLD = 30;
+
     public static final String THEME_DARK          = "Dark";
     public static final String THEME_LIGHT         = "Light";
     public static final String THEME_AUTOMATIC     = "Automatic";
