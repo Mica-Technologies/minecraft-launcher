@@ -102,9 +102,24 @@
                 <version>3.1.0</version>
                 <configuration>
                     <filesets>
+                        <!-- Wipe the whole build/ tree on clean EXCEPT build/jdk. The
+                             auto-clean below is bound to `initialize`, so it fires at the
+                             start of every Maven invocation (including `mvn compile`),
+                             not just `mvn clean`. Without the jdk/** exclude, the
+                             mvn-jlink-wrapper Corretto download (~380 MB) gets wiped
+                             and re-fetched on every build — which is what was happening
+                             every time the IntelliJ run config triggered Compile before
+                             launch. The JDK contents are reproducible from the Corretto
+                             URL anyway, so keeping the cache between builds is safe;
+                             an explicit `mvn clean -Djdk.clean=true` or manual
+                             `rm -rf build/jdk` is enough when a fresh download is
+                             actually wanted (e.g. after bumping the JDK major version). -->
                         <fileset>
                             <directory>build</directory>
                             <followSymlinks>false</followSymlinks>
+                            <excludes>
+                                <exclude>jdk/**</exclude>
+                            </excludes>
                         </fileset>
                     </filesets>
                 </configuration>
