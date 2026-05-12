@@ -461,6 +461,24 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 18, 0.30, 0, 6);
 }
 
+/* When the logo image has transparent edges (circular badge, wordmark, etc.)
+ * the rounded-rect container's border + background frame looks like a floating
+ * rectangle around nothing. .logoTransparent strips the container styling so
+ * the logo glyph floats freely over the hero image — applied dynamically by
+ * LogoTransparencyDetector when it detects a mostly-transparent perimeter.
+ *
+ * Shadow stays at half-strength: even for a transparent-edges logo a faint
+ * drop shadow follows the logo's actual painted shape (because the clipped
+ * ImageView is the visible node) and gives the glyph a hint of depth without
+ * the bordered-rectangle artifact. */
+.heroPackLogoContainer.logoTransparent,
+.modpackDetailLogo.logoTransparent {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.50), 10, 0.30, 0, 3);
+}
+
 /* Stat chips inside the hero card need a glass treatment (white text, translucent
  * surface) since they sit over the dark image veil. */
 .heroCard .stat-chip {

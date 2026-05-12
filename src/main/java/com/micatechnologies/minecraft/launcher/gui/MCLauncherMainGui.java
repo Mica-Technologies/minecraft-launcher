@@ -958,6 +958,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             logoContainer.getChildren().add( logo );
             logoContainer.setTranslateY( -36 );  // overlap the image
 
+            // Transparent-edge detection: if the logo's perimeter is mostly transparent
+            // (circular badge, wordmark, irregular silhouette), the bordered rounded-
+            // rect container reads as a floating frame around nothing. Strip the
+            // container styling via the .logoTransparent class when that's the case.
+            LogoTransparencyDetector.detectAsync( packLogoImage, isTransparent -> {
+                if ( isTransparent ) {
+                    logoContainer.getStyleClass().add( "logoTransparent" );
+                }
+            } );
+
             // ----- Bottom half: content surface -----
             VBox info = new VBox( 6 );
             info.getStyleClass().add( "heroCardBody" );

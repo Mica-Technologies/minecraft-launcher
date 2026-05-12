@@ -453,6 +453,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         logoView.setClip( logoClip );
         logoBox.getChildren().add( logoView );
 
+        // Strip the glass-frame container styling when the logo has transparent
+        // edges, same rationale as the hero card — see ModpackHeroCard.
+        LogoTransparencyDetector.detectAsync( logoImage, isTransparent -> {
+            if ( isTransparent ) {
+                logoBox.getStyleClass().add( "logoTransparent" );
+            }
+        } );
+
         VBox titleBox = new VBox( 4 );
         titleBox.setAlignment( Pos.CENTER_LEFT );
 
