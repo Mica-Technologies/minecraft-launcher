@@ -30,7 +30,13 @@ public class VersionUtilities
     /**
      * Compares the specified version numbers and returns: 0 if {@code version1} and {@code version2} are equal, -1 if
      * {@code version1} is less than {@code version2}, or (+)1 if {@code version1} is greater than {@code version2}.
-     * Version strings are expected to be dot-delimited (e.g., "1.2.3").
+     * Version strings are expected to be dot-delimited (e.g., "1.2.3"). Pre-release suffixes (everything after the
+     * first {@code -}) and SemVer build metadata (everything after the first {@code +}) are stripped before parsing,
+     * which matches SemVer 2.0 §11 precedence rules (build metadata is ignored, and pre-release numeric prefixes are
+     * compared). The strip is also what keeps dev / dirty / git-describe-derived versions like
+     * {@code "2026.1.0-15-gabc1234.dirty"} from NumberFormatException-ing the per-segment Integer.parseInt — without
+     * it, every dev build would silently disable update detection by tripping the outer try/catch in
+     * {@code UpdateCheckManager.checkAndConfigureUI}.
      *
      * @param version1 first version number
      * @param version2 second version number
@@ -41,8 +47,8 @@ public class VersionUtilities
      */
     public static int compareVersionNumbers( String version1, String version2 )
     {
-        String[] arr1 = version1.split( "\\." );
-        String[] arr2 = version2.split( "\\." );
+        String[] arr1 = stripSuffixes( version1 ).split( "\\." );
+        String[] arr2 = stripSuffixes( version2 ).split( "\\." );
 
         int i = 0;
         while ( i < arr1.length || i < arr2.length ) {
@@ -69,5 +75,18 @@ public class VersionUtilities
         }
 
         return 0;
+    }
+
+    private static String stripSuffixes( String version )
+    {
+        int dash = version.indexOf( '-' );
+        if ( dash >= 0 ) {
+            version = version.substring( 0, dash );
+        }
+        int plus = version.indexOf( '+' );
+        if ( plus >= 0 ) {
+            version = version.substring( 0, plus );
+        }
+        return version.isEmpty() ? "0" : version;
     }
 }
