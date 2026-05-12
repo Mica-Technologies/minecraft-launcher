@@ -184,17 +184,29 @@ public final class MacOsVibrancyManager
         }
     }
 
-    /** Sets NSAppearance directly on the NSWindow (not the contentView). FXThemes'
-     *  setAppearanceByName only writes to contentView's appearance, which doesn't
-     *  propagate to the title bar — the title bar's chrome (close/min/max buttons,
-     *  text color, background) comes from the NSWindow's own appearance. Without
-     *  this, the title bar stays in the OS default (often Aqua light) even when the
-     *  contentView is DarkAqua, producing the "dark window with light title bar"
-     *  mismatch.
+    /** Finalizes the NSWindow for vibrancy + dark/light theming. Three things FXThemes
+     *  doesn't do for us, all needed on the first vibrancy install so the very first
+     *  frame composites correctly:
+     *
+     *  <ol>
+     *    <li>[NSWindow setAppearance:] — FXThemes only writes appearance to
+     *        contentView, not the window. The title bar's chrome (close/min/max
+     *        buttons, text color, bg) comes from the NSWindow's own appearance, so
+     *        without this the title bar stays Aqua-light even when the contentView
+     *        is DarkAqua.</li>
+     *    <li>[NSWindow setOpaque:NO] — required for the OS-level compositor to honor
+     *        transparent pixels from the JFX layer; otherwise the window paints an
+     *        opaque bg behind JFX and masks the NSVisualEffectView. FXThemes' native
+     *        code doesn't set this, which is why on first launch the bg was
+     *        rendering pure black until a theme-switch round-trip forced something
+     *        else to toggle opacity.</li>
+     *    <li>[NSWindow setBackgroundColor:clearColor] — pairs with setOpaque:NO so
+     *        the window's bg fill is also transparent.</li>
+     *  </ol>
      *
      *  Uses FXThemes' WindowUtils to grab the raw NSWindow pointer (reflection on
-     *  Window.getPeer().getRawHandle()), then drives [NSWindow setAppearance:] via
-     *  JFA's Foundation.invoke. */
+     *  Window.getPeer().getRawHandle()), then drives the AppKit calls via JFA's
+     *  Foundation bridge. */
     private static void applyWindowAppearance( Stage stage, boolean dark )
     {
         try {
@@ -203,11 +215,23 @@ public final class MacOsVibrancyManager
                 return;
             }
             ID nsWindow = new ID( handle.longValue() );
+
             String name = dark ? "NSAppearanceNameDarkAqua" : "NSAppearanceNameAqua";
             ID appearance = Foundation.invoke( "NSAppearance", "appearanceNamed:",
                                                Foundation.nsString( name ) );
             if ( !Foundation.isNil( appearance ) ) {
                 Foundation.invoke( nsWindow, "setAppearance:", appearance );
+            }
+
+            // The window-level transparency setup. Required for vibrancy to composite
+            // through the JFX layer on the very first frame — without these, the
+            // window's default opaque bg masks the NSVisualEffectView and the launcher
+            // appears as solid black on launch until a theme-switch forces something
+            // to re-toggle opacity.
+            Foundation.invoke( nsWindow, "setOpaque:", 0 );
+            ID clearColor = Foundation.invoke( "NSColor", "clearColor" );
+            if ( !Foundation.isNil( clearColor ) ) {
+                Foundation.invoke( nsWindow, "setBackgroundColor:", clearColor );
             }
         }
         catch ( Throwable t ) {
