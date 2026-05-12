@@ -483,40 +483,54 @@ public class GameLibraryManifest extends ManagedGameFile
         // Get access to Minecraft app as remote file
         ManagedGameFile mcAppRemoteFile = getMinecraftApp( gameAppMode );
 
-        // The "we already stripped this jar" marker. Once a jar has been stripped, its
-        // SHA-1 no longer matches the manifest, so re-running updateLocalFile() would
-        // re-download (signed) and we'd loop. The marker lets us short-circuit that.
+        // "We've already verified (and, if needed, stripped) this jar" marker. Once a jar has
+        // been stripped, its SHA-1 no longer matches the manifest, so re-running
+        // updateLocalFile() would re-download (signed) and we'd loop. The marker short-circuits
+        // that. Bumped from ".unsigned" to ".verified" so installs that were corrupted by the
+        // old always-strip behavior get re-downloaded once on next launch.
         String mcJarPath = parentModPack.getPackRootFolder() + java.io.File.separator +
                 com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MODPACK_MINECRAFT_JAR_LOCAL_PATH;
         java.io.File mcJar = new java.io.File( mcJarPath );
-        java.io.File strippedMarker = new java.io.File( mcJarPath + ".unsigned" );
+        java.io.File verifiedMarker = new java.io.File( mcJarPath + ".verified" );
 
-        if ( !strippedMarker.isFile() ) {
+        if ( !verifiedMarker.isFile() ) {
             // Verify and download as necessary (signed Mojang jar)
             mcAppRemoteFile.updateLocalFile();
 
-            // Strip Mojang's META-INF signing. Required for pre-1.6 jars launched via
-            // launchwrapper — the class transformer trips JarVerifier and breaks subsequent
-            // resource lookups (StringTranslate /lang/*.lang loads return null). Idempotent
-            // and a no-op for modern (unsigned) jars.
-            try {
-                boolean stripped = com.micatechnologies.minecraft.launcher.utilities.JarSigningStripper
-                        .stripSigning( mcJar );
-                // Always create the marker after a successful verification cycle so we don't
-                // re-verify a stable jar on every launch. For unsigned (modern) jars stripped
-                // returns false but the marker still suppresses future downloads.
-                if ( !strippedMarker.createNewFile() && !strippedMarker.isFile() ) {
-                    com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
-                            "Unable to create stripped-marker for minecraft.jar" );
+            // Strip Mojang's META-INF signing only for pre-1.6 packs. There launchwrapper's
+            // class transformer trips JarVerifier and breaks subsequent resource lookups
+            // (StringTranslate /lang/*.lang loads return null). On 1.6+, Forge's
+            // FMLSanityChecker validates the Mojang fingerprint and aborts with
+            // "CRITICAL TAMPERING WITH MINECRAFT" if we strip — so we leave the jar alone.
+            String mcVersion = parentModPack.getMinecraftVersion();
+            if ( com.micatechnologies.minecraft.launcher.utilities.JarSigningStripper
+                    .isStripRequiredFor( mcVersion ) ) {
+                try {
+                    boolean stripped = com.micatechnologies.minecraft.launcher.utilities.JarSigningStripper
+                            .stripSigning( mcJar );
+                    if ( stripped ) {
+                        com.micatechnologies.minecraft.launcher.files.Logger.logStd(
+                                "Stripped Mojang signing from minecraft.jar for legacy compatibility" );
+                    }
                 }
-                if ( stripped ) {
-                    com.micatechnologies.minecraft.launcher.files.Logger.logStd(
-                            "Stripped Mojang signing from minecraft.jar for legacy compatibility" );
+                catch ( java.io.IOException e ) {
+                    com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
+                            "Unable to strip signing from minecraft.jar: " + e.getMessage() );
+                }
+            }
+
+            // Always create the marker after a successful verification cycle so we don't
+            // re-verify a stable jar on every launch. Stripped or not, the jar on disk is now
+            // the one we want.
+            try {
+                if ( !verifiedMarker.createNewFile() && !verifiedMarker.isFile() ) {
+                    com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
+                            "Unable to create verified-marker for minecraft.jar" );
                 }
             }
             catch ( java.io.IOException e ) {
                 com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
-                        "Unable to strip signing from minecraft.jar: " + e.getMessage() );
+                        "Unable to create verified-marker for minecraft.jar: " + e.getMessage() );
             }
         }
 

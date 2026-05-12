@@ -35,6 +35,8 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Removes Mojang's META-INF signing from legacy {@code minecraft.jar} files. Pre-1.6 jars are
@@ -45,8 +47,14 @@ import java.util.jar.Manifest;
  * silently and return {@code null}, producing an NPE inside the game.
  *
  * <p>Stripping the signature is the standard workaround used by every modded MC launcher
- * (MultiMC, Prism, ATLauncher, the Forge installer). The launcher already verifies the
- * downloaded jar via SHA-1, so removing Mojang's signature doesn't weaken integrity.</p>
+ * (MultiMC, Prism, ATLauncher, the Forge installer) for pre-1.6 packs. The launcher already
+ * verifies the downloaded jar via SHA-1, so removing Mojang's signature doesn't weaken
+ * integrity.</p>
+ *
+ * <p><b>Don't apply this to 1.6+.</b> Forge 1.6+ ships {@code FMLSanityChecker}, which
+ * validates the Mojang fingerprint on {@code ClientBrandRetriever.class} and aborts with
+ * "CRITICAL TAMPERING WITH MINECRAFT" if the signature has been removed. Callers must gate on
+ * {@link #isStripRequiredFor(String)} so the strip only runs where it's actually needed.</p>
  */
 public final class JarSigningStripper
 {
@@ -54,7 +62,39 @@ public final class JarSigningStripper
      *  files; the others are commonly seen in JCE/JAR-signed bundles. */
     private static final String[] SIG_SUFFIXES = { ".SF", ".DSA", ".RSA", ".EC" };
 
+    /** Matches the leading {@code 1.<minor>} of a release version string. Snapshots
+     *  ({@code 20w28a}, {@code 1.21-pre3}) and oddball strings simply don't match and are
+     *  treated as "modern" (no strip). */
+    private static final Pattern RELEASE_MINOR = Pattern.compile( "^1\\.(\\d+)" );
+
     private JarSigningStripper() { /* static-only */ }
+
+    /**
+     * True iff the strip is needed for the given Minecraft version — i.e. {@code 1.0}–{@code 1.5.x},
+     * the era where launchwrapper's class transformer trips JarVerifier and breaks
+     * StringTranslate's lang lookups. For {@code 1.6+} (Forge's {@code FMLSanityChecker} era)
+     * and for anything that doesn't parse as a normal release version, returns false — those
+     * either don't need it or would actively crash if we stripped.
+     *
+     * @param mcVersion Minecraft version string (e.g. {@code "1.5.2"}, {@code "1.12.2"})
+     * @return true if signing should be stripped for this version
+     */
+    public static boolean isStripRequiredFor( String mcVersion )
+    {
+        if ( mcVersion == null || mcVersion.isEmpty() ) {
+            return false;
+        }
+        Matcher m = RELEASE_MINOR.matcher( mcVersion );
+        if ( !m.find() ) {
+            return false;
+        }
+        try {
+            return Integer.parseInt( m.group( 1 ) ) < 6;
+        }
+        catch ( NumberFormatException e ) {
+            return false;
+        }
+    }
 
     /**
      * Rewrites {@code jarFile} in place with all signature entries removed and per-entry
