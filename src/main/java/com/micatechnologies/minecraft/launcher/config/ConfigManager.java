@@ -411,6 +411,38 @@ public class ConfigManager
     }
 
     /**
+     * Returns true once the user has completed (or skipped) the first-launch
+     * quick-start wizard. Defaults to false so the wizard fires once for existing
+     * installs that upgrade to this version.
+     *
+     * @since 3.4
+     */
+    public synchronized static boolean getQuickStartCompleted() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.QUICK_START_COMPLETED_KEY ) ) {
+            configObject.addProperty( ConfigConstants.QUICK_START_COMPLETED_KEY, false );
+            writeConfigurationToDisk();
+        }
+        return configObject.get( ConfigConstants.QUICK_START_COMPLETED_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Marks the first-launch quick-start wizard as completed (or skipped).
+     * Once true, the wizard won't show again on subsequent launches.
+     *
+     * @since 3.4
+     */
+    public synchronized static void setQuickStartCompleted( boolean completed ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.QUICK_START_COMPLETED_KEY, completed );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Sets the configured state of enhanced logging for the application.
      *
      * @param enhancedLogging true to enable enhanced logging, otherwise false

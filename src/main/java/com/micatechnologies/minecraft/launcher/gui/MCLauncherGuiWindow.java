@@ -713,6 +713,84 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /**
+     * Installs the launcher's current theme stylesheets (legacy + ui-base + tokens)
+     * onto the given JavaFX {@link javafx.scene.Parent}. Used by auxiliary
+     * windows (quick-start wizard, help, etc.) that want to render in the same
+     * theme as the main launcher.
+     *
+     * <p>Idempotent — pre-existing sheet entries are cleared before re-installing,
+     * so calling this from a "the theme changed, re-apply" handler works.
+     *
+     * @param root the parent to attach stylesheets to (typically the auxiliary
+     *             scene's root)
+     */
+    public static void installCurrentThemeStylesheets( javafx.scene.Parent root )
+    {
+        if ( root == null ) return;
+
+        String theme = ConfigManager.getTheme();
+        boolean osDark = true;
+        if ( ConfigConstants.THEME_AUTOMATIC.equals( theme )
+                || ConfigConstants.THEME_NATIVE.equals( theme ) ) {
+            try {
+                osDark = OsThemeDetector.getDetector().isDark();
+            }
+            catch ( Throwable ignored ) { /* fall through with dark default */ }
+        }
+
+        final String legacy;
+        final String tokens;
+        switch ( theme ) {
+            case ConfigConstants.THEME_LIGHT -> {
+                legacy = LEGACY_LIGHT;
+                tokens = UI_TOKENS_LIGHT;
+            }
+            case ConfigConstants.THEME_BLUE_GRAY -> {
+                legacy = LEGACY_BLUE_GRAY;
+                tokens = UI_TOKENS_BLUE_GRAY;
+            }
+            case ConfigConstants.THEME_ORANGE_PURPLE -> {
+                legacy = LEGACY_ORANGE_PURPLE;
+                tokens = UI_TOKENS_ORANGE_PURPLE;
+            }
+            case ConfigConstants.THEME_CREEPER -> {
+                legacy = LEGACY_CREEPER;
+                tokens = UI_TOKENS_CREEPER;
+            }
+            case ConfigConstants.THEME_NATIVE -> {
+                legacy = osDark ? LEGACY_DARK : LEGACY_LIGHT;
+                tokens = osDark ? UI_TOKENS_NATIVE : UI_TOKENS_NATIVE_LIGHT;
+            }
+            case ConfigConstants.THEME_AUTOMATIC -> {
+                legacy = osDark ? LEGACY_DARK : LEGACY_LIGHT;
+                tokens = osDark ? UI_TOKENS_DARK : UI_TOKENS_LIGHT;
+            }
+            default -> {
+                legacy = LEGACY_DARK;
+                tokens = UI_TOKENS_DARK;
+            }
+        }
+
+        java.util.List< String > stylesheets = root.getStylesheets();
+        java.util.function.Function< String, String > resolver = path ->
+                Objects.requireNonNull( MCLauncherGuiWindow.class.getClassLoader()
+                                                                  .getResource( path ),
+                                        "Missing CSS resource: " + path ).toExternalForm();
+
+        // Remove every known sheet variant first so this method is idempotent.
+        for ( String path : new String[] {
+                LEGACY_DARK, LEGACY_LIGHT, LEGACY_BLUE_GRAY, LEGACY_ORANGE_PURPLE, LEGACY_CREEPER,
+                UI_TOKENS_DARK, UI_TOKENS_LIGHT, UI_TOKENS_BLUE_GRAY, UI_TOKENS_ORANGE_PURPLE,
+                UI_TOKENS_CREEPER, UI_TOKENS_NATIVE, UI_TOKENS_NATIVE_LIGHT, UI_BASE_SHEET
+        } ) {
+            stylesheets.remove( resolver.apply( path ) );
+        }
+        stylesheets.add( resolver.apply( legacy ) );
+        stylesheets.add( resolver.apply( UI_BASE_SHEET ) );
+        stylesheets.add( resolver.apply( tokens ) );
+    }
+
+    /**
      * Injects a "?" help button into the screen IF the FXML doesn't already supply one. Screens with a nav bar
      * (mainGUI) are expected to declare their own helpBtn directly in FXML — that is the canonical placement and
      * its action handler is wired by the screen's controller. This method handles the screens with no navbar

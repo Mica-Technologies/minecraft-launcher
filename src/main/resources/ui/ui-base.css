@@ -1454,6 +1454,105 @@
 
 
 /* =====================================================================
+ * 11.5 First-launch quick-start wizard
+ *
+ * MCLauncherQuickStartWizard is a small modal Stage owned by the main
+ * launcher window. Used once on first launch (or once per existing
+ * install upgraded to a launcher that ships the wizard).
+ * ===================================================================== */
+
+.wizardRoot {
+    -fx-background-color: -color-bg;
+}
+
+.wizardStepHost {
+    -fx-background-color: transparent;
+}
+
+.wizardStep {
+    -fx-background-color: transparent;
+}
+
+.wizardHeading {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 22px;
+    -fx-font-weight: 700;
+    -fx-padding: 0 0 4 0;
+}
+
+.wizardSubtitle {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 13px;
+}
+
+.wizardBody {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 13px;
+}
+
+.wizardHint {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 11px;
+    -fx-padding: 0 0 0 4;
+}
+
+.wizardNavBar {
+    -fx-background-color: -color-bg-soft;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1 0 0 0;
+}
+
+.wizardProgress {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 12px;
+}
+
+.wizardSkipBtn,
+.wizardSkipBtn:armed,
+.wizardSkipBtn:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -color-text-muted;
+}
+
+.wizardSkipBtn:hover {
+    -fx-background-color: -color-surface-hover;
+    -fx-text-fill: -color-text;
+}
+
+.wizardThemeOption,
+.wizardThemeOption:focused {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-border-width: 1;
+    -fx-text-fill: -color-text;
+    -fx-padding: 8 14 8 14;
+    -fx-cursor: hand;
+}
+
+.wizardThemeOption:hover {
+    -fx-background-color: -color-surface-hover;
+    -fx-border-color: -color-primary;
+}
+
+.wizardThemeOption:selected,
+.wizardThemeOption:selected:focused {
+    -fx-background-color: -color-primary-soft;
+    -fx-border-color: -color-primary;
+    -fx-text-fill: -color-text;
+}
+
+.wizardRamValue {
+    -fx-text-fill: -color-primary;
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-padding: 4 0 0 0;
+}
+
+
+/* =====================================================================
  * 12. Tooltip / context menu
  *
  * JavaFX gotcha: tooltips and context menus are rendered into separate

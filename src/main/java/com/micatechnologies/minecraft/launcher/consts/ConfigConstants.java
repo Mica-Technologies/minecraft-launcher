@@ -273,6 +273,16 @@ public class ConfigConstants
     public static final String LAUNCHER_UPDATE_CHECK_KEY = "launcherUpdateCheck";
 
     /**
+     * Key for whether the user has completed (or explicitly skipped) the first-
+     * launch quick-start wizard. Defaults to false so existing installs see the
+     * wizard once on upgrade, then never again. The wizard also flips this true
+     * when the user clicks "Skip" so they don't get badgered.
+     *
+     * @since 3.4
+     */
+    public static final String QUICK_START_COMPLETED_KEY = "quickStartCompleted";
+
+    /**
      * Key for accessing the Discord RPC enable value.
      *
      * @since 1.0

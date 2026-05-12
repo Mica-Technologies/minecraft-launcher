@@ -427,6 +427,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                     "Refresh modpack data (same as pressing F5)." );
         }
 
+        // First-launch quick-start wizard. Fires once per install (the config flag
+        // flips true on completion or skip), so existing users get walked through
+        // the same setup the first time they open this version of the launcher.
+        // Deferred a frame via Platform.runLater so the main GUI has finished
+        // painting before the modal wizard pops up — otherwise the wizard's
+        // showAndWait() races against the main stage's first show.
+        if ( !ConfigManager.getQuickStartCompleted() ) {
+            Platform.runLater( () -> MCLauncherQuickStartWizard.show( stage ) );
+        }
+
         // Push focus onto the rootPane so JavaFX's default focus traversal doesn't
         // land on the first focus-traversable child (the Library button), which
         // gives it a visible focus-ring treatment as soon as the screen opens.
