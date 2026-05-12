@@ -200,13 +200,32 @@ public final class MacOsVibrancyManager
      * NSWindow's chrome (close/min/max buttons, title text, frame) between Dark and
      * Aqua appearances WITHOUT installing the vibrancy NSVisualEffectView. Use this
      * on macOS secondary windows (help, dialogs) that want the title bar to follow
-     * the launcher theme but keep their content surface opaque. No-op on non-macOS
-     * and when the NSWindow handle isn't realized yet — callers should re-invoke
-     * after WINDOW_SHOWN if they need the chrome to flip at first show.
+     * the launcher theme but keep their content surface opaque. No-op on non-macOS.
+     *
+     * <p>When called before the Stage is showing — which is normal during scene
+     * setup (forceThemeChange runs inside setScene before stage.show()) — defer
+     * the apply via a one-shot WINDOW_SHOWN listener. Without that, pixelduke's
+     * WindowUtils.getNativeHandleOfStageAsLong NPEs on a null Window.getPeer()
+     * and prints a confusing stack trace to stderr before returning 0; the
+     * downstream code handles the zero handle gracefully, but the visible
+     * trace looks like a real error.
      */
     public static void applyTitleBarAppearance( Stage stage, boolean dark )
     {
         if ( !SystemUtils.IS_OS_MAC || stage == null ) {
+            return;
+        }
+        if ( !stage.isShowing() ) {
+            EventHandler< WindowEvent > onShown = new EventHandler< WindowEvent >()
+            {
+                @Override
+                public void handle( WindowEvent event )
+                {
+                    stage.removeEventHandler( WindowEvent.WINDOW_SHOWN, this );
+                    javafx.application.Platform.runLater( () -> applyTitleBarAppearance( stage, dark ) );
+                }
+            };
+            stage.addEventHandler( WindowEvent.WINDOW_SHOWN, onShown );
             return;
         }
         applyWindowAppearance( stage, dark );
