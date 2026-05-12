@@ -246,6 +246,12 @@ public class LauncherCore
                 final MCLauncherProgressGui cancellable = playProgressWindow;
                 cancellable.setCancelHandler( () -> {
                     session.cancel();
+                    // Clear the OS-level progress overlay IMMEDIATELY rather than waiting
+                    // for the worker thread's catch / finally to run. The worker might
+                    // still be wedged in a non-interruptible HTTP read for several seconds
+                    // after cancel; leaving the taskbar partial-progress sitting there
+                    // makes the cancelled launch look like it's still going.
+                    TaskbarProgressManager.stop();
                     // Navigate back optimistically — even if the worker thread is wedged in
                     // a non-interruptible HTTP read, the user gets their UI back NOW.
                     SystemUtilities.spawnNewTask( () -> GUIUtilities.JFXPlatformRun( () -> {
@@ -273,6 +279,13 @@ public class LauncherCore
                     @Override
                     public void updateProgressHandler( double percent, String sectionTitle, String detailText,
                                                         String downloadStatus ) {
+                        // If the launch was cancelled mid-flight, suppress all progress
+                        // updates — the worker thread is still draining (HTTP reads
+                        // don't respond to Thread.interrupt) and any subsequent
+                        // setProgress() call would re-establish the OS taskbar overlay
+                        // we just cleared in the cancel handler. The download still
+                        // unwinds; the UI just stops reflecting it.
+                        if ( session.isCancelled() ) return;
                         Logger.logStd( sectionTitle + ": " + detailText + " - " + ( int ) percent + "%" );
 
                         if ( finalPlayProgressWindow != null ) {
