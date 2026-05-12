@@ -24,23 +24,39 @@
     -color-text-muted:        #A4AAB7;
     -color-text-subtle:       #737B8C;
     -color-text-inverse:      #0C1017;
-    -color-text-on-primary:   white;
+    /* Dark text on the bright-grass primary (#6FCF3D). White-on-bright-green has
+     * a WCAG contrast ratio of only ~2.4 — failing AA. Dark text against the same
+     * green clears 10:1, so any control whose background uses -color-primary
+     * (Play button, primary CTAs, selected dropdown row) reads cleanly. */
+    -color-text-on-primary:   #0C1017;
 
-    /* === Brand: blue (primary) === */
-    -color-primary:           #3599FD;
-    -color-primary-hover:     #5DADFD;
-    -color-primary-pressed:   #70B8FF;
-    -color-primary-soft:      rgba(56, 160, 255, 0.18);
-    -color-primary-soft-hov:  rgba(56, 160, 255, 0.26);
-    -color-focus-ring:        rgba(56, 160, 255, 0.50);
+    /* === Brand: primary (Mica wordmark light grass green #6FCF3D) ===
+     * Centered around the brand wordmark palette: dirt brown / dark grass /
+     * light grass / charcoal backplate. The bright #6FCF3D reads well on dark
+     * surfaces and matches the wordmark's C-letter fill. Hover and pressed
+     * step toward #9BE236 (springier highlight); soft/transparent variants
+     * use the same RGB at controlled alphas for hover states / focus rings. */
+    -color-primary:           #6FCF3D;
+    -color-primary-hover:     #82DA52;
+    -color-primary-pressed:   #9BE236;
+    -color-primary-soft:      rgba(111, 207, 61, 0.18);
+    -color-primary-soft-hov:  rgba(111, 207, 61, 0.28);
+    -color-focus-ring:        rgba(111, 207, 61, 0.50);
 
-    /* === Brand: secondary (Minecraft-grass green accent) === */
-    -color-secondary:         #52BC52;
-    -color-secondary-hover:   #66CC66;
-    -color-secondary-soft:    rgba(96, 200, 120, 0.18);
+    /* === Brand: secondary (Mica wordmark dirt brown #7A5C36) ===
+     * Earth-tone accent pulled from the wordmark M-pillars. Pairs naturally
+     * with the grass primary and avoids the green-on-green clash that a
+     * second green secondary would produce. */
+    -color-secondary:         #7A5C36;
+    -color-secondary-hover:   #8E6E44;
+    -color-secondary-soft:    rgba(122, 92, 54, 0.20);
 
-    /* === Status === */
-    -color-success:           #52BC52;
+    /* === Status ===
+     * Success stays green (semantically locked) but uses the dark-grass tone
+     * to differentiate from the lighter primary so a "saved" indicator doesn't
+     * blend with normal primary CTAs. Warning / danger unchanged — they're
+     * universal-meaning palette anchors. */
+    -color-success:           #3C8527;
     -color-warning:           #F4C025;
     -color-warning-soft:      rgba(255, 196, 38, 0.18);
     -color-danger:            #F53D3D;
@@ -52,7 +68,7 @@
     -color-shadow-soft:       rgba(0, 0, 0, 0.32);
 
     /* === Hero radial-gradient stops === */
-    -color-hero-stop-1:       rgba(56, 160, 255, 0.16);
-    -color-hero-stop-2:       rgba(96, 200, 120, 0.10);
+    -color-hero-stop-1:       rgba(111, 207, 61, 0.16);
+    -color-hero-stop-2:       rgba(122, 92, 54, 0.10);
     -color-hero-stop-3:       rgba(0, 0, 0, 0);
 }

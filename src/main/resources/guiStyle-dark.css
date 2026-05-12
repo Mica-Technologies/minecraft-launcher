@@ -51,7 +51,7 @@
 .mfx-button,
 .mfx-button:armed,
 .mfx-button:focused {
-    -fx-background-color: #4CAF50;
+    -fx-background-color: #6FCF3D;
 }
 
 .mfx-button:hover {
@@ -64,10 +64,14 @@
     -mfx-ripple-color: rgba(255, 255, 255, 0.16);
 }
 
+/* Dark text on the bright-grass primary green button bg — white-on-green
+ * was failing WCAG AA contrast at ~2.4:1. Dark text on the same bg passes
+ * comfortably (~10:1). Danger-zone .text rules below keep white because
+ * those sit on a red background where white reads cleanly. */
 .mfx-button .text,
 .mfx-button:armed .text,
 .mfx-button:focused .text {
-    -fx-fill: white;
+    -fx-fill: #0C1017;
 }
 
 
@@ -76,7 +80,7 @@
 .logoutBtn.mfx-button,
 .logoutBtn.mfx-button:armed,
 .logoutBtn.mfx-button:focused {
-    -fx-background-color: #4CAF50;
+    -fx-background-color: #6FCF3D;
 }
 
 .logoutBtn.mfx-button:hover {
@@ -92,14 +96,14 @@
 .logoutBtn.mfx-button .text,
 .logoutBtn.mfx-button:armed .text,
 .logoutBtn.mfx-button:focused .text {
-    -fx-fill: white;
+    -fx-fill: #0C1017;
 }
 
 
 /* ===== Toggle / Switch ===== */
 
 .mfx-toggle-button {
-    -mfx-main: #4CAF50;
+    -mfx-main: #6FCF3D;
     -mfx-secondary: #938F99;
     -fx-text-fill: #E6E1E5;
     -fx-background-color: transparent;
@@ -120,7 +124,7 @@
 }
 
 .mfx-toggle-button:selected .circle {
-    -fx-fill: #4CAF50;
+    -fx-fill: #6FCF3D;
 }
 
 .mfx-toggle-button .line {
@@ -131,7 +135,7 @@
 }
 
 .mfx-toggle-button:selected .line {
-    -fx-stroke: #2E7D32;
+    -fx-stroke: #3C8527;
     -fx-opacity: 0.8;
     -fx-stroke-line-cap: round;
 }
@@ -150,7 +154,7 @@
 }
 
 .mfx-toggle-button:selected .mfx-ripple-generator {
-    -mfx-ripple-color: rgba(76, 175, 80, 0.24);
+    -mfx-ripple-color: rgba(111, 207, 61, 0.24);
 }
 
 
@@ -190,7 +194,7 @@
 }
 
 .mfx-text-field:floating:focus-within .floating-text .text {
-    -fx-fill: #4CAF50;
+    -fx-fill: #6FCF3D;
 }
 
 .mfx-text-field .floating-text .text {
@@ -198,7 +202,7 @@
 }
 
 .mfx-text-field:focus-within {
-    -fx-border-color: #4CAF50 !important;
+    -fx-border-color: #6FCF3D !important;
     -fx-border-radius: 8;
 }
 
@@ -261,11 +265,11 @@
 }
 
 .mfx-combo-box:focus-within .caret .mfx-font-icon {
-    -mfx-color: #4CAF50 !important;
+    -mfx-color: #6FCF3D !important;
 }
 
 .mfx-combo-box .caret .mfx-ripple-generator {
-    -mfx-ripple-color: rgba(76, 175, 80, 0.24) !important;
+    -mfx-ripple-color: rgba(111, 207, 61, 0.24) !important;
 }
 
 .mfx-combo-box .caret {
@@ -274,14 +278,14 @@
 }
 
 .mfx-combo-box:focus-within {
-    -fx-border-color: #4CAF50 !important;
+    -fx-border-color: #6FCF3D !important;
     -fx-border-radius: 8;
 }
 
 .mfx-combo-box-cell {
     -fx-background-color: #2C2B30;
-    -mfx-hover: rgba(76, 175, 80, 0.3);
-    -mfx-selected: #4CAF50;
+    -mfx-hover: rgba(111, 207, 61, 0.3);
+    -mfx-selected: #6FCF3D;
     -fx-background-radius: 0 !important;
 }
 
@@ -290,7 +294,7 @@
 }
 
 .mfx-combo-box-cell:hover .data-label {
-    -fx-text-fill: white;
+    -fx-text-fill: #0C1017;
 }
 
 /* See guiStyle-light.css for the rationale on this rule — MFX's `-mfx-selected`
@@ -299,11 +303,11 @@
  * consistency even though the contrast bug only reads as a failure on the
  * light theme. */
 .mfx-combo-box-cell:selected {
-    -fx-background-color: #4CAF50;
+    -fx-background-color: #6FCF3D;
 }
 
 .mfx-combo-box-cell:selected .data-label {
-    -fx-text-fill: white;
+    -fx-text-fill: #0C1017;
 }
 
 .mfx-combo-box:floating .floating-text {
@@ -317,7 +321,7 @@
 }
 
 .mfx-combo-box:floating:focus-within .floating-text .text {
-    -fx-fill: #4CAF50;
+    -fx-fill: #6FCF3D;
 }
 
 
@@ -374,15 +378,15 @@
 }
 
 .mfx-progress-bar .track {
-    -fx-fill: rgba(76, 175, 80, 0.25);
+    -fx-fill: rgba(111, 207, 61, 0.25);
 }
 
 .mfx-progress-bar .bar1 {
-    -fx-fill: #4CAF50;
+    -fx-fill: #6FCF3D;
 }
 
 .mfx-progress-bar .bar2 {
-    -fx-fill: #4CAF50;
+    -fx-fill: #6FCF3D;
 }
 
 
@@ -403,11 +407,11 @@
 }
 
 .list-view .virtual-flow .clipped-container .sheet .list-cell:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.24);
+    -fx-background-color: rgba(111, 207, 61, 0.24);
 }
 
 .list-view .virtual-flow .clipped-container .sheet .list-cell:selected {
-    -fx-background-color: #2E7D32;
+    -fx-background-color: #3C8527;
 }
 
 .list-view .virtual-flow .clipped-container .sheet .list-cell:empty {
@@ -430,7 +434,7 @@
 
 .list-cell:selected .packName,
 .list-cell:selected .packVersion {
-    -fx-text-fill: white;
+    -fx-text-fill: #0C1017;
 }
 
 
@@ -461,11 +465,11 @@
 }
 
 .mfx-list-cell:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.24);
+    -fx-background-color: rgba(111, 207, 61, 0.24);
 }
 
 .mfx-list-cell:selected {
-    -fx-background-color: #2E7D32;
+    -fx-background-color: #3C8527;
     -fx-border-color: transparent;
 }
 
@@ -474,7 +478,7 @@
 }
 
 .mfx-list-cell .mfx-ripple-generator {
-    -mfx-ripple-color: rgba(76, 175, 80, 0.24);
+    -mfx-ripple-color: rgba(111, 207, 61, 0.24);
 }
 
 .mfx-list-cell .packName {
@@ -557,7 +561,7 @@
 
 .spinner .increment-arrow-button:hover,
 .spinner .decrement-arrow-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.35);
+    -fx-background-color: rgba(111, 207, 61, 0.35);
 }
 
 .spinner .increment-arrow-button .increment-arrow,
@@ -589,7 +593,7 @@
 
 .context-menu .menu-item:hover,
 .context-menu .menu-item:focused {
-    -fx-background-color: rgba(76, 175, 80, 0.2);
+    -fx-background-color: rgba(111, 207, 61, 0.2);
 }
 
 .context-menu .separator .line {
@@ -633,8 +637,8 @@
 }
 
 .dialog-pane .button-bar .button {
-    -fx-background-color: #4CAF50;
-    -fx-text-fill: white;
+    -fx-background-color: #6FCF3D;
+    -fx-text-fill: #0C1017;
     -fx-background-radius: 12;
     -fx-padding: 6 16 6 16;
 }
@@ -655,11 +659,11 @@
 }
 
 .dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.24);
+    -fx-background-color: rgba(111, 207, 61, 0.24);
 }
 
 .dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:selected {
-    -fx-background-color: #2E7D32;
+    -fx-background-color: #3C8527;
 }
 
 .dialog-pane .list-view .virtual-flow .clipped-container .sheet .list-cell:empty {
@@ -685,7 +689,7 @@
 }
 
 .dialog-pane .combo-box-popup .list-cell:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.24);
+    -fx-background-color: rgba(111, 207, 61, 0.24);
 }
 
 
@@ -725,7 +729,7 @@
 }
 
 .tab-pane .tab:selected {
-    -fx-background-color: #4CAF50;
+    -fx-background-color: #6FCF3D;
 }
 
 .tab-pane .tab .tab-label {
@@ -733,7 +737,7 @@
 }
 
 .tab-pane .tab:selected .tab-label {
-    -fx-text-fill: white;
+    -fx-text-fill: #0C1017;
 }
 
 .tab-pane .tab-content-area {
@@ -780,11 +784,11 @@
 }
 
 .table-view .table-row-cell:selected {
-    -fx-background-color: rgba(76, 175, 80, 0.35);
+    -fx-background-color: rgba(111, 207, 61, 0.35);
 }
 
 .table-view .table-row-cell:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.15);
+    -fx-background-color: rgba(111, 207, 61, 0.15);
 }
 
 .table-view .table-cell {
@@ -793,7 +797,7 @@
 }
 
 .table-view .table-row-cell:selected .table-cell {
-    -fx-text-fill: white;
+    -fx-text-fill: #0C1017;
 }
 
 .table-view .table-cell .text-field {
@@ -812,7 +816,7 @@
 }
 
 .table-view .column-resize-line {
-    -fx-background-color: #4CAF50;
+    -fx-background-color: #6FCF3D;
 }
 
 .table-view .filler {
@@ -843,12 +847,12 @@
 }
 
 .table-view .button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.5);
+    -fx-background-color: rgba(111, 207, 61, 0.5);
 }
 
 .table-view .button:armed {
-    -fx-background-color: #4CAF50;
-    -fx-text-fill: white;
+    -fx-background-color: #6FCF3D;
+    -fx-text-fill: #0C1017;
 }
 
 
@@ -866,8 +870,8 @@
 }
 
 .check-box:selected .box {
-    -fx-background-color: #4CAF50;
-    -fx-border-color: #4CAF50;
+    -fx-background-color: #6FCF3D;
+    -fx-border-color: #6FCF3D;
 }
 
 .check-box:selected .mark {
@@ -885,7 +889,7 @@
     -fx-padding: 0;
 }
 .helpButton.mfx-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.6);
+    -fx-background-color: rgba(111, 207, 61, 0.6);
 }
 .helpButton.mfx-button .text {
     -fx-fill: #E6E1E5;
@@ -931,7 +935,7 @@
     -fx-background-radius: 8;
 }
 .navBar .mfx-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.2);
+    -fx-background-color: rgba(111, 207, 61, 0.2);
     -fx-text-fill: #E6E1E5;
 }
 
@@ -954,7 +958,7 @@
     -fx-background-radius: 8;
 }
 .bottomBar .mfx-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.2);
+    -fx-background-color: rgba(111, 207, 61, 0.2);
 }
 
 /* Settings sidebar navigation buttons */
@@ -967,12 +971,12 @@
     -fx-background-radius: 8;
 }
 .settingsNavBtn.mfx-button:hover {
-    -fx-background-color: rgba(76, 175, 80, 0.1);
+    -fx-background-color: rgba(111, 207, 61, 0.1);
 }
 .settingsNavBtn.mfx-button.selected {
-    -fx-background-color: rgba(76, 175, 80, 0.2);
+    -fx-background-color: rgba(111, 207, 61, 0.2);
     -fx-text-fill: #E6E1E5;
-    -fx-border-color: transparent transparent transparent #4CAF50;
+    -fx-border-color: transparent transparent transparent #6FCF3D;
     -fx-border-width: 0 0 0 3;
     -fx-border-radius: 0 8 8 0;
     -fx-background-radius: 0 8 8 0;

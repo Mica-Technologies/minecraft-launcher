@@ -388,14 +388,24 @@ public class MCLauncherModpackDetailModal extends StackPane
         veil.getStyleClass().add( "modpackDetailHeroVeil" );
 
         // Close button — top-right, sits above the veil.
-        // pickOnBounds(true) is required: Label nodes default to picking on the painted
-        // glyph only, so clicks on the styled 32×32 circular background (everything
-        // OUTSIDE the tiny ✕ character) would fall straight through to the hero
-        // region behind and the X would visually exist but be effectively a no-op.
+        //
+        // Multiple defensive measures together because previous single-fix attempts
+        // (pickOnBounds on the Label alone) didn't make the button respond:
+        //   1. pickOnBounds(true) so the entire 32×32 styled circle is hit-testable
+        //      (Label nodes otherwise only pick on the painted glyph).
+        //   2. Added as the LAST hero child so it z-orders above the titleRow.
+        //      An earlier ordering put titleRow on top, and although titleRow is
+        //      Pos.BOTTOM_LEFT-anchored, with `wrapText` on the title label the HBox
+        //      can grow to a width that overlaps the close button's TOP_RIGHT cell
+        //      depending on the modal's pref size — closeBtn-on-top sidesteps that.
+        //   3. Both MOUSE_PRESSED + MOUSE_CLICKED handlers are wired. MOUSE_PRESSED
+        //      fires first and survives even if some intermediate node consumes the
+        //      MOUSE_CLICKED — belt and suspenders.
         Label closeBtn = new Label( "✕" );
         closeBtn.getStyleClass().add( "modpackDetailClose" );
         closeBtn.setCursor( Cursor.HAND );
         closeBtn.setPickOnBounds( true );
+        closeBtn.setOnMousePressed( e -> { e.consume(); hide(); } );
         closeBtn.setOnMouseClicked( e -> { e.consume(); hide(); } );
         StackPane.setAlignment( closeBtn, Pos.TOP_RIGHT );
         StackPane.setMargin( closeBtn, new Insets( 14, 18, 0, 0 ) );
@@ -412,9 +422,16 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         // Logo + title — bottom-left of the hero image, mirroring the layout language
         // of the hero card but scaled up so it reads at modal size.
+        // pickOnBounds(false) so clicks only register on the actually-painted logo +
+        // text, not the empty space between the title text and the top-right corner
+        // of the hero where the close button lives. The titleRow's HBox bounds can
+        // grow wider than its visible content (long title text + wrapText), and
+        // without this, the empty parts of the row could intercept clicks meant
+        // for the ✕ button.
         HBox titleRow = new HBox( 14 );
         titleRow.setAlignment( Pos.CENTER_LEFT );
         titleRow.setPadding( new Insets( 0, 18, 18, 18 ) );
+        titleRow.setPickOnBounds( false );
         StackPane.setAlignment( titleRow, Pos.BOTTOM_LEFT );
 
         StackPane logoBox = new StackPane();
@@ -452,7 +469,10 @@ public class MCLauncherModpackDetailModal extends StackPane
         titleBox.getChildren().addAll( nameLabel, playedLabel );
         titleRow.getChildren().addAll( logoBox, titleBox );
 
-        hero.getChildren().addAll( bgLayer, veil, badgeRow, closeBtn, titleRow );
+        // closeBtn is added LAST so it z-orders on top of every other hero element.
+        // If it weren't, the titleRow (added next in the bottom-anchored slot) could
+        // overlap the close button's clickable region for very wide title rows.
+        hero.getChildren().addAll( bgLayer, veil, badgeRow, titleRow, closeBtn );
         return hero;
     }
 

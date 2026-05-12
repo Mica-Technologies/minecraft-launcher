@@ -55,3 +55,10 @@
     -color-hero-stop-2:       rgba(245, 145, 60, 0.10);
     -color-hero-stop-3:       rgba(0, 0, 0, 0);
 }
+
+/* ----- Popup-menu focus tint: Orange-Purple override -----
+ *
+ * ui-base.css's .menu-item:focused uses a green tint that matches the other
+ * themes' grass-green primary. This theme is purple, so its focused menu
+ * items need to be tinted with the purple at low alpha instead. */
+.menu-item:focused { -fx-background-color: rgba(190, 95, 200, 0.22); }

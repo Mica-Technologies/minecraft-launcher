@@ -508,12 +508,19 @@ public class MCLauncherGuiWindow extends Application
         }
     }
 
-    /** Resource paths for the four legacy per-theme stylesheets. Loaded first so the new
-     *  base + token sheets layered on top win where they declare the same selectors. */
+    /** Resource paths for the legacy per-theme stylesheets. Loaded first so the new
+     *  base + token sheets layered on top win where they declare the same selectors.
+     *
+     *  <p>Creeper has its own legacy sheet (rather than sharing legacy-dark with the
+     *  Dark + Native(dark) themes) because the dark/native legacy was retuned from
+     *  Material green to a brand-blue palette to match the modern token-sheet primary.
+     *  Creeper's brand is green, so it keeps a green-accented legacy sheet — the
+     *  sheet is a snapshot of legacy-dark from before the blue retune.</p> */
     private static final String LEGACY_DARK         = "guiStyle-dark.css";
     private static final String LEGACY_LIGHT        = "guiStyle-light.css";
     private static final String LEGACY_BLUE_GRAY    = "guiStyle-bluegray.css";
     private static final String LEGACY_ORANGE_PURPLE = "guiStyle-orangepurple.css";
+    private static final String LEGACY_CREEPER       = "guiStyle-creeper.css";
 
     /** Path to the brand-new theme-agnostic base sheet (font stack + component shell). */
     private static final String UI_BASE_SHEET       = "ui/ui-base.css";
@@ -543,10 +550,13 @@ public class MCLauncherGuiWindow extends Application
         applyTheme( LEGACY_ORANGE_PURPLE, UI_TOKENS_ORANGE_PURPLE );
     }
 
-    /** Creeper theme has no legacy CSS pair — falls back on the dark legacy sheet for any
-     *  selectors not yet ported into ui-base.css, but uses creeper tokens for everything modern. */
+    /** Creeper theme has its own legacy sheet so the green Minecraft-grass accent
+     *  carries through to selectors that still live in legacy (combo-box selected
+     *  state, settings nav, etc.). Dark + Native themes share legacy-dark, which
+     *  was retuned to brand blue — Creeper would otherwise pick up blue selections
+     *  with green modern tokens, an obvious inconsistency. */
     private void switchToCreeperTheme() {
-        applyTheme( LEGACY_DARK, UI_TOKENS_CREEPER );
+        applyTheme( LEGACY_CREEPER, UI_TOKENS_CREEPER );
     }
 
     /** Native theme — translucent surface palette with the OS Mica backdrop showing
@@ -582,6 +592,7 @@ public class MCLauncherGuiWindow extends Application
             stylesheets.remove( cssUrl( LEGACY_LIGHT ) );
             stylesheets.remove( cssUrl( LEGACY_BLUE_GRAY ) );
             stylesheets.remove( cssUrl( LEGACY_ORANGE_PURPLE ) );
+            stylesheets.remove( cssUrl( LEGACY_CREEPER ) );
 
             // Drop every token sheet. Whichever is "current" gets re-added below.
             stylesheets.remove( cssUrl( UI_TOKENS_DARK ) );

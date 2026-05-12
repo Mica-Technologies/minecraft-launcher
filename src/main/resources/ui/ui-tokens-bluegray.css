@@ -2,45 +2,73 @@
  * Copyright (c) 2026 Mica Technologies
  *
  * Brand token sheet — BLUE-GRAY theme.
- * Slate-blue surfaces with a brighter blue accent. Phase-1 placeholder; will
- * receive deeper polish in phase 4.
+ *
+ * Centered around the Mica Technologies CORPORATE design system (HSL 210
+ * blue family) from micatechnologies.com/design — distinct from the
+ * launcher's own wordmark green/brown identity that the other themes use.
+ *
+ * Palette source: design page color cards
+ *   Primary 400  #0668E1   (main accent)
+ *   Primary 700  #0059B3   (pressed / hover)
+ *   Primary 200  #99CCFF   (light tint)
+ *   Primary 50   #E6F2FF   (very light wash)
+ *   Gray 50      #F5F6F8   (light neutral)
+ *   Gray 900    #070809    (dark neutral)
+ *
+ * This theme is the "Mica Technologies brand surface" — when the user wants
+ * the corporate palette rather than the Minecraft-wordmark palette the other
+ * themes inherit, they pick this one.
  */
 
 .root {
-    /* === Surfaces === */
-    -color-bg:                #121721;
-    -color-bg-soft:           #191E2A;
-    -color-surface:           #1F2633;
-    -color-surface-hover:     #262D3B;
-    -color-surface-elevated:  #2C3444;
+    /* === Surfaces ===
+     * Slate-blue-tinted dark surfaces. Bg sits between Gray 900 and the
+     * neutral mids so the corporate blue accent reads as a deliberate brand
+     * tint rather than a default Material dark. */
+    -color-bg:                #0E141D;
+    -color-bg-soft:           #141B26;
+    -color-surface:           #1A2230;
+    -color-surface-hover:     #232C3D;
+    -color-surface-elevated:  #232C3D;
     -color-overlay:           rgba(0, 0, 0, 0.55);
 
     /* === Borders === */
-    -color-border:            rgba(200, 215, 240, 0.12);
-    -color-border-strong:     rgba(200, 215, 240, 0.20);
-    -color-divider:           rgba(200, 215, 240, 0.06);
+    -color-border:            rgba(180, 200, 235, 0.12);
+    -color-border-strong:     rgba(180, 200, 235, 0.22);
+    -color-divider:           rgba(180, 200, 235, 0.06);
 
     /* === Text === */
     -color-text:              #E7E9EE;
     -color-text-muted:        #A8AFBD;
     -color-text-subtle:       #7C8598;
-    -color-text-inverse:      #121721;
+    -color-text-inverse:      #070809;
     -color-text-on-primary:   white;
 
-    /* === Brand: blue (primary) — slightly cooler than dark theme === */
-    -color-primary:           #518DF6;
-    -color-primary-hover:     #6EA0F7;
-    -color-primary-pressed:   #88B2FC;
-    -color-primary-soft:      rgba(99, 145, 240, 0.20);
-    -color-primary-soft-hov:  rgba(99, 145, 240, 0.28);
-    -color-focus-ring:        rgba(99, 145, 240, 0.50);
+    /* === Brand: primary — Mica corporate Primary 400 (#0668E1) ===
+     * Hover and pressed step through Primary 700 to its lighter Primary 200
+     * for the "pressed" / armed state on dark surfaces (lighter pop reads
+     * better on the slate background than a deeper press would). */
+    -color-primary:           #0668E1;
+    -color-primary-hover:     #0059B3;
+    -color-primary-pressed:   #99CCFF;
+    -color-primary-soft:      rgba(6, 104, 225, 0.22);
+    -color-primary-soft-hov:  rgba(6, 104, 225, 0.32);
+    -color-focus-ring:        rgba(6, 104, 225, 0.55);
 
-    /* === Brand: secondary === */
-    -color-secondary:         #3ECDEA;
-    -color-secondary-hover:   #55D7F1;
-    -color-secondary-soft:    rgba(80, 200, 230, 0.18);
+    /* === Brand: secondary — Primary 200 (light tint) ===
+     * The design page only declares ONE brand-color family (blue) plus
+     * neutrals, so secondary pulls from the same family — Primary 200 as a
+     * lighter highlight for chips / accents / "success-but-not-status"
+     * surfaces. Tone-on-tone keeps the theme cohesive. */
+    -color-secondary:         #99CCFF;
+    -color-secondary-hover:   #B3D9FF;
+    -color-secondary-soft:    rgba(153, 204, 255, 0.18);
 
-    /* === Status === */
+    /* === Status ===
+     * Success / warning / danger stay semantically meaningful colors rather
+     * than pulling from the brand blue — users expect a green check, a
+     * yellow caution, a red error. Picked to harmonize with the slate
+     * background. */
     -color-success:           #3BCE85;
     -color-warning:           #F7B23B;
     -color-warning-soft:      rgba(255, 178, 38, 0.18);
@@ -51,7 +79,16 @@
     -color-shadow:            rgba(0, 0, 0, 0.55);
     -color-shadow-soft:       rgba(0, 0, 0, 0.32);
 
-    -color-hero-stop-1:       rgba(99, 145, 240, 0.18);
-    -color-hero-stop-2:       rgba(80, 200, 230, 0.10);
+    -color-hero-stop-1:       rgba(6, 104, 225, 0.18);
+    -color-hero-stop-2:       rgba(153, 204, 255, 0.10);
     -color-hero-stop-3:       rgba(0, 0, 0, 0);
 }
+
+/* ----- Popup-menu focus tint: Bluegray override -----
+ *
+ * ui-base.css's .menu-item:focused uses a green tint that matches the other
+ * themes' grass-green primary; this theme uses corporate Mica blue so its
+ * focused menu items need to be tinted with the blue at low alpha instead.
+ * See ui-base.css §12 (Tooltip / context menu) for the rationale on hex-only
+ * popup rules. */
+.menu-item:focused { -fx-background-color: rgba(6, 104, 225, 0.22); }

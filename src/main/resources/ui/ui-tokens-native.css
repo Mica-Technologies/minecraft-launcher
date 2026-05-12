@@ -56,23 +56,34 @@
     -color-text-muted:        #B8BFCC;
     -color-text-subtle:       #828B9C;
     -color-text-inverse:      #14181F;
-    -color-text-on-primary:   white;
+    /* Dark text on the bright-grass primary. See ui-tokens-dark.css for the
+     * WCAG rationale — same primary green, same contrast story. */
+    -color-text-on-primary:   #14181F;
 
-    /* === Brand: blue (primary) — Windows accent-ish blue === */
-    -color-primary:           #4CA0F5;
-    -color-primary-hover:     #66B0F8;
-    -color-primary-pressed:   #80BFFA;
-    -color-primary-soft:      rgba(76, 160, 245, 0.20);
-    -color-primary-soft-hov:  rgba(76, 160, 245, 0.30);
-    -color-focus-ring:        rgba(76, 160, 245, 0.55);
+    /* === Brand: primary (Mica wordmark light grass green #6FCF3D) ===
+     * Native theme used to take the Windows accent-blue, but the launcher's
+     * brand identity is the Mica wordmark — dirt brown + grass green over
+     * a charcoal backplate. Aligning the Native theme's accent with that
+     * wordmark keeps the brand consistent regardless of which theme is
+     * active. Mica accent slightly bumped vs Dark theme because the Mica
+     * frosted-glass surfaces are translucent and need a brighter pop for
+     * the primary to read against arbitrary wallpaper. */
+    -color-primary:           #6FCF3D;
+    -color-primary-hover:     #82DA52;
+    -color-primary-pressed:   #9BE236;
+    -color-primary-soft:      rgba(111, 207, 61, 0.22);
+    -color-primary-soft-hov:  rgba(111, 207, 61, 0.32);
+    -color-focus-ring:        rgba(111, 207, 61, 0.55);
 
-    /* === Brand: secondary (Minecraft-grass green accent) === */
-    -color-secondary:         #52BC52;
-    -color-secondary-hover:   #66CC66;
-    -color-secondary-soft:    rgba(96, 200, 120, 0.22);
+    /* === Brand: secondary (Mica wordmark dirt brown #7A5C36) === */
+    -color-secondary:         #7A5C36;
+    -color-secondary-hover:   #8E6E44;
+    -color-secondary-soft:    rgba(122, 92, 54, 0.22);
 
-    /* === Status === */
-    -color-success:           #52BC52;
+    /* === Status ===
+     * Success uses the wordmark's darker grass (#3C8527) so a green "saved"
+     * indicator visually distinguishes from the lighter primary CTA. */
+    -color-success:           #3C8527;
     -color-warning:           #F4C025;
     -color-warning-soft:      rgba(255, 196, 38, 0.22);
     -color-danger:            #F53D3D;
@@ -87,8 +98,8 @@
     -color-shadow-soft:       rgba(0, 0, 0, 0.12);
 
     /* === Hero radial-gradient stops === */
-    -color-hero-stop-1:       rgba(76, 160, 245, 0.18);
-    -color-hero-stop-2:       rgba(96, 200, 120, 0.10);
+    -color-hero-stop-1:       rgba(111, 207, 61, 0.18);
+    -color-hero-stop-2:       rgba(122, 92, 54, 0.10);
     -color-hero-stop-3:       rgba(0, 0, 0, 0);
 }
 

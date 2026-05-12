@@ -43,22 +43,24 @@
     -color-text-inverse:      #FFFFFF;
     -color-text-on-primary:   white;
 
-    /* === Brand: blue (primary) — slightly deeper blue than the dark variant
-     *      so it stays readable on light Mica. Matches the Light theme's primary. */
-    -color-primary:           #027AF2;
-    -color-primary-hover:     #026BD4;
-    -color-primary-pressed:   #0059B2;
-    -color-primary-soft:      rgba(0, 114, 229, 0.12);
-    -color-primary-soft-hov:  rgba(0, 114, 229, 0.20);
-    -color-focus-ring:        rgba(0, 114, 229, 0.45);
+    /* === Brand: primary (Mica wordmark dark grass green #3C8527) ===
+     * Light Native takes the darker wordmark grass since the lighter #6FCF3D
+     * lacks contrast against bright Mica. Matches the Light theme's primary
+     * so the two light variants stay visually paired. */
+    -color-primary:           #3C8527;
+    -color-primary-hover:     #347319;
+    -color-primary-pressed:   #2C621C;
+    -color-primary-soft:      rgba(60, 133, 39, 0.14);
+    -color-primary-soft-hov:  rgba(60, 133, 39, 0.22);
+    -color-focus-ring:        rgba(60, 133, 39, 0.45);
 
-    /* === Brand: secondary (green accent) === */
-    -color-secondary:         #399339;
-    -color-secondary-hover:   #317D31;
-    -color-secondary-soft:    rgba(67, 160, 71, 0.14);
+    /* === Brand: secondary (Mica wordmark dirt brown #7A5C36) === */
+    -color-secondary:         #7A5C36;
+    -color-secondary-hover:   #66492A;
+    -color-secondary-soft:    rgba(122, 92, 54, 0.14);
 
     /* === Status === */
-    -color-success:           #399339;
+    -color-success:           #3C8527;
     -color-warning:           #C2940A;
     -color-warning-soft:      rgba(217, 158, 0, 0.14);
     -color-danger:            #DA0B0B;
@@ -70,8 +72,8 @@
     -color-shadow-soft:       rgba(15, 23, 42, 0.10);
 
     /* === Hero radial-gradient stops (same brand wash as Light theme) === */
-    -color-hero-stop-1:       rgba(0, 114, 229, 0.10);
-    -color-hero-stop-2:       rgba(67, 160, 71, 0.06);
+    -color-hero-stop-1:       rgba(60, 133, 39, 0.10);
+    -color-hero-stop-2:       rgba(122, 92, 54, 0.06);
     -color-hero-stop-3:       rgba(255, 255, 255, 0);
 }
 
@@ -139,4 +141,6 @@
 }
 
 .menu-item .label  { -fx-text-fill: #151C28; }
-.menu-item:focused { -fx-background-color: rgba(2, 122, 242, 0.14); }
+/* Focus tint uses the Native-light theme's primary (#3C8527, dark grass) at low
+ * alpha to match the menu-item highlight in the Light theme. */
+.menu-item:focused { -fx-background-color: rgba(60, 133, 39, 0.14); }

@@ -26,21 +26,25 @@
     -color-text-inverse:      white;
     -color-text-on-primary:   white;
 
-    /* === Brand: blue (primary) === */
-    -color-primary:           #027AF2;
-    -color-primary-hover:     #026BD4;
-    -color-primary-pressed:   #0059B2;
-    -color-primary-soft:      rgba(0, 114, 229, 0.10);
-    -color-primary-soft-hov:  rgba(0, 114, 229, 0.16);
-    -color-focus-ring:        rgba(0, 114, 229, 0.45);
+    /* === Brand: primary (Mica wordmark dark grass green #3C8527) ===
+     * Centered around the brand wordmark palette. The dark-grass variant is
+     * the right primary for light surfaces — the lighter #6FCF3D would lack
+     * contrast against white. Pressed steps darker to #2C621C for the "armed"
+     * cue without going muddy. */
+    -color-primary:           #3C8527;
+    -color-primary-hover:     #347319;
+    -color-primary-pressed:   #2C621C;
+    -color-primary-soft:      rgba(60, 133, 39, 0.10);
+    -color-primary-soft-hov:  rgba(60, 133, 39, 0.18);
+    -color-focus-ring:        rgba(60, 133, 39, 0.45);
 
-    /* === Brand: secondary (Minecraft-grass green accent) === */
-    -color-secondary:         #399339;
-    -color-secondary-hover:   #317D31;
-    -color-secondary-soft:    rgba(67, 160, 71, 0.12);
+    /* === Brand: secondary (Mica wordmark dirt brown #7A5C36) === */
+    -color-secondary:         #7A5C36;
+    -color-secondary-hover:   #66492A;
+    -color-secondary-soft:    rgba(122, 92, 54, 0.14);
 
     /* === Status === */
-    -color-success:           #399339;
+    -color-success:           #3C8527;
     -color-warning:           #C2940A;
     -color-warning-soft:      rgba(217, 158, 0, 0.14);
     -color-danger:            #DA0B0B;
@@ -52,8 +56,8 @@
     -color-shadow-soft:       rgba(15, 23, 42, 0.08);
 
     /* === Hero radial-gradient stops === */
-    -color-hero-stop-1:       rgba(0, 114, 229, 0.10);
-    -color-hero-stop-2:       rgba(67, 160, 71, 0.06);
+    -color-hero-stop-1:       rgba(60, 133, 39, 0.10);
+    -color-hero-stop-2:       rgba(122, 92, 54, 0.06);
     -color-hero-stop-3:       rgba(255, 255, 255, 0);
 }
 
@@ -81,4 +85,7 @@
 }
 
 .menu-item .label  { -fx-text-fill: #151C28; }
-.menu-item:focused { -fx-background-color: rgba(2, 122, 242, 0.14); }
+/* Focus tint uses the Light theme's primary (#3C8527, dark grass) at low alpha so
+ * the highlighted menu item reads as primary-accented without overwhelming the
+ * white popup surface. */
+.menu-item:focused { -fx-background-color: rgba(60, 133, 39, 0.14); }

@@ -39,14 +39,17 @@
 }
 
 /* Display heading — used for hero titles. A bold monospaced face gives the
- * "blocky, terminal-y, Minecrafty" feel without bundling a pixel font. */
+ * "blocky, terminal-y, Minecrafty" feel without bundling a pixel font. No
+ * coloured dropshadow on the text itself — text needs to stay pure and
+ * readable. The earlier rule painted a soft halo using -color-primary-soft,
+ * which read fine when the primary was a cool blue but turned into an
+ * unsightly green glow once themes shifted to the wordmark-green primary. */
 .heading-display {
     -fx-font-family: "JetBrains Mono", "Cascadia Code", "Cascadia Mono",
                      "Consolas", "Menlo", "Courier New", monospace;
     -fx-font-weight: 700;
     -fx-font-size: 26px;
     -fx-text-fill: -color-text;
-    -fx-effect: dropshadow(gaussian, -color-primary-soft, 16, 0.20, 0, 2);
 }
 
 .heading-h1 { -fx-font-weight: 600; -fx-font-size: 28px; -fx-text-fill: -color-text; }
@@ -166,12 +169,13 @@
  * ===================================================================== */
 
 .progressCard {
-    /* The card.elevated base already provides the surface color, border,
-     * and shadow. We add a top inner highlight via inner-shadow to suggest
-     * a soft brand glow under the bouncing voxel cluster, without making
-     * the whole card glow primary-blue. */
-    -fx-effect: dropshadow(gaussian, -color-shadow, 24, 0.22, 0, 10),
-                innershadow(gaussian, -color-primary-soft, 18, 0.20, 0, -10);
+    /* Subtle drop shadow only — no primary-tinted inner highlight. The earlier
+     * version added an inner-shadow at the top with -color-primary-soft to
+     * suggest a brand-tinted glow under the voxel cluster, but with the
+     * primary now grass-green that inner highlight read as an awkward green
+     * smear at the top edge of the card. Neutral elevation shadow is enough
+     * to lift the card off the hero-surface background. */
+    -fx-effect: dropshadow(gaussian, -color-shadow, 24, 0.22, 0, 10);
 }
 
 
@@ -417,15 +421,20 @@
     -fx-border-color: rgba(255, 255, 255, 0.45);
 }
 
+/* Hero-card Play button: text color follows the theme's text-on-primary
+ * token. For dark/native themes that primary is bright grass green so the
+ * token resolves to dark text (WCAG-passing). For light/native-light it's
+ * dark green so the token resolves to white. Hardcoded white here was the
+ * source of the unreadable Play button on the native green theme. */
 .heroPlayBtn,
 .heroPlayBtn:armed,
 .heroPlayBtn:focused,
 .heroPlayBtn.primary {
-    -fx-text-fill: white;
+    -fx-text-fill: -color-text-on-primary;
 }
 
 .heroPlayBtn .text {
-    -fx-fill: white;
+    -fx-fill: -color-text-on-primary;
 }
 
 .heroPackLogoContainer {
@@ -705,14 +714,14 @@
 .modpackDetailPlayBtn:armed,
 .modpackDetailPlayBtn:focused,
 .modpackDetailPlayBtn.primary {
-    -fx-text-fill: white;
+    -fx-text-fill: -color-text-on-primary;
     -fx-font-weight: 700;
     -fx-font-size: 16px;
     -fx-padding: 10 22 10 22;
 }
 
 .modpackDetailPlayBtn .text {
-    -fx-fill: white;
+    -fx-fill: -color-text-on-primary;
 }
 
 .modpackDetailSecondaryBtn,
@@ -768,15 +777,25 @@
     -fx-border-color: -color-border-strong;
 }
 
-.mfx-button:focused {
-    -fx-effect: dropshadow(gaussian, -color-focus-ring, 8, 0.50, 0, 0);
-}
+/* Focused button: indicate via border color (set in the rule above) and
+ * background hover, NOT via a coloured dropshadow. A focus-ring halo would
+ * paint a translucent primary-color glow around the button — across the
+ * grass-green themes that glow read as an awful green halo that drew the
+ * eye away from the actual button text. Border + background change carry
+ * enough visual weight on their own. */
+.mfx-button:focused { /* no -fx-effect — keep text pure */ }
 
 .mfx-button .ripple-generator {
     -mfx-ripple-color: -color-primary-soft;
 }
 
-/* Primary action — filled brand color, used on Play, Login, Save, Continue */
+/* Primary action — filled brand color, used on Play, Login, Save, Continue.
+ *
+ * No -fx-effect: the previous soft-primary dropshadow created a coloured
+ * ambient halo around the button. Innocuous under a cool blue primary, but
+ * once themes shifted to bright grass green that halo became a distracting
+ * green glow surrounding the Play button — text-on-glow contrast suffered
+ * and the button looked like a beacon rather than a calm CTA. */
 .mfx-button.primary,
 .mfx-button.primary:armed,
 .mfx-button.primary:focused,
@@ -785,7 +804,6 @@
         linear-gradient(to bottom, -color-primary, -color-primary-hover);
     -fx-border-color: -color-primary-pressed;
     -fx-text-fill: -color-text-on-primary;
-    -fx-effect: dropshadow(gaussian, -color-primary-soft, 14, 0.10, 0, 4);
 }
 
 .mfx-button.primary .text,
@@ -919,10 +937,14 @@
     -fx-padding: 6 10 6 10;
 }
 
+/* Focused text fields use the primary border-color as their focus indicator —
+ * no -fx-effect dropshadow. The earlier focus-ring halo bled into the
+ * promptText glyphs (since promptText is rendered as a Text node child of
+ * the field and inherits the effect), producing a visibly fuzzy / "doubled"
+ * placeholder when the field had focus. Border color alone is sufficient. */
 .text-area:focused,
 .text-field:focused {
     -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-focus-ring, 6, 0.40, 0, 0);
 }
 
 .text-area.text-mono,
@@ -959,12 +981,15 @@
     -fx-padding: 4 8 4 8;
 }
 
+/* Focus indicator on MFX text fields is the primary border color only —
+ * dropshadow removed for the same reason as .text-field:focused above. The
+ * promptText / placeholder rendering was visibly blurry when the field had
+ * focus because the Text node child inherited the parent's effect. */
 .mfx-text-field:focus-within,
 .mfx-text-field:focused,
 .mfx-password-field:focus-within,
 .mfx-password-field:focused {
     -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-focus-ring, 6, 0.40, 0, 0);
 }
 
 /* Floating-text label color in the resting (non-focused, non-floating) state.
@@ -1050,10 +1075,14 @@
     -fx-text-fill: -color-text;
 }
 
+/* Focus indicator on MFX combo boxes is the primary border color only.
+ * The earlier focus-ring dropshadow painted a green halo around the expanded
+ * dropdown's selected-value display at the top of the popup — the same
+ * unwanted-halo problem fixed on .text-field:focused. Border alone reads
+ * fine. */
 .mfx-combo-box:focused,
 .mfx-combo-box:focus-within {
     -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-focus-ring, 6, 0.40, 0, 0);
 }
 
 /* Suppress MaterialFX's inner text-field border/background — the outer
@@ -1144,11 +1173,17 @@
     -fx-fill: -color-text;
 }
 
+/* Full-radius (999 = pill / circle) on BOTH background AND border. MFX's
+ * default skin paints the box border as a rounded shape, while our previous
+ * background-radius: 4 made the FILL a mildly-rounded square — the result
+ * was a circular border with a square fill peeking out the corners. Pin
+ * both to the same fully-rounded radius so the checkbox reads as a
+ * coherent circle in both checked and unchecked states. */
 .mfx-checkbox .box {
     -fx-background-color: -color-surface;
     -fx-border-color: -color-border-strong;
-    -fx-border-radius: 4;
-    -fx-background-radius: 4;
+    -fx-border-radius: 999;
+    -fx-background-radius: 999;
 }
 
 .mfx-checkbox:selected .box {
@@ -1426,7 +1461,10 @@
 }
 
 .menu-item .label  { -fx-text-fill: #EDEFF2; }
-.menu-item:focused { -fx-background-color: rgba(76, 160, 245, 0.20); }
+/* Focus tint uses the dark-theme primary (#6FCF3D grass green) at moderate
+ * alpha. Bluegray theme overrides this in its own token sheet because that
+ * theme's primary is corporate blue rather than wordmark green. */
+.menu-item:focused { -fx-background-color: rgba(111, 207, 61, 0.20); }
 
 
 /* =====================================================================

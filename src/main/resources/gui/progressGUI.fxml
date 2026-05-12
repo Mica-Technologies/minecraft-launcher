@@ -41,7 +41,15 @@
                  GridPane.valignment="CENTER" above places the card in the middle. -->
             <RowConstraints fillHeight="false" minHeight="280.0" prefHeight="280.0" vgrow="NEVER" />
         </rowConstraints>
-        <GridPane prefHeight="420.0" prefWidth="460.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+        <!-- Inner content GridPane: no prefHeight so it sizes to the sum of its row
+             preferred heights (~236 px) instead of being forced to 420 px. The earlier
+             420 value caused the inner pane to be much taller than its visible content,
+             which combined with `GridPane.valignment="CENTER"` shifted the cluster +
+             title + bar up against the top edge of the card and left a band of dead
+             space below the speed/ETA row. Letting JavaFX compute the height keeps the
+             content vertically centered inside the card row, matching the symmetric
+             top/bottom padding the visual was supposed to have. -->
+        <GridPane prefWidth="460.0" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
             <padding><Insets top="8.0" bottom="8.0"/></padding>
             <columnConstraints>
                 <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />

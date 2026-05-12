@@ -893,9 +893,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             actions.setAlignment( Pos.CENTER_LEFT );
             actions.setPadding( new javafx.geometry.Insets( 0, 18, 16, 18 ) );
 
+            // Both buttons pin to exactly 38 px tall via min + pref + max so they
+            // visually align in the row. The CSS rules layered on top of MFXButton
+            // ( .heroPlayBtn uses a bolder/larger font + heavier padding than the
+            // default .mfx-button skin .heroCardSecondaryBtn inherits ) would
+            // otherwise size the two buttons by their intrinsic content, giving
+            // the play button a slightly taller box than its neighbour.
+            final double BTN_H = 38;
             playBtn = new MFXButton( "Play" );
             playBtn.getStyleClass().addAll( "primary", "heroPlayBtn" );
-            playBtn.setPrefHeight( 38 );
+            playBtn.setMinHeight( BTN_H );
+            playBtn.setPrefHeight( BTN_H );
+            playBtn.setMaxHeight( BTN_H );
             playBtn.setMaxWidth( Double.MAX_VALUE );
             HBox.setHgrow( playBtn, Priority.ALWAYS );
             playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
@@ -903,7 +912,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
             MFXButton websiteBtn = new MFXButton( "Website" );
             websiteBtn.getStyleClass().add( "heroCardSecondaryBtn" );
-            websiteBtn.setPrefHeight( 38 );
+            websiteBtn.setMinHeight( BTN_H );
+            websiteBtn.setPrefHeight( BTN_H );
+            websiteBtn.setMaxHeight( BTN_H );
             websiteBtn.setPrefWidth( 96 );
             websiteBtn.setOnAction( e -> openModpackWebsite( pack ) );
             if ( pack.getPackURL() == null || pack.getPackURL().isBlank() ) {
