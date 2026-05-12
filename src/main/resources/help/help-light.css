@@ -15,11 +15,13 @@
     --color-text-muted:      #4B566C;
     --color-text-subtle:     #737F96;
 
-    --color-primary:         #027AF2;
-    --color-primary-hover:   #026BD4;
-    --color-primary-soft:    rgba(0, 114, 229, 0.10);
+    /* Match ui-tokens-light.css (and ui-tokens-native-light.css) so help accents
+       use the launcher's dark-grass primary instead of the original sky blue. */
+    --color-primary:         #3C8527;
+    --color-primary-hover:   #347319;
+    --color-primary-soft:    rgba(60, 133, 39, 0.10);
 
-    --color-secondary:       #399339;
+    --color-secondary:       #7A5C36;
     --color-warning:         #C2940A;
     --color-danger:          #DA0B0B;
 }

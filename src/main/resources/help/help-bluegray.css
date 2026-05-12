@@ -1,11 +1,15 @@
 /* Blue-gray theme — mirrors ui-tokens-bluegray.css. */
 
 :root {
-    --color-bg:              #121721;
-    --color-bg-soft:         #191E2A;
-    --color-surface:         #1F2633;
-    --color-surface-hover:   #262D3B;
-    --color-surface-elev:    #2C3444;
+    /* Match ui-tokens-bluegray.css surfaces + primary palette so the help WebView
+       reads as the same theme as the app shell. The original sheet drifted to a
+       lighter bg (#121721 vs #0E141D) and to lighter primary swatches than the
+       app uses for the blue-gray theme. */
+    --color-bg:              #0E141D;
+    --color-bg-soft:         #141B26;
+    --color-surface:         #1A2230;
+    --color-surface-hover:   #212A3A;
+    --color-surface-elev:    #283146;
 
     --color-border:          rgba(200, 215, 240, 0.12);
     --color-border-strong:   rgba(200, 215, 240, 0.20);
@@ -15,11 +19,11 @@
     --color-text-muted:      #A8AFBD;
     --color-text-subtle:     #7C8598;
 
-    --color-primary:         #518DF6;
-    --color-primary-hover:   #6EA0F7;
-    --color-primary-soft:    rgba(99, 145, 240, 0.20);
+    --color-primary:         #0668E1;
+    --color-primary-hover:   #0059B3;
+    --color-primary-soft:    rgba(6, 104, 225, 0.22);
 
-    --color-secondary:       #3ECDEA;
+    --color-secondary:       #99CCFF;
     --color-warning:         #F7B23B;
     --color-danger:          #F04C4C;
 }

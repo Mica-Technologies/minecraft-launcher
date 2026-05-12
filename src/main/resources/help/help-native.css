@@ -18,11 +18,15 @@
     --color-text-muted:      #B6BCC9;
     --color-text-subtle:     #828A9B;
 
-    --color-primary:         #3599FD;
-    --color-primary-hover:   #5DADFD;
-    --color-primary-soft:    rgba(56, 160, 255, 0.20);
+    /* Match the Mica green brand palette used by ui-tokens-native.css so help
+       accents (links, .note callout, inline code text) read the same as the
+       rest of the Native-theme app. The help WebView paints opaque, so this
+       only affects accent colour not the surface bg. */
+    --color-primary:         #6FCF3D;
+    --color-primary-hover:   #82DA52;
+    --color-primary-soft:    rgba(111, 207, 61, 0.22);
 
-    --color-secondary:       #52BC52;
+    --color-secondary:       #7A5C36;
     --color-warning:         #F4C025;
     --color-danger:          #F53D3D;
 }
