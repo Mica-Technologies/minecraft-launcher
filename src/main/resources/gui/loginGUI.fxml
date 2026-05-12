@@ -7,6 +7,7 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.web.WebView?>
@@ -42,9 +43,16 @@
 
     <!-- Branded login content: voxel wordmark + auth card -->
     <VBox alignment="CENTER" spacing="20" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
-        <!-- Brand header: official Mica greenified logo + wordmark -->
+        <!-- Brand header: official Mica greenified logo + wordmark. The brand-logo
+             include is wrapped in a fixed-size Pane for the same reason documented in
+             mainGUI.fxml: Group.layoutBounds doesn't account for its own transforms,
+             so an unwrapped include would tell the HBox it's ~767 px wide and push the
+             wordmark off to the right. -->
         <HBox alignment="CENTER" spacing="14">
-            <fx:include source="components/micaBrandLogo.fxml"/>
+            <Pane prefWidth="80.0" prefHeight="84.0" minWidth="80.0" minHeight="84.0"
+                  maxWidth="80.0" maxHeight="84.0">
+                <fx:include source="components/micaBrandLogo.fxml"/>
+            </Pane>
             <VBox alignment="CENTER_LEFT" spacing="2">
                 <Label styleClass="heading-display" text="MICA LAUNCHER" />
                 <Label styleClass="muted" text="Sign in to continue" />
