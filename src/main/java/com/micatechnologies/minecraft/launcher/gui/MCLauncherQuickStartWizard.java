@@ -238,7 +238,32 @@ public final class MCLauncherQuickStartWizard
         stage.setScene( scene );
         stage.setResizable( false );
 
+        // Match the OS title-bar appearance to the active launcher theme — same
+        // path the main launcher uses post-setScene. WindowChromeManager handles
+        // the per-platform routing (DWM on Windows, NSWindow setAppearance on
+        // macOS, no-op on Linux); applyTitleBarAppearance defers via
+        // WINDOW_SHOWN if the stage isn't realized yet, so calling here
+        // pre-showAndWait is safe.
+        String theme = ConfigManager.getTheme();
+        boolean lightChrome = ConfigConstants.THEME_LIGHT.equals( theme )
+                              || ( ConfigConstants.THEME_NATIVE.equals( theme ) && !isOsDark() );
+        com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                .applyTitleBarDarkMode( stage, !lightChrome );
+
         goToStep( 0 );
+    }
+
+    /** Cheap wrapper around OsThemeDetector for the wizard's pre-show theme
+     *  resolution. Mirrors the pattern in MCLauncherHelpWindow so the OS-state
+     *  query has a single failure mode regardless of detector availability. */
+    private static boolean isOsDark()
+    {
+        try {
+            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
+        }
+        catch ( Throwable ignored ) {
+            return true;
+        }
     }
 
     private void goToStep( int idx )
