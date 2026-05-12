@@ -273,7 +273,7 @@ public class ManagedGameFile
                 }
                 throw new ModpackException( "Offline mode: missing required file: " + getFullLocalFilePath() );
             }
-            System.err.println( "FILE FAILED VERIFICATION, RE-DOWNLOADING: " + getFullLocalFilePath() );
+            Logger.logWarningSilent( "FILE FAILED VERIFICATION, RE-DOWNLOADING: " + getFullLocalFilePath() );
             downloadLocalFile();
             sessionVerified = true;
             return true;

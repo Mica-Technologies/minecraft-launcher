@@ -233,8 +233,7 @@ public class GameLibraryManifest extends ManagedGameFile
             }
             // Output failure to decode library JSON
             else {
-                System.err.println( "SKIPPED A LIBRARY - UNKNOWN TYPE" );
-                System.err.println( libManifestLibObj );
+                Logger.logWarningSilent( "SKIPPED A LIBRARY - UNKNOWN TYPE: " + libManifestLibObj );
             }
         }
         return libraries;

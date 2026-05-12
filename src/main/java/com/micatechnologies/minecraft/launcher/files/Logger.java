@@ -348,4 +348,41 @@ public class Logger
     public static void logWarningSilent( String warningLog ) {
         System.err.println( logWarnPrefix + warningLog );
     }
+
+    /**
+     * Log a silent warning with caller-supplied context plus the Throwable's
+     * concrete class and message. Standardizes the "operation failed
+     * (NPE): tkStage was null"-style format that catch blocks have been
+     * spelling out by hand. Use over the plain string overload when logging
+     * an exception so the class name is always present — easier to grep,
+     * easier to recognise a recurring failure mode.
+     *
+     * <p>The stack trace itself is NOT printed here; pair this with
+     * {@link #logThrowable(Throwable)} when the trace also matters.
+     *
+     * @param prefix    caller-supplied "what was being attempted" message —
+     *                  e.g. {@code "MacOsVibrancy: NSWindow appearance set"}.
+     *                  Must not be null; pass an empty string if there's
+     *                  nothing useful to add beyond the exception itself.
+     * @param throwable the caught exception; null falls back to logging
+     *                  just the prefix.
+     *
+     * @since 3.5
+     */
+    public static void logWarningSilent( String prefix, Throwable throwable ) {
+        if ( throwable == null ) {
+            logWarningSilent( prefix );
+            return;
+        }
+        String klass = throwable.getClass().getSimpleName();
+        String msg = throwable.getMessage();
+        if ( prefix == null || prefix.isEmpty() ) {
+            logWarningSilent( klass + ( msg == null ? "" : ": " + msg ) );
+        }
+        else {
+            logWarningSilent( prefix + " failed (" + klass
+                                      + ( msg == null ? "" : "): " + msg )
+                                      + ( msg == null ? ")" : "" ) );
+        }
+    }
 }

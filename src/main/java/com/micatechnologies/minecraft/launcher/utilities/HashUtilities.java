@@ -78,13 +78,13 @@ public class HashUtilities
         }
         catch ( IOException e ) {
             Logger.logError( "Unable to calculate the SHA-1 sum of " + file.getAbsolutePath() + "!" );
-            e.printStackTrace();
+            Logger.logThrowable( e );
         }
         catch ( NoSuchAlgorithmException e ) {
             Logger.logError( "The SHA-1 algorithm is not available to calculate the checksum of " +
                                      file.getAbsolutePath() +
                                      "!" );
-            e.printStackTrace();
+            Logger.logThrowable( e );
         }
         return checksum;
     }
@@ -106,13 +106,13 @@ public class HashUtilities
         }
         catch ( IOException e ) {
             Logger.logError( "Unable to calculate the SHA-256 sum of " + file.getAbsolutePath() + "!" );
-            e.printStackTrace();
+            Logger.logThrowable( e );
         }
         catch ( NoSuchAlgorithmException e ) {
             Logger.logError( "The SHA-256 algorithm is not available to calculate the checksum of " +
                                      file.getAbsolutePath() +
                                      "!" );
-            e.printStackTrace();
+            Logger.logThrowable( e );
         }
         return checksum;
     }
@@ -134,12 +134,12 @@ public class HashUtilities
         }
         catch ( IOException e ) {
             Logger.logError( "Unable to calculate the MD5 sum of " + file.getAbsolutePath() + "!" );
-            e.printStackTrace();
+            Logger.logThrowable( e );
         }
         catch ( NoSuchAlgorithmException e ) {
             Logger.logError(
                     "The MD5 algorithm is not available to calculate the checksum of " + file.getAbsolutePath() + "!" );
-            e.printStackTrace();
+            Logger.logThrowable( e );
         }
         return checksum;
     }
