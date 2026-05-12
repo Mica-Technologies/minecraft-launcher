@@ -922,6 +922,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                         alert.setContentText( "Desktop shortcut created for " + pack.getPackName() + "." );
                         alert.initOwner( ownerStage );
                         alert.initStyle( javafx.stage.StageStyle.UTILITY );
+                        GUIUtilities.themeAlertChrome( alert );
                         alert.showAndWait();
                     } );
                 }

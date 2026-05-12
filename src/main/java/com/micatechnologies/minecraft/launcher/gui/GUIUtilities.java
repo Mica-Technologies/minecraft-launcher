@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -79,6 +81,7 @@ public class GUIUtilities
             questionAlert.getButtonTypes().setAll( btn1, btn2, btnC );
 
             // Show the created question dialog
+            themeAlertChrome( questionAlert );
             Optional< ButtonType > opt = questionAlert.showAndWait();
             if ( opt.isPresent() && opt.get() == btn1 ) {
                 index.set( 1 );
@@ -107,7 +110,8 @@ public class GUIUtilities
                 errorAlert.initOwner( owner );
 
                 // Show the created error
-                errorAlert.showAndWait();
+                themeAlertChrome( errorAlert );
+            errorAlert.showAndWait();
             } );
         }
 
@@ -134,6 +138,7 @@ public class GUIUtilities
             errorAlert.initOwner( owner );
 
             // Show the created error
+            themeAlertChrome( errorAlert );
             errorAlert.showAndWait();
 
             // Release code from waiting
@@ -156,7 +161,8 @@ public class GUIUtilities
                 errorAlert.initOwner( owner );
 
                 // Show the created error
-                errorAlert.showAndWait();
+                themeAlertChrome( errorAlert );
+            errorAlert.showAndWait();
             } );
         }
     }
@@ -195,6 +201,7 @@ public class GUIUtilities
             errorAlert.getButtonTypes().setAll( btn1, btnC );
 
             // Show the created error dialog
+            themeAlertChrome( errorAlert );
             Optional< ButtonType > opt = errorAlert.showAndWait();
             if ( opt.isPresent() && opt.get() == btn1 ) {
                 retry.set( true );
@@ -220,7 +227,8 @@ public class GUIUtilities
                 errorAlert.initOwner( owner );
 
                 // Show the created error
-                errorAlert.showAndWait();
+                themeAlertChrome( errorAlert );
+            errorAlert.showAndWait();
             } );
         }
         return retry.get();
@@ -246,6 +254,7 @@ public class GUIUtilities
             warningAlert.initOwner( owner );
 
             // Show the created error
+            themeAlertChrome( warningAlert );
             warningAlert.showAndWait();
 
             // Release code from waiting
@@ -268,7 +277,8 @@ public class GUIUtilities
                 warningAlert.initOwner( owner );
 
                 // Show the created error
-                warningAlert.showAndWait();
+                themeAlertChrome( warningAlert );
+            warningAlert.showAndWait();
             } );
         }
     }
@@ -327,6 +337,69 @@ public class GUIUtilities
                 Logger.logWarningSilent(
                         "Interrupted while awaiting FX task; continuing without blocking." );
             }
+        }
+    }
+
+    /**
+     * Applies the active launcher theme's title-bar chrome (DWM immersive-dark
+     * on Windows, NSWindow setAppearance on macOS, no-op on Linux) to the
+     * {@link Alert}'s Stage so the alert window's frame matches the rest of
+     * the app instead of falling back to the OS default. Idempotent. Call
+     * after the alert has been initStyle / initOwner-configured, before
+     * {@code showAndWait()}.
+     *
+     * <p>The chrome flip is attached via {@code setOnShowing} rather than
+     * applied directly because an Alert's Stage isn't fully realised until
+     * the dialog is about to be shown — querying
+     * {@code alert.getDialogPane().getScene().getWindow()} too early returns
+     * null. setOnShowing fires after the Stage exists but before the user
+     * sees the first frame, so the chrome lands at the right moment.
+     *
+     * @param alert the JavaFX Alert to theme; null is a no-op
+     *
+     * @since 3.5
+     */
+    public static void themeAlertChrome( Alert alert )
+    {
+        if ( alert == null ) return;
+        alert.setOnShowing( ev -> {
+            try {
+                // Install the launcher theme stylesheets on the dialog's own scene so the
+                // alert buttons / text / background paint in the active theme instead
+                // of JavaFX's stock light gray. The DialogPane lives in a separate Scene
+                // from the parent launcher window, so the main stage's stylesheets do
+                // NOT propagate automatically — we have to install them on the dialog
+                // root explicitly.
+                javafx.scene.Parent dialogRoot = alert.getDialogPane();
+                MCLauncherGuiWindow.installCurrentThemeStylesheets( dialogRoot );
+
+                javafx.stage.Window w = dialogRoot.getScene().getWindow();
+                if ( w instanceof Stage st ) {
+                    String theme = ConfigManager.getTheme();
+                    boolean lightChrome = ConfigConstants.THEME_LIGHT.equals( theme )
+                            || ( ConfigConstants.THEME_NATIVE.equals( theme )
+                                 && !isOsDarkSafe() );
+                    com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                            .applyTitleBarDarkMode( st, !lightChrome );
+                }
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Alert chrome theming", t );
+            }
+        } );
+    }
+
+    /** Cheap wrapper around OsThemeDetector for the alert-chrome decision; same
+     *  shape as the helper in MCLauncherHelpWindow / MCLauncherQuickStartWizard
+     *  so a detector failure on a weird platform never blocks an alert from
+     *  showing. */
+    private static boolean isOsDarkSafe()
+    {
+        try {
+            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
+        }
+        catch ( Throwable ignored ) {
+            return true;
         }
     }
 }
