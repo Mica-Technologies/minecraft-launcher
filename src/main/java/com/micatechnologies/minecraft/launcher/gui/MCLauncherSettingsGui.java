@@ -259,6 +259,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" ) @FXML Label     aboutAppNameLabel;
     @SuppressWarnings( "unused" ) @FXML Label     aboutVersionLabel;
+    @SuppressWarnings( "unused" ) @FXML MFXToggleButton launcherUpdateCheckBox;
     @SuppressWarnings( "unused" ) @FXML MFXButton aboutWebsiteBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton aboutSourceBtn;
 
@@ -937,6 +938,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     {
         if ( aboutVersionLabel != null ) {
             aboutVersionLabel.setText( "Version " + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+        }
+        if ( launcherUpdateCheckBox != null ) {
+            launcherUpdateCheckBox.setSelected( ConfigManager.getLauncherUpdateCheckEnabled() );
+            launcherUpdateCheckBox.selectedProperty().addListener(
+                    ( obs, oldV, newV ) -> ConfigManager.setLauncherUpdateCheckEnabled( newV ) );
         }
         if ( aboutWebsiteBtn != null ) {
             aboutWebsiteBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {

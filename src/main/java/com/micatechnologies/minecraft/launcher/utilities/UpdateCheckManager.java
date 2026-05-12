@@ -58,6 +58,15 @@ public class UpdateCheckManager
         // Hide AND unmanage so the image doesn't reserve layout space when there's no update.
         updateImgView.setVisible( false );
         updateImgView.setManaged( false );
+
+        // Honour the user's "check for launcher updates" setting. When the user has
+        // explicitly turned this off in Settings, skip the entire async fetch — no
+        // network call, no toast, no icon — and leave the icon node hidden.
+        if ( !com.micatechnologies.minecraft.launcher.config.ConfigManager
+                .getLauncherUpdateCheckEnabled() ) {
+            return;
+        }
+
         SystemUtilities.spawnNewTask( () -> {
             try {
                 String version = LauncherConstants.LAUNCHER_APPLICATION_VERSION;

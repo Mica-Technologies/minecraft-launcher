@@ -264,6 +264,15 @@ public class ConfigConstants
     public static final String LOG_ENHANCED_ENABLE_KEY = "enhancedLogging";
 
     /**
+     * Key for accessing the launcher update-check enable value. When false, the
+     * launcher won't reach out to the GitHub releases API on startup and the
+     * update-available navbar icon will stay hidden.
+     *
+     * @since 3.4
+     */
+    public static final String LAUNCHER_UPDATE_CHECK_KEY = "launcherUpdateCheck";
+
+    /**
      * Key for accessing the Discord RPC enable value.
      *
      * @since 1.0

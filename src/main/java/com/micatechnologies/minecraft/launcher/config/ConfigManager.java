@@ -375,6 +375,42 @@ public class ConfigManager
     }
 
     /**
+     * Gets whether the launcher should check for its own updates on startup.
+     * Defaults to true — users who don't want the launcher reaching out to the
+     * GitHub releases API (offline-first installs, restricted networks, etc.)
+     * can flip this off in Settings.
+     *
+     * @return true if the update check is enabled
+     *
+     * @since 3.4
+     */
+    public synchronized static boolean getLauncherUpdateCheckEnabled() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY ) ) {
+            configObject.addProperty( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY, true );
+            writeConfigurationToDisk();
+        }
+        return configObject.get( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Sets whether the launcher should check for its own updates on startup.
+     *
+     * @param enabled true to enable the update check
+     *
+     * @since 3.4
+     */
+    public synchronized static void setLauncherUpdateCheckEnabled( boolean enabled ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY, enabled );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Sets the configured state of enhanced logging for the application.
      *
      * @param enhancedLogging true to enable enhanced logging, otherwise false

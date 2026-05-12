@@ -494,6 +494,17 @@
                                 <Font size="11.0" />
                             </font>
                         </Label>
+                        <!-- Update-check toggle. Lives in the launcher identity card
+                             since it's directly tied to the version info above —
+                             a user noticing they're on an old version naturally
+                             looks here for "how do I get updates." Default ON so
+                             new installs receive update prompts. -->
+                        <MFXToggleButton fx:id="launcherUpdateCheckBox" text="Check for launcher updates"/>
+                        <Label styleClass="muted" text="When off, the launcher won't reach out on startup or show the update-available icon in the navbar." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
                         <HBox spacing="8" alignment="CENTER_LEFT">
                             <MFXButton fx:id="aboutWebsiteBtn" prefHeight="28.0" prefWidth="140.0" text="Visit Website">
                                 <font>

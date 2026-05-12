@@ -95,10 +95,13 @@ cmake-build-*/
 # File-based project format
 *.iws
 
-# IntelliJ / legacy Electron artifacts
+# IntelliJ / legacy Electron artifacts.
+# `config/` is root-anchored: an Electron-era leftover meant to ignore the
+# top-level config output dir, NOT the Java source package at
+# src/main/java/com/.../config which is part of the codebase.
 out/
 node_modules/
-config/
+/config/
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/
