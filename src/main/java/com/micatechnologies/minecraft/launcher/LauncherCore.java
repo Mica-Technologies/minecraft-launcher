@@ -928,15 +928,23 @@ public class LauncherCore
      * @since 1.1
      */
     public static void closeApp() {
-        // When invoked from the FX thread, defer the actual cleanup to the next event-loop
-        // tick. A direct close from the macOS red-X button arrives here via
-        // WINDOW_CLOSE_REQUEST → setOnCloseRequest handler → exit button action, all
-        // synchronously inside Glass's notifyClose stack. cleanupApp() ultimately calls
-        // Stage.close(), which re-enters Glass and deadlocks the Cocoa main-thread lock
-        // still held by the outer notifyClose. runLater lets that frame unwind first;
-        // Windows doesn't hit the same lock so the synchronous path was historically OK.
+        // When invoked from the FX thread, run cleanup on a fresh background thread.
+        //
+        // On macOS, the JavaFX Application Thread IS the AppKit main thread. Several
+        // cleanup steps make AWT calls that dispatch_sync to AppKit:
+        //   - MacOsDockManager.shutdown() → Taskbar.setProgressValue/-setMenu (lazy-init'd
+        //     during the modpack-load progress updates, so it's live by cleanup time).
+        //   - NotificationManager.shutdown() → SystemTray.remove(trayIcon).
+        //   - Stage.close() → Glass MacWindow → NSWindow close on AppKit.
+        // Running them on the FX/AppKit thread deadlocks the dispatch_sync to self.
+        // A Platform.runLater hop just re-enters the same thread on a later tick — no
+        // help. Off-thread, the dispatches go through normally; internal JFXPlatformRun
+        // calls inside cleanup marshal back to FX for the parts (Stage.close) that need
+        // it. Windows JFX thread isn't coupled to AppKit, so the same path works there.
         if ( javafx.application.Platform.isFxApplicationThread() ) {
-            javafx.application.Platform.runLater( LauncherCore::closeAppNow );
+            Thread closer = new Thread( LauncherCore::closeAppNow, "Launcher-Close" );
+            closer.setDaemon( false );
+            closer.start();
             return;
         }
         closeAppNow();
