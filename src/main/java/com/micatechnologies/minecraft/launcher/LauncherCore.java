@@ -46,6 +46,7 @@ import org.apache.commons.lang3.SystemUtils;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Launcher core class. This class is the main entry point of the Mica Forge Launcher, and handles the main processes
@@ -141,6 +142,62 @@ public class LauncherCore
     }
 
     /**
+     * Tracks the currently-running launch so the progress GUI's Cancel button can ask
+     * for it to abort. Volatile because cancel() is invoked from the JavaFX thread
+     * while {@link #play(GameModPack, Runnable)} runs on a background worker; null
+     * whenever no launch is in flight.
+     */
+    private static volatile LaunchSession currentLaunch = null;
+
+    /**
+     * Per-launch cancellation token. Holds a reference to the worker thread that's
+     * running {@link #play(GameModPack, Runnable)} so {@link #cancel()} can interrupt
+     * blocking downloads + flips a flag that {@code play()} checks at its exit points
+     * to short-circuit the rest of the launch pipeline.
+     *
+     * @since 3.4
+     */
+    public static final class LaunchSession
+    {
+        private final Thread thread;
+        private final AtomicBoolean cancelled = new AtomicBoolean( false );
+
+        private LaunchSession( Thread thread )
+        {
+            this.thread = thread;
+        }
+
+        /**
+         * Marks this launch as cancelled and interrupts the worker thread. Interrupt
+         * is best-effort — some HTTP reads / native calls won't respond to it, but the
+         * flag is enough for the play() pipeline to abort at its next checkpoint
+         * regardless of whether the in-flight blocking call broke. Idempotent: a
+         * second cancel() call is a no-op.
+         */
+        public void cancel()
+        {
+            if ( cancelled.compareAndSet( false, true ) && thread != null ) {
+                thread.interrupt();
+            }
+        }
+
+        /** @return true once {@link #cancel()} has been called for this session. */
+        public boolean isCancelled()
+        {
+            return cancelled.get();
+        }
+    }
+
+    /**
+     * Returns the in-flight launch session, or {@code null} if no launch is currently
+     * running. Used by the progress GUI's Cancel button to request abort.
+     */
+    public static LaunchSession getCurrentLaunch()
+    {
+        return currentLaunch;
+    }
+
+    /**
      * Launches the specified mod pack for gameplay.
      *
      * @param gameModPack mod pack to launch/play
@@ -159,6 +216,13 @@ public class LauncherCore
      * @since 2.0
      */
     public static void play( GameModPack gameModPack, Runnable after ) {
+        // Register this launch as the cancellable one. Captures the calling thread so
+        // cancel() can interrupt blocking downloads. The session is cleared in the
+        // finally below — even if play() throws, currentLaunch never leaks past the
+        // pipeline boundary.
+        final LaunchSession session = new LaunchSession( Thread.currentThread() );
+        currentLaunch = session;
+        try {
         if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
             MCLauncherProgressGui playProgressWindow = null;
             try {
@@ -175,6 +239,24 @@ public class LauncherCore
                 playProgressWindow.setUpperLabelText( "Launching: " + gameModPack.getPackName() );
                 playProgressWindow.setSectionText( "Preparing..." );
                 playProgressWindow.setDetailText( "" );
+
+                // Wire the Cancel button to this launch's session. Clicking it interrupts
+                // the worker thread + flips the cancellation flag, which the catch / late-
+                // cancellation checks below pick up and route back to the main GUI.
+                final MCLauncherProgressGui cancellable = playProgressWindow;
+                cancellable.setCancelHandler( () -> {
+                    session.cancel();
+                    // Navigate back optimistically — even if the worker thread is wedged in
+                    // a non-interruptible HTTP read, the user gets their UI back NOW.
+                    SystemUtilities.spawnNewTask( () -> GUIUtilities.JFXPlatformRun( () -> {
+                        try {
+                            MCLauncherGuiController.goToMainGui();
+                        }
+                        catch ( IOException ioe ) {
+                            Logger.logErrorSilent( "Unable to return to main GUI after launch cancel." );
+                        }
+                    } ) );
+                } );
             }
 
             try {
@@ -243,6 +325,23 @@ public class LauncherCore
                     }
                 } );
                 gameModPack.startGame();
+
+                // Late cancellation: if the user clicked Cancel after the JVM was already
+                // spawned by startGame() (the worker thread was deep in process-spawn and
+                // didn't notice the interrupt), kill the freshly-spawned game process now
+                // so we don't end up with an orphaned Minecraft window and the launcher
+                // back on the main screen.
+                if ( session.isCancelled() ) {
+                    Process orphan = gameModPack.getLastLaunchedProcess();
+                    if ( orphan != null && orphan.isAlive() ) {
+                        orphan.destroyForcibly();
+                    }
+                    Logger.logStd( "Launch cancelled by user after process spawn — killed game process." );
+                    TaskbarProgressManager.stop();
+                    returnToMainGuiOnError();
+                    return;
+                }
+
                 gameModPack.saveInstalledVersion();
                 gameModPack.recordLaunchStart();
                 final long launchStartMs = System.currentTimeMillis();
@@ -345,14 +444,26 @@ public class LauncherCore
                 returnToMainGuiOnError();
             }
             catch ( Exception e ) {
-                Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );
-                Logger.logThrowable( e );
-                returnToMainGuiOnError();
+                // Cancellation exits via thrown exception (interrupt → InterruptedException
+                // or downstream IOException) — distinguish from a real failure so the user
+                // doesn't see an error log for a deliberate cancel.
+                if ( session.isCancelled() ) {
+                    Logger.logStd( "Launch cancelled by user." );
+                    TaskbarProgressManager.stop();
+                    returnToMainGuiOnError();
+                }
+                else {
+                    Logger.logError( LocalizationManager.UNABLE_START_GAME_EXCEPTION_TEXT );
+                    Logger.logThrowable( e );
+                    returnToMainGuiOnError();
+                }
             }
 
             // If after runnable present, run it -- but NOT when the in-game console is managing
-            // the UI lifecycle (it will return to main GUI via its own Close button)
-            if ( after != null && !ConfigManager.getInGameConsoleEnable() ) {
+            // the UI lifecycle (it will return to main GUI via its own Close button).
+            // Skipped on cancellation too — the after-callback usually navigates to the main
+            // GUI which is already where the cancel handler put the user.
+            if ( after != null && !ConfigManager.getInGameConsoleEnable() && !session.isCancelled() ) {
                 after.run();
             }
         }
@@ -367,6 +478,17 @@ public class LauncherCore
                                      LocalizationManager.GB_OF_RAM_TEXT +
                                      ". " +
                                      LocalizationManager.MAX_RAM_SETTING_MUST_INCREASE_TEXT );
+        }
+        }
+        finally {
+            // Clear the interrupt flag in case cancellation set it but no blocking call
+            // consumed it. Leaving the flag dirty on a worker thread that gets reused for
+            // a later spawnNewTask() would cause that next task to misbehave (e.g. throw
+            // InterruptedException out of an innocuous sleep call). currentLaunch is
+            // cleared too so the progress GUI's Cancel button no-ops once the launch
+            // exits, no matter how it exited.
+            Thread.interrupted();
+            currentLaunch = null;
         }
     }
 

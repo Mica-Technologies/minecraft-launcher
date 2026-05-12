@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import io.github.palexdev.materialfx.controls.MFXButton?>
 <?import io.github.palexdev.materialfx.controls.MFXProgressBar?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.Group?>
@@ -69,6 +70,11 @@
                 <RowConstraints fillHeight="false" maxHeight="35.0" minHeight="20.0" prefHeight="28.0" />
                 <!-- Row 5: Speed/ETA info label -->
                 <RowConstraints fillHeight="false" maxHeight="25.0" minHeight="15.0" prefHeight="22.0" />
+                <!-- Row 6: Cancel button row. Empty during fast paths (login / refresh /
+                     short tasks) since most short flows never have anything to cancel,
+                     but visible for modpack launches so the user can abort an unwanted
+                     download. The button is shown/hidden via MCLauncherProgressGui.setCancelHandler. -->
+                <RowConstraints fillHeight="false" maxHeight="44.0" minHeight="0.0" prefHeight="0.0" />
             </rowConstraints>
 
             <!-- Row 0: Minecraft-themed iso-cube voxel cluster.
@@ -136,6 +142,15 @@
                     <Font size="10.0" />
                 </font>
             </Label>
+
+            <!-- Row 6: Cancel button. Hidden by default (no managed slot when not shown);
+                 LauncherCore.play() opts into showing it for cancellable modpack launches.
+                 Sits at the bottom of the card so it doesn't compete visually with the
+                 progress indicator above. -->
+            <MFXButton fx:id="cancelBtn" text="Cancel" prefWidth="120.0" prefHeight="32.0"
+                       visible="false" managed="false"
+                       GridPane.halignment="CENTER" GridPane.rowIndex="6"
+                       GridPane.valignment="CENTER"/>
         </GridPane>
     </GridPane>
 </GridPane>

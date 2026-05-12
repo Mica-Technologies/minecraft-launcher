@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager;
+import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
 import javafx.animation.Animation;
 import javafx.animation.Interpolator;
@@ -75,6 +76,10 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML Group voxelCube1;
     @SuppressWarnings( "unused" ) @FXML Group voxelCube2;
     @SuppressWarnings( "unused" ) @FXML Group voxelCube3;
+
+    /** Cancel button at the bottom of the progress card. Hidden by default; callers
+     *  that want cancellation opt in via {@link #setCancelHandler}. */
+    @SuppressWarnings( "unused" ) @FXML MFXButton cancelBtn;
 
     /** Running animations on the voxel cubes. Held so {@link #cleanup()} can stop them
      *  on scene transition rather than leaking timeline state across scene changes. */
@@ -226,6 +231,43 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     public void setLabelTexts( String upper, String lower ) {
         setUpperLabelText( upper );
         setSectionText( lower );
+    }
+
+    /**
+     * Shows the Cancel button at the bottom of the progress card and wires its action
+     * to the supplied handler. Pass {@code null} to hide the button again (the default).
+     *
+     * <p>The button visually disables and changes its label to "Cancelling…" once
+     * clicked, since cancellation may take a beat to land (the worker thread might be
+     * mid-HTTP-read when the interrupt fires and only respond at the next checkpoint).
+     * That keeps the user from spam-clicking and lets them know the request was heard.
+     *
+     * @param handler the action to run when the user clicks Cancel; null hides the button
+     */
+    public void setCancelHandler( Runnable handler )
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( cancelBtn == null ) return;
+            if ( handler == null ) {
+                cancelBtn.setVisible( false );
+                cancelBtn.setManaged( false );
+                cancelBtn.setOnAction( null );
+                cancelBtn.setText( "Cancel" );
+                cancelBtn.setDisable( false );
+                return;
+            }
+            cancelBtn.setVisible( true );
+            cancelBtn.setManaged( true );
+            cancelBtn.setText( "Cancel" );
+            cancelBtn.setDisable( false );
+            cancelBtn.setOnAction( e -> {
+                // Optimistic UI: immediately reflect "we heard you" so the user doesn't
+                // wonder if their click registered. The actual abort happens off-thread.
+                cancelBtn.setText( "Cancelling…" );
+                cancelBtn.setDisable( true );
+                handler.run();
+            } );
+        } );
     }
 
     /**

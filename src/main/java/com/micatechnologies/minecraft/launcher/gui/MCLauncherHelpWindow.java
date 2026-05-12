@@ -27,6 +27,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebEngine;
@@ -35,6 +36,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import netscape.javascript.JSObject;
 
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -137,6 +139,21 @@ public class MCLauncherHelpWindow
         // redirection bitmap so DwmSetWindowAttribute(SYSTEMBACKDROP_TYPE) is silently
         // dropped. UNIFIED falls back gracefully on macOS / Linux.
         helpStage.initStyle( StageStyle.UNIFIED );
+
+        // Reuse the launcher app icon on the help window so the taskbar / window
+        // chrome don't fall back to the generic JavaFX placeholder. Same resource
+        // and same loading pattern MCLauncherGuiWindow uses for the main stage —
+        // best-effort: if the resource is missing or unreadable we just log and
+        // proceed with the default chrome.
+        try ( InputStream iconStream = MCLauncherHelpWindow.class.getClassLoader()
+                                                .getResourceAsStream( "micaminecraftlauncher.png" ) ) {
+            if ( iconStream != null ) {
+                helpStage.getIcons().add( new Image( iconStream ) );
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Unable to load help window icon: " + e.getMessage() );
+        }
 
         // Set owner so help stays above launcher
         Stage owner = MCLauncherGuiController.getTopStageOrNull();
