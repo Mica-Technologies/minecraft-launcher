@@ -112,6 +112,60 @@ public class MCLauncherHelpWindow
     }
 
     /**
+     * Tears down the help window's static state so the next launcher session
+     * (after a restartApp) builds a fresh Stage / WebView / sidebar rather
+     * than reusing the leftover ones from the previous session. Called from
+     * {@link com.micatechnologies.minecraft.launcher.LauncherCore#cleanupApp()}
+     * during shutdown / restart. Idempotent — calling on a never-shown
+     * window or after a previous teardown is a no-op.
+     *
+     * <p>Without this, the static fields ({@link #helpStage}, {@link #webView},
+     * {@link #webEngine}, {@link #topicList}, {@link #root}) survive the
+     * {@code while(restartFlag)} loop in {@code LauncherCore.main}, so a
+     * post-restart {@link #show} hits the {@code helpStage != null} fast
+     * path in {@link #buildStage} and renders the previous session's
+     * Stage — potentially with a stale theme, an Owner stage that no
+     * longer exists, and a WebView whose internal state was set up against
+     * a now-closed launcher window.
+     */
+    public static void cleanup()
+    {
+        if ( helpStage == null ) {
+            return;
+        }
+        GUIUtilities.JFXPlatformRun( () -> {
+            try {
+                if ( helpStage != null ) {
+                    if ( helpStage.isShowing() ) {
+                        helpStage.hide();
+                    }
+                    helpStage.close();
+                }
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Help window cleanup: stage close", t );
+            }
+            // Also clear the WebView page so any in-flight JS / pending
+            // navigations stop trying to call back into the about-to-die
+            // bridge.
+            try {
+                if ( webEngine != null ) {
+                    webEngine.loadContent( "" );
+                }
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Help window cleanup: webEngine clear", t );
+            }
+            helpStage = null;
+            webView = null;
+            webEngine = null;
+            topicList = null;
+            root = null;
+            currentTopic = null;
+        } );
+    }
+
+    /**
      * Refreshes the help window theme to match the current launcher theme. Call when the launcher theme changes.
      */
     public static void refreshTheme()

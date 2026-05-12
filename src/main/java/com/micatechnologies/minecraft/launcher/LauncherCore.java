@@ -885,6 +885,14 @@ public class LauncherCore
             // tray after launcher exit until the user clicks it (Windows behavior).
             com.micatechnologies.minecraft.launcher.utilities.NotificationManager.shutdown();
             MCLauncherGuiController.exit();
+            // Tear down the help window's static singleton state so a subsequent
+            // restartApp doesn't reuse a Stage whose Owner is now closed and a
+            // WebView whose internal state was wired up against the previous
+            // session's GUI window. Idempotent if the help window was never
+            // opened. Must run AFTER MCLauncherGuiController.exit() because
+            // the help window may transitively reference the main stage via
+            // initOwner; tearing it down last keeps the close order stable.
+            com.micatechnologies.minecraft.launcher.gui.MCLauncherHelpWindow.cleanup();
             SingleInstanceLock.release();
             Logger.shutdownLogSys();
         }
