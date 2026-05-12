@@ -922,6 +922,34 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- JFA — Java Foundation Accessor. Pulled in transitively by jSystemThemeDetector
+             as a runtime dep, but we use it directly in MacOsVibrancyManager to drive
+             NSVisualEffectView via objc_msgSend, so promote it to compile scope. The
+             jar itself is a JNA wrapper around the macOS Foundation/AppKit frameworks;
+             every call site is guarded by SystemUtils.IS_OS_MAC so the native libs are
+             never dlopen()'d on Windows or Linux.
+
+             JNA is excluded because JFA 1.2.0 pins to JNA 5.7.0 and oshi pulls in
+             JNA 5.12.1 (which adds Memory.close() that oshi 6.3.1 calls at startup).
+             With both versions on the classpath, the older one resolves first and oshi
+             crashes with NoSuchMethodError. Exclude here so oshi's 5.12.1 is the only
+             JNA on the classpath; JFA's API surface lives in 5.7.0 but is forward-
+             compatible with 5.12.x. -->
+        <dependency>
+            <groupId>de.jangassen</groupId>
+            <artifactId>jfa</artifactId>
+            <version>1.2.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.java.dev.jna</groupId>
+                    <artifactId>jna</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>net.java.dev.jna</groupId>
+                    <artifactId>jna-platform</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <dependency>
             <groupId>io.github.palexdev</groupId>
             <artifactId>materialfx</artifactId>

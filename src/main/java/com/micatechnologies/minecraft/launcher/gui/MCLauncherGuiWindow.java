@@ -559,26 +559,42 @@ public class MCLauncherGuiWindow extends Application
         applyTheme( LEGACY_CREEPER, UI_TOKENS_CREEPER );
     }
 
-    /** Native theme — translucent surface palette with the OS Mica backdrop showing
-     *  through on Win11. Follows OS dark/light via {@link OsThemeDetector#isDark()};
-     *  the legacy companion sheet matches so selectors not yet ported into ui-base.css
-     *  get the right palette.
+    /** Native theme — translucent surface palette with a real OS backdrop showing
+     *  through. Win11 gets DWM Mica via WindowChromeManager; macOS gets
+     *  NSVisualEffectView via JFA in
+     *  {@link com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager}.
+     *  Linux has no system-wide equivalent and falls back to the opaque Dark/Light
+     *  palette matching the OS dark/light preference.
      *
-     *  <p>The Native token sheets (ui-tokens-native*.css) are tuned specifically for
-     *  Win11 Mica: {@code -color-bg: rgba(0,0,0,0)} with 5–10% white surfaces that read
-     *  as frosted glass when DWM composites a Mica backdrop behind the JavaFX scene's
-     *  transparent pixels. macOS and Linux have no equivalent compositor — the
-     *  transparent scene fill falls through to whatever the OS draws as the window's
-     *  default bg, leaving near-invisible 5% white surfaces with dark-Mica light text
-     *  on top, and the alpha-compositing math on Retina produces visible ghosting and
-     *  subpixel misalignment between the OS-drawn window bg and the JavaFX layer. On
-     *  those hosts, fall back to the regular opaque Dark/Light palettes; "Native"
-     *  still follows the OS dark/light preference, just without the Mica visual.</p>
+     *  <p>The Native token sheets (ui-tokens-native*.css) define {@code -color-bg:
+     *  rgba(0,0,0,0)} with 5–10% white surfaces that read as frosted glass when a real
+     *  backdrop composites through the JavaFX scene's transparent pixels. Without a
+     *  backdrop (Linux) those tokens produce near-invisible surfaces, so we route
+     *  there to the opaque Dark/Light tokens instead.</p>
      */
     private void switchToNativeTheme() {
         boolean osDark = detector == null || detector.isDark();
 
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+            // Apply the translucent token sheet first so the scene fill is set to
+            // transparent and the 5–10% white surfaces are loaded, THEN install the
+            // NSVisualEffectView so the JFX content composites over real desktop
+            // vibrancy. Order matters: vibrancy install reads the current window
+            // state, and the transparent scene fill / clear backgroundColor are
+            // what let it show through.
+            if ( osDark ) {
+                applyTheme( LEGACY_DARK, UI_TOKENS_NATIVE );
+            }
+            else {
+                applyTheme( LEGACY_LIGHT, UI_TOKENS_NATIVE_LIGHT );
+            }
+            com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager
+                    .apply( stage, osDark );
+            return;
+        }
+
         if ( !org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            // Linux: no system vibrancy. Use opaque palettes following OS dark/light.
             if ( osDark ) {
                 applyTheme( LEGACY_DARK, UI_TOKENS_DARK );
             }
@@ -662,6 +678,13 @@ public class MCLauncherGuiWindow extends Application
                 if ( gui.scene != null ) {
                     gui.scene.setFill( javafx.scene.paint.Color.web( bg ) );
                 }
+                // Tear down any prior macOS NSVisualEffectView so this opaque theme
+                // doesn't paint over a half-applied vibrancy layer (and the NSWindow's
+                // opacity gets restored). No-op on non-macOS and when nothing was
+                // applied. Skipped in the isNative branch — there the caller installs
+                // a fresh vibrancy view after applyTheme returns.
+                com.micatechnologies.minecraft.launcher.utilities.MacOsVibrancyManager
+                        .clear( stage );
             }
 
             // Native theme: request the Mica backdrop via DWM. For non-Native themes,
