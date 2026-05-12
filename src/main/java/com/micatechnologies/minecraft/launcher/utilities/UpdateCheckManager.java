@@ -70,6 +70,13 @@ public class UpdateCheckManager
                     GUIUtilities.JFXPlatformRun( () -> {
                         updateImgView.setVisible( true );
                         updateImgView.setManaged( true );
+                        // Tooltip surfaces the same info the toast carries — visible on
+                        // any later session (when the toast won't re-fire) so the icon
+                        // remains discoverable as "click here to update" rather than
+                        // an unlabelled glyph.
+                        com.micatechnologies.minecraft.launcher.gui.TooltipManager.install(
+                                updateImgView,
+                                "Mica Launcher " + latestVersion + " is available — click to download." );
                         updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
                             int response = GUIUtilities.showQuestionMessage( "Update Available",
                                                                              "Update Ready to Download",
