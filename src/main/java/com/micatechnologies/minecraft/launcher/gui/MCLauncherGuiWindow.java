@@ -661,32 +661,43 @@ public class MCLauncherGuiWindow extends Application
             boolean isNative = tokenSheet.endsWith( "ui-tokens-native.css" )
                             || tokenSheet.endsWith( "ui-tokens-native-light.css" );
             if ( isNative ) {
-                // The official FXThemes macOS recipe (DarkThemeSampleMac.java in the
-                // FXThemes-samples repo): with StageStyle.UNIFIED, vibrancy renders
-                // correctly when scene.fill is Color.TRANSPARENT AND the root pane has
-                // a NON-transparent alpha background via inline style. The non-transparent
-                // root bg is what makes JFX's renderer treat each frame as a real render
-                // pass (no "everything's transparent, skip" path) — that, not a particular
-                // scene-fill RGB or alpha value, is what prevents the alpha-accumulation
-                // we were chasing with scene-fill tricks.
-                //
-                // 5% alpha is a low frosted-glass tint that lets vibrancy dominate while
-                // still being non-transparent enough to trigger the proper render pipeline.
-                // Dark variant uses white tint (frosted-light over dark vibrancy);
-                // light variant uses black tint (subtle darken over light vibrancy).
-                // Windows DWM Mica path uses pure transparent — its renderer doesn't
-                // share macOS's transparent-skip behavior.
-                if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
-                    boolean lightNative = tokenSheet.endsWith( "ui-tokens-native-light.css" );
-                    String rootBg = lightNative ? "rgba(0, 0, 0, 0.05)"
-                                                : "rgba(255, 255, 255, 0.05)";
-                    gui.rootPane.setStyle( "-fx-background-color: " + rootBg + ";" );
-                }
-                else {
-                    gui.rootPane.setStyle( "-fx-background-color: transparent;" );
-                }
+                // Force transparent via inline style — strongest override available so any
+                // other stylesheet rule (legacy `.rootPane { background: #1C1B1F }`,
+                // ui-base `.rootPane.hero-surface { background: -color-bg }`, etc.) loses
+                // regardless of cascade order or selector specificity.
+                gui.rootPane.setStyle( "-fx-background-color: transparent;" );
                 if ( gui.scene != null ) {
-                    gui.scene.setFill( javafx.scene.paint.Color.TRANSPARENT );
+                    // macOS-specific anti-accumulation: scene.fill must have non-trivial
+                    // alpha to force JFX's renderer to issue a real per-frame clear
+                    // (transparent fill takes the "skip clear" optimization path → alpha
+                    // accumulation on every translucent surface frame after frame). The
+                    // FXThemes "transparent fill + alpha rootPane bg" recipe doesn't work
+                    // for us — our scene has dozens of translucent surfaces (cards,
+                    // buttons, chips, etc. at 5–10% white from ui-tokens-native.css), not
+                    // a single rootPane bg like the demo, and the partial-repaint path
+                    // accumulates them aggressively.
+                    //
+                    // Match the clear RGB to the vibrancy's natural tone so the 4% overlay
+                    // reads as no visible tint: macOS vibrant-dark composites roughly
+                    // rgb(40,40,45) regardless of wallpaper, and vibrant-light to roughly
+                    // rgb(220,220,225). Combined with prism.dirtyopts=false (set in
+                    // LauncherCore.applySystemProperties on macOS) which forces full-
+                    // frame rendering — together these are the best balance we can get
+                    // between accumulation and vibrancy visibility while JFX-on-macOS
+                    // lacks first-party translucent-window support. Windows Mica's path
+                    // doesn't share the threshold; pure TRANSPARENT there.
+                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+                        boolean lightNative = tokenSheet.endsWith( "ui-tokens-native-light.css" );
+                        javafx.scene.paint.Color clearTone = lightNative
+                                ? javafx.scene.paint.Color.color( 0.86, 0.86, 0.88,
+                                                                  10.0 / 255.0 )
+                                : javafx.scene.paint.Color.color( 0.16, 0.16, 0.18,
+                                                                  10.0 / 255.0 );
+                        gui.scene.setFill( clearTone );
+                    }
+                    else {
+                        gui.scene.setFill( javafx.scene.paint.Color.TRANSPARENT );
+                    }
                 }
             }
             else {
