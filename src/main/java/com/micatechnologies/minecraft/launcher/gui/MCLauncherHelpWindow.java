@@ -274,31 +274,43 @@ public class MCLauncherHelpWindow
         // The locationProperty approach doesn't work with loadContent() since WebView can't
         // navigate to help:// URLs (not a real protocol). Instead, we inject JS after each
         // page load that catches link clicks and calls back into Java.
-        webEngine.getLoadWorker().stateProperty().addListener( ( obs, oldState, newState ) -> {
-            if ( newState == Worker.State.SUCCEEDED ) {
-                // Expose Java callback to JavaScript (use static field to prevent GC)
-                JSObject window = ( JSObject ) webEngine.executeScript( "window" );
-                window.setMember( "helpBridge", helpBridge );
-
-                // Intercept all help:// link clicks. Use getAttribute('href') instead of
-                // the .href DOM property because the browser resolves .href relative to the
-                // base URL (about:blank when using loadContent), which mangles the help:// scheme.
-                webEngine.executeScript(
-                        "document.addEventListener('click', function(e) {" +
-                                "  var target = e.target;" +
-                                "  while (target && target.tagName !== 'A') target = target.parentElement;" +
-                                "  if (target) {" +
-                                "    var raw = target.getAttribute('href');" +
-                                "    if (raw && raw.indexOf('help://topic/') === 0) {" +
-                                "      e.preventDefault();" +
-                                "      e.stopPropagation();" +
-                                "      var topic = raw.substring(13);" +
-                                "      window.helpBridge.navigateTo(topic);" +
-                                "    }" +
-                                "  }" +
-                                "});"
-                );
+        //
+        // Capture the engine in a final local so the listener doesn't read the static
+        // `webEngine` field at fire time. cleanup() nulls the static, but in-flight load
+        // workers (including the empty-content clear that cleanup itself triggers) still
+        // fire SUCCEEDED on the FX thread afterwards — if the listener reads `webEngine`
+        // then, it NPEs. Also guard against the static having been replaced by a later
+        // buildStage() so an old engine's listener doesn't script the new engine.
+        final WebEngine engineRef = webEngine;
+        engineRef.getLoadWorker().stateProperty().addListener( ( obs, oldState, newState ) -> {
+            if ( newState != Worker.State.SUCCEEDED ) {
+                return;
             }
+            if ( webEngine != engineRef ) {
+                return;
+            }
+            // Expose Java callback to JavaScript (use static field to prevent GC)
+            JSObject window = ( JSObject ) engineRef.executeScript( "window" );
+            window.setMember( "helpBridge", helpBridge );
+
+            // Intercept all help:// link clicks. Use getAttribute('href') instead of
+            // the .href DOM property because the browser resolves .href relative to the
+            // base URL (about:blank when using loadContent), which mangles the help:// scheme.
+            engineRef.executeScript(
+                    "document.addEventListener('click', function(e) {" +
+                            "  var target = e.target;" +
+                            "  while (target && target.tagName !== 'A') target = target.parentElement;" +
+                            "  if (target) {" +
+                            "    var raw = target.getAttribute('href');" +
+                            "    if (raw && raw.indexOf('help://topic/') === 0) {" +
+                            "      e.preventDefault();" +
+                            "      e.stopPropagation();" +
+                            "      var topic = raw.substring(13);" +
+                            "      window.helpBridge.navigateTo(topic);" +
+                            "    }" +
+                            "  }" +
+                            "});"
+            );
         } );
 
         // Layout
