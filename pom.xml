@@ -35,8 +35,15 @@
     <!-- PROJECT AND CUSTOM PROPERTIES -->
     <properties>
         <!-- CI-friendly version: override via -Drevision=YYYY.MM.DD in CI.
-             Default value is used for local/IDE builds. -->
-        <revision>2025.1.2</revision>
+             Default value is used for local/IDE builds.
+             Format constraint: VersionUtilities.compareVersionNumbers (used by
+             the in-app update check) splits on `.` and Integer.parseInts every
+             segment, so this must stay pure dot-delimited integers. A version
+             like "2026.1-b1" would NumberFormatException inside the comparator,
+             silently disabling update detection for everyone running the build.
+             "Beta" status is communicated via the GH release prerelease flag
+             and a UI label, not embedded in the version string. -->
+        <revision>2026.1.0</revision>
         <main.class>com.micatechnologies.minecraft.launcher.LauncherCore</main.class>
         <packaging.displayName>Mica Minecraft Launcher</packaging.displayName>
         <packaging.name>${packaging.displayName}</packaging.name>
