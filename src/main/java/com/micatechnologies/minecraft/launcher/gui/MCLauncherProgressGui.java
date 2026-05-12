@@ -28,6 +28,7 @@ import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
 import javafx.scene.Group;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -80,6 +81,12 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     /** Cancel button at the bottom of the progress card. Hidden by default; callers
      *  that want cancellation opt in via {@link #setCancelHandler}. */
     @SuppressWarnings( "unused" ) @FXML MFXButton cancelBtn;
+
+    /** Container for the cancel button — toggled visible + managed by
+     *  {@link #setCancelHandler}. Wrapping the button in an HBox lets us add top
+     *  padding that's only allocated when the cancel button is actually shown
+     *  (the row collapses to zero height when the HBox is unmanaged). */
+    @SuppressWarnings( "unused" ) @FXML HBox cancelBtnRow;
 
     /** Running animations on the voxel cubes. Held so {@link #cleanup()} can stop them
      *  on scene transition rather than leaking timeline state across scene changes. */
@@ -247,17 +254,21 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     public void setCancelHandler( Runnable handler )
     {
         GUIUtilities.JFXPlatformRun( () -> {
-            if ( cancelBtn == null ) return;
+            if ( cancelBtn == null || cancelBtnRow == null ) return;
             if ( handler == null ) {
-                cancelBtn.setVisible( false );
-                cancelBtn.setManaged( false );
+                // Toggle the WRAPPING HBox managed/visible (not just the button) so
+                // its top padding collapses too. Leaving the row managed with the
+                // button hidden would still reserve ~14 px of vertical space at the
+                // bottom of the card from the HBox's own insets.
+                cancelBtnRow.setVisible( false );
+                cancelBtnRow.setManaged( false );
                 cancelBtn.setOnAction( null );
                 cancelBtn.setText( "Cancel" );
                 cancelBtn.setDisable( false );
                 return;
             }
-            cancelBtn.setVisible( true );
-            cancelBtn.setManaged( true );
+            cancelBtnRow.setVisible( true );
+            cancelBtnRow.setManaged( true );
             cancelBtn.setText( "Cancel" );
             cancelBtn.setDisable( false );
             cancelBtn.setOnAction( e -> {

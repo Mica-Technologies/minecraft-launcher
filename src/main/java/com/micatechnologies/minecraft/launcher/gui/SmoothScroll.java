@@ -17,66 +17,81 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import javafx.animation.Animation;
-import javafx.animation.Interpolator;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
+import javafx.animation.AnimationTimer;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.ScrollEvent;
-import javafx.util.Duration;
 
 /**
  * Applies a smooth (animated, eased) wheel-scroll behavior to a JavaFX
  * {@link ScrollPane}. JavaFX's default ScrollPane bumps the {@code vvalue}
- * in discrete steps on each wheel tick, which makes long lists feel rigid
- * and "snap-y" compared to native OS scroll surfaces (Edge, Win11 Settings,
- * macOS Finder, etc.). This helper instead intercepts the wheel event,
- * computes a clamped target {@code vvalue}, and animates the pane's
- * vvalue toward it via a {@link Timeline} with {@link Interpolator#EASE_OUT}
- * easing — the result is the inertia-y, continuous feel users expect from
- * modern apps.
+ * in discrete steps on each wheel tick, which feels rigid compared to native
+ * OS scroll surfaces.
  *
- * <p>Behavior notes:
+ * <p>This helper replaces that with a "pull toward target" model driven by
+ * an {@link AnimationTimer}:
+ * <ol>
+ *   <li>Wheel events accumulate their delta into a target {@code vvalue}
+ *       (clamped to 0..1).</li>
+ *   <li>An AnimationTimer ticks every render frame and advances the pane's
+ *       actual vvalue toward the target by a fraction of the remaining
+ *       distance — exponential approach, naturally eases into the target.</li>
+ *   <li>When current ≈ target, the timer stops itself. Next wheel event
+ *       restarts it.</li>
+ * </ol>
+ *
+ * <p>Why AnimationTimer over Timeline:
  * <ul>
- *   <li>Successive scroll ticks <b>accumulate</b> into the same target rather
- *       than resetting it, so a fast flick produces a long smooth glide
- *       instead of stuttering frame by frame.</li>
- *   <li>Programmatic {@code setVvalue} calls (e.g. the main menu's
- *       scroll-into-view for a CLI-launched pack) still work — when nobody
- *       is currently animating, an external change updates the target so
- *       the next wheel event continues from where the pane actually is.</li>
- *   <li>If the content is shorter than the viewport (nothing to scroll), the
- *       wheel event is left for JavaFX's default handling. Avoids weird
- *       no-op animations when a screen has only a couple of cards.</li>
- *   <li>The helper installs itself as an {@code addEventFilter} on
- *       {@link ScrollEvent#SCROLL}, consumes the event, and triggers its
- *       Timeline. JavaFX's built-in wheel handler doesn't fire afterwards,
- *       so this fully replaces the default behavior.</li>
+ *   <li><b>No restart jolts.</b> The previous Timeline implementation
+ *       stopped + restarted on every wheel event, which was fine for
+ *       discrete clicks but visibly jolted under a free-spinning mouse
+ *       wheel firing 30+ events per second.</li>
+ *   <li><b>Rapid events accumulate cleanly.</b> Each event just nudges
+ *       the target; the timer is already running and continues chasing
+ *       without breaking stride.</li>
+ *   <li><b>External vvalue changes are easy to detect.</b> When the user
+ *       drags the scrollbar (or selectModpack programmatically scrolls
+ *       into view), the timer ISN'T running, so the vvalue listener
+ *       resets the target — the next wheel event then continues from
+ *       where the pane actually is.</li>
  * </ul>
  *
- * <p>Tuning constants are at the top of the class — adjust {@link #SCROLL_SPEED}
- * to change sensitivity and {@link #SCROLL_DURATION_MS} for the glide length.
+ * <p>Tuning constants up top — {@link #SCROLL_SPEED} controls sensitivity
+ * (how much each unit of wheel delta moves the target), and
+ * {@link #FOLLOW_RATE} controls how aggressively the actual vvalue chases
+ * the target each frame (closer to 1.0 = snappier, closer to 0.0 = more
+ * floaty).
  *
  * @since 3.4
  */
 public final class SmoothScroll
 {
     /**
-     * Sensitivity multiplier: how far each unit of wheel delta should advance
-     * the target vvalue. JavaFX's default wheel delta on Windows is typically
-     * ±32 per tick; ~1.6× of that gives roughly 50 logical pixels of glide per
-     * tick, comparable to native apps. Higher = faster scroll.
+     * Sensitivity multiplier: how far each unit of wheel delta should
+     * advance the target vvalue. JavaFX's default wheel delta on Windows
+     * is typically ±32 per click — this 2.6× multiplier puts the per-click
+     * glide at ~80 logical pixels, comparable to Edge / Win11 Settings.
+     * Free-wheel mode fires smaller deltas more often; the accumulation
+     * + chase model handles both gracefully.
      */
-    private static final double SCROLL_SPEED      = 1.6;
+    private static final double SCROLL_SPEED = 2.6;
 
     /**
-     * Animation duration toward the accumulated target. 220 ms is short enough
-     * to feel responsive (no perceptible lag between flick and motion) and long
-     * enough to read as a smooth glide rather than a teleport.
+     * Per-frame chase rate: at 60 fps, 0.25 means we cover 25% of the
+     * remaining distance to the target every frame. After ~10 frames
+     * (~167 ms) we're at 94% of the target, after 16 frames (~266 ms)
+     * at 99%. Faster feels responsive on click-by-click input; slower
+     * feels floatier on free-wheel. 0.25 is a deliberate middle ground.
      */
-    private static final double SCROLL_DURATION_MS = 220;
+    private static final double FOLLOW_RATE = 0.25;
+
+    /**
+     * Snap threshold. When current is within this fraction of the target,
+     * the timer assigns target exactly and stops. Prevents infinite tiny
+     * fractional moves (Zeno's paradox style) and lets the timer
+     * gracefully idle until the next wheel event.
+     */
+    private static final double SNAP_THRESHOLD = 0.0005;
 
     private SmoothScroll() { /* static-only */ }
 
@@ -93,15 +108,37 @@ public final class SmoothScroll
         if ( scrollPane == null ) return;
 
         final double[] target = { scrollPane.getVvalue() };
-        final Timeline[] anim = { null };
+        // Set to true while the animation is the one mutating vvalue, so the
+        // value-change listener below ignores its own writes. Without this
+        // flag, every frame the listener would reset the target to whatever
+        // we just wrote, creating a feedback loop that stops the chase.
+        final boolean[] internalUpdate = { false };
 
-        // External vvalue changes (programmatic setVvalue, scrollbar drag, etc.):
-        // when nothing is currently animating, sync the target to the new value
-        // so the next wheel event continues from where the pane actually is. The
-        // running-animation check is what prevents this listener from fighting
-        // its own Timeline mid-tween.
+        final AnimationTimer ticker = new AnimationTimer()
+        {
+            @Override
+            public void handle( long now )
+            {
+                double current = scrollPane.getVvalue();
+                double diff = target[ 0 ] - current;
+                if ( Math.abs( diff ) < SNAP_THRESHOLD ) {
+                    internalUpdate[ 0 ] = true;
+                    scrollPane.setVvalue( target[ 0 ] );
+                    internalUpdate[ 0 ] = false;
+                    stop();
+                    return;
+                }
+                internalUpdate[ 0 ] = true;
+                scrollPane.setVvalue( current + diff * FOLLOW_RATE );
+                internalUpdate[ 0 ] = false;
+            }
+        };
+
+        // External vvalue changes (drag scrollbar, programmatic setVvalue,
+        // keyboard arrow keys): sync target to the new value so the chase
+        // continues from where the user actually put the pane.
         scrollPane.vvalueProperty().addListener( ( obs, oldV, newV ) -> {
-            if ( anim[ 0 ] == null || anim[ 0 ].getStatus() != Animation.Status.RUNNING ) {
+            if ( !internalUpdate[ 0 ] ) {
                 target[ 0 ] = newV.doubleValue();
             }
         } );
@@ -127,13 +164,10 @@ public final class SmoothScroll
             double deltaY = -event.getDeltaY() * SCROLL_SPEED;
             target[ 0 ] = clamp( target[ 0 ] + deltaY / scrollable, 0, 1 );
 
-            if ( anim[ 0 ] != null ) {
-                anim[ 0 ].stop();
-            }
-            anim[ 0 ] = new Timeline( new KeyFrame(
-                    Duration.millis( SCROLL_DURATION_MS ),
-                    new KeyValue( scrollPane.vvalueProperty(), target[ 0 ], Interpolator.EASE_OUT ) ) );
-            anim[ 0 ].play();
+            // Idempotent — AnimationTimer.start() is a no-op if already
+            // running. No restart jolts because the existing tick continues
+            // chasing the freshly-updated target.
+            ticker.start();
         } );
     }
 

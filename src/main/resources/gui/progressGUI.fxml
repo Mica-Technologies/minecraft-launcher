@@ -31,16 +31,19 @@
         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
     </rowConstraints>
     <GridPane maxWidth="480.0" minWidth="380.0" prefWidth="460.0"
-              maxHeight="-Infinity" prefHeight="320.0"
+              maxHeight="-Infinity"
               styleClass="card,elevated,progressCard" GridPane.halignment="CENTER" GridPane.valignment="CENTER">
         <columnConstraints>
             <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
         </columnConstraints>
         <rowConstraints>
-            <!-- vgrow="NEVER" keeps the card sized to its content rather than filling the
-                 available vertical space; the outer rootPane row grows around it, and
-                 GridPane.valignment="CENTER" above places the card in the middle. -->
-            <RowConstraints fillHeight="false" minHeight="280.0" prefHeight="280.0" vgrow="NEVER" />
+            <!-- Outer card row uses USE_COMPUTED_SIZE (no prefHeight here) so the card
+                 height follows whatever the inner GridPane reports. This lets the card
+                 grow naturally when the optional Cancel button row is managed in for a
+                 launch flow, and shrink back when it's not. Earlier versions had a
+                 fixed prefHeight=280 / minHeight=280 which clamped the card and made
+                 the cancel button overlap the progress bar above it. -->
+            <RowConstraints fillHeight="false" minHeight="200.0" vgrow="NEVER" />
         </rowConstraints>
         <!-- Inner content GridPane: no prefHeight so it sizes to the sum of its row
              preferred heights (~236 px) instead of being forced to 420 px. The earlier
@@ -70,11 +73,13 @@
                 <RowConstraints fillHeight="false" maxHeight="35.0" minHeight="20.0" prefHeight="28.0" />
                 <!-- Row 5: Speed/ETA info label -->
                 <RowConstraints fillHeight="false" maxHeight="25.0" minHeight="15.0" prefHeight="22.0" />
-                <!-- Row 6: Cancel button row. Empty during fast paths (login / refresh /
-                     short tasks) since most short flows never have anything to cancel,
-                     but visible for modpack launches so the user can abort an unwanted
-                     download. The button is shown/hidden via MCLauncherProgressGui.setCancelHandler. -->
-                <RowConstraints fillHeight="false" maxHeight="44.0" minHeight="0.0" prefHeight="0.0" />
+                <!-- Row 6: Cancel button row. No prefHeight here — the row sizes to the
+                     button's own pref height when the button is managed (visible) and
+                     collapses to zero when not. setCancelHandler() toggles the button's
+                     managed property, and the outer card's row uses USE_COMPUTED_SIZE
+                     so the whole card grows / shrinks to match without overlapping the
+                     progress text and bar above it. -->
+                <RowConstraints fillHeight="false" minHeight="0.0" />
             </rowConstraints>
 
             <!-- Row 0: Minecraft-themed iso-cube voxel cluster.
@@ -145,12 +150,16 @@
 
             <!-- Row 6: Cancel button. Hidden by default (no managed slot when not shown);
                  LauncherCore.play() opts into showing it for cancellable modpack launches.
-                 Sits at the bottom of the card so it doesn't compete visually with the
-                 progress indicator above. -->
-            <MFXButton fx:id="cancelBtn" text="Cancel" prefWidth="120.0" prefHeight="32.0"
-                       visible="false" managed="false"
-                       GridPane.halignment="CENTER" GridPane.rowIndex="6"
-                       GridPane.valignment="CENTER"/>
+                 Wrapped in an HBox so the GridPane.margin top padding gives the button
+                 breathing room from the speed/ETA row above — without it the button
+                 visually crashes into the row 5 text. -->
+            <HBox fx:id="cancelBtnRow" alignment="CENTER"
+                  visible="false" managed="false"
+                  GridPane.halignment="CENTER" GridPane.rowIndex="6"
+                  GridPane.valignment="CENTER">
+                <padding><Insets top="12.0" bottom="2.0"/></padding>
+                <MFXButton fx:id="cancelBtn" text="Cancel" prefWidth="120.0" prefHeight="32.0"/>
+            </HBox>
         </GridPane>
     </GridPane>
 </GridPane>
