@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Custom main.wxs for jpackage MSI installer.
-     Copied from the jpackage default (JDK 25 / Corretto 25) with WixVariable
-     overrides added inside Product for Minecraft-themed installer bitmaps.
-     Bitmap path tokens (@@...@@) are replaced at build time by Maven antrun. -->
+     Originally copied from the jpackage default (JDK 25 / Corretto 25) and
+     subsequently kept in sync with the JDK 26 default; the project-specific
+     additions are the WixVariable overrides inside Product for the
+     Minecraft-themed installer bitmaps, the JpHelp/About/Update URL defines,
+     and the always-on upgrade/downgrade/reinstall Upgrade block. Bitmap path
+     tokens (@@...@@) are replaced at build time by Maven antrun.
+
+     NOTE on the JpCaDll Binary below: jpackage on Windows drops a small
+     custom-action DLL into its temp config/ directory at build time. light.exe
+     embeds it into the MSI's cabinet via the SourceFile= reference here, so
+     the filename has to match whatever jpackage's current version emits. The
+     DLL was renamed `wixhelper.dll` -> `msica.dll` in JDK 26; bumping the JDK
+     means bumping this filename or light.exe fails with exit code 103
+     (cannot find file). -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
@@ -90,7 +101,7 @@
         IncludeMinimum="no" />
     </Upgrade>
 
-    <Binary Id="JpCaDll" SourceFile="wixhelper.dll"/>
+    <Binary Id="JpCaDll" SourceFile="msica.dll"/>
 
     <CustomAction Id="JpFindRelatedProducts" BinaryKey="JpCaDll" DllEntry="FindRelatedProductsEx" />
 

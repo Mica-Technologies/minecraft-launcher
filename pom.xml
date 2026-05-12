@@ -420,6 +420,12 @@
                                     <!--suppress UnresolvedMavenProperty -->
                                     <executable>${jlink.jdk.path}/bin/jpackage</executable>
                                     <arguments>
+                                        <!-- Surface candle.exe / light.exe stdout+stderr in the
+                                             Maven log. Without this, WiX errors are swallowed and
+                                             a failure shows up as a bare "exited with NNN code"
+                                             IOException with no underlying detail (see commit
+                                             that renamed wixhelper.dll -> msica.dll for context). -->
+                                        <argument>--verbose</argument>
                                         <argument>--input</argument>
                                         <argument>${project.build.directory}/jpackage-input</argument>
                                         <argument>--main-jar</argument>
@@ -472,6 +478,8 @@
                                     <!--suppress UnresolvedMavenProperty -->
                                     <executable>${jlink.jdk.path}/bin/jpackage</executable>
                                     <arguments>
+                                        <!-- See jpackage-user above for the rationale. -->
+                                        <argument>--verbose</argument>
                                         <argument>--input</argument>
                                         <argument>${project.build.directory}/jpackage-input</argument>
                                         <argument>--main-jar</argument>
