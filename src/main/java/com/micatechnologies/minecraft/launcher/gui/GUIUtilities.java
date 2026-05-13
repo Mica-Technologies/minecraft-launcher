@@ -136,6 +136,87 @@ public class GUIUtilities
     }
 
     /**
+     * Multi-line counterpart of {@link #showQuestionMessage}. Used for
+     * deliberately-structured prompts (CurseForge / Modrinth import preview
+     * with multi-line summary, future "review changes before applying"
+     * confirmations) where the single-line {@link #sanitizeDialogText} would
+     * flatten the layout into an unreadable run-on. Dialog pane widens and
+     * the content label is reconfigured to size itself off the wrapped text,
+     * mirroring {@link #showErrorMessageMultiline}.
+     *
+     * @return 0 for cancel, 1 for button 1, 2 for button 2
+     *
+     * @since 2026.3
+     */
+    public static int showQuestionMessageMultiline( String title,
+                                                     String headerText,
+                                                     String contentText,
+                                                     String button1,
+                                                     String button2,
+                                                     Stage owner )
+    {
+        CountDownLatch waitForResponse = new CountDownLatch( 1 );
+        AtomicInteger index = new AtomicInteger( 0 );
+        JFXPlatformRun( () -> {
+            Alert questionAlert = new Alert( Alert.AlertType.CONFIRMATION );
+            questionAlert.setTitle( title );
+            questionAlert.setHeaderText( headerText );
+            questionAlert.setContentText( sanitizeDialogTextMultiline( contentText ) );
+            questionAlert.initStyle( StageStyle.UTILITY );
+            questionAlert.initModality( Modality.WINDOW_MODAL );
+            questionAlert.initOwner( owner );
+
+            ButtonType btn1 = new ButtonType( button1 );
+            boolean button2IsCancel = button2 != null
+                    && button2.trim().equalsIgnoreCase( "Cancel" );
+            ButtonType btn2 = button2IsCancel
+                    ? new ButtonType( button2, ButtonBar.ButtonData.CANCEL_CLOSE )
+                    : new ButtonType( button2 );
+
+            if ( button2IsCancel ) {
+                questionAlert.getButtonTypes().setAll( btn1, btn2 );
+            }
+            else {
+                ButtonType btnC = new ButtonType( "Cancel", ButtonBar.ButtonData.CANCEL_CLOSE );
+                questionAlert.getButtonTypes().setAll( btn1, btn2, btnC );
+            }
+
+            // Widen the dialog so summary lines don't wrap aggressively, and
+            // unbind the content label's preferred width so multi-line wrapped
+            // text actually grows the dialog vertically. Same recipe as
+            // showErrorMessageMultiline — kept inline rather than factored out
+            // because the dialog-pane lookup is a JavaFX runtime quirk that
+            // would otherwise leak into a "helper" with no other consumer.
+            questionAlert.getDialogPane().setMinWidth( 560 );
+            questionAlert.getDialogPane().setPrefWidth( 640 );
+            javafx.scene.Node contentLabel = questionAlert.getDialogPane().lookup( ".content.label" );
+            if ( contentLabel instanceof javafx.scene.control.Label l ) {
+                l.setWrapText( true );
+                l.setMinHeight( javafx.scene.layout.Region.USE_PREF_SIZE );
+                l.setPrefWidth( 600 );
+            }
+
+            themeAlertChrome( questionAlert );
+            Optional< ButtonType > opt = questionAlert.showAndWait();
+            if ( opt.isPresent() && opt.get() == btn1 ) {
+                index.set( 1 );
+            }
+            else if ( opt.isPresent() && opt.get() == btn2 ) {
+                index.set( 2 );
+            }
+            waitForResponse.countDown();
+        } );
+
+        try {
+            waitForResponse.await();
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+        }
+        return index.get();
+    }
+
+    /**
      * Show an error message dialog to user with specified information.
      *
      * @param contentText dialog content/error text

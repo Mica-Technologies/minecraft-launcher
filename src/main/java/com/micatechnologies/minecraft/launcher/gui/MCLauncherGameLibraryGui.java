@@ -240,13 +240,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             rebuildCards();
         } );
 
-        // URL "Add" → install + refresh.
-        // Flips the button into an "Adding…" disabled state while the install task
-        // is in flight. Without this affordance the button click looked like nothing
-        // happened — the install can take 5-30 seconds depending on pack size +
-        // network, with no visible signal that the launcher heard the click. The
-        // button is the natural place to surface the loading state since it's also
-        // the element the user just interacted with.
+        // URL "Add" → classify the URL, then either install (Mica manifest) or
+        // route to the platform-specific import preview dialog (Modrinth /
+        // CurseForge). Flips the button into an "Adding…" / "Checking…" state
+        // while the work is in flight — without this affordance the click looks
+        // like nothing happened, since the work can take 5-30 seconds for a
+        // direct manifest install and an extra round-trip for the API-backed
+        // preview.
         final String urlAddDefaultText = urlAddBtn.getText();
         urlAddBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
         urlAddBtn.setOnAction( e -> {
@@ -255,22 +255,43 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 return;
             }
             urlAddField.clear();
-            urlAddBtn.setText( "Adding…" );
             urlAddBtn.setDisable( true );
             urlAddField.setDisable( true );
-            SystemUtilities.spawnNewTask( () -> {
-                try {
-                    GameModPackManager.installModPackByURL( url );
+
+            com.micatechnologies.minecraft.launcher.game.modpack.import_.ModpackImportClassifier.Classification c =
+                    com.micatechnologies.minecraft.launcher.game.modpack.import_.ModpackImportClassifier.classify( url );
+
+            switch ( c.source() ) {
+                case MODRINTH -> {
+                    urlAddBtn.setText( "Checking…" );
+                    handleModrinthImport( url, c.slug(), c.versionId(),
+                                           urlAddDefaultText );
                 }
-                finally {
-                    GUIUtilities.JFXPlatformRun( () -> {
-                        urlAddBtn.setText( urlAddDefaultText );
-                        urlAddBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
-                        urlAddField.setDisable( false );
-                        rebuildCards();
+                case CURSEFORGE -> {
+                    urlAddBtn.setText( "Checking…" );
+                    handleCurseForgeImport( url, c.slug(), c.versionId(),
+                                             urlAddDefaultText );
+                }
+                default -> {
+                    // MICA / UNKNOWN — existing path. UNKNOWN falls through to
+                    // installModPackByURL which surfaces the usual "couldn't fetch
+                    // manifest" error if the URL really wasn't anything we recognize.
+                    urlAddBtn.setText( "Adding…" );
+                    SystemUtilities.spawnNewTask( () -> {
+                        try {
+                            GameModPackManager.installModPackByURL( url );
+                        }
+                        finally {
+                            GUIUtilities.JFXPlatformRun( () -> {
+                                urlAddBtn.setText( urlAddDefaultText );
+                                urlAddBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
+                                urlAddField.setDisable( false );
+                                rebuildCards();
+                            } );
+                        }
                     } );
                 }
-            } );
+            }
         } );
 
         // Modpack Editor
@@ -364,6 +385,159 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     @Override
     void cleanup() { /* nothing to tear down — filter listeners die with the scene */ }
+
+    // =========================================================================================
+    //  Add-by-URL platform-import helpers (Modrinth / CurseForge)
+    // =========================================================================================
+
+    /**
+     * Fetches the Modrinth project metadata via their (free) v2 API, shows a
+     * preview confirmation dialog, and — on confirm — kicks off the actual
+     * import. v1 stubs the import action; the dialog itself, the API fetch,
+     * and the URL classification scaffolding ship now so users get
+     * recognizable feedback instead of a generic "not a manifest" error.
+     */
+    private void handleModrinthImport( String originalUrl,
+                                        String slug,
+                                        String versionId,
+                                        String urlAddDefaultText )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient.ProjectSummary summary
+                    = com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient
+                            .fetchProject( slug, versionId );
+            GUIUtilities.JFXPlatformRun( () -> resetUrlControls( urlAddDefaultText ) );
+
+            if ( summary == null ) {
+                NotificationManager.error(
+                        "Couldn't reach Modrinth",
+                        "The launcher recognized your URL as a Modrinth modpack but "
+                                + "couldn't load details for it. Check your connection and try again, "
+                                + "or paste a Mica manifest URL instead." );
+                return;
+            }
+
+            String preview = buildModrinthPreview( originalUrl, summary );
+            int choice = GUIUtilities.showQuestionMessageMultiline(
+                    "Import from Modrinth?",
+                    "Modrinth modpack detected",
+                    preview,
+                    "Import",
+                    "Cancel",
+                    stage );
+            if ( choice != 1 ) return;
+
+            // v1 stub. The classifier + preview + dialog scaffolding ship now;
+            // the actual .mrpack download → manifest translation lands in a
+            // follow-up so this commit stays reviewable.
+            NotificationManager.info(
+                    "Import coming soon",
+                    "Modrinth import logic is being developed. The URL classifier "
+                            + "and preview are in place — the .mrpack-to-Mica-manifest translation "
+                            + "is the next step." );
+        } );
+    }
+
+    /**
+     * CurseForge counterpart. Their Core API requires a key (not free /
+     * publicly distributable), so v1 can't fetch project metadata for the
+     * preview — the dialog shows what we can derive from the URL alone and
+     * tells the user the supported workaround.
+     */
+    private void handleCurseForgeImport( String originalUrl,
+                                          String slug,
+                                          String fileId,
+                                          String urlAddDefaultText )
+    {
+        // Quick FX-thread continuation since there's no network round-trip to
+        // wait on. spawnNewTask anyway for symmetry with the Modrinth path.
+        SystemUtilities.spawnNewTask( () -> {
+            GUIUtilities.JFXPlatformRun( () -> resetUrlControls( urlAddDefaultText ) );
+
+            String preview = buildCurseForgePreview( originalUrl, slug, fileId );
+            int choice = GUIUtilities.showQuestionMessageMultiline(
+                    "CurseForge modpack detected",
+                    "Direct import isn't available yet",
+                    preview,
+                    "Open CurseForge page",
+                    "Cancel",
+                    stage );
+            if ( choice == 1 ) {
+                try {
+                    java.awt.Desktop.getDesktop().browse( java.net.URI.create( originalUrl ) );
+                }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( "Could not open CurseForge URL: " + t.getMessage() );
+                }
+            }
+        } );
+    }
+
+    /** Restores the urlAdd field + button to their idle state. Called from
+     *  both platform-import paths since both need this cleanup regardless of
+     *  whether the user clicked Import or Cancel. */
+    private void resetUrlControls( String urlAddDefaultText )
+    {
+        urlAddBtn.setText( urlAddDefaultText );
+        urlAddBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
+        urlAddField.setDisable( false );
+    }
+
+    /** Renders the Modrinth project summary as the preview-dialog body text.
+     *  Multi-line on purpose — uses {@link GUIUtilities#showQuestionMessageMultiline}. */
+    private String buildModrinthPreview( String originalUrl,
+            com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient.ProjectSummary s )
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append( s.title() != null ? s.title() : "(unnamed project)" ).append( '\n' );
+        if ( s.description() != null && !s.description().isBlank() ) {
+            sb.append( '\n' ).append( s.description().trim() ).append( '\n' );
+        }
+        sb.append( "\nSource: Modrinth" );
+        if ( s.slug() != null ) sb.append( " (" ).append( s.slug() ).append( ")" );
+        sb.append( '\n' );
+        if ( s.latestVersion() != null ) {
+            var v = s.latestVersion();
+            if ( v.versionNumber() != null ) sb.append( "Version: " ).append( v.versionNumber() ).append( '\n' );
+            if ( v.minecraftVersions() != null && !v.minecraftVersions().isEmpty() ) {
+                sb.append( "Minecraft: " ).append( String.join( ", ", v.minecraftVersions() ) ).append( '\n' );
+            }
+            if ( v.loaders() != null && !v.loaders().isEmpty() ) {
+                sb.append( "Mod loader: " ).append( String.join( ", ", v.loaders() ) ).append( '\n' );
+            }
+            int fileCount = v.files() == null ? 0 : v.files().size();
+            if ( fileCount > 0 ) {
+                sb.append( "Pack files: " ).append( fileCount )
+                  .append( fileCount == 1 ? "" : "" ).append( '\n' );
+            }
+        }
+        sb.append( '\n' ).append( "URL: " ).append( originalUrl );
+        return sb.toString();
+    }
+
+    /** CurseForge preview text. We can't fetch project metadata without an API
+     *  key, so the dialog is purely advisory + a one-click out to the
+     *  project page on cfwidget / curseforge.com itself. */
+    private String buildCurseForgePreview( String originalUrl, String slug, String fileId )
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append( "Detected a CurseForge modpack URL." ).append( '\n' );
+        sb.append( '\n' );
+        sb.append( "Source: CurseForge" );
+        if ( slug != null ) sb.append( " (" ).append( slug ).append( ")" );
+        sb.append( '\n' );
+        if ( fileId != null && !fileId.isBlank() ) {
+            sb.append( "File ID: " ).append( fileId ).append( '\n' );
+        }
+        sb.append( '\n' );
+        sb.append( "CurseForge requires an API key for programmatic downloads, so the "
+                          + "launcher can't import their packs directly yet. For now, you can "
+                          + "open the project page below, download the modpack ZIP from "
+                          + "CurseForge, and either repackage it as a Mica manifest or wait for "
+                          + "the next launcher update that adds CurseForge import support." );
+        sb.append( '\n' ).append( '\n' ).append( "URL: " ).append( originalUrl );
+        return sb.toString();
+    }
 
     // =========================================================================================
     //  Card list assembly
