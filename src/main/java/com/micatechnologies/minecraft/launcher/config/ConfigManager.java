@@ -1220,6 +1220,100 @@ public class ConfigManager
     }
 
     /**
+     * Decrypts and returns the user-supplied CurseForge Core API key, or
+     * {@code null} when none is configured (or the on-disk envelope can't
+     * be decrypted on this machine — wrong host, tampered file, etc.).
+     * The key is stored under {@link ConfigConstants#CURSEFORGE_API_KEY_KEY}
+     * as a Base64 envelope of machine-bound AES-256-GCM ciphertext, same
+     * primitive that protects the cached Minecraft auth tokens.
+     *
+     * <p>A decryption failure returns {@code null} (not an exception) so
+     * the CurseForge import path can simply degrade to "no key available
+     * → show manual-workaround preview" rather than failing the entire
+     * settings load.</p>
+     *
+     * @since 2026.3
+     */
+    public synchronized static String getCurseForgeApiKey() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.CURSEFORGE_API_KEY_KEY ) ) return null;
+        String encoded;
+        try {
+            encoded = configObject.get( ConfigConstants.CURSEFORGE_API_KEY_KEY ).getAsString();
+        }
+        catch ( Exception e ) {
+            return null;
+        }
+        if ( encoded == null || encoded.isBlank() ) return null;
+        try {
+            return com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.decrypt( encoded );
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "CurseForge API key could not be decrypted on this machine: "
+                                             + t.getClass().getSimpleName() );
+            return null;
+        }
+    }
+
+    /**
+     * Encrypts and persists the user-supplied CurseForge API key. Passing
+     * {@code null} or a blank string clears the stored value — useful when
+     * the user wants to revoke launcher access to their CF account.
+     *
+     * <p>The encrypted envelope is bound to this machine; a copy of the
+     * config file on another machine will see the field but won't be able
+     * to decrypt it. If encryption itself fails (vanishingly rare —
+     * cipher init failures on this JRE), the call returns silently
+     * without persisting; the previous on-disk value is left intact.</p>
+     *
+     * @since 2026.3
+     */
+    public synchronized static void setCurseForgeApiKey( String apiKey ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( apiKey == null || apiKey.isBlank() ) {
+            configObject.remove( ConfigConstants.CURSEFORGE_API_KEY_KEY );
+            writeConfigurationToDisk();
+            return;
+        }
+        try {
+            String envelope = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher
+                    .encrypt( apiKey );
+            configObject.addProperty( ConfigConstants.CURSEFORGE_API_KEY_KEY, envelope );
+            writeConfigurationToDisk();
+        }
+        catch ( Throwable t ) {
+            Logger.logErrorSilent( "Could not encrypt CurseForge API key for storage: "
+                                           + t.getClass().getSimpleName() );
+        }
+    }
+
+    /**
+     * Returns {@code true} when a non-empty encrypted CurseForge API key is
+     * stored in the config. Doesn't actually decrypt — useful for the
+     * Settings UI to show "configured" / "not set" without holding the
+     * cleartext key in memory longer than necessary.
+     *
+     * @since 2026.3
+     */
+    public synchronized static boolean hasCurseForgeApiKey() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.CURSEFORGE_API_KEY_KEY ) ) return false;
+        try {
+            String v = configObject.get( ConfigConstants.CURSEFORGE_API_KEY_KEY ).getAsString();
+            return v != null && !v.isBlank();
+        }
+        catch ( Exception e ) {
+            return false;
+        }
+    }
+
+    /**
      * Reads the application configuration from its file on persistent storage. In the event that a file does not exist,
      * or an error occurred with the file, a new default configuration file will be created.
      *

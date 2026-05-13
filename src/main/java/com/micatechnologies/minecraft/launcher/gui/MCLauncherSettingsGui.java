@@ -270,6 +270,32 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     MFXComboBox< String > defaultScanFrequencyCombo;
 
     /**
+     * Advanced tab: CurseForge Core API key input + save / clear buttons +
+     * status label. The field is a password-type input so the key isn't
+     * shoulder-surfable while the user is typing it. Stored encrypted-at-
+     * rest via {@link com.micatechnologies.minecraft.launcher.config.ConfigManager#setCurseForgeApiKey}
+     * using the same machine-bound AES-256-GCM primitive that protects
+     * the cached Minecraft auth tokens.
+     *
+     * @since 2026.3
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXPasswordField curseForgeApiKeyField;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton curseForgeApiKeySaveBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton curseForgeApiKeyClearBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label curseForgeApiKeyStatusLabel;
+
+    /**
      * Navigation buttons for settings category sidebar.
      *
      * @since 3.0
@@ -898,6 +924,38 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             } );
         }
 
+        // CurseForge API key input. The field deliberately never displays the
+        // stored value (the password field would show its existing contents,
+        // which means a shoulder-surfer or screen-recording at the Settings
+        // screen would leak the key). Instead, the status label below the
+        // field tells the user whether a key is already configured, and
+        // typing a new value + clicking Save replaces it. Clear wipes the
+        // stored value without exposing it.
+        if ( curseForgeApiKeyField != null && curseForgeApiKeySaveBtn != null
+                && curseForgeApiKeyClearBtn != null && curseForgeApiKeyStatusLabel != null ) {
+            refreshCurseForgeApiKeyStatus();
+            curseForgeApiKeySaveBtn.setOnAction( e -> {
+                String entered = curseForgeApiKeyField.getText();
+                if ( entered == null || entered.isBlank() ) {
+                    return;
+                }
+                com.micatechnologies.minecraft.launcher.config.ConfigManager
+                        .setCurseForgeApiKey( entered.trim() );
+                curseForgeApiKeyField.clear();
+                refreshCurseForgeApiKeyStatus();
+                com.micatechnologies.minecraft.launcher.utilities.NotificationManager.success(
+                        "CurseForge key saved",
+                        "Stored encrypted on this machine. CurseForge URL imports will now "
+                                + "fetch project metadata for the confirmation preview." );
+            } );
+            curseForgeApiKeyClearBtn.setOnAction( e -> {
+                com.micatechnologies.minecraft.launcher.config.ConfigManager
+                        .setCurseForgeApiKey( null );
+                curseForgeApiKeyField.clear();
+                refreshCurseForgeApiKeyStatus();
+            } );
+        }
+
         // Verify-all-game-files button. Synchronously iterates every installed pack and
         // runs a force-FULL verify on each via VerifyAction, with the launch progress
         // GUI driving the per-pack progress. Dispatch happens off the FX thread inside
@@ -969,6 +1027,27 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      *
      * @since 3.0
      */
+    /**
+     * Updates the CurseForge API key status label to reflect what's currently
+     * stored in config. We never display the actual key value — the label
+     * just shows "configured" vs "not set" so a shoulder-surfer at the
+     * Settings screen can't read off the credential.
+     */
+    private void refreshCurseForgeApiKeyStatus()
+    {
+        if ( curseForgeApiKeyStatusLabel == null ) return;
+        boolean configured = com.micatechnologies.minecraft.launcher.config.ConfigManager
+                .hasCurseForgeApiKey();
+        if ( configured ) {
+            curseForgeApiKeyStatusLabel.setText(
+                    "An encrypted API key is currently saved on this machine." );
+        }
+        else {
+            curseForgeApiKeyStatusLabel.setText(
+                    "No API key is configured. CurseForge URL imports will fall back to the manual-download workaround." );
+        }
+    }
+
     private void setupAccountTab()
     {
         // Player profile

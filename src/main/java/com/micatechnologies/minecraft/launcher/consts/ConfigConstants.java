@@ -588,4 +588,27 @@ public class ConfigConstants
     public static final String SCAN_FREQUENCY_BY_PACK_KEY = "scanFrequencyByPack";
 
     // endregion
+
+    // region CurseForge API key
+
+    /**
+     * JSON key for the user-supplied CurseForge Core API key, stored in the
+     * launcher config in the Base64 envelope produced by
+     * {@link com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher#encrypt}
+     * — machine-bound AES-256-GCM, same primitive that protects the cached
+     * Minecraft auth tokens. The key never sits on disk in plaintext and
+     * isn't trivially exfiltrated by a stolen disk image / mis-synced cloud
+     * backup.
+     *
+     * <p>Used by the CurseForge import path (Add by URL → CurseForge modpack
+     * detected → fetch project metadata). Without a key, the launcher can
+     * detect a CurseForge URL but can't fetch metadata; with one, the same
+     * preview-then-confirm flow we already do for Modrinth becomes available
+     * for CurseForge too.</p>
+     *
+     * @since 2026.3
+     */
+    public static final String CURSEFORGE_API_KEY_KEY = "curseForgeApiKey";
+
+    // endregion
 }

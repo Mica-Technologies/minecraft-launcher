@@ -2,6 +2,7 @@
 
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
 <?import io.github.palexdev.materialfx.controls.MFXComboBox?>
+<?import io.github.palexdev.materialfx.controls.MFXPasswordField?>
 <?import io.github.palexdev.materialfx.controls.MFXProgressBar?>
 <?import io.github.palexdev.materialfx.controls.MFXToggleButton?>
 <?import javafx.geometry.Insets?>
@@ -297,6 +298,39 @@
                                 </font>
                             </MFXButton>
                         </HBox>
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Third-party integrations">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="CurseForge Core API key. Required to import CurseForge modpacks by URL. Get one at console.curseforge.com → My API Keys. Stored encrypted on this machine using the same scheme that protects your Minecraft sign-in token — it never leaves the launcher in plaintext." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <MFXPasswordField fx:id="curseForgeApiKeyField" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="320.0" floatingText="CurseForge API key" />
+                            <MFXButton fx:id="curseForgeApiKeySaveBtn" prefHeight="30.0" prefWidth="80.0" text="Save">
+                                <font>
+                                    <Font size="11.0" />
+                                </font>
+                            </MFXButton>
+                            <MFXButton fx:id="curseForgeApiKeyClearBtn" prefHeight="30.0" prefWidth="80.0" text="Clear">
+                                <font>
+                                    <Font size="11.0" />
+                                </font>
+                            </MFXButton>
+                        </HBox>
+                        <Label fx:id="curseForgeApiKeyStatusLabel" styleClass="muted">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
                     </VBox>
                 </VBox>
             </ScrollPane>
