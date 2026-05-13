@@ -205,6 +205,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             setAnnouncementRow( null );
         }
 
+        // The announcement fetch is no longer a blocking startup step — it runs as a
+        // pure background CompletableFuture spawned in LauncherSession. If it hadn't
+        // settled by the time the menu painted, re-run setAnnouncementRow once it
+        // does so the banner pops up the moment the JSON arrives. The whenComplete
+        // is a one-shot — once the future is done, JavaFX never schedules again.
+        java.util.concurrent.CompletableFuture< Void > announcementsFuture =
+                AnnouncementManager.getCheckFuture();
+        if ( announcementsFuture != null && !announcementsFuture.isDone()
+                && !LauncherConstants.LAUNCHER_IS_DEV ) {
+            announcementsFuture.whenComplete( ( v, t ) ->
+                    GUIUtilities.JFXPlatformRun( () -> setAnnouncementRow( null ) ) );
+        }
+
         // Announcement bar ✕ — dismiss for this session (resets on next launch).
         // Captures the currently-displayed text so AnnouncementManager keys on what
         // the user actually saw rather than what's currently in the manifest, which

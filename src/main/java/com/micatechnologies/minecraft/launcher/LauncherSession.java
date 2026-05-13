@@ -107,29 +107,35 @@ class LauncherSession
         }
         boolean online = com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.checkNetworkAvailability();
 
-        // Run announcements + installed-modpacks fetch in parallel — they're independent
-        // network calls that previously ran serially and were a significant chunk of cold
-        // startup time. Available-modpacks fetch is kicked off as a fire-and-forget below;
-        // the main menu only needs installed packs to render so we don't gate startup on
-        // available-pack metadata. The Library screen blocks on
-        // GameModPackManager.waitForAvailableFetch (via getAvailableModPacks()) the first
-        // time it actually needs the data, while the main menu shows a loading indicator.
+        // Installed-modpack load on the critical path — fetchInstalledModPacks now
+        // does a cache-first sync load and kicks off its own background revalidate,
+        // so this completes in microseconds when the manifest cache is warm. First-
+        // ever launch (no cache) still does the original synchronous network fetch
+        // inside this call.
+        //
+        // Announcements: kicked off pure fire-and-forget. The main menu attaches a
+        // whenComplete hook on AnnouncementManager.getCheckFuture() that pops the
+        // banner the moment the JSON arrives — no reason to block first paint
+        // waiting for it, since it's purely informational decoration. Login /
+        // Settings / Library screens read whatever value is in the cache at the
+        // point they render; on a slow network the value may be empty for the
+        // first few seconds, which is the right trade vs. blocking the splash.
         if ( startupProgressWindow != null ) {
-            startupProgressWindow.setSectionText( online ? "Loading mod packs and announcements..."
+            startupProgressWindow.setSectionText( online ? "Loading mod packs..."
                                                           : "Loading cached mod pack data" );
             startupProgressWindow.setDetailText( "" );
             startupProgressWindow.setProgress( 30 );
         }
 
-        java.util.concurrent.CompletableFuture< Void > announcementsFuture = online
-                ? java.util.concurrent.CompletableFuture.runAsync( AnnouncementManager::checkAnnouncements )
-                : java.util.concurrent.CompletableFuture.completedFuture( null );
+        if ( online ) {
+            AnnouncementManager.startCheckAsync();
+        }
         java.util.concurrent.CompletableFuture< Void > installedFuture =
                 java.util.concurrent.CompletableFuture.runAsync(
                         () -> GameModPackManager.fetchInstalledModPacks( null ) );
 
         try {
-            java.util.concurrent.CompletableFuture.allOf( announcementsFuture, installedFuture ).get();
+            installedFuture.get();
         }
         catch ( Exception e ) {
             Logger.logError( "Startup network task failed." );

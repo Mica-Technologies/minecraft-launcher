@@ -136,6 +136,44 @@ public class AnnouncementManager
     private static boolean disableModpacksEdit = false;
 
     /**
+     * In-flight (or completed) future for the background announcement fetch kicked off by
+     * the launcher startup path. Lets the main menu attach a re-render hook that surfaces
+     * the banner once the network call settles, instead of blocking cold-start on it.
+     *
+     * @since 3.5
+     */
+    private static volatile java.util.concurrent.CompletableFuture< Void > checkFuture = null;
+
+    /**
+     * Starts the announcement fetch in the background and returns the in-flight future.
+     * Idempotent — repeated calls return the same future until the fetch completes, at
+     * which point a fresh call starts a new fetch.
+     *
+     * @return the in-flight (or just-started) future
+     *
+     * @since 3.5
+     */
+    public static synchronized java.util.concurrent.CompletableFuture< Void > startCheckAsync() {
+        java.util.concurrent.CompletableFuture< Void > existing = checkFuture;
+        if ( existing != null && !existing.isDone() ) {
+            return existing;
+        }
+        checkFuture = java.util.concurrent.CompletableFuture.runAsync(
+                AnnouncementManager::checkAnnouncements );
+        return checkFuture;
+    }
+
+    /**
+     * Returns the in-flight (or last-completed) announcement-check future, or {@code null}
+     * if no check has been started yet.
+     *
+     * @since 3.5
+     */
+    public static java.util.concurrent.CompletableFuture< Void > getCheckFuture() {
+        return checkFuture;
+    }
+
+    /**
      * Checks for new announcements from the launcher repository. If new announcements are found, they are retrieved and
      * stored in the appropriate variables.
      *
