@@ -100,13 +100,49 @@ public class GameModPackFetcher
     }
 
     /**
-     * Returns the cache file path for the given manifest URL. Uses a hash of the URL as filename.
+     * Returns the cache file path for the given manifest URL. SHA-256 of the URL is
+     * used as the filename so two URLs cannot collide (Java's {@code String.hashCode}
+     * is a 32-bit non-cryptographic hash; collisions are findable and would let one
+     * manifest's cache shadow another).
      */
     private static Path getCacheFilePath( String manifestUrl )
     {
-        String hash = Integer.toHexString( manifestUrl.hashCode() );
-        Path cacheDir = Path.of( LocalPathManager.getLauncherModpackFolderPath(), MANIFEST_CACHE_DIR );
-        return cacheDir.resolve( hash + ".json" );
+        return cacheDir().resolve( sha256Hex( manifestUrl ) + ".json" );
+    }
+
+    /**
+     * Legacy cache file path computed from {@code Integer.toHexString(url.hashCode())}.
+     * Kept around so that during the transition we still find caches written by old
+     * launcher versions; once an upgraded launcher fetches an online refresh it writes
+     * to the new SHA-256 path and the legacy file is left as harmless orphan data.
+     */
+    private static Path getLegacyCacheFilePath( String manifestUrl )
+    {
+        return cacheDir().resolve( Integer.toHexString( manifestUrl.hashCode() ) + ".json" );
+    }
+
+    private static Path cacheDir()
+    {
+        return Path.of( LocalPathManager.getLauncherModpackFolderPath(), MANIFEST_CACHE_DIR );
+    }
+
+    private static String sha256Hex( String input )
+    {
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance( "SHA-256" )
+                    .digest( input.getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
+            StringBuilder sb = new StringBuilder( hash.length * 2 );
+            for ( byte b : hash ) {
+                sb.append( String.format( "%02x", b ) );
+            }
+            return sb.toString();
+        }
+        catch ( java.security.NoSuchAlgorithmException e ) {
+            // SHA-256 is mandatory in every JRE we support; this branch is unreachable
+            // in practice. Fall back to the legacy hashCode form to keep caching working
+            // rather than throwing in a hot path.
+            return Integer.toHexString( input.hashCode() );
+        }
     }
 
     /**
@@ -127,6 +163,10 @@ public class GameModPackFetcher
 
     /**
      * Loads a cached manifest from disk, or returns null if no cache exists.
+     * Reads the SHA-256 path first; falls back to the legacy {@code hashCode}-based
+     * path so existing installs continue to find their caches after the upgrade.
+     * Once the launcher fetches a fresh manifest online it persists to the SHA-256
+     * path; the legacy entry, if any, is left as harmless orphan data.
      */
     private static String loadCachedManifest( String manifestUrl )
     {
@@ -134,6 +174,10 @@ public class GameModPackFetcher
             Path cacheFile = getCacheFilePath( manifestUrl );
             if ( Files.exists( cacheFile ) ) {
                 return Files.readString( cacheFile, StandardCharsets.UTF_8 );
+            }
+            Path legacy = getLegacyCacheFilePath( manifestUrl );
+            if ( Files.exists( legacy ) ) {
+                return Files.readString( legacy, StandardCharsets.UTF_8 );
             }
         }
         catch ( IOException e ) {
