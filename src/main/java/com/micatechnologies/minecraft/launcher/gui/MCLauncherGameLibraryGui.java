@@ -240,7 +240,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             rebuildCards();
         } );
 
-        // URL "Add" → install + refresh
+        // URL "Add" → install + refresh.
+        // Flips the button into an "Adding…" disabled state while the install task
+        // is in flight. Without this affordance the button click looked like nothing
+        // happened — the install can take 5-30 seconds depending on pack size +
+        // network, with no visible signal that the launcher heard the click. The
+        // button is the natural place to surface the loading state since it's also
+        // the element the user just interacted with.
+        final String urlAddDefaultText = urlAddBtn.getText();
         urlAddBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
         urlAddBtn.setOnAction( e -> {
             String url = urlAddField.getText();
@@ -248,9 +255,21 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 return;
             }
             urlAddField.clear();
+            urlAddBtn.setText( "Adding…" );
+            urlAddBtn.setDisable( true );
+            urlAddField.setDisable( true );
             SystemUtilities.spawnNewTask( () -> {
-                GameModPackManager.installModPackByURL( url );
-                GUIUtilities.JFXPlatformRun( this::rebuildCards );
+                try {
+                    GameModPackManager.installModPackByURL( url );
+                }
+                finally {
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        urlAddBtn.setText( urlAddDefaultText );
+                        urlAddBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
+                        urlAddField.setDisable( false );
+                        rebuildCards();
+                    } );
+                }
             } );
         } );
 
