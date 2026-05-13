@@ -157,6 +157,33 @@ public class MCLauncherAuthManager
         com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly( path );
     }
 
+    /**
+     * Returns the current OS user name, preferring environment variables over
+     * {@code System.getProperty("user.name")} so a user passing {@code -Duser.name=foo}
+     * to the JVM cannot detach their auth-cache fingerprint from the actual login.
+     *
+     * <p>Order:
+     * <ol>
+     *   <li>{@code $USER} (POSIX shells set this on login).</li>
+     *   <li>{@code $USERNAME} (Windows sets this in every interactive session).</li>
+     *   <li>{@code System.getProperty("user.name")} as a last-resort fallback —
+     *       sandboxed JVMs occasionally clear both env vars but still populate
+     *       this property.</li>
+     * </ol>
+     * Returns the empty string if nothing is available, matching the prior behavior.
+     */
+    private static String resolveOsUsername() {
+        String user = System.getenv( "USER" );
+        if ( user != null && !user.isEmpty() ) {
+            return user;
+        }
+        user = System.getenv( "USERNAME" );
+        if ( user != null && !user.isEmpty() ) {
+            return user;
+        }
+        return System.getProperty( "user.name", "" );
+    }
+
     /** Filename of the per-install random fallback secret. Sits alongside the auth files
      *  in the launcher config dir and is generated lazily only when hardware fingerprint
      *  pieces are unavailable. Users with working oshi + NIC enumeration never create or
@@ -245,7 +272,7 @@ public class MCLauncherAuthManager
      */
     private static SecretKey deriveMachineKey( byte[] salt ) throws Exception {
         StringBuilder fingerprint = new StringBuilder();
-        fingerprint.append( System.getProperty( "user.name", "" ) );
+        fingerprint.append( resolveOsUsername() );
         fingerprint.append( "|" );
         fingerprint.append( System.getProperty( "os.name", "" ) );
         fingerprint.append( "|" );
