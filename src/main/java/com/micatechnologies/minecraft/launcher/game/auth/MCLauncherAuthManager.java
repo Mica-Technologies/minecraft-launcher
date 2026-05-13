@@ -112,16 +112,25 @@ public class MCLauncherAuthManager
      * Returns true if the saved token should be renewed (enough time has passed since last renewal).
      */
     private static boolean shouldRenewToken() {
-        // Load persisted timestamp if we haven't yet
+        // Load persisted timestamp if we haven't yet. Encrypted-at-rest like the other
+        // auth files so a stolen disk image doesn't trivially reveal when the user last
+        // signed in. Legacy plaintext files are migrated transparently on first read.
         if ( lastSuccessfulRenewalMs == 0 ) {
             try {
                 Path timestampPath = resolveSiblingPath( RENEWAL_TIMESTAMP_FILE );
                 if ( Files.exists( timestampPath ) ) {
-                    String content = Files.readString( timestampPath ).trim();
-                    lastSuccessfulRenewalMs = Long.parseLong( content );
-                    Logger.logStd( "Loaded renewal timestamp from disk: " +
-                                           new java.text.SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" ).format(
-                                                   new java.util.Date( lastSuccessfulRenewalMs ) ) );
+                    String raw = Files.readString( timestampPath ).trim();
+                    long parsed = readRenewalTimestamp( raw );
+                    if ( parsed > 0 ) {
+                        lastSuccessfulRenewalMs = parsed;
+                        Logger.logStd( "Loaded renewal timestamp from disk: " +
+                                               new java.text.SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" ).format(
+                                                       new java.util.Date( lastSuccessfulRenewalMs ) ) );
+                    }
+                    else {
+                        Logger.logWarningSilent( "Renewal timestamp file present but unreadable; ignoring." );
+                        lastSuccessfulRenewalMs = 0;
+                    }
                 }
                 else {
                     Logger.logStd( "No renewal timestamp file found -- token renewal will be required." );
@@ -514,11 +523,48 @@ public class MCLauncherAuthManager
         lastSuccessfulRenewalMs = System.currentTimeMillis();
         try {
             Path renewalPath = resolveSiblingPath( RENEWAL_TIMESTAMP_FILE );
-            Files.writeString( renewalPath, String.valueOf( lastSuccessfulRenewalMs ) );
+            // Encrypt the timestamp at rest with the same machine key the other auth
+            // files use. The value itself isn't a credential, but disclosing it tells
+            // an attacker who reads the disk when the user last signed in and
+            // contributes to activity-pattern profiling.
+            String encoded = encryptForMachine( String.valueOf( lastSuccessfulRenewalMs ) );
+            Files.writeString( renewalPath, encoded );
             applyOwnerOnlyPermissions( renewalPath );
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( "Failed to save renewal timestamp: " + e.getMessage() );
+        }
+    }
+
+    /**
+     * Parses the on-disk renewal timestamp string, accepting either the encrypted
+     * Base64 form produced by {@link #recordSuccessfulRenewal()} or the legacy
+     * plain-decimal form left over from pre-encryption installs. Legacy values are
+     * upgraded transparently on the next {@link #recordSuccessfulRenewal()} call.
+     * Returns {@code 0} on any parse failure.
+     */
+    private static long readRenewalTimestamp( String raw ) {
+        if ( raw == null || raw.isBlank() ) {
+            return 0L;
+        }
+        // Try decrypt first. If the body is valid Base64 ciphertext bound to this
+        // machine, this succeeds and returns the decrypted decimal string.
+        try {
+            String decrypted = decryptForMachine( raw );
+            if ( decrypted != null ) {
+                return Long.parseLong( decrypted.trim() );
+            }
+        }
+        catch ( Exception ignored ) {
+            // Fall through to legacy plaintext parse.
+        }
+        // Legacy plain-decimal path. Migration: the next recordSuccessfulRenewal
+        // call rewrites the file in the encrypted form.
+        try {
+            return Long.parseLong( raw );
+        }
+        catch ( NumberFormatException e ) {
+            return 0L;
         }
     }
 
