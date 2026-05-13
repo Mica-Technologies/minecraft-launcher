@@ -193,9 +193,7 @@ class GameModPackEnvironment
             if ( metadata.packLogoSha1 != null ) {
                 File destFile = SynchronizedFileManager.getSynchronizedFile(
                         computedImageFile( metadata.packLogoSha1 ) );
-                if ( !HashUtilities.verifySHA1( destFile, metadata.packLogoSha1 ) ) {
-                    NetworkUtilities.downloadFileFromURL( new URL( effectiveUrl ), destFile );
-                }
+                resolveDeclaredImage( destFile, metadata.packLogoSha1, effectiveUrl );
                 return;
             }
 
@@ -231,9 +229,7 @@ class GameModPackEnvironment
             if ( metadata.packBackgroundSha1 != null ) {
                 File destFile = SynchronizedFileManager.getSynchronizedFile(
                         computedImageFile( metadata.packBackgroundSha1 ) );
-                if ( !HashUtilities.verifySHA1( destFile, metadata.packBackgroundSha1 ) ) {
-                    NetworkUtilities.downloadFileFromURL( new URL( effectiveUrl ), destFile );
-                }
+                resolveDeclaredImage( destFile, metadata.packBackgroundSha1, effectiveUrl );
                 return;
             }
 
@@ -321,6 +317,47 @@ class GameModPackEnvironment
     }
 
     /**
+     * Declared-SHA1 image resolution with WebP-aware auto-heal. Branches:
+     *
+     * <ul>
+     *   <li><b>Healthy fast path</b> — file matches declared hash AND is in a
+     *       JavaFX-native format (PNG / JPEG / GIF / BMP): return as-is.</li>
+     *   <li><b>Pre-transcode auto-heal</b> — file matches declared hash but
+     *       JavaFX can't render the bytes (declared hash is the WebP source's
+     *       SHA-1 from a launcher build that predated WebP transcoding).
+     *       Transcode in place so the icon actually displays. The on-disk
+     *       file now hashes to something other than the declared SHA-1 — the
+     *       short-circuit below catches that on subsequent calls so we don't
+     *       loop on re-download.</li>
+     *   <li><b>Trust local</b> — file exists, doesn't match declared hash,
+     *       but IS JavaFX-decodable: assume a previous transcode pass put it
+     *       there and skip re-download. This is what prevents the loop after
+     *       a pre-transcode auto-heal.</li>
+     *   <li><b>Genuine miss</b> — file missing, or present but not decodable
+     *       and SHA-1 doesn't match: download from the URL + transcode if
+     *       needed.</li>
+     * </ul>
+     */
+    private static void resolveDeclaredImage( File destFile, String declaredSha1, String effectiveUrl ) throws IOException
+    {
+        if ( HashUtilities.verifySHA1( destFile, declaredSha1 ) ) {
+            if ( !com.micatechnologies.minecraft.launcher.utilities.ImageFormatUtilities
+                    .isJavaFxDecodable( destFile ) ) {
+                com.micatechnologies.minecraft.launcher.utilities.ImageFormatUtilities
+                        .ensureJavaFxDecodable( destFile );
+            }
+            return;
+        }
+        if ( destFile.exists() && com.micatechnologies.minecraft.launcher.utilities.ImageFormatUtilities
+                .isJavaFxDecodable( destFile ) ) {
+            return;
+        }
+        NetworkUtilities.downloadFileFromURL( new URL( effectiveUrl ), destFile );
+        com.micatechnologies.minecraft.launcher.utilities.ImageFormatUtilities
+                .ensureJavaFxDecodable( destFile );
+    }
+
+    /**
      * Downloads {@code url} into a per-pack temp file under the pack's root folder, hashes
      * it, then atomically moves it to {@code metadata/<sha1>.png}. If a file with the same
      * SHA-1 already exists (i.e. another pack downloaded the identical bytes), the temp
@@ -333,6 +370,18 @@ class GameModPackEnvironment
         //noinspection ResultOfMethodCallIgnored
         tempFile.getParentFile().mkdirs();
         NetworkUtilities.downloadFileFromURL( new URL( url ), tempFile );
+
+        // Transcode WebP / other ImageIO-readable formats to PNG in place
+        // before hashing, so the content-addressed slot always holds a PNG
+        // that JavaFX's Image class can actually decode. Modrinth's CDN
+        // serves most pack icons as WebP, and custom modpack manifests can
+        // point packLogoURL / packBackgroundURL at anything the author
+        // happens to host — this is the single chokepoint where every
+        // image enters the cache, so handling the transcode here keeps the
+        // rest of the launcher format-agnostic. No-op for inputs that are
+        // already PNG / JPEG / GIF / BMP.
+        com.micatechnologies.minecraft.launcher.utilities.ImageFormatUtilities
+                .ensureJavaFxDecodable( tempFile );
 
         String sha1 = HashUtilities.getFileSHA1( tempFile );
         if ( sha1 == null ) {

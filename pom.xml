@@ -1189,6 +1189,18 @@
             <version>2.21.0</version>
         </dependency>
         <dependency>
+            <!-- TwelveMonkeys WebP reader for javax.imageio. Modrinth's CDN
+                 serves most project icons as WebP, and JavaFX 26's Image
+                 class only natively decodes BMP / GIF / JPEG / PNG. With
+                 this plugin on the classpath, ImageIO.read(File) transparently
+                 picks up WebP via ServiceLoader so the importer can transcode
+                 to PNG before staging the file under <sha1>.png. Pure-Java
+                 reader (no JNI / native bundle), MIT-licensed. -->
+            <groupId>com.twelvemonkeys.imageio</groupId>
+            <artifactId>imageio-webp</artifactId>
+            <version>3.12.0</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.13.2</version>

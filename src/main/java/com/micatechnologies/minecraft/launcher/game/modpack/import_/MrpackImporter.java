@@ -434,14 +434,14 @@ public final class MrpackImporter
      *  cold-start "blank logo" window we were seeing when imported packs
      *  hadn't yet been through a successful cacheImages run.
      *
-     *  Modrinth lets pack authors upload icons in any format their tooling
-     *  supports — most commonly WebP, since the upload pipeline transcodes
-     *  PNG/JPEG sources to WebP for CDN efficiency. JavaFX 26's {@code Image}
-     *  class only decodes BMP / GIF / JPEG / PNG, so a WebP saved as
-     *  {@code <sha1>.png} loads as a blank rectangle. Until we ship a
-     *  bundled WebP decoder, treat WebP icons as "unstageable" and let the
-     *  manifest fall back to the bundled-default logo URL — better to show
-     *  the launcher's own icon than a blank card.
+     *  Modrinth's upload pipeline transcodes most project icons to WebP for
+     *  CDN efficiency, but JavaFX 26's {@code Image} class only natively
+     *  decodes BMP / GIF / JPEG / PNG. The TwelveMonkeys imageio-webp
+     *  plugin on the classpath gives {@code ImageIO} a WebP reader, so
+     *  {@link ImageFormatUtilities#ensureJavaFxDecodable} can transcode
+     *  WebP to PNG in place before we hash + stage the file. The SHA-1 is
+     *  computed on the post-transcode PNG bytes so the runtime's image
+     *  cache finds the same file we wrote.
      *
      *  Returns {@code null} (rather than throwing) on any failure — no
      *  iconUrl, non-https URL, network error, hash failure, unsupported
@@ -463,9 +463,12 @@ public final class MrpackImporter
             File tempFile = tempIcon.toFile();
             NetworkUtilities.downloadFileFromURL( new URL( iconUrl ), tempFile );
 
-            if ( !isJavaFxDecodableImage( tempFile ) ) {
+            // Transcode WebP / anything-non-JavaFX-native to PNG in place.
+            // No-op when the bytes are already PNG / JPEG / GIF / BMP.
+            if ( !com.micatechnologies.minecraft.launcher.utilities.ImageFormatUtilities
+                    .ensureJavaFxDecodable( tempFile ) ) {
                 Logger.logStd( "Modrinth import: project icon at " + iconUrl
-                                       + " is in an unsupported format (JavaFX can't decode it); "
+                                       + " is in a format ImageIO can't decode; "
                                        + "falling back to the bundled-default logo." );
                 return null;
             }
@@ -497,42 +500,6 @@ public final class MrpackImporter
                 try { Files.deleteIfExists( tempIcon ); } catch ( IOException ignored ) {}
             }
         }
-    }
-
-    /** Sniffs the first few bytes of {@code file} to verify it's a format
-     *  JavaFX's {@code Image} class can decode. JavaFX 26 ships decoders for
-     *  PNG, JPEG, GIF, and BMP only — notably <em>not</em> WebP, despite
-     *  Modrinth's CDN serving most project icons as WebP. We can't rely on
-     *  Content-Type or filename extension since Modrinth's URLs use {@code
-     *  .webp} but server middleware sometimes rewrites or omits it, and we
-     *  may have already moved the bytes into a {@code .png}-suffixed temp
-     *  file by the time this runs. Magic-byte sniffing is content-truth. */
-    private static boolean isJavaFxDecodableImage( File file )
-    {
-        if ( file == null || !file.isFile() || file.length() < 12 ) return false;
-        byte[] head = new byte[12];
-        try ( java.io.InputStream is = new java.io.FileInputStream( file ) ) {
-            int read = 0;
-            while ( read < head.length ) {
-                int n = is.read( head, read, head.length - read );
-                if ( n < 0 ) return false;
-                read += n;
-            }
-        }
-        catch ( IOException ignored ) { return false; }
-
-        // PNG: 89 50 4E 47 0D 0A 1A 0A
-        if ( head[0] == (byte) 0x89 && head[1] == 0x50 && head[2] == 0x4E && head[3] == 0x47 ) return true;
-        // JPEG: FF D8 FF
-        if ( head[0] == (byte) 0xFF && head[1] == (byte) 0xD8 && head[2] == (byte) 0xFF ) return true;
-        // GIF87a / GIF89a: "GIF8"
-        if ( head[0] == 0x47 && head[1] == 0x49 && head[2] == 0x46 && head[3] == 0x38 ) return true;
-        // BMP: "BM"
-        if ( head[0] == 0x42 && head[1] == 0x4D ) return true;
-        // RIFF / WEBP (and anything else): reject. The WEBP magic is
-        // 52 49 46 46 ?? ?? ?? ?? 57 45 42 50 — common from Modrinth's
-        // image pipeline, and the headline reason this check exists.
-        return false;
     }
 
     /** Builds the Forge Maven URL for the given MC + Forge version pair.
