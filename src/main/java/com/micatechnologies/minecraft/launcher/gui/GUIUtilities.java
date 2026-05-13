@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
@@ -69,7 +70,7 @@ public class GUIUtilities
             Alert questionAlert = new Alert( Alert.AlertType.CONFIRMATION );
             questionAlert.setTitle( title );
             questionAlert.setHeaderText( headerText );
-            questionAlert.setContentText( contentText );
+            questionAlert.setContentText( sanitizeDialogText( contentText ) );
             questionAlert.initStyle( StageStyle.UTILITY );
             questionAlert.initModality( Modality.WINDOW_MODAL );
             questionAlert.initOwner( owner );
@@ -132,7 +133,7 @@ public class GUIUtilities
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
             errorAlert.setTitle( "Oops" );
             errorAlert.setHeaderText( "Error" );
-            errorAlert.setContentText( contentText );
+            errorAlert.setContentText( sanitizeDialogText( contentText ) );
             errorAlert.initModality( Modality.WINDOW_MODAL );
             errorAlert.initStyle( StageStyle.UTILITY );
             errorAlert.initOwner( owner );
@@ -167,6 +168,38 @@ public class GUIUtilities
         }
     }
 
+    /** Maximum length of caller-supplied text that the launcher will display in an
+     *  Alert content area. Anything longer is truncated with an ellipsis — overlong
+     *  text typically means a stack-trace dump was passed as contentText, which is
+     *  also where information disclosure would happen (internal paths, type names). */
+    private static final int MAX_DIALOG_CONTENT_CHARS = 600;
+
+    /**
+     * Returns a defanged copy of {@code contentText} suitable for display in an
+     * {@link Alert}. Strips embedded access tokens via {@link SensitiveDataRedactor},
+     * collapses any sequence of newlines into a single space so multi-line stack
+     * traces compress to one readable line, and truncates the result so a leaked
+     * stack-trace dump can't push past the dialog's visible bounds. Empty/null
+     * input passes through unchanged.
+     */
+    private static String sanitizeDialogText( String contentText )
+    {
+        if ( contentText == null || contentText.isEmpty() ) {
+            return contentText;
+        }
+        String redacted = SensitiveDataRedactor.redact( contentText );
+        // Collapse newlines + carriage returns to spaces, then squeeze runs of
+        // whitespace so a wrapped stack frame reads as one continuous line.
+        String oneLine = redacted.replace( '\n', ' ' )
+                                  .replace( '\r', ' ' )
+                                  .replaceAll( "\\s+", " " )
+                                  .trim();
+        if ( oneLine.length() > MAX_DIALOG_CONTENT_CHARS ) {
+            return oneLine.substring( 0, MAX_DIALOG_CONTENT_CHARS - 1 ) + "…";
+        }
+        return oneLine;
+    }
+
     /**
      * Show an error message dialog to user with specified information and retry option.
      *
@@ -184,7 +217,7 @@ public class GUIUtilities
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
             errorAlert.setTitle( "Oops" );
             errorAlert.setHeaderText( "Error" );
-            errorAlert.setContentText( contentText );
+            errorAlert.setContentText( sanitizeDialogText( contentText ) );
             // Use application-modal if the owner stage isn't visible to avoid force-showing hidden stages
             if ( owner != null && owner.isShowing() ) {
                 errorAlert.initModality( Modality.WINDOW_MODAL );
@@ -248,7 +281,7 @@ public class GUIUtilities
             Alert warningAlert = new Alert( Alert.AlertType.WARNING );
             warningAlert.setTitle( "Warning" );
             warningAlert.setHeaderText( "Warning" );
-            warningAlert.setContentText( contentText );
+            warningAlert.setContentText( sanitizeDialogText( contentText ) );
             warningAlert.initModality( Modality.WINDOW_MODAL );
             warningAlert.initStyle( StageStyle.UTILITY );
             warningAlert.initOwner( owner );
