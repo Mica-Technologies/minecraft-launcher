@@ -489,10 +489,25 @@ public class ConfigManager
     }
 
     /**
-     * Sets the custom JVM launch arguments.
+     * Sets the custom JVM launch arguments. Validates the string against argument-injection
+     * patterns (security finding 2.1) — these args are appended into the launch command
+     * line that gets split via {@code ProcessUtilities.splitCommandLine} and is also subject
+     * to {@code ${placeholder}} substitution downstream. Embedded newlines, NULs, control
+     * characters, or {@code ${...}} sequences are rejected outright so that:
+     * <ul>
+     *   <li>A future code path that copies JVM args from an attacker-controlled source
+     *       (modpack JSON field, URI parameter, etc.) cannot inject extra arguments
+     *       through this choke point.</li>
+     *   <li>{@code ${auth_access_token}} or similar placeholders cannot be smuggled into
+     *       custom args to leak the live token onto the command line in extra positions.</li>
+     * </ul>
+     *
+     * <p>Pre-existing usages (settings UI presets, user-typed args) stay valid because none
+     * of them contain the rejected metacharacters.
      *
      * @param jvmArgs the JVM arguments string
      *
+     * @throws IllegalArgumentException if the string contains rejected metacharacters
      * @since 3.0
      */
     public synchronized static void setCustomJvmArgs( String jvmArgs ) {
@@ -501,8 +516,36 @@ public class ConfigManager
             readConfigurationFromDisk();
         }
 
-        configObject.addProperty( ConfigConstants.JVM_ARGS_KEY, jvmArgs != null ? jvmArgs : "" );
+        String sanitized = validateCustomJvmArgs( jvmArgs );
+        configObject.addProperty( ConfigConstants.JVM_ARGS_KEY, sanitized );
         writeConfigurationToDisk();
+    }
+
+    /** Validates custom JVM args input against the rejection list. Returns the input
+     *  unchanged on success; throws on first offending character.
+     *
+     *  @see #setCustomJvmArgs(String) for the full rationale. */
+    private static String validateCustomJvmArgs( String jvmArgs ) {
+        if ( jvmArgs == null ) {
+            return "";
+        }
+        for ( int i = 0; i < jvmArgs.length(); i++ ) {
+            char c = jvmArgs.charAt( i );
+            // Control chars and DEL (0x7F). Newlines / TAB included so a multi-line paste
+            // can't smuggle command-line args separated by a line break — splitCommandLine
+            // splits on Character.isWhitespace which includes them.
+            if ( c < 0x20 || c == 0x7F ) {
+                throw new IllegalArgumentException(
+                        "Custom JVM args contain a control character at position " + i );
+            }
+        }
+        // Reject ${...} placeholder syntax — the launch pipeline runs templating after
+        // appending custom args, so a literal "${auth_access_token}" here would expand.
+        if ( jvmArgs.indexOf( "${" ) >= 0 ) {
+            throw new IllegalArgumentException(
+                    "Custom JVM args may not contain '${...}' placeholder syntax." );
+        }
+        return jvmArgs;
     }
 
     /**
