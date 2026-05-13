@@ -108,25 +108,66 @@ public final class SupplementalScanner
 
     /** Per-entry filename suffixes (case-insensitive) that are not legitimate
      *  payloads inside a Minecraft mod JAR. PE images, common Windows / shell
-     *  script droppers, and shortcut files that can chain to one. */
+     *  script droppers, and shortcut files that can chain to one.
+     *
+     *  <p>Deliberately not in this list: {@code .js} / {@code .jse}. A
+     *  JavaScript file inside a JAR has no auto-execution path in the JVM —
+     *  it's a resource that some script engine inside the mod (Rhino,
+     *  Nashorn, KubeJS' wrapper, OpenComputers' Lua-via-JS layer, FAWE's
+     *  command scripting) has to load and evaluate. Plenty of legitimate
+     *  modpack content ships {@code .js} resources (FAWE bundles
+     *  {@code cs_adv.js}, MaryTTS bundles {@code mary.js} as a web-UI
+     *  asset, etc.), and flagging them as HIGH was producing false-positive
+     *  launch blocks. The Windows {@code .wsf} / {@code .vbs} / {@code .vbe}
+     *  variants remain blocked because those <em>do</em> auto-execute via
+     *  {@code wscript.exe} if the user (or a future bundled launcher script)
+     *  invokes them. */
     private static final Set< String > FORBIDDEN_EMBEDDED_SUFFIXES = Set.of(
             ".exe", ".scr", ".com", ".bat", ".cmd",
-            ".ps1", ".psm1", ".vbs", ".vbe", ".js", ".jse", ".wsf",
+            ".ps1", ".psm1", ".vbs", ".vbe", ".wsf",
             ".msi", ".lnk", ".reg" );
 
-    /** Path-segment prefixes that legitimately carry native binaries. Native
+    /** Path-segment substrings that legitimately carry native binaries. Native
      *  files outside any of these locations are suspicious; inside one,
-     *  legitimate (LWJGL, JNA, JOML, etc.). All checked case-insensitively
-     *  against forward-slash-normalized entry names. */
+     *  legitimate (LWJGL, JNA, JOML, junixsocket, zstd-jni, jnlua, sdl2-gdx,
+     *  spark/asyncProfiler, etc.). All checked case-insensitively against
+     *  forward-slash-normalized entry names via {@code String.contains}, so a
+     *  substring like {@code "jni/"} matches whether it appears at the root
+     *  or nested under platform-triple folders.
+     *
+     *  <p>The list is broad because modpack natives ship in many conventions:
+     *  {@code lib/<arch>-<os>-<compiler>/jni/} (junixsocket),
+     *  {@code assets/<mod>/lib/} (opencomputers/jnlua),
+     *  {@code <os>/<arch>/} (zstd-jni's {@code aix/ppc64/}), and bare-root
+     *  drops are common for single-platform native bundles (spark, sdl2-gdx).
+     *  Narrower whitelists FP'd on virtually every native-shipping mod. */
     private static final List< String > LEGIT_NATIVE_PATH_PREFIXES = List.of(
+            // Conventional native-resource roots
             "meta-inf/native",
             "natives/",
             "native/",
+            "jni/",                                     // matches anywhere — distinctive
+            "lib/", "libs/",
+            // Mod-namespaced asset roots (e.g. assets/opencomputers/lib/)
+            "assets/",
+            // Native bundling libraries that put their stuff under their own package
             "org/lwjgl/",
             "lwjgl/native",
+            "com/sun/jna/",
+            // OS-name folders (zstd-jni, sqlite-jdbc, many others)
             "linux/", "windows/", "macos/", "mac/", "osx/",
-            "x86/", "x86_64/", "x64/", "aarch64/", "arm64/", "arm/",
-            "amd64/" );
+            "freebsd/", "netbsd/", "openbsd/", "solaris/", "aix/",
+            // Arch-name folders
+            "x86/", "x86_64/", "x64/", "i686/", "i386/",
+            "aarch64/", "arm64/", "arm/", "armv7/", "armv6/",
+            "amd64/", "ppc/", "ppc64/", "ppc64le/", "riscv64/",
+            "loongarch64/", "mips/", "mips64/", "s390x/", "sparc/",
+            // Platform triples used by BridJ / Rococoa style packagers, e.g.
+            // "aarch64-MacOSX-clang/jni/...". We don't have a regex match here;
+            // the "jni/" entry above covers the inner segment, and the
+            // OS/arch entries above cover the outer prefixes too.
+            "darwin-", "linux-", "windows-", "macos-",
+            "-macosx-", "-linux-", "-windows-" );
 
     /** Filename suffixes for native binaries the legitimate-paths whitelist
      *  applies to. .so / .dylib / .dll are the load-time forms LWJGL et al.
@@ -352,11 +393,17 @@ public final class SupplementalScanner
             // (2) Native binary outside a recognized natives path. Skipped
             //     when the entry isn't a native binary at all (most entries),
             //     and skipped entirely when the containing JAR is a Mojang
-            //     natives-distribution JAR.
+            //     natives-distribution JAR. Also skipped when the filename
+            //     itself matches a hard Unix/Windows native-library naming
+            //     convention — bare-root entries like libasyncProfiler.so
+            //     (spark), liblwjgl.dylib (mc-mouser), sdl2gdx64.dll
+            //     (controllable) are universally legitimate native bundles
+            //     by filename alone, regardless of where in the JAR they sit.
             if ( !isNativesJar ) {
                 for ( String suffix : NATIVE_BINARY_SUFFIXES ) {
                     if ( lowerName.endsWith( suffix ) ) {
-                        if ( !isInLegitNativePath( normalized ) ) {
+                        if ( !isInLegitNativePath( normalized )
+                                && !hasLegitNativeFilename( normalized ) ) {
                             findings.add( new Finding( Severity.MEDIUM, jarPath,
                                     "native binary outside a known natives path: " + name ) );
                         }
@@ -469,11 +516,18 @@ public final class SupplementalScanner
                 return;
             }
         }
-        // (D) IPv4 literal — MEDIUM. Skip strings that contain dotted version
-        //     numbers (e.g. "1.21.4") which would otherwise FP — require the
-        //     match to look like a real address (all four octets <= 255).
+        // (D) IPv4 literal — MEDIUM. Three layers of FP suppression on top of
+        //     the regex's existing 127.x / 0.x / multicast exclusions:
+        //       1. All four octets must parse 0..255 (drops "1.21.456" style noise).
+        //       2. Reserved / private / documentation / benchmarking ranges are
+        //          skipped — those appear in code as filter-list entries
+        //          (opencomputers/InternetFilteringRule) rather than as C2.
+        //       3. Bare version-string-shaped literals (whole LDC string equals
+        //          the IP, no URL context, small leading octet OR trailing-zero
+        //          pad) are skipped — those are version numbers like "1.7.0.25"
+        //          or "3.5.0.0" that happen to parse as IPv4.
         Matcher m = IPV4_LITERAL.matcher( s );
-        if ( m.find() && looksLikeRealIp( m ) ) {
+        if ( m.find() && looksLikeRealIp( m ) && !isFalsePositiveIp( s, m ) ) {
             findings.add( new Finding( Severity.MEDIUM, jarPath,
                     "hard-coded IPv4 literal in " + owner.name + "." + method.name + ": " + m.group() ) );
         }
@@ -495,6 +549,112 @@ public final class SupplementalScanner
         }
     }
 
+    /** Returns true when the matched IPv4 is overwhelmingly likely to be a
+     *  version string, subnet sentinel, or filter-list entry rather than a
+     *  real outbound destination.
+     *
+     *  <p>{@code fullString} is the entire LDC the match came from;
+     *  {@code m} is the matched IPv4 regex group (with its four numeric
+     *  capture groups already validated 0..255 by {@link #looksLikeRealIp}).</p>
+     */
+    private static boolean isFalsePositiveIp( String fullString, Matcher m )
+    {
+        try {
+            int a = Integer.parseInt( m.group( 1 ) );
+            int b = Integer.parseInt( m.group( 2 ) );
+            int c = Integer.parseInt( m.group( 3 ) );
+            int d = Integer.parseInt( m.group( 4 ) );
+
+            // (1) RFC-reserved / private / documentation / benchmarking /
+            //     link-local. Code that contains these is enumerating ranges
+            //     for an internal filter, not phoning home.
+            //     Multicast (224-239) and reserved (240+) are already excluded
+            //     by the IPV4_LITERAL pattern's negative lookahead.
+            if ( a == 10 ) return true;                              // 10.0.0.0/8 (RFC 1918)
+            if ( a == 100 && b >= 64 && b <= 127 ) return true;      // 100.64.0.0/10 (RFC 6598, CGN)
+            if ( a == 169 && b == 254 ) return true;                 // 169.254.0.0/16 (link-local)
+            if ( a == 172 && b >= 16 && b <= 31 ) return true;       // 172.16.0.0/12 (RFC 1918)
+            if ( a == 192 && b == 168 ) return true;                 // 192.168.0.0/16 (RFC 1918)
+            if ( a == 192 && b == 0 && c == 0 ) return true;         // 192.0.0.0/24 (IETF protocol assignments)
+            if ( a == 192 && b == 0 && c == 2 ) return true;         // 192.0.2.0/24 (TEST-NET-1)
+            if ( a == 198 && ( b == 18 || b == 19 ) ) return true;   // 198.18.0.0/15 (benchmarking)
+            if ( a == 198 && b == 51 && c == 100 ) return true;      // 198.51.100.0/24 (TEST-NET-2)
+            if ( a == 203 && b == 0 && c == 113 ) return true;       // 203.0.113.0/24 (TEST-NET-3)
+
+            // (2) Trailing-zero pad — X.0.0.0 / X.Y.0.0. Almost always a
+            //     version-major sentinel (e.g. "114.0.0.0" from OneConfig)
+            //     or a subnet base address in a filter list, not an endpoint.
+            if ( c == 0 && d == 0 ) return true;
+
+            // (3) Version-string heuristic. Skip when the leading octet is
+            //     small (< 32) AND the IPv4 match is NOT acting as a URL's
+            //     host. The host distinction matters because version strings
+            //     show up in many shapes:
+            //
+            //     <ul>
+            //       <li>Bare: {@code "6.1.7.2"} (FAWE's Jars constant)</li>
+            //       <li>Embedded in metadata: {@code "User-Agent: FTBLib/1.9.0.3"},
+            //           {@code "BiomesOPlenty-1.9.0.11"}</li>
+            //       <li>Embedded in URL paths/queries:
+            //           {@code "https://empcraft.com/fawe/6.1.7.2/file.jar"},
+            //           {@code ".../api?v=1.2.3.4"}</li>
+            //     </ul>
+            //
+            //     An IPv4 is a URL host only when immediately preceded by
+            //     {@code ://} (scheme separator) or {@code @} (after
+            //     userinfo). All other positions — JAR-root path
+            //     fragments, query string values, bare strings, free
+            //     prose — are not endpoint references.
+            //
+            //     Trade-off: motivated attackers using public IPs in the
+            //     1-31/8 ranges (1/8 APNIC, 3/8 Amazon, 4/8 Level3, 8/8
+            //     Level3, 23/8 Akamai, etc.) in non-URL form would escape
+            //     this filter. Acceptable — Nekodetector still runs, and
+            //     the higher-signal HIGH checks (webhooks, paste hosts,
+            //     credential files, embedded executables) are not weakened.
+            boolean smallLeadingOctet = a < 32;
+            boolean ipIsUrlHost = isIpUrlHost( fullString, m.start() );
+            if ( smallLeadingOctet && !ipIsUrlHost ) {
+                return true;
+            }
+
+            return false;
+        }
+        catch ( NumberFormatException e ) {
+            // Couldn't parse — let the original positive match through; the
+            // outer guard already validated octet ranges.
+            return false;
+        }
+    }
+
+    /** Returns true when an IPv4 match at {@code ipStart} in {@code fullString}
+     *  is positioned as that URL's host — i.e., immediately preceded by
+     *  {@code ://} (scheme→host transition) or {@code @} (userinfo→host
+     *  transition). Anything else (path fragment, query value, bare string,
+     *  free prose) is treated as not-a-host so the version-string heuristic
+     *  upstream can drop it.
+     *
+     *  <p>This is deliberately narrow — there's no host-port-validation,
+     *  no IDN unwrap, no scheme allowlist. The only question is "did the
+     *  string look like the IP was meant to be dialed?" and the {@code ://}
+     *  / {@code @} sentinels are the cleanest signal for that.</p> */
+    private static boolean isIpUrlHost( String fullString, int ipStart )
+    {
+        if ( fullString == null || ipStart < 0 ) return false;
+        // Preceded by "://" — typical "http://1.2.3.4..." host position.
+        if ( ipStart >= 3
+                && fullString.charAt( ipStart - 1 ) == '/'
+                && fullString.charAt( ipStart - 2 ) == '/'
+                && fullString.charAt( ipStart - 3 ) == ':' ) {
+            return true;
+        }
+        // Preceded by "@" — userinfo-then-host, e.g. "http://user:pass@1.2.3.4".
+        if ( ipStart >= 1 && fullString.charAt( ipStart - 1 ) == '@' ) {
+            return true;
+        }
+        return false;
+    }
+
     private static boolean isInLegitNativePath( String normalizedName )
     {
         for ( String prefix : LEGIT_NATIVE_PATH_PREFIXES ) {
@@ -503,6 +663,37 @@ public final class SupplementalScanner
             }
         }
         return false;
+    }
+
+    /** Filename-only legitimacy check for native binaries. Mods bundle
+     *  natives at every conceivable path layout (root, {@code lib/}, mod
+     *  asset folders, platform-triple subdirs), so location-based heuristics
+     *  alone leak too many false positives. A filename matching the hard
+     *  platform convention is itself a strong "this is a real native
+     *  library" signal:
+     *
+     *  <ul>
+     *    <li>{@code lib<name>.{so,dylib,jnilib}} — Unix convention.
+     *        The {@code lib} prefix is required by {@code dlopen} on
+     *        Linux/macOS; droppers don't bother with it. {@code lib*.so} at
+     *        a JAR root is essentially proving it's a real shared library.</li>
+     *    <li>{@code <name>.dll} — Windows convention. DLLs in mod JARs are
+     *        almost universally cross-platform native bundles (SDL,
+     *        Discord-RPC, junixsocket Windows half, etc.). Real DLL-side-
+     *        loaders need {@code Runtime.exec}/{@code regsvr32}/{@code
+     *        rundll32} machinery the embedded-executable check
+     *        (.exe/.bat/.ps1/etc.) catches first and at HIGH severity.</li>
+     *  </ul>
+     *
+     *  <p>This widens the legitimate set so far that the path-based check
+     *  is effectively informational — it'll still fire on truly weird cases
+     *  like a JAR root drop of {@code random.jnilib} without a {@code lib}
+     *  prefix, which is rare enough to be worth a MEDIUM log line.</p> */
+    private static boolean hasLegitNativeFilename( String normalizedName )
+    {
+        int slashIdx = normalizedName.lastIndexOf( '/' );
+        String base = slashIdx < 0 ? normalizedName : normalizedName.substring( slashIdx + 1 );
+        return base.startsWith( "lib" ) || base.endsWith( ".dll" );
     }
 
     private static byte[] readAll( InputStream in ) throws IOException
