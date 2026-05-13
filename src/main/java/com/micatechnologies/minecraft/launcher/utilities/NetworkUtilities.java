@@ -557,4 +557,128 @@ public class NetworkUtilities
     public static String downloadFileFromURLBounded( String source, long maxBytes ) throws IOException {
         return downloadFileFromURLBounded( new URL( source ), maxBytes );
     }
+
+    /**
+     * Result of a {@link #downloadFileFromURLBoundedConditional} call. Carries the
+     * decoded body plus the ETag and Last-Modified headers so the caller can persist
+     * them alongside the cached body and pass them back on the next fetch to make
+     * the request conditional.
+     *
+     * <p>When {@link #notModified()} is {@code true}, {@link #body()} is {@code null}
+     * and the caller should reuse their previously-cached body instead.</p>
+     *
+     * @param body         the response body, or {@code null} on a 304 response
+     * @param etag         the {@code ETag} response header, or {@code null} if absent
+     * @param lastModified the {@code Last-Modified} response header, or {@code null} if absent
+     * @param notModified  {@code true} iff the server returned 304 Not Modified
+     *
+     * @since 3.5
+     */
+    public record BoundedFetchResult( String body,
+                                      String etag,
+                                      String lastModified,
+                                      boolean notModified )
+    {
+        /** Convenience: was this a 304? */
+        public boolean isNotModified() { return notModified; }
+    }
+
+    /**
+     * HTTPS-only bounded fetch with conditional-request support. Same body-size cap +
+     * redirect-hop validation + Content-Type gate as {@link #downloadFileFromURLBounded},
+     * but emits {@code If-None-Match} / {@code If-Modified-Since} when the caller
+     * supplies stored validators from a previous fetch.
+     *
+     * <p>On a {@code 304 Not Modified} response, returns a {@link BoundedFetchResult}
+     * with {@link BoundedFetchResult#notModified()} {@code true} and a {@code null}
+     * body — the caller should reuse its persisted cache rather than re-parsing the
+     * old bytes.</p>
+     *
+     * @param source           HTTPS URL to fetch
+     * @param maxBytes         body-size cap; throws if exceeded
+     * @param prevEtag         the ETag value persisted from the prior fetch, or null
+     * @param prevLastModified the Last-Modified value persisted from the prior fetch, or null
+     *
+     * @return a result describing the body + freshness validators
+     *
+     * @since 3.5
+     */
+    public static BoundedFetchResult downloadFileFromURLBoundedConditional(
+            URL source,
+            long maxBytes,
+            String prevEtag,
+            String prevLastModified ) throws IOException
+    {
+        URL current = source;
+        for ( int hop = 0; hop <= MAX_REDIRECTS; hop++ ) {
+            if ( !"https".equalsIgnoreCase( current.getProtocol() ) ) {
+                throw new IOException( "Refusing non-HTTPS URL on bounded fetch: " + current );
+            }
+            URLConnection connection = openConnection( current );
+            applyDefaults( connection );
+            if ( connection instanceof java.net.HttpURLConnection httpConn ) {
+                httpConn.setInstanceFollowRedirects( false );
+                if ( prevEtag != null && !prevEtag.isBlank() ) {
+                    httpConn.setRequestProperty( "If-None-Match", prevEtag );
+                }
+                if ( prevLastModified != null && !prevLastModified.isBlank() ) {
+                    httpConn.setRequestProperty( "If-Modified-Since", prevLastModified );
+                }
+                int code = httpConn.getResponseCode();
+                if ( code == java.net.HttpURLConnection.HTTP_NOT_MODIFIED ) {
+                    // 304: the cache the caller carries is still valid. Echo back the
+                    // (possibly-updated) validators in case the server changed them.
+                    String newEtag = httpConn.getHeaderField( "ETag" );
+                    String newLastMod = httpConn.getHeaderField( "Last-Modified" );
+                    httpConn.disconnect();
+                    return new BoundedFetchResult( null,
+                                                    newEtag != null ? newEtag : prevEtag,
+                                                    newLastMod != null ? newLastMod : prevLastModified,
+                                                    true );
+                }
+                if ( code == java.net.HttpURLConnection.HTTP_MOVED_PERM
+                        || code == java.net.HttpURLConnection.HTTP_MOVED_TEMP
+                        || code == java.net.HttpURLConnection.HTTP_SEE_OTHER
+                        || code == 307 || code == 308 ) {
+                    String location = httpConn.getHeaderField( "Location" );
+                    httpConn.disconnect();
+                    if ( location == null || location.isBlank() ) {
+                        throw new IOException( "Redirect without Location header from " + current );
+                    }
+                    current = new URL( current, location );
+                    continue;
+                }
+            }
+            // Content-Type gate — same rule as the non-conditional variant.
+            String contentType = connection.getContentType();
+            if ( contentType != null && !contentType.isBlank() ) {
+                String lower = contentType.toLowerCase( java.util.Locale.ROOT );
+                if ( !lower.startsWith( "application/json" )
+                        && !lower.startsWith( "text/json" )
+                        && !lower.startsWith( "application/javascript" ) ) {
+                    throw new IOException( "Unexpected Content-Type for bounded JSON fetch from "
+                                                   + current + ": " + contentType );
+                }
+            }
+            String etag = connection.getHeaderField( "ETag" );
+            String lastMod = connection.getHeaderField( "Last-Modified" );
+            try ( InputStream is = connection.getInputStream();
+                  ByteArrayOutputStream out = new ByteArrayOutputStream() ) {
+                byte[] buffer = new byte[8192];
+                long total = 0;
+                int read;
+                while ( ( read = is.read( buffer ) ) != -1 ) {
+                    total += read;
+                    if ( total > maxBytes ) {
+                        throw new IOException(
+                                "Response from " + source + " exceeded max-bytes cap (" + maxBytes + ")" );
+                    }
+                    out.write( buffer, 0, read );
+                }
+                return new BoundedFetchResult( out.toString( StandardCharsets.UTF_8 ),
+                                                etag, lastMod, false );
+            }
+        }
+        throw new IOException( "Too many redirects following " + source );
+    }
 }

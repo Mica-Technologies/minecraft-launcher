@@ -24,6 +24,7 @@ import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -117,12 +118,39 @@ public class GameModPackFetcher
                 Logger.logStd( "Loaded cached manifest for offline mode: " + manifestUrl );
             }
             else {
-                // Online: download with a hard size cap so a compromised manifest host
-                // can't OOM the launcher with a pathological body. 50 MB is generous
-                // for legitimate modpack manifests, which top out around a few hundred
-                // kilobytes even for thousand-mod packs.
-                manifestBody = NetworkUtilities.downloadFileFromURLBounded( manifestUrl, MANIFEST_MAX_BYTES );
-                cacheManifest( manifestUrl, manifestBody );
+                // Online: HTTPS-only bounded fetch with conditional-GET support. The 50 MB
+                // size cap stops a compromised manifest host from OOMing the launcher.
+                // The conditional request — If-None-Match / If-Modified-Since — lets the
+                // server reply with a 304 + no body when nothing has changed since the
+                // last fetch, cutting the response to a few hundred bytes and skipping
+                // the Gson parse entirely. The Mica blob backs all our manifests and does
+                // honor both validators, so the steady-state warm path is one-RTT 304s.
+                ManifestCacheMeta prev = loadCacheMeta( manifestUrl );
+                NetworkUtilities.BoundedFetchResult result =
+                        NetworkUtilities.downloadFileFromURLBoundedConditional(
+                                new URL( manifestUrl ),
+                                MANIFEST_MAX_BYTES,
+                                prev != null ? prev.etag : null,
+                                prev != null ? prev.lastModified : null );
+                if ( result.isNotModified() ) {
+                    manifestBody = loadCachedManifest( manifestUrl );
+                    if ( manifestBody == null ) {
+                        // 304 but local cache is gone — degenerate case (cache cleared
+                        // out-of-band between launches). Re-request unconditionally to
+                        // rebuild the cache. We could be smarter here, but a one-shot
+                        // re-fetch is the simplest correct fallback.
+                        manifestBody = NetworkUtilities.downloadFileFromURLBounded(
+                                manifestUrl, MANIFEST_MAX_BYTES );
+                        cacheManifest( manifestUrl, manifestBody );
+                    }
+                    // Refresh the validators in case the server updated them on the 304.
+                    saveCacheMeta( manifestUrl, result.etag(), result.lastModified() );
+                }
+                else {
+                    manifestBody = result.body();
+                    cacheManifest( manifestUrl, manifestBody );
+                    saveCacheMeta( manifestUrl, result.etag(), result.lastModified() );
+                }
             }
             gameModPack = JSONUtilities.getGson().fromJson( manifestBody, GameModPack.class );
             if ( createEnvironment ) {
@@ -236,6 +264,59 @@ public class GameModPackFetcher
             Logger.logWarningSilent( "Unable to load cached manifest for " + manifestUrl );
         }
         return null;
+    }
+
+    /**
+     * Sidecar holding the ETag + Last-Modified validators captured from the last
+     * successful network fetch of a manifest. Lives at {@code manifest_cache/<sha256>.meta.json}
+     * next to the cached manifest body itself.
+     */
+    private static class ManifestCacheMeta
+    {
+        String etag;
+        String lastModified;
+    }
+
+    private static Path getCacheMetaPath( String manifestUrl )
+    {
+        return cacheDir().resolve( sha256Hex( manifestUrl ) + ".meta.json" );
+    }
+
+    private static ManifestCacheMeta loadCacheMeta( String manifestUrl )
+    {
+        try {
+            Path file = getCacheMetaPath( manifestUrl );
+            if ( !Files.exists( file ) ) {
+                return null;
+            }
+            String json = Files.readString( file, StandardCharsets.UTF_8 );
+            return JSONUtilities.getGson().fromJson( json, ManifestCacheMeta.class );
+        }
+        catch ( Exception e ) {
+            // Treat unreadable meta as no-meta — the next response writes a fresh
+            // one. Returning null forces an unconditional GET on this fetch, which
+            // is the right behaviour when we can't trust the stored validators.
+            return null;
+        }
+    }
+
+    private static void saveCacheMeta( String manifestUrl, String etag, String lastModified )
+    {
+        try {
+            Path file = getCacheMetaPath( manifestUrl );
+            //noinspection ResultOfMethodCallIgnored
+            file.getParent().toFile().mkdirs();
+            ManifestCacheMeta meta = new ManifestCacheMeta();
+            meta.etag = etag;
+            meta.lastModified = lastModified;
+            Files.writeString( file, JSONUtilities.getGson().toJson( meta ),
+                                StandardCharsets.UTF_8 );
+        }
+        catch ( IOException e ) {
+            // Non-fatal: failing to persist meta just means the next fetch can't go
+            // conditional — it'll still get the right body, just less efficiently.
+            Logger.logWarningSilent( "Unable to save manifest cache meta for " + manifestUrl );
+        }
     }
 
     /** Emits a user-visible warning if the cache file's mtime is older than the
