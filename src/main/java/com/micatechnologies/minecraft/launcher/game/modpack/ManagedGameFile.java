@@ -22,6 +22,7 @@ import com.google.gson.JsonObject;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
 
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
@@ -201,6 +202,16 @@ public class ManagedGameFile
      * @since 1.0
      */
     private boolean verifyLocalFile() {
+        // Defense against malicious modpack JSON: the "local" field is fully
+        // attacker-controllable (it's deserialized straight from the manifest),
+        // so a manifest with "local": "../../something" would escape the modpack
+        // folder when joined to localPathPrefix. Refuse to even stat the file
+        // unless the resolved path is contained inside the prefix.
+        if ( !isContainedUnderPrefix() ) {
+            Logger.logError( "Refusing managed file outside modpack folder: "
+                                     + getFullLocalFilePath() );
+            return false;
+        }
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
 
         // Strongest-first ordering. The constructor stores exactly one hash today
@@ -229,7 +240,14 @@ public class ManagedGameFile
      * @since 1.0
      */
     private void downloadLocalFile() throws ModpackException {
-        // Create File instance
+        // Same containment check as verifyLocalFile. Crucial here because this is the
+        // write side — a malicious manifest could otherwise write attacker payloads
+        // to arbitrary locations relative to the modpack folder.
+        if ( !isContainedUnderPrefix() ) {
+            throw new ModpackException(
+                    "Refusing to download managed file outside modpack folder: "
+                            + getFullLocalFilePath() );
+        }
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
 
         // Download file and return validation result
@@ -326,6 +344,32 @@ public class ManagedGameFile
         }
         else {
             return local;
+        }
+    }
+
+    /**
+     * Returns true if the file's resolved absolute path lies under
+     * {@link #localPathPrefix}. Used to defang a malicious modpack JSON whose
+     * {@code local} field contains {@code ../} segments — without this gate, a
+     * manifest could redirect any mod download to an arbitrary path on disk.
+     *
+     * <p>When no prefix has been set (legacy / pre-sync code paths), no
+     * containment is enforceable, so the method returns {@code true} and the
+     * caller falls back to its existing behavior. The realistic attack only
+     * fires once the prefix is set, which is the mod/config/resource-pack
+     * sync path that this method protects.
+     */
+    private boolean isContainedUnderPrefix() {
+        if ( localPathPrefix == null || localPathPrefix.isEmpty() ) {
+            return true;
+        }
+        try {
+            Path prefix = Path.of( localPathPrefix ).toAbsolutePath().normalize();
+            Path full = Path.of( getFullLocalFilePath() ).toAbsolutePath().normalize();
+            return full.startsWith( prefix );
+        }
+        catch ( Exception e ) {
+            return false;
         }
     }
 
