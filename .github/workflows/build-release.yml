@@ -24,6 +24,12 @@ jobs:
   prepare:
     name: Prepare Version
     runs-on: ubuntu-latest
+    # The "Create git tag" step pushes the computed tag back to the repo, which
+    # needs write access to refs. The workflow-level default is contents: read
+    # so other jobs can't accidentally write — grant write only on this job,
+    # not the matrix builders (which only upload workflow-scoped artifacts).
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
