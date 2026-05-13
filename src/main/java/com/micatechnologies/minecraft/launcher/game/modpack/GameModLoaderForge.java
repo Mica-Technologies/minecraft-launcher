@@ -696,9 +696,21 @@ class GameModLoaderForge extends ManagedGameFile
         String version = parts[ 2 ];
         String classifier = parts.length > 3 ? parts[ 3 ] : null;
 
-        // Validate no path traversal in coordinate components
+        // Validate no path traversal in coordinate components. Classifier is included
+        // in the assembled filename verbatim, so the same checks have to cover it —
+        // otherwise an attacker-controlled coordinate could smuggle "../" through the
+        // classifier slot to write outside the libs folder.
         if ( group.contains( ".." ) || artifact.contains( ".." ) || version.contains( ".." ) ) {
             throw new ModpackException( "Path traversal detected in Maven coordinate: " + coord );
+        }
+        if ( classifier != null && ( classifier.contains( ".." )
+                || classifier.indexOf( '/' ) >= 0
+                || classifier.indexOf( '\\' ) >= 0 ) ) {
+            throw new ModpackException( "Path traversal detected in Maven classifier: " + coord );
+        }
+        // ext lands in the same path component too; reject separators / .. there as well.
+        if ( ext.contains( ".." ) || ext.indexOf( '/' ) >= 0 || ext.indexOf( '\\' ) >= 0 ) {
+            throw new ModpackException( "Path traversal detected in Maven extension: " + coord );
         }
 
         String fileName = artifact + "-" + version + ( classifier != null ? "-" + classifier : "" ) + "." + ext;
