@@ -186,6 +186,7 @@ class GameModPackEnvironment
         try {
             String effectiveUrl = Objects.requireNonNullElse(
                     metadata.packLogoURL, ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
+            requireHttps( effectiveUrl, "modpack logo" );
 
             // Declared-SHA1 path: download once to <declaredSha1>.png and verify on subsequent
             // launches. Naturally dedupes across packs that declare the same hash.
@@ -225,6 +226,7 @@ class GameModPackEnvironment
         try {
             String effectiveUrl = Objects.requireNonNullElse(
                     metadata.packBackgroundURL, ModPackConstants.MODPACK_DEFAULT_BG_URL );
+            requireHttps( effectiveUrl, "modpack background" );
 
             if ( metadata.packBackgroundSha1 != null ) {
                 File destFile = SynchronizedFileManager.getSynchronizedFile(
@@ -347,6 +349,24 @@ class GameModPackEnvironment
             Files.move( tempFile.toPath(), finalFile.toPath(), StandardCopyOption.REPLACE_EXISTING );
         }
         return sha1;
+    }
+
+    /**
+     * Refuses any URL that isn't {@code https://}. The image-download paths take
+     * URLs straight from the modpack manifest JSON, which makes file://, http://,
+     * jar://, etc. an information-disclosure / passive-MITM hazard. file:// is
+     * the worst: a malicious manifest could redirect the launcher into copying
+     * /etc/shadow (or the user's keyring) into the launcher's metadata folder.
+     */
+    private static void requireHttps( String url, String purpose ) throws ModpackException
+    {
+        if ( url == null || url.isBlank() ) {
+            throw new ModpackException( "Missing URL for " + purpose );
+        }
+        int colon = url.indexOf( ':' );
+        if ( colon < 0 || !"https".equalsIgnoreCase( url.substring( 0, colon ) ) ) {
+            throw new ModpackException( "Refusing non-https URL for " + purpose + ": " + url );
+        }
     }
 
     // endregion
