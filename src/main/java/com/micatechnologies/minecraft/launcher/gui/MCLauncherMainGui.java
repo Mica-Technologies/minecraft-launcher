@@ -136,6 +136,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     private static final String SORT_NAME_AZ      = "Name (A–Z)";
     private static final String SORT_NAME_ZA      = "Name (Z–A)";
     private static final String SORT_RECENT_UPDATE = "Recently Updated";
+    /** Most-played sort — total play time descending, packs that have never
+     *  been launched fall to the bottom (getTotalPlayTimeMs returns 0 for them
+     *  so they're indistinguishable from each other under this sort and order
+     *  amongst themselves doesn't matter). Surfaces "what do you actually
+     *  spend your time playing" near the top, useful once users accumulate
+     *  installs from the future CurseForge / Modrinth import flow but only
+     *  actually return to a handful. */
+    private static final String SORT_MOST_PLAYED  = "Most Played";
 
     /** Page-size options exposed in the per-page dropdown. 12 is the default since
      *  the hero cards are 360px wide and wrap to 3-4 per row on typical window
@@ -418,7 +426,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // top" behavior. Name A→Z / Z→A and Recently Updated round out the most
         // common needs.
         sortFilter.setItems( FXCollections.observableArrayList(
-                SORT_LAST_PLAYED, SORT_NAME_AZ, SORT_NAME_ZA, SORT_RECENT_UPDATE ) );
+                SORT_LAST_PLAYED, SORT_MOST_PLAYED, SORT_NAME_AZ, SORT_NAME_ZA, SORT_RECENT_UPDATE ) );
         sortFilter.selectItem( SORT_LAST_PLAYED );
         sortFilter.setOnAction( e -> rebuildCards() );
 
@@ -474,7 +482,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Tooltips so the controls are discoverable. Help text matches the
         // Library screen's hints where applicable so users get a consistent
         // mental model across the two screens.
-        TooltipManager.install( searchField,    "Filter packs by name." );
+        TooltipManager.install( searchField,
+                "Filter packs. Each whitespace-separated word must match somewhere in "
+                        + "the pack's name, version, Minecraft version, or Forge version. "
+                        + "Try \"1.12\", \"forge\", or \"biomes 1.12\"." );
         TooltipManager.install( typeFilter,     "Filter by Modpack or Vanilla version." );
         TooltipManager.install( sortFilter,     "Choose how packs are ordered in the grid." );
         TooltipManager.install( recentlyUpdatedOnlyCheck,
@@ -682,11 +693,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             all.removeIf( p -> !p.isUpdateAvailable() );
         }
 
-        // Step 4 — search
+        // Step 4 — search. Multi-token: whitespace splits the query into
+        // tokens that must EACH appear somewhere in a per-pack haystack
+        // (name + pack/MC/Forge versions). Lets "alto 1.12" or "1.12 alto"
+        // (in either order) find Alto-1.12.2 even though neither matches
+        // the display name as a single substring. Empty / pure-whitespace
+        // query short-circuits the filter so we don't iterate the list for
+        // a no-op.
         String search = ( searchField == null || searchField.getText() == null )
                 ? "" : searchField.getText().trim().toLowerCase( Locale.ROOT );
         if ( !search.isEmpty() ) {
-            all.removeIf( p -> !displayNameOf( p ).toLowerCase( Locale.ROOT ).contains( search ) );
+            String[] tokens = search.split( "\\s+" );
+            all.removeIf( p -> !matchesAllTokens( p, tokens ) );
         }
 
         // Step 5 — sort
@@ -750,6 +768,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 // for those, which sorts last under reversed-natural ordering.
                 packs.sort( Comparator.comparingLong( MCLauncherMainGui::lastUpdateTimestamp ).reversed() );
             }
+            case SORT_MOST_PLAYED -> {
+                // Total play time descending. Packs that have never been launched
+                // have a total of 0 and bunch at the bottom; the relative order
+                // amongst those doesn't matter since the user can't tell them
+                // apart by play-count anyway.
+                packs.sort( Comparator.comparingLong( GameModPack::getTotalPlayTimeMs ).reversed() );
+            }
             default -> {
                 // SORT_LAST_PLAYED — reuse the pre-filter behavior: float the
                 // last-played pack to position 0, then sort the rest by lastPlayedMs
@@ -800,6 +825,54 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
         prevPageBtn.setDisable( currentPage <= 1 );
         nextPageBtn.setDisable( currentPage >= totalPages );
+    }
+
+    /**
+     * Returns true when every {@code token} appears as a substring of the
+     * pack's search haystack (display name + pack version + MC version +
+     * Forge version, all lowercased). All-tokens semantics is AND — typing
+     * two words narrows the result, doesn't widen it.
+     *
+     * <p>The haystack is rebuilt on every call rather than cached on the pack
+     * because pack metadata (version, Forge version) can change underneath
+     * us when the background revalidate replaces a stub with a fully-loaded
+     * pack. Caching it would mean stale matches on the first few seconds
+     * after cold start.</p>
+     */
+    private static boolean matchesAllTokens( GameModPack pack, String[] tokens )
+    {
+        if ( tokens == null || tokens.length == 0 ) return true;
+        String haystack = buildSearchHaystack( pack );
+        for ( String t : tokens ) {
+            if ( t == null || t.isEmpty() ) continue;
+            if ( !haystack.contains( t ) ) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Concatenates every user-meaningful identifying string for a pack into
+     * one lowercase haystack. Used by {@link #matchesAllTokens} so a search
+     * for "1.12" or "forge" or "biomes 1.12" hits even when those tokens
+     * aren't in the display name.
+     */
+    private static String buildSearchHaystack( GameModPack pack )
+    {
+        StringBuilder sb = new StringBuilder( 128 );
+        String name = displayNameOf( pack );
+        if ( name != null ) sb.append( name ).append( ' ' );
+        String packVersion = pack.getPackVersion();
+        if ( packVersion != null ) sb.append( packVersion ).append( ' ' );
+        String mc = safeMinecraftVersion( pack );
+        if ( mc != null ) sb.append( mc ).append( ' ' );
+        String forge = safeForgeVersion( pack );
+        if ( forge != null ) sb.append( forge ).append( ' ' );
+        // Include "forge" / "vanilla" type tags so a user can filter by pack
+        // shape via the search box ("forge 1.12") in addition to the type
+        // selector dropdown.
+        if ( pack.isVanillaVersion() ) sb.append( "vanilla " );
+        else sb.append( "forge modpack " );
+        return sb.toString().toLowerCase( Locale.ROOT );
     }
 
     /** Display name resolver — mirrors {@link #resolveDisplayName(GameModPack)} but
