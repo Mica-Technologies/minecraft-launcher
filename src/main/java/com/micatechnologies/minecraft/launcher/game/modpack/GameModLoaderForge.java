@@ -533,7 +533,26 @@ class GameModLoaderForge extends ManagedGameFile
 
             String path = JsonHelper.getRequiredString( artifact, "path" );
             String url = JsonHelper.getString( artifact, "url", "" );
-            File localFile = new File( libsFolder, path.replace( "/", File.separator ) );
+
+            // The Forge installer's library descriptors contribute both a relative
+            // path and a URL. Both come straight from JSON inside the installer
+            // JAR. A hostile installer (compromised packForgeURL host with a
+            // matching attacker-supplied hash) could specify path="../../something"
+            // to escape the libs folder, or url="http://..." to enable passive
+            // MITM. Validate both before use.
+            if ( path.indexOf( '\0' ) >= 0
+                    || path.startsWith( "/" )
+                    || path.startsWith( "\\" )
+                    || ( path.length() >= 2 && path.charAt( 1 ) == ':' ) ) {
+                throw new ModpackException( "Refusing Forge library with unsafe path: " + path );
+            }
+            java.nio.file.Path libsBase = new File( libsFolder ).toPath().toAbsolutePath().normalize();
+            java.nio.file.Path resolved = libsBase.resolve(
+                    path.replace( "/", File.separator ) ).normalize();
+            if ( !resolved.startsWith( libsBase ) ) {
+                throw new ModpackException( "Refusing Forge library path that escapes libs folder: " + path );
+            }
+            File localFile = resolved.toFile();
 
             if ( localFile.exists() ) {
                 continue;
@@ -550,6 +569,13 @@ class GameModLoaderForge extends ManagedGameFile
                     }
                 }
                 continue;
+            }
+
+            // Refuse any URL scheme that isn't https — same rationale as the
+            // ManagedGameFile download gate.
+            int schemeEnd = url.indexOf( ':' );
+            if ( schemeEnd < 0 || !"https".equalsIgnoreCase( url.substring( 0, schemeEnd ) ) ) {
+                throw new ModpackException( "Refusing Forge library with non-https URL: " + url );
             }
 
             localFile.getParentFile().mkdirs();
