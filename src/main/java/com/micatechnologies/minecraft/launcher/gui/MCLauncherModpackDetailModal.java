@@ -875,11 +875,19 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static void openModpackWebsite( GameModPack pack )
     {
         SystemUtilities.spawnNewTask( () -> {
+            String url = pack.getPackURL();
+            // Manifest-supplied URL; allow only http/https to keep "View Website"
+            // from opening local files via file:// or arbitrary other schemes.
+            if ( url == null
+                    || !( url.startsWith( "https://" ) || url.startsWith( "http://" ) ) ) {
+                Logger.logWarning( "Refusing to open non-http(s) modpack URL: " + url );
+                return;
+            }
             try {
-                Desktop.getDesktop().browse( URI.create( pack.getPackURL() ) );
+                Desktop.getDesktop().browse( URI.create( url ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open your browser. Please visit " + pack.getPackURL() +
+                Logger.logError( "Unable to open your browser. Please visit " + url +
                                          " to view the mod pack's website!" );
                 Logger.logThrowable( e );
             }

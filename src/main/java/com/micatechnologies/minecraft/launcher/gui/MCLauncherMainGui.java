@@ -1534,11 +1534,20 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     private static void openModpackWebsite( GameModPack pack ) {
         SystemUtilities.spawnNewTask( () -> {
+            String url = pack.getPackURL();
+            // Pack website URL comes from the manifest JSON. Reject anything other
+            // than http/https so a malicious manifest can't have the "View Website"
+            // button open arbitrary local files via file:// or other schemes.
+            if ( url == null
+                    || !( url.startsWith( "https://" ) || url.startsWith( "http://" ) ) ) {
+                Logger.logWarning( "Refusing to open non-http(s) modpack URL: " + url );
+                return;
+            }
             try {
-                Desktop.getDesktop().browse( URI.create( pack.getPackURL() ) );
+                Desktop.getDesktop().browse( URI.create( url ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open your browser. Please visit " + pack.getPackURL() +
+                Logger.logError( "Unable to open your browser. Please visit " + url +
                                          " to view the mod pack's website!" );
                 Logger.logThrowable( e );
             }
