@@ -23,7 +23,6 @@ import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
-import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
@@ -414,37 +413,23 @@ public class GameModPackManager
      * @since 1.0
      */
     public synchronized static void fetchModPackInfo() {
-        // Create progress window if applicable
-        MCLauncherProgressGui progressWindow = null;
-        try {
-            if ( MCLauncherGuiController.shouldCreateGui() ) {
-                progressWindow = MCLauncherGuiController.goToProgressGui();
-            }
-        }
-        catch ( IOException e ) {
-            Logger.logError( "Unable to load progress GUI due to an incomplete response from the GUI subsystem." );
-            Logger.logThrowable( e );
-        }
-
-        if ( progressWindow != null ) {
-            progressWindow.setUpperLabelText( LocalizationManager.MODPACK_INSTALL_FETCH_UPPER_LABEL );
-            progressWindow.setSectionText( LocalizationManager.MODPACK_INSTALL_FETCH_LOWER_LABEL );
-            progressWindow.setDetailText( "" );
-        }
-
-        // Check network connectivity before fetching
-        if ( progressWindow != null ) {
-            progressWindow.setDetailText( "Checking network connectivity..." );
-        }
-        boolean online = NetworkUtilities.checkNetworkAvailability();
-        if ( !online && progressWindow != null ) {
-            progressWindow.setDetailText( "Offline mode: using cached data" );
-        }
-
-        // Update installed mod packs and available mod packs
-        fetchInstalledModPacks( progressWindow );
+        // No more full-screen progress GUI takeover here. Historically every
+        // install / uninstall / refresh routed through this method and saw the
+        // launcher swap to a dedicated loading scene, then back to the original
+        // view — jarring, especially for a sub-second refresh on a warm cache,
+        // and visually inconsistent with the rest of the launcher (the main
+        // menu and Library already use a subtle bottom-bar "Refreshing
+        // modpacks…" indicator for the same kind of background work). Callers
+        // that want to surface progress for a long-running op now flip their
+        // own bottom-bar label / show a placeholder card and let this method
+        // do its thing silently.
+        // checkNetworkAvailability primes NetworkUtilities.offlineMode so
+        // the isOffline() guard below sees a fresh signal; return value is
+        // intentionally discarded since we only need the side-effect.
+        NetworkUtilities.checkNetworkAvailability();
+        fetchInstalledModPacks( null );
         if ( !NetworkUtilities.isOffline() ) {
-            fetchAvailableModPacks( progressWindow );
+            fetchAvailableModPacks( null );
         }
     }
 

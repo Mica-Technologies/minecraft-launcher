@@ -39,6 +39,7 @@ import javafx.geometry.Pos;
 import javafx.scene.CacheHint;
 import javafx.scene.Cursor;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.image.Image;
@@ -97,6 +98,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     // ===== FXML — card grid =====
     @SuppressWarnings( "unused" ) @FXML ScrollPane libraryScrollPane;
     @SuppressWarnings( "unused" ) @FXML FlowPane cardList;
+
+    /** Active import-in-progress card, prepended to the FlowPane during any
+     *  Modrinth / future CurseForge import so the user can see at a glance
+     *  that work is happening. Null when no import is in flight. Lives
+     *  outside the filter/sort pipeline — always shown at position 0 of
+     *  the FlowPane regardless of which page or filter the user is on, so
+     *  the user can't accidentally hide an active import by changing the
+     *  view. */
+    private ImportProgressCard activeImportCard;
 
     // ===== FXML — bottom bar =====
     @SuppressWarnings( "unused" ) @FXML MFXTextField urlAddField;
@@ -422,20 +432,169 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     "Import from Modrinth?",
                     "Modrinth modpack detected",
                     preview,
-                    "Import",
+                    "Continue",
                     "Cancel",
                     stage );
             if ( choice != 1 ) return;
 
-            // v1 stub. The classifier + preview + dialog scaffolding ship now;
-            // the actual .mrpack download → manifest translation lands in a
-            // follow-up so this commit stays reviewable.
-            NotificationManager.info(
-                    "Import coming soon",
-                    "Modrinth import logic is being developed. The URL classifier "
-                            + "and preview are in place — the .mrpack-to-Mica-manifest translation "
-                            + "is the next step." );
+            // Show the in-flight placeholder card in the Library FlowPane so
+            // the user sees activity happening even before the second
+            // confirmation dialog comes up. Status is updated as the flow
+            // moves through download → translate → install.
+            String packTitle = summary.title() != null ? summary.title() : "Modrinth modpack";
+            Logger.logStd( "Modrinth import: user confirmed preview for slug=" + slug
+                                   + " title=\"" + packTitle + "\"" );
+            beginImport( packTitle );
+            try {
+                runModrinthImportFlow( summary, slug );
+            }
+            finally {
+                Logger.logStd( "Modrinth import: flow ended for slug=" + slug );
+                endImport();
+            }
         } );
+    }
+
+    /**
+     * Step-2 of the Modrinth import flow. The user confirmed they want to
+     * proceed from the project-level preview — now we download the
+     * {@code .mrpack} archive, parse its {@code modrinth.index.json}, show
+     * a second confirmation dialog with the actual mod list, and only on
+     * THAT confirmation do we write the translated Mica manifest and call
+     * into the regular {@code installModPackByURL} pipeline.
+     *
+     * <p>The two-step confirmation is deliberate: the project page can
+     * misrepresent what the pack actually contains (or change after the
+     * user looked), so we make the second confirmation show the
+     * authoritative file list from the archive itself. After that point
+     * the user has explicitly approved every mod we're about to download.</p>
+     */
+    private void runModrinthImportFlow(
+            com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient.ProjectSummary summary,
+            String slug )
+    {
+        var version = summary.latestVersion();
+        if ( version == null || version.files() == null || version.files().isEmpty() ) {
+            NotificationManager.error(
+                    "Pack download URL unavailable",
+                    "Modrinth didn't return a file URL for the pack's latest version. "
+                            + "Try again, or check the pack on modrinth.com — it may have been "
+                            + "unpublished or the version may have no published files yet." );
+            return;
+        }
+        // Pick the primary file (the .mrpack); skip non-primary entries
+        // (server-pack variants, sometimes shipped alongside).
+        String mrpackUrl = null;
+        for ( var fileRef : version.files() ) {
+            if ( fileRef.primary() && fileRef.url() != null && !fileRef.url().isBlank() ) {
+                mrpackUrl = fileRef.url();
+                break;
+            }
+        }
+        // Fallback: take the first file if no primary flag is set.
+        if ( mrpackUrl == null ) {
+            mrpackUrl = version.files().get( 0 ).url();
+        }
+        if ( mrpackUrl == null || !mrpackUrl.toLowerCase( java.util.Locale.ROOT ).endsWith( ".mrpack" ) ) {
+            NotificationManager.error(
+                    "Pack archive missing",
+                    "Modrinth's primary download URL for this pack doesn't look like a .mrpack file. "
+                            + "This launcher can only import .mrpack-formatted modpacks." );
+            return;
+        }
+
+        // Notification for the long-running download phase. The .mrpack itself
+        // is usually 1–20 MB but the Forge installer fetch + SHA happen in the
+        // same call so the user sees one "Preparing import…" until both finish.
+        NotificationManager.info(
+                "Preparing import",
+                "Downloading the pack archive and translating it. This usually takes a few seconds." );
+        updateImportStatus( "Downloading pack archive + Forge installer…" );
+
+        final String finalMrpackUrl = mrpackUrl;
+        com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter.Result result;
+        try {
+            // Hand the Modrinth project icon URL through so the imported
+            // manifest's packLogoURL points at real CDN imagery rather than
+            // a bundled-default placeholder. Falls through to default when
+            // Modrinth's API didn't return an icon for the project.
+            result = com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter
+                    .importMrpack( finalMrpackUrl, slug, summary.iconUrl() );
+        }
+        catch ( com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter.ImportException ie ) {
+            NotificationManager.error( "Import failed", ie.getMessage() );
+            return;
+        }
+
+        updateImportStatus( "Waiting for confirmation…" );
+
+        // Step-2 confirmation on the FX thread — shows the actual mod list
+        // pulled from the .mrpack so the user confirms against authoritative
+        // content rather than the Modrinth project page (which may have
+        // moved on / had a different version). The dialog's showAndWait
+        // blocks the FX thread; we use a CompletableFuture so this worker
+        // thread blocks on the result without busy-spinning.
+        com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter.Result finalResult = result;
+        java.util.concurrent.CompletableFuture< Boolean > dialogResult = new java.util.concurrent.CompletableFuture<>();
+        GUIUtilities.JFXPlatformRun( () -> {
+            try {
+                boolean answer = MCLauncherImportConfirmDialog.showAndAwait(
+                        stage,
+                        finalResult.index().name,
+                        finalResult.index().versionId,
+                        finalResult.index() );
+                dialogResult.complete( answer );
+            }
+            catch ( Throwable t ) {
+                dialogResult.completeExceptionally( t );
+            }
+        } );
+        boolean confirmed;
+        try {
+            confirmed = dialogResult.get();
+        }
+        catch ( Exception ex ) {
+            Logger.logWarningSilent( "Import confirm dialog failed: " + ex.getMessage() );
+            return;
+        }
+        if ( !confirmed ) {
+            // User cancelled — translated manifest stays on disk so a
+            // retry is fast, but we don't add the pack to the installed
+            // list. The cached file is small (a few KB JSON) and a future
+            // cleanup pass can reap untouched imported-manifests if the
+            // directory ever gets noisy.
+            return;
+        }
+
+        // Confirmed — hand the file:// URL to the standard installer.
+        Logger.logStd( "Modrinth import: user confirmed mod list — installing "
+                               + finalResult.localManifestUrl() );
+        NotificationManager.info(
+                "Import starting",
+                "Adding the pack to your library and queueing the mod downloads." );
+        updateImportStatus( "Adding to your library…" );
+        try {
+            com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager
+                    .installModPackByURL( finalResult.localManifestUrl() );
+            Logger.logStd( "Modrinth import: installModPackByURL returned for " + finalResult.localManifestUrl() );
+            GUIUtilities.JFXPlatformRun( () -> {
+                // rebuildCards happens automatically in endImport() — no need
+                // to call it here, since endImport will also clear the
+                // in-progress placeholder and the freshly-installed pack
+                // appears in its sorted slot.
+                NotificationManager.success(
+                        "Import complete",
+                        "The pack is now in your library. Open it from the main menu to launch." );
+            } );
+        }
+        catch ( Throwable t ) {
+            Logger.logErrorSilent( "Modrinth import install step failed: " + t.getMessage() );
+            Logger.logThrowable( t );
+            NotificationManager.error(
+                    "Install failed",
+                    "The pack was translated successfully but installing it into your library "
+                            + "didn't complete. Check the launcher log for details." );
+        }
     }
 
     /**
@@ -572,13 +731,173 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         updatePaginationControls( totalItems, totalPages, startIdx, endIdx );
 
         cardList.getChildren().clear();
+        // Active import card always shows first regardless of filter / page —
+        // see field doc on activeImportCard. Persists across rebuildCards
+        // calls triggered by the user fiddling with filters during an
+        // import so the work-in-flight indicator stays visible.
+        if ( activeImportCard != null ) {
+            cardList.getChildren().add( activeImportCard );
+        }
         if ( entries.isEmpty() ) {
-            cardList.getChildren().add( buildEmptyState( type, status, search ) );
+            if ( activeImportCard == null ) {
+                cardList.getChildren().add( buildEmptyState( type, status, search ) );
+            }
             return;
         }
         for ( int i = startIdx; i < endIdx; i++ ) {
             cardList.getChildren().add( new LibraryCard( entries.get( i ) ) );
         }
+    }
+
+    // =========================================================================================
+    //  Import-in-progress card (placeholder shown in the FlowPane during a modpack import)
+    // =========================================================================================
+
+    /**
+     * Placeholder card prepended to the Library FlowPane while a modpack
+     * import is in flight. Same dimensions and visual chrome as
+     * {@link LibraryCard} so it slots into the grid cleanly — pulsing
+     * spinner in the image-area position, pack name as the heading, and
+     * a status line below that the import flow updates as it progresses
+     * through download → translate → install.
+     *
+     * <p>Lives in the GUI layer only — the importer is unaware of it and
+     * doesn't need a cancellation token (status updates only). Adding a
+     * real cancel button would need cancellation plumbing through the
+     * importer's network calls, which is a follow-up rather than a v1
+     * scope item.</p>
+     */
+    private final class ImportProgressCard extends VBox
+    {
+        // Match LibraryCard's footprint so the placeholder slots cleanly into
+        // the FlowPane next to the real cards — initial draft used the
+        // main-menu hero card's 360x150 which looked oversized next to the
+        // browse-view's 300x110 layout.
+        private static final double CARD_WIDTH  = 300;
+        private static final double IMAGE_HEIGHT = 110;
+
+        private final Label statusLabel;
+
+        ImportProgressCard( String packName )
+        {
+            getStyleClass().add( "heroCardShell" );
+            setPrefWidth( CARD_WIDTH );
+            setMinWidth( CARD_WIDTH );
+            setMaxWidth( CARD_WIDTH );
+            setSpacing( 0 );
+
+            // Top half: themed gradient + indeterminate spinner overlay.
+            StackPane imageBox = new StackPane();
+            imageBox.getStyleClass().add( "heroCardImage" );
+            imageBox.setPrefHeight( IMAGE_HEIGHT );
+            imageBox.setMinHeight( IMAGE_HEIGHT );
+            imageBox.setMaxHeight( IMAGE_HEIGHT );
+            Rectangle clip = new Rectangle( CARD_WIDTH, IMAGE_HEIGHT );
+            clip.setArcWidth( 28 );
+            clip.setArcHeight( 28 );
+            clip.heightProperty().bind( imageBox.heightProperty() );
+            clip.widthProperty().bind( imageBox.widthProperty() );
+            imageBox.setClip( clip );
+
+            Region bgLayer = new Region();
+            bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
+
+            ProgressIndicator spinner = new ProgressIndicator();
+            spinner.setMaxSize( 72, 72 );
+            spinner.setPrefSize( 72, 72 );
+
+            imageBox.getChildren().addAll( bgLayer, spinner );
+
+            // Bottom: pack name + live status line.
+            VBox info = new VBox( 6 );
+            info.getStyleClass().add( "heroCardBody" );
+            info.setAlignment( Pos.CENTER );
+            info.setPadding( new Insets( 18, 16, 16, 16 ) );
+            VBox.setVgrow( info, Priority.ALWAYS );
+
+            Label nameLabel = new Label( packName == null || packName.isBlank()
+                    ? "Importing modpack…" : packName );
+            nameLabel.getStyleClass().addAll( "heading-h2", "heroCardTitle" );
+            nameLabel.setWrapText( true );
+            nameLabel.setAlignment( Pos.CENTER );
+            nameLabel.setMaxWidth( Double.MAX_VALUE );
+
+            statusLabel = new Label( "Preparing import…" );
+            statusLabel.getStyleClass().add( "subtle" );
+            statusLabel.setWrapText( true );
+            statusLabel.setAlignment( Pos.CENTER );
+            statusLabel.setMaxWidth( Double.MAX_VALUE );
+            statusLabel.setStyle( "-fx-font-size: 11px;" );
+
+            info.getChildren().addAll( nameLabel, statusLabel );
+
+            getChildren().addAll( imageBox, info );
+        }
+
+        /** Updates the status line. Must be called from the FX thread; the
+         *  three {@code beginImport}/{@code updateImportStatus}/{@code endImport}
+         *  helpers below take care of that for the worker-thread callers. */
+        void setStatus( String text )
+        {
+            if ( text != null && !text.isBlank() ) {
+                statusLabel.setText( text );
+            }
+        }
+    }
+
+    /** Creates + inserts the import-in-progress card. Safe to call from
+     *  any thread; FX work is dispatched via JFXPlatformRun. */
+    private void beginImport( String packName )
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            activeImportCard = new ImportProgressCard( packName );
+            rebuildCards();
+        } );
+    }
+
+    /** Updates the active import card's status line. No-op if no import is
+     *  currently in flight. */
+    private void updateImportStatus( String status )
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( activeImportCard != null ) activeImportCard.setStatus( status );
+        } );
+    }
+
+    /** Tears down the import-in-progress card and re-renders the FlowPane
+     *  so the freshly-installed pack appears in its sorted slot. */
+    private void endImport()
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            activeImportCard = null;
+            rebuildCards();
+        } );
+    }
+
+    /** Shows the bottom-bar background-fetch status with {@code text}, replacing
+     *  whatever the FXML preset says. Safe from any thread. Pass {@code null}
+     *  (or call {@link #hideBackgroundStatus()}) to dismiss. Used by
+     *  install / uninstall handlers so refresh work happens silently in the
+     *  background instead of the launcher swapping to a full-screen
+     *  progress GUI. */
+    private void showBackgroundStatus( String text )
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( backgroundFetchLabel == null ) return;
+            backgroundFetchLabel.setText( text != null ? text : "" );
+            backgroundFetchLabel.setVisible( true );
+            backgroundFetchLabel.setManaged( true );
+        } );
+    }
+
+    /** Hides the bottom-bar background-fetch status. Safe from any thread. */
+    private void hideBackgroundStatus()
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( backgroundFetchLabel == null ) return;
+            backgroundFetchLabel.setVisible( false );
+            backgroundFetchLabel.setManaged( false );
+        } );
     }
 
     /** Updates the pagination bar's text labels and button enable state for the current page
@@ -1043,20 +1362,27 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         boolean deleteFiles = ( response == 1 );
 
         GameModPack pack = entry.pack;
+        final String displayName = entry.displayName;
+        showBackgroundStatus( "Removing " + displayName + "…" );
         SystemUtilities.spawnNewTask( () -> {
-            if ( deleteFiles ) {
-                try {
-                    File installDir = new File( pack.getPackRootFolder() );
-                    if ( installDir.exists() ) {
-                        org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
+            try {
+                if ( deleteFiles ) {
+                    try {
+                        File installDir = new File( pack.getPackRootFolder() );
+                        if ( installDir.exists() ) {
+                            org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
+                        }
+                    }
+                    catch ( Exception e ) {
+                        Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
                     }
                 }
-                catch ( Exception e ) {
-                    Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
-                }
+                GameModPackManager.uninstallModPack( pack );
+                GUIUtilities.JFXPlatformRun( this::rebuildCards );
             }
-            GameModPackManager.uninstallModPack( pack );
-            GUIUtilities.JFXPlatformRun( this::rebuildCards );
+            finally {
+                hideBackgroundStatus();
+            }
         } );
     }
 
@@ -1067,10 +1393,17 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // the available pack's getFriendlyName() is the right key.
         final String friendly = entry.pack.getFriendlyName();
         if ( friendly == null || friendly.isBlank() ) return;
+        final String displayName = entry.displayName;
+        showBackgroundStatus( "Installing " + displayName + "…" );
         SystemUtilities.spawnNewTask( () -> {
-            GameModPackManager.installModPackByFriendlyName( friendly );
-            GUIUtilities.JFXPlatformRun( this::rebuildCards );
-            NotificationManager.success( "Modpack installed", entry.displayName + " is now available to play." );
+            try {
+                GameModPackManager.installModPackByFriendlyName( friendly );
+                GUIUtilities.JFXPlatformRun( this::rebuildCards );
+                NotificationManager.success( "Modpack installed", displayName + " is now available to play." );
+            }
+            finally {
+                hideBackgroundStatus();
+            }
         } );
     }
 
@@ -1085,21 +1418,27 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 "Uninstall & Delete Files", "Uninstall (Keep Files)", stage );
         if ( response == 0 ) return;
 
+        showBackgroundStatus( "Removing Minecraft " + id + "…" );
         SystemUtilities.spawnNewTask( () -> {
-            if ( response == 1 ) {
-                GameModPack vanilla = GameModPack.createVanillaModPack( id );
-                try {
-                    File installDir = new File( vanilla.getPackRootFolder() );
-                    if ( installDir.exists() ) {
-                        org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
+            try {
+                if ( response == 1 ) {
+                    GameModPack vanilla = GameModPack.createVanillaModPack( id );
+                    try {
+                        File installDir = new File( vanilla.getPackRootFolder() );
+                        if ( installDir.exists() ) {
+                            org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
+                        }
+                    }
+                    catch ( Exception e ) {
+                        Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
                     }
                 }
-                catch ( Exception e ) {
-                    Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
-                }
+                VanillaVersionManager.uninstallVersion( id );
+                GUIUtilities.JFXPlatformRun( this::rebuildCards );
             }
-            VanillaVersionManager.uninstallVersion( id );
-            GUIUtilities.JFXPlatformRun( this::rebuildCards );
+            finally {
+                hideBackgroundStatus();
+            }
         } );
     }
 
@@ -1107,13 +1446,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     {
         if ( entry.vanillaVersionId == null ) return;
         String id = entry.vanillaVersionId;
+        showBackgroundStatus( "Installing Minecraft " + id + "…" );
         SystemUtilities.spawnNewTask( () -> {
-            if ( VanillaVersionManager.isInstalled( id ) ) {
-                return;
+            try {
+                if ( VanillaVersionManager.isInstalled( id ) ) {
+                    return;
+                }
+                VanillaVersionManager.installVersion( id );
+                GUIUtilities.JFXPlatformRun( this::rebuildCards );
+                NotificationManager.success( "Minecraft installed", "Minecraft " + id + " is now available to play." );
             }
-            VanillaVersionManager.installVersion( id );
-            GUIUtilities.JFXPlatformRun( this::rebuildCards );
-            NotificationManager.success( "Minecraft installed", "Minecraft " + id + " is now available to play." );
+            finally {
+                hideBackgroundStatus();
+            }
         } );
     }
 

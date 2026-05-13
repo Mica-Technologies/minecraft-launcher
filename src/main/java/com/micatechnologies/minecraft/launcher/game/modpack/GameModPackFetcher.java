@@ -73,7 +73,21 @@ public class GameModPackFetcher
      */
     public static GameModPack getFromCache( String manifestUrl, boolean createEnvironment ) {
         try {
-            String body = loadCachedManifest( manifestUrl );
+            // Imported-pack short-circuit. file:// URLs are translated Mica
+            // manifests on local disk (written by MrpackImporter); they ARE
+            // the authoritative source, not a cached snapshot of something
+            // else. Reading them here means fetchInstalledModPacks' cold-
+            // start Phase 1b succeeds without falling through to the
+            // network-fetch path (which would call cacheImages and pay the
+            // image-download cost on every launch, slow for imported packs
+            // whose icons live on Modrinth's CDN).
+            String body;
+            if ( manifestUrl != null && manifestUrl.startsWith( "file:" ) ) {
+                body = readLocalManifest( manifestUrl );
+            }
+            else {
+                body = loadCachedManifest( manifestUrl );
+            }
             if ( body == null ) {
                 return null;
             }
@@ -139,7 +153,20 @@ public class GameModPackFetcher
         GameModPack gameModPack;
         try {
             String manifestBody;
-            if ( NetworkUtilities.isOffline() ) {
+            // file:// URLs are imported modpacks — their manifest lives on
+            // local disk under the launcher's imported-manifests folder
+            // (see MrpackImporter). No network, no conditional revalidate,
+            // just read the bytes and parse. Same machinery downstream so
+            // imported packs round-trip through the rest of the launcher
+            // identically to network-fetched ones.
+            if ( manifestUrl != null && manifestUrl.startsWith( "file:" ) ) {
+                manifestBody = readLocalManifest( manifestUrl );
+                if ( manifestBody == null ) {
+                    throw new IOException( "Local manifest not found at " + manifestUrl );
+                }
+                Logger.logStd( "Loaded imported manifest from local file: " + manifestUrl );
+            }
+            else if ( NetworkUtilities.isOffline() ) {
                 // Offline: load from cache
                 manifestBody = loadCachedManifest( manifestUrl );
                 if ( manifestBody == null ) {
@@ -188,7 +215,23 @@ public class GameModPackFetcher
             if ( createEnvironment ) {
                 gameModPack.prepareEnvironment();
                 if ( !NetworkUtilities.isOffline() ) {
-                    gameModPack.cacheImages();
+                    // Image-cache failures (404 on a moved logo URL, transient
+                    // network blip, bad SHA-1, etc.) are non-fatal — the pack
+                    // itself is valid even if we can't fetch its branding
+                    // assets. The card UI will fall through to the bundled
+                    // default logo + the procedural gradient. Without this
+                    // tolerance, ONE broken image URL in an imported pack's
+                    // manifest puts the launcher into a permanent retry loop
+                    // because every cold start + every background revalidate
+                    // re-runs this code path and re-throws.
+                    try {
+                        gameModPack.cacheImages();
+                    }
+                    catch ( Throwable t ) {
+                        Logger.logWarningSilent( "Image cache failed for "
+                                                         + manifestUrl + " (non-fatal): "
+                                                         + t.getClass().getSimpleName() );
+                    }
                 }
             }
             // Refresh the install-index entry alongside the per-manifest cache so
@@ -205,6 +248,26 @@ public class GameModPackFetcher
 
         gameModPack.manifestUrl = manifestUrl;
         return gameModPack;
+    }
+
+    /** Reads a manifest file from a local {@code file://} URL — used for
+     *  imported modpacks whose translated Mica manifest was written by
+     *  {@link com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter}.
+     *  Returns the body string on success, {@code null} when the file is
+     *  missing or unreadable. */
+    private static String readLocalManifest( String fileUrl )
+    {
+        if ( fileUrl == null ) return null;
+        try {
+            Path p = Path.of( new java.net.URI( fileUrl ) );
+            if ( !Files.isRegularFile( p ) ) return null;
+            return Files.readString( p, StandardCharsets.UTF_8 );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Could not read local manifest at " + fileUrl + ": "
+                                             + e.getClass().getSimpleName() );
+            return null;
+        }
     }
 
     /**
