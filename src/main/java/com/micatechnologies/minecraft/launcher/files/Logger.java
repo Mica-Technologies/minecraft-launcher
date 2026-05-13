@@ -263,6 +263,27 @@ public class Logger
     }
 
     /**
+     * Variant of {@link #logError} for errors whose user-facing message was
+     * deliberately structured across multiple lines (bullet lists, paragraph
+     * breaks). Routes through {@link GUIUtilities#showErrorMessageMultiline}
+     * so the newlines survive — the standard {@code showErrorMessage} path
+     * collapses multi-line text to one line as a defense against accidental
+     * stack-trace dumps.
+     *
+     * <p>File / stderr logging is unchanged; the structure is preserved
+     * there as well so a debugger reads the same bullets the user sees.</p>
+     *
+     * @since 2026.3
+     */
+    public static void logErrorMultiline( String errorLog ) {
+        Stage jfxStage = MCLauncherGuiController.getTopStageOrNull();
+        if ( jfxStage != null ) {
+            GUIUtilities.showErrorMessageMultiline( errorLog, jfxStage );
+        }
+        logErrorSilent( errorLog );
+    }
+
+    /**
      * Log an error with its prefix and confirm for retry.
      *
      * @param errorLog error to log

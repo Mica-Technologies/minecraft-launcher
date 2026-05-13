@@ -184,11 +184,71 @@ public class GUIUtilities
         }
     }
 
+    /**
+     * Variant of {@link #showErrorMessage} that preserves newlines so the
+     * caller's structure (bullet lists, paragraph breaks, etc.) survives all
+     * the way to the rendered Alert. Use this when the message text was
+     * built deliberately — the scan-blocked popup with its per-finding
+     * bullets is the canonical case.
+     *
+     * <p>Implementation notes: the JavaFX {@link Alert} content area is a
+     * {@code Label} with wrapping on; setting a {@code \n}-bearing string
+     * preserves the lines, but the dialog pane defaults to a width too
+     * narrow for long file-path bullets, so this variant also widens the
+     * pane and unbinds the label's preferred width to let JavaFX size it
+     * to the text. Bypassing the single-line {@link #sanitizeDialogText}
+     * is the whole point — newlines stay, the cap is larger, redaction
+     * still runs.</p>
+     */
+    public static void showErrorMessageMultiline( String contentText, Stage owner ) {
+        CountDownLatch waitForError = new CountDownLatch( 1 );
+        JFXPlatformRun( () -> {
+            Alert errorAlert = new Alert( Alert.AlertType.ERROR );
+            errorAlert.setTitle( "Oops" );
+            errorAlert.setHeaderText( "Error" );
+            errorAlert.setContentText( sanitizeDialogTextMultiline( contentText ) );
+            errorAlert.initModality( Modality.WINDOW_MODAL );
+            errorAlert.initStyle( StageStyle.UTILITY );
+            errorAlert.initOwner( owner );
+
+            // Give the dialog room. The default Alert width is sized for one-liners;
+            // a bulleted list of paths needs more horizontal space before wrapping
+            // makes the lines look like an unstructured run-on.
+            errorAlert.getDialogPane().setMinWidth( 560 );
+            errorAlert.getDialogPane().setPrefWidth( 640 );
+            // Let the content label compute its own preferred size from the wrapped
+            // multi-line text, otherwise JavaFX clips below the first 2-3 lines.
+            javafx.scene.Node contentLabel = errorAlert.getDialogPane().lookup( ".content.label" );
+            if ( contentLabel instanceof javafx.scene.control.Label l ) {
+                l.setWrapText( true );
+                l.setMinHeight( javafx.scene.layout.Region.USE_PREF_SIZE );
+                l.setPrefWidth( 600 );
+            }
+
+            themeAlertChrome( errorAlert );
+            errorAlert.showAndWait();
+            waitForError.countDown();
+        } );
+
+        try {
+            waitForError.await();
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /** Maximum length of caller-supplied text that the launcher will display in an
      *  Alert content area. Anything longer is truncated with an ellipsis — overlong
      *  text typically means a stack-trace dump was passed as contentText, which is
      *  also where information disclosure would happen (internal paths, type names). */
     private static final int MAX_DIALOG_CONTENT_CHARS = 600;
+
+    /** Larger length cap for the multi-line variant. Structured error text the
+     *  launcher constructs (scan-blocked listings, multi-finding repair reports)
+     *  legitimately needs more room than a one-liner. Still bounded to keep a
+     *  rogue caller from pasting a 100K stack trace into the dialog. */
+    private static final int MAX_DIALOG_CONTENT_CHARS_MULTILINE = 4000;
 
     /**
      * Returns a defanged copy of {@code contentText} suitable for display in an
@@ -214,6 +274,35 @@ public class GUIUtilities
             return oneLine.substring( 0, MAX_DIALOG_CONTENT_CHARS - 1 ) + "…";
         }
         return oneLine;
+    }
+
+    /**
+     * Multi-line counterpart of {@link #sanitizeDialogText}. Keeps newlines
+     * intact (callers that go through this entrypoint constructed their
+     * message deliberately — e.g. the scan-blocked popup's bulleted list)
+     * while still running redaction and a sensible character cap.
+     *
+     * <p>{@code \r} is normalized to nothing and trailing whitespace on each
+     * line is trimmed so editor-style CRLF input doesn't leak double-spacing.
+     * Runs of three or more blank lines collapse to two — a hard ceiling on
+     * vertical sprawl without flattening intentional paragraph breaks.</p>
+     */
+    private static String sanitizeDialogTextMultiline( String contentText )
+    {
+        if ( contentText == null || contentText.isEmpty() ) {
+            return contentText;
+        }
+        String redacted = SensitiveDataRedactor.redact( contentText );
+        // Normalize line endings, strip per-line trailing whitespace, cap runs of blank lines.
+        String normalized = redacted.replace( "\r\n", "\n" ).replace( '\r', '\n' );
+        // Per-line right-trim using regex; multiline mode so $ anchors line ends.
+        normalized = normalized.replaceAll( "(?m)[ \\t]+$", "" );
+        // Cap any run of 3+ newlines down to 2 (a single blank line between paragraphs).
+        normalized = normalized.replaceAll( "\n{3,}", "\n\n" ).trim();
+        if ( normalized.length() > MAX_DIALOG_CONTENT_CHARS_MULTILINE ) {
+            return normalized.substring( 0, MAX_DIALOG_CONTENT_CHARS_MULTILINE - 1 ) + "…";
+        }
+        return normalized;
     }
 
     /**

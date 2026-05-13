@@ -481,7 +481,10 @@ public class LauncherCore
                 }
             }
             catch ( ModpackScanDetectionException e ) {
-                Logger.logError( e.getMessage() );
+                // Scan-blocked message is a deliberately multi-line bulleted listing;
+                // route through the structure-preserving error path so the popup doesn't
+                // collapse it into a one-line blob.
+                Logger.logErrorMultiline( e.getMessage() );
                 Logger.logThrowable( e );
                 returnToMainGuiOnError();
             }

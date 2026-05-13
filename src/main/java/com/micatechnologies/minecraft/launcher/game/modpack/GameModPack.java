@@ -183,12 +183,16 @@ public class GameModPack extends GameModPackMetadata
         Results scanResults = Main.run( scanCoreCount, Path.of( getPackRootFolder() ), emitWalkErrors,
                                         getPackScanExclusions(), logOutput, null );
         if ( scanResults.getStage1Detections() != null && !scanResults.getStage1Detections().isEmpty() ) {
-            logOutput.apply( "Stage 1 infections found: " + scanResults.getStage1Detections().size() );
-            throw new ModpackScanDetectionException( scanResults );
+            int n = scanResults.getStage1Detections().size();
+            logOutput.apply( "Security scan blocked launch: " + n
+                                     + ( n == 1 ? " issue detected." : " issues detected." ) );
+            throw new ModpackScanDetectionException( scanResults, getPackName(), getPackRootFolder() );
         }
         else if ( scanResults.getStage2Detections() != null && !scanResults.getStage2Detections().isEmpty() ) {
-            logOutput.apply( "Stage 2 infections found: " + scanResults.getStage2Detections().size() );
-            throw new ModpackScanDetectionException( scanResults );
+            int n = scanResults.getStage2Detections().size();
+            logOutput.apply( "Security scan blocked launch: " + n
+                                     + ( n == 1 ? " issue detected." : " issues detected." ) );
+            throw new ModpackScanDetectionException( scanResults, getPackName(), getPackRootFolder() );
         }
 
         // Supplemental, non-Fractureiser-specific heuristics. The Nekodetector
@@ -214,14 +218,17 @@ public class GameModPack extends GameModPackMetadata
                 }
             }
             if ( !highHits.isEmpty() ) {
-                logOutput.apply( "Supplemental infections found: " + highHits.size() );
+                int n = highHits.size();
+                logOutput.apply( "Security scan blocked launch: " + n
+                                         + ( n == 1 ? " issue detected." : " issues detected." ) );
                 List< String > merged = new java.util.ArrayList<>();
                 if ( scanResults.getStage1Detections() != null ) {
                     merged.addAll( scanResults.getStage1Detections() );
                 }
                 merged.addAll( highHits );
                 throw new ModpackScanDetectionException(
-                        new Results( merged, scanResults.getStage2Detections() ) );
+                        new Results( merged, scanResults.getStage2Detections() ),
+                        getPackName(), getPackRootFolder() );
             }
         }
         catch ( IOException e ) {
