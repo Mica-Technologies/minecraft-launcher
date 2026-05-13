@@ -632,7 +632,14 @@ class GameModPackLauncher
         // launcher was constructed.
         final GameModPackProgressProvider previous = progressProvider;
         if ( handle != null ) {
-            pack.setProgressProvider( handle );
+            // swapProgressProviderTransiently (vs. setProgressProvider) so the
+            // pack's cached launcher reference — i.e. THIS launcher, which is
+            // about to spawn the game JVM and store the Process in its own
+            // lastLaunchedProcess field — survives the swap. setProgressProvider
+            // nullifies pack.launcher, which would orphan LauncherCore's
+            // post-startGame getLastLaunchedProcess() call and leave the
+            // launcher stuck on the progress screen even after the game starts.
+            pack.swapProgressProviderTransiently( handle );
             handle.startProgressSection( "Scanning for malware...", 10.0 );
         }
         try {
@@ -674,7 +681,8 @@ class GameModPackLauncher
         }
         finally {
             // Always restore so the scan-step handle doesn't outlive its phase.
-            pack.setProgressProvider( previous );
+            // Same transient-swap rationale as the entry-side call above.
+            pack.swapProgressProviderTransiently( previous );
         }
     }
 

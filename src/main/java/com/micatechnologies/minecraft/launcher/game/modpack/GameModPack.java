@@ -538,8 +538,30 @@ public class GameModPack extends GameModPackMetadata
     public void setProgressProvider( GameModPackProgressProvider progressProvider )
     {
         this.progressProvider = progressProvider;
-        // Reset the launcher so it picks up the new progress provider
+        // Reset the launcher so it picks up the new progress provider on its
+        // next getLauncher() call. This matters between launch sessions —
+        // LauncherCore.play and VerifyAction both pass in a fresh tracker
+        // bridge and need the next-spawned launcher to capture that bridge
+        // in its constructor.
         this.launcher = null;
+    }
+
+    /**
+     * Like {@link #setProgressProvider} but does <em>not</em> invalidate the
+     * cached launcher. Used by {@code GameModPackLauncher#doSecurityScan} to
+     * temporarily swap the pack's progress provider so the scanner's stdout
+     * routes to the SECURITY_SCAN tracker row, then swap back. The active
+     * launcher is the one that spawned the security-scan call and will, in
+     * a few statements, spawn the game JVM — nullifying its cached
+     * reference here mid-flight orphans {@link #getLastLaunchedProcess()}
+     * (it reads the cached launcher's lastLaunchedProcess field) and leaves
+     * {@code LauncherCore.play}'s post-spawn flow looking at a null process,
+     * so the console-GUI swap is skipped and the launcher sits stuck on the
+     * progress screen even though the game is running.
+     */
+    public void swapProgressProviderTransiently( GameModPackProgressProvider progressProvider )
+    {
+        this.progressProvider = progressProvider;
     }
 
     public synchronized void cacheImages()
