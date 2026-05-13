@@ -214,56 +214,62 @@ public class GameModPackManager
             installedGameModPacks.clear();
         }
 
-        // For each mod pack, get object from latest manifest. Per-pack manifest fetches
-        // are network-bound and independent — running them in parallel via parallelStream
-        // shrinks wall time roughly N-fold for N installed packs, which is the dominant
-        // cost in launcher startup for users with several packs installed.
+        // Phase 1 — cache-first sync load. The on-disk manifest cache from previous
+        // online launches lets us populate installedGameModPacks in microseconds
+        // instead of seconds-of-network. Any pack with a missing/unreadable cache
+        // falls through to the synchronous network path below so first-ever launches
+        // still work; everything that hit cache will be quietly revalidated against
+        // the network in Phase 2 after this method returns.
+        final List< String > needsNetwork = new java.util.ArrayList<>();
+        for ( String manifestUrl : installedModPackManifestUrls ) {
+            GameModPack cached = GameModPackFetcher.getFromCache( manifestUrl, true );
+            if ( cached != null ) {
+                installedGameModPacks.add( cached );
+            }
+            else {
+                needsNetwork.add( manifestUrl );
+            }
+        }
+
+        // Phase 1b — synchronous network for any pack we couldn't load from cache.
+        // Same parallelStream as before; the loop only fires when the cache misses,
+        // which on a warm launcher is empty.
         final MCLauncherProgressGui finalProgressWindow = progressWindow;
-        installedModPackManifestUrls.parallelStream().forEach( manifestUrl -> {
-            try {
-                GameModPack gameModPack = GameModPackFetcher.get( manifestUrl, true );
-                installedGameModPacks.add( gameModPack );
-
-                // Detect upstream manifest version changes and write to the per-pack
-                // update log. Compares the just-fetched packVersion against a tracker
-                // file written on the last fetch; differences append a "vX → vY" entry
-                // that the expanded modpack-detail modal surfaces as the pack's recent
-                // update history. Best-effort — never let a logging hiccup break the
-                // manifest fetch loop.
+        if ( !needsNetwork.isEmpty() ) {
+            needsNetwork.parallelStream().forEach( manifestUrl -> {
                 try {
-                    ModPackUpdateLog.recordRemoteVersionSeen( gameModPack );
+                    GameModPack gameModPack = GameModPackFetcher.get( manifestUrl, true );
+                    installedGameModPacks.add( gameModPack );
+                    try {
+                        ModPackUpdateLog.recordRemoteVersionSeen( gameModPack );
+                    }
+                    catch ( Throwable t ) {
+                        Logger.logWarningSilent( "Update-log record failed for "
+                                                         + gameModPack.getPackName() + ": " + t.getMessage() );
+                    }
+                    if ( finalProgressWindow != null ) {
+                        finalProgressWindow.setDetailText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT
+                                                                   + " " + gameModPack.getPackName()
+                                                                   + " (v" + gameModPack.getPackVersion() + ")" );
+                    }
                 }
-                catch ( Throwable t ) {
-                    Logger.logWarningSilent( "Update-log record failed for "
-                                                     + gameModPack.getPackName() + ": " + t.getMessage() );
+                catch ( Exception e ) {
+                    Logger.logError( LocalizationManager.UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT
+                                             + " " + manifestUrl );
+                    Logger.logThrowable( e );
                 }
+            } );
+        }
 
-                // Update progress window
-                if ( finalProgressWindow != null ) {
-                    finalProgressWindow.setDetailText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +
-                                                               " " +
-                                                               gameModPack.getPackName() +
-                                                               " (v" +
-                                                               gameModPack.getPackVersion() +
-                                                               ")" );
-                }
-                else {
-                    Logger.logStd( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT +
-                                           ": " +
-                                           LocalizationManager.GOT_LATEST_VERSION_OF_TEXT +
-                                           " " +
-                                           gameModPack.getPackName() +
-                                           " (v" +
-                                           gameModPack.getPackVersion() +
-                                           ")" );
-                }
-            }
-            catch ( Exception e ) {
-                Logger.logError(
-                        LocalizationManager.UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT + " " + manifestUrl );
-                Logger.logThrowable( e );
-            }
-        } );
+        // Phase 2 — background revalidate. Kick off network fetches for every pack
+        // (including the ones we already loaded from cache) so the cache stays current
+        // and any manifest changes show up in the UI within a few seconds of cold
+        // start. The future is exposed via getInstalledRevalidateFuture so the main
+        // menu can attach a re-render hook and a small "Refreshing modpacks…"
+        // indicator.
+        if ( !NetworkUtilities.isOffline() && !installedModPackManifestUrls.isEmpty() ) {
+            startInstalledRevalidateAsync( installedModPackManifestUrls );
+        }
 
         // Update progress window
         if ( progressWindow != null ) {
@@ -274,6 +280,79 @@ public class GameModPackManager
                                    ": " +
                                    LocalizationManager.COMPLETED_TEXT );
         }
+    }
+
+    /**
+     * Background future for the Phase 2 revalidation pass of {@link #fetchInstalledModPacks}.
+     * Lets the main menu show a "Refreshing modpacks…" indicator and trigger a
+     * card-grid re-render once the future settles.
+     *
+     * @since 3.5
+     */
+    private static volatile CompletableFuture< Void > installedRevalidateFuture = null;
+
+    /**
+     * Returns the in-flight installed-modpack revalidation future, or {@code null} if
+     * no revalidation has been started (offline run, no installed packs, etc.).
+     *
+     * @since 3.5
+     */
+    public static CompletableFuture< Void > getInstalledRevalidateFuture() {
+        return installedRevalidateFuture;
+    }
+
+    /**
+     * Reports whether the background installed-modpack revalidation is still running.
+     *
+     * @since 3.5
+     */
+    public static boolean isInstalledRevalidatePending() {
+        CompletableFuture< Void > f = installedRevalidateFuture;
+        return f != null && !f.isDone();
+    }
+
+    /**
+     * Kicks off the background revalidate pass. Each pack's manifest is re-fetched
+     * in parallel; entries whose freshly-fetched version differs from the cache-loaded
+     * one are swapped into {@link #installedGameModPacks} in place.
+     */
+    private static void startInstalledRevalidateAsync( List< String > manifestUrls ) {
+        installedRevalidateFuture = CompletableFuture.runAsync( () -> {
+            try {
+                manifestUrls.parallelStream().forEach( manifestUrl -> {
+                    try {
+                        GameModPack fresh = GameModPackFetcher.get( manifestUrl, true );
+                        if ( fresh == null ) return;
+                        // Walk the live list and replace the matching entry. CopyOnWriteArrayList
+                        // semantics: set() is atomic per index. Match by manifest URL since
+                        // pack names can change across versions.
+                        for ( int i = 0; i < installedGameModPacks.size(); i++ ) {
+                            GameModPack current = installedGameModPacks.get( i );
+                            if ( current != null && manifestUrl.equals( current.getManifestUrl() ) ) {
+                                installedGameModPacks.set( i, fresh );
+                                break;
+                            }
+                        }
+                        try {
+                            ModPackUpdateLog.recordRemoteVersionSeen( fresh );
+                        }
+                        catch ( Throwable t ) {
+                            Logger.logWarningSilent( "Update-log record failed for "
+                                                             + fresh.getPackName() + ": " + t.getMessage() );
+                        }
+                    }
+                    catch ( Throwable t ) {
+                        // Per-pack failure is non-fatal — the cached version stays in the list.
+                        Logger.logWarningSilent( "Background revalidate failed for "
+                                                         + manifestUrl + ": " + t.getMessage() );
+                    }
+                } );
+            }
+            catch ( Throwable t ) {
+                Logger.logErrorSilent( "Installed-modpack background revalidate failed." );
+                Logger.logThrowable( t );
+            }
+        } );
     }
 
     /**

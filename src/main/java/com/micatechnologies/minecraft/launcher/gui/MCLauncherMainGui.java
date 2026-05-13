@@ -300,6 +300,21 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             } ) );
         }
 
+        // Installed-modpack revalidate hook. fetchInstalledModPacks now paints the menu
+        // from on-disk cache and kicks off a background network revalidate for every
+        // installed pack — when that future settles, any pack whose manifest has
+        // changed since the cache was written has already been swapped into the
+        // live list, so a single rebuildCards() picks up the new state (version,
+        // updated-since-launch flag, refreshed images) without the user touching
+        // anything. Cheap when no packs changed; the rebuild is what already runs
+        // on filter/sort interactions.
+        java.util.concurrent.CompletableFuture< Void > revalidateFuture =
+                com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager
+                        .getInstalledRevalidateFuture();
+        if ( revalidateFuture != null && !revalidateFuture.isDone() ) {
+            revalidateFuture.whenComplete( ( v, t ) -> GUIUtilities.JFXPlatformRun( this::rebuildCards ) );
+        }
+
         userImage.setImage( new Image(
                 GUIConstants.URL_MINECRAFT_USER_ICONS.replace( GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
                                                                MCLauncherAuthManager.getLoggedInUser().uuid() ) ) );

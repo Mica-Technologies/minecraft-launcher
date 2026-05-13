@@ -57,6 +57,43 @@ public class GameModPackFetcher
     private static final long MANIFEST_STALE_THRESHOLD_MS = 7L * 24L * 60L * 60L * 1000L;
 
     /**
+     * Returns a {@link GameModPack} parsed from the local on-disk manifest cache without
+     * touching the network. Used by the launcher's cold-start path to paint the main menu
+     * from cached data immediately while a background revalidate pulls fresh manifests
+     * in parallel.
+     *
+     * @param manifestUrl       mod pack manifest URL
+     * @param createEnvironment whether to call {@code prepareEnvironment()} on the loaded pack
+     *
+     * @return the cached mod pack, or {@code null} if no cache file exists for this URL or
+     *         the cache could not be parsed
+     *
+     * @since 3.5
+     */
+    public static GameModPack getFromCache( String manifestUrl, boolean createEnvironment ) {
+        try {
+            String body = loadCachedManifest( manifestUrl );
+            if ( body == null ) {
+                return null;
+            }
+            GameModPack pack = JSONUtilities.getGson().fromJson( body, GameModPack.class );
+            if ( pack == null ) {
+                return null;
+            }
+            pack.manifestUrl = manifestUrl;
+            if ( createEnvironment ) {
+                pack.prepareEnvironment();
+            }
+            return pack;
+        }
+        catch ( Exception e ) {
+            // Cache read failures aren't fatal — the caller falls back to a network fetch.
+            Logger.logWarningSilent( "Cached manifest unreadable for " + manifestUrl + ": " + e.getMessage() );
+            return null;
+        }
+    }
+
+    /**
      * Fetches the mod pack object from the specified manifest URL. If the network is available, downloads the latest
      * manifest and caches it locally. If offline, falls back to the cached version.
      *
