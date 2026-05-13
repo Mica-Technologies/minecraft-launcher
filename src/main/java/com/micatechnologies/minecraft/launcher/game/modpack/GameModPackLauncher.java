@@ -153,8 +153,12 @@ class GameModPackLauncher
             // stays anchored to the last actual hash sweep.
             if ( chosenMode == LaunchVerifyMode.FULL
                     && pack.getManifestContentSha256() != null ) {
+                // Read-modify-write so the scan-tracking fields (lastScannedAt /
+                // lastScannedManifestSha256) the scan step writes aren't clobbered
+                // by a verify-only update.
+                VerifyState existing = VerifyState.loadForPack( pack );
                 VerifyState fresh = VerifyState.successfulVerify(
-                        pack.getManifestContentSha256() );
+                        existing, pack.getManifestContentSha256() );
                 VerifyState.saveForPack( pack, fresh );
                 Logger.logDebug( "Wrote verify state for " + pack.getPackName()
                                          + " at " + fresh.verifiedAt );
@@ -223,8 +227,9 @@ class GameModPackLauncher
         try {
             buildClasspathInner();
             if ( pack.getManifestContentSha256() != null ) {
+                VerifyState existing = VerifyState.loadForPack( pack );
                 VerifyState fresh = VerifyState.successfulVerify(
-                        pack.getManifestContentSha256() );
+                        existing, pack.getManifestContentSha256() );
                 VerifyState.saveForPack( pack, fresh );
             }
         }
@@ -589,6 +594,34 @@ class GameModPackLauncher
 
     private void doSecurityScan( StepProgressHandle handle ) throws ModpackException
     {
+        // Resolve the effective frequency for this pack (per-pack override, then
+        // global default) and ask the policy whether the scan is due. Skipping
+        // here is a safety-tradeoff the user explicitly chose in Settings /
+        // modpack-detail Advanced — surface that on the row rather than silently
+        // running, otherwise users can't tell their setting is doing anything.
+        final com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency effective =
+                com.micatechnologies.minecraft.launcher.config.ConfigManager
+                        .effectiveScanFrequencyForPack( pack.getManifestUrl() );
+        final com.micatechnologies.minecraft.launcher.game.modpack.VerifyState lastState =
+                com.micatechnologies.minecraft.launcher.game.modpack.VerifyState.loadForPack( pack );
+        final String currentManifestSha256 = pack.getManifestContentSha256();
+        if ( !com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.shouldScan(
+                effective, lastState, currentManifestSha256 ) ) {
+            Logger.logDebug( "Skipping security scan for " + pack.getPackName()
+                                     + " — policy=" + effective.name() );
+            if ( handle != null ) {
+                String reason;
+                switch ( effective ) {
+                    case DISABLED:        reason = "Scan disabled in settings"; break;
+                    case ON_CHANGES_ONLY: reason = "No manifest change since last scan"; break;
+                    case DAILY:           reason = "Scanned recently — next scan due tomorrow"; break;
+                    default:              reason = "Scan not due this launch"; break;
+                }
+                handle.markSkipped( reason );
+            }
+            return;
+        }
+
         if ( handle != null ) handle.markRunning();
         // The scanner reads pack.progressProvider internally for status output (via the
         // logOutput Function it constructs in scanModPackRootFolder). Temporarily redirect
@@ -604,6 +637,22 @@ class GameModPackLauncher
         }
         try {
             pack.scanModPackRootFolder();
+            // Persist scan tracking so the next launch's shouldScan decision has
+            // a real lastScannedAt / lastScannedManifestSha256 to look at.
+            // Read-modify-write to preserve the verify-tracking fields.
+            try {
+                com.micatechnologies.minecraft.launcher.game.modpack.VerifyState existing =
+                        com.micatechnologies.minecraft.launcher.game.modpack.VerifyState.loadForPack( pack );
+                com.micatechnologies.minecraft.launcher.game.modpack.VerifyState fresh =
+                        com.micatechnologies.minecraft.launcher.game.modpack.VerifyState.successfulScan(
+                                existing, currentManifestSha256 );
+                com.micatechnologies.minecraft.launcher.game.modpack.VerifyState.saveForPack( pack, fresh );
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Could not persist scan state for "
+                                                 + pack.getPackName() + ": "
+                                                 + t.getClass().getSimpleName() );
+            }
             if ( handle != null ) {
                 handle.endProgressSection( "Security scan complete" );
                 handle.markDone();

@@ -78,6 +78,16 @@ public final class VerifyState
      *  upgrade invalidate the state if its verify rules changed. */
     public String launcherVersion;
 
+    /** Epoch milliseconds of the last successful security scan for this
+     *  pack. Drives {@link ScanFrequency#DAILY} / {@link ScanFrequency#ON_CHANGES_ONLY}
+     *  decisions — zero / missing means "never scanned" and forces a scan. */
+    public long lastScannedAt;
+
+    /** Manifest content hash that was in effect when the last scan ran.
+     *  Used by {@link ScanFrequency#ON_CHANGES_ONLY} to detect "manifest
+     *  changed → re-scan" without the full verify pass having to fire. */
+    public String lastScannedManifestSha256;
+
     // ===== load / save =====
 
     private static Path sidecarPath( GameModPack pack )
@@ -203,14 +213,26 @@ public final class VerifyState
         return LaunchVerifyMode.FAST_PATH;
     }
 
-    /** Convenience: builds a fresh state object representing "the launch
-     *  that's wrapping up RIGHT NOW completed a full verify against this
-     *  manifest hash." Caller persists via {@link #saveForPack}. */
-    public static VerifyState successfulVerify( String manifestSha256 )
+    /** Merges a "verify just succeeded" record into {@code existing} (or a
+     *  fresh state if null), preserving scan-tracking fields. Returns the
+     *  updated instance — caller persists via {@link #saveForPack}. */
+    public static VerifyState successfulVerify( VerifyState existing, String manifestSha256 )
     {
-        VerifyState s = new VerifyState();
+        VerifyState s = existing != null ? existing : new VerifyState();
         s.manifestSha256 = manifestSha256;
         s.verifiedAt = System.currentTimeMillis();
+        s.launcherVersion = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
+        return s;
+    }
+
+    /** Merges a "scan just succeeded" record into {@code existing} (or a
+     *  fresh state if null), preserving verify-tracking fields. Returns
+     *  the updated instance — caller persists via {@link #saveForPack}. */
+    public static VerifyState successfulScan( VerifyState existing, String manifestSha256 )
+    {
+        VerifyState s = existing != null ? existing : new VerifyState();
+        s.lastScannedAt = System.currentTimeMillis();
+        s.lastScannedManifestSha256 = manifestSha256;
         s.launcherVersion = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
         return s;
     }

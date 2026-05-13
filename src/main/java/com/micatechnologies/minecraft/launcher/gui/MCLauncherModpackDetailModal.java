@@ -684,6 +684,52 @@ public class MCLauncherModpackDetailModal extends StackPane
         section.getChildren().add( alwaysVerifyToggle );
         section.getChildren().add( toggleHint );
 
+        // Per-pack scan-frequency override. First entry maps to "null override"
+        // (== use global default); the rest map 1:1 to the enum values. Keyed
+        // by display label so user-facing copy can be edited without shifting
+        // indices in stored configs.
+        final String USE_GLOBAL = "Use global default";
+        io.github.palexdev.materialfx.controls.MFXComboBox< String > scanFreqCombo =
+                new io.github.palexdev.materialfx.controls.MFXComboBox<>();
+        com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency[] freqValues =
+                com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.values();
+        java.util.List< String > scanFreqLabels = new java.util.ArrayList<>();
+        scanFreqLabels.add( USE_GLOBAL );
+        for ( var f : freqValues ) scanFreqLabels.add( f.displayLabel() );
+        scanFreqCombo.setItems( javafx.collections.FXCollections.observableArrayList( scanFreqLabels ) );
+        com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency override =
+                ConfigManager.getScanFrequencyForPack( pack.getManifestUrl() );
+        scanFreqCombo.selectItem( override == null ? USE_GLOBAL : override.displayLabel() );
+        scanFreqCombo.setMinHeight( 36 );
+        scanFreqCombo.setPrefHeight( 36 );
+        scanFreqCombo.setPrefWidth( 280 );
+        scanFreqCombo.setOnAction( e -> {
+            String selected = scanFreqCombo.getSelectedItem();
+            if ( selected == null ) return;
+            if ( USE_GLOBAL.equals( selected ) ) {
+                ConfigManager.setScanFrequencyForPack( pack.getManifestUrl(), null );
+                return;
+            }
+            for ( var f : freqValues ) {
+                if ( f.displayLabel().equals( selected ) ) {
+                    ConfigManager.setScanFrequencyForPack( pack.getManifestUrl(), f );
+                    break;
+                }
+            }
+        } );
+        Label scanFreqLabel = new Label( "Security scan frequency" );
+        scanFreqLabel.setStyle( "-fx-font-size: 12px;" );
+        Label scanFreqHint = new Label(
+                "How often to run the malware scan before launching this pack. \"Use global default\" "
+                        + "follows whatever you've set in Settings → Advanced. Disable only if you trust the "
+                        + "source — the scan is the launcher's last line of defense against tampered mods." );
+        scanFreqHint.setWrapText( true );
+        scanFreqHint.getStyleClass().add( "subtle" );
+        scanFreqHint.setStyle( "-fx-font-size: 11px;" );
+        section.getChildren().add( scanFreqLabel );
+        section.getChildren().add( scanFreqCombo );
+        section.getChildren().add( scanFreqHint );
+
         // Button: verify this pack now.
         // Runs a force-FULL verify in the background using the new launch
         // progress GUI for the per-step display.

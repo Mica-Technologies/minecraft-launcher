@@ -91,6 +91,18 @@ public final class StepProgressHandle extends GameModPackProgressProvider
         tracker.markFailed( stepId, errorMessage );
     }
 
+    /** Marks the handle's step skipped with the given reason text. Call when
+     *  policy short-circuits the step's work (e.g. scan-frequency policy
+     *  saying "scan not due this launch"). The reason becomes the sub-text
+     *  on the row so the user can see why nothing ran. */
+    public synchronized void markSkipped( String reason )
+    {
+        if ( reason != null && !reason.isEmpty() ) {
+            tracker.setSubText( stepId, reason );
+        }
+        tracker.markSkipped( stepId );
+    }
+
     // =========================================================================
     //  GameModPackProgressProvider overrides — all routed to this step.
     // =========================================================================

@@ -264,6 +264,22 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
+                        <Label text="Security Scan Frequency">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="How often the malware scan runs before launch. Daily is recommended — catches manifest changes immediately and otherwise runs at most once per day so launches stay quick. Individual packs can override this in their Advanced section." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXComboBox fx:id="defaultScanFrequencyCombo" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="280.0" />
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
                         <Label text="Game File Integrity">
                             <font>
                                 <Font name="System Bold" size="13.0" />

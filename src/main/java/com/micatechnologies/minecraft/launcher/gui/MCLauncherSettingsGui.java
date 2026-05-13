@@ -258,6 +258,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     MFXButton verifyAllGameFilesBtn;
 
     /**
+     * Advanced tab: launcher-wide default for the security-scan frequency.
+     * The four-option combo backs
+     * {@link com.micatechnologies.minecraft.launcher.config.ConfigManager#setDefaultScanFrequency}.
+     * Per-pack overrides live in the modpack-detail-modal Advanced section.
+     *
+     * @since 2026.3
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXComboBox< String > defaultScanFrequencyCombo;
+
+    /**
      * Navigation buttons for settings category sidebar.
      *
      * @since 3.0
@@ -860,6 +872,30 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             uriHandlerToggle.setSelected( ConfigManager.getUriHandlerEnabled() );
             uriHandlerToggle.selectedProperty().addListener(
                     ( obs, oldV, newV ) -> ConfigManager.setUriHandlerEnabled( newV ) );
+        }
+
+        // Default scan-frequency combo. Stored as the enum name; combo is keyed by
+        // display label so renames of the user-facing copy don't shift the index.
+        if ( defaultScanFrequencyCombo != null ) {
+            com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency[] freqValues =
+                    com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.values();
+            java.util.List< String > labels = new java.util.ArrayList<>();
+            for ( var f : freqValues ) labels.add( f.displayLabel() );
+            defaultScanFrequencyCombo.setItems( javafx.collections.FXCollections.observableArrayList( labels ) );
+            com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency current =
+                    com.micatechnologies.minecraft.launcher.config.ConfigManager.getDefaultScanFrequency();
+            defaultScanFrequencyCombo.selectItem( current.displayLabel() );
+            defaultScanFrequencyCombo.setOnAction( e -> {
+                String selected = defaultScanFrequencyCombo.getSelectedItem();
+                if ( selected == null ) return;
+                for ( var f : freqValues ) {
+                    if ( f.displayLabel().equals( selected ) ) {
+                        com.micatechnologies.minecraft.launcher.config.ConfigManager
+                                .setDefaultScanFrequency( f );
+                        break;
+                    }
+                }
+            } );
         }
 
         // Verify-all-game-files button. Synchronously iterates every installed pack and

@@ -1096,6 +1096,130 @@ public class ConfigManager
     }
 
     /**
+     * Gets the launcher-wide default security-scan frequency. Falls back to
+     * {@link com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency#DEFAULT}
+     * when the key is missing / unparseable, so a config from a launcher version that
+     * didn't have this key keeps working with the safe default.
+     *
+     * @since 2026.3
+     */
+    public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency getDefaultScanFrequency() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.DEFAULT_SCAN_FREQUENCY_KEY ) ) {
+            return com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.DEFAULT;
+        }
+        try {
+            String name = configObject.get( ConfigConstants.DEFAULT_SCAN_FREQUENCY_KEY ).getAsString();
+            return com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.fromNameSafe( name );
+        }
+        catch ( Exception e ) {
+            return com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.DEFAULT;
+        }
+    }
+
+    /**
+     * Sets the launcher-wide default security-scan frequency. Wired from the
+     * Settings → Advanced "Security Scan Frequency" combo.
+     *
+     * @since 2026.3
+     */
+    public synchronized static void setDefaultScanFrequency(
+            com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency frequency ) {
+        if ( frequency == null ) frequency = com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.DEFAULT;
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.DEFAULT_SCAN_FREQUENCY_KEY, frequency.name() );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Returns the per-pack scan-frequency override for the given pack URL, or
+     * {@code null} when no override is set (i.e. "Use global default"). The
+     * three-state return — null / explicit enum — lets callers distinguish
+     * "user picked the global default knowingly" from "user picked EVERY_TIME
+     * which happens to match the current default."
+     *
+     * @since 2026.3
+     */
+    public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency
+            getScanFrequencyForPack( String packUrl ) {
+        if ( packUrl == null || packUrl.isBlank() ) return null;
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY ) ) return null;
+        try {
+            com.google.gson.JsonObject map = configObject.get(
+                    ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY ).getAsJsonObject();
+            if ( !map.has( packUrl ) ) return null;
+            String name = map.get( packUrl ).getAsString();
+            if ( name == null || name.isBlank() ) return null;
+            // Use raw valueOf so unknown values fall through to null (== use global default)
+            // rather than silently downgrading to DEFAULT — that would mask config corruption.
+            try {
+                return com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.valueOf( name );
+            }
+            catch ( IllegalArgumentException e ) {
+                return null;
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Could not read scanFrequency for "
+                                             + packUrl + ", falling back to default." );
+            return null;
+        }
+    }
+
+    /**
+     * Sets (or clears) the per-pack scan-frequency override. Passing
+     * {@code null} for {@code frequency} removes the override so the pack
+     * follows the global default again.
+     *
+     * @since 2026.3
+     */
+    public synchronized static void setScanFrequencyForPack(
+            String packUrl,
+            com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency frequency ) {
+        if ( packUrl == null || packUrl.isBlank() ) return;
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        com.google.gson.JsonObject map;
+        if ( configObject.has( ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY ) ) {
+            map = configObject.get( ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY ).getAsJsonObject();
+        }
+        else {
+            map = new com.google.gson.JsonObject();
+        }
+        if ( frequency == null ) {
+            map.remove( packUrl );
+        }
+        else {
+            map.addProperty( packUrl, frequency.name() );
+        }
+        configObject.add( ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY, map );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Resolves the effective scan frequency for a pack: per-pack override if
+     * one is set, else the launcher-wide default. The decision callers
+     * ({@code ScanFrequency.shouldScan}) only need a single value, so this
+     * hides the override-with-fallback dance.
+     *
+     * @since 2026.3
+     */
+    public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency
+            effectiveScanFrequencyForPack( String packUrl ) {
+        com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency override =
+                getScanFrequencyForPack( packUrl );
+        return override != null ? override : getDefaultScanFrequency();
+    }
+
+    /**
      * Reads the application configuration from its file on persistent storage. In the event that a file does not exist,
      * or an error occurred with the file, a new default configuration file will be created.
      *

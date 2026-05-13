@@ -563,4 +563,29 @@ public class ConfigConstants
     public static final boolean ALWAYS_VERIFY_ON_LAUNCH_DEFAULT = false;
 
     // endregion
+
+    // region Scan frequency controls (3.4 user-tunable security-scan cadence)
+
+    /**
+     * Key for the launcher-wide default security-scan frequency. Value is a
+     * {@code ScanFrequency.name()} string ("EVERY_TIME", "DAILY",
+     * "ON_CHANGES_ONLY", "DISABLED"). Stored as the enum name rather than
+     * the display label so renames of user-facing copy don't break configs.
+     *
+     * @since 2026.3
+     */
+    public static final String DEFAULT_SCAN_FREQUENCY_KEY = "defaultScanFrequency";
+
+    /**
+     * Per-pack-URL map of {@code packUrl → ScanFrequency.name()} for pack-
+     * specific overrides of the global default. Absent / null entries fall
+     * back to {@link #DEFAULT_SCAN_FREQUENCY_KEY}. Stored as a JsonObject
+     * so URLs with weird chars round-trip cleanly without needing key
+     * encoding (parallel to {@link #ALWAYS_VERIFY_BY_PACK_KEY}).
+     *
+     * @since 2026.3
+     */
+    public static final String SCAN_FREQUENCY_BY_PACK_KEY = "scanFrequencyByPack";
+
+    // endregion
 }
