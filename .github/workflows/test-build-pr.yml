@@ -14,11 +14,16 @@ jobs:
     name: Test Build (Windows)
     runs-on: windows-latest
     steps:
-      # fetch-depth: 0 lets the derive-revision-from-git step in pom.xml call git describe --tags.
+      # fetch-depth: 0 + fetch-tags: true ensures the derive-revision-from-git
+      # step in pom.xml can resolve a real tag via `git describe --tags`. With
+      # depth 0 alone, actions/checkout on pull_request events has been known
+      # to skip tag fetching for the merge ref, which lands the pom.xml
+      # fallback sentinel (0.0.0-no-git-tag) in the artifact's manifest.
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5

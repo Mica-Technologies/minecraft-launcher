@@ -288,8 +288,37 @@ public class DiscordRpcUtility
             clearJoinParty();
         }
 
-        setRichPresence( "In Game (Minecraft)", "Mod Pack: " + packName, OffsetDateTime.now(),
+        setRichPresence( "In Game (Minecraft)", "Mod Pack: " + sanitizePresenceField( packName ),
+                          OffsetDateTime.now(),
                           "mica_minecraft_launcher", "Mica Minecraft Launcher", "game", "In Game" );
+    }
+
+    /**
+     * Strips control characters (incl. CR/LF/NUL) and caps the length of a
+     * server-supplied string before it's sent as a Discord rich-presence field.
+     * The DiscordIPC library handles JSON escaping for ordinary text, but a
+     * manifest with a pack name containing literal newlines would still render
+     * across multiple visual lines in the Discord activity card (giving the
+     * attacker a few free lines of social-engineering surface in any viewer's
+     * Discord client). The 96-char cap stays well under Discord's 128-byte
+     * details limit even after the {@code "Mod Pack: "} prefix is added by
+     * the caller.
+     */
+    private static String sanitizePresenceField( String value )
+    {
+        if ( value == null || value.isEmpty() ) {
+            return "";
+        }
+        int cap = Math.min( value.length(), 96 );
+        StringBuilder out = new StringBuilder( cap );
+        for ( int i = 0; i < cap; i++ ) {
+            char c = value.charAt( i );
+            if ( c < 0x20 || c == 0x7F ) {
+                continue;
+            }
+            out.append( c );
+        }
+        return out.toString();
     }
 
     /**
