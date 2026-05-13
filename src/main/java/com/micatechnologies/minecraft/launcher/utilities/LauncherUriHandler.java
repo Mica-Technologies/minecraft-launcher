@@ -28,7 +28,9 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Parses and dispatches {@code mmcl://} URIs that deep-link into the launcher. The website
@@ -73,6 +75,25 @@ public final class LauncherUriHandler
 {
     public static final  String SCHEME        = "mmcl";
     private static final String SCHEME_PREFIX = SCHEME + "://";
+
+    /** Hosts whose modpack manifests we install without an extra confirmation prompt.
+     *  These are the official Mica-controlled origins. Any other host the URI dispatcher
+     *  sees triggers the untrusted-host confirmation dialog (security finding 1.6) —
+     *  a malicious phishing link emitting {@code mmcl://add?url=http://attacker/x.json}
+     *  can no longer install silently. */
+    private static final Set< String > TRUSTED_INSTALL_HOSTS = Set.of(
+            "micauseaststorage.blob.core.windows.net" );
+
+    /** Result of validating an install URL coming in over the {@code mmcl://} channel. */
+    private enum InstallUrlVerdict
+    {
+        /** URL is well-formed https, host is on the trusted allowlist. Install silently. */
+        ACCEPT_TRUSTED,
+        /** URL is well-formed https but the host is unknown. Prompt the user before install. */
+        REQUIRE_CONFIRMATION,
+        /** URL is missing, malformed, non-https, contains control chars, etc. Refuse. */
+        REJECT
+    }
 
     private LauncherUriHandler() { /* static-only */ }
 
@@ -129,7 +150,7 @@ public final class LauncherUriHandler
 
     /** {@code mmcl://add?url=...} — installs a modpack from its manifest URL. Toasts the
      *  result so the user sees feedback even if their attention has shifted away from the
-     *  launcher window. */
+     *  launcher window. Untrusted hosts trigger a confirmation prompt before install. */
     private static void handleAdd( String url )
     {
         if ( url == null || url.isBlank() ) {
@@ -137,6 +158,9 @@ public final class LauncherUriHandler
             return;
         }
         SystemUtilities.spawnNewTask( () -> {
+            if ( !confirmInstallUrl( url, "Install modpack from this site?" ) ) {
+                return;
+            }
             try {
                 GameModPackManager.installModPackByURL( url );
                 NotificationManager.success( "Modpack added",
@@ -215,6 +239,9 @@ public final class LauncherUriHandler
                 return;
             }
 
+            if ( !confirmInstallUrl( url, "Join your friend's modpack from this site?" ) ) {
+                return;
+            }
             try {
                 GameModPackManager.installModPackByURL( url );
                 NotificationManager.success( "Joining via Discord",
@@ -276,6 +303,105 @@ public final class LauncherUriHandler
     // =========================================================================================
     //  Helpers
     // =========================================================================================
+
+    /**
+     * Validates an install URL coming in over the {@code mmcl://} channel and (if the
+     * host is untrusted) prompts the user. Returns {@code true} only if the URL is safe
+     * to hand to {@link GameModPackManager#installModPackByURL} — security finding 1.6.
+     *
+     * <p>Threading: this method blocks the calling background task until the user
+     * answers the prompt. The dialog itself runs on the FX thread via
+     * {@link GUIUtilities#showQuestionMessage}. Callers must therefore be invoked
+     * from a worker thread (which both {@code handleAdd} and {@code handleJoin} already
+     * are via {@code SystemUtilities.spawnNewTask}).
+     */
+    private static boolean confirmInstallUrl( String url, String headerText )
+    {
+        InstallUrlVerdict verdict = classifyInstallUrl( url );
+        switch ( verdict ) {
+            case ACCEPT_TRUSTED:
+                return true;
+            case REJECT:
+                Logger.logWarningSilent( "Refusing mmcl:// install URL: " + url );
+                NotificationManager.error( "Unsafe link",
+                                           "The link's target couldn't be verified, so the launcher refused it. "
+                                                   + "Only HTTPS modpack URLs are accepted." );
+                return false;
+            case REQUIRE_CONFIRMATION:
+            default:
+                String host = hostOf( url );
+                int answer = GUIUtilities.showQuestionMessage(
+                        "Confirm modpack source",
+                        headerText,
+                        "This link asks the launcher to install a modpack from:\n\n"
+                                + "    " + host + "\n\n"
+                                + "This isn't one of the official Mica modpack hosts. Only continue if you "
+                                + "explicitly trust the site — installing a malicious modpack can run code on "
+                                + "your computer.",
+                        "Install",
+                        "Cancel",
+                        MCLauncherGuiController.getTopStageOrNull() );
+                // showQuestionMessage returns 1 for the first button (Install), 2 for the
+                // second, 0 for Cancel / dismiss. Anything other than 1 = refuse.
+                if ( answer != 1 ) {
+                    Logger.logStd( "User declined untrusted mmcl:// install for " + host );
+                    return false;
+                }
+                return true;
+        }
+    }
+
+    /**
+     * Pure-function URL classifier used by {@link #confirmInstallUrl(String, String)}.
+     * Decoupled so future tests / additional entry points can reuse it.
+     */
+    private static InstallUrlVerdict classifyInstallUrl( String url )
+    {
+        if ( url == null || url.isBlank() ) {
+            return InstallUrlVerdict.REJECT;
+        }
+        // Reject control chars — protects against header / multi-line smuggling tricks
+        // that could survive a poorly-validated downstream consumer.
+        for ( int i = 0; i < url.length(); i++ ) {
+            char c = url.charAt( i );
+            if ( c < 0x20 || c == 0x7F ) {
+                return InstallUrlVerdict.REJECT;
+            }
+        }
+        URI parsed;
+        try {
+            parsed = URI.create( url );
+        }
+        catch ( Exception e ) {
+            return InstallUrlVerdict.REJECT;
+        }
+        String scheme = parsed.getScheme();
+        if ( scheme == null || !scheme.equalsIgnoreCase( "https" ) ) {
+            return InstallUrlVerdict.REJECT;
+        }
+        String host = parsed.getHost();
+        if ( host == null || host.isBlank() ) {
+            return InstallUrlVerdict.REJECT;
+        }
+        if ( TRUSTED_INSTALL_HOSTS.contains( host.toLowerCase( Locale.ROOT ) ) ) {
+            return InstallUrlVerdict.ACCEPT_TRUSTED;
+        }
+        return InstallUrlVerdict.REQUIRE_CONFIRMATION;
+    }
+
+    /** Returns the host of a URL string for display in the confirmation prompt, falling
+     *  back to the raw URL on parse failure. */
+    private static String hostOf( String url )
+    {
+        try {
+            URI parsed = URI.create( url );
+            String h = parsed.getHost();
+            return h != null && !h.isBlank() ? h : url;
+        }
+        catch ( Exception e ) {
+            return url;
+        }
+    }
 
     /** Decodes a {@code key1=value1&key2=value2} query string into a map. Both keys and
      *  values are URL-decoded. Empty / null query → empty map. */
