@@ -201,25 +201,25 @@ public class ManagedGameFile
      * @since 1.0
      */
     private boolean verifyLocalFile() {
-        // Create File instance
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
 
-        // Hash Checking Enabled (SHA1): Return true if file exists, is not a folder, and hashes match
+        // Strongest-first ordering. The constructor stores exactly one hash today
+        // (so only one branch matches per file), but should the launcher ever evolve
+        // to carry multiple hashes per file we want SHA-256 to win — SHA-1 is
+        // collision-broken (SHAttered, 2017) and MD5 is broken for both collision
+        // and preimage. Until upstream manifests publish SHA-256 widely, the
+        // launcher consumes whatever the manifest provides.
+        if ( this.sha256 != null && !this.sha256.equals( "-1" ) ) {
+            return HashUtilities.verifySHA256( localFile, sha256 );
+        }
         if ( this.sha1 != null && !this.sha1.equals( "-1" ) ) {
             return HashUtilities.verifySHA1( localFile, sha1 );
         }
-        // Hash Checking Enabled (MD5): Return true if file exists, is not a folder, and hashes match
-        else if ( this.md5 != null && !this.md5.equals( "-1" ) ) {
+        if ( this.md5 != null && !this.md5.equals( "-1" ) ) {
             return HashUtilities.verifyMD5( localFile, md5 );
         }
-        // Hash Checking Enabled (SHA256): Return true if file exists, is not a folder, and hashes match
-        else if ( this.sha256 != null && !this.sha256.equals( "-1" ) ) {
-            return HashUtilities.verifySHA256( localFile, sha256 );
-        }
-        // Hash Checking Disabled: Return true if file exists and is file (not folder)
-        else {
-            return localFile.exists() && localFile.isFile();
-        }
+        // No hash declared — accept existence only.
+        return localFile.exists() && localFile.isFile();
     }
 
     /**

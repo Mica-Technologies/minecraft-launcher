@@ -157,7 +157,7 @@ public class HashUtilities
     public static boolean verifySHA1( File file, String validSha ) {
         if ( file.isFile() ) {
             String fileSha = getFileSHA1( file );
-            return fileSha != null && fileSha.equalsIgnoreCase( validSha );
+            return fileSha != null && constantTimeHexEquals( fileSha, validSha );
         }
         return false;
     }
@@ -175,7 +175,7 @@ public class HashUtilities
     public static boolean verifySHA256( File file, String validSha ) {
         if ( file.isFile() ) {
             String fileSha = getFileSHA256( file );
-            return fileSha != null && fileSha.equalsIgnoreCase( validSha );
+            return fileSha != null && constantTimeHexEquals( fileSha, validSha );
         }
         return false;
     }
@@ -193,8 +193,39 @@ public class HashUtilities
     public static boolean verifyMD5( File file, String validMd5 ) {
         if ( file.isFile() ) {
             String fileMd5 = getFileMD5( file );
-            return fileMd5 != null && fileMd5.equalsIgnoreCase( validMd5 );
+            return fileMd5 != null && constantTimeHexEquals( fileMd5, validMd5 );
         }
         return false;
+    }
+
+    /**
+     * Case-insensitive constant-time comparison of two hex-encoded hash strings.
+     * {@link String#equalsIgnoreCase} short-circuits on the first byte difference;
+     * a remote attacker who can observe verification timing could in principle
+     * recover a hash byte-by-byte. Replacing with an XOR-accumulator pattern keeps
+     * the comparison time independent of where the strings diverge.
+     *
+     * <p>Hex hashes are 7-bit ASCII, so a UTF-8 byte conversion is safe and the
+     * length check on the resulting byte arrays is equivalent to comparing the
+     * original strings character-by-character.
+     */
+    private static boolean constantTimeHexEquals( String a, String b )
+    {
+        if ( a == null || b == null ) {
+            return false;
+        }
+        if ( a.length() != b.length() ) {
+            return false;
+        }
+        // Normalize case for hex semantics, then walk both strings in lock-step.
+        // Working at the char level (rather than getBytes) avoids any String
+        // intermediate that might short-circuit.
+        int diff = 0;
+        for ( int i = 0; i < a.length(); i++ ) {
+            char ca = Character.toLowerCase( a.charAt( i ) );
+            char cb = Character.toLowerCase( b.charAt( i ) );
+            diff |= ca ^ cb;
+        }
+        return diff == 0;
     }
 }
