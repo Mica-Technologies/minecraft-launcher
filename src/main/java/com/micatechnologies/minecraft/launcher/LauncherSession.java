@@ -129,6 +129,13 @@ class LauncherSession
 
         if ( online ) {
             AnnouncementManager.startCheckAsync();
+            // Opportunistic background token renewal — only fires if the cached
+            // token is in the soft-refresh window (3-4h old). Lets us avoid the
+            // synchronous server contact on the next cold start by piggybacking
+            // the renewal on the current launch's idle pack-fetch window. No-op
+            // for fresh tokens and (deliberately) for already-expired ones.
+            com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager
+                    .tryPreemptiveBackgroundRenewal();
         }
         java.util.concurrent.CompletableFuture< Void > installedFuture =
                 java.util.concurrent.CompletableFuture.runAsync(

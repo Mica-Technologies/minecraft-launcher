@@ -93,6 +93,18 @@ public class MCLauncherAuthManager
     private static final long TOKEN_REFRESH_INTERVAL_MS = 4 * 60 * 60 * 1000L; // 4 hours
 
     /**
+     * Soft threshold (lower than the hard refresh interval) past which a cold-start
+     * caller may opt to kick off a non-blocking background renewal piggybacked on
+     * other startup work. The user proceeds with the cached token immediately;
+     * the async renewal just ensures the next cold-start lands inside the
+     * "no renewal needed" window again, smoothing out the every-N-launches stall.
+     *
+     * <p>3 hours = 75% of the hard interval. A user who launches the app more
+     * frequently than once every 3 hours never hits the synchronous renewal path.</p>
+     */
+    private static final long TOKEN_SOFT_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L; // 3 hours
+
+    /**
      * Timestamp of the last successful token renewal. Stored on disk alongside the auth file so it persists
      * across launcher restarts.
      */
@@ -669,6 +681,65 @@ public class MCLauncherAuthManager
         catch ( IOException e ) {
             Logger.logWarningSilent( "Unable to delete saved user account file!" );
             Logger.logThrowable( e );
+        }
+    }
+
+    /**
+     * If the cached token's age is in the {@link #TOKEN_SOFT_REFRESH_INTERVAL_MS}..
+     * {@link #TOKEN_REFRESH_INTERVAL_MS} window — too fresh to require synchronous
+     * renewal, but old enough that the next launch will hit the sync renewal path —
+     * kicks off a fire-and-forget background renewal piggybacked on other cold-start
+     * idle time. Returns immediately. The next cold start (assuming the renewal
+     * succeeds) lands inside the "no renewal needed" window again.
+     *
+     * <p>No-op when offline, when no cached login exists, when the token is younger
+     * than the soft threshold, or when the token is already past the hard threshold
+     * (since the caller's regular renewExistingLogin call will handle that case
+     * synchronously).</p>
+     *
+     * @since 3.5
+     */
+    public static void tryPreemptiveBackgroundRenewal() {
+        try {
+            if ( !hasExistingLogin() ) return;
+            // Force the timestamp file load if it hasn't been read yet — same lazy
+            // load shouldRenewToken does. Cheap enough to fold inline.
+            if ( lastSuccessfulRenewalMs == 0 ) {
+                shouldRenewToken();
+            }
+            if ( lastSuccessfulRenewalMs == 0 ) {
+                // No timestamp on disk → renewal is "required," which the synchronous
+                // path will handle. Bail out instead of double-renewing.
+                return;
+            }
+            long elapsed = System.currentTimeMillis() - lastSuccessfulRenewalMs;
+            if ( elapsed < TOKEN_SOFT_REFRESH_INTERVAL_MS ) {
+                return;  // still fresh — nothing to do
+            }
+            if ( elapsed >= TOKEN_REFRESH_INTERVAL_MS ) {
+                return;  // past hard threshold — let the sync caller handle it
+            }
+            if ( com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.isOffline() ) {
+                return;
+            }
+            Logger.logStd( "Token age in soft-refresh window — kicking off background renewal." );
+            java.util.concurrent.CompletableFuture.runAsync( () -> {
+                try {
+                    renewExistingLogin();
+                }
+                catch ( Throwable t ) {
+                    // Best-effort: any failure here is invisible to the user — they'll
+                    // hit the sync renewal next launch if this one didn't take.
+                    Logger.logWarningSilent( "Preemptive background renewal failed: "
+                                                     + t.getClass().getSimpleName() );
+                }
+            } );
+        }
+        catch ( Throwable t ) {
+            // Wrapper guard — nothing in this opportunistic path should throw onto the
+            // launcher's startup critical path.
+            Logger.logWarningSilent( "tryPreemptiveBackgroundRenewal aborted: "
+                                             + t.getClass().getSimpleName() );
         }
     }
 
