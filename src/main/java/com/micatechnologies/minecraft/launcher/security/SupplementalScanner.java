@@ -274,8 +274,59 @@ public final class SupplementalScanner
      *  reported but launch proceeds. */
     public enum Severity { HIGH, MEDIUM }
 
-    /** A single finding produced by the scanner. */
-    public record Finding(Severity severity, Path file, String message) {
+    /** Stable identifier for the rule that fired a finding. These names are
+     *  part of the public manifest schema for {@code packScanAcknowledgements}
+     *  — renaming or removing an entry is a breaking change for any modpack
+     *  manifest that references it. Add new entries freely; never repurpose
+     *  an existing one. */
+    public enum Kind {
+        /** Entry filename matched a Windows-executable or script suffix
+         *  ({@code .exe}, {@code .bat}, {@code .ps1}, etc.). */
+        EMBEDDED_EXECUTABLE,
+        /** Entry filename matched a native-binary suffix
+         *  ({@code .dll}/{@code .so}/{@code .dylib}/{@code .jnilib}) outside
+         *  the legit-paths whitelist and not matching the {@code lib*} /
+         *  {@code *.dll} filename convention. */
+        NATIVE_OUTSIDE_KNOWN_PATH,
+        /** Class constant pool contained a Discord webhook URL. */
+        DISCORD_WEBHOOK_URL,
+        /** Class constant pool contained a paste/file-host URL of the kind
+         *  used as a stage-2 payload source. */
+        SUSPICIOUS_HOST_URL,
+        /** Class constant pool referenced a launcher credential filename
+         *  ({@code launcher_profiles.json}, etc.). */
+        LAUNCHER_CREDENTIAL_FILE_REF,
+        /** Class constant pool contained a hard-coded IPv4 literal that
+         *  survived all the version-string / reserved-range FP guards. */
+        IPV4_LITERAL,
+        /** Class contained both AWT Robot and clipboard-access call sites,
+         *  the canonical clipboard-stealer fingerprint. */
+        CLIPBOARD_STEALER_PATTERN
+    }
+
+    /** A single finding produced by the scanner.
+     *
+     *  @param severity    HIGH (blocks launch) / MEDIUM (warns only)
+     *  @param kind        stable rule identifier; used as an acknowledgement key
+     *  @param file        absolute path of the containing JAR
+     *  @param fileSha256  hex SHA-256 of the JAR file contents; used as an
+     *                     acknowledgement key so a hash change (new mod version)
+     *                     invalidates an ack rather than silently inheriting it
+     *  @param locator     stable inner identifier — for class-content findings
+     *                     this is {@code <className>.<methodName>}, for entry-
+     *                     based findings it's the inner-JAR entry path. Used as
+     *                     a third acknowledgement key so a pack author can
+     *                     silence one specific class+method pair without
+     *                     silencing every finding of that kind in the same JAR.
+     *  @param message     human-readable description; surfaces in the
+     *                     scan-blocked popup and the warning log. NOT used for
+     *                     acknowledgement matching — the message wording can
+     *                     change between launcher versions, the (kind, locator)
+     *                     identity stays the same.
+     */
+    public record Finding(Severity severity, Kind kind, Path file, String fileSha256,
+                           String locator, String message)
+    {
         @Override public String toString() {
             return "[" + severity + "] " + file + " — " + message;
         }
@@ -360,6 +411,13 @@ public final class SupplementalScanner
     {
         List< Finding > findings = new ArrayList<>();
 
+        // Compute the JAR's SHA-256 once up front; every Finding produced for
+        // this JAR carries the hash so it can be matched against a manifest
+        // acknowledgement. A null hash (computation failure) means findings
+        // CAN still be produced and shown, but no ack will ever match them —
+        // safer than silently silencing on a missing key.
+        String fileSha256 = computeJarSha256( jarPath );
+
         // If the JAR's filename itself declares it's a natives-distribution JAR
         // (Mojang's *-natives-* packaging), suppress the "native binary outside
         // known natives path" check on its entries. The whole purpose of the
@@ -384,7 +442,8 @@ public final class SupplementalScanner
             // (1) Forbidden embedded executable / script.
             for ( String suffix : FORBIDDEN_EMBEDDED_SUFFIXES ) {
                 if ( lowerName.endsWith( suffix ) ) {
-                    findings.add( new Finding( Severity.HIGH, jarPath,
+                    findings.add( new Finding( Severity.HIGH, Kind.EMBEDDED_EXECUTABLE,
+                            jarPath, fileSha256, name,
                             "embedded executable / script entry: " + name ) );
                     break;
                 }
@@ -404,7 +463,8 @@ public final class SupplementalScanner
                     if ( lowerName.endsWith( suffix ) ) {
                         if ( !isInLegitNativePath( normalized )
                                 && !hasLegitNativeFilename( normalized ) ) {
-                            findings.add( new Finding( Severity.MEDIUM, jarPath,
+                            findings.add( new Finding( Severity.MEDIUM, Kind.NATIVE_OUTSIDE_KNOWN_PATH,
+                                    jarPath, fileSha256, name,
                                     "native binary outside a known natives path: " + name ) );
                         }
                         break;
@@ -417,7 +477,7 @@ public final class SupplementalScanner
             if ( lowerName.endsWith( ".class" ) ) {
                 try ( InputStream is = jar.getInputStream( entry ) ) {
                     byte[] bytes = readAll( is );
-                    scanClassConstants( bytes, jarPath, findings );
+                    scanClassConstants( bytes, jarPath, fileSha256, findings );
                 }
                 catch ( Exception e ) {
                     // Parse failure on a single class is not actionable;
@@ -428,11 +488,41 @@ public final class SupplementalScanner
         return findings;
     }
 
+    /** Streaming SHA-256 of a JAR file, hex-encoded lowercase. Used as the
+     *  file-identity key in {@link
+     *  com.micatechnologies.minecraft.launcher.game.modpack.ScanAcknowledgement}
+     *  so a hash change (new mod version, repackaged JAR) invalidates the ack
+     *  rather than silently inheriting it. Returns {@code null} on read or
+     *  digest failure — callers treat null as "no hash available, no ack
+     *  match possible." */
+    private static String computeJarSha256( Path jarPath )
+    {
+        if ( jarPath == null ) return null;
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance( "SHA-256" );
+            try ( InputStream is = Files.newInputStream( jarPath ) ) {
+                byte[] buf = new byte[ 16384 ];
+                int n;
+                while ( ( n = is.read( buf ) ) != -1 ) {
+                    md.update( buf, 0, n );
+                }
+            }
+            byte[] digest = md.digest();
+            StringBuilder sb = new StringBuilder( digest.length * 2 );
+            for ( byte b : digest ) sb.append( String.format( "%02x", b ) );
+            return sb.toString();
+        }
+        catch ( Exception e ) {
+            return null;
+        }
+    }
+
     /** Walks the class's instruction stream looking for LDC string constants
      *  that match the IoC patterns, plus the AWT-Robot + Clipboard combination
      *  that fingerprints clipboard stealers. ASM's tree API gives us the
      *  constants directly without needing a full visitor implementation. */
-    private static void scanClassConstants( byte[] classBytes, Path jarPath, List< Finding > findings )
+    private static void scanClassConstants( byte[] classBytes, Path jarPath, String fileSha256,
+                                             List< Finding > findings )
     {
         ClassReader reader;
         try {
@@ -461,7 +551,7 @@ public final class SupplementalScanner
             for ( int i = 0; i < method.instructions.size(); i++ ) {
                 AbstractInsnNode insn = method.instructions.get( i );
                 if ( insn instanceof LdcInsnNode ldc && ldc.cst instanceof String s ) {
-                    inspectStringConstant( s, jarPath, node, method, findings );
+                    inspectStringConstant( s, jarPath, fileSha256, node, method, findings );
                 }
                 else if ( insn instanceof MethodInsnNode mi ) {
                     if ( AWT_ROBOT_OWNER.equals( mi.owner ) ) {
@@ -479,28 +569,33 @@ public final class SupplementalScanner
         // utility mods legitimately script the clipboard for "click to
         // copy server IP" features, so blocking outright would FP.
         if ( sawAwtRobot && sawClipboard ) {
-            findings.add( new Finding( Severity.MEDIUM, jarPath,
+            findings.add( new Finding( Severity.MEDIUM, Kind.CLIPBOARD_STEALER_PATTERN,
+                    jarPath, fileSha256, node.name,
                     "clipboard-stealer pattern (AWT Robot + Clipboard) in " + node.name ) );
         }
     }
 
-    private static void inspectStringConstant( String s, Path jarPath, ClassNode owner,
-                                                MethodNode method, List< Finding > findings )
+    private static void inspectStringConstant( String s, Path jarPath, String fileSha256,
+                                                ClassNode owner, MethodNode method,
+                                                List< Finding > findings )
     {
         if ( s == null || s.isEmpty() ) {
             return;
         }
+        String locator = owner.name + "." + method.name;
         // (A) Discord webhook — HIGH.
         if ( DISCORD_WEBHOOK.matcher( s ).find() ) {
-            findings.add( new Finding( Severity.HIGH, jarPath,
-                    "Discord webhook URL in " + owner.name + "." + method.name ) );
+            findings.add( new Finding( Severity.HIGH, Kind.DISCORD_WEBHOOK_URL,
+                    jarPath, fileSha256, locator,
+                    "Discord webhook URL in " + locator ) );
             return; // one HIGH per class is enough; don't spam findings
         }
         // (B) Suspicious paste / file-host URL — HIGH.
         for ( Pattern p : SUSPICIOUS_HOST_PATTERNS ) {
             if ( p.matcher( s ).find() ) {
-                findings.add( new Finding( Severity.HIGH, jarPath,
-                        "suspicious host URL in " + owner.name + "." + method.name + " (" + p.pattern() + ")" ) );
+                findings.add( new Finding( Severity.HIGH, Kind.SUSPICIOUS_HOST_URL,
+                        jarPath, fileSha256, locator,
+                        "suspicious host URL in " + locator + " (" + p.pattern() + ")" ) );
                 return;
             }
         }
@@ -510,9 +605,9 @@ public final class SupplementalScanner
         String lowerS = s.toLowerCase( Locale.ROOT );
         for ( String credFile : LAUNCHER_CREDENTIAL_FILES ) {
             if ( lowerS.contains( credFile ) ) {
-                findings.add( new Finding( Severity.HIGH, jarPath,
-                        "reference to launcher credential file '" + credFile + "' in "
-                                + owner.name + "." + method.name ) );
+                findings.add( new Finding( Severity.HIGH, Kind.LAUNCHER_CREDENTIAL_FILE_REF,
+                        jarPath, fileSha256, locator,
+                        "reference to launcher credential file '" + credFile + "' in " + locator ) );
                 return;
             }
         }
@@ -528,8 +623,9 @@ public final class SupplementalScanner
         //          or "3.5.0.0" that happen to parse as IPv4.
         Matcher m = IPV4_LITERAL.matcher( s );
         if ( m.find() && looksLikeRealIp( m ) && !isFalsePositiveIp( s, m ) ) {
-            findings.add( new Finding( Severity.MEDIUM, jarPath,
-                    "hard-coded IPv4 literal in " + owner.name + "." + method.name + ": " + m.group() ) );
+            findings.add( new Finding( Severity.MEDIUM, Kind.IPV4_LITERAL,
+                    jarPath, fileSha256, locator,
+                    "hard-coded IPv4 literal in " + locator + ": " + m.group() ) );
         }
     }
 

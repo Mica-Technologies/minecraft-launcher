@@ -182,18 +182,6 @@ public class GameModPack extends GameModPackMetadata
 
         Results scanResults = Main.run( scanCoreCount, Path.of( getPackRootFolder() ), emitWalkErrors,
                                         getPackScanExclusions(), logOutput, null );
-        if ( scanResults.getStage1Detections() != null && !scanResults.getStage1Detections().isEmpty() ) {
-            int n = scanResults.getStage1Detections().size();
-            logOutput.apply( "Security scan blocked launch: " + n
-                                     + ( n == 1 ? " issue detected." : " issues detected." ) );
-            throw new ModpackScanDetectionException( scanResults, getPackName(), getPackRootFolder() );
-        }
-        else if ( scanResults.getStage2Detections() != null && !scanResults.getStage2Detections().isEmpty() ) {
-            int n = scanResults.getStage2Detections().size();
-            logOutput.apply( "Security scan blocked launch: " + n
-                                     + ( n == 1 ? " issue detected." : " issues detected." ) );
-            throw new ModpackScanDetectionException( scanResults, getPackName(), getPackRootFolder() );
-        }
 
         // Supplemental, non-Fractureiser-specific heuristics. The Nekodetector
         // checks above are narrowly targeted at one malware family; this layer
@@ -202,34 +190,10 @@ public class GameModPack extends GameModPackMetadata
         // adjacent IoCs. HIGH-severity findings are treated as Stage 1 hits;
         // MEDIUM findings are logged but don't block launch (false-positive
         // floor is too uncertain to fail-closed on them).
+        List< SupplementalScanner.Finding > supplemental = new ArrayList<>();
         try {
-            List< SupplementalScanner.Finding > extras =
-                    SupplementalScanner.scanFolder( Path.of( getPackRootFolder() ),
-                                                    getPackScanExclusions(), scanCoreCount );
-            List< String > highHits = new java.util.ArrayList<>();
-            for ( SupplementalScanner.Finding f : extras ) {
-                if ( f.severity() == SupplementalScanner.Severity.HIGH ) {
-                    highHits.add( f.toString() );
-                    logOutput.apply( "Supplemental infection signal: " + f );
-                }
-                else {
-                    logOutput.apply( "Supplemental warning: " + f );
-                    Logger.logWarning( "Supplemental modpack scan flagged: " + f );
-                }
-            }
-            if ( !highHits.isEmpty() ) {
-                int n = highHits.size();
-                logOutput.apply( "Security scan blocked launch: " + n
-                                         + ( n == 1 ? " issue detected." : " issues detected." ) );
-                List< String > merged = new java.util.ArrayList<>();
-                if ( scanResults.getStage1Detections() != null ) {
-                    merged.addAll( scanResults.getStage1Detections() );
-                }
-                merged.addAll( highHits );
-                throw new ModpackScanDetectionException(
-                        new Results( merged, scanResults.getStage2Detections() ),
-                        getPackName(), getPackRootFolder() );
-            }
+            supplemental.addAll( SupplementalScanner.scanFolder( Path.of( getPackRootFolder() ),
+                                                                  getPackScanExclusions(), scanCoreCount ) );
         }
         catch ( IOException e ) {
             // I/O failure during the supplemental walk shouldn't abort the
@@ -237,6 +201,159 @@ public class GameModPack extends GameModPackMetadata
             Logger.logWarningSilent( "Supplemental scan I/O error: "
                                              + e.getClass().getSimpleName() );
         }
+
+        // Apply per-finding acknowledgements declared in the manifest. Each
+        // ack carries (fileSha256, kind, locator); findings whose structured
+        // signature matches are dropped from the blocking list and logged so
+        // the user can see the maintainer's stated rationale. The scan still
+        // RAN against the file — this only silences specific known-OK
+        // patterns, so a JAR update that changes the SHA-256 invalidates the
+        // ack (the new content gets reviewed fresh) and a different kind /
+        // locator firing on the same JAR still flags.
+        //
+        // Acknowledgements only apply to supplemental (heuristic) findings.
+        // Nekodetector stage 1 / stage 2 hits are signature-based malware
+        // detection and stay unsilenceable — if a real Fractureiser FP ever
+        // occurred, the right escape hatch is per-pack ScanFrequency.DISABLED.
+        List< ScanAcknowledgement > acks = getPackScanAcknowledgements();
+        List< SupplementalScanner.Finding > remainingSupp = new ArrayList<>();
+        for ( SupplementalScanner.Finding f : supplemental ) {
+            ScanAcknowledgement matched = null;
+            for ( ScanAcknowledgement a : acks ) {
+                if ( a != null && a.matches( f ) ) {
+                    matched = a;
+                    break;
+                }
+            }
+            if ( matched != null ) {
+                String reasonSuffix = ( matched.reason == null || matched.reason.isBlank() )
+                        ? ""
+                        : " (reason: " + matched.reason + ")";
+                String line = "Acknowledged scan finding: " + f + reasonSuffix;
+                logOutput.apply( line );
+                Logger.logStd( line );
+            }
+            else {
+                remainingSupp.add( f );
+            }
+        }
+
+        // Per-finding logging + (where applicable) acknowledgement hint for
+        // everything that remains after acks. Done in a single pass so each
+        // un-silenced finding shows up next to a paste-ready snippet.
+        List< String > stage1 = scanResults.getStage1Detections();
+        List< String > stage2 = scanResults.getStage2Detections();
+        if ( stage1 != null ) {
+            for ( String f : stage1 ) {
+                Logger.logWarning( "Modpack scan flagged: " + f );
+                Logger.logStd( nekoCannotAckHint() );
+            }
+        }
+        if ( stage2 != null ) {
+            for ( String f : stage2 ) {
+                Logger.logWarning( "Modpack scan flagged: " + f );
+                Logger.logStd( nekoCannotAckHint() );
+            }
+        }
+        for ( SupplementalScanner.Finding f : remainingSupp ) {
+            if ( f.severity() == SupplementalScanner.Severity.HIGH ) {
+                logOutput.apply( "Supplemental infection signal: " + f );
+            }
+            else {
+                logOutput.apply( "Supplemental warning: " + f );
+            }
+            Logger.logWarning( "Supplemental modpack scan flagged: " + f );
+            emitAcknowledgementHint( f );
+        }
+
+        // Block launch if anything's still un-acknowledged. Stage 1 and the
+        // supplemental HIGHs share the same blocking severity — merge them
+        // into one list for the exception so the popup renders them together.
+        // Supplemental MEDIUMs never block.
+        List< String > blockingHigh = new ArrayList<>();
+        if ( stage1 != null ) blockingHigh.addAll( stage1 );
+        for ( SupplementalScanner.Finding f : remainingSupp ) {
+            if ( f.severity() == SupplementalScanner.Severity.HIGH ) {
+                blockingHigh.add( f.toString() );
+            }
+        }
+        boolean anyBlocking = !blockingHigh.isEmpty()
+                || ( stage2 != null && !stage2.isEmpty() );
+        if ( anyBlocking ) {
+            int total = blockingHigh.size() + ( stage2 == null ? 0 : stage2.size() );
+            logOutput.apply( "Security scan blocked launch: " + total
+                                     + ( total == 1 ? " issue detected." : " issues detected." ) );
+            throw new ModpackScanDetectionException(
+                    new Results( blockingHigh, stage2 ),
+                    getPackName(), getPackRootFolder() );
+        }
+    }
+
+    /**
+     * Emit a paste-ready hint to the log so a pack maintainer can silence
+     * the given supplemental-scanner finding by appending an entry to the
+     * manifest's {@code packScanAcknowledgements} list:
+     *
+     * <pre>
+     * To silence this finding, append to the manifest's packScanAcknowledgements:
+     *   {
+     *     "fileSha256": "ab12cd34...",
+     *     "kind":       "LAUNCHER_CREDENTIAL_FILE_REF",
+     *     "locator":    "optifine/Installer.updateLauncherJson",
+     *     "reason":     ""
+     *   }
+     * </pre>
+     *
+     * <p>The three identity fields come straight from the structured Finding,
+     * so they're stable across launcher versions (renaming the user-facing
+     * message wording doesn't shift them) and tight enough that a different
+     * finding can't accidentally match. Bound to the JAR's SHA-256 so a mod
+     * update invalidates the ack cleanly — the new content gets reviewed
+     * fresh rather than silently inheriting the old trust.</p>
+     */
+    private static void emitAcknowledgementHint( SupplementalScanner.Finding f )
+    {
+        if ( f == null ) return;
+        String sha = f.fileSha256();
+        if ( sha == null || sha.isBlank() ) {
+            // Without a hash we can't produce a stable signature. Tell the user
+            // why no hint appears rather than emit an unmatchable snippet.
+            Logger.logStd( "No acknowledgement signature available for this finding — "
+                                   + "JAR hash could not be computed. The finding will continue "
+                                   + "to block launches until the file is removed or repaired." );
+            return;
+        }
+        String kindName = f.kind() == null ? "" : f.kind().name();
+        String locator = f.locator() == null ? "" : f.locator();
+        Logger.logStd( "To silence this finding, append to the manifest's packScanAcknowledgements:" );
+        Logger.logStd( "  {" );
+        Logger.logStd( "    \"fileSha256\": \"" + jsonEscape( sha ) + "\"," );
+        Logger.logStd( "    \"kind\":       \"" + jsonEscape( kindName ) + "\"," );
+        Logger.logStd( "    \"locator\":    \"" + jsonEscape( locator ) + "\"," );
+        Logger.logStd( "    \"reason\":     \"\"" );
+        Logger.logStd( "  }" );
+    }
+
+    /** Shared explanation line for Nekodetector findings — they can't be
+     *  silenced via {@code packScanAcknowledgements} because they're
+     *  signature-based malware detection, not heuristics. Surfaced after
+     *  each Nekodetector finding so the maintainer isn't left wondering
+     *  why no JSON snippet appears. */
+    private static String nekoCannotAckHint()
+    {
+        return "This finding is from the malware-specific (Nekodetector) scanner and cannot be "
+                + "silenced via packScanAcknowledgements. If you trust this content, change "
+                + "the pack's Security Scan Frequency to Disabled in its Advanced settings.";
+    }
+
+    /** Minimal JSON string-content escaper for the ack-hint log line.
+     *  Handles the two characters that would actually break the literal
+     *  ({@code \} and {@code "}); the launcher's finding strings don't
+     *  contain control chars worth escaping further. */
+    private static String jsonEscape( String s )
+    {
+        if ( s == null ) return "";
+        return s.replace( "\\", "\\\\" ).replace( "\"", "\\\"" );
     }
 
     /**

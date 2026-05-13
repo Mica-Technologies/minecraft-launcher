@@ -153,6 +153,18 @@ public abstract class GameModPackMetadata
     protected List< String > packScanExclusions;
 
     /**
+     * Per-finding acknowledgements that silence specific known-OK security-scan hits without disabling the scan
+     * entirely or excluding the file outright. Each entry carries a substring {@code match} plus a free-form
+     * {@code reason}; findings whose text contains the match are dropped from the blocking list and logged as
+     * acknowledged. Loaded from manifest JSON; see {@link ScanAcknowledgement} for the manifest format and
+     * matching semantics. Defaults to an empty list when the manifest omits the field.
+     *
+     * @since 2026.3
+     */
+    @SuppressWarnings( "unused" )
+    protected List< ScanAcknowledgement > packScanAcknowledgements;
+
+    /**
      * List of mod pack Forge mods. Value read from manifest JSON.
      *
      * @since 1.0
@@ -282,6 +294,22 @@ public abstract class GameModPackMetadata
             packScanExclusions = new ArrayList<>();
         }
         return packScanExclusions;
+    }
+
+    /**
+     * Get the mod pack scan acknowledgements — per-finding silencers for known-OK detections.
+     *
+     * @return list of acknowledgements, never null
+     *
+     * @since 2026.3
+     */
+    public List< ScanAcknowledgement > getPackScanAcknowledgements()
+    {
+        if ( packScanAcknowledgements == null )
+        {
+            packScanAcknowledgements = new ArrayList<>();
+        }
+        return packScanAcknowledgements;
     }
 
     /**
