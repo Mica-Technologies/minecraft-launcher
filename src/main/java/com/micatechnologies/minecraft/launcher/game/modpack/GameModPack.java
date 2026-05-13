@@ -31,9 +31,12 @@ import com.micatechnologies.minecraft.launcher.exceptions.ModpackScanDetectionEx
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest;
+import com.micatechnologies.minecraft.launcher.security.SupplementalScanner;
 import me.cortex.jarscanner.Constants;
 import me.cortex.jarscanner.Main;
 import me.cortex.jarscanner.Results;
+
+import java.util.List;
 
 /**
  * Class representation of a Forge mod pack with functionality to update mods, game libraries and start the game.
@@ -186,6 +189,46 @@ public class GameModPack extends GameModPackMetadata
         else if ( scanResults.getStage2Detections() != null && !scanResults.getStage2Detections().isEmpty() ) {
             logOutput.apply( "Stage 2 infections found: " + scanResults.getStage2Detections().size() );
             throw new ModpackScanDetectionException( scanResults );
+        }
+
+        // Supplemental, non-Fractureiser-specific heuristics. The Nekodetector
+        // checks above are narrowly targeted at one malware family; this layer
+        // adds high-signal checks for embedded executables, Discord-webhook
+        // exfil endpoints, paste-host stage-2 fetchers, and a couple of
+        // adjacent IoCs. HIGH-severity findings are treated as Stage 1 hits;
+        // MEDIUM findings are logged but don't block launch (false-positive
+        // floor is too uncertain to fail-closed on them).
+        try {
+            List< SupplementalScanner.Finding > extras =
+                    SupplementalScanner.scanFolder( Path.of( getPackRootFolder() ),
+                                                    getPackScanExclusions(), scanCoreCount );
+            List< String > highHits = new java.util.ArrayList<>();
+            for ( SupplementalScanner.Finding f : extras ) {
+                if ( f.severity() == SupplementalScanner.Severity.HIGH ) {
+                    highHits.add( f.toString() );
+                    logOutput.apply( "Supplemental infection signal: " + f );
+                }
+                else {
+                    logOutput.apply( "Supplemental warning: " + f );
+                    Logger.logWarning( "Supplemental modpack scan flagged: " + f );
+                }
+            }
+            if ( !highHits.isEmpty() ) {
+                logOutput.apply( "Supplemental infections found: " + highHits.size() );
+                List< String > merged = new java.util.ArrayList<>();
+                if ( scanResults.getStage1Detections() != null ) {
+                    merged.addAll( scanResults.getStage1Detections() );
+                }
+                merged.addAll( highHits );
+                throw new ModpackScanDetectionException(
+                        new Results( merged, scanResults.getStage2Detections() ) );
+            }
+        }
+        catch ( IOException e ) {
+            // I/O failure during the supplemental walk shouldn't abort the
+            // launch on its own — the upstream Nekodetector already completed.
+            Logger.logWarningSilent( "Supplemental scan I/O error: "
+                                             + e.getClass().getSimpleName() );
         }
     }
 

@@ -58,6 +58,7 @@ import oshi.SystemInfo;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
 
 public class MCLauncherSettingsGui extends MCLauncherAbstractGui
@@ -1016,20 +1017,39 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         };
         Results scanResults = Main.run( scanCoreCount, scanFolder.toPath(), emitWalkErrors, new ArrayList<>(),
                                         logOutput, progressOutput );
-        if ( scanResults.getStage1Detections() != null &&
-                !scanResults.getStage1Detections().isEmpty() &&
-                scanResults.getStage2Detections() != null &&
-                !scanResults.getStage2Detections().isEmpty() ) {
-            int infectionCount = scanResults.getStage1Detections().size() + scanResults.getStage2Detections().size();
-            logOutput.apply( "Stage 1 and 2 infections found: " + infectionCount );
+
+        // Layer the supplemental heuristics on top so the user-triggered scan
+        // surfaces the same broader findings the per-launch scan does. Counted
+        // separately in the output line so "Stage 1 / Stage 2 / Supplemental"
+        // reads as three independent signals.
+        int supplementalHigh = 0;
+        int supplementalMedium = 0;
+        try {
+            List< com.micatechnologies.minecraft.launcher.security.SupplementalScanner.Finding > extras =
+                    com.micatechnologies.minecraft.launcher.security.SupplementalScanner.scanFolder(
+                            scanFolder.toPath(), new ArrayList<>(), scanCoreCount );
+            for ( var f : extras ) {
+                if ( f.severity()
+                        == com.micatechnologies.minecraft.launcher.security.SupplementalScanner.Severity.HIGH ) {
+                    supplementalHigh++;
+                }
+                else {
+                    supplementalMedium++;
+                }
+                logOutput.apply( "Supplemental scan: " + f );
+            }
         }
-        else if ( scanResults.getStage1Detections() != null && !scanResults.getStage1Detections().isEmpty() ) {
-            int infectionCount = scanResults.getStage1Detections().size();
-            logOutput.apply( "Stage 1 infections found: " + infectionCount );
+        catch ( IOException e ) {
+            logOutput.apply( "Supplemental scan I/O error: " + e.getMessage() );
         }
-        else if ( scanResults.getStage2Detections() != null && !scanResults.getStage2Detections().isEmpty() ) {
-            int infectionCount = scanResults.getStage2Detections().size();
-            logOutput.apply( "Stage 2 infections found: " + infectionCount );
+
+        int stage1 = scanResults.getStage1Detections() == null ? 0 : scanResults.getStage1Detections().size();
+        int stage2 = scanResults.getStage2Detections() == null ? 0 : scanResults.getStage2Detections().size();
+        int total = stage1 + stage2 + supplementalHigh + supplementalMedium;
+        if ( total > 0 ) {
+            logOutput.apply( "Infections found — stage1=" + stage1 + ", stage2=" + stage2
+                                     + ", supplemental-high=" + supplementalHigh
+                                     + ", supplemental-warn=" + supplementalMedium );
         }
         else if ( scanningCanceled ) {
             logOutput.apply( "Scan canceled!" );
