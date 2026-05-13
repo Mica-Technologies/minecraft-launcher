@@ -82,6 +82,10 @@ public class GameModPackFetcher
                 return null;
             }
             pack.manifestUrl = manifestUrl;
+            // Capture the content hash so VerifyState.decideMode can compare against
+            // the last-verified hash on the next launch — same body bytes → fast-path
+            // eligible (subject to TTL etc.), different bytes → full verify.
+            pack.setManifestContentSha256( VerifyState.computeManifestSha256( body ) );
             if ( createEnvironment ) {
                 pack.prepareEnvironment();
             }
@@ -153,6 +157,8 @@ public class GameModPackFetcher
                 }
             }
             gameModPack = JSONUtilities.getGson().fromJson( manifestBody, GameModPack.class );
+            // Capture manifest body hash for fast-path verify decisions (see VerifyState).
+            gameModPack.setManifestContentSha256( VerifyState.computeManifestSha256( manifestBody ) );
             if ( createEnvironment ) {
                 gameModPack.prepareEnvironment();
                 if ( !NetworkUtilities.isOffline() ) {

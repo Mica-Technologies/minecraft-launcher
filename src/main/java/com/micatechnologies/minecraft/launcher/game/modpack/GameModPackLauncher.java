@@ -125,6 +125,119 @@ class GameModPackLauncher
             progressProvider.setCurrText( "Preparing modpack..." );
         }
 
+        // Decide and install the verify mode for this launch. The mode is read
+        // by ManagedGameFile.verifyLocalFile inside every fetchLatest* /
+        // buildXClasspath call below. FULL is the historical behaviour (hash
+        // every file); FAST_PATH accepts files on existence + non-zero size.
+        //
+        // Step 2 of 3.3 lands this plumbing but ManagedGameFile still always
+        // does the FULL check regardless of the value — the decision result
+        // is observable for verification but doesn't yet change behaviour.
+        // Step 3 lights up the FAST_PATH branch and the sidecar write that
+        // makes subsequent launches eligible.
+        //
+        // The user-facing controls (per-pack toggle + global force flag) land
+        // in step 4; for now both inputs are hardcoded false so the decision
+        // is driven entirely by manifest-hash + TTL + sidecar presence.
+        final LaunchVerifyMode chosenMode = decideLaunchVerifyMode();
+        Logger.logDebug( "Launch verify mode for " + pack.getPackName() + ": " + chosenMode );
+        LaunchVerifyMode prevMode = ManagedGameFile.getCurrentVerifyMode();
+        ManagedGameFile.setCurrentVerifyMode( chosenMode );
+        try {
+            String classpath = buildClasspathInner();
+            // Persist the sidecar ONLY after a successful FULL verify. A FAST_PATH
+            // run didn't validate anything new, so bumping verifiedAt would let
+            // the TTL never bite — defeating the staleness safety net. We do
+            // refresh the manifestSha256 in case it ever drifts (shouldn't,
+            // since the decision required it to match) but the verifiedAt
+            // stays anchored to the last actual hash sweep.
+            if ( chosenMode == LaunchVerifyMode.FULL
+                    && pack.getManifestContentSha256() != null ) {
+                VerifyState fresh = VerifyState.successfulVerify(
+                        pack.getManifestContentSha256() );
+                VerifyState.saveForPack( pack, fresh );
+                Logger.logDebug( "Wrote verify state for " + pack.getPackName()
+                                         + " at " + fresh.verifiedAt );
+            }
+            return classpath;
+        }
+        finally {
+            // Always restore so a subsequent launch starts from a known state
+            // regardless of how this one ended.
+            ManagedGameFile.setCurrentVerifyMode( prevMode );
+        }
+    }
+
+    /**
+     * Rolls up every fast-path eligibility check into a single decision for
+     * this launch. See {@link VerifyState#decideMode} for the conditions.
+     */
+    private LaunchVerifyMode decideLaunchVerifyMode()
+    {
+        // Honor the per-pack "always verify" opt-out. The launcher-wide
+        // "force-full-verify-next-launch" lever isn't a separate flag in
+        // 3.3's design — the user-facing global action (Settings → Security
+        // → "Verify all game files now") synchronously verifies every pack
+        // by calling pack.verifyAllFilesNow() rather than scheduling a flag
+        // for the next launch, so no flag plumbing here.
+        boolean perPackOptOut = pack.getManifestUrl() != null
+                && ConfigManager.getAlwaysVerifyOnLaunch( pack.getManifestUrl() );
+        VerifyState existing = VerifyState.loadForPack( pack );
+        return VerifyState.decideMode(
+                existing,
+                pack.getManifestContentSha256(),
+                VerifyState.DEFAULT_TTL_MS,
+                perPackOptOut,
+                /* globalForceFullVerify */ false );
+    }
+
+    /**
+     * Force-runs {@link #buildClasspath()} in {@link LaunchVerifyMode#FULL}
+     * mode regardless of fast-path eligibility, then discards the resulting
+     * classpath. Used by the "Verify this pack now" / "Verify all game files"
+     * UI actions in step 4. The sidecar gets written automatically by
+     * buildClasspath on success since this is a FULL-mode run.
+     */
+    void verifyAllFilesNow() throws ModpackException
+    {
+        LaunchVerifyMode prev = ManagedGameFile.getCurrentVerifyMode();
+        ManagedGameFile.setCurrentVerifyMode( LaunchVerifyMode.FULL );
+        try {
+            buildClasspathForceFull();
+        }
+        finally {
+            ManagedGameFile.setCurrentVerifyMode( prev );
+        }
+    }
+
+    /**
+     * Variant of {@link #buildClasspath()} that hardcodes FULL verify and
+     * skips the per-pack opt-out / global-flag decision. Used by the
+     * verify-now actions; not by the normal Play path.
+     */
+    private void buildClasspathForceFull() throws ModpackException
+    {
+        Logger.logDebug( "Force-full-verify run for " + pack.getPackName() );
+        LaunchVerifyMode prevMode = ManagedGameFile.getCurrentVerifyMode();
+        ManagedGameFile.setCurrentVerifyMode( LaunchVerifyMode.FULL );
+        try {
+            buildClasspathInner();
+            if ( pack.getManifestContentSha256() != null ) {
+                VerifyState fresh = VerifyState.successfulVerify(
+                        pack.getManifestContentSha256() );
+                VerifyState.saveForPack( pack, fresh );
+            }
+        }
+        finally {
+            ManagedGameFile.setCurrentVerifyMode( prevMode );
+        }
+    }
+
+    /** The actual buildClasspath body. Extracted so {@link #buildClasspath()}
+     *  can wrap it in the verify-mode install / restore lifecycle without
+     *  the body needing to know that ceremony exists. */
+    private String buildClasspathInner() throws ModpackException
+    {
         // The four pre-launch download stages have no real data dependency on each
         // other within a single launch:
         //   - Modpack content (mods + configs + ...) writes under <packRoot>/{mods,

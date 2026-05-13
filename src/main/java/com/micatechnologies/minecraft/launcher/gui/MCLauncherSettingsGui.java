@@ -245,6 +245,19 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     MFXToggleButton uriHandlerToggle;
 
     /**
+     * Advanced tab: launcher-wide "Verify all game files" button.
+     * Triggers a force-FULL verify across every installed modpack — runs
+     * {@code pack.verifyAllFilesNow()} on each via
+     * {@link com.micatechnologies.minecraft.launcher.utilities.VerifyAction#runForPacks}.
+     * Reuses the launch-progress GUI for per-pack progress.
+     *
+     * @since 2026.3
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton verifyAllGameFilesBtn;
+
+    /**
      * Navigation buttons for settings category sidebar.
      *
      * @since 3.0
@@ -847,6 +860,26 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             uriHandlerToggle.setSelected( ConfigManager.getUriHandlerEnabled() );
             uriHandlerToggle.selectedProperty().addListener(
                     ( obs, oldV, newV ) -> ConfigManager.setUriHandlerEnabled( newV ) );
+        }
+
+        // Verify-all-game-files button. Synchronously iterates every installed pack and
+        // runs a force-FULL verify on each via VerifyAction, with the launch progress
+        // GUI driving the per-pack progress. Dispatch happens off the FX thread inside
+        // VerifyAction.runForPacks.
+        if ( verifyAllGameFilesBtn != null ) {
+            verifyAllGameFilesBtn.setOnAction( e -> {
+                java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameModPack > installed =
+                        com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager
+                                .getInstalledModPacks();
+                if ( installed == null || installed.isEmpty() ) {
+                    com.micatechnologies.minecraft.launcher.utilities.NotificationManager.info(
+                            "Nothing to verify",
+                            "No modpacks are installed." );
+                    return;
+                }
+                com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
+                        installed );
+            } );
         }
 
         // Wire up sidebar navigation buttons

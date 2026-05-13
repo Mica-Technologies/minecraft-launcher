@@ -246,6 +246,25 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
+     * Runs a force-FULL verify across every mod, library, asset, and runtime
+     * file this pack ships, then re-writes the verify-state sidecar so the
+     * next launch is fast-path eligible again. Does <em>not</em> spawn the
+     * game JVM — purely the integrity sweep half of the pre-launch pipeline.
+     *
+     * <p>Used by the per-pack "Verify this pack now" button in the modpack
+     * detail modal and by the launcher-wide "Verify all game files" action
+     * in Settings → Security (which iterates installed packs and calls this
+     * on each).</p>
+     *
+     * @throws ModpackException if any verify-or-repair step fails
+     * @since 2026.3
+     */
+    public void verifyAllFilesNow() throws ModpackException
+    {
+        getLauncher().verifyAllFilesNow();
+    }
+
+    /**
      * Returns the last launched game process, if available and the in-game console is enabled.
      *
      * @return the game Process, or null
@@ -385,6 +404,22 @@ public class GameModPack extends GameModPackMetadata
 
     public String getManifestUrl() {
         return manifestUrl;
+    }
+
+    /** Hex SHA-256 of the manifest JSON body as it existed when this pack
+     *  was loaded. Used by {@link VerifyState} to detect manifest changes
+     *  between launches. Set by {@link GameModPackFetcher} after parsing;
+     *  transient because it's a runtime fingerprint of the source bytes,
+     *  not part of the pack content itself. May be {@code null} on packs
+     *  built via the createVanillaModPack / createFailedModPack factory
+     *  paths since those don't have a real manifest body. */
+    private transient String manifestContentSha256;
+
+    public String getManifestContentSha256() { return manifestContentSha256; }
+
+    /** Package-private setter — only {@link GameModPackFetcher} populates this. */
+    void setManifestContentSha256( String sha256 ) {
+        this.manifestContentSha256 = sha256;
     }
 
     /**

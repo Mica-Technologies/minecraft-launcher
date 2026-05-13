@@ -538,4 +538,29 @@ public class ConfigConstants
     public static final boolean LWJGL_ARM_PATCH_ENABLE_DEFAULT = true;
 
     // endregion
+
+    // region Verify-mode controls (3.3 fast-path skip on unchanged packs)
+
+    /**
+     * Per-pack-URL map of {@code packUrl → boolean} for the "Always verify
+     * game files on launch" opt-out toggle. Packs whose URL maps to
+     * {@code true} skip the fast-path verify shortcut and always re-hash
+     * every file on launch. Stored as a JsonObject so URLs with weird chars
+     * round-trip cleanly without needing key encoding.
+     *
+     * @since 2026.3
+     */
+    public static final String ALWAYS_VERIFY_BY_PACK_KEY = "alwaysVerifyOnLaunchByPack";
+
+    /**
+     * Default value for any pack not present in
+     * {@link #ALWAYS_VERIFY_BY_PACK_KEY}. False means "fast-path eligible
+     * by default" — the user explicitly chose this default during 3.3's
+     * design phase since the fast-path is the whole point of the feature.
+     *
+     * @since 2026.3
+     */
+    public static final boolean ALWAYS_VERIFY_ON_LAUNCH_DEFAULT = false;
+
+    // endregion
 }

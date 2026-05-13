@@ -337,6 +337,12 @@ public class MCLauncherModpackDetailModal extends StackPane
         body.getChildren().add( buildQuickActionsSection( pack ) );
         body.getChildren().add( buildStatsSection( pack ) );
         body.getChildren().add( buildUpdateLogSection( pack ) );
+        // Advanced section: per-pack verify toggle + "Verify this pack now" button.
+        // Skipped for failed-load placeholder packs since there's no real manifest
+        // to verify against.
+        if ( pack != null && pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
+            body.getChildren().add( buildAdvancedSection( pack ) );
+        }
         body.getChildren().add( buildComingSoonSection() );
 
         ScrollPane bodyScroll = new ScrollPane( body );
@@ -639,6 +645,68 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
 
         section.getChildren().add( list );
+        return section;
+    }
+
+    /**
+     * Advanced section — currently houses the per-pack "Always verify game
+     * files on launch" toggle and the "Verify this pack now" button. Designed
+     * to grow over time as other per-pack power-user knobs (custom RAM,
+     * custom JVM args, etc.) land.
+     */
+    private Node buildAdvancedSection( GameModPack pack )
+    {
+        VBox section = buildSectionBox( "Advanced" );
+
+        Label hint = new Label( "Per-pack power-user controls. Defaults are fine for most users." );
+        hint.setWrapText( true );
+        hint.getStyleClass().add( "muted" );
+        hint.setStyle( "-fx-font-size: 11px;" );
+        section.getChildren().add( hint );
+
+        // Toggle: always verify on launch.
+        // Stored per-pack-URL via ConfigManager. Default OFF — fast-path
+        // eligible — matches the design choice from the 3.3 question pass.
+        io.github.palexdev.materialfx.controls.MFXToggleButton alwaysVerifyToggle =
+                new io.github.palexdev.materialfx.controls.MFXToggleButton( "Always verify game files on launch" );
+        alwaysVerifyToggle.setSelected(
+                ConfigManager.getAlwaysVerifyOnLaunch( pack.getManifestUrl() ) );
+        alwaysVerifyToggle.selectedProperty().addListener( ( obs, oldVal, newVal ) ->
+                ConfigManager.setAlwaysVerifyOnLaunch( pack.getManifestUrl(),
+                                                       Boolean.TRUE.equals( newVal ) ) );
+        Label toggleHint = new Label(
+                "When off (default), the launcher skips re-hashing files that haven't changed since the "
+                        + "last successful verify — making subsequent launches noticeably faster. Turn on if you've "
+                        + "had issues with corrupted files or want the strict integrity check every time." );
+        toggleHint.setWrapText( true );
+        toggleHint.getStyleClass().add( "subtle" );
+        toggleHint.setStyle( "-fx-font-size: 11px;" );
+        section.getChildren().add( alwaysVerifyToggle );
+        section.getChildren().add( toggleHint );
+
+        // Button: verify this pack now.
+        // Runs a force-FULL verify in the background using the new launch
+        // progress GUI for the per-step display.
+        MFXButton verifyNowBtn = new MFXButton( "Verify this pack now" );
+        verifyNowBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
+        verifyNowBtn.setMinHeight( 32 );
+        verifyNowBtn.setPrefHeight( 32 );
+        verifyNowBtn.setOnAction( e -> {
+            hide();
+            com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
+                    java.util.List.of( pack ) );
+        } );
+        Label verifyHint = new Label(
+                "Re-hashes every mod, library, and asset against the pack's manifest. Repairs anything corrupted. "
+                        + "Takes a few seconds to a couple minutes depending on pack size." );
+        verifyHint.setWrapText( true );
+        verifyHint.getStyleClass().add( "subtle" );
+        verifyHint.setStyle( "-fx-font-size: 11px;" );
+        HBox verifyRow = new HBox( 8, verifyNowBtn );
+        verifyRow.setAlignment( Pos.CENTER_LEFT );
+        section.getChildren().add( verifyRow );
+        section.getChildren().add( verifyHint );
+
         return section;
     }
 

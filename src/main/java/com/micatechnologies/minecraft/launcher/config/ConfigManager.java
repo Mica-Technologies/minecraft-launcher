@@ -1034,6 +1034,68 @@ public class ConfigManager
     }
 
     /**
+     * Gets the per-pack "always verify game files on launch" opt-out toggle.
+     * Returns {@link ConfigConstants#ALWAYS_VERIFY_ON_LAUNCH_DEFAULT} (false)
+     * when the pack has no explicit setting — making fast-path eligibility
+     * the default per the 3.3 design choice.
+     *
+     * @param packUrl the manifest URL identifying the pack
+     *
+     * @since 2026.3
+     */
+    public synchronized static boolean getAlwaysVerifyOnLaunch( String packUrl ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( packUrl == null || packUrl.isBlank() ) {
+            return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
+        }
+        if ( !configObject.has( ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY ) ) {
+            return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
+        }
+        try {
+            com.google.gson.JsonObject map = configObject.get(
+                    ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY ).getAsJsonObject();
+            if ( !map.has( packUrl ) ) {
+                return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
+            }
+            return map.get( packUrl ).getAsBoolean();
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Could not read alwaysVerifyOnLaunch for "
+                                             + packUrl + ", defaulting." );
+            return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
+        }
+    }
+
+    /**
+     * Sets the per-pack "always verify game files on launch" opt-out toggle.
+     * Wired from the modpack-detail-modal Advanced section in step 4 of 3.3.
+     *
+     * @param packUrl the manifest URL identifying the pack
+     * @param value   {@code true} to force FULL verify on every launch of this
+     *                pack; {@code false} (default) to allow fast-path
+     *
+     * @since 2026.3
+     */
+    public synchronized static void setAlwaysVerifyOnLaunch( String packUrl, boolean value ) {
+        if ( packUrl == null || packUrl.isBlank() ) return;
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        com.google.gson.JsonObject map;
+        if ( configObject.has( ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY ) ) {
+            map = configObject.get( ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY ).getAsJsonObject();
+        }
+        else {
+            map = new com.google.gson.JsonObject();
+        }
+        map.addProperty( packUrl, value );
+        configObject.add( ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY, map );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Reads the application configuration from its file on persistent storage. In the event that a file does not exist,
      * or an error occurred with the file, a new default configuration file will be created.
      *

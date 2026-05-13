@@ -260,6 +260,28 @@
                             </font>
                         </Label>
                     </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Game File Integrity">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="Re-hashes every mod, library, and asset across every installed pack against its manifest. Repairs anything corrupted. Takes a few seconds per pack — large libraries can run a couple minutes total." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <HBox spacing="8">
+                            <MFXButton fx:id="verifyAllGameFilesBtn" prefHeight="30.0" prefWidth="180.0" text="Verify all game files">
+                                <font>
+                                    <Font size="11.0" />
+                                </font>
+                            </MFXButton>
+                        </HBox>
+                    </VBox>
                 </VBox>
             </ScrollPane>
 

@@ -44,6 +44,37 @@ public class ManagedGameFile
 {
 
     /**
+     * Launcher-wide verify mode applied to every {@link ManagedGameFile} during
+     * the current pre-launch run. {@link LaunchVerifyMode#FULL} (the default)
+     * runs the historical hash-everything path; {@link LaunchVerifyMode#FAST_PATH}
+     * accepts each file on existence + non-zero size alone.
+     *
+     * <p>Static because passing the mode through every {@code fetchLatest*} /
+     * {@code buildXClasspath} call site would balloon the API for what's
+     * effectively a one-launch-at-a-time setting. The launcher serializes
+     * launches at the {@code LauncherCore.play()} boundary, so two concurrent
+     * launches can't race on this. Parallel branches inside a single launch
+     * (see 3.2's CompletableFuture fan-out) all read the same value cleanly.</p>
+     *
+     * <p>Set at the top of {@code GameModPackLauncher.buildClasspath} and
+     * cleared back to FULL in the finally so a subsequent launch starts from
+     * a known state regardless of how the previous one ended.</p>
+     *
+     * @since 2026.3
+     */
+    private static volatile LaunchVerifyMode currentVerifyMode = LaunchVerifyMode.FULL;
+
+    /** Reads the current launcher-wide verify mode. */
+    public static LaunchVerifyMode getCurrentVerifyMode() { return currentVerifyMode; }
+
+    /** Sets the launcher-wide verify mode that subsequent verifyLocalFile
+     *  calls will honor. The launch orchestrator owns this lifecycle. */
+    public static void setCurrentVerifyMode( LaunchVerifyMode mode )
+    {
+        currentVerifyMode = ( mode != null ) ? mode : LaunchVerifyMode.FULL;
+    }
+
+    /**
      * The URL of the remote file
      *
      * @since 1.0
@@ -214,12 +245,24 @@ public class ManagedGameFile
         }
         File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
 
-        // Strongest-first ordering. The constructor stores exactly one hash today
-        // (so only one branch matches per file), but should the launcher ever evolve
-        // to carry multiple hashes per file we want SHA-256 to win — SHA-1 is
-        // collision-broken (SHAttered, 2017) and MD5 is broken for both collision
-        // and preimage. Until upstream manifests publish SHA-256 widely, the
-        // launcher consumes whatever the manifest provides.
+        // FAST_PATH bypass: when the launch orchestrator decided the pack is
+        // unchanged since the last successful FULL verify (manifest content
+        // hash matches + within TTL + no opt-out), accept files on existence
+        // + non-zero size alone. Empty / missing files fall through to the
+        // download path on the caller's next move, so a manually-deleted mod
+        // still gets repaired — we're only skipping the SHA computation, not
+        // the "fix what's broken" half of updateLocalFile.
+        if ( currentVerifyMode == LaunchVerifyMode.FAST_PATH ) {
+            return localFile.exists() && localFile.isFile() && localFile.length() > 0;
+        }
+
+        // FULL path: strongest-first hash ordering. The constructor stores
+        // exactly one hash today (so only one branch matches per file), but
+        // should the launcher ever evolve to carry multiple hashes per file
+        // we want SHA-256 to win — SHA-1 is collision-broken (SHAttered, 2017)
+        // and MD5 is broken for both collision and preimage. Until upstream
+        // manifests publish SHA-256 widely, the launcher consumes whatever
+        // the manifest provides.
         if ( this.sha256 != null && !this.sha256.equals( "-1" ) ) {
             return HashUtilities.verifySHA256( localFile, sha256 );
         }
