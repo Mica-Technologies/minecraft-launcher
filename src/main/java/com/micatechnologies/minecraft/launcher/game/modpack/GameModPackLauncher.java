@@ -483,14 +483,23 @@ class GameModPackLauncher
                 fullArgs = fullArgs.replace( "${game_assets}", gameAssetsPath );
             }
 
-            // Add title and icon to arguments
-            fullArgs += " --title \"" + pack.getPackName() + "\"";
+            // Add title and icon to arguments. The pack name is server-supplied
+            // JSON, and ProcessUtilities.splitCommandLine has naive `"`-toggle
+            // semantics with no escape character — so a manifest with a packName
+            // containing an embedded `"` would close the quote early and inject
+            // additional client args (e.g. `--gameDir` to redirect MC's writes,
+            // or `--accessToken X` to swap the live token). The pack logo filepath
+            // is launcher-constructed under getPackRootFolder() (the folder name
+            // is the alphanum-only getPackSanitizedName) so it can't carry a `"`;
+            // leave its backslashes untouched so Windows paths still resolve.
+            String safeTitle = sanitizeForCommandLine( pack.getPackName() );
+            fullArgs += " --title \"" + safeTitle + "\"";
             fullArgs += " --icon \"" + pack.getPackLogoFilepath() + "\"";
 
             // Set dock name and icon for macOS
             if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
                 fullArgs += " -Xdock:icon=\"" + pack.getPackLogoFilepath() + "\"";
-                fullArgs += " -Xdock:name=\"" + pack.getPackName() + "\" ";
+                fullArgs += " -Xdock:name=\"" + safeTitle + "\" ";
                 fullArgs += "-Dapple.laf.useScreenMenuBar=true ";
                 fullArgs += "-Djdk.lang.Process.launchMechanism=vfork ";
             }
@@ -518,6 +527,36 @@ class GameModPackLauncher
         catch ( IOException e ) {
             throw new ModpackException( "Unable to execute mod pack game.", e );
         }
+    }
+
+    /**
+     * Strips characters that would break the naive {@code "}-toggle parser in
+     * {@link ProcessUtilities#splitCommandLine} when an attacker-controlled string
+     * (today: the modpack name) is spliced into a double-quoted segment of the
+     * launch command. Removes ASCII control characters, embedded double quotes,
+     * and backslashes (which have no escape semantics in our splitter and would
+     * survive into argv literally), and truncates to 200 chars so a manifest
+     * cannot inflate the command line beyond reason.
+     *
+     * <p>The realistic injection vector before this gate was a manifest with
+     * {@code "packName": "MyPack\" --gameDir C:/Users/Public --"} closing the
+     * {@code --title "..."} quote and injecting client args.
+     */
+    private static String sanitizeForCommandLine( String value )
+    {
+        if ( value == null || value.isEmpty() ) {
+            return "";
+        }
+        int cap = Math.min( value.length(), 200 );
+        StringBuilder out = new StringBuilder( cap );
+        for ( int i = 0; i < cap; i++ ) {
+            char c = value.charAt( i );
+            if ( c == '"' || c == '\\' || c < 0x20 || c == 0x7F ) {
+                continue;
+            }
+            out.append( c );
+        }
+        return out.toString();
     }
 
     /**
