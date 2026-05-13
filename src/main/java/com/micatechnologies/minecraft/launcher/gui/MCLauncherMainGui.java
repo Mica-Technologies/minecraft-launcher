@@ -160,6 +160,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     private PauseTransition searchDebounce;
     private static final int SEARCH_DEBOUNCE_MS = 120;
 
+    /** True once the main menu has been shown at least once in this session. The
+     *  cold-start fade-in only runs on the first show — subsequent returns from
+     *  Settings / Library / etc. should snap back to the grid instantly the way
+     *  the rest of the launcher's screen transitions do. */
+    private static volatile boolean mainMenuShownOnce = false;
+
     public MCLauncherMainGui( Stage stage ) throws IOException {
         super( stage );
     }
@@ -487,6 +493,22 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 rootPane.requestFocus();
             }
         } );
+
+        // First-paint fade on cold start. The progress GUI cleared and the main
+        // menu scene attached in a single FX-thread frame, so without this the
+        // user sees a hard jump from one fully-rendered screen to another.
+        // Subsequent returns to this screen (from Settings, Library, etc.) snap
+        // instantly the way the rest of the launcher's transitions do — the
+        // fade is reserved for the once-per-session "we just started up" moment.
+        if ( !mainMenuShownOnce && rootPane != null ) {
+            mainMenuShownOnce = true;
+            javafx.animation.FadeTransition fade = new javafx.animation.FadeTransition(
+                    javafx.util.Duration.millis( 180 ), rootPane );
+            fade.setFromValue( 0.0 );
+            fade.setToValue( 1.0 );
+            rootPane.setOpacity( 0.0 );
+            fade.play();
+        }
 
         // Idle-window prefetch: warm GameVersionManifest's clientJsonCache for the
         // most-recently-played pack. The first Play click on that pack would
