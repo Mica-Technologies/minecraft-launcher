@@ -124,9 +124,71 @@ public class ProcessUtilities
         ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) )
                 .redirectErrorStream( false )
                 .directory( SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
+        // Filter the inherited environment before handing it to Minecraft / Forge / mods
+        // (security finding 2.3). Mods are unsandboxed JVM code; if the user happened to
+        // have AWS_SECRET_KEY / OPENAI_API_KEY / similar in their shell when they launched
+        // the game, any mod can read it via System.getenv(). We can't full-whitelist
+        // because per-platform mod dependencies vary too much (graphics drivers, locale,
+        // audio, XDG dirs, custom LWJGL paths). Pattern-based deny gets the realistic
+        // risk without the compatibility tail.
+        stripSensitiveEnv( processBuilder.environment() );
         // Redact auth tokens before logging — see SensitiveDataRedactor for the patterns.
         Logger.logStd( "Launching command: " + SensitiveDataRedactor.redact( command ) );
         return processBuilder.start();
+    }
+
+    /** Case-insensitive substrings that suggest an env var holds a credential or
+     *  account-linked secret. Any var name containing any of these is removed from
+     *  the spawned process's environment. Conservative — false positives just mean
+     *  the game subprocess can't see a variable the user explicitly named with the
+     *  word "TOKEN" or similar. */
+    private static final String[] SENSITIVE_ENV_NAME_PARTS = {
+            "TOKEN", "SECRET", "PASSWORD", "PASSWD", "PASSPHRASE",
+            "API_KEY", "APIKEY", "PRIVATE_KEY", "ACCESS_KEY",
+            "CREDENTIAL", "COOKIE", "SESSION_KEY", "AUTH_KEY"
+    };
+
+    /** Specific env-var prefixes for well-known cloud / service credentials. Matched
+     *  by case-insensitive prefix. */
+    private static final String[] SENSITIVE_ENV_NAME_PREFIXES = {
+            "AWS_", "AZURE_", "GCP_", "GCLOUD_", "GOOGLE_APPLICATION_",
+            "GITHUB_TOKEN", "GH_TOKEN", "NPM_TOKEN", "PYPI_TOKEN",
+            "OPENAI_", "ANTHROPIC_", "STRIPE_", "TWILIO_", "SENDGRID_"
+    };
+
+    /**
+     * Removes credential-ish env vars from the given environment map in place. Called
+     * on the {@link ProcessBuilder#environment()} view, which mutates the builder's
+     * env for the spawn — the launcher's own process environment is unaffected.
+     *
+     * <p>Visible to package code mainly for diagnostic / test access — the production
+     * caller is {@link #launchCommand} above.
+     */
+    static void stripSensitiveEnv( java.util.Map< String, String > env )
+    {
+        if ( env == null || env.isEmpty() ) {
+            return;
+        }
+        env.keySet().removeIf( ProcessUtilities::looksSensitive );
+    }
+
+    private static boolean looksSensitive( String name )
+    {
+        if ( name == null ) {
+            return false;
+        }
+        String upper = name.toUpperCase( java.util.Locale.ROOT );
+        for ( String part : SENSITIVE_ENV_NAME_PARTS ) {
+            if ( upper.contains( part ) ) {
+                return true;
+            }
+        }
+        for ( String prefix : SENSITIVE_ENV_NAME_PREFIXES ) {
+            if ( upper.startsWith( prefix ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
