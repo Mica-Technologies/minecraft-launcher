@@ -452,6 +452,32 @@
     </build>
 
     <profiles>
+        <!-- CycloneDX SBOM generation. Opt-in via -P sbom so dev `mvn package` runs
+             don't pay the (~5-10s) dependency-graph walk. CI invokes it on Linux
+             only since the SBOM is platform-independent. Writes build/target/bom.xml
+             and build/target/bom.json. -->
+        <profile>
+            <id>sbom</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <version>2.9.1</version>
+                        <executions>
+                            <execution>
+                                <id>aggregate</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>makeAggregateBom</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Auto-activated on Apple Silicon: flip the bundled Corretto download
              from x86_64 to aarch64 so the macOS arm64 DMG/PKG ships a native
              ARM runtime instead of an Intel one that requires Rosetta to launch.

@@ -286,6 +286,15 @@ jobs:
           mvn -B package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}
 
+      # Produce a CycloneDX SBOM describing every Maven dependency that landed in
+      # the build. Run only on Linux (the dependency graph is platform-independent)
+      # via the sbom profile so IDE / dev `mvn package` runs don't pay the cost.
+      # The SBOM ships alongside the installers so downstream packagers and
+      # security scanners can audit what's inside without unzipping the JAR.
+      - name: Generate dependency SBOM
+        run: >
+          mvn -B -P sbom org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom
+
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -299,6 +308,12 @@ jobs:
         with:
           name: fat-jar
           path: build/target/*-jar-with-dependencies.jar
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: build/target/bom.*
 
   # --- Step 3: Create GitHub Release ---
   release:
