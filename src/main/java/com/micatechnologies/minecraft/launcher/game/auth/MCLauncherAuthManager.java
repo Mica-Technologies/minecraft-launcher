@@ -34,16 +34,23 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.AclEntry;
+import java.nio.file.attribute.AclEntryPermission;
+import java.nio.file.attribute.AclEntryType;
+import java.nio.file.attribute.AclFileAttributeView;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.UserPrincipal;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.concurrent.*;
 
@@ -145,28 +152,163 @@ public class MCLauncherAuthManager
     }
 
     /**
-     * Derives a machine-specific AES-256 key using PBKDF2 with hardware/OS identifiers as the passphrase.
-     * The key is tied to this specific machine -- the encrypted file cannot be decrypted elsewhere.
+     * Restricts the given file's permissions to owner-only (POSIX 0600 / Windows
+     * owner-FULL_CONTROL with no other ACEs). Used on every auth-file write so other
+     * local user accounts can't read tokens off a shared workstation.
+     *
+     * <p>POSIX path is tried first; if the underlying file store doesn't support
+     * POSIX attributes (Windows NTFS is the common case), the {@code AclFileAttributeView}
+     * path runs instead. Failures are logged silently — these are defense-in-depth
+     * tightenings on top of the at-rest encryption, not a primary control.
+     */
+    private static void applyOwnerOnlyPermissions( Path path ) {
+        // POSIX attempt — succeeds on Linux/macOS, throws UnsupportedOperationException
+        // on NTFS. The flag tracks whether either path actually applied.
+        boolean applied = false;
+        try {
+            Files.setPosixFilePermissions( path, EnumSet.of(
+                    PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE ) );
+            applied = true;
+        }
+        catch ( UnsupportedOperationException ignored ) {
+            // Not a POSIX FS — Windows path below.
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "POSIX perms tighten failed on "
+                                             + path.getFileName() + ": "
+                                             + e.getClass().getSimpleName() );
+        }
+
+        if ( !applied ) {
+            try {
+                AclFileAttributeView view = Files.getFileAttributeView(
+                        path, AclFileAttributeView.class );
+                if ( view == null ) {
+                    return; // No ACL support either; leave default perms.
+                }
+                UserPrincipal owner = Files.getOwner( path );
+                AclEntry entry = AclEntry.newBuilder()
+                        .setType( AclEntryType.ALLOW )
+                        .setPrincipal( owner )
+                        .setPermissions( EnumSet.allOf( AclEntryPermission.class ) )
+                        .build();
+                view.setAcl( Collections.singletonList( entry ) );
+            }
+            catch ( Exception e ) {
+                Logger.logWarningSilent( "ACL tighten failed on "
+                                                 + path.getFileName() + ": "
+                                                 + e.getClass().getSimpleName() );
+            }
+        }
+    }
+
+    /** Filename of the per-install random fallback secret. Sits alongside the auth files
+     *  in the launcher config dir and is generated lazily only when hardware fingerprint
+     *  pieces are unavailable. Users with working oshi + NIC enumeration never create or
+     *  read it, so their derived key is unchanged. */
+    private static final String INSTALL_SECRET_FILE = "machine-key.bin";
+
+    /** Length of the per-install secret in bytes. 32 bytes = 256 bits, well above the
+     *  64-bit minimum for an unguessable HMAC input. */
+    private static final int INSTALL_SECRET_BYTES = 32;
+
+    /**
+     * Returns a per-install random secret as a hex string, lazily creating and persisting
+     * it on first use. The file is written then tightened to owner-only permissions via
+     * {@link #applyOwnerOnlyPermissions(Path)} so other local users cannot read it. If
+     * the file cannot be created (read-only FS / permission denied), falls back to an
+     * in-memory ephemeral secret for this process — the consequence is that the cached
+     * auth files become unreadable after restart, which forces a clean re-login, which
+     * is the right failure mode (it's no worse than losing the cache outright).
+     */
+    private static volatile String cachedInstallSecret = null;
+
+    private static String getOrCreateInstallSecret() {
+        String cached = cachedInstallSecret;
+        if ( cached != null ) {
+            return cached;
+        }
+        synchronized ( MCLauncherAuthManager.class ) {
+            if ( cachedInstallSecret != null ) {
+                return cachedInstallSecret;
+            }
+            Path secretPath = resolveSiblingPath( INSTALL_SECRET_FILE );
+            try {
+                if ( Files.isRegularFile( secretPath ) ) {
+                    byte[] existing = Files.readAllBytes( secretPath );
+                    if ( existing.length >= INSTALL_SECRET_BYTES ) {
+                        cachedInstallSecret = bytesToHex( existing );
+                        return cachedInstallSecret;
+                    }
+                    // Corrupt / truncated — regenerate.
+                }
+                byte[] fresh = new byte[INSTALL_SECRET_BYTES];
+                new SecureRandom().nextBytes( fresh );
+                Files.createDirectories( secretPath.getParent() );
+                Files.write( secretPath, fresh );
+                applyOwnerOnlyPermissions( secretPath );
+                cachedInstallSecret = bytesToHex( fresh );
+                return cachedInstallSecret;
+            }
+            catch ( IOException e ) {
+                // Best-effort: a non-persisted in-memory secret is still better than a
+                // constant string. The auth cache won't survive a restart, but encryption
+                // within this session is still machine-process-bound.
+                Logger.logWarningSilent( "Unable to persist install secret ("
+                                                 + e.getClass().getSimpleName()
+                                                 + "); using ephemeral fallback." );
+                byte[] fresh = new byte[INSTALL_SECRET_BYTES];
+                new SecureRandom().nextBytes( fresh );
+                cachedInstallSecret = bytesToHex( fresh );
+                return cachedInstallSecret;
+            }
+        }
+    }
+
+    private static String bytesToHex( byte[] bytes ) {
+        StringBuilder sb = new StringBuilder( bytes.length * 2 );
+        for ( byte b : bytes ) {
+            sb.append( String.format( "%02x", b ) );
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Derives a machine-specific AES-256 key using PBKDF2 with hardware/OS identifiers as
+     * the passphrase. The key is tied to this specific machine — the encrypted file
+     * cannot be decrypted elsewhere.
+     *
+     * <p>Hardware UUID (motherboard/BIOS) and MAC address are the primary entropy sources.
+     * When either lookup fails (cloud VM with sandboxed hardware identifiers, Docker
+     * container, restricted-permissions process), we previously appended the literal
+     * strings {@code "no-hw-uuid"} / {@code "no-mac"} — which collapsed every install on a
+     * given username + OS pair to the same derivation. We now substitute a per-install
+     * random secret read from {@link #INSTALL_SECRET_FILE}, lazily generated on first
+     * need and never sent off the machine. This preserves the behavior on hardware where
+     * detection works (so existing encrypted caches still decrypt) while closing the
+     * "all cloud VMs share a key" hole on hardware where detection doesn't.
      */
     private static SecretKey deriveMachineKey( byte[] salt ) throws Exception {
-        // Build a machine fingerprint from multiple system identifiers
         StringBuilder fingerprint = new StringBuilder();
         fingerprint.append( System.getProperty( "user.name", "" ) );
         fingerprint.append( "|" );
         fingerprint.append( System.getProperty( "os.name", "" ) );
         fingerprint.append( "|" );
 
-        // Hardware UUID from oshi (motherboard/BIOS identifier)
+        // Hardware UUID from oshi (motherboard/BIOS identifier). On failure, substitute
+        // the per-install random secret instead of a constant string.
         try {
             SystemInfo si = new SystemInfo();
             fingerprint.append( si.getHardware().getComputerSystem().getHardwareUUID() );
         }
         catch ( Exception e ) {
-            fingerprint.append( "no-hw-uuid" );
+            fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
         }
         fingerprint.append( "|" );
 
-        // First available MAC address for additional machine binding
+        // First available MAC address for additional machine binding. Same fallback
+        // treatment — random per-install secret rather than the predictable "no-mac".
+        boolean macFound = false;
         try {
             Enumeration< NetworkInterface > nets = NetworkInterface.getNetworkInterfaces();
             while ( nets.hasMoreElements() ) {
@@ -175,12 +317,16 @@ public class MCLauncherAuthManager
                     for ( byte b : mac ) {
                         fingerprint.append( String.format( "%02x", b ) );
                     }
+                    macFound = true;
                     break;
                 }
             }
         }
         catch ( Exception e ) {
-            fingerprint.append( "no-mac" );
+            // fall through to install-secret fallback below
+        }
+        if ( !macFound ) {
+            fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
         }
 
         KeySpec spec = new PBEKeySpec( fingerprint.toString().toCharArray(), salt, 65536, 256 );
@@ -190,10 +336,12 @@ public class MCLauncherAuthManager
     }
 
     /**
-     * Encrypts a string with AES-256-GCM using a machine-derived key.
-     * Output format: Base64( salt[16] + iv[12] + ciphertext+tag )
+     * Encrypts raw bytes with AES-256-GCM using a machine-derived key.
+     * Output layout: salt[16] | iv[12] | ciphertext+tag. The salt is fresh per
+     * encryption so each call also derives a fresh key, eliminating the IV-reuse
+     * footgun that would exist if the key were cached across encryptions.
      */
-    private static String encryptForMachine( String plaintext ) throws Exception {
+    private static byte[] encryptBytesForMachine( byte[] plaintext ) throws Exception {
         SecureRandom random = new SecureRandom();
         byte[] salt = new byte[16];
         random.nextBytes( salt );
@@ -203,27 +351,25 @@ public class MCLauncherAuthManager
         SecretKey key = deriveMachineKey( salt );
         Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
         cipher.init( Cipher.ENCRYPT_MODE, key, new GCMParameterSpec( 128, iv ) );
-        byte[] ciphertext = cipher.doFinal( plaintext.getBytes( StandardCharsets.UTF_8 ) );
+        byte[] ciphertext = cipher.doFinal( plaintext );
 
-        // Combine: salt + iv + ciphertext
         byte[] combined = new byte[salt.length + iv.length + ciphertext.length];
         System.arraycopy( salt, 0, combined, 0, salt.length );
         System.arraycopy( iv, 0, combined, salt.length, iv.length );
         System.arraycopy( ciphertext, 0, combined, salt.length + iv.length, ciphertext.length );
-
-        return Base64.getEncoder().encodeToString( combined );
+        return combined;
     }
 
     /**
-     * Decrypts a string that was encrypted with {@link #encryptForMachine(String)}.
-     * Returns null if decryption fails (wrong machine, tampered data, etc.).
+     * Decrypts bytes produced by {@link #encryptBytesForMachine(byte[])}. Returns
+     * {@code null} when the layout is too short to contain salt+iv+tag; throws on
+     * GCM tag mismatch (wrong machine / tampered data) — callers decide whether
+     * to log and fall through.
      */
-    private static String decryptForMachine( String encoded ) throws Exception {
-        byte[] combined = Base64.getDecoder().decode( encoded );
-        if ( combined.length < 28 ) {
-            return null; // Too short to contain salt + iv + any data
+    private static byte[] decryptBytesForMachine( byte[] combined ) throws Exception {
+        if ( combined == null || combined.length < 28 ) {
+            return null;
         }
-
         byte[] salt = new byte[16];
         byte[] iv = new byte[12];
         byte[] ciphertext = new byte[combined.length - 28];
@@ -234,8 +380,96 @@ public class MCLauncherAuthManager
         SecretKey key = deriveMachineKey( salt );
         Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
         cipher.init( Cipher.DECRYPT_MODE, key, new GCMParameterSpec( 128, iv ) );
-        byte[] plaintext = cipher.doFinal( ciphertext );
-        return new String( plaintext, StandardCharsets.UTF_8 );
+        return cipher.doFinal( ciphertext );
+    }
+
+    /**
+     * Encrypts a UTF-8 string with AES-256-GCM and Base64-encodes the result.
+     * Output format: Base64( salt[16] + iv[12] + ciphertext+tag ). Thin wrapper
+     * around {@link #encryptBytesForMachine(byte[])}.
+     */
+    private static String encryptForMachine( String plaintext ) throws Exception {
+        return Base64.getEncoder().encodeToString(
+                encryptBytesForMachine( plaintext.getBytes( StandardCharsets.UTF_8 ) ) );
+    }
+
+    /**
+     * Decrypts a Base64 string produced by {@link #encryptForMachine(String)}.
+     * Returns {@code null} if decryption fails (wrong machine, tampered data, etc.).
+     */
+    private static String decryptForMachine( String encoded ) throws Exception {
+        byte[] plaintext = decryptBytesForMachine( Base64.getDecoder().decode( encoded ) );
+        return plaintext == null ? null : new String( plaintext, StandardCharsets.UTF_8 );
+    }
+
+    /** GZIP magic bytes — used to detect legacy unencrypted {@code player.mica} files
+     *  from before the at-rest encryption rollout so they can be migrated on next load. */
+    private static final byte GZIP_MAGIC_0 = (byte) 0x1F;
+    private static final byte GZIP_MAGIC_1 = (byte) 0x8B;
+
+    /**
+     * Persists an {@link AuthenticationFile} to {@link #SAVED_LOGIN_FILE_PATH},
+     * encrypted with the machine-bound key. The library-provided
+     * {@link AuthenticationFile#writeCompressed} output is the gzip'd JSON of the
+     * refresh / access / Xbox tokens; left on disk in that form it's just
+     * compression and any process that can read the user's home directory can
+     * impersonate the account indefinitely. Wrapping the gzip bytes in AES-256-GCM
+     * binds the file to this machine (per {@link #deriveMachineKey}).
+     */
+    private static void saveAuthFileEncrypted( AuthenticationFile authFile ) throws Exception {
+        byte[] gzipped = authFile.writeCompressed();
+        byte[] encrypted = encryptBytesForMachine( gzipped );
+        try ( FileOutputStream out = new FileOutputStream( SAVED_LOGIN_FILE_PATH.toFile() ) ) {
+            out.write( encrypted );
+        }
+        applyOwnerOnlyPermissions( SAVED_LOGIN_FILE_PATH );
+    }
+
+    /**
+     * Reads and decrypts the saved {@link AuthenticationFile}. Falls back to the
+     * legacy plain-gzip layout (gzip magic bytes 1F 8B at the start of file) for
+     * one-shot migration from pre-encryption installs — on a successful legacy
+     * read the file is immediately re-saved in the encrypted form so subsequent
+     * loads take the fast path. Returns {@code null} if the file is missing,
+     * corrupt, or bound to a different machine.
+     */
+    private static AuthenticationFile loadAuthFileDecrypted() {
+        try {
+            byte[] fileBytes = Files.readAllBytes( SAVED_LOGIN_FILE_PATH );
+            if ( fileBytes.length == 0 ) {
+                return null;
+            }
+
+            // Legacy plaintext path: gzip stream starting with 1F 8B. Migrate on read.
+            if ( fileBytes.length >= 2
+                    && fileBytes[0] == GZIP_MAGIC_0
+                    && fileBytes[1] == GZIP_MAGIC_1 ) {
+                AuthenticationFile legacy = AuthenticationFile.readCompressed( fileBytes );
+                Logger.logStd( "Migrating legacy plaintext player.mica to encrypted form." );
+                try {
+                    saveAuthFileEncrypted( legacy );
+                }
+                catch ( Exception migrateFailure ) {
+                    // Migration failure shouldn't block login — leave the legacy file alone
+                    // and try again next time. Log a sanitized warning (no token data).
+                    Logger.logWarningSilent( "Auth file migration failed: "
+                                                     + migrateFailure.getClass().getSimpleName() );
+                }
+                return legacy;
+            }
+
+            // Encrypted path
+            byte[] gzipped = decryptBytesForMachine( fileBytes );
+            if ( gzipped == null ) {
+                return null;
+            }
+            return AuthenticationFile.readCompressed( gzipped );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Failed to load saved auth file: "
+                                             + e.getClass().getSimpleName() );
+            return null;
+        }
     }
 
     /**
@@ -251,7 +485,9 @@ public class MCLauncherAuthManager
             json.addProperty( "xuid", user.xuid() );
             json.addProperty( "clientId", user.clientId() );
             String encrypted = encryptForMachine( JSONUtilities.getGson().toJson( json ) );
-            Files.writeString( resolveSiblingPath( CACHED_USER_FILE ), encrypted );
+            Path cachedPath = resolveSiblingPath( CACHED_USER_FILE );
+            Files.writeString( cachedPath, encrypted );
+            applyOwnerOnlyPermissions( cachedPath );
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( "Failed to save cached user data: " + e.getMessage() );
@@ -295,8 +531,9 @@ public class MCLauncherAuthManager
     private static void recordSuccessfulRenewal() {
         lastSuccessfulRenewalMs = System.currentTimeMillis();
         try {
-            Files.writeString( resolveSiblingPath( RENEWAL_TIMESTAMP_FILE ),
-                               String.valueOf( lastSuccessfulRenewalMs ) );
+            Path renewalPath = resolveSiblingPath( RENEWAL_TIMESTAMP_FILE );
+            Files.writeString( renewalPath, String.valueOf( lastSuccessfulRenewalMs ) );
+            applyOwnerOnlyPermissions( renewalPath );
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( "Failed to save renewal timestamp: " + e.getMessage() );
@@ -448,10 +685,12 @@ public class MCLauncherAuthManager
 
         // Try to read and renew login for saved account
         try {
-            // Get previous authentication file
-            final AuthenticationFile previousAuthFile;
-            try ( FileInputStream authFileInputStream = new FileInputStream( SAVED_LOGIN_FILE_PATH.toFile() ) ) {
-                previousAuthFile = AuthenticationFile.readCompressed( authFileInputStream );
+            // Get previous authentication file. loadAuthFileDecrypted handles both the
+            // current AES-256-GCM machine-bound layout and one-shot migration from the
+            // legacy plain-gzip layout left over from pre-encryption installs.
+            final AuthenticationFile previousAuthFile = loadAuthFileDecrypted();
+            if ( previousAuthFile == null ) {
+                throw new IOException( "Saved auth file is missing or unreadable on this machine." );
             }
             Logger.logDebug( LocalizationManager.REMEMBERED_USER_LOADED_TEXT );
 
@@ -586,9 +825,7 @@ public class MCLauncherAuthManager
         if ( save ) {
             try {
                 Logger.logDebug( LocalizationManager.REMEMBERED_USER_WRITING_TEXT );
-                FileOutputStream authFileOutputStream = new FileOutputStream( SAVED_LOGIN_FILE_PATH.toFile() );
-                authFile.writeCompressed( authFileOutputStream );
-                authFileOutputStream.close();
+                saveAuthFileEncrypted( authFile );
                 Logger.logDebug( LocalizationManager.REMEMBERED_USER_WRITE_FINISHED_TEXT );
             }
             catch ( Exception e ) {
