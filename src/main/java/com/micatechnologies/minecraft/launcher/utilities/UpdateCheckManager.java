@@ -92,14 +92,26 @@ public class UpdateCheckManager
                                                                              "An update has been found and is ready to be downloaded and installed.",
                                                                              "Update Now", "Update Later", stage );
                             if ( response == 1 ) {
-                                try {
-                                    Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
+                                // latestVersionURL is GitHub's `html_url` from the release JSON.
+                                // GitHub is trusted infrastructure, but defense-in-depth: refuse
+                                // anything other than http/https before handing to Desktop.browse,
+                                // matching the gate used for manifest-supplied URLs elsewhere.
+                                if ( latestVersionURL == null
+                                        || !( latestVersionURL.startsWith( "https://" )
+                                              || latestVersionURL.startsWith( "http://" ) ) ) {
+                                    Logger.logError( "Refusing to open non-http(s) launcher update URL: "
+                                                             + latestVersionURL );
                                 }
-                                catch ( IOException e ) {
-                                    Logger.logError( "Unable to open your browser. Please visit " +
-                                                             latestVersionURL +
-                                                             " to download the latest launcher updates!" );
-                                    Logger.logThrowable( e );
+                                else {
+                                    try {
+                                        Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
+                                    }
+                                    catch ( IOException e ) {
+                                        Logger.logError( "Unable to open your browser. Please visit " +
+                                                                 latestVersionURL +
+                                                                 " to download the latest launcher updates!" );
+                                        Logger.logThrowable( e );
+                                    }
                                 }
                             }
                         } ) );
