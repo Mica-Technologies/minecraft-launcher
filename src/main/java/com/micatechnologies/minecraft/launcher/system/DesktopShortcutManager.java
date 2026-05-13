@@ -549,8 +549,13 @@ public class DesktopShortcutManager
         // and `\` sequences, so packName.replace("\"", "\\\"") on its own would
         // let a manifest with `"; rm -rf $HOME; #"` in the pack name execute
         // arbitrary commands when the shortcut was invoked. Single-quoting with
-        // POSIX-style ' -> '\'' is robust to every metacharacter.
-        String safePackName = shellSingleQuote( packName );
+        // POSIX-style ' -> '\'' is robust to every shell metacharacter (CR/LF
+        // inside '...' is preserved as literal data, not a command separator).
+        // What single-quoting can't protect against is a NUL byte: most C-based
+        // exec paths treat NUL as end-of-string and will truncate the argv slot
+        // mid-name. Strip CR/LF/NUL up front — same defense the Linux .desktop
+        // branch applies at the Name=/Exec= level (line 603 below).
+        String safePackName = shellSingleQuote( stripLineTerminators( packName ) );
         String script;
         if ( isNativeExecutable( launcherPath ) ) {
             script = "#!/bin/bash\nexec " + shellSingleQuote( launcherPath ) + " "
