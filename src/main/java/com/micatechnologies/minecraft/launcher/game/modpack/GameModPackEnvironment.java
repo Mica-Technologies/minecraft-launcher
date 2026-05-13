@@ -352,16 +352,33 @@ class GameModPackEnvironment
     }
 
     /**
-     * Refuses any URL that isn't {@code https://}. The image-download paths take
-     * URLs straight from the modpack manifest JSON, which makes file://, http://,
-     * jar://, etc. an information-disclosure / passive-MITM hazard. file:// is
-     * the worst: a malicious manifest could redirect the launcher into copying
-     * /etc/shadow (or the user's keyring) into the launcher's metadata folder.
+     * Refuses any URL that isn't {@code https://}, with a narrow allowance for the
+     * launcher's own bundled-default classpath resources (which resolve to
+     * {@code file:} or {@code jar:} URLs depending on whether the launcher is
+     * running from an IDE classes folder or a packaged JAR).
+     *
+     * <p>The image-download paths take URLs straight from the modpack manifest
+     * JSON, which makes {@code file://}, {@code http://}, {@code jar://}, etc.
+     * an information-disclosure / passive-MITM hazard. {@code file://} is the
+     * worst: a malicious manifest could redirect the launcher into copying
+     * {@code /etc/shadow} (or the user's keyring) into the launcher's metadata
+     * folder.
+     *
+     * <p>The two bundled-default URLs are launcher-resolved at startup from the
+     * classpath ({@link ModPackConstants#resolveResourceUrl} via
+     * {@link Class#getResource}), so a manifest cannot guess the exact runtime
+     * value (it varies per install path / packaging mode) — exact-match on those
+     * two constants is a safe whitelist that doesn't reopen the broader file://
+     * arbitrary-read hole.
      */
     private static void requireHttps( String url, String purpose ) throws ModpackException
     {
         if ( url == null || url.isBlank() ) {
             throw new ModpackException( "Missing URL for " + purpose );
+        }
+        if ( url.equals( ModPackConstants.MODPACK_DEFAULT_LOGO_URL )
+                || url.equals( ModPackConstants.MODPACK_DEFAULT_BG_URL ) ) {
+            return;
         }
         int colon = url.indexOf( ':' );
         if ( colon < 0 || !"https".equalsIgnoreCase( url.substring( 0, colon ) ) ) {
