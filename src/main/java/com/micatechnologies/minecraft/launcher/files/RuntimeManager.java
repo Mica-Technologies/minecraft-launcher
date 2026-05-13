@@ -185,13 +185,35 @@ public class RuntimeManager
 
             Logger.logStd( "Installing runtime " + component + " (" + versionName + ") - " + totalFiles + " files..." );
 
-            // Process each file entry
+            // Process each file entry. Each "relativePath" is attacker-controllable in
+            // principle (Mojang publishes the manifest, but defense-in-depth: a path
+            // like "../../launcher/config.json" would escape the runtime folder). Treat
+            // the runtime folder as the containment root and reject anything that
+            // resolves outside, mirroring the same check ArchiveExtractor uses.
+            final java.nio.file.Path runtimeBase = runtimeFolder.toPath()
+                                                                .toAbsolutePath()
+                                                                .normalize();
+
             for ( Map.Entry< String, JsonElement > entry : files.entrySet() ) {
                 String relativePath = entry.getKey();
                 JsonObject fileEntry = entry.getValue().getAsJsonObject();
                 String type = JsonHelper.getRequiredString( fileEntry, "type" );
 
-                File localFile = new File( runtimeFolderPath, relativePath.replace( "/", File.separator ) );
+                if ( relativePath.indexOf( '\0' ) >= 0
+                        || relativePath.startsWith( "/" )
+                        || relativePath.startsWith( "\\" )
+                        || ( relativePath.length() >= 2 && relativePath.charAt( 1 ) == ':' ) ) {
+                    Logger.logWarningSilent(
+                            "Skipping unsafe runtime manifest entry name: " + relativePath );
+                    continue;
+                }
+                java.nio.file.Path resolved = runtimeBase.resolve( relativePath ).normalize();
+                if ( !resolved.startsWith( runtimeBase ) ) {
+                    Logger.logWarningSilent(
+                            "Skipping runtime manifest entry that escapes base dir: " + relativePath );
+                    continue;
+                }
+                File localFile = resolved.toFile();
 
                 if ( "directory".equals( type ) ) {
                     localFile.mkdirs();
