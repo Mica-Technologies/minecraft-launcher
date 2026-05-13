@@ -107,6 +107,14 @@ public class LauncherCore
      * @since 1.0
      */
     public static void main( String[] args ) {
+        // Opt the process into Per-Monitor DPI Awareness V2 before anything else.
+        // JavaFX's Glass backend internally sets only V1, which scales the JavaFX
+        // client area per-monitor but leaves the OS-managed title bar sized at the
+        // system DPI — so on a mixed-DPI multi-monitor setup the launcher's chrome
+        // ends up tiny on the higher-DPI monitor. V2 has to be set before any
+        // window is created or DPI API is queried; later upgrades fail silently.
+        WindowsDpiAwareness.enablePerMonitorV2();
+
         // Enforce single instance. If another instance is already running:
         //   - and we have a mmcl:// URI in argv, forward it to the running instance and exit
         //     silently (the running instance brings itself to focus and dispatches the action).
