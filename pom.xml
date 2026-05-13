@@ -542,8 +542,14 @@
                                               outputproperty="bundle.build.revision"
                                               failonerror="true">
                                             <arg value="-NoProfile"/>
+                                            <!-- RemoteSigned permits local scripts (this .ps1 lives in
+                                                 the repo) while still rejecting anything fetched from
+                                                 the internet without a signature. Strictly better than
+                                                 Bypass — if the script is ever tampered with via a
+                                                 download path, the policy still flags it. AllSigned is
+                                                 the next step up once the script is signed. -->
                                             <arg value="-ExecutionPolicy"/>
-                                            <arg value="Bypass"/>
+                                            <arg value="RemoteSigned"/>
                                             <arg value="-File"/>
                                             <arg value="${project.basedir}/scripts/compute_bundle_revision.ps1"/>
                                         </exec>
