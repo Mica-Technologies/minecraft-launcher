@@ -520,12 +520,20 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         try ( BufferedReader reader = new BufferedReader( new InputStreamReader( inputStream ) ) ) {
             String line;
             while ( ( line = reader.readLine() ) != null ) {
+                // Strip --accessToken / --clientToken / legacy session tokens from every
+                // captured line before it lands in the in-memory buffer, the on-disk log
+                // file, or the visible TextArea. Minecraft's own logger redacts in modern
+                // versions, but the JVM startup banner and some mods echo argv verbatim,
+                // and the in-game "Copy" button takes from logArea.getText() — which
+                // would otherwise hand a forum-pasted log straight to anyone reading it.
+                String safe = com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
+                        .redact( line );
                 synchronized ( fullLogContent ) {
-                    fullLogContent.append( line ).append( '\n' );
+                    fullLogContent.append( safe ).append( '\n' );
                 }
-                writeToLogFile( line );
+                writeToLogFile( safe );
                 if ( !showingCrashReport ) {
-                    pendingLines.add( line );
+                    pendingLines.add( safe );
                 }
             }
         }

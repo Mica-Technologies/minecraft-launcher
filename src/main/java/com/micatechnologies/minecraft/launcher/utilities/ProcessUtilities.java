@@ -64,12 +64,13 @@ public class ProcessUtilities
                                                                                                       SynchronizedFileManager.getSynchronizedFile(
                                                                                                               workingDirectory ) );
 
-            // Start process and wait for finish
+            // Start process and wait for finish — redact auth tokens before logging.
+            String redacted = SensitiveDataRedactor.redact( command );
             if ( retryNumber > 0 ) {
-                Logger.logStd( "Executing command (retry " + retryNumber + "): " + command );
+                Logger.logStd( "Executing command (retry " + retryNumber + "): " + redacted );
             }
             else {
-                Logger.logStd( "Executing command: " + command );
+                Logger.logStd( "Executing command: " + redacted );
             }
             Process mcProcess = processBuilder.start();
 
@@ -123,7 +124,8 @@ public class ProcessUtilities
         ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) )
                 .redirectErrorStream( false )
                 .directory( SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
-        Logger.logStd( "Launching command: " + command );
+        // Redact auth tokens before logging — see SensitiveDataRedactor for the patterns.
+        Logger.logStd( "Launching command: " + SensitiveDataRedactor.redact( command ) );
         return processBuilder.start();
     }
 

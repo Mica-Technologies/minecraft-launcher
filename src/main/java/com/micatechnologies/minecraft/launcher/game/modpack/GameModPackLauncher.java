@@ -506,7 +506,13 @@ class GameModPackLauncher
 
         // Start game (always non-blocking -- LauncherCore.play() handles the process lifecycle)
         try {
-            Logger.logDebug( "Launching game with command: " + fullArgs );
+            // Redact --accessToken / --clientToken / legacy "token:<token>:<uuid>" before
+            // logging — the launcher command line carries the live MS access token, and
+            // this log line gets teed into the persistent launcher.log + the game console
+            // window. Without redaction, a forum-pasted log = account takeover.
+            Logger.logDebug( "Launching game with command: "
+                                     + com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
+                                                .redact( fullArgs ) );
             lastLaunchedProcess = ProcessUtilities.launchCommand( fullArgs, pack.getPackRootFolder() );
         }
         catch ( IOException e ) {
