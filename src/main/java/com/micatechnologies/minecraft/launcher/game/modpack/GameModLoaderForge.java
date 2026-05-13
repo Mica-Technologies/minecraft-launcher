@@ -745,17 +745,35 @@ class GameModLoaderForge extends ManagedGameFile
 
     /**
      * Resolves a processor argument by substituting data variables and special tokens.
+     *
+     * <p>Forge's official installer (see {@code PostProcessors.java} in the
+     * Forge installer source) replaces tokens in this order:</p>
+     * <ol>
+     *   <li>Entries from the {@code data} section (per-side {@code client}/
+     *       {@code server} values, often Maven coords or literal strings).</li>
+     *   <li>Magic tokens the installer fills in at runtime — {@code SIDE},
+     *       {@code MINECRAFT_JAR}, {@code MINECRAFT_VERSION}, {@code ROOT},
+     *       {@code LIBRARY_DIR}, {@code INSTALLER}. These never appear in
+     *       {@code data}; the installer just knows what they mean.</li>
+     * </ol>
+     *
+     * <p>The data branch is tried first so a pack that explicitly redirects
+     * one of these names (rare but allowed) wins over the magic default.
+     * Forge 1.20.1's DOWNLOAD_MOJMAPS processor exercises the {@code SIDE}
+     * fallback — without magic-token handling the literal string
+     * {@code "{SIDE}"} reached installertools and the processor blew up
+     * with "Missing download info for {SIDE} mappings".</p>
      */
     private String resolveProcessorArg( String arg, JsonObject data, String side, String libsFolder,
                                          String minecraftJarPath )
     throws ModpackException
     {
-        // {VARIABLE} -> resolved from data section
+        // {VARIABLE} -> resolved from data section, falling back to magic tokens
         if ( arg.startsWith( "{" ) && arg.endsWith( "}" ) ) {
             String key = arg.substring( 1, arg.length() - 1 );
-            if ( key.equals( "MINECRAFT_JAR" ) ) {
-                return minecraftJarPath;
-            }
+
+            // 1) Data-section lookup. Returns the per-side value if the key
+            //    has a matching entry.
             JsonObject dataEntry = JsonHelper.getJsonObject( data, key );
             if ( dataEntry != null ) {
                 String value = JsonHelper.getString( dataEntry, side, null );
@@ -763,7 +781,34 @@ class GameModLoaderForge extends ManagedGameFile
                     return resolveDataValue( value, libsFolder );
                 }
             }
-            return arg;
+
+            // 2) Magic-token fallbacks. Match Forge's installer one-for-one
+            //    so any 1.13+ install_profile.json processes identically to
+            //    when run through forge-installer.jar directly.
+            switch ( key ) {
+                case "SIDE":
+                    return side;
+                case "MINECRAFT_JAR":
+                    return minecraftJarPath;
+                case "MINECRAFT_VERSION":
+                    return minecraftVersion;
+                case "ROOT":
+                    return parentModPack.getPackRootFolder();
+                case "LIBRARY_DIR":
+                    return libsFolder;
+                case "INSTALLER":
+                    return getFullLocalFilePath();
+                default:
+                    // Unknown token — log so a future Forge release that
+                    // adds a new magic placeholder fails loudly here
+                    // instead of silently passing the literal "{FOO}" to
+                    // the processor and producing a cryptic downstream
+                    // error.
+                    Logger.logWarningSilent(
+                            "Unrecognized Forge processor token: " + arg
+                                    + " (passing through literally; processor may fail)" );
+                    return arg;
+            }
         }
 
         // [maven:coord] -> path to library
