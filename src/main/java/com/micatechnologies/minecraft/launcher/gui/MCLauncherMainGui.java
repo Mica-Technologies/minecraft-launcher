@@ -1449,7 +1449,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             websiteBtn.setDisable( newPack.getPackURL() == null || newPack.getPackURL().isBlank() );
 
             // Context menu — rebuilt per pack since it embeds pack-specific actions.
-            ContextMenu menu = buildPackContextMenu( newPack );
+            ContextMenu menu = buildPackContextMenu( newPack, stage,
+                                                      MCLauncherMainGui.this::showBackgroundStatus,
+                                                      MCLauncherMainGui.this::hideBackgroundStatus,
+                                                      MCLauncherMainGui.this::rebuildCards );
             setOnContextMenuRequested( e -> menu.show( this, e.getScreenX(), e.getScreenY() ) );
         }
 
@@ -1967,7 +1970,51 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
     }
 
-    private static ContextMenu buildPackContextMenu( GameModPack pack ) {
+    /** Bottom-bar status helper — counterpart to {@link MCLauncherGameLibraryGui}'s
+     *  helper of the same name. Flips {@code backgroundFetchLabel} on with the
+     *  given text. Safe from any thread; FX work is dispatched via JFXPlatformRun. */
+    private void showBackgroundStatus( String text )
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( backgroundFetchLabel == null ) return;
+            backgroundFetchLabel.setText( text != null ? text : "" );
+            backgroundFetchLabel.setVisible( true );
+            backgroundFetchLabel.setManaged( true );
+        } );
+    }
+
+    /** Hides the bottom-bar status label and restores the canonical startup-fetch
+     *  text in case the deferred startup fetch hasn't fired yet this session
+     *  (matches what the manual-refresh handler does on its tear-down path). */
+    private void hideBackgroundStatus()
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            if ( backgroundFetchLabel == null ) return;
+            backgroundFetchLabel.setVisible( false );
+            backgroundFetchLabel.setManaged( false );
+            backgroundFetchLabel.setText( "Loading available packs…" );
+        } );
+    }
+
+    /**
+     * Builds the right-click context menu for a pack card. Shared between the
+     * main-menu hero carousel and the Library grid so a user who right-clicks
+     * a pack in either view gets the same set of actions (open folders, copy
+     * invite link, uninstall, …).
+     *
+     * <p>The uninstall action defers to
+     * {@link MCLauncherGameLibraryGui#confirmAndUninstallModpack} — same
+     * confirmation dialog as the Library's manage UI — and routes its
+     * progress + completion callbacks back to the caller so the caller's
+     * bottom-bar status label flips and its card grid rebuilds without this
+     * helper needing to know which screen it was invoked from.
+     */
+    static ContextMenu buildPackContextMenu( GameModPack pack,
+                                              Stage owner,
+                                              java.util.function.Consumer< String > showProgress,
+                                              Runnable hideProgress,
+                                              Runnable afterUninstall )
+    {
         ContextMenu menu = new ContextMenu();
 
         MenuItem playStats = new MenuItem( "Played " + pack.getTotalPlayTimeFormatted() +
@@ -1982,6 +2029,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         MenuItem openConfig       = new MenuItem( "Open Config Folder" );
         MenuItem createShortcut   = new MenuItem( "Create Desktop Shortcut" );
         MenuItem copyInviteLink   = new MenuItem( "Copy Discord Invite Link" );
+        MenuItem uninstall        = new MenuItem( "Uninstall…" );
 
         openFolder.setOnAction(       e -> openPackSubfolder( pack, "" ) );
         openScreenshots.setOnAction(  e -> openPackSubfolder( pack, "screenshots" ) );
@@ -1991,6 +2039,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         openConfig.setOnAction(       e -> openPackSubfolder( pack, "config" ) );
         createShortcut.setOnAction(   e -> createDesktopShortcut( pack ) );
         copyInviteLink.setOnAction(   e -> copyInviteLinkToClipboard( pack ) );
+        uninstall.setOnAction( e -> MCLauncherGameLibraryGui.confirmAndUninstallModpack(
+                pack, pack.getFriendlyName(), owner,
+                showProgress, hideProgress, afterUninstall ) );
 
         // Disable only when there's truly nothing to invite friends to — i.e. no manifest
         // URL AND no vanilla version ID. The customDiscordRpc gate that used to live here
@@ -2008,7 +2059,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                 openFolder, new SeparatorMenuItem(),
                                 openScreenshots, openResourcePks, openShaderPacks,
                                 new SeparatorMenuItem(), openMods, openConfig,
-                                new SeparatorMenuItem(), createShortcut, copyInviteLink );
+                                new SeparatorMenuItem(), createShortcut, copyInviteLink,
+                                new SeparatorMenuItem(), uninstall );
         return menu;
     }
 

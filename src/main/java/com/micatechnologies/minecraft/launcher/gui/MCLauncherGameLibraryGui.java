@@ -38,6 +38,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.CacheHint;
 import javafx.scene.Cursor;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
@@ -1256,6 +1257,23 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
             getChildren().addAll( imageBox, info, actions );
             setCursor( Cursor.HAND );
+
+            // Right-click context menu — only for installed modpacks where the
+            // shared MCLauncherMainGui.buildPackContextMenu's actions (open
+            // folders, copy invite link, uninstall) apply. Available packs
+            // can't be uninstalled and have no install folder to open;
+            // vanilla cards use a separate uninstall path and don't carry
+            // a full GameModPack to feed the helpers.
+            if ( entry.kind == LibraryEntry.Kind.MODPACK_INSTALLED && entry.pack != null ) {
+                final GameModPack ctxPack = entry.pack;
+                ContextMenu menu = MCLauncherMainGui.buildPackContextMenu(
+                        ctxPack, stage,
+                        MCLauncherGameLibraryGui.this::showBackgroundStatus,
+                        MCLauncherGameLibraryGui.this::hideBackgroundStatus,
+                        MCLauncherGameLibraryGui.this::rebuildCards );
+                setOnContextMenuRequested( e ->
+                        menu.show( this, e.getScreenX(), e.getScreenY() ) );
+            }
         }
 
         /** Top-right badge text — "Installed" / "Available" / "Recently updated". */
@@ -1353,17 +1371,52 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private void uninstallInstalledModpack( LibraryEntry entry )
     {
         if ( entry.pack == null ) return;
+        confirmAndUninstallModpack( entry.pack, entry.displayName, stage,
+                                    this::showBackgroundStatus,
+                                    this::hideBackgroundStatus,
+                                    this::rebuildCards );
+    }
+
+    /**
+     * Reusable uninstall flow: confirmation dialog → background worker that
+     * optionally deletes the install folder and removes the pack from the
+     * installed list. Used by the Library cards' Uninstall button and the
+     * right-click context menus on both the Library cards and the main menu's
+     * pack carousel — same prompt, same options, same cleanup, just different
+     * progress affordances per caller.
+     *
+     * @param pack          the installed modpack to remove (no-op when null)
+     * @param displayName   user-facing name; appears in the dialog title +
+     *                      progress text
+     * @param owner         dialog owner Stage (focus / theming)
+     * @param showProgress  optional status updater (e.g. bottom-bar label
+     *                      flip). Receives the localized progress string;
+     *                      ignored when null
+     * @param hideProgress  optional callback to dismiss the progress UI
+     *                      after the worker finishes (success or failure);
+     *                      runs on the FX thread; ignored when null
+     * @param onComplete    optional FX-thread callback fired after the
+     *                      uninstall succeeds, before progress is hidden;
+     *                      typical use is rebuilding the caller's pack
+     *                      grid so the removed pack disappears
+     */
+    public static void confirmAndUninstallModpack( GameModPack pack,
+                                                    String displayName,
+                                                    Stage owner,
+                                                    java.util.function.Consumer< String > showProgress,
+                                                    Runnable hideProgress,
+                                                    Runnable onComplete )
+    {
+        if ( pack == null ) return;
         int response = GUIUtilities.showQuestionMessage(
                 "Uninstall Modpack",
-                "Uninstall " + entry.displayName + "?",
+                "Uninstall " + displayName + "?",
                 "Would you also like to delete the installed game files?",
-                "Uninstall & Delete Files", "Uninstall (Keep Files)", stage );
+                "Uninstall & Delete Files", "Uninstall (Keep Files)", owner );
         if ( response == 0 ) return;
         boolean deleteFiles = ( response == 1 );
 
-        GameModPack pack = entry.pack;
-        final String displayName = entry.displayName;
-        showBackgroundStatus( "Removing " + displayName + "…" );
+        if ( showProgress != null ) showProgress.accept( "Removing " + displayName + "…" );
         SystemUtilities.spawnNewTask( () -> {
             try {
                 if ( deleteFiles ) {
@@ -1378,10 +1431,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     }
                 }
                 GameModPackManager.uninstallModPack( pack );
-                GUIUtilities.JFXPlatformRun( this::rebuildCards );
+                if ( onComplete != null ) GUIUtilities.JFXPlatformRun( onComplete );
             }
             finally {
-                hideBackgroundStatus();
+                if ( hideProgress != null ) GUIUtilities.JFXPlatformRun( hideProgress );
             }
         } );
     }
