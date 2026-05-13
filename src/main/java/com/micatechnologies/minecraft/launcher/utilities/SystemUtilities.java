@@ -236,9 +236,65 @@ public class SystemUtilities
      * @since 1.1
      */
     public static void spawnNewTask( Runnable runnable ) {
-        Thread t = new Thread( runnable );
-        t.setDaemon( true );
-        t.start();
+        BACKGROUND_EXECUTOR.execute( runnable );
+    }
+
+    /**
+     * Shared cached thread pool backing {@link #spawnNewTask}. A cached pool reuses
+     * idle worker threads for the brief, fire-and-forget tasks the launcher fans out
+     * across the GUI and background-fetch paths instead of constructing a fresh
+     * {@code java.lang.Thread} per call. Idle threads are reaped after 60s, so steady-
+     * state thread count drops back to ~0 between bursts; a burst of N concurrent
+     * tasks (cold-start manifest fetch fanout, parallel image prefetch) still grows
+     * the pool as needed up to JVM concurrency limits, but a long-tail of single-fire
+     * Runnables no longer churns one OS thread apiece.
+     *
+     * <p>All workers are daemon threads named {@code mica-bg-N} so they don't keep the
+     * JVM alive past launcher exit and are easy to find in a thread dump. The pool
+     * is exposed package-private to {@link com.micatechnologies.minecraft.launcher.LauncherCore}
+     * for the shutdown-drain hook — every other consumer should go through
+     * {@link #spawnNewTask}.</p>
+     */
+    static final java.util.concurrent.ExecutorService BACKGROUND_EXECUTOR =
+            java.util.concurrent.Executors.newCachedThreadPool( new java.util.concurrent.ThreadFactory()
+            {
+                private final java.util.concurrent.atomic.AtomicInteger seq =
+                        new java.util.concurrent.atomic.AtomicInteger( 0 );
+
+                @Override
+                public Thread newThread( Runnable r ) {
+                    Thread t = new Thread( r, "mica-bg-" + seq.incrementAndGet() );
+                    t.setDaemon( true );
+                    return t;
+                }
+            } );
+
+    /**
+     * Shuts down the shared background-task executor with a bounded wait so any
+     * in-flight tasks (a manifest fetch that's about to write its cache, a logger
+     * flush) get a chance to land before the process tears down. Best-effort —
+     * the timeout caps how long the launcher will wait, after which we move on
+     * and let daemon-thread semantics clean up whatever is still running.
+     *
+     * <p>Package-private; called from {@link com.micatechnologies.minecraft.launcher.LauncherCore}
+     * on app shutdown.</p>
+     *
+     * @param awaitMillis milliseconds to wait for graceful completion
+     */
+    public static void shutdownBackgroundExecutor( long awaitMillis ) {
+        BACKGROUND_EXECUTOR.shutdown();
+        try {
+            if ( !BACKGROUND_EXECUTOR.awaitTermination( awaitMillis,
+                                                         java.util.concurrent.TimeUnit.MILLISECONDS ) ) {
+                Logger.logWarningSilent( "Background executor did not drain within "
+                                                 + awaitMillis + "ms — proceeding with shutdown anyway." );
+                BACKGROUND_EXECUTOR.shutdownNow();
+            }
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            BACKGROUND_EXECUTOR.shutdownNow();
+        }
     }
 
     /**

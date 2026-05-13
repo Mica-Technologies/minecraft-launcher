@@ -902,6 +902,11 @@ public class LauncherCore
             // initOwner; tearing it down last keeps the close order stable.
             com.micatechnologies.minecraft.launcher.gui.MCLauncherHelpWindow.cleanup();
             SingleInstanceLock.release();
+            // Drain in-flight background tasks (manifest cache writes, log flushes
+            // queued by spawnNewTask, etc.) before tearing down the logger so any
+            // last-second I/O actually lands. Bounded wait — daemon-thread semantics
+            // clean up whatever is still running past the timeout.
+            SystemUtilities.shutdownBackgroundExecutor( 2_000 );
             Logger.shutdownLogSys();
         }
         catch ( Exception ignored ) {
