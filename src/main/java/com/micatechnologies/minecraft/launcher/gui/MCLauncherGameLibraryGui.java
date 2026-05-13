@@ -677,6 +677,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             Image logoImage = resolveLogoForEntry( entry );
             if ( logoImage != null ) {
                 logo.setImage( logoImage );
+                // Fade the logo in once the bytes arrive — see ImageFadeIn for rationale.
+                ImageFadeIn.apply( logo );
             }
             Rectangle logoClip = new Rectangle( 52, 52 );
             logoClip.setArcWidth( 12 );

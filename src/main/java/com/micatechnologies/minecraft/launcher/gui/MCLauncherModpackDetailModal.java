@@ -378,12 +378,15 @@ public class MCLauncherModpackDetailModal extends StackPane
         Image logoImage = resolveLogoImage( pack );
         Region bgLayer = new Region();
         bgLayer.getStyleClass().add( "heroBackground" );
+        // Always paint the dynamic gradient as the placeholder behind the bg-image so
+        // the hero area never renders empty during a cold image fetch. The remote
+        // -fx-background-image, when supplied, layers on top once its bytes arrive
+        // and through any transparent regions.
+        MCLauncherMainGui.applyDynamicBackground( bgLayer, pack, logoImage );
         String bgUrl = resolveBackgroundUrl( pack );
         if ( bgUrl != null ) {
-            bgLayer.setStyle( "-fx-background-image: url('" + bgUrl + "');" );
-        }
-        else {
-            MCLauncherMainGui.applyDynamicBackground( bgLayer, pack, logoImage );
+            String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
+            bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
         }
 
         // Veil — heavier at the bottom-left where the logo and title sit, so they read
@@ -447,6 +450,9 @@ public class MCLauncherModpackDetailModal extends StackPane
         logoView.setFitHeight( 88 );
         logoView.setPreserveRatio( true );
         logoView.setImage( logoImage );
+        // Fade the logo in once its bytes arrive — keeps the modal from flickering
+        // a blank logo square on cold-network opens.
+        ImageFadeIn.apply( logoView );
         Rectangle logoClip = new Rectangle( 88, 88 );
         logoClip.setArcWidth( 18 );
         logoClip.setArcHeight( 18 );

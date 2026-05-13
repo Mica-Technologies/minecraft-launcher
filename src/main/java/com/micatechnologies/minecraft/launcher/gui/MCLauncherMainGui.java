@@ -931,18 +931,25 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
             Region bgLayer = new Region();
             bgLayer.getStyleClass().add( "heroBackground" );
+            // Always paint the procedural gradient first — it acts as the visible
+            // placeholder behind a remote -fx-background-image while the latter is
+            // still loading off the network. Without this, the bgLayer renders
+            // empty (the .heroBackground default fill) for the duration of the
+            // image fetch, which is the "cards pop in" effect on cold loads:
+            //   • vanilla versions get a sky → grass gradient
+            //   • modded packs with a logo get a gradient derived from the logo's
+            //     dominant color, so each pack feels visually individuated
+            //   • modded packs without a logo fall back to a Forge-themed gradient
+            //     (dark anvil + warm forge-fire glow)
+            applyDynamicBackground( bgLayer, pack, packLogoImage );
             String bgUrl = resolveBackgroundUrl( pack );
             if ( bgUrl != null ) {
-                bgLayer.setStyle( "-fx-background-image: url('" + bgUrl + "');" );
-            }
-            else {
-                // No per-pack background image — drive a procedural visual:
-                //   • vanilla versions get a sky → grass gradient
-                //   • modded packs with a logo get a gradient derived from the logo's
-                //     dominant color, so each pack feels visually individuated
-                //   • modded packs without a logo fall back to a Forge-themed gradient
-                //     (dark anvil + warm forge-fire glow)
-                applyDynamicBackground( bgLayer, pack, packLogoImage );
+                // Append rather than replace so the gradient bg-color from
+                // applyDynamicBackground stays visible through any transparent
+                // pixels of the bg-image and through the entire fetch window
+                // until the bytes arrive.
+                String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
+                bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
             }
 
             // Subtle veil along the bottom of the image so the logo reads against it.
@@ -974,6 +981,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             logo.setFitHeight( 68 );
             logo.setPreserveRatio( true );
             logo.setImage( packLogoImage );
+            // Fade the logo in once the off-thread image-loader delivers the bytes.
+            // The rounded logoContainer's own styling (border + bg-color from
+            // .heroPackLogoContainer) acts as the placeholder during the fade.
+            ImageFadeIn.apply( logo );
             Rectangle logoClip = new Rectangle( 68, 68 );
             logoClip.setArcWidth( 16 );
             logoClip.setArcHeight( 16 );
