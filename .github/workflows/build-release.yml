@@ -143,7 +143,15 @@ jobs:
       #   build/packaging/<name> Setup.exe           (Burn bootstrapper, picks scope)
       # A single `mvn -B package` runs all of jpackage-user, jpackage-machine,
       # burn-candle and burn-light — no follow-up `exec:exec@jpackage` is needed.
+      #
+      # shell: bash is required — PowerShell 7 tokenizes the dotted revision
+      # value (e.g. "2026.05.13") on the first `.`, passing "-Drevision=2026"
+      # and ".05.13" to mvn as two separate args. Maven then interprets the
+      # dotted tail as a lifecycle phase and aborts with "Unknown lifecycle
+      # phase". Git Bash handles dotted args verbatim. (Same fix applied to
+      # the test-build workflow's Windows job.)
       - name: Build and package (Burn bootstrapper EXE + per-user MSI + per-machine MSI)
+        shell: bash
         run: >
           mvn -B package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}

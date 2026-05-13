@@ -62,7 +62,13 @@ jobs:
         run: echo "C:\Program Files (x86)\WiX Toolset v3.14\bin" >> $GITHUB_PATH
         shell: bash
 
+      # shell: bash is required — PowerShell 7 tokenizes the dotted revision
+      # value (e.g. "2025.1.1-255-g1c8586c") on the first `.`, passing
+      # "-Drevision=2025" and ".1.1-255-g1c8586c" to mvn as two separate args.
+      # Maven then interprets the dotted tail as a lifecycle phase and aborts
+      # with "Unknown lifecycle phase". Git Bash handles dotted args verbatim.
       - name: Build and package
+        shell: bash
         run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       # Mirror the release workflow's flat staging + scope-suffix rename so PR
