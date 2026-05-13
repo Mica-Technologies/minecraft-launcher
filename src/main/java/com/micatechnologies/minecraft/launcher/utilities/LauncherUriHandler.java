@@ -79,9 +79,9 @@ public final class LauncherUriHandler
 
     /** Hosts whose modpack manifests we install without an extra confirmation prompt.
      *  These are the official Mica-controlled origins. Any other host the URI dispatcher
-     *  sees triggers the untrusted-host confirmation dialog (security finding 1.6) —
-     *  a malicious phishing link emitting {@code mmcl://add?url=http://attacker/x.json}
-     *  can no longer install silently. */
+     *  sees triggers the untrusted-host confirmation dialog — a malicious phishing
+     *  link emitting {@code mmcl://add?url=http://attacker/x.json} can no longer
+     *  install silently. */
     private static final Set< String > TRUSTED_INSTALL_HOSTS = Set.of(
             "micauseaststorage.blob.core.windows.net" );
 
@@ -318,7 +318,7 @@ public final class LauncherUriHandler
     /**
      * Validates an install URL coming in over the {@code mmcl://} channel and (if the
      * host is untrusted) prompts the user. Returns {@code true} only if the URL is safe
-     * to hand to {@link GameModPackManager#installModPackByURL} — security finding 1.6.
+     * to hand to {@link GameModPackManager#installModPackByURL}.
      *
      * <p>Threading: this method blocks the calling background task until the user
      * answers the prompt. The dialog itself runs on the FX thread via

@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 
 /**
  * Scrubs Minecraft / launcher access tokens from log lines and command strings
- * before they hit disk or the clipboard (security finding 2.2). Centralizes the
+ * before they hit disk or the clipboard. Centralizes the
  * patterns so every place that surfaces text to the user runs the same filter.
  *
  * <p>Targets:

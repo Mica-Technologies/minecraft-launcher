@@ -81,7 +81,7 @@ public class SingleInstanceLock
      *  owner can read it. Second-instance forwarders read the token from this file and send
      *  it as the first protocol line — the server refuses any connection that doesn't open
      *  with the right token, which closes the "any local process on loopback can inject
-     *  mmcl:// URIs" hole called out in security finding 1.8. */
+     *  mmcl:// URIs" hole that bare loopback IPC would otherwise leave open. */
     private static final String IPC_TOKEN_FILENAME = "single-instance.token";
 
     /** Hex-encoded random 256-bit token sent as the first protocol line. Initialized in

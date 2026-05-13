@@ -278,8 +278,8 @@ public class ConfigConstants
      * ignored — both at cold start (via argv) and at runtime (via the single-instance
      * IPC forward). Defaults true to match the website-driven install flow, but lets
      * privacy-conscious users or shared-workstation users disable the entire URI
-     * attack surface at the source (security finding 1.6 hardening — the gate already
-     * exists at the install-URL level, this turns the whole feature off).
+     * attack surface at the source — the install-URL gate in {@code LauncherUriHandler}
+     * already filters non-https / untrusted-host links, this turns the whole feature off.
      *
      * @since 2026.2
      */

@@ -524,7 +524,7 @@ public class ConfigManager
 
     /**
      * Sets the custom JVM launch arguments. Validates the string against argument-injection
-     * patterns (security finding 2.1) — these args are appended into the launch command
+     * patterns — these args are appended into the launch command
      * line that gets split via {@code ProcessUtilities.splitCommandLine} and is also subject
      * to {@code ${placeholder}} substitution downstream. Embedded newlines, NULs, control
      * characters, or {@code ${...}} sequences are rejected outright so that:

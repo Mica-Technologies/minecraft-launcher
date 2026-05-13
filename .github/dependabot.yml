@@ -2,7 +2,7 @@
 #
 # Tracks two ecosystems:
 #   - github-actions: keeps the SHA-pinned third-party actions in our workflows
-#     fresh. Pinned to a commit SHA (security finding 2.8) means Dependabot
+#     fresh. Pinned to a commit SHA means Dependabot
 #     opens a PR with the new SHA every time the upstream tags a new release,
 #     instead of silently following a moving tag.
 #   - maven: bumps Java dependencies (commons-compress, jna, gson, javafx, etc.)

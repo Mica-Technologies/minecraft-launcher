@@ -40,7 +40,7 @@ import java.util.Set;
  * convenience {@code archiver.extract(file, dir)} call site in
  * {@link com.micatechnologies.minecraft.launcher.files.RuntimeManager} for the
  * JRE-tarball install path, hardened against the same archive-driven attack
- * surface as {@link SystemUtilities#extractJarFile} (security finding 1.4):
+ * surface as {@link SystemUtilities#extractJarFile}:
  *
  * <ul>
  *   <li><b>Zip-slip:</b> every resolved entry path must reside under the base

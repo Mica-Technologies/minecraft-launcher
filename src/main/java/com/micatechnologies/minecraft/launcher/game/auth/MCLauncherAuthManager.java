@@ -722,7 +722,7 @@ public class MCLauncherAuthManager
                 // Sanitized: log only the exception class, not the message or stack. The
                 // minecraft_authenticator library wraps OAuth response bodies in exception
                 // messages, which can contain token fragments and detailed account state.
-                // Persistent logs are not the place for that (security finding 2.5).
+                // Persistent logs are not the place for that.
                 logAuthErrorType( cause );
                 recordAuthFailure();
                 return MCLauncherAuthResult.ERROR_OTHER;
@@ -744,7 +744,7 @@ public class MCLauncherAuthManager
         catch ( Exception e ) {
             Logger.logWarningSilent( LocalizationManager.PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT );
             // Sanitized: the catch is broad and frequently catches auth-lib exceptions
-            // (not just I/O), so we log type-only rather than the full stack. See finding 2.5.
+            // (not just I/O), so we log type-only rather than the full stack.
             logAuthErrorType( e );
             recordAuthFailure();
             return MCLauncherAuthResult.ERROR_OTHER;
@@ -864,7 +864,7 @@ public class MCLauncherAuthManager
         else {
             Logger.logWarningSilent( "Failed to login due to an exception while contacting the login service!" );
             // Sanitized — these are direct auth-library exceptions, so the message
-            // can carry token fragments. Log type only (security finding 2.5).
+            // can carry token fragments. Log type only.
             logAuthErrorType( e );
             result = MCLauncherAuthResult.ERROR_OTHER;
         }

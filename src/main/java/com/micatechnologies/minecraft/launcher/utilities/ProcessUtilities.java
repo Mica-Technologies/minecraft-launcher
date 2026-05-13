@@ -125,7 +125,7 @@ public class ProcessUtilities
                 .redirectErrorStream( false )
                 .directory( SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
         // Filter the inherited environment before handing it to Minecraft / Forge / mods
-        // (security finding 2.3). Mods are unsandboxed JVM code; if the user happened to
+        // before spawning the game. Mods are unsandboxed JVM code; if the user happened to
         // have AWS_SECRET_KEY / OPENAI_API_KEY / similar in their shell when they launched
         // the game, any mod can read it via System.getenv(). We can't full-whitelist
         // because per-platform mod dependencies vary too much (graphics drivers, locale,

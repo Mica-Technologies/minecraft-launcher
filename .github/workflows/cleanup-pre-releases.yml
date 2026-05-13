@@ -6,10 +6,10 @@ on:
     types:
       - completed
 
-# Workflow needs contents: write to delete the release assets, but nothing else
-# (security finding 2.8). The workflow_run trigger normally hands the cleanup
-# workflow GITHUB_TOKEN with the same scope as the parent — declaring it
-# explicitly keeps the surface bounded if the parent's scope grows later.
+# Workflow needs contents: write to delete the release assets, but nothing
+# else. The workflow_run trigger normally hands the cleanup workflow
+# GITHUB_TOKEN with the same scope as the parent — declaring it explicitly
+# keeps the surface bounded if the parent's scope grows later.
 permissions:
   contents: write
 
@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete old pre-releases
-        # SHA-pinned for security finding 2.8 — equivalent to tag v0.3.4 at time of
-        # pin. Bump alongside Dependabot PRs (see .github/dependabot.yml).
+        # SHA-pinned — equivalent to tag v0.3.4 at time of pin. Bump alongside
+        # Dependabot PRs (see .github/dependabot.yml).
         uses: dev-drprasad/delete-older-releases@dfbe6be2a006e9475dfcbe5b8d201f1824c2a9fe # v0.3.4
         with:
           delete_expired_data: '90'

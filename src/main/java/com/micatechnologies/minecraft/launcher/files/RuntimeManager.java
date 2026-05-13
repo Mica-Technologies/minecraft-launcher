@@ -569,7 +569,7 @@ public class RuntimeManager
             if ( altFolder.exists() ) {
                 FileUtils.deleteDirectory( altFolder );
             }
-            // Hardened extract (security finding 1.5): containment check on every
+            // Hardened extract: containment check on every
             // entry, symlink/hardlink/device rejection (TAR can carry them and a
             // hostile community-built JRE could escape the runtime folder via one),
             // size caps to bound zip-bomb damage. See ArchiveExtractor for the

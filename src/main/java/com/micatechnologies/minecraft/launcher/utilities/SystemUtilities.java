@@ -104,7 +104,7 @@ public class SystemUtilities
      * Extracts the specified source JAR to the destination directory. Skips
      * {@code META-INF} entries (signatures aren't preserved across re-pack).
      *
-     * <p>Hardened against archive-driven attacks (security review finding 1.4):
+     * <p>Hardened against archive-driven attacks:
      * <ul>
      *   <li><b>Zip-slip:</b> the resolved destination of every entry must reside
      *       under the base destination directory. Entry names containing

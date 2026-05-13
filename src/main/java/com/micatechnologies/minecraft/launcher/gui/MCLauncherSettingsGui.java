@@ -237,7 +237,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     /**
      * Security tab: mmcl:// deep-link kill switch. Mirrors
      * {@link ConfigManager#getUriHandlerEnabled()} —
-     * see security finding 1.6 + the user-controlled toggle introduced alongside.
+     * see the {@code LauncherUriHandler} HTTPS + trusted-host gate.
      */
     @SuppressWarnings( "unused" )
     @FXML
