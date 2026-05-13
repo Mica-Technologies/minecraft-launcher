@@ -435,9 +435,17 @@ public class DesktopShortcutManager
         String targetPath;
         String arguments;
 
+        // packName is server-supplied JSON. Windows .lnk Arguments are parsed by
+        // CommandLineToArgvW when the shortcut is invoked, which honors backslash-
+        // escaped quotes (\"). Without escaping, a packName like
+        // `pack" --launcher-flag "` would split into multiple args. Strip newlines
+        // (a stray \n could break the PowerShell here-arg or the shortcut metadata)
+        // and escape backslashes + double quotes per Windows command-line rules.
+        String safePackArg = windowsCmdQuote( stripWindowsLineTerminators( packName ) );
+
         if ( isNativeExecutable( launcherPath ) ) {
             targetPath = launcherPath;
-            arguments = LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " \"" + packName + "\"";
+            arguments = LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " " + safePackArg;
         }
         else {
             // JAR-based: target is javaw.exe, arguments include -jar
@@ -446,8 +454,8 @@ public class DesktopShortcutManager
             try {
                 File jarFile = new File(
                         LauncherCore.class.getProtectionDomain().getCodeSource().getLocation().toURI() );
-                arguments = "-jar \"" + jarFile.getAbsolutePath() + "\" " +
-                            LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " \"" + packName + "\"";
+                arguments = "-jar " + windowsCmdQuote( jarFile.getAbsolutePath() ) + " "
+                            + LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " " + safePackArg;
             }
             catch ( Exception e ) {
                 throw new IOException( "Unable to resolve JAR path for shortcut.", e );
@@ -536,12 +544,17 @@ public class DesktopShortcutManager
                        "</plist>\n";
         Files.writeString( new File( contentsDir, "Info.plist" ).toPath(), plist, StandardCharsets.UTF_8 );
 
-        // Create launch script
+        // Create launch script. The pack name is server-supplied JSON and is
+        // inserted into bash. Double-quoted strings still expand $, backticks,
+        // and `\` sequences, so packName.replace("\"", "\\\"") on its own would
+        // let a manifest with `"; rm -rf $HOME; #"` in the pack name execute
+        // arbitrary commands when the shortcut was invoked. Single-quoting with
+        // POSIX-style ' -> '\'' is robust to every metacharacter.
+        String safePackName = shellSingleQuote( packName );
         String script;
         if ( isNativeExecutable( launcherPath ) ) {
-            script = "#!/bin/bash\nexec \"" + launcherPath + "\" " +
-                     LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " \"" + packName.replace( "\"", "\\\"" ) +
-                     "\"\n";
+            script = "#!/bin/bash\nexec " + shellSingleQuote( launcherPath ) + " "
+                     + LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " " + safePackName + "\n";
         }
         else {
             String javaHome = System.getProperty( "java.home" );
@@ -554,9 +567,9 @@ public class DesktopShortcutManager
             catch ( Exception e ) {
                 jarPath = launcherPath;
             }
-            script = "#!/bin/bash\nexec \"" + javaHome + "/bin/java\" -jar \"" + jarPath + "\" " +
-                     LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " \"" + packName.replace( "\"", "\\\"" ) +
-                     "\"\n";
+            script = "#!/bin/bash\nexec " + shellSingleQuote( javaHome + "/bin/java" )
+                     + " -jar " + shellSingleQuote( jarPath ) + " "
+                     + LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " " + safePackName + "\n";
         }
 
         File launchScript = new File( macosDir, "launch.sh" );
@@ -581,10 +594,19 @@ public class DesktopShortcutManager
     {
         File desktopFile = new File( desktopDir, shortcutName + ".desktop" );
 
+        // packName is server-supplied JSON. The .desktop file format is line-based
+        // (newlines split records) and the Exec= field is interpreted by the desktop
+        // environment as a shell-style command line — so embedded newlines, double
+        // quotes, dollar signs, and backticks all need escaping before reaching disk.
+        // Strip line-terminators first (any embedded \n in Name= breaks the parser
+        // entirely), then escape according to the desktop-entry spec for Exec.
+        String safePackName = stripLineTerminators( packName );
+
         String execLine;
         if ( isNativeExecutable( launcherPath ) ) {
-            execLine = "\"" + launcherPath + "\" " + LauncherConstants.PROGRAM_ARG_CLIENT_MODE +
-                       " \"" + packName + "\"";
+            execLine = desktopExecQuote( launcherPath ) + " "
+                       + LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " "
+                       + desktopExecQuote( safePackName );
         }
         else {
             String javaHome = System.getProperty( "java.home" );
@@ -597,17 +619,19 @@ public class DesktopShortcutManager
             catch ( Exception e ) {
                 jarPath = launcherPath;
             }
-            execLine = "\"" + javaHome + "/bin/java\" -jar \"" + jarPath + "\" " +
-                       LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " \"" + packName + "\"";
+            execLine = desktopExecQuote( javaHome + "/bin/java" ) + " -jar "
+                       + desktopExecQuote( jarPath ) + " "
+                       + LauncherConstants.PROGRAM_ARG_CLIENT_MODE + " "
+                       + desktopExecQuote( safePackName );
         }
 
         StringBuilder desktop = new StringBuilder();
         desktop.append( "[Desktop Entry]\n" );
         desktop.append( "Type=Application\n" );
-        desktop.append( "Name=" ).append( packName ).append( "\n" );
+        desktop.append( "Name=" ).append( safePackName ).append( "\n" );
         desktop.append( "Exec=" ).append( execLine ).append( "\n" );
         if ( iconPath != null && new File( iconPath ).exists() ) {
-            desktop.append( "Icon=" ).append( iconPath ).append( "\n" );
+            desktop.append( "Icon=" ).append( stripLineTerminators( iconPath ) ).append( "\n" );
         }
         desktop.append( "Terminal=false\n" );
         desktop.append( "Categories=Game;\n" );
@@ -734,5 +758,121 @@ public class DesktopShortcutManager
     private static int swapInt( int value )
     {
         return Integer.reverseBytes( value );
+    }
+
+    /**
+     * Wraps a string in POSIX single quotes, with embedded single quotes escaped
+     * as {@code '\''}. Single-quoted shell strings suppress every form of
+     * expansion (variables, command substitution, glob, backslash), so this is
+     * the safe form for embedding untrusted data — server-supplied modpack names
+     * in this codebase — into a generated bash script.
+     */
+    private static String shellSingleQuote( String input )
+    {
+        if ( input == null ) {
+            return "''";
+        }
+        return "'" + input.replace( "'", "'\\''" ) + "'";
+    }
+
+    /**
+     * Quotes a value for inclusion in a freedesktop {@code Exec=} line. Per the
+     * Desktop Entry Specification: the argument is wrapped in double quotes, and
+     * the special characters {@code "}, {@code `}, {@code $}, and {@code \} are
+     * each escaped with a leading backslash. This is what stops a pack name
+     * containing {@code $(...)} or backticks from getting expanded by the launching
+     * shell.
+     */
+    private static String desktopExecQuote( String input )
+    {
+        if ( input == null ) {
+            return "\"\"";
+        }
+        StringBuilder sb = new StringBuilder( input.length() + 2 );
+        sb.append( '"' );
+        for ( int i = 0; i < input.length(); i++ ) {
+            char c = input.charAt( i );
+            if ( c == '"' || c == '`' || c == '$' || c == '\\' ) {
+                sb.append( '\\' );
+            }
+            sb.append( c );
+        }
+        sb.append( '"' );
+        return sb.toString();
+    }
+
+    /**
+     * Quotes a single command-line argument for Windows. Wraps in double quotes,
+     * doubles internal backslashes that immediately precede a closing quote, and
+     * escapes embedded {@code "} as {@code \"}. This matches what
+     * {@code CommandLineToArgvW} (used by the Windows runtime for most exes)
+     * expects. Robust to packNames containing spaces, double quotes, or
+     * trailing backslashes.
+     */
+    private static String windowsCmdQuote( String input )
+    {
+        if ( input == null ) {
+            return "\"\"";
+        }
+        StringBuilder sb = new StringBuilder( input.length() + 2 );
+        sb.append( '"' );
+        int trailingBackslashes = 0;
+        for ( int i = 0; i < input.length(); i++ ) {
+            char c = input.charAt( i );
+            if ( c == '\\' ) {
+                trailingBackslashes++;
+                sb.append( c );
+            }
+            else if ( c == '"' ) {
+                // Double every trailing backslash before the quote, then escape the quote.
+                for ( int j = 0; j < trailingBackslashes; j++ ) {
+                    sb.append( '\\' );
+                }
+                trailingBackslashes = 0;
+                sb.append( '\\' ).append( '"' );
+            }
+            else {
+                trailingBackslashes = 0;
+                sb.append( c );
+            }
+        }
+        // If we end on a run of backslashes, double them so the closing quote isn't
+        // misread as an escape.
+        for ( int j = 0; j < trailingBackslashes; j++ ) {
+            sb.append( '\\' );
+        }
+        sb.append( '"' );
+        return sb.toString();
+    }
+
+    /** Strips CR/LF/NUL — same idea as the .desktop helper but applies to any
+     *  value that has to survive the PowerShell single-line invocation that
+     *  creates the .lnk shortcut. */
+    private static String stripWindowsLineTerminators( String input )
+    {
+        return stripLineTerminators( input );
+    }
+
+    /**
+     * Removes CR / LF / NUL from a string. .desktop files are line-based and an
+     * embedded newline would split a single field into two — turning a malicious
+     * pack name into a forged {@code Exec=} override below the user-visible
+     * {@code Name=} field. Applied to every user-supplied value that lands in a
+     * .desktop record.
+     */
+    private static String stripLineTerminators( String input )
+    {
+        if ( input == null ) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder( input.length() );
+        for ( int i = 0; i < input.length(); i++ ) {
+            char c = input.charAt( i );
+            if ( c == '\r' || c == '\n' || c == '\0' ) {
+                continue;
+            }
+            sb.append( c );
+        }
+        return sb.toString();
     }
 }
