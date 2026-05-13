@@ -71,7 +71,7 @@
              users here. The main menu's wordmark area uses "Library" for the
              installed-packs surface, so this screen — the install / manage / browse
              surface — uses "Browse" to mirror the entry point's verb. -->
-        <Label text="Browse" styleClass="heading-h2"/>
+        <Label text="Browse" styleClass="navBrand"/>
 
         <Pane HBox.hgrow="ALWAYS" minWidth="20.0"/>
 

@@ -63,7 +63,7 @@
               maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
             <fx:include source="components/micaBrandLogo-small.fxml"/>
         </Pane>
-        <Label text="Modpack Editor" styleClass="heading-h2"/>
+        <Label text="Modpack Editor" styleClass="navBrand"/>
 
         <Pane HBox.hgrow="ALWAYS"/>
 

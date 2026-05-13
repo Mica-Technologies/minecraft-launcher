@@ -52,7 +52,7 @@
               maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
             <fx:include source="components/micaBrandLogo-small.fxml"/>
         </Pane>
-        <Label fx:id="titleLabel" text="Game Console" styleClass="heading-h2"/>
+        <Label fx:id="titleLabel" text="Game Console" styleClass="navBrand"/>
 
         <Pane HBox.hgrow="ALWAYS"/>
 
