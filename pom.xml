@@ -1060,6 +1060,24 @@
             <groupId>org.rauschig</groupId>
             <artifactId>jarchivelib</artifactId>
             <version>1.2.0</version>
+            <exclusions>
+                <!-- jarchivelib 1.2.0 transitively pulls commons-compress 1.21, which has
+                     CVE-2024-25710 (TAR/DUMP infinite loop) and CVE-2024-26308 (Pack200
+                     OOM). We never touch the affected formats, but the upgrade path
+                     (security finding 1.7) is cheap: pin commons-compress directly to
+                     a current release and exclude the transitive. -->
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-compress</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <!-- Direct pin overrides the transitive bring-in from jarchivelib. Keep this
+                 in lockstep with security finding 1.7. -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.27.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>

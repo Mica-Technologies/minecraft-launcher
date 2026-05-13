@@ -18,8 +18,11 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -77,35 +80,101 @@ public class SystemUtilities
         ProcessUtilities.waitForProcess( process );
     }
 
+    /** Per-entry decompressed-size ceiling for {@link #extractJarFile}. 64 MB is well above
+     *  any legitimate native library or asset; raises a zip-bomb floor without blocking
+     *  Mojang's largest natives. */
+    private static final long MAX_EXTRACT_ENTRY_BYTES = 64L * 1024 * 1024;
+
+    /** Cumulative decompressed-size ceiling for {@link #extractJarFile}. 256 MB lets us
+     *  process the biggest legitimate library-bundle JARs without bowing to a malicious
+     *  archive that streams gigabytes of zero-padded entries. */
+    private static final long MAX_EXTRACT_TOTAL_BYTES = 256L * 1024 * 1024;
+
+    /** Windows reserved device names. NTFS rejects creating files at these names, but the
+     *  rejection happens late (after a partial path write) on some configurations, so we
+     *  filter them ourselves to fail fast and to keep behaviour symmetrical with POSIX
+     *  extract destinations. Compared case-insensitively against the base of each path
+     *  segment (the part before any extension). */
+    private static final Set< String > WINDOWS_RESERVED_NAMES = Set.of(
+            "con", "prn", "aux", "nul",
+            "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+            "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9" );
+
     /**
-     * Extract the specified source JarFile to the specified destination path.
+     * Extracts the specified source JAR to the destination directory. Skips
+     * {@code META-INF} entries (signatures aren't preserved across re-pack).
+     *
+     * <p>Hardened against archive-driven attacks (security review finding 1.4):
+     * <ul>
+     *   <li><b>Zip-slip:</b> the resolved destination of every entry must reside
+     *       under the base destination directory. Entry names containing
+     *       {@code ..}, absolute paths, or path separators that escape the base
+     *       are rejected with a {@link ModpackException}.</li>
+     *   <li><b>NUL bytes:</b> any embedded {@code \0} in an entry name fails fast —
+     *       these are typically a Windows-vs-Unix path-handling exploit.</li>
+     *   <li><b>Windows reserved names:</b> entries named after device files
+     *       (CON, PRN, NUL, COM1-9, LPT1-9) are skipped on every platform so
+     *       behaviour is portable.</li>
+     *   <li><b>Zip-bomb caps:</b> {@link #MAX_EXTRACT_ENTRY_BYTES} per entry and
+     *       {@link #MAX_EXTRACT_TOTAL_BYTES} cumulative across the archive. The
+     *       per-entry guard streams the count rather than trusting
+     *       {@code JarEntry.getSize()}, which is attacker-controlled.</li>
+     * </ul>
      *
      * @param source      extract from
-     * @param destination extract to
+     * @param destination extract to (treated as the containment root)
      */
     public static void extractJarFile( JarFile source, String destination ) throws ModpackException
     {
-        // Create an enumeration over JarFile entries
-        Enumeration< JarEntry > jarFileFiles = source.entries();
+        final Path baseDir = Path.of( destination ).toAbsolutePath().normalize();
+        long cumulativeBytes = 0L;
 
-        // Loop through each file in Jar file
+        Enumeration< JarEntry > jarFileFiles = source.entries();
         while ( jarFileFiles.hasMoreElements() ) {
-            // Store current Jar file file
             JarEntry jarFileFile = jarFileFiles.nextElement();
+            String entryName = jarFileFile.getName();
 
             // Skip META-INF file(s)
-            if ( jarFileFile.getName().contains( "META-INF" ) ) {
+            if ( entryName.contains( "META-INF" ) ) {
                 continue;
             }
 
-            // Create extracted file File object
-            File extractedJarFileFile = SynchronizedFileManager.getSynchronizedFile(
-                    destination + File.separator + jarFileFile.getName() );
+            // Reject NUL bytes outright.
+            if ( entryName.indexOf( '\0' ) >= 0 ) {
+                throw new ModpackException( "Refusing JAR entry containing NUL byte: " + entryName );
+            }
 
-            // Create directory if expected
-            if ( extractedJarFileFile.isDirectory() ) {
+            // Reject absolute paths in entry names. Some JAR producers emit them; nothing
+            // we trust does. An absolute path would escape the base dir even after
+            // normalization on platforms where Path.resolve(absolute) replaces the base.
+            if ( entryName.startsWith( "/" ) || entryName.startsWith( "\\" )
+                    || ( entryName.length() >= 2 && entryName.charAt( 1 ) == ':' ) ) {
+                throw new ModpackException( "Refusing absolute JAR entry path: " + entryName );
+            }
+
+            // Resolve under base and verify containment. Path.normalize collapses ".."
+            // segments first; startsWith confirms the resolved target is inside baseDir.
+            Path target = baseDir.resolve( entryName ).normalize();
+            if ( !target.startsWith( baseDir ) ) {
+                throw new ModpackException( "Refusing JAR entry that escapes base dir: " + entryName );
+            }
+
+            // Reject Windows reserved device names on every platform so behaviour is
+            // portable. Compare the basename (case-insensitive, extension-stripped).
+            String basename = target.getFileName() == null ? "" : target.getFileName().toString();
+            int dot = basename.lastIndexOf( '.' );
+            String stem = dot >= 0 ? basename.substring( 0, dot ) : basename;
+            if ( WINDOWS_RESERVED_NAMES.contains( stem.toLowerCase( Locale.ROOT ) ) ) {
+                Logger.logWarningSilent( "Skipping reserved-name JAR entry: " + entryName );
+                continue;
+            }
+
+            File extractedJarFileFile = SynchronizedFileManager.getSynchronizedFile( target.toString() );
+
+            // Directory entries
+            if ( jarFileFile.isDirectory() ) {
                 //noinspection ResultOfMethodCallIgnored
-                extractedJarFileFile.mkdir();
+                extractedJarFileFile.mkdirs();
                 continue;
             }
 
@@ -113,24 +182,26 @@ public class SystemUtilities
             //noinspection ResultOfMethodCallIgnored
             extractedJarFileFile.getParentFile().mkdirs();
 
-            // Create file if doesn't exist
-            if ( !extractedJarFileFile.exists() ) {
-                try {
-                    //noinspection ResultOfMethodCallIgnored
-                    extractedJarFileFile.createNewFile();
-                }
-                catch ( IOException e ) {
-                    throw new ModpackException(
-                            "Unable to create file for extraction. " + extractedJarFileFile.getPath(), e );
-                }
-            }
-
-            // Read file from jar to extracted file
+            // Stream content with a per-entry counter so we catch zip bombs even if
+            // JarEntry.getSize() lies (uncompressed size is attacker-controlled metadata).
+            long entryBytes = 0L;
             try ( InputStream inputStream = source.getInputStream( jarFileFile );
                   FileOutputStream fileOutputStream = new FileOutputStream( extractedJarFileFile ) ) {
                 byte[] buffer = new byte[ 8192 ];
                 int bytesRead;
                 while ( ( bytesRead = inputStream.read( buffer ) ) != -1 ) {
+                    entryBytes += bytesRead;
+                    if ( entryBytes > MAX_EXTRACT_ENTRY_BYTES ) {
+                        throw new ModpackException(
+                                "JAR entry exceeds per-entry size cap (" + MAX_EXTRACT_ENTRY_BYTES
+                                        + " bytes): " + entryName );
+                    }
+                    cumulativeBytes += bytesRead;
+                    if ( cumulativeBytes > MAX_EXTRACT_TOTAL_BYTES ) {
+                        throw new ModpackException(
+                                "JAR extraction exceeded total size cap (" + MAX_EXTRACT_TOTAL_BYTES
+                                        + " bytes) at entry: " + entryName );
+                    }
                     fileOutputStream.write( buffer, 0, bytesRead );
                 }
             }
