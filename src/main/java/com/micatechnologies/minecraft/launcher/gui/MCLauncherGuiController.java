@@ -165,6 +165,30 @@ public class MCLauncherGuiController
         return newProgressGui;
     }
 
+    /**
+     * Transitions to the new step-list launch progress GUI. Used by the Play
+     * path; other long-running flows (sign-in, etc.) still go through the
+     * legacy {@link #goToProgressGui()} which renders a single bar.
+     *
+     * @since 2026.3
+     */
+    @SuppressWarnings( "UnusedReturnValue" )
+    public static MCLauncherLaunchProgressGui goToLaunchProgressGui() throws IOException {
+        MCLauncherLaunchProgressGui newGui = null;
+        boolean guiStarted = startGui();
+        if ( guiStarted ) {
+            newGui = new MCLauncherLaunchProgressGui( guiWindow.getStage() );
+            guiWindow.setScene( newGui );
+            guiWindow.show();
+        }
+        else {
+            Logger.logError(
+                    "The launch progress GUI could not be displayed due to the application GUI not "
+                            + "being started." );
+        }
+        return newGui;
+    }
+
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherGameConsoleGui goToGameConsoleGui() throws IOException {
         MCLauncherGameConsoleGui newGui = null;

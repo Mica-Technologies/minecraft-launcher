@@ -71,6 +71,57 @@ public class NetworkUtilities
     private static final long RETRY_BASE_DELAY_MS = 1_000;
 
     /**
+     * Optional listener invoked when a download enters the retry path. Set by
+     * the launch flow before pre-launch starts (and cleared after) so a row
+     * sub-text like "Retrying (1/3) X" surfaces what would otherwise be a
+     * silent log line. Volatile rather than ThreadLocal because per-file
+     * downloads happen on worker threads spawned from parallelStream pools
+     * that don't inherit ThreadLocal state — the static reference is read
+     * by every retry call regardless of which thread it's on.
+     *
+     * <p>Best-effort. Multiple concurrent downloads firing retries can step
+     * on each other's messages, but the symptom is just "the user sees
+     * whichever retry was most recent" which still beats invisible retries.</p>
+     *
+     * @since 2026.3
+     */
+    private static volatile java.util.function.Consumer< String > retryNoticeListener = null;
+
+    /**
+     * Installs a listener that fires when a download retry occurs. Set to
+     * {@code null} to clear. See {@link #retryNoticeListener} for the
+     * single-listener / cross-thread semantics.
+     */
+    public static void setRetryNoticeListener( java.util.function.Consumer< String > listener )
+    {
+        retryNoticeListener = listener;
+    }
+
+    /** Pulls the short filename out of a URL for a more readable retry message
+     *  than the full URL would produce. {@code https://example/foo/bar.jar?x=1}
+     *  becomes {@code bar.jar}. */
+    private static String urlFileName( URL source )
+    {
+        if ( source == null ) return "";
+        String path = source.getPath();
+        if ( path == null || path.isEmpty() ) return source.getHost();
+        int slash = path.lastIndexOf( '/' );
+        return slash >= 0 && slash < path.length() - 1 ? path.substring( slash + 1 ) : path;
+    }
+
+    /** Fires the retry-notice listener if one's installed. Safe to call from
+     *  any thread; null-checks the listener atomically via the volatile read. */
+    private static void notifyRetry( URL source, int attempt, int maxRetries )
+    {
+        java.util.function.Consumer< String > l = retryNoticeListener;
+        if ( l == null ) return;
+        try {
+            l.accept( "Retrying (" + attempt + "/" + maxRetries + ") " + urlFileName( source ) );
+        }
+        catch ( Throwable ignored ) { /* listener faults shouldn't poison the retry path */ }
+    }
+
+    /**
      * Per-path locks to prevent concurrent downloads of the same file. Using canonical path strings as keys ensures
      * that different File objects pointing to the same path share the same lock.
      */
@@ -254,6 +305,7 @@ public class NetworkUtilities
                     if ( attempt < MAX_RETRIES ) {
                         Logger.logWarningSilent( "Download attempt " + attempt + " failed for " + source +
                                                          ", retrying in " + ( RETRY_BASE_DELAY_MS * attempt ) + "ms" );
+                        notifyRetry( source, attempt + 1, MAX_RETRIES );
                         try {
                             Thread.sleep( RETRY_BASE_DELAY_MS * attempt );
                         }
@@ -323,6 +375,7 @@ public class NetworkUtilities
                     if ( attempt < MAX_RETRIES ) {
                         Logger.logWarningSilent( "Download attempt " + attempt + " failed for " + source +
                                                          ", retrying in " + ( RETRY_BASE_DELAY_MS * attempt ) + "ms" );
+                        notifyRetry( source, attempt + 1, MAX_RETRIES );
                         try {
                             Thread.sleep( RETRY_BASE_DELAY_MS * attempt );
                         }

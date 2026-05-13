@@ -149,4 +149,25 @@ public abstract class GameModPackProgressProvider
      */
     abstract public void updateProgressHandler( double percent, String sectionTitle, String detailText,
                                                  String downloadStatus );
+
+    // =========================================================================
+    //  Step-aware lifecycle hooks
+    // =========================================================================
+    //
+    // The launch pipeline calls these to signal "this step of the launch is
+    // about to start / has finished / has thrown." The base implementation
+    // is a no-op so legacy single-bar progress GUIs that don't track per-step
+    // state keep working unchanged. {@link LaunchTrackerProgressBridge}
+    // overrides them to drive its associated LaunchProgressTracker, which in
+    // turn drives the multi-row launch progress GUI.
+
+    /** Called once when the named launch step begins. */
+    public void enterStep( LaunchProgressTracker.StepId id ) { /* no-op default */ }
+
+    /** Called once when the named launch step completes successfully. */
+    public void completeStep( LaunchProgressTracker.StepId id ) { /* no-op default */ }
+
+    /** Called once when the named launch step throws. {@code errorMessage} is
+     *  surfaced to the user in the failed-row sub-text. */
+    public void failStep( LaunchProgressTracker.StepId id, String errorMessage ) { /* no-op default */ }
 }

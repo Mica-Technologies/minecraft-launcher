@@ -125,102 +125,139 @@ class GameModPackLauncher
             progressProvider.setCurrText( "Preparing modpack..." );
         }
 
+        // The four pre-launch download stages have no real data dependency on each
+        // other within a single launch:
+        //   - Modpack content (mods + configs + ...) writes under <packRoot>/{mods,
+        //     config,resourcepacks,shaderpacks}
+        //   - Forge libraries writes under <packRoot>/libraries/forge-side
+        //   - MC libraries + assets writes under <packRoot>/libraries + the shared
+        //     assets folder
+        //   - JRE install writes under the launcher-wide runtime folder
+        // None of these touch the same file paths. Run them as parallel CompletableFutures
+        // when a tracker bridge is wired up (the Play path always provides one).
+        //
+        // The Forge processors step (step 5) genuinely depends on having both Forge libs
+        // AND MC libs AND the JRE in place — it's an external java -jar invocation against
+        // the installed Forge installer's processor scripts. So it joins after the parallel
+        // group. Security scan (step 6) reads <packRoot>/mods and the libraries we just
+        // downloaded, so it also joins after.
+        //
+        // For headless callers without a bridge (no GUI), the parallel orchestration still
+        // works — the handles just don't drive any UI. Per-step error handling is wired
+        // through each branch's try/catch so a failure in one branch marks its row failed
+        // and surfaces the exception; sibling branches finish naturally for now (step 4
+        // will add cancellation propagation).
+
+        final LaunchTrackerProgressBridge bridge =
+                ( progressProvider instanceof LaunchTrackerProgressBridge )
+                        ? (LaunchTrackerProgressBridge) progressProvider
+                        : null;
+
         String forgeAssetClasspath = "";
+        final GameLibraryManifest libraryManifest;
+        final String minecraftAssetClasspath;
 
         if ( !pack.isVanillaVersion() ) {
-            // --- Step 1: Download modpack content (mods, configs, resources) ---
-            GameModPackFileSync fileSync = new GameModPackFileSync( pack, progressProvider );
-            if ( progressProvider != null ) {
-                progressProvider.startProgressSection( "Downloading mods...", 15.0 );
-            }
-            fileSync.fetchLatestMods();
+            // Three parallel branches for a Forge launch: modpack content / Forge libs /
+            // (MC libs + assets → JRE install). The third branch is sequential internally
+            // because the JRE install depends on the library manifest fetched at the top of
+            // the same branch.
+            final StepProgressHandle modpackContentH = handleFor( bridge,
+                    LaunchProgressTracker.StepId.MODPACK_CONTENT );
+            final StepProgressHandle forgeLibsH = handleFor( bridge,
+                    LaunchProgressTracker.StepId.FORGE_LIBS );
+            final StepProgressHandle mcLibsH = handleFor( bridge,
+                    LaunchProgressTracker.StepId.MC_LIBS_ASSETS );
+            final StepProgressHandle jreH = handleFor( bridge,
+                    LaunchProgressTracker.StepId.JRE_INSTALL );
 
-            // Disable mods known to be incompatible with ARM64 (missing native libraries)
-            if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
-                Lwjgl2ArmPatcher.disableIncompatibleMods( pack.getPackRootFolder() + File.separator + "mods" );
+            java.util.concurrent.CompletableFuture< Void > branchModpackContent =
+                    java.util.concurrent.CompletableFuture.runAsync( () -> {
+                        try {
+                            doModpackContent( modpackContentH );
+                        }
+                        catch ( Throwable t ) {
+                            throw rethrowAsCompletion( t );
+                        }
+                    } );
+
+            java.util.concurrent.CompletableFuture< String > branchForgeLibs =
+                    java.util.concurrent.CompletableFuture.supplyAsync( () -> {
+                        try {
+                            return doForgeLibs( forgeLibsH );
+                        }
+                        catch ( Throwable t ) {
+                            throw rethrowAsCompletion( t );
+                        }
+                    } );
+
+            java.util.concurrent.CompletableFuture< McLibsAndJreResult > branchMcLibsJre =
+                    java.util.concurrent.CompletableFuture.supplyAsync( () -> {
+                        try {
+                            return doMcLibsThenJre( mcLibsH, jreH );
+                        }
+                        catch ( Throwable t ) {
+                            throw rethrowAsCompletion( t );
+                        }
+                    } );
+
+            try {
+                java.util.concurrent.CompletableFuture.allOf( branchModpackContent,
+                                                               branchForgeLibs,
+                                                               branchMcLibsJre ).get();
+                forgeAssetClasspath = branchForgeLibs.get();
+                McLibsAndJreResult mcResult = branchMcLibsJre.get();
+                libraryManifest = mcResult.manifest;
+                minecraftAssetClasspath = mcResult.classpath;
+            }
+            catch ( InterruptedException ie ) {
+                // The launch was interrupted (cancel button, parent thread interrupted,
+                // etc.). Cancel siblings best-effort, restore the interrupt flag, and
+                // surface the cancellation as a ModpackException so the caller can
+                // navigate back. CompletableFuture.cancel(true) is best-effort — most
+                // blocking HTTP reads don't respond to Thread.interrupt, so siblings
+                // may finish in the background, but the user has already moved on.
+                Thread.currentThread().interrupt();
+                cancelSiblings( branchModpackContent, branchForgeLibs, branchMcLibsJre );
+                throw new ModpackException( "Pre-launch cancelled", ie );
+            }
+            catch ( java.util.concurrent.ExecutionException ee ) {
+                // One branch failed. Cancel the rest so the user isn't watching a
+                // half-cancelled progress card finish three more steps after the X
+                // already appeared on the failed row.
+                cancelSiblings( branchModpackContent, branchForgeLibs, branchMcLibsJre );
+                throw unwrapModpackException( ee );
+            }
+            catch ( java.util.concurrent.CompletionException ce ) {
+                cancelSiblings( branchModpackContent, branchForgeLibs, branchMcLibsJre );
+                throw unwrapModpackException( ce );
             }
 
-            if ( progressProvider != null ) {
-                progressProvider.endProgressSection( "Mods ready" );
-            }
-
-            if ( progressProvider != null ) {
-                progressProvider.startProgressSection( "Downloading configs and resources...", 5.0 );
-            }
-            fileSync.fetchLatestConfigs();
-            fileSync.fetchLatestResourcePacks();
-            fileSync.fetchLatestShaderPacks();
-            fileSync.fetchLatestInitialFiles();
-            pack.cacheImages();
-            if ( progressProvider != null ) {
-                progressProvider.endProgressSection( "Configs and resources ready" );
-            }
-
-            // --- Step 2: Download Forge libraries ---
-            if ( progressProvider != null ) {
-                progressProvider.startProgressSection( "Downloading Forge libraries...", 15.0 );
-            }
-            forgeAssetClasspath = pack.getForgeApp().buildForgeClasspath( GameModeManager.getCurrentGameMode(),
-                                                                          progressProvider );
-            if ( progressProvider != null ) {
-                progressProvider.endProgressSection( "Forge libraries ready" );
-            }
+            // --- Step 5: Forge install processors ---
+            // Sequential, depends on MC libs + Forge libs + JRE all present.
+            final StepProgressHandle procH = handleFor( bridge,
+                    LaunchProgressTracker.StepId.FORGE_PROCESSORS );
+            doForgeProcessors( procH, libraryManifest.getRequiredRuntimeComponent() );
         }
-
-        // --- Step 3: Download Minecraft libraries and assets ---
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Downloading Minecraft libraries and assets...",
-                                                    pack.isVanillaVersion() ? 40.0 : 20.0 );
-        }
-        GameLibraryManifest libraryManifest = GameVersionManifest.getMinecraftLibraryManifest(
-                pack.getMinecraftVersion(), pack );
-        String minecraftAssetClasspath = libraryManifest.buildMinecraftClasspath(
-                GameModeManager.getCurrentGameMode(), progressProvider );
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Minecraft libraries and assets ready" );
-        }
-
-        // --- Step 4: Install Java runtime ---
-        String procRuntimeComponent = libraryManifest.getRequiredRuntimeComponent();
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Installing Java runtime (" + procRuntimeComponent + ")...",
-                                                    pack.isVanillaVersion() ? 20.0 : 15.0 );
-        }
-        RuntimeManager.verifyRuntime( procRuntimeComponent, false,
-                                       progressProvider != null ? progressProvider::setCurrText : null );
-        if ( progressProvider != null ) {
-            progressProvider.submitProgress( "Java runtime ready", 100.0 );
-            progressProvider.endProgressSection( "Java runtime ready" );
-        }
-
-        // --- Step 5: Run Forge install processors (if needed, Forge only) ---
-        if ( !pack.isVanillaVersion() ) {
-            if ( progressProvider != null ) {
-                progressProvider.startProgressSection( "Patching game files...", 10.0 );
-            }
-            pack.getForgeApp().runForgeProcessors( GameModeManager.getCurrentGameMode(), progressProvider,
-                                                    procRuntimeComponent );
-            if ( progressProvider != null ) {
-                progressProvider.endProgressSection( "Game files patched" );
-            }
+        else {
+            // Vanilla packs have no modpack content or Forge stages. Just MC libs + JRE
+            // sequentially, then scan. The "parallel" orchestration would be just one branch
+            // — keep it serial to avoid the CompletableFuture overhead on the simpler path.
+            final StepProgressHandle mcLibsH = handleFor( bridge,
+                    LaunchProgressTracker.StepId.MC_LIBS_ASSETS );
+            final StepProgressHandle jreH = handleFor( bridge,
+                    LaunchProgressTracker.StepId.JRE_INSTALL );
+            McLibsAndJreResult vanillaResult = doMcLibsThenJre( mcLibsH, jreH );
+            libraryManifest = vanillaResult.manifest;
+            minecraftAssetClasspath = vanillaResult.classpath;
         }
 
         // --- Step 6: Security scan ---
-        if ( progressProvider != null ) {
-            progressProvider.startProgressSection( "Scanning for malware...", 10.0 );
-        }
-        try {
-            pack.scanModPackRootFolder();
-        }
-        catch ( IOException e ) {
-            throw new ModpackException( "Unable to scan downloaded files due to an exception!", e );
-        }
-        catch ( InterruptedException e ) {
-            throw new ModpackException( "Unable to scan downloaded files due to an interruption!", e );
-        }
-        if ( progressProvider != null ) {
-            progressProvider.endProgressSection( "Security scan complete" );
-        }
+        // Sequential after everything else: scans the mods we just synced and the
+        // libraries we just downloaded.
+        final StepProgressHandle scanH = handleFor( bridge,
+                LaunchProgressTracker.StepId.SECURITY_SCAN );
+        doSecurityScan( scanH );
 
         // Combine classpaths
         if ( !forgeAssetClasspath.isEmpty() && !forgeAssetClasspath.endsWith( File.pathSeparator ) ) {
@@ -228,6 +265,264 @@ class GameModPackLauncher
         }
 
         return forgeAssetClasspath + minecraftAssetClasspath;
+    }
+
+    /** Constructs a handle for the given step. Bridge-aware: returns a real
+     *  {@link StepProgressHandle} when a bridge is present, or {@code null} for
+     *  headless / non-tracker callers. */
+    private static StepProgressHandle handleFor( LaunchTrackerProgressBridge bridge,
+                                                  LaunchProgressTracker.StepId stepId )
+    {
+        return bridge != null ? bridge.handleFor( stepId ) : null;
+    }
+
+    /** Best-effort cancellation of every in-flight sibling future when one
+     *  fails or the launch is cancelled. {@link java.util.concurrent.CompletableFuture#cancel(boolean)}
+     *  doesn't actually interrupt the underlying worker thread on modern JDKs —
+     *  it just marks the future cancelled — but the failed-launch unwind path
+     *  has already navigated away, so siblings finishing in the background
+     *  isn't user-visible. */
+    private static void cancelSiblings( java.util.concurrent.CompletableFuture< ? >... futures )
+    {
+        for ( java.util.concurrent.CompletableFuture< ? > f : futures ) {
+            try { f.cancel( true ); }
+            catch ( Throwable ignored ) { /* best-effort */ }
+        }
+    }
+
+    /** Wraps a non-{@link CompletionException} throwable so it can propagate out
+     *  of a CompletableFuture without being mangled. Pure unwrapping helper. */
+    private static java.util.concurrent.CompletionException rethrowAsCompletion( Throwable t )
+    {
+        if ( t instanceof java.util.concurrent.CompletionException ce ) {
+            return ce;
+        }
+        return new java.util.concurrent.CompletionException( t );
+    }
+
+    /** Unwraps the actual root cause from CompletionException / ExecutionException
+     *  layers and returns it as a {@link ModpackException}. Anything that isn't
+     *  already a ModpackException gets wrapped. */
+    private static ModpackException unwrapModpackException( Throwable t )
+    {
+        Throwable cause = t;
+        while ( cause != null
+                && ( cause instanceof java.util.concurrent.CompletionException
+                        || cause instanceof java.util.concurrent.ExecutionException )
+                && cause.getCause() != null ) {
+            cause = cause.getCause();
+        }
+        if ( cause instanceof ModpackException me ) {
+            return me;
+        }
+        return new ModpackException(
+                cause != null && cause.getMessage() != null
+                        ? cause.getMessage()
+                        : "Pre-launch step failed",
+                cause );
+    }
+
+    /** Holds the two return values from the MC libs + JRE sequential branch. */
+    private record McLibsAndJreResult( GameLibraryManifest manifest, String classpath ) {}
+
+    // =========================================================================
+    //  Per-step bodies — extracted so they're callable both sequentially (vanilla
+    //  scan path) and in parallel (Forge content/libs/MC branches). Each method
+    //  drives its own step lifecycle on the handle it receives: markRunning at
+    //  entry, markFailed in the catch path, markDone on success.
+    // =========================================================================
+
+    private void doModpackContent( StepProgressHandle handle ) throws ModpackException
+    {
+        if ( handle != null ) handle.markRunning();
+        try {
+            GameModPackFileSync fileSync = new GameModPackFileSync( pack,
+                    handle != null ? handle : progressProvider );
+            if ( handle != null ) {
+                handle.startProgressSection( "Downloading mods...", 15.0 );
+            }
+            fileSync.fetchLatestMods();
+            if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
+                Lwjgl2ArmPatcher.disableIncompatibleMods(
+                        pack.getPackRootFolder() + File.separator + "mods" );
+            }
+            if ( handle != null ) {
+                handle.endProgressSection( "Mods ready" );
+                handle.startProgressSection( "Downloading configs and resources...", 5.0 );
+            }
+            fileSync.fetchLatestConfigs();
+            fileSync.fetchLatestResourcePacks();
+            fileSync.fetchLatestShaderPacks();
+            fileSync.fetchLatestInitialFiles();
+            pack.cacheImages();
+            if ( handle != null ) {
+                handle.endProgressSection( "Configs and resources ready" );
+                handle.markDone();
+            }
+        }
+        catch ( Throwable t ) {
+            if ( handle != null ) handle.markFailed( extractMessage( t ) );
+            if ( t instanceof ModpackException me ) throw me;
+            if ( t instanceof RuntimeException re ) throw re;
+            throw new ModpackException( "Modpack content sync failed", t );
+        }
+    }
+
+    private String doForgeLibs( StepProgressHandle handle ) throws ModpackException
+    {
+        if ( handle != null ) handle.markRunning();
+        try {
+            if ( handle != null ) {
+                handle.startProgressSection( "Downloading Forge libraries...", 15.0 );
+            }
+            String cp = pack.getForgeApp().buildForgeClasspath(
+                    GameModeManager.getCurrentGameMode(),
+                    handle != null ? handle : progressProvider );
+            if ( handle != null ) {
+                handle.endProgressSection( "Forge libraries ready" );
+                handle.markDone();
+            }
+            return cp;
+        }
+        catch ( Throwable t ) {
+            if ( handle != null ) handle.markFailed( extractMessage( t ) );
+            if ( t instanceof ModpackException me ) throw me;
+            if ( t instanceof RuntimeException re ) throw re;
+            throw new ModpackException( "Forge library sync failed", t );
+        }
+    }
+
+    private McLibsAndJreResult doMcLibsThenJre( StepProgressHandle mcHandle,
+                                                 StepProgressHandle jreHandle ) throws ModpackException
+    {
+        // MC libs + assets first
+        if ( mcHandle != null ) mcHandle.markRunning();
+        final GameLibraryManifest libraryManifest;
+        final String classpath;
+        try {
+            if ( mcHandle != null ) {
+                mcHandle.startProgressSection(
+                        "Downloading Minecraft libraries and assets...",
+                        pack.isVanillaVersion() ? 40.0 : 20.0 );
+            }
+            libraryManifest = GameVersionManifest.getMinecraftLibraryManifest(
+                    pack.getMinecraftVersion(), pack );
+            classpath = libraryManifest.buildMinecraftClasspath(
+                    GameModeManager.getCurrentGameMode(),
+                    mcHandle != null ? mcHandle : progressProvider );
+            if ( mcHandle != null ) {
+                mcHandle.endProgressSection( "Minecraft libraries and assets ready" );
+                mcHandle.markDone();
+            }
+        }
+        catch ( Throwable t ) {
+            if ( mcHandle != null ) mcHandle.markFailed( extractMessage( t ) );
+            if ( t instanceof ModpackException me ) throw me;
+            if ( t instanceof RuntimeException re ) throw re;
+            throw new ModpackException( "Minecraft libraries / assets sync failed", t );
+        }
+
+        // Then JRE install (depends on libraryManifest above)
+        final String procRuntimeComponent = libraryManifest.getRequiredRuntimeComponent();
+        if ( jreHandle != null ) jreHandle.markRunning();
+        try {
+            if ( jreHandle != null ) {
+                jreHandle.startProgressSection(
+                        "Installing Java runtime (" + procRuntimeComponent + ")...",
+                        pack.isVanillaVersion() ? 20.0 : 15.0 );
+            }
+            RuntimeManager.verifyRuntime( procRuntimeComponent, false,
+                    jreHandle != null ? jreHandle::setCurrText
+                                       : ( progressProvider != null ? progressProvider::setCurrText : null ) );
+            if ( jreHandle != null ) {
+                jreHandle.submitProgress( "Java runtime ready", 100.0 );
+                jreHandle.endProgressSection( "Java runtime ready" );
+                jreHandle.markDone();
+            }
+        }
+        catch ( Throwable t ) {
+            if ( jreHandle != null ) jreHandle.markFailed( extractMessage( t ) );
+            if ( t instanceof ModpackException me ) throw me;
+            if ( t instanceof RuntimeException re ) throw re;
+            throw new ModpackException( "Java runtime install failed", t );
+        }
+
+        return new McLibsAndJreResult( libraryManifest, classpath );
+    }
+
+    private void doForgeProcessors( StepProgressHandle handle, String procRuntimeComponent )
+            throws ModpackException
+    {
+        if ( handle != null ) handle.markRunning();
+        try {
+            if ( handle != null ) {
+                handle.startProgressSection( "Patching game files...", 10.0 );
+            }
+            pack.getForgeApp().runForgeProcessors( GameModeManager.getCurrentGameMode(),
+                    handle != null ? handle : progressProvider,
+                    procRuntimeComponent );
+            if ( handle != null ) {
+                handle.endProgressSection( "Game files patched" );
+                handle.markDone();
+            }
+        }
+        catch ( Throwable t ) {
+            if ( handle != null ) handle.markFailed( extractMessage( t ) );
+            if ( t instanceof ModpackException me ) throw me;
+            if ( t instanceof RuntimeException re ) throw re;
+            throw new ModpackException( "Forge processors run failed", t );
+        }
+    }
+
+    private void doSecurityScan( StepProgressHandle handle ) throws ModpackException
+    {
+        if ( handle != null ) handle.markRunning();
+        // The scanner reads pack.progressProvider internally for status output (via the
+        // logOutput Function it constructs in scanModPackRootFolder). Temporarily redirect
+        // that to our scan-step handle so the malware-scan log output lands on the right
+        // row, then restore the bridge so anything downstream that reads the provider
+        // still sees the canonical reference. progressProvider here is the launcher's
+        // own field, which was the same reference pack.progressProvider held when the
+        // launcher was constructed.
+        final GameModPackProgressProvider previous = progressProvider;
+        if ( handle != null ) {
+            pack.setProgressProvider( handle );
+            handle.startProgressSection( "Scanning for malware...", 10.0 );
+        }
+        try {
+            pack.scanModPackRootFolder();
+            if ( handle != null ) {
+                handle.endProgressSection( "Security scan complete" );
+                handle.markDone();
+            }
+        }
+        catch ( IOException e ) {
+            if ( handle != null ) handle.markFailed( extractMessage( e ) );
+            throw new ModpackException( "Unable to scan downloaded files due to an exception!", e );
+        }
+        catch ( InterruptedException e ) {
+            if ( handle != null ) handle.markFailed( extractMessage( e ) );
+            throw new ModpackException( "Unable to scan downloaded files due to an interruption!", e );
+        }
+        catch ( Throwable t ) {
+            if ( handle != null ) handle.markFailed( extractMessage( t ) );
+            if ( t instanceof ModpackException me ) throw me;
+            if ( t instanceof RuntimeException re ) throw re;
+            throw new ModpackException( "Security scan failed", t );
+        }
+        finally {
+            // Always restore so the scan-step handle doesn't outlive its phase.
+            pack.setProgressProvider( previous );
+        }
+    }
+
+    /** Pulls a short error message out of a throwable for use in the failed-row
+     *  sub-text on the launch progress GUI. */
+    private static String extractMessage( Throwable t )
+    {
+        if ( t == null ) return "Unknown failure";
+        if ( t.getMessage() != null && !t.getMessage().isEmpty() ) return t.getMessage();
+        return t.getClass().getSimpleName();
     }
 
     /**

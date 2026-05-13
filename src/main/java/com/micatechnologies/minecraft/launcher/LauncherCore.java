@@ -232,26 +232,50 @@ public class LauncherCore
         currentLaunch = session;
         try {
         if ( gameModPack.getPackMinRAMGB() <= ConfigManager.getMaxRamInGb() ) {
-            MCLauncherProgressGui playProgressWindow = null;
+            // Build the step-list launch progress GUI + tracker + bridge. The tracker's
+            // step set is per-pack-type: vanilla packs omit MODPACK_CONTENT (no mods/
+            // configs/resources to sync) and the two Forge stages (no Forge to set up).
+            // Mojang piston-meta libs/assets + JRE install + security scan still apply.
+            com.micatechnologies.minecraft.launcher.gui.MCLauncherLaunchProgressGui playProgressWindow = null;
             try {
                 if ( MCLauncherGuiController.shouldCreateGui() ) {
-                    playProgressWindow = MCLauncherGuiController.goToProgressGui();
+                    playProgressWindow = MCLauncherGuiController.goToLaunchProgressGui();
                 }
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load progress GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( "Unable to load launch progress GUI due to an incomplete response from the GUI subsystem." );
                 Logger.logThrowable( e );
             }
 
+            com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[] applicableSteps =
+                    gameModPack.isVanillaVersion()
+                            ? new com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[] {
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.MC_LIBS_ASSETS,
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.JRE_INSTALL,
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.SECURITY_SCAN
+                              }
+                            : new com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[] {
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.MODPACK_CONTENT,
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.FORGE_LIBS,
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.MC_LIBS_ASSETS,
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.JRE_INSTALL,
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.FORGE_PROCESSORS,
+                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.SECURITY_SCAN
+                              };
+            com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker =
+                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.forSteps( applicableSteps );
+            com.micatechnologies.minecraft.launcher.game.modpack.LaunchTrackerProgressBridge progressBridge =
+                    new com.micatechnologies.minecraft.launcher.game.modpack.LaunchTrackerProgressBridge( tracker );
+
             if ( playProgressWindow != null ) {
-                playProgressWindow.setUpperLabelText( "Launching: " + gameModPack.getPackName() );
-                playProgressWindow.setSectionText( "Preparing..." );
-                playProgressWindow.setDetailText( "" );
+                playProgressWindow.setTitle( "Launching: " + gameModPack.getPackName() );
+                playProgressWindow.attachToTracker( tracker );
 
                 // Wire the Cancel button to this launch's session. Clicking it interrupts
                 // the worker thread + flips the cancellation flag, which the catch / late-
                 // cancellation checks below pick up and route back to the main GUI.
-                final MCLauncherProgressGui cancellable = playProgressWindow;
+                final com.micatechnologies.minecraft.launcher.gui.MCLauncherLaunchProgressGui cancellable =
+                        playProgressWindow;
                 cancellable.setCancelHandler( () -> {
                     session.cancel();
                     // Clear the OS-level progress overlay IMMEDIATELY rather than waiting
@@ -275,77 +299,66 @@ public class LauncherCore
 
             try {
                 Logger.logDebug( LocalizationManager.LAUNCHING_MOD_PACK_TEXT + ": " + gameModPack.getFriendlyName() );
-                MCLauncherProgressGui finalPlayProgressWindow = playProgressWindow;
+                final com.micatechnologies.minecraft.launcher.gui.MCLauncherLaunchProgressGui finalPlayProgressWindow =
+                        playProgressWindow;
                 final long progressStartMs = System.currentTimeMillis();
-                // Latch so the "ready to play" toast fires at most once per play attempt — the
-                // progress handler can be called with percent==100 multiple times as the final
-                // tasks complete.
+                // The "all rows green → fire the ready-to-play toast" handler is wired
+                // via the tracker listener rather than the old percent>=100 callback.
+                // One-shot latch (compareAndSet) keeps re-fires off — the listener fires
+                // once per individual step transition, but only the final transition
+                // (the one that flips the LAST pending row to DONE) should trigger the
+                // toast + GUI hide.
                 final java.util.concurrent.atomic.AtomicBoolean readyToastFired =
                         new java.util.concurrent.atomic.AtomicBoolean( false );
-                gameModPack.setProgressProvider( new GameModPackProgressProvider()
-                {
-                    @Override
-                    public void updateProgressHandler( double percent, String sectionTitle, String detailText,
-                                                        String downloadStatus ) {
-                        // If the launch was cancelled mid-flight, suppress all progress
-                        // updates — the worker thread is still draining (HTTP reads
-                        // don't respond to Thread.interrupt) and any subsequent
-                        // setProgress() call would re-establish the OS taskbar overlay
-                        // we just cleared in the cancel handler. The download still
-                        // unwinds; the UI just stops reflecting it.
-                        if ( session.isCancelled() ) return;
-                        Logger.logStd( sectionTitle + ": " + detailText + " - " + ( int ) percent + "%" );
+                tracker.addListener( step -> {
+                    if ( session.isCancelled() ) return;
+                    if ( !allStepsCompleted( tracker ) ) return;
+                    if ( !readyToastFired.compareAndSet( false, true ) ) return;
 
-                        if ( finalPlayProgressWindow != null ) {
-                            // Section title goes in the middle (between title and progress bar)
-                            if ( sectionTitle != null && !sectionTitle.isEmpty() ) {
-                                finalPlayProgressWindow.setSectionText( sectionTitle );
-                            }
-                            // Detail text goes below the progress bar (smaller, dimmer)
-                            finalPlayProgressWindow.setDetailText(
-                                    detailText != null ? detailText : "" );
-                            // Download speed/ETA below the detail text
-                            finalPlayProgressWindow.setSpeedText(
-                                    downloadStatus != null ? downloadStatus : "" );
-                            finalPlayProgressWindow.setProgress( percent );
-                            if ( percent >= 100.0 ) {
-                                finalPlayProgressWindow.setSectionText( "Starting Minecraft..." );
-                                finalPlayProgressWindow.setDetailText( "" );
-                                finalPlayProgressWindow.setSpeedText( "" );
-                                // Clear the OS-level progress overlay — the game is about to start,
-                                // not still downloading. Without this the dock/taskbar would sit at
-                                // 100% until the user navigated back to the launcher.
-                                TaskbarProgressManager.stop();
-                                // "Modpack ready" toast — only if there was a meaningful download
-                                // phase. Cached / quick launches finish in well under 10s and don't
-                                // need the cue; long fresh installs are the case where the user
-                                // has likely tabbed away and wants to know it's ready.
-                                if ( readyToastFired.compareAndSet( false, true ) ) {
-                                    long elapsedMs = System.currentTimeMillis() - progressStartMs;
-                                    if ( elapsedMs > 10_000L ) {
-                                        NotificationManager.success(
-                                                "Ready to play",
-                                                gameModPack.getFriendlyName() != null
-                                                        ? gameModPack.getFriendlyName() + " is starting."
-                                                        : "Your modpack is ready and starting." );
-                                    }
-                                }
-                                // Only hide if the in-game console won't be taking over the stage
-                                if ( !ConfigManager.getInGameConsoleEnable() ) {
-                                    SystemUtilities.spawnNewTask( () -> {
-                                        try {
-                                            Thread.sleep( 3000 );
-                                        }
-                                        catch ( InterruptedException ignored ) {
-                                        }
-                                        finalPlayProgressWindow.hideStage();
-                                    } );
-                                }
-                            }
-                        }
+                    TaskbarProgressManager.stop();
+                    long elapsedMs = System.currentTimeMillis() - progressStartMs;
+                    if ( elapsedMs > 10_000L ) {
+                        NotificationManager.success(
+                                "Ready to play",
+                                gameModPack.getFriendlyName() != null
+                                        ? gameModPack.getFriendlyName() + " is starting."
+                                        : "Your modpack is ready and starting." );
+                    }
+                    if ( !ConfigManager.getInGameConsoleEnable() && finalPlayProgressWindow != null ) {
+                        SystemUtilities.spawnNewTask( () -> {
+                            try { Thread.sleep( 3000 ); }
+                            catch ( InterruptedException ignored ) {}
+                            finalPlayProgressWindow.hideStage();
+                        } );
                     }
                 } );
-                gameModPack.startGame();
+                gameModPack.setProgressProvider( progressBridge );
+
+                // Wire the network retry listener so silent NetworkUtilities retries
+                // surface as "Retrying (1/3) jna-4.4.0.jar"-style sub-text on whichever
+                // rows are currently RUNNING. A retry can fire on a thread spawned from
+                // parallelStream deep inside a sub-call, so the listener pushes to all
+                // running rows rather than trying to identify the specific row that
+                // owned the failed download.
+                final com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker
+                        retryTrackerRef = tracker;
+                com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.setRetryNoticeListener(
+                        notice -> {
+                            if ( session.isCancelled() ) return;
+                            for ( var s : retryTrackerRef.runningSteps() ) {
+                                retryTrackerRef.setSubText( s.id(), notice );
+                            }
+                        } );
+                try {
+                    gameModPack.startGame();
+                }
+                finally {
+                    // Always clear the listener so subsequent background activity
+                    // (manifest revalidates, the next launch attempt) doesn't push
+                    // notices into a torn-down GUI.
+                    com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities
+                            .setRetryNoticeListener( null );
+                }
 
                 // Late cancellation: if the user clicked Cancel after the JVM was already
                 // spawned by startGame() (the worker thread was deep in process-spawn and
@@ -369,6 +382,14 @@ public class LauncherCore
 
                 Process gameProcess = gameModPack.getLastLaunchedProcess();
                 if ( gameProcess != null ) {
+                    // Brief beat so the user sees the all-rows-green state on the launch
+                    // progress screen before it dissolves into the game console or the
+                    // launcher's main GUI. Without the pause the row layout transitions
+                    // in the same frame it filled out, which reads as a flicker rather
+                    // than a "ready, going" beat.
+                    try { Thread.sleep( 400 ); }
+                    catch ( InterruptedException ignored ) { Thread.currentThread().interrupt(); }
+
                     if ( ConfigManager.getInGameConsoleEnable() ) {
                         // Console enabled: show console and attach to process
                         try {
@@ -956,6 +977,32 @@ public class LauncherCore
     private static void restartAppNow() {
         cleanupApp();
         currentSession.exitLatch.countDown();
+    }
+
+    /**
+     * Reports {@code true} when every step in {@code tracker} is in a terminal
+     * state (DONE / FAILED / SKIPPED). Used by the launch progress listener to
+     * decide when to fire the "ready to play" toast — the listener is invoked
+     * once per row transition, but the toast only matters on the very last one.
+     *
+     * <p>Returns {@code false} if any row is still PENDING or RUNNING. A FAILED
+     * row still counts as terminal because the launch is over either way — but
+     * the toast text and downstream UX should also gate on "no failures" if
+     * we ever want to suppress the success message on partial failures. Today
+     * a failed step throws out of buildClasspath and the launch unwinds, so
+     * the toast can't fire in that scenario anyway.</p>
+     */
+    private static boolean allStepsCompleted(
+            com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker )
+    {
+        if ( tracker == null ) return false;
+        for ( var step : tracker.steps() ) {
+            switch ( step.state() ) {
+                case PENDING, RUNNING -> { return false; }
+                default -> { /* DONE / FAILED / SKIPPED — counts as terminal */ }
+            }
+        }
+        return true;
     }
 
     /**

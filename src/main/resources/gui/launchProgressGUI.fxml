@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import io.github.palexdev.materialfx.controls.MFXButton?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+
+<!--
+  ~ Copyright (c) 2026 Mica Technologies
+  ~
+  ~ This program is free software: you can redistribute it and/or modify it
+  ~ under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License,
+  ~ or (at your option) any later version.
+  -->
+
+<!--
+  Step-list launch progress screen — replaces the single-bar progressGUI for the
+  Play → game JVM pipeline so the four parallel pre-launch branches each get their
+  own row. Static frame here: title + scroll-free row container + cancel button.
+  MCLauncherLaunchProgressGui populates the rowsBox at runtime from a
+  LaunchProgressTracker; rows themselves are programmatic so the row set can
+  match the per-pack-type step DAG (e.g. vanilla packs omit the Forge rows
+  entirely rather than rendering them as greyed-out skipped placeholders).
+-->
+<GridPane fx:id="rootPane" minHeight="475.0" minWidth="750.0"
+          prefHeight="800.0" prefWidth="1000.0" styleClass="rootPane hero-surface"
+          xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
+    <columnConstraints>
+        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0"/>
+    </columnConstraints>
+    <rowConstraints>
+        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES"/>
+    </rowConstraints>
+
+    <!-- Centered card mirrors the layout of progressGUI.fxml so the visual
+         language (rounded-card-on-dark-backdrop) is consistent between the
+         two progress screens. Sized wider than the legacy progress card
+         because the row layout needs horizontal room for label + sub-text +
+         progress bar to coexist in one row. -->
+    <GridPane maxWidth="640.0" minWidth="520.0" prefWidth="600.0"
+              maxHeight="-Infinity"
+              styleClass="card,elevated,progressCard"
+              GridPane.halignment="CENTER" GridPane.valignment="CENTER">
+        <columnConstraints>
+            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0"/>
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints fillHeight="false" minHeight="200.0" vgrow="NEVER"/>
+        </rowConstraints>
+
+        <VBox spacing="14.0" alignment="CENTER">
+            <padding><Insets top="20.0" bottom="16.0" left="22.0" right="22.0"/></padding>
+
+            <!-- Pack-name title. Set by setUpperLabelText(); defaults to the
+                 generic phrase so the screen still reads sensibly if a caller
+                 forgets to set it. -->
+            <Label fx:id="titleLabel" alignment="CENTER" textAlignment="CENTER"
+                   styleClass="heading-display" text="Preparing launch…"
+                   maxWidth="560.0" wrapText="true"/>
+
+            <!-- Optional pack subtitle (e.g. version string under the pack name).
+                 Hidden + un-managed when unused so the title sits closer to the
+                 row list. -->
+            <Label fx:id="subtitleLabel" alignment="CENTER" textAlignment="CENTER"
+                   styleClass="muted" text="" maxWidth="540.0" wrapText="true"
+                   visible="false" managed="false"/>
+
+            <!-- Row container — controller appends one stepRow per tracker step
+                 inside attachToTracker(). Spacing here drives the gap between
+                 adjacent rows; per-row padding is set programmatically. -->
+            <VBox fx:id="rowsBox" spacing="10.0" alignment="TOP_LEFT" maxWidth="560.0">
+                <padding><Insets top="6.0" bottom="6.0"/></padding>
+            </VBox>
+
+            <!-- Cancel button. Hidden + un-managed by default; the launch path
+                 opts in via setCancelHandler(). Same managed-toggling pattern
+                 the legacy progressGUI uses so the card height tracks whether
+                 the button is visible. -->
+            <HBox fx:id="cancelBtnRow" alignment="CENTER"
+                  visible="false" managed="false">
+                <padding><Insets top="8.0"/></padding>
+                <MFXButton fx:id="cancelBtn" text="Cancel" prefWidth="120.0" prefHeight="32.0"/>
+            </HBox>
+        </VBox>
+    </GridPane>
+</GridPane>
