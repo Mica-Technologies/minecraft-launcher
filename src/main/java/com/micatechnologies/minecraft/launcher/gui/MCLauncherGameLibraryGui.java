@@ -88,6 +88,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     // ===== FXML — pagination bar =====
     @SuppressWarnings( "unused" ) @FXML Label paginationRangeLabel;
+    @SuppressWarnings( "unused" ) @FXML Label backgroundFetchLabel;
     @SuppressWarnings( "unused" ) @FXML Label paginationPageLabel;
     @SuppressWarnings( "unused" ) @FXML MFXButton prevPageBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton nextPageBtn;
@@ -311,6 +312,24 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // feel so users get a consistent scroll experience across the two
         // hero-card screens.
         SmoothScroll.install( libraryScrollPane );
+
+        // If the startup-time background available-modpacks fetch is still in flight,
+        // surface the same "Loading available packs…" affordance the main menu uses and
+        // re-render the card grid the moment the future completes — that's when any
+        // available-modpack cards that weren't ready on first paint can merge into the
+        // list. Before this gate, collectEntries blocked the FX thread waiting for the
+        // future, which stalled the Library screen for seconds on a cold network.
+        java.util.concurrent.CompletableFuture< Void > availableFuture =
+                GameModPackManager.getAvailableFetchFuture();
+        if ( availableFuture != null && !availableFuture.isDone() ) {
+            backgroundFetchLabel.setVisible( true );
+            backgroundFetchLabel.setManaged( true );
+            availableFuture.whenComplete( ( v, t ) -> GUIUtilities.JFXPlatformRun( () -> {
+                backgroundFetchLabel.setVisible( false );
+                backgroundFetchLabel.setManaged( false );
+                rebuildCards();
+            } ) );
+        }
     }
 
     @Override
@@ -391,10 +410,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
         }
         // Available manifest modpacks (those not yet installed). Pull the rich GameModPack
-        // objects via getAvailableModPacks() instead of just friendly names — that way we
-        // have access to packLogoURL for the card's logo image.
+        // objects so we have access to packLogoURL for the card's logo image. Use the
+        // non-blocking accessor — on a cold launch the background available-packs fetch
+        // may still be in flight, and the FX thread must not stall on it. The controller
+        // wires a re-render to that future's completion, so any cards missing on first
+        // paint show up automatically once the fetch settles.
         if ( wantModpacks && wantAvailable ) {
-            List< GameModPack > available = GameModPackManager.getAvailableModPacks();
+            List< GameModPack > available = GameModPackManager.getAvailableModPacksIfReady();
             List< String > installedFriendly = new ArrayList<>();
             for ( GameModPack pack : GameModPackManager.getInstalledModPacks() ) {
                 if ( pack.getFriendlyName() != null ) {

@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -403,6 +404,27 @@ public class GameModPackManager
         waitForAvailableFetch();
 
         return getAvailableModPacksLocked();
+    }
+
+    /**
+     * Non-blocking variant of {@link #getAvailableModPacks()}. Returns whatever's currently in
+     * the available-packs cache without waiting for the background fetch — empty list if the
+     * fetch hasn't yet populated the cache.
+     *
+     * <p>Use this when the caller is rendering UI on the FX thread and wants to paint
+     * <em>something</em> immediately rather than stalling for a cold network. Callers
+     * should pair this with {@link #getAvailableFetchFuture()}.whenComplete(...) so the
+     * UI re-renders once the real data arrives.</p>
+     *
+     * @return the current available-packs list (possibly empty); never {@code null}
+     *
+     * @since 3.5
+     */
+    public synchronized static List< GameModPack > getAvailableModPacksIfReady() {
+        if ( availableGameModPacks == null ) {
+            return Collections.emptyList();
+        }
+        return availableGameModPacks;
     }
 
     /**

@@ -99,6 +99,12 @@
     <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="2">
         <padding><Insets left="20.0" right="20.0"/></padding>
         <Label fx:id="paginationRangeLabel" text="" styleClass="muted"/>
+        <!-- Shows "Loading available packs…" while the background available-modpacks fetch
+             from startup is still in flight. Hidden once the future completes (the controller
+             re-runs rebuildCards at that point so the new cards merge in without a manual
+             refresh). Mirrors the indicator on the main menu. -->
+        <Label fx:id="backgroundFetchLabel" text="Loading available packs…"
+               styleClass="muted" visible="false" managed="false"/>
         <Pane HBox.hgrow="ALWAYS"/>
         <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="60.0" text="◀ Prev"/>
         <Label fx:id="paginationPageLabel" text="Page 1 of 1" styleClass="muted"/>
