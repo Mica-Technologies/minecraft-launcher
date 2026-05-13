@@ -105,12 +105,10 @@
 
     <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
     <repositories>
-        <!-- JCenter REPO -->
-        <repository>
-            <id>jcenter</id>
-            <url>https://jcenter.bintray.com</url>
-            <name>jcenter-bintray</name>
-        </repository>
+        <!-- JCenter was decommissioned by JFrog (read-only since 2021, full sunset
+             August 2024). Every artifact published there has long since been mirrored
+             to Maven Central, so this entry was either unused or a stealth fallback
+             to a deprecated host. Removed for finding 2.7. -->
 
         <!-- GitHub BASED MAVEN REPOS -->
         <repository>
