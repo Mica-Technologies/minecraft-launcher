@@ -97,6 +97,10 @@
                    text="Crash Report" visible="false" managed="false"/>
         <MFXButton fx:id="killBtn" prefHeight="28.0" prefWidth="100.0" styleClass="dangerZone"
                    text="Kill Game"/>
-        <MFXButton fx:id="closeBtn" prefHeight="28.0" prefWidth="120.0" text="Close"/>
+        <!-- Width sized for the longer "Return to Launcher" state the controller
+             swaps in after the game exits (MCLauncherGameConsoleGui:332). The
+             initial "Close" label just floats centered in the wider button while
+             the game is running, which reads fine. -->
+        <MFXButton fx:id="closeBtn" prefHeight="28.0" prefWidth="170.0" text="Close"/>
     </HBox>
 </GridPane>
