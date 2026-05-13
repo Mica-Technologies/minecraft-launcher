@@ -30,10 +30,15 @@ jobs:
       is_release: ${{ steps.version.outputs.is_release }}
       win_version: ${{ steps.version.outputs.win_version }}
     steps:
+      # fetch-tags: true alongside fetch-depth: 0 — the version calculation
+      # below scans `git tag -l "${BASE_VERSION}.*"` to pick the next same-day
+      # `.N` bump, which silently picks the wrong N if any tags are missing.
+      # depth 0 alone has been observed to skip tags in some checkout paths.
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       # Mirrors the date-based version scheme from our Gradle Minecraft mod projects
       # (see e.g. minecraft-city-super-mod). Three deviations worth flagging:
