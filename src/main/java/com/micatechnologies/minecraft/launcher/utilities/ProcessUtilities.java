@@ -107,23 +107,58 @@ public class ProcessUtilities
     }
 
     /**
-     * Launches a command as a new process without blocking. The process does NOT inherit IO, so its streams can be
-     * captured by the caller (e.g., for the in-game console).
-     *
-     * @param command          the full command string
-     * @param workingDirectory the working directory
-     *
-     * @return the started Process
-     *
-     * @throws IOException if the process cannot be started
+     * Convenience overload that leaves the child process's stdout/stderr as
+     * default ({@link ProcessBuilder.Redirect#PIPE}) — the caller is responsible
+     * for draining them. Equivalent to {@link #launchCommand(String, String, boolean)
+     * launchCommand(command, workingDirectory, false)}.
      *
      * @since 3.0
      */
     public static Process launchCommand( String command, String workingDirectory ) throws IOException
     {
+        return launchCommand( command, workingDirectory, false );
+    }
+
+    /**
+     * Launches a command as a new process without blocking.
+     *
+     * <p>When {@code discardOutput} is {@code true}, the child's stdout and
+     * stderr are wired to {@link ProcessBuilder.Redirect#DISCARD} <em>before</em>
+     * the process starts — the kernel sinks the bytes itself and the JVM can't
+     * stall waiting for someone to read its pipes. Use this when nothing on the
+     * launcher side will consume the output (in-game console disabled, no
+     * crash-log tail, etc.). Without it, the OS pipe buffer fills within a few
+     * hundred ms of Forge logging and the child JVM blocks on its next
+     * {@code System.out.println} — visible as "JVM is in Task Manager but the
+     * Minecraft window never appears."</p>
+     *
+     * <p>When {@code discardOutput} is {@code false}, the child uses the
+     * default {@code PIPE} redirect; the caller MUST drain
+     * {@link Process#getInputStream()} and {@link Process#getErrorStream()}
+     * (typically by attaching the in-game console GUI) or the child will
+     * block as described above.</p>
+     *
+     * @param command          the full command string
+     * @param workingDirectory the working directory
+     * @param discardOutput    true → kernel-level DISCARD on stdout/stderr;
+     *                         false → default PIPE for caller-side draining
+     *
+     * @return the started Process
+     *
+     * @throws IOException if the process cannot be started
+     *
+     * @since 2026.3
+     */
+    public static Process launchCommand( String command, String workingDirectory, boolean discardOutput )
+            throws IOException
+    {
         ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) )
                 .redirectErrorStream( false )
                 .directory( SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
+        if ( discardOutput ) {
+            processBuilder.redirectOutput( ProcessBuilder.Redirect.DISCARD );
+            processBuilder.redirectError( ProcessBuilder.Redirect.DISCARD );
+        }
         // Filter the inherited environment before handing it to Minecraft / Forge / mods
         // before spawning the game. Mods are unsandboxed JVM code; if the user happened to
         // have AWS_SECRET_KEY / OPENAI_API_KEY / similar in their shell when they launched

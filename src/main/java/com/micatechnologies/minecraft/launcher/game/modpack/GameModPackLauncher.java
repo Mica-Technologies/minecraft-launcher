@@ -970,7 +970,14 @@ class GameModPackLauncher
             progressProvider.signalComplete( "Starting Minecraft..." );
         }
 
-        // Start game (always non-blocking -- LauncherCore.play() handles the process lifecycle)
+        // Start game (always non-blocking -- LauncherCore.play() handles the process lifecycle).
+        // When the in-game console is disabled the launcher won't be attaching to the JVM's
+        // stdout/stderr at all, so let the kernel discard those streams instead of leaving
+        // them as PIPE — otherwise the OS pipe buffer fills within a few hundred ms of Forge
+        // logging and the child JVM stalls on its next println (visible as "JVM in Task
+        // Manager, no Minecraft window"). When console is enabled, keep PIPE so the console
+        // GUI's readStream threads can ingest the output for display.
+        boolean discardOutput = !ConfigManager.getInGameConsoleEnable();
         try {
             // Redact --accessToken / --clientToken / legacy "token:<token>:<uuid>" before
             // logging — the launcher command line carries the live MS access token, and
@@ -979,7 +986,8 @@ class GameModPackLauncher
             Logger.logDebug( "Launching game with command: "
                                      + com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
                                                 .redact( fullArgs ) );
-            lastLaunchedProcess = ProcessUtilities.launchCommand( fullArgs, pack.getPackRootFolder() );
+            lastLaunchedProcess = ProcessUtilities.launchCommand( fullArgs, pack.getPackRootFolder(),
+                                                                   discardOutput );
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to execute mod pack game.", e );

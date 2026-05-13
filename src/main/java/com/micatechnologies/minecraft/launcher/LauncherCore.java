@@ -425,26 +425,10 @@ public class LauncherCore
                         }
                     }
                     else {
-                        // Console disabled: drain stdout/stderr in background threads to prevent
-                        // the game process from blocking when OS pipe buffers fill up.
-                        Thread stdoutDrain = new Thread( () -> {
-                            try ( var is = gameProcess.getInputStream() ) {
-                                is.transferTo( java.io.OutputStream.nullOutputStream() );
-                            }
-                            catch ( IOException ignored ) {}
-                        }, "game-stdout-drain" );
-                        Thread stderrDrain = new Thread( () -> {
-                            try ( var is = gameProcess.getErrorStream() ) {
-                                is.transferTo( java.io.OutputStream.nullOutputStream() );
-                            }
-                            catch ( IOException ignored ) {}
-                        }, "game-stderr-drain" );
-                        stdoutDrain.setDaemon( true );
-                        stderrDrain.setDaemon( true );
-                        stdoutDrain.start();
-                        stderrDrain.start();
-
-                        // Wait for game to exit, then check for crash
+                        // Console disabled: stdout/stderr are routed to kernel-level DISCARD
+                        // at spawn time (see GameModPackLauncher.launch's launchCommand call),
+                        // so the JVM never stalls on an unread pipe. No drain threads needed
+                        // here. Wait for game to exit, then check for crash.
                         try {
                             int exitCode = gameProcess.waitFor();
                             // Record session duration
