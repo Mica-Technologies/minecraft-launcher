@@ -151,55 +151,10 @@ public class MCLauncherAuthManager
                Path.of( LocalPathManager.getLauncherConfigFolderPath(), filename );
     }
 
-    /**
-     * Restricts the given file's permissions to owner-only (POSIX 0600 / Windows
-     * owner-FULL_CONTROL with no other ACEs). Used on every auth-file write so other
-     * local user accounts can't read tokens off a shared workstation.
-     *
-     * <p>POSIX path is tried first; if the underlying file store doesn't support
-     * POSIX attributes (Windows NTFS is the common case), the {@code AclFileAttributeView}
-     * path runs instead. Failures are logged silently — these are defense-in-depth
-     * tightenings on top of the at-rest encryption, not a primary control.
-     */
+    /** Tightens the given file to owner-only perms via the shared utility. Kept as a
+     *  thin local alias so existing call sites in this file read naturally. */
     private static void applyOwnerOnlyPermissions( Path path ) {
-        // POSIX attempt — succeeds on Linux/macOS, throws UnsupportedOperationException
-        // on NTFS. The flag tracks whether either path actually applied.
-        boolean applied = false;
-        try {
-            Files.setPosixFilePermissions( path, EnumSet.of(
-                    PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE ) );
-            applied = true;
-        }
-        catch ( UnsupportedOperationException ignored ) {
-            // Not a POSIX FS — Windows path below.
-        }
-        catch ( IOException e ) {
-            Logger.logWarningSilent( "POSIX perms tighten failed on "
-                                             + path.getFileName() + ": "
-                                             + e.getClass().getSimpleName() );
-        }
-
-        if ( !applied ) {
-            try {
-                AclFileAttributeView view = Files.getFileAttributeView(
-                        path, AclFileAttributeView.class );
-                if ( view == null ) {
-                    return; // No ACL support either; leave default perms.
-                }
-                UserPrincipal owner = Files.getOwner( path );
-                AclEntry entry = AclEntry.newBuilder()
-                        .setType( AclEntryType.ALLOW )
-                        .setPrincipal( owner )
-                        .setPermissions( EnumSet.allOf( AclEntryPermission.class ) )
-                        .build();
-                view.setAcl( Collections.singletonList( entry ) );
-            }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( "ACL tighten failed on "
-                                                 + path.getFileName() + ": "
-                                                 + e.getClass().getSimpleName() );
-            }
-        }
+        com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly( path );
     }
 
     /** Filename of the per-install random fallback secret. Sits alongside the auth files

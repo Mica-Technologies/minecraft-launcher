@@ -662,6 +662,12 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
             logFile = new File( dir, "game-" + safeName + "-" + timestamp + ".log" );
             logFileWriter = new BufferedWriter(
                     new OutputStreamWriter( new FileOutputStream( logFile ), StandardCharsets.UTF_8 ) );
+            // Game log files can contain mod debug output, user-name strings, and other
+            // PII that shouldn't be readable to sibling user accounts on shared
+            // workstations. Restrict to owner-only — best-effort, no-op on filesystems
+            // that don't support either POSIX or ACL permissioning.
+            com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly(
+                    logFile.toPath() );
         }
         catch ( IOException e ) {
             Logger.logWarningSilent( "Could not create game log file: " + e.getMessage() );

@@ -159,47 +159,10 @@ public class SingleInstanceLock
         return Path.of( LocalPathManager.getLauncherConfigFolderPath(), IPC_TOKEN_FILENAME );
     }
 
-    /**
-     * Restricts the token file's permissions to owner-only. POSIX 0600 where supported,
-     * Windows ACL granting only the file owner FULL_CONTROL otherwise. Mirrors the
-     * helper in {@code MCLauncherAuthManager} — kept local here to avoid making
-     * SingleInstanceLock depend on auth code.
-     */
+    /** Delegates to the shared {@link FilePermissions} helper. */
     private static void applyOwnerOnlyPermissions( Path path )
     {
-        boolean applied = false;
-        try {
-            Files.setPosixFilePermissions( path, EnumSet.of(
-                    PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE ) );
-            applied = true;
-        }
-        catch ( UnsupportedOperationException ignored ) {
-            // Non-POSIX FS — try ACL path.
-        }
-        catch ( IOException e ) {
-            Logger.logWarningSilent( "POSIX perms tighten failed on " + path.getFileName()
-                                             + ": " + e.getClass().getSimpleName() );
-        }
-        if ( !applied ) {
-            try {
-                AclFileAttributeView view = Files.getFileAttributeView(
-                        path, AclFileAttributeView.class );
-                if ( view == null ) {
-                    return;
-                }
-                UserPrincipal owner = Files.getOwner( path );
-                AclEntry entry = AclEntry.newBuilder()
-                        .setType( AclEntryType.ALLOW )
-                        .setPrincipal( owner )
-                        .setPermissions( EnumSet.allOf( AclEntryPermission.class ) )
-                        .build();
-                view.setAcl( Collections.singletonList( entry ) );
-            }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( "ACL tighten failed on " + path.getFileName()
-                                                 + ": " + e.getClass().getSimpleName() );
-            }
-        }
+        FilePermissions.applyOwnerOnly( path );
     }
 
     /** Reads the IPC token from disk (client side). Used by

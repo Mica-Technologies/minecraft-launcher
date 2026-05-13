@@ -150,6 +150,14 @@ public class Logger
             Logger.logError( LocalizationManager.LOG_FILE_NOT_CREATED_TEXT );
         }
 
+        // Tighten perms so a sibling user on a shared workstation can't read this user's
+        // launcher log. Redaction (auth tokens etc.) is applied at log-write time, but
+        // the launcher log also contains file paths, account user names, and other PII
+        // that doesn't belong to other accounts on the machine. Best-effort — non-POSIX
+        // FS without ACL support silently no-ops, which is no worse than today's behavior.
+        com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly(
+                logFile.toPath() );
+
         /*
          * File print stream
          */
