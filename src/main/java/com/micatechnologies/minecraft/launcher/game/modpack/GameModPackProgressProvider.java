@@ -58,7 +58,7 @@ public abstract class GameModPackProgressProvider
         return currPercent + ( currSectionProgress * ( currSectionSize / PROGRESS_PERCENT_BASE ) );
     }
 
-    public void submitProgress( String detailText, double sectionProgress ) {
+    public synchronized void submitProgress( String detailText, double sectionProgress ) {
         this.currDetailText = detailText;
 
         if ( sectionProgress + currSectionProgress > PROGRESS_PERCENT_BASE ) {
@@ -68,8 +68,29 @@ public abstract class GameModPackProgressProvider
             currSectionProgress += sectionProgress;
         }
 
-        triggerUpdateHandler();
+        // Coalesce per-file progress updates so the FX thread + the persistent
+        // log don't pay the cost of 600 per-asset notifications on a fresh MC
+        // version install. Each updateProgressHandler call fans out to four
+        // JavaFX label updates (section / detail / speed / progress) and a
+        // Logger.logStd line; firing once per file produced visible stutter
+        // on the launch progress screen and a corresponding ~600-line log
+        // burst per launch. 50 ms is enough that human-eye animation still
+        // looks smooth (~20 fps) but pushes the per-asset cost into the noise.
+        // The throttle only applies to submitProgress; explicit section
+        // transitions (start/end/section change) and signalComplete still
+        // fire immediately so structural events are never coalesced away.
+        long now = System.currentTimeMillis();
+        if ( now - lastSubmitFireMs >= SUBMIT_PROGRESS_THROTTLE_MS
+                || currSectionProgress >= PROGRESS_PERCENT_BASE ) {
+            lastSubmitFireMs = now;
+            triggerUpdateHandler();
+        }
     }
+
+    /** Wall-clock of the last submitProgress-triggered handler fire. Used to
+     *  throttle high-frequency per-file progress notifications down to ~20 fps. */
+    private volatile long lastSubmitFireMs = 0;
+    private static final long SUBMIT_PROGRESS_THROTTLE_MS = 50;
 
     void setCurrText( String detailText ) {
         this.currDetailText = detailText;
