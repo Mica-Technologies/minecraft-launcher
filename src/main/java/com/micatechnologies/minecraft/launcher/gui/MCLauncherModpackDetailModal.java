@@ -730,6 +730,17 @@ public class MCLauncherModpackDetailModal extends StackPane
         section.getChildren().add( scanFreqCombo );
         section.getChildren().add( scanFreqHint );
 
+        // Acknowledged scan findings — read-only view of what the pack's
+        // manifest silences. Surfaces in the UI so a user can see what the
+        // pack maintainer has chosen not to block on (and why) without
+        // having to read the raw JSON manifest. Skipped entirely when the
+        // pack has no acknowledgements — most packs won't.
+        java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.ScanAcknowledgement > acks =
+                pack.getPackScanAcknowledgements();
+        if ( acks != null && !acks.isEmpty() ) {
+            section.getChildren().add( buildAcknowledgementsList( acks ) );
+        }
+
         // Button: verify this pack now.
         // Runs a force-FULL verify in the background using the new launch
         // progress GUI for the per-step display.
@@ -754,6 +765,113 @@ public class MCLauncherModpackDetailModal extends StackPane
         section.getChildren().add( verifyHint );
 
         return section;
+    }
+
+    /**
+     * Builds a read-only list of the pack manifest's
+     * {@code packScanAcknowledgements} entries. Each row shows the rule kind,
+     * the locator (class.method or inner-JAR entry path), and the maintainer's
+     * stated reason. A short hint above the list calls out that these are
+     * defined by the pack maintainer and can't be edited from the launcher —
+     * the manifest is the source of truth.
+     *
+     * <p>The fileSha256 is intentionally not surfaced inline: it's a 64-char
+     * hex string that adds visual noise without informing the typical user.
+     * It's exposed as a tooltip on each row for the curious / auditing case.</p>
+     */
+    private Node buildAcknowledgementsList(
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.ScanAcknowledgement > acks )
+    {
+        VBox container = new VBox( 6 );
+
+        Label heading = new Label( "Acknowledged scan findings" );
+        heading.setStyle( "-fx-font-size: 12px; -fx-font-weight: bold;" );
+        container.getChildren().add( heading );
+
+        Label intro = new Label(
+                "The pack maintainer has marked these specific scan findings as known-OK so the "
+                        + "launcher doesn't block on them. The scan still runs against every file — only "
+                        + "the listed (file + rule + location) combinations are silenced, and a mod "
+                        + "update that changes the file's content automatically invalidates the entry." );
+        intro.setWrapText( true );
+        intro.getStyleClass().add( "subtle" );
+        intro.setStyle( "-fx-font-size: 11px;" );
+        container.getChildren().add( intro );
+
+        VBox list = new VBox( 4 );
+        list.setStyle( "-fx-padding: 6 0 0 0;" );
+        for ( com.micatechnologies.minecraft.launcher.game.modpack.ScanAcknowledgement a : acks ) {
+            if ( a == null ) continue;
+            list.getChildren().add( buildAcknowledgementRow( a ) );
+        }
+        container.getChildren().add( list );
+
+        return container;
+    }
+
+    /**
+     * One row of the acknowledgements list. Layout:
+     *
+     * <pre>
+     *   ⚠  KIND_NAME · class.method
+     *      Maintainer's reason text wraps here on long entries…
+     * </pre>
+     *
+     * <p>The fileSha256 is wired up as a hover tooltip — useful for someone
+     * auditing the manifest against an out-of-band file hash, but not worth
+     * spending a row's worth of vertical space on by default.</p>
+     */
+    private Node buildAcknowledgementRow(
+            com.micatechnologies.minecraft.launcher.game.modpack.ScanAcknowledgement a )
+    {
+        VBox row = new VBox( 2 );
+        row.setStyle( "-fx-background-color: -color-surface-hover;"
+                              + " -fx-background-radius: 6;"
+                              + " -fx-padding: 6 10 6 10;" );
+
+        // Header: kind + locator. Kind in bold so the reader can scan the
+        // column at a glance; locator dimmed since it's a debugger-style
+        // detail (class.method or inner JAR path).
+        HBox header = new HBox( 8 );
+        header.setAlignment( Pos.CENTER_LEFT );
+        Label kindLabel = new Label( a.kind != null ? a.kind : "(unknown rule)" );
+        kindLabel.setStyle( "-fx-font-weight: bold; -fx-font-size: 11px;" );
+        header.getChildren().add( kindLabel );
+        if ( a.locator != null && !a.locator.isBlank() ) {
+            Label sep = new Label( "·" );
+            sep.getStyleClass().add( "subtle" );
+            sep.setStyle( "-fx-font-size: 11px;" );
+            Label locatorLabel = new Label( a.locator );
+            locatorLabel.getStyleClass().add( "subtle" );
+            locatorLabel.setStyle( "-fx-font-size: 11px;" );
+            header.getChildren().addAll( sep, locatorLabel );
+        }
+        row.getChildren().add( header );
+
+        // Reason — bold-not-bold contrast keeps the most important text
+        // (why this is OK) at full opacity, with the technical identity
+        // recessed above it.
+        if ( a.reason != null && !a.reason.isBlank() ) {
+            Label reasonLabel = new Label( a.reason );
+            reasonLabel.setWrapText( true );
+            reasonLabel.setStyle( "-fx-font-size: 11px;" );
+            row.getChildren().add( reasonLabel );
+        }
+        else {
+            Label noReason = new Label( "(no reason given by the pack maintainer)" );
+            noReason.getStyleClass().add( "subtle" );
+            noReason.setStyle( "-fx-font-size: 11px; -fx-font-style: italic;" );
+            row.getChildren().add( noReason );
+        }
+
+        // SHA-256 as a hover tooltip. The full 64-char hex is too noisy to
+        // bake into the visual row but useful for auditors comparing the
+        // manifest's claim against a freshly computed hash of the JAR.
+        if ( a.fileSha256 != null && !a.fileSha256.isBlank() ) {
+            TooltipManager.install( row, "File SHA-256: " + a.fileSha256 );
+        }
+
+        return row;
     }
 
     private Node buildComingSoonSection()
