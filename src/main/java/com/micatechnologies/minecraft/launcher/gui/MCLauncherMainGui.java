@@ -153,6 +153,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  invocation. */
     private boolean updatesOnly = false;
 
+    /** Debounce timer for the search field. Started fresh on each keystroke; only
+     *  fires {@link #rebuildCards} after the user stops typing for {@link #SEARCH_DEBOUNCE_MS}.
+     *  Built lazily in {@link #setup()} because PauseTransition wants to be on the
+     *  FX thread by the time it's first scheduled. */
+    private PauseTransition searchDebounce;
+    private static final int SEARCH_DEBOUNCE_MS = 120;
+
     public MCLauncherMainGui( Stage stage ) throws IOException {
         super( stage );
     }
@@ -361,11 +368,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         sortFilter.selectItem( SORT_LAST_PLAYED );
         sortFilter.setOnAction( e -> rebuildCards() );
 
-        // Search — rebuild on each character. FlowPane rebuild is cheap and a
-        // PauseTransition-style debounce only matters once a user has 100+ packs.
+        // Search — rebuild after a short pause rather than on every keystroke.
+        // A FlowPane rebuild clears every card node and re-instantiates the page
+        // worth of cards; on a sub-second typist that fires N times per word and
+        // makes the field feel laggy on a 30-pack library, never mind 100+. The
+        // PauseTransition coalesces a rapid burst of keystrokes into a single
+        // rebuild ~120 ms after the user stops typing.
+        searchDebounce = new PauseTransition( Duration.millis( SEARCH_DEBOUNCE_MS ) );
+        searchDebounce.setOnFinished( e -> rebuildCards() );
         searchField.textProperty().addListener( ( obs, oldVal, newVal ) -> {
             currentPage = 1;
-            rebuildCards();
+            searchDebounce.playFromStart();
         } );
         // Same float-mode kill switch the Library screen uses — no floating label
         // wanted, just promptText.

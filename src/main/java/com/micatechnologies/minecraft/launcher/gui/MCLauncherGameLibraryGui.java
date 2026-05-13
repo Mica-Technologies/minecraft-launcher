@@ -129,6 +129,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private int pageSize    = DEFAULT_PAGE_SIZE;
     private int currentPage = 1;  // 1-based
 
+    /** Coalesces a burst of keystrokes in the search box into a single rebuild after
+     *  the user pauses typing — see the listener in {@link #setup()} for rationale. */
+    private javafx.animation.PauseTransition searchDebounce;
+    private static final int SEARCH_DEBOUNCE_MS = 120;
+
     public MCLauncherGameLibraryGui( Stage stage ) throws IOException {
         super( stage );
     }
@@ -184,11 +189,17 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         statusFilter.selectItem( STATUS_INSTALLED );
         statusFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
 
-        // Search — rebuild on every change. FlowPane rebuild is cheap enough that we don't
-        // need to debounce; if a real responsiveness issue surfaces, wrap in a PauseTransition.
+        // Search — debounce keystrokes so a rapid burst coalesces into one rebuild.
+        // Without this, FlowPane.getChildren().clear() + re-instantiate fires per
+        // keystroke, which makes the field feel laggy once the library has grown
+        // past a few dozen entries (and the Library screen also folds vanilla
+        // versions into the entry list, easily 100+ rows).
+        searchDebounce = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis( SEARCH_DEBOUNCE_MS ) );
+        searchDebounce.setOnFinished( e -> rebuildCards() );
         searchField.textProperty().addListener( ( obs, oldVal, newVal ) -> {
             currentPage = 1;
-            rebuildCards();
+            searchDebounce.playFromStart();
         } );
 
         // These two fields use promptText only — they have no floatingText label,
