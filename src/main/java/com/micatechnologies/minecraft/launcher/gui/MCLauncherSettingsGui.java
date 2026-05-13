@@ -174,6 +174,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     MFXComboBox< String > themeSelection;
 
+    /** Appearance toggle: when off, modpack / version cards on the main menu
+     *  and Library view render with the procedural gradient only — no
+     *  background-image overlay. Backed by
+     *  {@link ConfigManager#getShowPackBackgrounds}, default on.
+     *
+     *  @since 2026.3 */
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXToggleButton showPackBackgroundsToggle;
+
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > jvmPresetSelection;
@@ -739,6 +749,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Populate theme selection dropdown
         themeSelection.getItems().clear();
         themeSelection.getItems().addAll( ConfigConstants.ALLOWED_THEMES );
+
+        // Pack-background display toggle (Appearance tab). Writes back to config
+        // on change so the next card-grid rebuild on the main menu / Library
+        // view picks up the new state. Already-rendered cards keep their
+        // current visuals until the user navigates away and back — no need to
+        // force a global rebuild from the Settings panel.
+        if ( showPackBackgroundsToggle != null ) {
+            showPackBackgroundsToggle.setSelected( ConfigManager.getShowPackBackgrounds() );
+            showPackBackgroundsToggle.selectedProperty().addListener(
+                    ( obs, oldV, newV ) -> ConfigManager.setShowPackBackgrounds(
+                            Boolean.TRUE.equals( newV ) ) );
+        }
 
         // Populate JVM preset selection dropdown
         jvmPresetSelection.getItems().clear();

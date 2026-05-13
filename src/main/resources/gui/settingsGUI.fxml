@@ -231,6 +231,22 @@
                         <Label text="Theme" />
                         <MFXComboBox fx:id="themeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
                     </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Pack imagery">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="When on, modpack and version cards on the main menu and Browse view show the pack's background image on top of the procedural gradient. When off, only the gradient is shown for a cleaner, more uniform look." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="showPackBackgroundsToggle" text="Show pack background images on cards" />
+                    </VBox>
                 </VBox>
             </ScrollPane>
 

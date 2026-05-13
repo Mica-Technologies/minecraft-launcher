@@ -1310,7 +1310,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             bgLayer.getStyleClass().removeAll( "heroBackgroundDefaultVanilla",
                                                  "heroBackgroundDefaultForge" );
             applyDynamicBackground( bgLayer, newPack, packLogoImage );
-            String bgUrl = resolveBackgroundUrl( newPack );
+            // User opt-out: gradient-only mode skips the bg-image overlay entirely.
+            // The procedural gradient + the dynamic logo-color derivation still
+            // run so cards still feel individuated, just without the imagery.
+            boolean showBackgrounds = ConfigManager.getShowPackBackgrounds();
+            String bgUrl = showBackgrounds ? resolveBackgroundUrl( newPack ) : null;
             if ( bgUrl != null ) {
                 // Append rather than replace so the gradient bg-color from
                 // applyDynamicBackground stays visible through any transparent
@@ -1319,7 +1323,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
                 bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
             }
-            else if ( newPack.hasCustomBackground() ) {
+            else if ( showBackgrounds && newPack.hasCustomBackground() ) {
                 // Pack declares a custom background but the cache file isn't
                 // on disk yet — gradient is showing as a temporary fallback.
                 // Spawn a background task to fetch it via cacheImages(),
@@ -1517,7 +1521,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  cached-bundled-default and skip the procedural-background path. We
      *  gate on {@code hasCustomBackground} first.</p>
      */
-    private static String resolveBackgroundUrl( GameModPack pack ) {
+    /** Package-private so {@link MCLauncherGameLibraryGui}'s LibraryCard can
+     *  reuse the same "is the bg file already on disk?" check before overlaying
+     *  it on top of the procedural gradient. Browse-view doesn't trigger an
+     *  async download for missing files (would be heavy on cold cache); it just
+     *  uses what's already cached, falling through to the gradient otherwise. */
+    static String resolveBackgroundUrl( GameModPack pack ) {
         try {
             if ( !pack.hasCustomBackground() ) {
                 return null;

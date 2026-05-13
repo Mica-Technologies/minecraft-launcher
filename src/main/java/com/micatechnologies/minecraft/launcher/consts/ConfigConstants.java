@@ -611,4 +611,30 @@ public class ConfigConstants
     public static final String CURSEFORGE_API_KEY_KEY = "curseForgeApiKey";
 
     // endregion
+
+    // region Card background-image display toggle
+
+    /**
+     * JSON key controlling whether modpack / version cards on the main menu
+     * and Library view overlay the pack's real background image on top of
+     * the procedural gradient. When false, only the gradient is shown
+     * regardless of whether the image is cached. Some users prefer the
+     * cleaner, more uniform look of gradient-only cards; others want the
+     * pack imagery for instant visual recognition. Defaults to true (image
+     * overlay enabled).
+     *
+     * @since 2026.3
+     */
+    public static final String SHOW_PACK_BACKGROUNDS_KEY = "showPackBackgrounds";
+
+    /**
+     * Default for {@link #SHOW_PACK_BACKGROUNDS_KEY}. True so fresh installs
+     * see the imagery the modpack authors curated; users who prefer the
+     * gradient-only look opt out via Settings → Appearance.
+     *
+     * @since 2026.3
+     */
+    public static final boolean SHOW_PACK_BACKGROUNDS_DEFAULT = true;
+
+    // endregion
 }

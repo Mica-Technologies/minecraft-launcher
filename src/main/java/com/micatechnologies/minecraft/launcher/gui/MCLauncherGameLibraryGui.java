@@ -818,9 +818,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             setMaxWidth( CARD_WIDTH );
             setSpacing( 0 );
             // Same bitmap-cache trick as the main-menu hero cards — keeps scroll lag minimal
-            // even with a few hundred cards in the FlowPane.
+            // even with a few hundred cards in the FlowPane. CacheHint.DEFAULT (not SPEED)
+            // for the same reason that bit the main menu: SPEED treats the cached bitmap
+            // as static and won't refresh when the bgLayer's CSS bg-image completes its
+            // async load, making packs render with just the gradient even when the image
+            // is available. DEFAULT lets JavaFX invalidate + re-render on descendant
+            // content changes.
             setCache( true );
-            setCacheHint( CacheHint.SPEED );
+            setCacheHint( CacheHint.DEFAULT );
 
             // ----- Image area (procedural gradient via shared main-menu logic) -----
             StackPane imageBox = new StackPane();
@@ -859,6 +864,24 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             // (modpack) or the vanilla class (vanilla) so we still get something distinct
             // rather than a flat surface.
             applyEntryBackground( bgLayer, entry );
+
+            // Overlay the pack's real background image on top of the gradient when the
+            // image is already on disk (installed packs whose previous launch downloaded
+            // the bg, or available packs that happen to have been image-cached for any
+            // reason). Browse view doesn't trigger an async download for missing files —
+            // it'd be heavy when scrolling through dozens of available packs — so packs
+            // without a cached image stay on the gradient. The main-menu card handles the
+            // download for installed packs anyway, so the next visit to the library
+            // typically has them all on disk. Respects the user-facing
+            // Settings → Appearance toggle: when off, gradient-only across the board.
+            if ( entry.pack != null
+                    && com.micatechnologies.minecraft.launcher.config.ConfigManager.getShowPackBackgrounds() ) {
+                String bgUrl = MCLauncherMainGui.resolveBackgroundUrl( entry.pack );
+                if ( bgUrl != null ) {
+                    String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
+                    bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
+                }
+            }
 
             // ----- Logo overlay (matches main-menu visual) -----
             StackPane logoContainer = new StackPane();

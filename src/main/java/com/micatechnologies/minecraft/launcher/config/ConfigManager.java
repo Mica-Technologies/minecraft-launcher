@@ -1299,6 +1299,44 @@ public class ConfigManager
      *
      * @since 2026.3
      */
+    /**
+     * Toggle: should modpack / version cards on the main menu and Library
+     * view overlay the pack's real background image on top of the procedural
+     * gradient? Default true. Reads through the standard
+     * {@link ConfigConstants#SHOW_PACK_BACKGROUNDS_KEY} key.
+     *
+     * @since 2026.3
+     */
+    public synchronized static boolean getShowPackBackgrounds() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.SHOW_PACK_BACKGROUNDS_KEY ) ) {
+            return ConfigConstants.SHOW_PACK_BACKGROUNDS_DEFAULT;
+        }
+        try {
+            return configObject.get( ConfigConstants.SHOW_PACK_BACKGROUNDS_KEY ).getAsBoolean();
+        }
+        catch ( Exception e ) {
+            return ConfigConstants.SHOW_PACK_BACKGROUNDS_DEFAULT;
+        }
+    }
+
+    /**
+     * Sets the {@link #getShowPackBackgrounds} toggle. Persists to disk
+     * immediately; the next card-grid rebuild on the main menu / Library
+     * view picks up the new value.
+     *
+     * @since 2026.3
+     */
+    public synchronized static void setShowPackBackgrounds( boolean show ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.SHOW_PACK_BACKGROUNDS_KEY, show );
+        writeConfigurationToDisk();
+    }
+
     public synchronized static boolean hasCurseForgeApiKey() {
         if ( configObject == null ) {
             readConfigurationFromDisk();
