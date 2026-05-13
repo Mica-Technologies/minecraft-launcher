@@ -262,14 +262,18 @@ public class ManagedGameFile
             return false;
         }
         if ( !verifyLocalFile() ) {
-            // In offline mode, accept any existing file without re-downloading
+            // Offline mode: refuse to launch with a hash-mismatched file. Previously
+            // we'd accept any on-disk content as a courtesy ("better than nothing"),
+            // but a mismatched file is by definition unverified — an attacker who
+            // can drop a file on disk wins, and the user has no signal that what
+            // they're about to run isn't what the manifest expects. Surface a clear
+            // "needs reconnect to verify" error instead.
             if ( NetworkUtilities.isOffline() ) {
                 File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
                 if ( localFile.exists() && localFile.isFile() ) {
-                    Logger.logWarningSilent(
-                            "Offline mode: accepting unverified file: " + getFullLocalFilePath() );
-                    sessionVerified = true;
-                    return false;
+                    throw new ModpackException(
+                            "Offline mode: file hash mismatch and we can't re-verify without internet: "
+                                    + getFullLocalFilePath() );
                 }
                 throw new ModpackException( "Offline mode: missing required file: " + getFullLocalFilePath() );
             }
