@@ -719,7 +719,11 @@ public class MCLauncherAuthManager
             catch ( ExecutionException e ) {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                 Logger.logWarningSilent( "Token renewal failed with an error (server was contacted)." );
-                Logger.logThrowable( ( Exception ) cause );
+                // Sanitized: log only the exception class, not the message or stack. The
+                // minecraft_authenticator library wraps OAuth response bodies in exception
+                // messages, which can contain token fragments and detailed account state.
+                // Persistent logs are not the place for that (security finding 2.5).
+                logAuthErrorType( cause );
                 recordAuthFailure();
                 return MCLauncherAuthResult.ERROR_OTHER;
             }
@@ -739,7 +743,9 @@ public class MCLauncherAuthManager
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( LocalizationManager.PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT );
-            Logger.logThrowable( e );
+            // Sanitized: the catch is broad and frequently catches auth-lib exceptions
+            // (not just I/O), so we log type-only rather than the full stack. See finding 2.5.
+            logAuthErrorType( e );
             recordAuthFailure();
             return MCLauncherAuthResult.ERROR_OTHER;
         }
@@ -857,10 +863,30 @@ public class MCLauncherAuthManager
         }
         else {
             Logger.logWarningSilent( "Failed to login due to an exception while contacting the login service!" );
-            Logger.logThrowable( e );
+            // Sanitized — these are direct auth-library exceptions, so the message
+            // can carry token fragments. Log type only (security finding 2.5).
+            logAuthErrorType( e );
             result = MCLauncherAuthResult.ERROR_OTHER;
         }
         return result;
+    }
+
+    /**
+     * Logs the bare exception type at WARNING level, without the message body or stack
+     * trace. Used by auth-flow error sites where the exception comes from the
+     * {@code minecraft_authenticator} library — those messages often quote OAuth
+     * response bodies, which can include refresh-token fragments, access tokens, or
+     * detailed account state that doesn't belong in a persistent log file.
+     *
+     * <p>If a deeper diagnostic is needed during development, set a breakpoint here or
+     * temporarily route to {@link Logger#logThrowable(Throwable)} locally rather than
+     * persisting full traces by default.
+     */
+    private static void logAuthErrorType( Throwable t ) {
+        if ( t == null ) {
+            return;
+        }
+        Logger.logWarningSilent( "Auth error type: " + t.getClass().getName() );
     }
 
     private static boolean checkIfExceptionIsNoValuePresent( Exception e ) {
