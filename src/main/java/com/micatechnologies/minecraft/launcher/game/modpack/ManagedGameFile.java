@@ -252,13 +252,25 @@ public class ManagedGameFile
 
         // Download file and return validation result
         try {
+            // Reject schemes that aren't network HTTPS. http:// allows MITM payload
+            // swap on networks without TLS termination; file:// would let a malicious
+            // manifest cause the launcher to copy arbitrary local files into the
+            // modpack folder (where they'd later be loaded onto the classpath as
+            // "mods"). jar://, ftp://, gopher://, etc. similarly have no legitimate
+            // use case for mod downloads. Accept https only.
+            URL parsed = new URL( remote );
+            String scheme = parsed.getProtocol();
+            if ( scheme == null || !scheme.equalsIgnoreCase( "https" ) ) {
+                throw new ModpackException(
+                        "Refusing managed file with non-https URL scheme: " + remote );
+            }
             //noinspection ResultOfMethodCallIgnored
             localFile.getParentFile().mkdirs();
             if ( downloadTracker != null ) {
-                NetworkUtilities.downloadFileFromURL( new URL( remote ), localFile, downloadTracker );
+                NetworkUtilities.downloadFileFromURL( parsed, localFile, downloadTracker );
             }
             else {
-                NetworkUtilities.downloadFileFromURL( new URL( remote ), localFile );
+                NetworkUtilities.downloadFileFromURL( parsed, localFile );
             }
         }
         catch ( IOException e ) {
