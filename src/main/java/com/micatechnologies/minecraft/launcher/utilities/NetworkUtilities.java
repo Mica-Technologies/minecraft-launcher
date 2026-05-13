@@ -485,24 +485,73 @@ public class NetworkUtilities
      * @return the UTF-8 decoded body
      */
     public static String downloadFileFromURLBounded( URL source, long maxBytes ) throws IOException {
-        URLConnection connection = openConnection( source );
-        applyDefaults( connection );
-        try ( InputStream is = connection.getInputStream();
-              ByteArrayOutputStream out = new ByteArrayOutputStream() ) {
-            byte[] buffer = new byte[8192];
-            long total = 0;
-            int read;
-            while ( ( read = is.read( buffer ) ) != -1 ) {
-                total += read;
-                if ( total > maxBytes ) {
-                    throw new IOException(
-                            "Response from " + source + " exceeded max-bytes cap (" + maxBytes + ")" );
-                }
-                out.write( buffer, 0, read );
+        // Bounded fetch implies "this body feeds straight into Gson" — make the
+        // contextual security guarantees match the contextual risk. Disable
+        // automatic redirects so an HTTPS→HTTP downgrade in a redirect chain
+        // can't sneak a plaintext body into a flow the caller thinks is end-to-
+        // end HTTPS. Then walk up to MAX_REDIRECTS hops manually, requiring each
+        // hop to also be HTTPS.
+        URL current = source;
+        for ( int hop = 0; hop <= MAX_REDIRECTS; hop++ ) {
+            if ( !"https".equalsIgnoreCase( current.getProtocol() ) ) {
+                throw new IOException( "Refusing non-HTTPS URL on bounded fetch: " + current );
             }
-            return out.toString( StandardCharsets.UTF_8 );
+            URLConnection connection = openConnection( current );
+            applyDefaults( connection );
+            if ( connection instanceof java.net.HttpURLConnection httpConn ) {
+                httpConn.setInstanceFollowRedirects( false );
+                int code = httpConn.getResponseCode();
+                if ( code == java.net.HttpURLConnection.HTTP_MOVED_PERM
+                        || code == java.net.HttpURLConnection.HTTP_MOVED_TEMP
+                        || code == java.net.HttpURLConnection.HTTP_SEE_OTHER
+                        || code == 307 || code == 308 ) {
+                    String location = httpConn.getHeaderField( "Location" );
+                    httpConn.disconnect();
+                    if ( location == null || location.isBlank() ) {
+                        throw new IOException( "Redirect without Location header from " + current );
+                    }
+                    current = new URL( current, location );
+                    continue;
+                }
+            }
+            // Content-Type sanity check: the bounded variant exists specifically for
+            // JSON consumption, so refuse responses whose declared type isn't JSON.
+            // A compromised host that returns text/html with a JSON-shaped body would
+            // otherwise still get parsed by Gson. Servers sometimes omit the header
+            // entirely (legitimate) — allow that case, but reject explicit mismatches.
+            String contentType = connection.getContentType();
+            if ( contentType != null && !contentType.isBlank() ) {
+                String lower = contentType.toLowerCase( java.util.Locale.ROOT );
+                if ( !lower.startsWith( "application/json" )
+                        && !lower.startsWith( "text/json" )
+                        && !lower.startsWith( "application/javascript" ) ) {
+                    throw new IOException( "Unexpected Content-Type for bounded JSON fetch from "
+                                                   + current + ": " + contentType );
+                }
+            }
+            try ( InputStream is = connection.getInputStream();
+                  ByteArrayOutputStream out = new ByteArrayOutputStream() ) {
+                byte[] buffer = new byte[8192];
+                long total = 0;
+                int read;
+                while ( ( read = is.read( buffer ) ) != -1 ) {
+                    total += read;
+                    if ( total > maxBytes ) {
+                        throw new IOException(
+                                "Response from " + source + " exceeded max-bytes cap (" + maxBytes + ")" );
+                    }
+                    out.write( buffer, 0, read );
+                }
+                return out.toString( StandardCharsets.UTF_8 );
+            }
         }
+        throw new IOException( "Too many redirects following " + source );
     }
+
+    /** Cap on the number of HTTPS-only redirect hops a bounded fetch will follow.
+     *  Generous enough for typical CDN bouncing, tight enough that a redirect loop
+     *  doesn't waste resources. */
+    private static final int MAX_REDIRECTS = 5;
 
     /** Convenience overload that takes the URL as a string. */
     public static String downloadFileFromURLBounded( String source, long maxBytes ) throws IOException {
