@@ -677,6 +677,27 @@ public final class SupplementalScanner
             if ( a == 198 && b == 51 && c == 100 ) return true;      // 198.51.100.0/24 (TEST-NET-2)
             if ( a == 203 && b == 0 && c == 113 ) return true;       // 203.0.113.0/24 (TEST-NET-3)
 
+            // (1b) Well-known public DNS resolvers. Mods regularly hard-code
+            //      these as a connectivity probe (FancyMenu's WebUtils
+            //      _isInternetAvailable is the canonical example: it dials
+            //      8.8.8.8 to decide whether the user is online before
+            //      attempting a network fetch). A real C2 stub would use a
+            //      domain or attacker-controlled IP, not a well-publicized
+            //      free recursive resolver, so the FP floor on these is
+            //      effectively zero.
+            //
+            //      Listed: Google (8.8.8.8 / 8.8.4.4), Cloudflare (1.1.1.1 /
+            //      1.0.0.1), Quad9 (9.9.9.9 / 149.112.112.112), OpenDNS
+            //      (208.67.222.222 / 208.67.220.220).
+            if ( a == 8 && b == 8 && c == 8 && d == 8 ) return true;
+            if ( a == 8 && b == 8 && c == 4 && d == 4 ) return true;
+            if ( a == 1 && b == 1 && c == 1 && d == 1 ) return true;
+            if ( a == 1 && b == 0 && c == 0 && d == 1 ) return true;
+            if ( a == 9 && b == 9 && c == 9 && d == 9 ) return true;
+            if ( a == 149 && b == 112 && c == 112 && d == 112 ) return true;
+            if ( a == 208 && b == 67 && c == 222 && d == 222 ) return true;
+            if ( a == 208 && b == 67 && c == 220 && d == 220 ) return true;
+
             // (2) Trailing-zero pad — X.0.0.0 / X.Y.0.0. Almost always a
             //     version-major sentinel (e.g. "114.0.0.0" from OneConfig)
             //     or a subnet base address in a filter list, not an endpoint.
