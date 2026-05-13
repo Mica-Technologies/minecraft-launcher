@@ -45,6 +45,11 @@ public class AnnouncementManager
     private static final String ANNOUNCEMENT_URL
             = "https://micauseaststorage.blob.core.windows.net/mc-launcher-api/launcher-remote-config/announce.json";
 
+    /** Hard cap on the announcement-JSON response size. The schema is a small fixed
+     *  set of short strings; 256 KB is far above realistic legitimate sizes and bounds
+     *  the OOM-via-pathological-body risk if the host is ever compromised. */
+    private static final long ANNOUNCEMENT_MAX_BYTES = 256L * 1024;
+
     /**
      * The key used to access the JSON value for the announcement shown to the user on the login screen.
      *
@@ -137,10 +142,14 @@ public class AnnouncementManager
      * @since 1.0
      */
     public static void checkAnnouncements() {
-        // Download announcements JSON from launcher repository
+        // Download announcements JSON from launcher repository. Capped at 256 KB —
+        // the schema is a fixed bounded set of short strings, and an unbounded body
+        // from a compromised host would otherwise OOM the launcher on its way through
+        // Gson.
         JsonObject announcementJson = null;
         try {
-            String manifestBody = NetworkUtilities.downloadFileFromURL( ANNOUNCEMENT_URL );
+            String manifestBody = NetworkUtilities.downloadFileFromURLBounded(
+                    ANNOUNCEMENT_URL, ANNOUNCEMENT_MAX_BYTES );
             announcementJson = JSONUtilities.getGson().fromJson( manifestBody, JsonObject.class );
         }
         catch ( Exception e ) {

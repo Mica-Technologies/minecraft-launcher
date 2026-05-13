@@ -25,6 +25,7 @@ import org.apache.commons.io.IOUtils;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -460,5 +461,51 @@ public class NetworkUtilities
         try ( InputStream is = connection.getInputStream() ) {
             return IOUtils.toString( is, StandardCharsets.UTF_8 );
         }
+    }
+
+    /**
+     * Bounded download variant — reads at most {@code maxBytes} into a string, then
+     * throws {@link IOException} if the response continues past that ceiling
+     * Use this for any JSON endpoint whose response is fed
+     * into Gson or otherwise into the application's parsing path: an unbounded
+     * download from a compromised or hostile server can OOM the launcher with a
+     * multi-gigabyte body.
+     *
+     * <p>Suggested limits used by callers today:
+     * <ul>
+     *   <li>{@code 256 * 1024} — announcements / GitHub release JSON (small bounded
+     *       schemas).</li>
+     *   <li>{@code 50 * 1024 * 1024} — modpack manifests (can be large for packs
+     *       with thousands of mods).</li>
+     * </ul>
+     *
+     * @param source   the URL to fetch
+     * @param maxBytes maximum response body size in bytes; reading beyond this
+     *                 raises {@link IOException}
+     * @return the UTF-8 decoded body
+     */
+    public static String downloadFileFromURLBounded( URL source, long maxBytes ) throws IOException {
+        URLConnection connection = openConnection( source );
+        applyDefaults( connection );
+        try ( InputStream is = connection.getInputStream();
+              ByteArrayOutputStream out = new ByteArrayOutputStream() ) {
+            byte[] buffer = new byte[8192];
+            long total = 0;
+            int read;
+            while ( ( read = is.read( buffer ) ) != -1 ) {
+                total += read;
+                if ( total > maxBytes ) {
+                    throw new IOException(
+                            "Response from " + source + " exceeded max-bytes cap (" + maxBytes + ")" );
+                }
+                out.write( buffer, 0, read );
+            }
+            return out.toString( StandardCharsets.UTF_8 );
+        }
+    }
+
+    /** Convenience overload that takes the URL as a string. */
+    public static String downloadFileFromURLBounded( String source, long maxBytes ) throws IOException {
+        return downloadFileFromURLBounded( new URL( source ), maxBytes );
     }
 }

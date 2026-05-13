@@ -43,6 +43,12 @@ public class GameModPackFetcher
      */
     private static final String MANIFEST_CACHE_DIR = "manifest_cache";
 
+    /** Hard cap on the size of a modpack manifest response. Legitimate manifests,
+     *  even for thousand-mod packs, top out in the few-hundred-KB range — 50 MB is
+     *  overhead headroom. Bounded download throws if the body would exceed this,
+     *  which stops a compromised manifest host from OOMing the launcher. */
+    private static final long MANIFEST_MAX_BYTES = 50L * 1024 * 1024;
+
     /**
      * Fetches the mod pack object from the specified manifest URL. If the network is available, downloads the latest
      * manifest and caches it locally. If offline, falls back to the cached version.
@@ -67,8 +73,11 @@ public class GameModPackFetcher
                 Logger.logStd( "Loaded cached manifest for offline mode: " + manifestUrl );
             }
             else {
-                // Online: download and cache
-                manifestBody = NetworkUtilities.downloadFileFromURL( manifestUrl );
+                // Online: download with a hard size cap so a compromised manifest host
+                // can't OOM the launcher with a pathological body. 50 MB is generous
+                // for legitimate modpack manifests, which top out around a few hundred
+                // kilobytes even for thousand-mod packs.
+                manifestBody = NetworkUtilities.downloadFileFromURLBounded( manifestUrl, MANIFEST_MAX_BYTES );
                 cacheManifest( manifestUrl, manifestBody );
             }
             gameModPack = JSONUtilities.getGson().fromJson( manifestBody, GameModPack.class );
