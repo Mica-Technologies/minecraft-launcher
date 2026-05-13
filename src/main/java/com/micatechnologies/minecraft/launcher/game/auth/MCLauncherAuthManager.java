@@ -26,32 +26,12 @@ import net.hycrafthd.minecraft_authenticator.login.User;
 
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.google.gson.JsonObject;
-import oshi.SystemInfo;
 
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.AclEntry;
-import java.nio.file.attribute.AclEntryPermission;
-import java.nio.file.attribute.AclEntryType;
-import java.nio.file.attribute.AclFileAttributeView;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.UserPrincipal;
-import java.security.SecureRandom;
-import java.security.spec.KeySpec;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.Enumeration;
 import java.util.concurrent.*;
 
 public class MCLauncherAuthManager
@@ -178,232 +158,13 @@ public class MCLauncherAuthManager
         com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly( path );
     }
 
-    /**
-     * Returns the current OS user name, preferring environment variables over
-     * {@code System.getProperty("user.name")} so a user passing {@code -Duser.name=foo}
-     * to the JVM cannot detach their auth-cache fingerprint from the actual login.
-     *
-     * <p>Order:
-     * <ol>
-     *   <li>{@code $USER} (POSIX shells set this on login).</li>
-     *   <li>{@code $USERNAME} (Windows sets this in every interactive session).</li>
-     *   <li>{@code System.getProperty("user.name")} as a last-resort fallback —
-     *       sandboxed JVMs occasionally clear both env vars but still populate
-     *       this property.</li>
-     * </ol>
-     * Returns the empty string if nothing is available, matching the prior behavior.
-     */
-    private static String resolveOsUsername() {
-        String user = System.getenv( "USER" );
-        if ( user != null && !user.isEmpty() ) {
-            return user;
-        }
-        user = System.getenv( "USERNAME" );
-        if ( user != null && !user.isEmpty() ) {
-            return user;
-        }
-        return System.getProperty( "user.name", "" );
-    }
-
-    /** Filename of the per-install random fallback secret. Sits alongside the auth files
-     *  in the launcher config dir and is generated lazily only when hardware fingerprint
-     *  pieces are unavailable. Users with working oshi + NIC enumeration never create or
-     *  read it, so their derived key is unchanged. */
-    private static final String INSTALL_SECRET_FILE = "machine-key.bin";
-
-    /** Length of the per-install secret in bytes. 32 bytes = 256 bits, well above the
-     *  64-bit minimum for an unguessable HMAC input. */
-    private static final int INSTALL_SECRET_BYTES = 32;
-
-    /**
-     * Returns a per-install random secret as a hex string, lazily creating and persisting
-     * it on first use. The file is written then tightened to owner-only permissions via
-     * {@link #applyOwnerOnlyPermissions(Path)} so other local users cannot read it. If
-     * the file cannot be created (read-only FS / permission denied), falls back to an
-     * in-memory ephemeral secret for this process — the consequence is that the cached
-     * auth files become unreadable after restart, which forces a clean re-login, which
-     * is the right failure mode (it's no worse than losing the cache outright).
-     */
-    private static volatile String cachedInstallSecret = null;
-
-    private static String getOrCreateInstallSecret() {
-        String cached = cachedInstallSecret;
-        if ( cached != null ) {
-            return cached;
-        }
-        synchronized ( MCLauncherAuthManager.class ) {
-            if ( cachedInstallSecret != null ) {
-                return cachedInstallSecret;
-            }
-            Path secretPath = resolveSiblingPath( INSTALL_SECRET_FILE );
-            try {
-                if ( Files.isRegularFile( secretPath ) ) {
-                    byte[] existing = Files.readAllBytes( secretPath );
-                    if ( existing.length >= INSTALL_SECRET_BYTES ) {
-                        cachedInstallSecret = bytesToHex( existing );
-                        return cachedInstallSecret;
-                    }
-                    // Corrupt / truncated — regenerate.
-                }
-                byte[] fresh = new byte[INSTALL_SECRET_BYTES];
-                new SecureRandom().nextBytes( fresh );
-                Files.createDirectories( secretPath.getParent() );
-                Files.write( secretPath, fresh );
-                applyOwnerOnlyPermissions( secretPath );
-                cachedInstallSecret = bytesToHex( fresh );
-                return cachedInstallSecret;
-            }
-            catch ( IOException e ) {
-                // Best-effort: a non-persisted in-memory secret is still better than a
-                // constant string. The auth cache won't survive a restart, but encryption
-                // within this session is still machine-process-bound.
-                Logger.logWarningSilent( "Unable to persist install secret ("
-                                                 + e.getClass().getSimpleName()
-                                                 + "); using ephemeral fallback." );
-                byte[] fresh = new byte[INSTALL_SECRET_BYTES];
-                new SecureRandom().nextBytes( fresh );
-                cachedInstallSecret = bytesToHex( fresh );
-                return cachedInstallSecret;
-            }
-        }
-    }
-
-    private static String bytesToHex( byte[] bytes ) {
-        StringBuilder sb = new StringBuilder( bytes.length * 2 );
-        for ( byte b : bytes ) {
-            sb.append( String.format( "%02x", b ) );
-        }
-        return sb.toString();
-    }
-
-    /**
-     * Derives a machine-specific AES-256 key using PBKDF2 with hardware/OS identifiers as
-     * the passphrase. The key is tied to this specific machine — the encrypted file
-     * cannot be decrypted elsewhere.
-     *
-     * <p>Hardware UUID (motherboard/BIOS) and MAC address are the primary entropy sources.
-     * When either lookup fails (cloud VM with sandboxed hardware identifiers, Docker
-     * container, restricted-permissions process), we previously appended the literal
-     * strings {@code "no-hw-uuid"} / {@code "no-mac"} — which collapsed every install on a
-     * given username + OS pair to the same derivation. We now substitute a per-install
-     * random secret read from {@link #INSTALL_SECRET_FILE}, lazily generated on first
-     * need and never sent off the machine. This preserves the behavior on hardware where
-     * detection works (so existing encrypted caches still decrypt) while closing the
-     * "all cloud VMs share a key" hole on hardware where detection doesn't.
-     */
-    private static SecretKey deriveMachineKey( byte[] salt ) throws Exception {
-        StringBuilder fingerprint = new StringBuilder();
-        fingerprint.append( resolveOsUsername() );
-        fingerprint.append( "|" );
-        fingerprint.append( System.getProperty( "os.name", "" ) );
-        fingerprint.append( "|" );
-
-        // Hardware UUID from oshi (motherboard/BIOS identifier). On failure, substitute
-        // the per-install random secret instead of a constant string.
-        try {
-            SystemInfo si = new SystemInfo();
-            fingerprint.append( si.getHardware().getComputerSystem().getHardwareUUID() );
-        }
-        catch ( Exception e ) {
-            fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
-        }
-        fingerprint.append( "|" );
-
-        // First available MAC address for additional machine binding. Same fallback
-        // treatment — random per-install secret rather than the predictable "no-mac".
-        boolean macFound = false;
-        try {
-            Enumeration< NetworkInterface > nets = NetworkInterface.getNetworkInterfaces();
-            while ( nets.hasMoreElements() ) {
-                byte[] mac = nets.nextElement().getHardwareAddress();
-                if ( mac != null && mac.length > 0 ) {
-                    for ( byte b : mac ) {
-                        fingerprint.append( String.format( "%02x", b ) );
-                    }
-                    macFound = true;
-                    break;
-                }
-            }
-        }
-        catch ( Exception e ) {
-            // fall through to install-secret fallback below
-        }
-        if ( !macFound ) {
-            fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
-        }
-
-        KeySpec spec = new PBEKeySpec( fingerprint.toString().toCharArray(), salt, 65536, 256 );
-        SecretKeyFactory factory = SecretKeyFactory.getInstance( "PBKDF2WithHmacSHA256" );
-        byte[] keyBytes = factory.generateSecret( spec ).getEncoded();
-        return new SecretKeySpec( keyBytes, "AES" );
-    }
-
-    /**
-     * Encrypts raw bytes with AES-256-GCM using a machine-derived key.
-     * Output layout: salt[16] | iv[12] | ciphertext+tag. The salt is fresh per
-     * encryption so each call also derives a fresh key, eliminating the IV-reuse
-     * footgun that would exist if the key were cached across encryptions.
-     */
-    private static byte[] encryptBytesForMachine( byte[] plaintext ) throws Exception {
-        SecureRandom random = new SecureRandom();
-        byte[] salt = new byte[16];
-        random.nextBytes( salt );
-        byte[] iv = new byte[12];
-        random.nextBytes( iv );
-
-        SecretKey key = deriveMachineKey( salt );
-        Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
-        cipher.init( Cipher.ENCRYPT_MODE, key, new GCMParameterSpec( 128, iv ) );
-        byte[] ciphertext = cipher.doFinal( plaintext );
-
-        byte[] combined = new byte[salt.length + iv.length + ciphertext.length];
-        System.arraycopy( salt, 0, combined, 0, salt.length );
-        System.arraycopy( iv, 0, combined, salt.length, iv.length );
-        System.arraycopy( ciphertext, 0, combined, salt.length + iv.length, ciphertext.length );
-        return combined;
-    }
-
-    /**
-     * Decrypts bytes produced by {@link #encryptBytesForMachine(byte[])}. Returns
-     * {@code null} when the layout is too short to contain salt+iv+tag; throws on
-     * GCM tag mismatch (wrong machine / tampered data) — callers decide whether
-     * to log and fall through.
-     */
-    private static byte[] decryptBytesForMachine( byte[] combined ) throws Exception {
-        if ( combined == null || combined.length < 28 ) {
-            return null;
-        }
-        byte[] salt = new byte[16];
-        byte[] iv = new byte[12];
-        byte[] ciphertext = new byte[combined.length - 28];
-        System.arraycopy( combined, 0, salt, 0, 16 );
-        System.arraycopy( combined, 16, iv, 0, 12 );
-        System.arraycopy( combined, 28, ciphertext, 0, ciphertext.length );
-
-        SecretKey key = deriveMachineKey( salt );
-        Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
-        cipher.init( Cipher.DECRYPT_MODE, key, new GCMParameterSpec( 128, iv ) );
-        return cipher.doFinal( ciphertext );
-    }
-
-    /**
-     * Encrypts a UTF-8 string with AES-256-GCM and Base64-encodes the result.
-     * Output format: Base64( salt[16] + iv[12] + ciphertext+tag ). Thin wrapper
-     * around {@link #encryptBytesForMachine(byte[])}.
-     */
-    private static String encryptForMachine( String plaintext ) throws Exception {
-        return Base64.getEncoder().encodeToString(
-                encryptBytesForMachine( plaintext.getBytes( StandardCharsets.UTF_8 ) ) );
-    }
-
-    /**
-     * Decrypts a Base64 string produced by {@link #encryptForMachine(String)}.
-     * Returns {@code null} if decryption fails (wrong machine, tampered data, etc.).
-     */
-    private static String decryptForMachine( String encoded ) throws Exception {
-        byte[] plaintext = decryptBytesForMachine( Base64.getDecoder().decode( encoded ) );
-        return plaintext == null ? null : new String( plaintext, StandardCharsets.UTF_8 );
-    }
+    // Machine-bound encryption / decryption was extracted into the shared
+    // {@link com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher}
+    // utility so the same primitive can protect the CurseForge API key (and
+    // future user-supplied secrets) without two copies of the cipher drifting
+    // apart. The auth manager now delegates encrypt / decrypt calls into the
+    // utility; the install-secret file (machine-key.bin) location is unchanged,
+    // so existing encrypted-at-rest auth files keep decrypting after the refactor.
 
     /** GZIP magic bytes — used to detect legacy unencrypted {@code player.mica} files
      *  from before the at-rest encryption rollout so they can be migrated on next load. */
@@ -421,7 +182,7 @@ public class MCLauncherAuthManager
      */
     private static void saveAuthFileEncrypted( AuthenticationFile authFile ) throws Exception {
         byte[] gzipped = authFile.writeCompressed();
-        byte[] encrypted = encryptBytesForMachine( gzipped );
+        byte[] encrypted = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.encryptBytes( gzipped );
         try ( FileOutputStream out = new FileOutputStream( SAVED_LOGIN_FILE_PATH.toFile() ) ) {
             out.write( encrypted );
         }
@@ -462,7 +223,7 @@ public class MCLauncherAuthManager
             }
 
             // Encrypted path
-            byte[] gzipped = decryptBytesForMachine( fileBytes );
+            byte[] gzipped = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.decryptBytes( fileBytes );
             if ( gzipped == null ) {
                 return null;
             }
@@ -487,7 +248,7 @@ public class MCLauncherAuthManager
             json.addProperty( "type", user.type() );
             json.addProperty( "xuid", user.xuid() );
             json.addProperty( "clientId", user.clientId() );
-            String encrypted = encryptForMachine( JSONUtilities.getGson().toJson( json ) );
+            String encrypted = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.encrypt( JSONUtilities.getGson().toJson( json ) );
             Path cachedPath = resolveSiblingPath( CACHED_USER_FILE );
             Files.writeString( cachedPath, encrypted );
             applyOwnerOnlyPermissions( cachedPath );
@@ -508,7 +269,7 @@ public class MCLauncherAuthManager
                 return null;
             }
             String encrypted = Files.readString( cachedPath ).trim();
-            String decrypted = decryptForMachine( encrypted );
+            String decrypted = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.decrypt( encrypted );
             if ( decrypted == null ) {
                 return null;
             }
@@ -539,7 +300,7 @@ public class MCLauncherAuthManager
             // files use. The value itself isn't a credential, but disclosing it tells
             // an attacker who reads the disk when the user last signed in and
             // contributes to activity-pattern profiling.
-            String encoded = encryptForMachine( String.valueOf( lastSuccessfulRenewalMs ) );
+            String encoded = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.encrypt( String.valueOf( lastSuccessfulRenewalMs ) );
             Files.writeString( renewalPath, encoded );
             applyOwnerOnlyPermissions( renewalPath );
         }
@@ -562,7 +323,7 @@ public class MCLauncherAuthManager
         // Try decrypt first. If the body is valid Base64 ciphertext bound to this
         // machine, this succeeds and returns the decrypted decimal string.
         try {
-            String decrypted = decryptForMachine( raw );
+            String decrypted = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.decrypt( raw );
             if ( decrypted != null ) {
                 return Long.parseLong( decrypted.trim() );
             }
