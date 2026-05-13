@@ -141,11 +141,31 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  the hero cards are 360px wide and wrap to 3-4 per row on typical window
      *  widths — a 12-item page fills 3-4 rows without needing to scroll past the
      *  pagination controls. */
-    private static final List< Integer > PAGE_SIZES = List.of( 12, 24, 48 );
-    private static final int DEFAULT_PAGE_SIZE = 12;
+    /** Page-size options. Bumped past the original 12/24/48 because card pooling
+     *  ({@link #cardPool}, {@link ModpackHeroCard#bind}) absorbs the per-card
+     *  scene-graph-creation cost that used to bite at 48-pack pages — the new
+     *  upper end of 96 is still smooth on a warm pool. Pages above ~120 start
+     *  to feel sluggish on the FlowPane layout pass even with pooling, so the
+     *  ladder is capped there. */
+    private static final List< Integer > PAGE_SIZES = List.of( 12, 24, 48, 72, 96 );
+    /** Default page size, bumped from 12 → 48 alongside the card-pool rollout
+     *  so the typical 30–50-pack library fits on one page without paging. */
+    private static final int DEFAULT_PAGE_SIZE = 48;
 
     private int pageSize    = DEFAULT_PAGE_SIZE;
     private int currentPage = 1;
+
+    /** Pool of constructed-but-not-currently-displayed {@link ModpackHeroCard}
+     *  instances. {@link #rebuildCards()} pulls from here on each rebuild and
+     *  returns any unused cards back to it, so the per-card scene-graph
+     *  allocation + CSS-apply cost is paid once per slot for the lifetime of
+     *  the main GUI instead of once per rebuild. Critical now that the default
+     *  page size is 48 (up from 12) and on the future CurseForge / Modrinth
+     *  import flow where libraries may grow into the hundreds.
+     *
+     *  <p>ArrayDeque is fine here: rebuildCards always runs on the FX thread,
+     *  so no synchronization is needed.</p> */
+    private final java.util.Deque< ModpackHeroCard > cardPool = new java.util.ArrayDeque<>();
 
     /** When true, the rebuild pass keeps only packs with isUpdateAvailable() == true.
      *  Mirror of {@link #recentlyUpdatedOnlyCheck}'s selected state, cached here so
@@ -684,13 +704,30 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         updatePaginationControls( totalItems, totalPages, startIdx, endIdx );
 
+        // Recycle currently-displayed cards back to the pool before clearing the
+        // FlowPane, so the next pass can pull them out and rebind to the new
+        // pack set instead of constructing fresh ones. The "empty state" child
+        // isn't a card, so the cast guard skips it gracefully.
+        for ( javafx.scene.Node child : modpackCardList.getChildren() ) {
+            if ( child instanceof ModpackHeroCard card ) {
+                cardPool.push( card );
+            }
+        }
         modpackCardList.getChildren().clear();
+
         if ( totalItems == 0 ) {
             modpackCardList.getChildren().add( buildEmptyState( typeSel, search ) );
             return;
         }
         for ( int i = startIdx; i < endIdx; i++ ) {
-            modpackCardList.getChildren().add( new ModpackHeroCard( all.get( i ) ) );
+            ModpackHeroCard card = cardPool.isEmpty() ? null : cardPool.pop();
+            if ( card == null ) {
+                card = new ModpackHeroCard( all.get( i ) );
+            }
+            else {
+                card.bind( all.get( i ) );
+            }
+            modpackCardList.getChildren().add( card );
         }
     }
 
@@ -972,13 +1009,28 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     {
         private static final double CARD_WIDTH  = 360;
         private static final double IMAGE_HEIGHT = 150;
+        private static final double BTN_H       = 38;
 
-        private final GameModPack pack;
+        /** Current pack — mutated by {@link #bind}. All event handlers read this
+         *  through {@code this.pack} (never a closure-captured local) so a rebind
+         *  cleanly redirects clicks to the new pack without leaking the previous. */
+        private GameModPack pack;
+
+        // === Static node tree fields. Built once by the constructor; bind()
+        //     mutates their content in place rather than re-creating them. ===
+        private final Region bgLayer;
+        private final HBox badgeRow;
+        private final StackPane logoContainer;
+        private final ImageView logo;
+        private final Label name;
+        private final HBox chips;
+        private final Label played;
         private final MFXButton playBtn;
+        private final MFXButton websiteBtn;
+        private final PauseTransition singleClickTimer;
 
-        ModpackHeroCard( GameModPack pack )
+        ModpackHeroCard( GameModPack initialPack )
         {
-            this.pack = pack;
             getStyleClass().add( "heroCardShell" );
             // Width is fixed so FlowPane can wrap on a clean grid, but height is content-driven —
             // we tried capping at 320 and the buttons overflowed into the next row.
@@ -1012,25 +1064,171 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             imageClip.widthProperty().bind( imageBox.widthProperty() );
             imageBox.setClip( imageClip );
 
-            // Load the pack's logo image up front. The logoContainer in the lower half of
-            // the card uses it directly; we also use it as the seed for the bgLayer's
-            // derived-gradient fallback when the pack doesn't ship its own background image.
-            Image packLogoImage = resolveLogoImage( pack );
-
-            Region bgLayer = new Region();
+            bgLayer = new Region();
             bgLayer.getStyleClass().add( "heroBackground" );
-            // Always paint the procedural gradient first — it acts as the visible
-            // placeholder behind a remote -fx-background-image while the latter is
-            // still loading off the network. Without this, the bgLayer renders
-            // empty (the .heroBackground default fill) for the duration of the
-            // image fetch, which is the "cards pop in" effect on cold loads:
+
+            // Subtle veil along the bottom of the image so the logo reads against it.
+            Region imageVeil = new Region();
+            imageVeil.getStyleClass().add( "heroCardImageVeil" );
+
+            // Optional badge row floats over the top-right of the image; contents
+            // are rebuilt per-bind since badges depend on pack state.
+            badgeRow = new HBox( 6 );
+            badgeRow.setAlignment( Pos.TOP_RIGHT );
+            badgeRow.setPadding( new javafx.geometry.Insets( 10, 12, 0, 0 ) );
+
+            imageBox.getChildren().addAll( bgLayer, imageVeil, badgeRow );
+
+            // Pack logo overlaps the image/content boundary on the left. The container has a
+            // rounded border in CSS; clip its inner ImageView so the bitmap respects the
+            // rounded corners instead of overflowing as a square.
+            logoContainer = new StackPane();
+            logoContainer.getStyleClass().add( "heroPackLogoContainer" );
+            logoContainer.setMinSize( 72, 72 );
+            logoContainer.setMaxSize( 72, 72 );
+            logo = new ImageView();
+            logo.setFitWidth( 68 );
+            logo.setFitHeight( 68 );
+            logo.setPreserveRatio( true );
+            Rectangle logoClip = new Rectangle( 68, 68 );
+            logoClip.setArcWidth( 16 );
+            logoClip.setArcHeight( 16 );
+            logo.setClip( logoClip );
+            logoContainer.getChildren().add( logo );
+            logoContainer.setTranslateY( -36 );  // overlap the image
+
+            // ----- Bottom half: content surface -----
+            VBox info = new VBox( 6 );
+            info.getStyleClass().add( "heroCardBody" );
+            info.setAlignment( Pos.TOP_LEFT );
+            info.setPadding( new javafx.geometry.Insets( 0, 18, 16, 18 ) );
+
+            name = new Label();
+            name.getStyleClass().addAll( "heading-h2", "heroCardTitle" );
+            name.setWrapText( true );
+
+            chips = new HBox( 6 );
+            chips.setAlignment( Pos.CENTER_LEFT );
+
+            played = new Label();
+            played.getStyleClass().add( "heroLastPlayedSurface" );
+
+            info.getChildren().addAll( logoContainer, name, chips, played );
+            VBox.setVgrow( info, Priority.ALWAYS );
+
+            // ----- Action row at the bottom -----
+            HBox actions = new HBox( 8 );
+            actions.setAlignment( Pos.CENTER_LEFT );
+            actions.setPadding( new javafx.geometry.Insets( 0, 18, 16, 18 ) );
+
+            // Both buttons pin to exactly 38 px tall via min + pref + max so they
+            // visually align in the row. The CSS rules layered on top of MFXButton
+            // ( .heroPlayBtn uses a bolder/larger font + heavier padding than the
+            // default .mfx-button skin .heroCardSecondaryBtn inherits ) would
+            // otherwise size the two buttons by their intrinsic content, giving
+            // the play button a slightly taller box than its neighbour.
+            playBtn = new MFXButton( "Play" );
+            playBtn.getStyleClass().addAll( "primary", "heroPlayBtn" );
+            playBtn.setMinHeight( BTN_H );
+            playBtn.setPrefHeight( BTN_H );
+            playBtn.setMaxHeight( BTN_H );
+            playBtn.setMaxWidth( Double.MAX_VALUE );
+            HBox.setHgrow( playBtn, Priority.ALWAYS );
+            // Action handler reads this.pack each fire so a rebind re-targets it to
+            // the current pack rather than the one captured at card construction.
+            playBtn.setOnAction( e -> startPlay( this.pack ) );
+
+            websiteBtn = new MFXButton( "Website" );
+            websiteBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+            websiteBtn.setMinHeight( BTN_H );
+            websiteBtn.setPrefHeight( BTN_H );
+            websiteBtn.setMaxHeight( BTN_H );
+            websiteBtn.setPrefWidth( 96 );
+            websiteBtn.setOnAction( e -> openModpackWebsite( this.pack ) );
+
+            actions.getChildren().addAll( playBtn, websiteBtn );
+
+            // Assemble
+            getChildren().addAll( imageBox, info, actions );
+
+            // Card-level interactions. Cursor + click handler are tree-wide; only
+            // the context menu's contents are per-pack and get rebuilt in bind().
+            setCursor( Cursor.HAND );
+
+            // Click behavior:
+            //   • single primary click → open the expanded modpack detail modal
+            //   • double primary click  → quick-launch the pack (preserved from the
+            //     pre-modal flow so power users don't lose their muscle memory)
+            //
+            // JavaFX fires click-count=1 immediately and click-count=2 after the
+            // platform's double-click interval. Without a delay, a real double-click
+            // would briefly flash the modal open between the two events. The
+            // PauseTransition defers the single-click action by ~220ms — long enough
+            // for the second click to arrive and cancel the timer, short enough that
+            // a single click still feels responsive. Buttons inside the card
+            // (Play / Website) consume their own events, so the card-level handler
+            // never fires for those.
+            singleClickTimer = new PauseTransition( Duration.millis( 220 ) );
+            singleClickTimer.setOnFinished( ev -> openDetailModal( this.pack ) );
+            setOnMouseClicked( ev -> {
+                if ( ev.getButton() != MouseButton.PRIMARY ) return;
+                int count = ev.getClickCount();
+                if ( count == 1 ) {
+                    singleClickTimer.playFromStart();
+                }
+                else if ( count == 2 ) {
+                    singleClickTimer.stop();
+                    if ( !playBtn.isDisabled() ) {
+                        playBtn.fire();
+                    }
+                }
+            } );
+
+            // Initial bind so the card has real content by the time the constructor returns.
+            bind( initialPack );
+        }
+
+        /**
+         * Switches this card to display {@code newPack}. Updates every per-pack
+         * visual element (badge row, background gradient + image, logo, name, chip
+         * list, last-played label, button disable state, context menu) but leaves
+         * the underlying scene-graph nodes intact for reuse.
+         *
+         * <p>Called by the constructor with the initial pack and again by
+         * {@link MCLauncherMainGui#rebuildCards()} whenever a pooled card is
+         * reassigned during page / filter / sort changes — keeping the same VBox
+         * instance alive saves the per-card scene-graph allocation + CSS-apply
+         * cost on every rebuild, which is what makes larger page sizes (and
+         * eventual CurseForge / Modrinth import libraries) responsive.</p>
+         */
+        void bind( GameModPack newPack )
+        {
+            this.pack = newPack;
+
+            // Logo image — drives both the logo ImageView and the bgLayer's
+            // derived-color gradient fallback. Re-resolved every bind in case the
+            // pack swapped (e.g. page-nav) or the same pack's image URL changed
+            // (e.g. revalidate-against-network upgraded a stub).
+            Image packLogoImage = resolveLogoImage( newPack );
+            logo.setImage( packLogoImage );
+            // Fade the logo in once the off-thread image-loader delivers the bytes.
+            // The rounded logoContainer's own styling (border + bg-color from
+            // .heroPackLogoContainer) acts as the placeholder during the fade.
+            ImageFadeIn.apply( logo );
+
+            // Background layer — always paint the procedural gradient first so it
+            // acts as the placeholder behind a remote -fx-background-image while
+            // the latter is still loading off the network. Clear any prior bind's
+            // inline -fx-background-image first so previous-pack imagery doesn't
+            // bleed into the new state:
             //   • vanilla versions get a sky → grass gradient
             //   • modded packs with a logo get a gradient derived from the logo's
             //     dominant color, so each pack feels visually individuated
             //   • modded packs without a logo fall back to a Forge-themed gradient
             //     (dark anvil + warm forge-fire glow)
-            applyDynamicBackground( bgLayer, pack, packLogoImage );
-            String bgUrl = resolveBackgroundUrl( pack );
+            bgLayer.setStyle( null );
+            applyDynamicBackground( bgLayer, newPack, packLogoImage );
+            String bgUrl = resolveBackgroundUrl( newPack );
             if ( bgUrl != null ) {
                 // Append rather than replace so the gradient bg-color from
                 // applyDynamicBackground stays visible through any transparent
@@ -1040,75 +1238,36 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
             }
 
-            // Subtle veil along the bottom of the image so the logo reads against it.
-            Region imageVeil = new Region();
-            imageVeil.getStyleClass().add( "heroCardImageVeil" );
-
-            // Optional badge row floats over the top-right of the image.
-            HBox badgeRow = new HBox( 6 );
-            badgeRow.setAlignment( Pos.TOP_RIGHT );
-            badgeRow.setPadding( new javafx.geometry.Insets( 10, 12, 0, 0 ) );
-            if ( pack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
-            // "Recently updated" matches the terminology the Library screen uses on
-            // installed-pack cards — keeping the two screens phrased the same way so
-            // users learn one vocabulary, not two. Avoids the ambiguous imperative
-            // ("Update!") that "Update" alone would imply.
-            if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Recently updated", "stat-chip-success" ) );
-
-            imageBox.getChildren().addAll( bgLayer, imageVeil, badgeRow );
-
-            // Pack logo overlaps the image/content boundary on the left. The container has a
-            // rounded border in CSS; clip its inner ImageView so the bitmap respects the
-            // rounded corners instead of overflowing as a square.
-            StackPane logoContainer = new StackPane();
-            logoContainer.getStyleClass().add( "heroPackLogoContainer" );
-            logoContainer.setMinSize( 72, 72 );
-            logoContainer.setMaxSize( 72, 72 );
-            ImageView logo = new ImageView();
-            logo.setFitWidth( 68 );
-            logo.setFitHeight( 68 );
-            logo.setPreserveRatio( true );
-            logo.setImage( packLogoImage );
-            // Fade the logo in once the off-thread image-loader delivers the bytes.
-            // The rounded logoContainer's own styling (border + bg-color from
-            // .heroPackLogoContainer) acts as the placeholder during the fade.
-            ImageFadeIn.apply( logo );
-            Rectangle logoClip = new Rectangle( 68, 68 );
-            logoClip.setArcWidth( 16 );
-            logoClip.setArcHeight( 16 );
-            logo.setClip( logoClip );
-            logoContainer.getChildren().add( logo );
-            logoContainer.setTranslateY( -36 );  // overlap the image
-
-            // Transparent-edge detection: if the logo's perimeter is mostly transparent
-            // (circular badge, wordmark, irregular silhouette), the bordered rounded-
-            // rect container reads as a floating frame around nothing. Strip the
-            // container styling via the .logoTransparent class when that's the case.
+            // Transparent-edge detection for the logo container. Clear the
+            // .logoTransparent class first so a previous pack's transparent-edged
+            // logo doesn't keep the styling stripped on a new pack with an opaque one.
+            logoContainer.getStyleClass().remove( "logoTransparent" );
             LogoTransparencyDetector.detectAsync( packLogoImage, isTransparent -> {
-                if ( isTransparent ) {
+                // Guard against rebind-during-async: only flip the class if the
+                // card still represents the pack whose logo we asked about.
+                if ( isTransparent && this.pack == newPack ) {
                     logoContainer.getStyleClass().add( "logoTransparent" );
                 }
             } );
 
-            // ----- Bottom half: content surface -----
-            VBox info = new VBox( 6 );
-            info.getStyleClass().add( "heroCardBody" );
-            info.setAlignment( Pos.TOP_LEFT );
-            info.setPadding( new javafx.geometry.Insets( 0, 18, 16, 18 ) );
+            // Badge row — rebuilt from scratch on every bind. Only 0–2 badges in practice.
+            badgeRow.getChildren().clear();
+            if ( newPack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
+            // "Recently updated" matches the terminology the Library screen uses on
+            // installed-pack cards — keeping the two screens phrased the same way so
+            // users learn one vocabulary, not two. Avoids the ambiguous imperative
+            // ("Update!") that "Update" alone would imply.
+            if ( newPack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Recently updated", "stat-chip-success" ) );
 
-            Label name = new Label( resolveDisplayName( pack ) );
-            name.getStyleClass().addAll( "heading-h2", "heroCardTitle" );
-            name.setWrapText( true );
-
-            HBox chips = new HBox( 6 );
-            chips.setAlignment( Pos.CENTER_LEFT );
-            String mc = safeMinecraftVersion( pack );
-            String forge = safeForgeVersion( pack );
-            String packVersion = pack.getPackVersion();
-
+            // Name + chips
+            name.setText( resolveDisplayName( newPack ) );
+            chips.getChildren().clear();
+            String mc = safeMinecraftVersion( newPack );
+            String forge = safeForgeVersion( newPack );
+            String packVersion = newPack.getPackVersion();
             // "Vanilla" chip — placed first so it's the first visual cue that this card
             // is a stock Minecraft version, not a Forge modpack.
-            if ( pack.isVanillaVersion() ) {
+            if ( newPack.isVanillaVersion() ) {
                 chips.getChildren().add( buildChip( "Vanilla" ) );
             }
             // "Minecraft 1.20.4" (not "MC 1.20.4") — full name reads clearer and the chip
@@ -1127,9 +1286,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 chips.getChildren().add( buildChip( "v" + packVersion ) );
             }
 
-            String lastPlayed = pack.getLastPlayedFormatted();
-            Label played = new Label();
-            played.getStyleClass().add( "heroLastPlayedSurface" );
+            // Last-played hint
+            String lastPlayed = newPack.getLastPlayedFormatted();
             if ( lastPlayed != null && !"Never played".equals( lastPlayed ) ) {
                 played.setText( "Last played " + lastPlayed.toLowerCase() );
             }
@@ -1137,83 +1295,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 played.setText( "Never played" );
             }
 
-            info.getChildren().addAll( logoContainer, name, chips, played );
-            VBox.setVgrow( info, Priority.ALWAYS );
-
-            // ----- Action row at the bottom -----
-            HBox actions = new HBox( 8 );
-            actions.setAlignment( Pos.CENTER_LEFT );
-            actions.setPadding( new javafx.geometry.Insets( 0, 18, 16, 18 ) );
-
-            // Both buttons pin to exactly 38 px tall via min + pref + max so they
-            // visually align in the row. The CSS rules layered on top of MFXButton
-            // ( .heroPlayBtn uses a bolder/larger font + heavier padding than the
-            // default .mfx-button skin .heroCardSecondaryBtn inherits ) would
-            // otherwise size the two buttons by their intrinsic content, giving
-            // the play button a slightly taller box than its neighbour.
-            final double BTN_H = 38;
-            playBtn = new MFXButton( "Play" );
-            playBtn.getStyleClass().addAll( "primary", "heroPlayBtn" );
-            playBtn.setMinHeight( BTN_H );
-            playBtn.setPrefHeight( BTN_H );
-            playBtn.setMaxHeight( BTN_H );
-            playBtn.setMaxWidth( Double.MAX_VALUE );
-            HBox.setHgrow( playBtn, Priority.ALWAYS );
+            // Button enable / disable state
             playBtn.setDisable( AnnouncementManager.getDisableGameplay() );
-            playBtn.setOnAction( e -> startPlay( pack ) );
+            websiteBtn.setDisable( newPack.getPackURL() == null || newPack.getPackURL().isBlank() );
 
-            MFXButton websiteBtn = new MFXButton( "Website" );
-            websiteBtn.getStyleClass().add( "heroCardSecondaryBtn" );
-            websiteBtn.setMinHeight( BTN_H );
-            websiteBtn.setPrefHeight( BTN_H );
-            websiteBtn.setMaxHeight( BTN_H );
-            websiteBtn.setPrefWidth( 96 );
-            websiteBtn.setOnAction( e -> openModpackWebsite( pack ) );
-            if ( pack.getPackURL() == null || pack.getPackURL().isBlank() ) {
-                websiteBtn.setDisable( true );
-            }
-
-            actions.getChildren().addAll( playBtn, websiteBtn );
-
-            // Assemble
-            getChildren().addAll( imageBox, info, actions );
-
-            // Card-level interactions
-            setContextMenu( pack );
-            setCursor( Cursor.HAND );
-
-            // Click behavior:
-            //   • single primary click → open the expanded modpack detail modal
-            //   • double primary click  → quick-launch the pack (preserved from the
-            //     pre-modal flow so power users don't lose their muscle memory)
-            //
-            // JavaFX fires click-count=1 immediately and click-count=2 after the
-            // platform's double-click interval. Without a delay, a real double-click
-            // would briefly flash the modal open between the two events. The
-            // PauseTransition defers the single-click action by ~220ms — long enough
-            // for the second click to arrive and cancel the timer, short enough that
-            // a single click still feels responsive. Buttons inside the card
-            // (Play / Website) consume their own events, so the card-level handler
-            // never fires for those.
-            PauseTransition singleClickTimer = new PauseTransition( Duration.millis( 220 ) );
-            singleClickTimer.setOnFinished( ev -> openDetailModal( pack ) );
-            setOnMouseClicked( ev -> {
-                if ( ev.getButton() != MouseButton.PRIMARY ) return;
-                int count = ev.getClickCount();
-                if ( count == 1 ) {
-                    singleClickTimer.playFromStart();
-                }
-                else if ( count == 2 ) {
-                    singleClickTimer.stop();
-                    if ( !playBtn.isDisabled() ) {
-                        playBtn.fire();
-                    }
-                }
-            } );
-        }
-
-        private void setContextMenu( GameModPack pack ) {
-            ContextMenu menu = buildPackContextMenu( pack );
+            // Context menu — rebuilt per pack since it embeds pack-specific actions.
+            ContextMenu menu = buildPackContextMenu( newPack );
             setOnContextMenuRequested( e -> menu.show( this, e.getScreenX(), e.getScreenY() ) );
         }
 

@@ -214,19 +214,48 @@ public class GameModPackManager
             installedGameModPacks.clear();
         }
 
-        // Phase 1 — cache-first sync load. The on-disk manifest cache from previous
-        // online launches lets us populate installedGameModPacks in microseconds
-        // instead of seconds-of-network. Any pack with a missing/unreadable cache
-        // falls through to the synchronous network path below so first-ever launches
-        // still work; everything that hit cache will be quietly revalidated against
-        // the network in Phase 2 after this method returns.
-        final List< String > needsNetwork = new java.util.ArrayList<>();
+        // Phase 1a — index-first ultra-fast path. The unified install index
+        // (manifests/install_index.json) holds the card-rendering subset of
+        // every previously-fetched pack in a single file, so this loop opens
+        // ONE file regardless of how many packs the user has installed —
+        // critical once CurseForge / Modrinth imports push installed counts
+        // into the hundreds. The stubs returned here carry name/version/image
+        // URLs/RAM/flags only; full manifests (mods, forge URL, scan rules)
+        // are loaded by the per-manifest cache pass below and by Phase 2's
+        // network revalidate.
+        InstallIndex index = InstallIndex.load();
+        final List< String > needsFullLoad = new java.util.ArrayList<>();
         for ( String manifestUrl : installedModPackManifestUrls ) {
+            InstallIndex.Entry entry = index.get( manifestUrl );
+            if ( entry != null ) {
+                installedGameModPacks.add( GameModPack.createStubFromIndex( manifestUrl, entry ) );
+            }
+            // Even when the stub is in hand we still need to load the full
+            // manifest into a real pack object before Play can fire — that's
+            // the per-manifest cache pass.
+            needsFullLoad.add( manifestUrl );
+        }
+
+        // Phase 1b — per-manifest cache load for full data. Replaces each
+        // stub in-place once the full pack is parsed so the cards keep their
+        // identity in the FlowPane but pick up real mod lists / forge config.
+        // Any URL whose per-manifest cache is missing falls through to the
+        // synchronous network path below.
+        final List< String > needsNetwork = new java.util.ArrayList<>();
+        for ( String manifestUrl : needsFullLoad ) {
             GameModPack cached = GameModPackFetcher.getFromCache( manifestUrl, true );
             if ( cached != null ) {
-                installedGameModPacks.add( cached );
+                replaceOrAppendByUrl( installedGameModPacks, manifestUrl, cached );
+            }
+            else if ( !installedGameModPacks.stream().anyMatch( p ->
+                    manifestUrl.equals( p.getManifestUrl() ) ) ) {
+                // No stub AND no cached body — must hit network.
+                needsNetwork.add( manifestUrl );
             }
             else {
+                // We have a stub but no per-manifest cache (unusual — cache file
+                // was deleted out-of-band). Schedule a network fetch so the stub
+                // gets promoted to a real pack rather than staying half-loaded.
                 needsNetwork.add( manifestUrl );
             }
         }
@@ -309,6 +338,28 @@ public class GameModPackManager
     public static boolean isInstalledRevalidatePending() {
         CompletableFuture< Void > f = installedRevalidateFuture;
         return f != null && !f.isDone();
+    }
+
+    /**
+     * Replaces the {@link GameModPack} in {@code list} whose manifest URL matches
+     * {@code manifestUrl} with {@code fresh}, preserving the entry's index in the
+     * list so external observers (the FlowPane, the recent-played sort) don't see
+     * the slot move. Appends {@code fresh} if no entry matches. Used to upgrade
+     * an index-stub into a fully-loaded pack without rebuilding the list.
+     *
+     * @since 2026.3
+     */
+    private static void replaceOrAppendByUrl( List< GameModPack > list, String manifestUrl, GameModPack fresh )
+    {
+        if ( list == null || manifestUrl == null || fresh == null ) return;
+        for ( int i = 0; i < list.size(); i++ ) {
+            GameModPack current = list.get( i );
+            if ( current != null && manifestUrl.equals( current.getManifestUrl() ) ) {
+                list.set( i, fresh );
+                return;
+            }
+        }
+        list.add( fresh );
     }
 
     /**
@@ -706,6 +757,20 @@ public class GameModPackManager
         // Remove specified pack from installed list
         if ( installedGameModPacks != null ) {
             installedGameModPacks.remove( gameModPack );
+            // Drop the matching install-index entry so the next cold start
+            // doesn't paint a ghost card for an uninstalled pack.
+            try {
+                String url = gameModPack.getManifestUrl();
+                if ( url != null && !url.isBlank() ) {
+                    InstallIndex idx = InstallIndex.load();
+                    idx.remove( url );
+                    idx.save();
+                }
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Install-index cleanup failed for uninstall: "
+                                                 + t.getClass().getSimpleName() );
+            }
             saveToConfig();
             fetchModPackInfo();
         }

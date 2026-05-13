@@ -89,6 +89,10 @@ public class GameModPackFetcher
             if ( createEnvironment ) {
                 pack.prepareEnvironment();
             }
+            // Keep the install-index entry in sync with what's actually in the
+            // per-manifest cache — covers the case where the index file got
+            // wiped (or was never written) but the per-manifest cache exists.
+            updateInstallIndex( manifestUrl, pack );
             return pack;
         }
         catch ( Exception e ) {
@@ -96,6 +100,28 @@ public class GameModPackFetcher
             Logger.logWarningSilent( "Cached manifest unreadable for " + manifestUrl + ": " + e.getMessage() );
             return null;
         }
+    }
+
+    /**
+     * Fast-path cold-start loader: builds a {@link GameModPack} stub from the
+     * {@link InstallIndex} entry for {@code manifestUrl} without touching the
+     * network or the per-manifest cache. The returned pack carries only the
+     * card-rendering subset (name, version, image URLs, RAM, flags); fields
+     * like {@code packMods} are null until the full manifest fetch upgrades
+     * it. Use {@link GameModPack#isStub} to detect this state.
+     *
+     * @return the stub pack, or {@code null} if the index has no entry for
+     *         this URL (first launch, fresh install, etc.) — caller should
+     *         fall back to {@link #getFromCache} / {@link #get}
+     *
+     * @since 2026.3
+     */
+    public static GameModPack getStubFromIndex( String manifestUrl )
+    {
+        if ( manifestUrl == null || manifestUrl.isBlank() ) return null;
+        InstallIndex.Entry entry = InstallIndex.load().get( manifestUrl );
+        if ( entry == null ) return null;
+        return GameModPack.createStubFromIndex( manifestUrl, entry );
     }
 
     /**
@@ -165,6 +191,10 @@ public class GameModPackFetcher
                     gameModPack.cacheImages();
                 }
             }
+            // Refresh the install-index entry alongside the per-manifest cache so
+            // the next cold start can paint cards from the unified index file.
+            gameModPack.manifestUrl = manifestUrl;
+            updateInstallIndex( manifestUrl, gameModPack );
         }
         catch ( Exception e ) {
             // Use silent logging to avoid blocking error dialogs for each failed pack
@@ -236,6 +266,30 @@ public class GameModPackFetcher
         }
         catch ( IOException e ) {
             Logger.logWarningSilent( "Unable to cache manifest for " + manifestUrl );
+        }
+    }
+
+    /**
+     * Upserts the given parsed pack into the unified {@link InstallIndex} so
+     * the next cold start can paint cards from a single file read instead of
+     * N per-manifest cache reads. Called after every successful manifest
+     * load (both fresh-from-network and cache-hit), so the index stays in
+     * sync without separate write paths. Best-effort: an index update
+     * failure is logged but never breaks the caller.
+     *
+     * @since 2026.3
+     */
+    static void updateInstallIndex( String manifestUrl, GameModPack parsedPack )
+    {
+        if ( manifestUrl == null || parsedPack == null ) return;
+        try {
+            InstallIndex idx = InstallIndex.load();
+            idx.upsert( manifestUrl, parsedPack );
+            idx.save();
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "Could not update install index for " + manifestUrl
+                                             + ": " + t.getClass().getSimpleName() );
         }
     }
 

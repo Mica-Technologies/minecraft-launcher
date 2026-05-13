@@ -613,6 +613,55 @@ public class GameModPack extends GameModPackMetadata
         return pack;
     }
 
+    /** True when this pack was built from an {@link InstallIndex.Entry} stub and
+     *  hasn't yet had its full manifest loaded. Stub instances carry just the
+     *  card-rendering subset (name, version, image URLs, RAM, flags); fields
+     *  like {@code packMods}, {@code packForgeURL}, scan exclusions, etc. are
+     *  null until {@link InstallIndex#upgradeStubToFull} or any of the manifest
+     *  fetch paths populate them.
+     *
+     *  <p>Marked {@code transient} so it doesn't round-trip through Gson when
+     *  the full manifest body is parsed into a real pack — a freshly-loaded
+     *  pack always reads back with {@code stub == false}.</p> */
+    private transient boolean stub;
+
+    /** Returns true when this pack was painted from an {@link InstallIndex}
+     *  entry and the full manifest hasn't been loaded yet. Callers that need
+     *  fields beyond the card-rendering subset (mods, forge URL, scan
+     *  exclusions, etc.) should treat a stub as "data may be null — load
+     *  the full manifest first." See {@link GameModPackFetcher#get} / the
+     *  background revalidate in {@link GameModPackManager}. */
+    public boolean isStub() { return stub; }
+
+    void markAsStub() { this.stub = true; }
+
+    /**
+     * Builds a stub GameModPack from a persisted {@link InstallIndex.Entry}.
+     * Used by the cold-start fast-path so the main menu can paint cards from
+     * one index-file read instead of N per-manifest cache reads. The returned
+     * pack carries only the card-rendering subset; {@link #isStub} returns
+     * true until a real manifest fetch upgrades it.
+     *
+     * @since 2026.3
+     */
+    public static GameModPack createStubFromIndex( String manifestUrl, InstallIndex.Entry entry )
+    {
+        GameModPack pack = new GameModPack();
+        pack.manifestUrl         = manifestUrl;
+        pack.packName            = entry.packName;
+        pack.packVersion         = entry.packVersion;
+        pack.packURL             = entry.packURL;
+        pack.packLogoURL         = entry.packLogoURL;
+        pack.packLogoSha1        = entry.packLogoSha1;
+        pack.packBackgroundURL   = entry.packBackgroundURL;
+        pack.packBackgroundSha1  = entry.packBackgroundSha1;
+        pack.packMinRAMGB        = entry.packMinRAMGB;
+        pack.packUnstable        = entry.packUnstable;
+        pack.packCustomDiscordRpc = entry.packCustomDiscordRpc;
+        pack.stub                = true;
+        return pack;
+    }
+
     public static GameModPack NULL_MODPACK() {
         GameModPack nullModPack = new GameModPack();
         nullModPack.packName = "No mod packs installed!";
