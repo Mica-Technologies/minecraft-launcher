@@ -610,17 +610,31 @@ class GameModPackLauncher
     /**
      * Downloads a log4j config file and adds the JVM argument to use it.
      *
+     * <p>Storage layout: a single shared cache file under the launcher's metadata
+     * folder, keyed by the config's expected SHA-1. Previously each modpack stored
+     * its own copy under {@code <packRoot>/bin/<fileName>}, so a user with N packs
+     * pinned to the same Minecraft major-version branch (e.g. five 1.16 packs)
+     * downloaded the identical 2 KB config N times. Sharing the file across packs
+     * means the second pack onwards is a hash-verify-only fast path with no
+     * network at all.</p>
+     *
      * @param jvmArgs  the JVM arguments builder to append to
      * @param url      the download URL for the config file
      * @param sha1     the expected SHA-1 hash
-     * @param fileName the local file name
+     * @param fileName the human-readable file name (used in debug log only — the
+     *                 cached path uses the SHA-1 so different versions of the
+     *                 same file don't collide)
      *
      * @since 3.0
      */
     private void applyLog4jConfigFile( StringBuilder jvmArgs, String url, String sha1, String fileName )
     {
-        String logConfigPath = pack.getPackRootFolder() + File.separator + "bin" + File.separator + fileName;
+        String cacheDir = com.micatechnologies.minecraft.launcher.files.LocalPathManager
+                .getLauncherMetadataFolderPath() + File.separator + "log4j-configs";
+        String logConfigPath = cacheDir + File.separator + sha1 + ".xml";
         try {
+            //noinspection ResultOfMethodCallIgnored
+            new File( cacheDir ).mkdirs();
             ManagedGameFile logConfigFile = new ManagedGameFile( url, logConfigPath, sha1,
                                                                  ManagedGameFile.ManagedGameFileHashType.SHA1 );
             logConfigFile.updateLocalFile();

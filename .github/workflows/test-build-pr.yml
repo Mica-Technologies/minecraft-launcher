@@ -10,20 +10,41 @@ permissions:
   contents: read
 
 jobs:
-  build-windows:
-    name: Test Build (Windows)
-    runs-on: windows-latest
+  # Resolve the revision once on a Linux runner, then fan out to the platform
+  # builds. We *can't* rely on the derive-revision-from-git step in pom.xml:
+  # Maven resolves <version>${revision}</version> during model-building, which
+  # runs BEFORE the initialize phase, so any property the gmavenplus script
+  # mutates at initialize is invisible to flatten / the jar plugin (those read
+  # the frozen model). Passing -Drevision= on the CLI sidesteps this — user
+  # properties win during model interpolation — which is why the release
+  # workflow's build jobs work and the gmavenplus path alone does not.
+  prepare:
+    name: Compute Test Build Version
+    runs-on: ubuntu-latest
+    outputs:
+      revision: ${{ steps.version.outputs.revision }}
     steps:
-      # fetch-depth: 0 + fetch-tags: true ensures the derive-revision-from-git
-      # step in pom.xml can resolve a real tag via `git describe --tags`. With
-      # depth 0 alone, actions/checkout on pull_request events has been known
-      # to skip tag fetching for the merge ref, which lands the pom.xml
-      # fallback sentinel (0.0.0-no-git-tag) in the artifact's manifest.
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
+
+      - name: Resolve revision from git describe
+        id: version
+        shell: bash
+        run: |
+          REV=$(git describe --tags --dirty=.dirty --always)
+          echo "revision=$REV" >> $GITHUB_OUTPUT
+          echo "Resolved revision: $REV"
+
+  build-windows:
+    name: Test Build (Windows)
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -42,7 +63,7 @@ jobs:
         shell: bash
 
       - name: Build and package
-        run: mvn -B package --file pom.xml
+        run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       # Mirror the release workflow's flat staging + scope-suffix rename so PR
       # downloads are labeled the same way the eventual release will be.
@@ -65,15 +86,11 @@ jobs:
 
   build-macos-arm:
     name: Test Build (macOS arm64)
+    needs: prepare
     runs-on: macos-latest
     steps:
-      # See build-windows checkout step for why both fetch-depth: 0 and
-      # fetch-tags: true are required to get a real version into the artifact.
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
