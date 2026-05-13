@@ -101,7 +101,7 @@ jobs:
           cache: 'maven'
 
       - name: Build and package
-        run: mvn -B package --file pom.xml
+        run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       # Mirror the release workflow's flat staging + arch-suffix rename so
       # PR downloads are labeled the same way the eventual release will be,
@@ -137,15 +137,11 @@ jobs:
   # until GitHub fully drops x86_64 macOS support in Fall 2027.
   build-macos-intel:
     name: Test Build (macOS x64 Intel)
+    needs: prepare
     runs-on: macos-15-intel
     steps:
-      # See build-windows checkout step for why both fetch-depth: 0 and
-      # fetch-tags: true are required to get a real version into the artifact.
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -156,7 +152,7 @@ jobs:
           cache: 'maven'
 
       - name: Build and package
-        run: mvn -B package --file pom.xml
+        run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       - name: Stage macOS Intel installers with arch-suffixed names
         shell: bash
@@ -182,15 +178,11 @@ jobs:
 
   build-linux:
     name: Test Build (Linux)
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
-      # See build-windows checkout step for why both fetch-depth: 0 and
-      # fetch-tags: true are required to get a real version into the artifact.
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -204,7 +196,7 @@ jobs:
         run: sudo apt-get install -y dpkg fakeroot rpm
 
       - name: Build and package
-        run: mvn -B package --file pom.xml
+        run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       - name: Upload Linux test-build artifacts
         uses: actions/upload-artifact@v7
