@@ -153,21 +153,50 @@ public final class SupplementalScanner
             Pattern.compile( "https?://(?:www\\.)?file\\.io/[\\w./?=&-]+",           Pattern.CASE_INSENSITIVE ),
             Pattern.compile( "https?://(?:www\\.)?gofile\\.io/[\\w./?=&-]+",         Pattern.CASE_INSENSITIVE ) );
 
-    /** Public-IPv4-literal pattern. Excludes the universally-loopback 127/8
-     *  and 0/8 (and 255.255.255.255 broadcast) which legitimate code might use
-     *  for local-only checks. Anything else is at minimum a smell. */
+    /** Public-IPv4-literal pattern. Excludes:
+     *  <ul>
+     *    <li>{@code 127.x.x.x} / {@code 0.x.x.x} — loopback and zero networks;
+     *        legitimate code uses them for local-only checks.</li>
+     *    <li>{@code 224.x.x.x} - {@code 239.x.x.x} — multicast / SSDP ranges.
+     *        Minecraft itself hard-codes {@code 224.0.2.60} for the LAN-game
+     *        discovery multicast; legitimate apps embed multicast targets
+     *        regularly enough that flagging them is noise.</li>
+     *    <li>Trailing {@code .digit} via the {@code (?!\.\d)} negative lookahead —
+     *        rejects OID-shape strings like {@code 1.3.6.1.5.5.2} (the Kerberos
+     *        SPNEGO OID, embedded in httpclient's NegotiateScheme) where the
+     *        first four dotted-decimal components would otherwise match.</li>
+     *  </ul>
+     *  What remains is plain-ol' IPv4 literals, which in the context of a
+     *  modpack JAR are still a strong C2-endpoint smell. */
     private static final Pattern IPV4_LITERAL = Pattern.compile(
-            "\\b(?!127\\.)(?!0\\.)(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\b" );
+            "\\b(?!127\\.)(?!0\\.)(?!22[4-9]\\.)(?!23\\d\\.)" +
+            "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\b(?!\\.\\d)" );
+
+    /** Filename pattern for Mojang's pre-packaged native-libraries JARs (e.g.
+     *  {@code lwjgl-platform-2.9.1-natives-windows.jar},
+     *  {@code jinput-platform-2.0.5-natives-windows.jar},
+     *  {@code twitch-platform-5.16-natives-windows-64.jar}). These are
+     *  expected to carry {@code .dll}/{@code .so}/{@code .dylib} entries at
+     *  the JAR root by design — the entire JAR's purpose is to ship native
+     *  binaries. Skip the "native outside known natives path" check when the
+     *  containing JAR matches this pattern. */
+    private static final Pattern NATIVES_JAR_FILENAME = Pattern.compile(
+            ".*-natives-.*\\.jar$", Pattern.CASE_INSENSITIVE );
 
     /** Names of Mojang / Microsoft launcher files that store cached account
      *  credentials. A class with one of these as a string literal is almost
      *  certainly trying to read another launcher's auth state. No legitimate
-     *  Minecraft mod has any reason to touch these. */
+     *  Minecraft mod has any reason to touch these.
+     *
+     *  <p>Deliberately <strong>not</strong> in this list: {@code usercache.json}.
+     *  Despite its name, that file is the vanilla Minecraft server's
+     *  username→UUID cache (written by {@code net.minecraft.server.MinecraftServer.<clinit>})
+     *  — not a launcher credential store. Adding it FPs every vanilla
+     *  modpack launch.</p> */
     private static final Set< String > LAUNCHER_CREDENTIAL_FILES = Set.of(
             "launcher_profiles.json",
             "launcher_accounts.json",
             "launcher_msa_credentials.bin",
-            "usercache.json",
             "credentials.json" );
 
     /** {@code java.awt.Robot} owner pattern. Used alongside clipboard access
@@ -179,6 +208,26 @@ public final class SupplementalScanner
      *  contents. Either one alongside AWT Robot in the same class is the
      *  clipboard-stealer giveaway. */
     private static final String CLIPBOARD_OWNER = "java/awt/datatransfer/Clipboard";
+
+    /** Pack-root-relative paths that the supplemental heuristic scanner always
+     *  skips on top of the caller-supplied exclude list. These are launcher-
+     *  controlled directories whose contents come from hash-verified upstream
+     *  sources (Mojang piston-meta for {@code libraries/} + {@code bin/}, the
+     *  Forge installer's libraries.json for the rest of {@code libraries/}).
+     *  The Nekodetector pass still scans them for Fractureiser-specific
+     *  bytecode; this supplemental pass adds heuristic checks that produce
+     *  too many FPs against vanilla content (e.g. {@code minecraft.jar}
+     *  references {@code usercache.json}, Mojang natives JARs drop .dll at
+     *  the JAR root, the LAN-discovery multicast {@code 224.0.2.60} is hard-
+     *  coded in MC's networking code).
+     *
+     *  <p>Baked into the scanner rather than into the caller's exclude list
+     *  so a malicious modpack manifest cannot countermand the protection by
+     *  supplying its own pack-scan-exclusions.</p> */
+    private static final List< String > BUILT_IN_EXCLUSIONS = List.of(
+            "libraries",
+            "bin",
+            "runtime" );
 
     /** Severity label for a single finding. HIGH blocks launch; MEDIUM is
      *  reported but launch proceeds. */
@@ -202,7 +251,15 @@ public final class SupplementalScanner
         List< Finding > findings = Collections.synchronizedList( new ArrayList<>() );
         ConcurrentLinkedQueue< Path > toScan = new ConcurrentLinkedQueue<>();
         final Path rootAbs = root.toAbsolutePath().normalize();
-        final List< String > normalizedExclusions = normalizeExclusions( excludeFolders );
+        // Combine the modpack-supplied exclusions with the launcher's hardcoded
+        // BUILT_IN_EXCLUSIONS (libraries/, bin/, runtime/) so heuristic scanning
+        // never fires on Mojang/Forge-controlled hash-verified content. The
+        // hardcoded list is appended after the caller's so it can't be undone
+        // by a manifest-supplied empty exclusions list.
+        List< String > combinedExcludes = new ArrayList<>(
+                normalizeExclusions( excludeFolders ) );
+        combinedExcludes.addAll( BUILT_IN_EXCLUSIONS );
+        final List< String > normalizedExclusions = combinedExcludes;
 
         Files.walkFileTree( root, new SimpleFileVisitor<>() {
             @Override
@@ -262,6 +319,16 @@ public final class SupplementalScanner
     {
         List< Finding > findings = new ArrayList<>();
 
+        // If the JAR's filename itself declares it's a natives-distribution JAR
+        // (Mojang's *-natives-* packaging), suppress the "native binary outside
+        // known natives path" check on its entries. The whole purpose of the
+        // JAR is to ship .dll/.so/.dylib files; they're expected at the root.
+        // The forbidden-executable check (.exe, .bat, .ps1, etc.) still runs —
+        // Mojang's natives JARs ship .dll files only, not Windows executables,
+        // so a .exe inside one would still be a red flag.
+        boolean isNativesJar = jarPath != null
+                && NATIVES_JAR_FILENAME.matcher( jarPath.getFileName().toString() ).matches();
+
         // Walk every entry once. Two passes' worth of checks fit naturally
         // into one walk: filename-based (entry name) and content-based
         // (class bytecode / constant pool).
@@ -283,14 +350,18 @@ public final class SupplementalScanner
             }
 
             // (2) Native binary outside a recognized natives path. Skipped
-            //     when the entry isn't a native binary at all (most entries).
-            for ( String suffix : NATIVE_BINARY_SUFFIXES ) {
-                if ( lowerName.endsWith( suffix ) ) {
-                    if ( !isInLegitNativePath( normalized ) ) {
-                        findings.add( new Finding( Severity.MEDIUM, jarPath,
-                                "native binary outside a known natives path: " + name ) );
+            //     when the entry isn't a native binary at all (most entries),
+            //     and skipped entirely when the containing JAR is a Mojang
+            //     natives-distribution JAR.
+            if ( !isNativesJar ) {
+                for ( String suffix : NATIVE_BINARY_SUFFIXES ) {
+                    if ( lowerName.endsWith( suffix ) ) {
+                        if ( !isInLegitNativePath( normalized ) ) {
+                            findings.add( new Finding( Severity.MEDIUM, jarPath,
+                                    "native binary outside a known natives path: " + name ) );
+                        }
+                        break;
                     }
-                    break;
                 }
             }
 
