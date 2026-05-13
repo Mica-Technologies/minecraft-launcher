@@ -75,11 +75,27 @@ public class GUIUtilities
             questionAlert.initModality( Modality.WINDOW_MODAL );
             questionAlert.initOwner( owner );
 
+            // If the caller's button2 already IS the cancel label, fold it into the
+            // dialog's CANCEL_CLOSE button instead of adding a separate one — otherwise
+            // dialogs like the mmcl:// untrusted-host prompt end up with TWO Cancel
+            // buttons (the explicit "Cancel" label + the auto-added one). When button2
+            // is genuinely a second non-cancel choice ("Close Without Saving",
+            // "Uninstall (Keep Files)", etc.), we still want the separate Cancel as
+            // the escape hatch.
             ButtonType btn1 = new ButtonType( button1 );
-            ButtonType btn2 = new ButtonType( button2 );
-            ButtonType btnC = new ButtonType( "Cancel", ButtonBar.ButtonData.CANCEL_CLOSE );
+            boolean button2IsCancel = button2 != null
+                    && button2.trim().equalsIgnoreCase( "Cancel" );
+            ButtonType btn2 = button2IsCancel
+                    ? new ButtonType( button2, ButtonBar.ButtonData.CANCEL_CLOSE )
+                    : new ButtonType( button2 );
 
-            questionAlert.getButtonTypes().setAll( btn1, btn2, btnC );
+            if ( button2IsCancel ) {
+                questionAlert.getButtonTypes().setAll( btn1, btn2 );
+            }
+            else {
+                ButtonType btnC = new ButtonType( "Cancel", ButtonBar.ButtonData.CANCEL_CLOSE );
+                questionAlert.getButtonTypes().setAll( btn1, btn2, btnC );
+            }
 
             // Show the created question dialog
             themeAlertChrome( questionAlert );
