@@ -255,6 +255,34 @@ public class GameModPackFetcher
      *  {@link com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter}.
      *  Returns the body string on success, {@code null} when the file is
      *  missing or unreadable. */
+    /**
+     * Returns the raw manifest body text for {@code manifestUrl} without
+     * parsing it into a {@link GameModPack}. Used by the modpack editor
+     * when the user clicks Edit on an installed pack — the editor wants
+     * the source JSON, not a GSON-roundtripped {@link GameModPack}, so
+     * unknown / future-schema fields stay intact through the edit cycle.
+     *
+     * <p>Resolution order matches {@link #getFromCache} so the editor sees
+     * exactly the same bytes the launcher used to render the card:
+     * imported packs ({@code file:} URLs) read straight off disk; network
+     * packs come from {@code manifest_cache/<sha256>.json}. Returns
+     * {@code null} when neither source has the manifest — caller falls
+     * back to a blank document.
+     *
+     * @param manifestUrl pack manifest URL (file: or https:)
+     * @return manifest body text, or {@code null} if unavailable
+     *
+     * @since 2026.5
+     */
+    public static String loadManifestText( String manifestUrl )
+    {
+        if ( manifestUrl == null || manifestUrl.isBlank() ) return null;
+        if ( manifestUrl.startsWith( "file:" ) ) {
+            return readLocalManifest( manifestUrl );
+        }
+        return loadCachedManifest( manifestUrl );
+    }
+
     private static String readLocalManifest( String fileUrl )
     {
         if ( fileUrl == null ) return null;

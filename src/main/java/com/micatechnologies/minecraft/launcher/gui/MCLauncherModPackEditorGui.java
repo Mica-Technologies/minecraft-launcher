@@ -131,9 +131,31 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      */
     private File currentFile = null;
 
+    /**
+     * Modpack to pre-load when {@link #setup()} runs, set via
+     * {@link #setInitialPack} between construction and the FX-thread
+     * {@code setup()} dispatch in {@code MCLauncherGuiWindow#setScene}.
+     * When non-null the editor opens with the pack's manifest already
+     * parsed into the working document so the Edit-from-Library flow
+     * doesn't dump the user on a blank New-Modpack screen. Cleared on
+     * first read so a subsequent navigation back to the editor (via the
+     * toolbar's New / Open buttons or the manifest reload menu item)
+     * starts from whatever state the user puts it in.
+     */
+    private com.micatechnologies.minecraft.launcher.game.modpack.GameModPack initialPack = null;
+
     public MCLauncherModPackEditorGui( Stage stage ) throws IOException
     {
         super( stage );
+    }
+
+    /** Stash the pack the editor should pre-load on {@code setup()}. Called
+     *  by {@link MCLauncherGuiController#goToModPackEditorGui(com.micatechnologies.minecraft.launcher.game.modpack.GameModPack)}
+     *  after construction but before the window's scene-swap dispatches
+     *  {@code setup()} on the FX thread. */
+    public void setInitialPack( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
+    {
+        this.initialPack = pack;
     }
 
     @Override
@@ -238,8 +260,70 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         searchModrinthBtn.setOnAction( e -> searchModrinth() );
         modsToolbar.getChildren().add( modsToolbar.getChildren().size() - 1, searchModrinthBtn );
 
-        // Start with a new empty document
+        // Start with a new empty document, then upgrade to the requested
+        // pack's manifest if the caller pre-staged one via setInitialPack
+        // (Library / main-menu Edit action). loadInitialPack uses the same
+        // populateFieldsFromDocument + snapshot wiring as openFromFile so
+        // the dirty-tracking + revert paths work identically.
         newDocument();
+        if ( initialPack != null ) {
+            com.micatechnologies.minecraft.launcher.game.modpack.GameModPack toLoad = initialPack;
+            initialPack = null;
+            loadFromPack( toLoad );
+        }
+    }
+
+    /** Loads the manifest source for {@code pack} into the editor as if the
+     *  user had clicked Open. For imported packs the manifest URL is a
+     *  {@code file:} URI so {@code currentFile} is also wired up — that way
+     *  Save round-trips back to the same on-disk file the launcher reads at
+     *  cold start. Network-cached manifests aren't backed by a local file
+     *  the user owns, so {@code currentFile} stays null and Save prompts
+     *  for a destination (matching openFromUrl's behavior). */
+    private void loadFromPack( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
+    {
+        if ( pack == null ) return;
+        String manifestUrl = pack.getManifestUrl();
+        if ( manifestUrl == null || manifestUrl.isBlank() ) {
+            updateStatus( "No manifest source for " + pack.getFriendlyName()
+                                  + "; opened a blank document instead." );
+            return;
+        }
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                String json = com.micatechnologies.minecraft.launcher.game.modpack.GameModPackFetcher
+                        .loadManifestText( manifestUrl );
+                if ( json == null || json.isBlank() ) {
+                    updateStatus( "Couldn't load the manifest for "
+                                          + pack.getFriendlyName() + "." );
+                    return;
+                }
+                JsonObject parsed = JSONUtilities.getGson().fromJson( json, JsonObject.class );
+                if ( parsed == null ) {
+                    updateStatus( "Manifest for " + pack.getFriendlyName()
+                                          + " is unreadable." );
+                    return;
+                }
+                final File backingFile = manifestUrl.startsWith( "file:" )
+                        ? new File( new java.net.URI( manifestUrl ) )
+                        : null;
+                GUIUtilities.JFXPlatformRun( () -> {
+                    workingDocument = parsed;
+                    currentFile = backingFile;
+                    populateFieldsFromDocument();
+                    collectFieldsToDocument();
+                    savedSnapshot = serializeDocument();
+                    updateStatus( "Loaded: " + pack.getFriendlyName() );
+                } );
+            }
+            catch ( Exception ex ) {
+                Logger.logError( "Failed to load manifest for "
+                                         + pack.getFriendlyName() + " into the editor." );
+                Logger.logThrowable( ex );
+                updateStatus( "Error loading "
+                                      + pack.getFriendlyName() + ": " + ex.getMessage() );
+            }
+        } );
     }
 
     @Override

@@ -222,10 +222,31 @@ public class MCLauncherGuiController
 
     public static MCLauncherModPackEditorGui goToModPackEditorGui() throws IOException
     {
+        return goToModPackEditorGui( null );
+    }
+
+    /**
+     * Opens the modpack editor pre-loaded with {@code initialPack}'s manifest
+     * source — used by the Library / main-menu Edit action so a click on an
+     * installed pack lands the user on its fields populated rather than the
+     * blank New-Modpack screen. Pass {@code null} to start with an empty
+     * document (the toolbar New / Open / Open URL buttons still work either
+     * way).
+     */
+    public static MCLauncherModPackEditorGui goToModPackEditorGui(
+            com.micatechnologies.minecraft.launcher.game.modpack.GameModPack initialPack )
+            throws IOException
+    {
         MCLauncherModPackEditorGui newEditorGui = null;
         boolean guiStarted = startGui();
         if ( guiStarted ) {
             newEditorGui = new MCLauncherModPackEditorGui( guiWindow.getStage() );
+            // Stash the initial pack BEFORE setScene — setScene dispatches
+            // gui.setup() on the FX thread, and setup is where the editor
+            // reads + clears the field.
+            if ( initialPack != null ) {
+                newEditorGui.setInitialPack( initialPack );
+            }
             guiWindow.setScene( newEditorGui );
             guiWindow.show();
         }

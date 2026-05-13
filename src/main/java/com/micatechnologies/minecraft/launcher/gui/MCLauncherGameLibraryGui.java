@@ -1307,7 +1307,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             switch ( entry.kind ) {
                 case MODPACK_INSTALLED -> {
                     MFXButton uninstall = primaryAction( "Uninstall", "dangerZone", () -> uninstallInstalledModpack( entry ) );
-                    MFXButton edit = secondaryAction( "Edit", () -> openModpackEditor() );
+                    MFXButton edit = secondaryAction( "Edit", () -> openModpackEditor( entry.pack ) );
                     out.add( uninstall );
                     out.add( edit );
                 }
@@ -1515,10 +1515,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         } );
     }
 
-    private void openModpackEditor()
+    private void openModpackEditor( GameModPack initialPack )
     {
         SystemUtilities.spawnNewTask( () -> {
-            try { MCLauncherGuiController.goToModPackEditorGui(); }
+            try { MCLauncherGuiController.goToModPackEditorGui( initialPack ); }
             catch ( IOException ex ) {
                 Logger.logError( "Unable to open modpack editor." );
                 Logger.logThrowable( ex );
