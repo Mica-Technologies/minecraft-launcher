@@ -487,6 +487,44 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 rootPane.requestFocus();
             }
         } );
+
+        // Idle-window prefetch: warm GameVersionManifest's clientJsonCache for the
+        // most-recently-played pack. The first Play click on that pack would
+        // otherwise pay a 1-2s download of client.json (Mojang piston-meta) on
+        // the critical path between "user clicks Play" and "progress GUI shows
+        // first stage." Doing it during the main-menu idle window — where the
+        // user is reading the grid and deciding what to launch — hides the cost
+        // entirely. Best-effort: any failure (offline, pack with no MC version,
+        // server error) is swallowed silently; the eventual Play click does its
+        // own fetch normally.
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                if ( com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.isOffline() ) {
+                    return;
+                }
+                GameModPack mostRecent = null;
+                long maxTs = 0;
+                for ( GameModPack pack : GameModPackManager.getInstalledModPacks() ) {
+                    if ( pack == null ) continue;
+                    long ts = pack.getLastPlayedMs();
+                    if ( ts > maxTs ) {
+                        maxTs = ts;
+                        mostRecent = pack;
+                    }
+                }
+                if ( mostRecent == null || maxTs == 0 ) {
+                    return;  // no play history yet — nothing to warm
+                }
+                String mcVersion = mostRecent.getMinecraftVersion();
+                if ( mcVersion != null && !mcVersion.isBlank() ) {
+                    com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameVersionManifest
+                            .getClientJson( mcVersion );
+                }
+            }
+            catch ( Throwable ignored ) {
+                // Best-effort — never let the prefetch surface noise on the main menu.
+            }
+        } );
     }
 
     @Override
