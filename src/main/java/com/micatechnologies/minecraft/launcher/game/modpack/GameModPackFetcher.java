@@ -49,6 +49,13 @@ public class GameModPackFetcher
      *  which stops a compromised manifest host from OOMing the launcher. */
     private static final long MANIFEST_MAX_BYTES = 50L * 1024 * 1024;
 
+    /** Threshold for warning the user that an offline-loaded cached manifest is
+     *  stale. We don't refuse to launch (offline play would become unusable for
+     *  long-disconnected users) but a visible warning encourages reconnect so the
+     *  pack picks up any security-relevant updates pushed since the cache was
+     *  written. */
+    private static final long MANIFEST_STALE_THRESHOLD_MS = 7L * 24L * 60L * 60L * 1000L;
+
     /**
      * Fetches the mod pack object from the specified manifest URL. If the network is available, downloads the latest
      * manifest and caches it locally. If offline, falls back to the cached version.
@@ -167,16 +174,24 @@ public class GameModPackFetcher
      * path so existing installs continue to find their caches after the upgrade.
      * Once the launcher fetches a fresh manifest online it persists to the SHA-256
      * path; the legacy entry, if any, is left as harmless orphan data.
+     *
+     * <p>When the cache is older than {@link #MANIFEST_STALE_THRESHOLD_MS} the
+     * load logs a user-visible warning naming the URL and recommending a
+     * reconnect — but the manifest is still returned so offline play keeps
+     * working. A hard refusal would break long-disconnected users; the warning
+     * is enough to surface the staleness without taking play away.
      */
     private static String loadCachedManifest( String manifestUrl )
     {
         try {
             Path cacheFile = getCacheFilePath( manifestUrl );
             if ( Files.exists( cacheFile ) ) {
+                warnIfStale( cacheFile, manifestUrl );
                 return Files.readString( cacheFile, StandardCharsets.UTF_8 );
             }
             Path legacy = getLegacyCacheFilePath( manifestUrl );
             if ( Files.exists( legacy ) ) {
+                warnIfStale( legacy, manifestUrl );
                 return Files.readString( legacy, StandardCharsets.UTF_8 );
             }
         }
@@ -184,5 +199,24 @@ public class GameModPackFetcher
             Logger.logWarningSilent( "Unable to load cached manifest for " + manifestUrl );
         }
         return null;
+    }
+
+    /** Emits a user-visible warning if the cache file's mtime is older than the
+     *  staleness threshold. No-op if the file's mtime can't be read. */
+    private static void warnIfStale( Path cacheFile, String manifestUrl )
+    {
+        try {
+            long ageMs = System.currentTimeMillis()
+                    - Files.getLastModifiedTime( cacheFile ).toMillis();
+            if ( ageMs > MANIFEST_STALE_THRESHOLD_MS ) {
+                long days = ageMs / ( 24L * 60L * 60L * 1000L );
+                Logger.logWarning( "Using cached manifest for " + manifestUrl
+                                           + " — last refreshed " + days
+                                           + " days ago. Reconnect to pick up any updates." );
+            }
+        }
+        catch ( IOException ignored ) {
+            // Best-effort — if mtime is unreadable we don't surface anything.
+        }
     }
 }
