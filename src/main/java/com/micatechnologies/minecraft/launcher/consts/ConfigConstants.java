@@ -273,6 +273,27 @@ public class ConfigConstants
     public static final String LAUNCHER_UPDATE_CHECK_KEY = "launcherUpdateCheck";
 
     /**
+     * Key for the {@code mmcl://} deep-link handler enable flag. When false,
+     * {@code mmcl://add}, {@code play}, {@code join}, and {@code open} URIs are all
+     * ignored — both at cold start (via argv) and at runtime (via the single-instance
+     * IPC forward). Defaults true to match the website-driven install flow, but lets
+     * privacy-conscious users or shared-workstation users disable the entire URI
+     * attack surface at the source (security finding 1.6 hardening — the gate already
+     * exists at the install-URL level, this turns the whole feature off).
+     *
+     * @since 2026.2
+     */
+    public static final String URI_HANDLER_ENABLED_KEY = "uriHandlerEnabled";
+
+    /**
+     * Default for {@link #URI_HANDLER_ENABLED_KEY} — true so the website-driven
+     * "Install in launcher" links work out of the box.
+     *
+     * @since 2026.2
+     */
+    public static final boolean URI_HANDLER_ENABLED_DEFAULT = true;
+
+    /**
      * Key for whether the user has completed (or explicitly skipped) the first-
      * launch quick-start wizard. Defaults to false so existing installs see the
      * wizard once on upgrade, then never again. The wizard also flips this true

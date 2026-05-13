@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
@@ -112,6 +113,16 @@ public final class LauncherUriHandler
     public static void handle( String uriString )
     {
         if ( !isLauncherUri( uriString ) ) {
+            return;
+        }
+        // User-facing kill switch (settings: "URI handler enabled"). When off, all
+        // mmcl:// URIs are dropped silently — same effect as the OS handing the URI
+        // to a stub that does nothing. Lets paranoid / shared-workstation users
+        // disable the entire deep-link attack surface without needing to unregister
+        // the OS-level scheme. Defaults true so the website install flow keeps
+        // working out of the box.
+        if ( !ConfigManager.getUriHandlerEnabled() ) {
+            Logger.logStd( "Ignoring mmcl:// URI — handler disabled in settings." );
             return;
         }
         URI uri;

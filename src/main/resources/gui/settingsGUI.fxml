@@ -329,6 +329,22 @@
                         </HBox>
                         <Label fx:id="scanOutputLabel" text="Scan Output" wrapText="true" />
                     </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Deep Links (mmcl://)">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="When enabled, &quot;Install in Launcher&quot; links on the website and Discord &quot;Join Game&quot; buttons open this launcher and add or launch the linked modpack. Untrusted hosts always require a confirmation click before installing." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="uriHandlerToggle" text="Allow mmcl:// deep links" />
+                    </VBox>
                 </VBox>
             </ScrollPane>
 

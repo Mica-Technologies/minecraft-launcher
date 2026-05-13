@@ -411,6 +411,40 @@ public class ConfigManager
     }
 
     /**
+     * Returns whether the {@code mmcl://} URI handler is enabled. Defaults true.
+     * When false, neither cold-start argv-delivered URIs nor runtime IPC-delivered
+     * URIs are dispatched — the entire deep-link surface is disabled. Useful as a
+     * kill switch on shared-workstation installs or for users who never use
+     * website-driven modpack installs.
+     *
+     * @since 2026.2
+     */
+    public synchronized static boolean getUriHandlerEnabled() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.URI_HANDLER_ENABLED_KEY ) ) {
+            configObject.addProperty( ConfigConstants.URI_HANDLER_ENABLED_KEY,
+                                      ConfigConstants.URI_HANDLER_ENABLED_DEFAULT );
+            writeConfigurationToDisk();
+        }
+        return configObject.get( ConfigConstants.URI_HANDLER_ENABLED_KEY ).getAsBoolean();
+    }
+
+    /**
+     * Toggles {@link #getUriHandlerEnabled()} and persists the change.
+     *
+     * @since 2026.2
+     */
+    public synchronized static void setUriHandlerEnabled( boolean enabled ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.URI_HANDLER_ENABLED_KEY, enabled );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Returns true once the user has completed (or skipped) the first-launch
      * quick-start wizard. Defaults to false so the wizard fires once for existing
      * installs that upgrade to this version.

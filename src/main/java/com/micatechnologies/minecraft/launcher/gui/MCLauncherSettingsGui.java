@@ -235,6 +235,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     Label scanFolderLabel;
 
     /**
+     * Security tab: mmcl:// deep-link kill switch. Mirrors
+     * {@link ConfigManager#getUriHandlerEnabled()} —
+     * see security finding 1.6 + the user-controlled toggle introduced alongside.
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXToggleButton uriHandlerToggle;
+
+    /**
      * Navigation buttons for settings category sidebar.
      *
      * @since 3.0
@@ -829,6 +838,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
             }
         } );
+
+        // mmcl:// deep-link toggle. Read once into the checkbox; listener writes back on
+        // change. Defaults true via ConfigConstants.URI_HANDLER_ENABLED_DEFAULT, so the
+        // box is checked for fresh installs.
+        if ( uriHandlerToggle != null ) {
+            uriHandlerToggle.setSelected( ConfigManager.getUriHandlerEnabled() );
+            uriHandlerToggle.selectedProperty().addListener(
+                    ( obs, oldV, newV ) -> ConfigManager.setUriHandlerEnabled( newV ) );
+        }
 
         // Wire up sidebar navigation buttons
         navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navDiscord, navAbout };
