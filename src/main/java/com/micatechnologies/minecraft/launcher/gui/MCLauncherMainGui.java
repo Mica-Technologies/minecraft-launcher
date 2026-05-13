@@ -1112,15 +1112,20 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             setMaxWidth( CARD_WIDTH );
             setSpacing( 0 );
 
-            // Bitmap-cache the whole card. Each card stacks several expensive layers
-            // (gaussian dropshadow, rounded Rectangle clip on the image, CSS background-image
-            // on the bgLayer Region, secondary shadow on the logo container). Without
-            // caching, the ScrollPane re-rasterizes those effects every frame during scroll,
-            // which produced the severe lag the user reported. CacheHint.SPEED uses bilinear
-            // filtering on the cached bitmap during scroll-translate, which is exactly what
-            // we want for vertical scrolling.
+            // Bitmap-cache the whole card so the ScrollPane reuses the rasterized
+            // bitmap during vertical scrolling instead of re-rendering each card's
+            // gaussian dropshadow, rounded image clip, and CSS bg-image every
+            // frame. CacheHint.DEFAULT (NOT SPEED) is deliberate — SPEED treats
+            // the bitmap as static and won't refresh it when the bgLayer's CSS
+            // bg-image completes its async load, which manifested as packs
+            // randomly rendering with the procedural gradient even though the
+            // bg image was on disk and the URL had been applied. DEFAULT lets
+            // JavaFX invalidate + re-render the cache when descendant content
+            // changes (image loads, logo swap, etc.). Cost vs SPEED is bilinear
+            // interpolation during scroll-translate, which is barely
+            // perceptible at our card sizes.
             setCache( true );
-            setCacheHint( CacheHint.SPEED );
+            setCacheHint( CacheHint.DEFAULT );
 
             // ----- Top half: modpack background image -----
             StackPane imageBox = new StackPane();
@@ -1292,14 +1297,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // Background layer — always paint the procedural gradient first so it
             // acts as the placeholder behind a remote -fx-background-image while
             // the latter is still loading off the network. Clear any prior bind's
-            // inline -fx-background-image first so previous-pack imagery doesn't
-            // bleed into the new state:
+            // inline -fx-background-image AND the dynamic styleClasses
+            // applyDynamicBackground adds (heroBackgroundDefaultVanilla /
+            // heroBackgroundDefaultForge) so they don't accumulate across rebinds
+            // and bleed previous-pack styling into the new state:
             //   • vanilla versions get a sky → grass gradient
             //   • modded packs with a logo get a gradient derived from the logo's
             //     dominant color, so each pack feels visually individuated
             //   • modded packs without a logo fall back to a Forge-themed gradient
             //     (dark anvil + warm forge-fire glow)
             bgLayer.setStyle( null );
+            bgLayer.getStyleClass().removeAll( "heroBackgroundDefaultVanilla",
+                                                 "heroBackgroundDefaultForge" );
             applyDynamicBackground( bgLayer, newPack, packLogoImage );
             String bgUrl = resolveBackgroundUrl( newPack );
             if ( bgUrl != null ) {
@@ -1309,6 +1318,69 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 // until the bytes arrive.
                 String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
                 bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
+            }
+            else if ( newPack.hasCustomBackground() ) {
+                // Pack declares a custom background but the cache file isn't
+                // on disk yet — gradient is showing as a temporary fallback.
+                // Spawn a background task to fetch it via cacheImages(),
+                // then re-apply the CSS background-image when the file
+                // lands. Without this, packs whose bg cache was deleted /
+                // never warmed up (fresh install, hash bumped in a
+                // recent manifest revalidate, OS-level cache wipe) would
+                // permanently render with the gradient until something
+                // else triggered a rebind. The pack-identity guard inside
+                // the FX continuation makes sure a slow-completing fetch
+                // for the previously-bound pack doesn't paint over a
+                // newer pack's bg.
+                final GameModPack capturedPack = newPack;
+                SystemUtilities.spawnNewTask( () -> {
+                    try {
+                        capturedPack.cacheImages();
+                    }
+                    catch ( Throwable ignored ) {
+                        return;
+                    }
+                    String path = capturedPack.getPackBackgroundFilepathRaw();
+                    if ( path == null ) return;
+                    File f = new File( path );
+                    if ( !f.exists() || f.length() == 0 ) return;
+                    String fetchedUrl = f.toURI().toString();
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        if ( this.pack != capturedPack ) return;
+                        String currentStyle = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
+                        bgLayer.setStyle( currentStyle + " -fx-background-image: url('" + fetchedUrl + "');" );
+                    } );
+                } );
+            }
+
+            // Logo equivalent: if the pack declares a custom logo but the
+            // cache file wasn't on disk at sync-resolve time (so we fell
+            // back to the bundled default URL above), kick off the same
+            // async warm-up so the real logo pops in shortly after.
+            if ( newPack.hasCustomLogo() ) {
+                String logoPath = newPack.getPackLogoFilepathRaw();
+                File logoFile = logoPath == null ? null : new File( logoPath );
+                if ( logoFile == null || !logoFile.exists() ) {
+                    final GameModPack capturedPack = newPack;
+                    SystemUtilities.spawnNewTask( () -> {
+                        try {
+                            capturedPack.cacheImages();
+                        }
+                        catch ( Throwable ignored ) {
+                            return;
+                        }
+                        String p = capturedPack.getPackLogoFilepathRaw();
+                        if ( p == null ) return;
+                        File f = new File( p );
+                        if ( !f.exists() ) return;
+                        Image fresh = new Image( f.toURI().toString(), true );
+                        GUIUtilities.JFXPlatformRun( () -> {
+                            if ( this.pack != capturedPack ) return;
+                            logo.setImage( fresh );
+                            ImageFadeIn.apply( logo );
+                        } );
+                    } );
+                }
             }
 
             // Transparent-edge detection for the logo container. Clear the
@@ -1424,23 +1496,33 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return name != null ? name : "Unnamed Pack";
     }
 
-    /** Resolves the pack's own background image to a file URL, or null when no per-pack image
-     *  exists. The caller (ModpackHeroCard.<init>) handles the null path with a procedural
-     *  gradient via {@link #applyDynamicBackground}.
+    /** Resolves the pack's own background image to a file URL <em>only if it's
+     *  already on disk</em>. Critically, this does NOT call
+     *  {@link GameModPack#getPackBackgroundFilepath} — that path triggers a
+     *  synchronous network-backed cacheImages call which, when invoked from
+     *  the FX thread by {@link ModpackHeroCard#bind}, blocks the renderer for
+     *  the duration of the download and (worse) leaves the bg file
+     *  half-written for the brief moment between style-set and CSS image
+     *  load. The result was random cards rendering with the gradient
+     *  fallback when a fresh manifest had bumped the bg SHA-1 between
+     *  launches. Now we use the side-effect-free raw path and let the card
+     *  async-warm the cache on a background thread, then re-apply the URL
+     *  once the file lands.
      *
-     *  <p>Important: {@code pack.hasCustomBackground()} is the canonical "does this pack ship
-     *  its own image" signal. The local-cache file at {@code getPackBackgroundFilepath()}
-     *  exists for default-image packs too (the environment downloads MODPACK_DEFAULT_BG_URL
-     *  into a local cache), so checking just file existence would wrongly point at the
-     *  cached-bundled-default and skip the procedural-background path. We gate on
-     *  hasCustomBackground first.</p>
+     *  <p>{@code pack.hasCustomBackground()} is the canonical "does this pack
+     *  ship its own image" signal. The local-cache file at
+     *  {@code getPackBackgroundFilepath()} exists for default-image packs too
+     *  (the environment downloads {@code MODPACK_DEFAULT_BG_URL} into a local
+     *  cache), so checking just file existence would wrongly point at the
+     *  cached-bundled-default and skip the procedural-background path. We
+     *  gate on {@code hasCustomBackground} first.</p>
      */
     private static String resolveBackgroundUrl( GameModPack pack ) {
         try {
             if ( !pack.hasCustomBackground() ) {
                 return null;
             }
-            String path = pack.getPackBackgroundFilepath();
+            String path = pack.getPackBackgroundFilepathRaw();
             if ( path != null ) {
                 File f = new File( path );
                 if ( f.exists() && f.length() > 0 ) return f.toURI().toString();
@@ -1473,7 +1555,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     /** Package-private so {@link MCLauncherGameLibraryGui}'s LibraryCard can reuse the same
      *  procedural-background logic (vanilla sky-grass, modded logo-derived gradient, default
-     *  Forge) without duplicating the histogram code. */
+     *  Forge) without duplicating the histogram code.
+     *
+     *  <p>All setStyle calls here go through {@link #setBgLayerGradient} so any existing
+     *  {@code -fx-background-image} declaration (set by {@link ModpackHeroCard#bind} for
+     *  packs that ship a custom bg image) is preserved. The fully-qualified inline style
+     *  is then "gradient color base + image overlay" — replacing it with just the gradient
+     *  (as a previous version did via {@code bgLayer.setStyle(buildGradientStyle(...))})
+     *  wiped the bg-image and made packs flash the image briefly on first load then revert
+     *  to the gradient once the logo's progress listener fired.</p> */
     static void applyDynamicBackground( Region bgLayer, GameModPack pack, Image logoImage )
     {
         if ( pack.isVanillaVersion() ) {
@@ -1490,7 +1580,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         String cacheKey = packLogoCacheKey( pack );
         DominantColors cached = ( cacheKey != null ) ? DOMINANT_COLOR_CACHE.get( cacheKey ) : null;
         if ( cached != null ) {
-            bgLayer.setStyle( buildGradientStyle( cached ) );
+            setBgLayerGradient( bgLayer, cached );
             return;
         }
 
@@ -1502,7 +1592,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 if ( cacheKey != null ) {
                     DOMINANT_COLOR_CACHE.put( cacheKey, fresh );
                 }
-                bgLayer.setStyle( buildGradientStyle( fresh ) );
+                setBgLayerGradient( bgLayer, fresh );
                 return;
             }
             bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
@@ -1524,9 +1614,44 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     DOMINANT_COLOR_CACHE.put( cacheKey, fresh );
                 }
                 bgLayer.getStyleClass().remove( "heroBackgroundDefaultForge" );
-                bgLayer.setStyle( buildGradientStyle( fresh ) );
+                setBgLayerGradient( bgLayer, fresh );
             }
         } );
+    }
+
+    /** Applies a {@link #buildGradientStyle gradient declaration} to {@code bgLayer}
+     *  while preserving any existing {@code -fx-background-image} declaration in its
+     *  inline style. Critical because the logo-progress listener and the cached-color
+     *  fast-path both fire LATER than {@link ModpackHeroCard#bind}'s bg-image overlay,
+     *  and a naive {@code setStyle(gradient)} call would wipe the image. */
+    private static void setBgLayerGradient( Region bgLayer, DominantColors colors )
+    {
+        String gradientPart = buildGradientStyle( colors );
+        String existingBgImage = extractBackgroundImageDeclaration( bgLayer.getStyle() );
+        if ( existingBgImage != null ) {
+            bgLayer.setStyle( gradientPart + " " + existingBgImage );
+        }
+        else {
+            bgLayer.setStyle( gradientPart );
+        }
+    }
+
+    /** Extracts the {@code -fx-background-image: url('...');} fragment (if any) out of
+     *  a JavaFX inline-style string. Returns the full declaration including the trailing
+     *  semicolon, or {@code null} when no bg-image declaration is present. Used by
+     *  {@link #setBgLayerGradient} to preserve the image overlay across gradient
+     *  rewrites. */
+    private static String extractBackgroundImageDeclaration( String inlineStyle )
+    {
+        if ( inlineStyle == null || inlineStyle.isEmpty() ) return null;
+        int idx = inlineStyle.indexOf( "-fx-background-image" );
+        if ( idx < 0 ) return null;
+        int end = inlineStyle.indexOf( ';', idx );
+        if ( end < 0 ) {
+            // No trailing semicolon — take the rest of the string and add one.
+            return inlineStyle.substring( idx ).trim() + ";";
+        }
+        return inlineStyle.substring( idx, end + 1 );
     }
 
     // -----------------------------------------------------------------------------------------
@@ -1777,9 +1902,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 ( int ) Math.round( c.getBlue()  * 255 ) );
     }
 
+    /** Returns the cached logo image when one exists on disk, falling back
+     *  to the bundled default URL. Critically uses
+     *  {@link GameModPack#getPackLogoFilepathRaw()} so the FX thread never
+     *  blocks on a synchronous cacheImages download — see the parallel
+     *  rationale on {@link #resolveBackgroundUrl}. The async warm-up that
+     *  actually fetches missing images lives in
+     *  {@link ModpackHeroCard#bind}. */
     private static Image resolveLogoImage( GameModPack pack ) {
         try {
-            String path = pack.getPackLogoFilepath();
+            String path = pack.getPackLogoFilepathRaw();
             if ( path != null ) {
                 File f = new File( path );
                 if ( f.exists() ) return new Image( f.toURI().toString(), true );

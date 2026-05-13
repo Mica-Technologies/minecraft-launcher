@@ -155,7 +155,7 @@ class GameModPackEnvironment
      *       will create the content-addressed copy on first download).</li>
      * </ol>
      */
-    private String getRawLogoFilePath()
+    String getRawLogoFilePath()
     {
         String sha1 = ( metadata.packLogoSha1 != null )
                       ? metadata.packLogoSha1
@@ -170,7 +170,7 @@ class GameModPackEnvironment
      * Returns the absolute on-disk path for the modpack background image. See
      * {@link #getRawLogoFilePath()} for the resolution order.
      */
-    private String getRawBackgroundFilePath()
+    String getRawBackgroundFilePath()
     {
         String sha1 = ( metadata.packBackgroundSha1 != null )
                       ? metadata.packBackgroundSha1

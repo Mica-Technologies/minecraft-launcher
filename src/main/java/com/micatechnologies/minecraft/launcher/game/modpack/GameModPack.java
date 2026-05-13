@@ -452,6 +452,34 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
+     * Returns the expected on-disk path for the pack logo image WITHOUT
+     * triggering the image-download cache step. Use this when running on the
+     * FX thread to avoid a synchronous network fetch blocking the rendering
+     * loop — caller checks {@link File#exists()} and falls back to a
+     * placeholder if the file isn't on disk yet. The async warm-up (which
+     * actually fetches missing images) should run on a background thread
+     * via {@link #cacheImages}.
+     *
+     * @since 2026.3
+     */
+    public synchronized String getPackLogoFilepathRaw()
+    {
+        return getEnvironment().getRawLogoFilePath();
+    }
+
+    /**
+     * Background-image counterpart of {@link #getPackLogoFilepathRaw}. Same
+     * "don't trigger cacheImages from the FX thread" rationale — see that
+     * method's docs.
+     *
+     * @since 2026.3
+     */
+    public synchronized String getPackBackgroundFilepathRaw()
+    {
+        return getEnvironment().getRawBackgroundFilePath();
+    }
+
+    /**
      * Returns true if this pack ships its own background image (i.e. the manifest specified a
      * {@code packBackgroundURL} other than the bundled default). Vanilla versions and any
      * modded pack whose manifest left the field blank both return false here — both end up

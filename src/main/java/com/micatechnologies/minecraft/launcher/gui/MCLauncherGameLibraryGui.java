@@ -505,11 +505,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             if ( v.loaders() != null && !v.loaders().isEmpty() ) {
                 sb.append( "Mod loader: " ).append( String.join( ", ", v.loaders() ) ).append( '\n' );
             }
-            int fileCount = v.files() == null ? 0 : v.files().size();
-            if ( fileCount > 0 ) {
-                sb.append( "Pack files: " ).append( fileCount )
-                  .append( fileCount == 1 ? "" : "" ).append( '\n' );
-            }
+            // Deliberately don't surface v.files().size() here: a Modrinth version's
+            // "files" array typically has ONE primary entry (the .mrpack archive),
+            // plus sometimes a server-pack variant. The actual mod list lives
+            // INSIDE the .mrpack archive's modrinth.index.json, which we don't
+            // fetch until import time. Showing "1 file" mid-preview reads as
+            // "this pack contains 1 mod", which is wrong — better to leave the
+            // mod count off the preview entirely than to mislead.
         }
         sb.append( '\n' ).append( "URL: " ).append( originalUrl );
         return sb.toString();
