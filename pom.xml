@@ -101,6 +101,27 @@
              continuity inside the help window). -->
         <webview.transparency.opens>--add-opens=javafx.web/javafx.scene.web=ALL-UNNAMED</webview.transparency.opens>
         <launcher.environment>RELEASE</launcher.environment>
+
+        <!-- Options passed to the jlink invocation that jpackage runs to
+             assemble the bundled JRE. Each platform's jpackage execution
+             forwards this via its jlink-options pass-through argument. Goals:
+
+               compress=zip-9 — maximum-effort ZIP recompression of the
+                 runtime image (default is zip-6). Yields a smaller bundle
+                 (faster decompression at install, lower I/O on cold start)
+                 at the cost of a marginal increase in packaging-time CPU.
+               no-header-files — drops the JNI C headers under include/ from
+                 the runtime image. Only useful at native-development time;
+                 the running JVM has no use for them.
+               no-man-pages — drops the man pages. Same rationale: not
+                 referenced at runtime by anything the launcher does.
+
+             Deliberately NOT included: strip-debug. Stripping debug info
+             from JDK class files removes line numbers from stack frames
+             that dip into JDK / JavaFX code, which makes user-reported
+             crash reports harder to triage. The bytes saved aren't worth
+             losing that diagnostic signal. -->
+        <jlink.options>--compress=zip-9 --no-header-files --no-man-pages</jlink.options>
     </properties>
 
     <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
@@ -618,6 +639,14 @@
                                         <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <!-- Forward jlink options to the embedded jlink that
+                                             jpackage runs to assemble the bundled JRE. See the
+                                             jlink.options property at the top of this POM for
+                                             the exact options + rationale (smaller bundled JDK
+                                             via aggressive ZIP recompression plus dropping JNI
+                                             headers and man pages). -->
+                                        <argument>--jlink-options</argument>
+                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
@@ -676,6 +705,14 @@
                                         <argument>${jpackage.app.version}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <!-- Forward jlink options to the embedded jlink that
+                                             jpackage runs to assemble the bundled JRE. See the
+                                             jlink.options property at the top of this POM for
+                                             the exact options + rationale (smaller bundled JDK
+                                             via aggressive ZIP recompression plus dropping JNI
+                                             headers and man pages). -->
+                                        <argument>--jlink-options</argument>
+                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
@@ -805,6 +842,14 @@
                                         <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <!-- Forward jlink options to the embedded jlink that
+                                             jpackage runs to assemble the bundled JRE. See the
+                                             jlink.options property at the top of this POM for
+                                             the exact options + rationale (smaller bundled JDK
+                                             via aggressive ZIP recompression plus dropping JNI
+                                             headers and man pages). -->
+                                        <argument>--jlink-options</argument>
+                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
@@ -876,6 +921,14 @@
                                         <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <!-- Forward jlink options to the embedded jlink that
+                                             jpackage runs to assemble the bundled JRE. See the
+                                             jlink.options property at the top of this POM for
+                                             the exact options + rationale (smaller bundled JDK
+                                             via aggressive ZIP recompression plus dropping JNI
+                                             headers and man pages). -->
+                                        <argument>--jlink-options</argument>
+                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
@@ -946,6 +999,14 @@
                                         <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <!-- Forward jlink options to the embedded jlink that
+                                             jpackage runs to assemble the bundled JRE. See the
+                                             jlink.options property at the top of this POM for
+                                             the exact options + rationale (smaller bundled JDK
+                                             via aggressive ZIP recompression plus dropping JNI
+                                             headers and man pages). -->
+                                        <argument>--jlink-options</argument>
+                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
@@ -1000,6 +1061,14 @@
                                         <argument>${revision.numeric}</argument>
                                         <argument>--vendor</argument>
                                         <argument>Mica Technologies</argument>
+                                        <!-- Forward jlink options to the embedded jlink that
+                                             jpackage runs to assemble the bundled JRE. See the
+                                             jlink.options property at the top of this POM for
+                                             the exact options + rationale (smaller bundled JDK
+                                             via aggressive ZIP recompression plus dropping JNI
+                                             headers and man pages). -->
+                                        <argument>--jlink-options</argument>
+                                        <argument>${jlink.options}</argument>
                                         <argument>--description</argument>
                                         <argument>Mica Minecraft Launcher — a cross-platform Minecraft Forge modpack launcher.</argument>
                                         <argument>--dest</argument>
