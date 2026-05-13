@@ -24,16 +24,13 @@ import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
+import com.micatechnologies.minecraft.launcher.utilities.ArchiveExtractor;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
-import org.rauschig.jarchivelib.ArchiveFormat;
-import org.rauschig.jarchivelib.Archiver;
-import org.rauschig.jarchivelib.ArchiverFactory;
-import org.rauschig.jarchivelib.CompressionType;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
@@ -572,15 +569,18 @@ public class RuntimeManager
             if ( altFolder.exists() ) {
                 FileUtils.deleteDirectory( altFolder );
             }
+            // Hardened extract (security finding 1.5): containment check on every
+            // entry, symlink/hardlink/device rejection (TAR can carry them and a
+            // hostile community-built JRE could escape the runtime folder via one),
+            // size caps to bound zip-bomb damage. See ArchiveExtractor for the
+            // accept/reject rules.
             String pkgType = JsonHelper.getString( info, "packageType", "tar.gz" );
-            Archiver archiver;
             if ( pkgType.equals( "tar.gz" ) ) {
-                archiver = ArchiverFactory.createArchiver( ArchiveFormat.TAR, CompressionType.GZIP );
+                ArchiveExtractor.extractTarGz( archiveFile.toPath(), runtimeFolder.toPath() );
             }
             else {
-                archiver = ArchiverFactory.createArchiver( ArchiveFormat.ZIP );
+                ArchiveExtractor.extractZip( archiveFile.toPath(), runtimeFolder.toPath() );
             }
-            archiver.extract( archiveFile, runtimeFolder );
 
             // Find the extracted folder (may have a different suffix, e.g. .jre on macOS)
             effectiveFolder = extractedFolder.exists() ? extractedFolder :
