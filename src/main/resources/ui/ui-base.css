@@ -820,6 +820,25 @@
     -fx-fill: -color-text;
 }
 
+/* Pseudo-state .text rules at specificity (0,3,0) so they tie with — and
+ * therefore beat on cascade order — the legacy theme sheets' equivalent rules
+ * (e.g. `guiStyle-dark.css`'s `.mfx-button:focused .text { -fx-fill: #0C1017 }`)
+ * that paint the inner Text node with colors picked for the OLD green-on-green
+ * Material 3 button look. Without these, a focused or armed default button on
+ * the new dark surface ends up with near-black text — visible right after a
+ * click or tab-navigation as "the button text turned dark and unreadable."
+ *
+ * Variant buttons (.primary / .secondary / .danger / .selected) have their own
+ * `.text` rules further down at the same (0,3,0) specificity. Those rules come
+ * later in the cascade and win over these — so a focused PRIMARY button still
+ * gets -color-text-on-primary, not -color-text. */
+.mfx-button:hover .text,
+.mfx-button:armed .text,
+.mfx-button:focused .text,
+.mfx-button:pressed .text {
+    -fx-fill: -color-text;
+}
+
 .mfx-button:hover {
     -fx-background-color: -color-surface-hover;
     -fx-border-color: -color-border-strong;
@@ -855,7 +874,15 @@
 }
 
 .mfx-button.primary .text,
-.playBtn.mfx-button .text {
+.mfx-button.primary:hover .text,
+.mfx-button.primary:armed .text,
+.mfx-button.primary:focused .text,
+.mfx-button.primary:pressed .text,
+.playBtn.mfx-button .text,
+.playBtn.mfx-button:hover .text,
+.playBtn.mfx-button:armed .text,
+.playBtn.mfx-button:focused .text,
+.playBtn.mfx-button:pressed .text {
     -fx-fill: -color-text-on-primary;
 }
 
@@ -879,7 +906,13 @@
     -fx-text-fill: -color-text-on-primary;
 }
 
-.mfx-button.secondary .text { -fx-fill: -color-text-on-primary; }
+.mfx-button.secondary .text,
+.mfx-button.secondary:hover .text,
+.mfx-button.secondary:armed .text,
+.mfx-button.secondary:focused .text,
+.mfx-button.secondary:pressed .text {
+    -fx-fill: -color-text-on-primary;
+}
 .mfx-button.secondary:hover  { -fx-background-color: -color-secondary-hover; }
 
 /* Toggle state — applied via stylesheet class (not the :selected pseudo class)
@@ -896,7 +929,13 @@
     -fx-text-fill: -color-primary;
 }
 
-.mfx-button.selected .text { -fx-fill: -color-primary; }
+.mfx-button.selected .text,
+.mfx-button.selected:hover .text,
+.mfx-button.selected:armed .text,
+.mfx-button.selected:focused .text,
+.mfx-button.selected:pressed .text {
+    -fx-fill: -color-primary;
+}
 
 .mfx-button.selected:hover {
     -fx-background-color: -color-primary-soft-hov;
@@ -915,8 +954,20 @@
 }
 
 .mfx-button.danger .text,
+.mfx-button.danger:hover .text,
+.mfx-button.danger:armed .text,
+.mfx-button.danger:focused .text,
+.mfx-button.danger:pressed .text,
 .mfx-button.dangerZone .text,
-.dangerZone.mfx-button .text {
+.mfx-button.dangerZone:hover .text,
+.mfx-button.dangerZone:armed .text,
+.mfx-button.dangerZone:focused .text,
+.mfx-button.dangerZone:pressed .text,
+.dangerZone.mfx-button .text,
+.dangerZone.mfx-button:hover .text,
+.dangerZone.mfx-button:armed .text,
+.dangerZone.mfx-button:focused .text,
+.dangerZone.mfx-button:pressed .text {
     -fx-fill: -color-text-on-primary;
 }
 
