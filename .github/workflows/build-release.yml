@@ -12,6 +12,13 @@ on:
         required: false
         default: 'false'
 
+# Default for the workflow's GITHUB_TOKEN: read everything (security finding 2.8).
+# The release publish job below grants itself contents: write where it actually
+# needs to create release assets — the rest of the matrix only builds + uploads
+# workflow-scoped artifacts and doesn't need any repo-write permission.
+permissions:
+  contents: read
+
 jobs:
   # --- Step 1: Calculate version and create tag ---
   prepare:
@@ -298,6 +305,10 @@ jobs:
     name: Create Release
     needs: [prepare, build-windows, build-macos-arm, build-macos-intel, build-linux]
     runs-on: ubuntu-latest
+    # Only this job needs to create / upload release assets. Other jobs in the
+    # workflow run with the default contents: read declared at the top.
+    permissions:
+      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v8
@@ -321,7 +332,9 @@ jobs:
 
       - name: Create Release
         if: needs.prepare.outputs.is_release == 'true'
-        uses: softprops/action-gh-release@v3
+        # SHA-pinned for security finding 2.8 — equivalent to tag v3 at time of pin.
+        # Bump alongside Dependabot PRs (see .github/dependabot.yml).
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -345,7 +358,9 @@ jobs:
 
       - name: Create Pre-Release
         if: needs.prepare.outputs.is_release != 'true'
-        uses: softprops/action-gh-release@v3
+        # SHA-pinned for security finding 2.8 — equivalent to tag v3 at time of pin.
+        # Bump alongside Dependabot PRs (see .github/dependabot.yml).
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

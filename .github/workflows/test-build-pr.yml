@@ -2,6 +2,13 @@ name: Test Build (Pull Request)
 
 on: pull_request
 
+# Least-privilege default for the workflow's GITHUB_TOKEN (security finding 2.8).
+# PR test builds only need to check out source, run Maven, and upload artifacts —
+# none of those require write access to repo contents. Individual jobs can grant
+# more later if needed; nothing currently does.
+permissions:
+  contents: read
+
 jobs:
   build-windows:
     name: Test Build (Windows)

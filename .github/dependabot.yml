@@ -1,0 +1,26 @@
+# Dependabot configuration.
+#
+# Tracks two ecosystems:
+#   - github-actions: keeps the SHA-pinned third-party actions in our workflows
+#     fresh. Pinned to a commit SHA (security finding 2.8) means Dependabot
+#     opens a PR with the new SHA every time the upstream tags a new release,
+#     instead of silently following a moving tag.
+#   - maven: bumps Java dependencies (commons-compress, jna, gson, javafx, etc.)
+#     against published CVE advisories and routine updates. Grouped weekly to
+#     avoid PR storms; review individually before merging.
+#
+# Reviewers / labels can be added once a CODEOWNERS or label policy exists.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
