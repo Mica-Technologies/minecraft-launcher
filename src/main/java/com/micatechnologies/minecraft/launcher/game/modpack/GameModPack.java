@@ -233,6 +233,22 @@ public class GameModPack extends GameModPackMetadata
         return getModLoader().getName();
     }
 
+    /**
+     * Whether this pack needs the post-install step
+     * ({@link LaunchProgressTracker.StepId#FORGE_PROCESSORS} row in the
+     * launch UI; the "Game patching" stage). True for Forge and
+     * NeoForge (modern installers run install processors here; legacy
+     * Forge's runForgeProcessors short-circuits but still uses the
+     * row). False for Fabric (runtime loader — no patching pipeline)
+     * and vanilla. Doesn't construct the loader so this is safe to
+     * call before launch / verify starts.
+     */
+    public boolean usesPostInstallSteps() {
+        if ( vanillaVersion ) return false;
+        return !com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC
+                .equals( getModLoaderType() );
+    }
+
     /** Loader-agnostic version string — Forge's
      *  {@code "14.23.5.2855"}, Fabric loader's {@code "0.16.10"},
      *  NeoForge's {@code "21.1.95"}. {@code null} for vanilla. */

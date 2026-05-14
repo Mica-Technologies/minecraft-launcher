@@ -254,21 +254,25 @@ public class LauncherCore
                 Logger.logThrowable( e );
             }
 
+            // Steps are tailored per-pack: vanilla skips the modded
+            // rows entirely; Fabric (and any future post-install-less
+            // loader) drops FORGE_PROCESSORS — keeping that row would
+            // show a step that instantly completes with no work, which
+            // reads as misleading rather than helpful.
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId > stepList =
+                    new java.util.ArrayList<>();
+            if ( !gameModPack.isVanillaVersion() ) {
+                stepList.add( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.MODPACK_CONTENT );
+                stepList.add( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.FORGE_LIBS );
+            }
+            stepList.add( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.MC_LIBS_ASSETS );
+            stepList.add( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.JRE_INSTALL );
+            if ( gameModPack.usesPostInstallSteps() ) {
+                stepList.add( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.FORGE_PROCESSORS );
+            }
+            stepList.add( com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.SECURITY_SCAN );
             com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[] applicableSteps =
-                    gameModPack.isVanillaVersion()
-                            ? new com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[] {
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.MC_LIBS_ASSETS,
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.JRE_INSTALL,
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.SECURITY_SCAN
-                              }
-                            : new com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[] {
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.MODPACK_CONTENT,
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.FORGE_LIBS,
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.MC_LIBS_ASSETS,
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.JRE_INSTALL,
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.FORGE_PROCESSORS,
-                                    com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId.SECURITY_SCAN
-                              };
+                    stepList.toArray( new com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId[ 0 ] );
             com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker =
                     com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.forSteps( applicableSteps );
             com.micatechnologies.minecraft.launcher.game.modpack.LaunchTrackerProgressBridge progressBridge =

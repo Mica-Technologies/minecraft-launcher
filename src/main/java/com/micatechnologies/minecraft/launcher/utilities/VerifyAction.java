@@ -101,20 +101,22 @@ public final class VerifyAction
             }
 
             // Build a per-pack tracker with only the steps that apply. Same
-            // step-set rule the Play path uses: vanilla packs skip the Forge
-            // rows entirely.
-            LaunchProgressTracker tracker = pack.isVanillaVersion()
-                    ? LaunchProgressTracker.forSteps(
-                            LaunchProgressTracker.StepId.MC_LIBS_ASSETS,
-                            LaunchProgressTracker.StepId.JRE_INSTALL,
-                            LaunchProgressTracker.StepId.SECURITY_SCAN )
-                    : LaunchProgressTracker.forSteps(
-                            LaunchProgressTracker.StepId.MODPACK_CONTENT,
-                            LaunchProgressTracker.StepId.FORGE_LIBS,
-                            LaunchProgressTracker.StepId.MC_LIBS_ASSETS,
-                            LaunchProgressTracker.StepId.JRE_INSTALL,
-                            LaunchProgressTracker.StepId.FORGE_PROCESSORS,
-                            LaunchProgressTracker.StepId.SECURITY_SCAN );
+            // step-set rule the Play path uses: vanilla skips the modded
+            // rows; Fabric drops FORGE_PROCESSORS (it has no post-install
+            // patching pipeline).
+            java.util.List< LaunchProgressTracker.StepId > stepList = new java.util.ArrayList<>();
+            if ( !pack.isVanillaVersion() ) {
+                stepList.add( LaunchProgressTracker.StepId.MODPACK_CONTENT );
+                stepList.add( LaunchProgressTracker.StepId.FORGE_LIBS );
+            }
+            stepList.add( LaunchProgressTracker.StepId.MC_LIBS_ASSETS );
+            stepList.add( LaunchProgressTracker.StepId.JRE_INSTALL );
+            if ( pack.usesPostInstallSteps() ) {
+                stepList.add( LaunchProgressTracker.StepId.FORGE_PROCESSORS );
+            }
+            stepList.add( LaunchProgressTracker.StepId.SECURITY_SCAN );
+            LaunchProgressTracker tracker = LaunchProgressTracker.forSteps(
+                    stepList.toArray( new LaunchProgressTracker.StepId[ 0 ] ) );
             LaunchTrackerProgressBridge bridge = new LaunchTrackerProgressBridge( tracker );
 
             final String title = ( total > 1 )
