@@ -152,6 +152,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private static final String SORT_DEFAULT      = "Default";
     private static final String SORT_NAME_AZ      = "Name (A–Z)";
     private static final String SORT_NAME_ZA      = "Name (Z–A)";
+    private static final String SORT_RELEASE_DATE = "Release Date";
     private static final String SORT_LAST_PLAYED  = "Last Played";
     private static final String SORT_MOST_PLAYED  = "Most Played";
     private static final String SORT_RECENT_UPDATE = "Recently Updated";
@@ -251,7 +252,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // catalogs degrade to "no play history" / "no update timestamp" and
         // sink to the bottom while keeping their natural intra-kind order.
         sortFilter.setItems( FXCollections.observableArrayList(
-                SORT_DEFAULT, SORT_NAME_AZ, SORT_NAME_ZA,
+                SORT_DEFAULT, SORT_NAME_AZ, SORT_NAME_ZA, SORT_RELEASE_DATE,
                 SORT_LAST_PLAYED, SORT_MOST_PLAYED, SORT_RECENT_UPDATE ) );
         sortFilter.selectItem( SORT_DEFAULT );
         sortFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
@@ -1063,15 +1064,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                                 com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.getFabricVersions();
                         default -> java.util.Collections.emptyList();
                     };
+            int catalogIndex = 0;
             for ( var v : versions ) {
                 if ( com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.isInstalled( v ) ) {
                     // The on-disk manifest already exists. It'll
                     // surface under the Modpacks filter through the
                     // normal installed-packs path; don't duplicate it
-                    // here as an "available" entry.
+                    // here as an "available" entry. Still bumps
+                    // catalogIndex so the release-date rank reflects
+                    // real upstream position, not post-filter position.
+                    catalogIndex++;
                     continue;
                 }
-                out.add( LibraryEntry.availableLoader( v ) );
+                out.add( LibraryEntry.availableLoader( v, catalogIndex++ ) );
             }
         }
 
@@ -1119,6 +1124,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     e -> e.displayName.toLowerCase( Locale.ROOT ) ) );
             case SORT_NAME_ZA -> entries.sort( Comparator.comparing(
                     ( LibraryEntry e ) -> e.displayName.toLowerCase( Locale.ROOT ) ).reversed() );
+            case SORT_RELEASE_DATE -> entries.sort( Comparator.comparingLong(
+                    MCLauncherGameLibraryGui::releaseDateKey ).reversed() );
             case SORT_LAST_PLAYED -> entries.sort( Comparator.comparingLong(
                     MCLauncherGameLibraryGui::lastPlayedKey ).reversed() );
             case SORT_MOST_PLAYED -> entries.sort( Comparator.comparingLong(
@@ -1153,6 +1160,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         catch ( Exception ignored ) {
             return Long.MIN_VALUE;
         }
+    }
+
+    /** Sort key for {@code SORT_RELEASE_DATE}. Uses the eagerly-populated
+     *  {@code releaseTimeMs} when available (vanilla + loader entries); for
+     *  modpacks the field is {@link Long#MIN_VALUE}, so we fall back to the
+     *  installed pack's newest update-log timestamp as the user's release-date
+     *  proxy ("if the pack doesn't have a real release date, treat last-updated
+     *  as the release date"). Available manifest modpacks fall through both
+     *  paths and sink to the bottom. */
+    private static long releaseDateKey( LibraryEntry e )
+    {
+        if ( e.releaseTimeMs != Long.MIN_VALUE ) return e.releaseTimeMs;
+        return lastUpdateKey( e );
     }
 
     /** Maps a top-level type filter to the modloader identifier
@@ -1232,10 +1252,20 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
          *  mcVersion, loaderVersion, installerUrl) tuple the install
          *  action needs to write the manifest. */
         final com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion loaderVersion;
+        /** Release date in epoch millis when known, {@link Long#MIN_VALUE} when
+         *  not. Populated eagerly for vanilla (from the Mojang manifest's
+         *  {@code releaseTime}) and loader entries (synthesised from catalog
+         *  index since the upstream version services return newest-first
+         *  order but no explicit per-version dates). Installed modpacks fall
+         *  back to their newest update-log entry timestamp at sort time
+         *  ({@link #lastUpdateKey}); available modpacks have no per-pack date
+         *  source so they sink to the bottom of release-date sorts. */
+        final long releaseTimeMs;
 
         private LibraryEntry( Kind kind, String displayName, List< String > chips, String statusText,
                               GameModPack pack, String vanillaVersionId, JsonObject vanillaInfo,
-                              com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion loaderVersion )
+                              com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion loaderVersion,
+                              long releaseTimeMs )
         {
             this.kind = kind;
             this.displayName = displayName;
@@ -1245,6 +1275,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             this.vanillaVersionId = vanillaVersionId;
             this.vanillaInfo = vanillaInfo;
             this.loaderVersion = loaderVersion;
+            this.releaseTimeMs = releaseTimeMs;
         }
 
         static LibraryEntry installedModpack( GameModPack pack )
@@ -1262,7 +1293,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
              // hosted manifest we surface that as "Recently updated" to indicate the
              // launcher has fresh metadata cached for the next launch.
             String status = pack.isUpdateAvailable() ? "Recently updated" : "Installed";
-            return new LibraryEntry( Kind.MODPACK_INSTALLED, name, chips, status, pack, null, null, null );
+            return new LibraryEntry( Kind.MODPACK_INSTALLED, name, chips, status, pack, null, null, null,
+                                     Long.MIN_VALUE );
         }
 
         static LibraryEntry availableModpack( GameModPack pack )
@@ -1276,7 +1308,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
             catch ( Exception ignored ) { /* leave off if not resolvable */ }
             return new LibraryEntry( Kind.MODPACK_AVAILABLE, name, chips, "From manifest",
-                                     pack, null, null, null );
+                                     pack, null, null, null, Long.MIN_VALUE );
         }
 
         static LibraryEntry installedVanilla( String versionId, JsonObject info )
@@ -1286,7 +1318,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             chips.add( "Vanilla" );
             chips.add( prettyVanillaType( typeStr ) );
             return new LibraryEntry( Kind.VANILLA_INSTALLED, "Minecraft " + versionId,
-                                     chips, "Installed", null, versionId, info, null );
+                                     chips, "Installed", null, versionId, info, null,
+                                     parseReleaseTime( info ) );
         }
 
         static LibraryEntry availableVanilla( String versionId, JsonObject info )
@@ -1300,11 +1333,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                           : "";
             String status = date.isEmpty() ? "Available" : "Released " + date;
             return new LibraryEntry( Kind.VANILLA_AVAILABLE, "Minecraft " + versionId,
-                                     chips, status, null, versionId, info, null );
+                                     chips, status, null, versionId, info, null,
+                                     parseReleaseTime( info ) );
         }
 
+        /** Loader-version entry. {@code catalogIndex} is the position in the
+         *  upstream version-service response (0 = newest); it's converted to a
+         *  synthetic release timestamp so {@code SORT_RELEASE_DATE} can put
+         *  newer loader builds first without per-version date data, which the
+         *  Forge / NeoForge / Fabric services don't expose in their bulk
+         *  version listings. */
         static LibraryEntry availableLoader(
-                com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion v )
+                com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion v,
+                int catalogIndex )
         {
             String loaderPretty = switch ( v.loaderType() ) {
                 case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE    -> "Forge";
@@ -1315,10 +1356,34 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             List< String > chips = new ArrayList<>();
             chips.add( loaderPretty );
             chips.add( "Minecraft " + v.mcVersion() );
+            // Synthesise a release timestamp from the catalog position. Step by
+            // ~1 day per slot so the synthetic dates spread over a reasonable
+            // range; anchored at "now" so newest entries sort alongside truly
+            // recent real-dated entries (vanilla / modpack updates) when the
+            // result set mixes them. Loader-only filters are the common case
+            // and the relative ordering within them is what matters most.
+            long synthetic = System.currentTimeMillis() - ( catalogIndex * 86_400_000L );
             return new LibraryEntry( Kind.LOADER_AVAILABLE,
                                      loaderPretty + " " + v.loaderVersion(),
                                      chips, "Installs as empty modpack",
-                                     null, null, null, v );
+                                     null, null, null, v, synthetic );
+        }
+
+        /** Parses Mojang's ISO-8601 {@code releaseTime} field into epoch millis.
+         *  Returns {@link Long#MIN_VALUE} on missing / unparseable values so
+         *  entries without a date sort to the bottom rather than being treated
+         *  as 1970-01-01 (which would float them near the top of an ascending
+         *  sort or to the bottom of a descending sort by accident). */
+        private static long parseReleaseTime( JsonObject info )
+        {
+            if ( info == null || !info.has( "releaseTime" ) ) return Long.MIN_VALUE;
+            try {
+                return java.time.OffsetDateTime.parse( info.get( "releaseTime" ).getAsString() )
+                        .toInstant().toEpochMilli();
+            }
+            catch ( Exception ignored ) {
+                return Long.MIN_VALUE;
+            }
         }
 
         private static String prettyVanillaType( String t )
@@ -1426,6 +1491,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             name = new Label();
             name.getStyleClass().addAll( "heading-h3", "heroCardTitle" );
             name.setWrapText( true );
+            // setWrapText alone is not enough: a Label without a maxWidth defaults
+            // to USE_PREF_SIZE, which is its single-line preferred width, and the
+            // text gets ellipsised instead of wrapping. Pin maxWidth to the card
+            // body's content width (card width minus the body's horizontal
+            // padding of 14 px each side) so long pack / loader-version titles
+            // like "NeoForge 21.6.0-beta" wrap to two lines instead of being
+            // truncated.
+            name.setMaxWidth( CARD_WIDTH - 28 );
 
             chips = new HBox( 6 );
             chips.setAlignment( Pos.CENTER_LEFT );
