@@ -145,13 +145,18 @@ public final class VerifyAction
         final int finalFailure = failureCount;
         GUIUtilities.JFXPlatformRun( () -> {
             if ( finalFailure == 0 ) {
-                NotificationManager.success( "Verify complete",
-                        finalSuccess + ( finalSuccess == 1 ? " pack" : " packs" )
-                                + " verified successfully." );
+                String body = com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                        finalSuccess == 1 ? "notification.verify.complete.bodyOne"
+                                          : "notification.verify.complete.bodyMany", finalSuccess );
+                NotificationManager.success(
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "notification.verify.complete.title" ),
+                        body );
             }
             else {
-                NotificationManager.error( "Verify finished with errors",
-                        finalSuccess + " ok, " + finalFailure + " failed. See log for details." );
+                NotificationManager.error(
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "notification.verify.completedWithErrors.title" ),
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                                "notification.verify.completedWithErrors.body", finalSuccess, finalFailure ) );
             }
             try {
                 MCLauncherGuiController.goToMainGui();
