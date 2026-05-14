@@ -211,7 +211,31 @@ public class GameModPack extends GameModPackMetadata
         if ( vanillaVersion ) {
             return null;
         }
-        return getForgeApp().getForgeVersion();
+        // Backwards-compat: this method historically returned the
+        // installed Forge version. For non-Forge packs, return null
+        // rather than the wrong loader's version — callers that want
+        // a loader-agnostic version should use {@link #getLoaderVersion()}.
+        GameModLoader loader = getModLoader();
+        if ( !( loader instanceof GameModLoaderForge ) ) {
+            return null;
+        }
+        return loader.getLoaderVersion();
+    }
+
+    /** Display name of this pack's modloader — {@code "Forge"},
+     *  {@code "NeoForge"}, {@code "Fabric"}, or {@code null} for
+     *  vanilla packs. Used by the hero / detail UI chips. */
+    public String getLoaderName() throws ModpackException {
+        if ( vanillaVersion ) return null;
+        return getModLoader().getName();
+    }
+
+    /** Loader-agnostic version string — Forge's
+     *  {@code "14.23.5.2855"}, Fabric loader's {@code "0.16.10"},
+     *  NeoForge's {@code "21.1.95"}. {@code null} for vanilla. */
+    public String getLoaderVersion() throws ModpackException {
+        if ( vanillaVersion ) return null;
+        return getModLoader().getLoaderVersion();
     }
 
     /**
