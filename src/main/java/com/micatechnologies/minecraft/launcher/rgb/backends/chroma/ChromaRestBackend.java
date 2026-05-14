@@ -180,10 +180,7 @@ public final class ChromaRestBackend implements RgbBackend
 
         int bgPacked = chromaPack( frame.background() );
 
-        // (1) Keyboard — full 6×22 grid with per-key highlights. This is
-        // the headline visual; failures here are surfaced to the
-        // controller's circuit breaker so the user gets feedback if the
-        // primary push stops working.
+        // (1) Keyboard — full 6×22 grid with per-key highlights.
         int[][] grid = new int[ ChromaKeyboardLayout.ROWS ][ ChromaKeyboardLayout.COLS ];
         for ( int r = 0; r < ChromaKeyboardLayout.ROWS; r++ ) {
             int[] row = grid[ r ];
@@ -196,27 +193,49 @@ public final class ChromaRestBackend implements RgbBackend
             if ( coord == null ) continue; // key not in our Chroma layout — fall through
             grid[ coord[0] ][ coord[1] ] = chromaPack( e.getValue() );
         }
-        sendKeyboardCustom( grid );
 
-        // (2) Other Chroma devices — solid background. We don't bubble
-        // their failures up to the breaker because most users won't
-        // have every device type connected; a 4xx for "no device of
-        // this type" would otherwise pile on health failures and trip
-        // the breaker on a fully-working setup. Log silently per
-        // endpoint and move on.
+        // Push to every Chroma endpoint INDEPENDENTLY. Per-endpoint
+        // failures are tolerated and logged silently — most users won't
+        // have every device type connected, and Synapse returns a 4xx
+        // for "no device of this type" on those endpoints. Originally
+        // this method threw on the first keyboard failure, which meant
+        // a user with only Chromalink-connected ARGB fans (no Chroma
+        // keyboard) saw every renderFrame abort before reaching
+        // /chromalink, leaving the fans dark.
+        //
+        // The throw-if-all-failed semantic at the bottom preserves the
+        // circuit breaker's behavior: if Synapse is fully down, every
+        // endpoint fails, the breaker eventually trips. But a working
+        // session with a partial device lineup keeps lighting the
+        // devices that ARE present.
+        int successes = 0;
+        int attempts = 0;
+        Throwable lastFailure = null;
+
+        attempts++;
+        try { sendKeyboardCustom( grid ); successes++; }
+        catch ( Throwable t ) { lastFailure = t; logEndpointFailure( "/keyboard", t ); }
+
         for ( String endpoint : NON_KEYBOARD_ENDPOINTS ) {
-            try {
-                sendStatic( endpoint, bgPacked );
-            }
-            catch ( Throwable t ) {
-                // Most likely cause: that device type isn't connected.
-                // Silent log so debugging is possible without polluting
-                // the user-visible launcher log on a normal run.
-                Logger.logWarningSilent( "Chroma " + endpoint + " push failed: "
-                                                 + t.getClass().getSimpleName()
-                                                 + " — " + t.getMessage() );
-            }
+            attempts++;
+            try { sendStatic( endpoint, bgPacked ); successes++; }
+            catch ( Throwable t ) { lastFailure = t; logEndpointFailure( endpoint, t ); }
         }
+
+        if ( successes == 0 ) {
+            // Every endpoint failed — this IS a real Chroma-down state,
+            // so let the controller's circuit breaker see it. Wrap the
+            // last underlying failure as the cause.
+            throw new IOException( "Chroma renderFrame: all " + attempts
+                                           + " endpoints failed", lastFailure );
+        }
+    }
+
+    private static void logEndpointFailure( String endpoint, Throwable t )
+    {
+        Logger.logWarningSilent( "Chroma " + endpoint + " push failed: "
+                                         + t.getClass().getSimpleName()
+                                         + " — " + t.getMessage() );
     }
 
     /** Push the keyboard's CHROMA_CUSTOM matrix. Throws on non-200 so
