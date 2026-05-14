@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -589,7 +590,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             }
 
             // Change save button text to indicate successful save
-            GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( "Saved" ) );
+            GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( LocalizationManager.get( "settings.saveBtn.saved" ) ) );
 
             // Schedule save button text to revert to normal after 5s
             SystemUtilities.spawnNewTask( () -> {
@@ -600,7 +601,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     Logger.logDebug( "An error occurred while waiting to reset the save button text from \"Saved\" " +
                                              "to \"Save\"." );
                 }
-                GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( "Save" ) );
+                GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( LocalizationManager.get( "settings.saveBtn.label" ) ) );
             } );
         } ) );
 
@@ -704,15 +705,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     boolean ok = ConfigManager.exportConfig( file );
                     GUIUtilities.JFXPlatformRun( () -> {
                         if ( ok ) {
-                            exportSettingsBtn.setText( "Exported!" );
+                            exportSettingsBtn.setText( LocalizationManager.get( "settings.exportBtn.success" ) );
                         }
                         else {
-                            exportSettingsBtn.setText( "Failed" );
+                            exportSettingsBtn.setText( LocalizationManager.get( "settings.exportBtn.failed" ) );
                         }
                     } );
                     SystemUtilities.spawnNewTask( () -> {
                         try { Thread.sleep( 2000 ); } catch ( InterruptedException ignored ) {}
-                        GUIUtilities.JFXPlatformRun( () -> exportSettingsBtn.setText( "Export Settings" ) );
+                        GUIUtilities.JFXPlatformRun( () -> exportSettingsBtn.setText( LocalizationManager.get( "settings.exportBtn.label" ) ) );
                     } );
                 } );
             }
@@ -720,7 +721,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         importSettingsBtn.setOnAction( event -> {
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
-            fileChooser.setTitle( "Import Settings" );
+            fileChooser.setTitle( LocalizationManager.get( "settings.fileChooser.importTitle" ) );
             fileChooser.getExtensionFilters().add(
                     new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
             java.io.File file = fileChooser.showOpenDialog( stage );
@@ -729,7 +730,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     boolean ok = ConfigManager.importConfig( file );
                     GUIUtilities.JFXPlatformRun( () -> {
                         if ( ok ) {
-                            importSettingsBtn.setText( "Imported!" );
+                            importSettingsBtn.setText( LocalizationManager.get( "settings.importBtn.success" ) );
                             // Reload the settings GUI to reflect imported values
                             try {
                                 MCLauncherGuiController.goToSettingsGui();
@@ -739,11 +740,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                             }
                         }
                         else {
-                            importSettingsBtn.setText( "Failed" );
+                            importSettingsBtn.setText( LocalizationManager.get( "settings.importBtn.failed" ) );
                             SystemUtilities.spawnNewTask( () -> {
                                 try { Thread.sleep( 2000 ); } catch ( InterruptedException ignored ) {}
                                 GUIUtilities.JFXPlatformRun(
-                                        () -> importSettingsBtn.setText( "Import Settings" ) );
+                                        () -> importSettingsBtn.setText( LocalizationManager.get( "settings.importBtn.label" ) ) );
                             } );
                         }
                     } );
@@ -780,10 +781,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Load version information
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            versionLabel.setText( "Software Version: DEVELOPMENT MODE" );
+            versionLabel.setText( LocalizationManager.get( "settings.versionLabel.devMode" ) );
         }
         else {
-            versionLabel.setText( "Software Version: " + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+            versionLabel.setText( LocalizationManager.format( "settings.versionLabel.normal", LauncherConstants.LAUNCHER_APPLICATION_VERSION ) );
         }
 
         // Set and configure resizable windows check box
@@ -917,12 +918,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         double memTotal = memTotalRaw / 1024.0 / 1024.0 / 1024.0;
         double memAvail = memAvailRaw / 1024.0 / 1024.0 / 1024.0;
         double memUsed = memTotal - memAvail;
-        sysRamLabel.setText( "You have " +
-                                     Precision.round( memTotal, 2 ) +
-                                     " GB RAM. You're currently using " +
-                                     Precision.round( memUsed, 2 ) +
-                                     " GB" +
-                                     "." );
+        sysRamLabel.setText( LocalizationManager.format( "settings.sysRamLabel",
+                                                          Precision.round( memTotal, 2 ),
+                                                          Precision.round( memUsed, 2 ) ) );
 
         // Calculate configured RAM amounts in GB
         final double minRamGbVal = ConfigManager.getMinRam() / 1024.0;
@@ -957,18 +955,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Configure scan buttons/labels
         scanning = false;
         scanFolder = SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLocalPath() );
-        scanFolderLabel.setText( "Scan Folder: " + scanFolder );
+        scanFolderLabel.setText( LocalizationManager.format( "settings.scanFolderLabel", scanFolder ) );
         scanFolderBtn.setVisible( true );
         scanProgressBar.setVisible( false );
         scanOutputLabel.setVisible( false );
         scanFolderBtn.setOnAction( actionEvent -> {
             DirectoryChooser directoryChooser = new DirectoryChooser();
-            directoryChooser.setTitle( "Select a folder to scan" );
+            directoryChooser.setTitle( LocalizationManager.get( "settings.scanFolderDialog.title" ) );
             directoryChooser.setInitialDirectory( scanFolder );
             File selectedDirectory = directoryChooser.showDialog( MCLauncherGuiController.getTopStageOrNull() );
             if ( selectedDirectory != null ) {
                 scanFolder = selectedDirectory;
-                scanFolderLabel.setText( "Scan Folder: " + scanFolder );
+                scanFolderLabel.setText( LocalizationManager.format( "settings.scanFolderLabel", scanFolder ) );
             }
         } );
         scanBtn.setOnAction( actionEvent -> {
@@ -981,7 +979,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     SystemUtilities.spawnNewTask( () -> {
                         // Update GUI
                         GUIUtilities.JFXPlatformRun( () -> {
-                            scanBtn.setText( "Cancel" );
+                            scanBtn.setText( LocalizationManager.get( "settings.scanBtn.cancel" ) );
                             scanFolderBtn.setDisable( true );
                             scanFolderBtn.setVisible( false );
                             scanProgressBar.setVisible( true );
@@ -998,7 +996,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                             scanProgressBar.setProgress( 1.0 );
                         }
                         catch ( Exception e ) {
-                            scanOutputLabel.setText( "Scan failed (exception)! See log file for details." );
+                            scanOutputLabel.setText( LocalizationManager.get( "settings.scanOutputLabel.failed" ) );
                             Logger.logError( "Scan failed (exception)!" );
                             Logger.logThrowable( e );
                         }
@@ -1010,7 +1008,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                             returnBtn.setDisable( false );
                             scanProgressBar.setVisible( false );
                             scanFolderBtn.setVisible( true );
-                            scanBtn.setText( "Scan" );
+                            scanBtn.setText( LocalizationManager.get( "settings.scanBtn.label" ) );
                             scanFolderBtn.setDisable( false );
                         } );
                     } );
@@ -1187,7 +1185,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Player profile
         var user = MCLauncherAuthManager.getLoggedInUser();
         accountNameLabel.setText( user.name() );
-        accountUuidLabel.setText( "UUID: " + user.uuid() );
+        accountUuidLabel.setText( LocalizationManager.format( "settings.accountUuidLabel", user.uuid() ) );
         accountAvatar.setImage( new javafx.scene.image.Image(
                 com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS
                         .replace( com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
@@ -1238,7 +1236,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     private void setupAboutTab()
     {
         if ( aboutVersionLabel != null ) {
-            aboutVersionLabel.setText( "Version " + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+            aboutVersionLabel.setText( LocalizationManager.format( "settings.aboutVersionLabel", LauncherConstants.LAUNCHER_APPLICATION_VERSION ) );
         }
         if ( launcherUpdateCheckBox != null ) {
             launcherUpdateCheckBox.setSelected( ConfigManager.getLauncherUpdateCheckEnabled() );
