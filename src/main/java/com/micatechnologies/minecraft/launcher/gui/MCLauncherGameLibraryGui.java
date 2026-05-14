@@ -141,11 +141,32 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private static final String STATUS_INSTALLED   = "Installed";
     private static final String STATUS_AVAILABLE   = "Available";
 
-    private static final List< Integer > PAGE_SIZES = List.of( 20, 40, 60 );
-    private static final int DEFAULT_PAGE_SIZE = 20;
+    /** Page-size ladder. Bumped past the original 20/40/60 once {@link LibraryCard}
+     *  picked up the same pool + bind pattern as the main menu's hero card — the
+     *  per-card scene-graph cost is paid once per slot for the lifetime of the
+     *  GUI instance, so even the 96-pack page is responsive. The 1.21 NeoForge
+     *  release alone has ~30 versions, so the Forge/NeoForge/Fabric loader-version
+     *  filters routinely produce pages that benefit from the larger sizes. */
+    private static final List< Integer > PAGE_SIZES = List.of( 24, 48, 72, 96 );
+    /** Default page size, bumped from 20 → 48 alongside the card-pool rollout
+     *  so the typical installed library (and the new loader-version filters)
+     *  fits on one page without paging. */
+    private static final int DEFAULT_PAGE_SIZE = 48;
 
     private int pageSize    = DEFAULT_PAGE_SIZE;
     private int currentPage = 1;  // 1-based
+
+    /** Pool of constructed-but-not-currently-displayed {@link LibraryCard}
+     *  instances. {@link #rebuildCards()} pulls from here on each rebuild and
+     *  returns any unused cards back to it, so the per-card scene-graph
+     *  allocation + CSS-apply cost is paid once per slot for the lifetime of
+     *  the library GUI instead of once per rebuild. Matches the pattern used
+     *  by {@link MCLauncherMainGui#cardPool}, sized for the much larger pages
+     *  the loader-version filters can produce.
+     *
+     *  <p>ArrayDeque is fine here: rebuildCards always runs on the FX thread,
+     *  so no synchronization is needed.</p> */
+    private final java.util.Deque< LibraryCard > cardPool = new java.util.ArrayDeque<>();
 
     /** Coalesces a burst of keystrokes in the search box into a single rebuild after
      *  the user pauses typing — see the listener in {@link #setup()} for rationale. */
@@ -740,6 +761,16 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // Update pagination UI labels + enable state
         updatePaginationControls( totalItems, totalPages, startIdx, endIdx );
 
+        // Recycle currently-displayed cards back to the pool before clearing
+        // the FlowPane, so the next pass can pull them out and rebind to the
+        // new entry set instead of constructing fresh ones. Non-card children
+        // (ImportProgressCard, empty-state Label) are skipped by the cast
+        // guard so they don't pollute the pool.
+        for ( javafx.scene.Node child : cardList.getChildren() ) {
+            if ( child instanceof LibraryCard card ) {
+                cardPool.push( card );
+            }
+        }
         cardList.getChildren().clear();
         // Active import card always shows first regardless of filter / page —
         // see field doc on activeImportCard. Persists across rebuildCards
@@ -755,7 +786,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             return;
         }
         for ( int i = startIdx; i < endIdx; i++ ) {
-            cardList.getChildren().add( new LibraryCard( entries.get( i ) ) );
+            LibraryCard card = cardPool.isEmpty() ? null : cardPool.pop();
+            if ( card == null ) {
+                card = new LibraryCard( entries.get( i ) );
+            }
+            else {
+                card.bind( entries.get( i ) );
+            }
+            cardList.getChildren().add( card );
         }
     }
 
@@ -1221,7 +1259,22 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         private static final double CARD_WIDTH   = 300;
         private static final double IMAGE_HEIGHT = 110;
 
-        LibraryCard( LibraryEntry entry )
+        /** Current entry — mutated by {@link #bind}. The action-row buttons and
+         *  context menu are rebuilt against the new entry on each bind, so
+         *  there's no closure-captured reference to leak from a previous bind. */
+        private LibraryEntry entry;
+
+        // === Static node tree fields. Built once by the constructor; bind()
+        //     mutates their content in place rather than re-creating them. ===
+        private final Region bgLayer;
+        private final HBox badgeRow;
+        private final ImageView logo;
+        private final Label name;
+        private final HBox chips;
+        private final Label status;
+        private final HBox actions;
+
+        LibraryCard( LibraryEntry initialEntry )
         {
             getStyleClass().add( "heroCardShell" );
             setPrefWidth( CARD_WIDTH );
@@ -1251,64 +1304,29 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             imageClip.widthProperty().bind( imageBox.widthProperty() );
             imageBox.setClip( imageClip );
 
-            Region bgLayer = new Region();
+            bgLayer = new Region();
             bgLayer.getStyleClass().add( "heroBackground" );
 
             Region imageVeil = new Region();
             imageVeil.getStyleClass().add( "heroCardImageVeil" );
 
             // Badge row (top-right): a contextual status badge — "Installed" / "Update" / etc.
-            HBox badgeRow = new HBox( 6 );
+            // Children are rebuilt per-bind since the badge text/style is entry-specific.
+            badgeRow = new HBox( 6 );
             badgeRow.setAlignment( Pos.TOP_RIGHT );
             badgeRow.setPadding( new Insets( 8, 10, 0, 0 ) );
-            String badge = topBadgeFor( entry );
-            String badgeStyle = topBadgeStyleFor( entry );
-            if ( badge != null ) {
-                badgeRow.getChildren().add( buildChip( badge, badgeStyle ) );
-            }
 
             imageBox.getChildren().addAll( bgLayer, imageVeil, badgeRow );
-
-            // For installed entries (we have a GameModPack), reuse the main-menu's procedural-
-            // background logic — gets logo-derived gradients for modded, sky→grass for vanilla.
-            // For available-but-not-installed entries, fall back to the Forge default class
-            // (modpack) or the vanilla class (vanilla) so we still get something distinct
-            // rather than a flat surface.
-            applyEntryBackground( bgLayer, entry );
-
-            // Overlay the pack's real background image on top of the gradient when the
-            // image is already on disk (installed packs whose previous launch downloaded
-            // the bg, or available packs that happen to have been image-cached for any
-            // reason). Browse view doesn't trigger an async download for missing files —
-            // it'd be heavy when scrolling through dozens of available packs — so packs
-            // without a cached image stay on the gradient. The main-menu card handles the
-            // download for installed packs anyway, so the next visit to the library
-            // typically has them all on disk. Respects the user-facing
-            // Settings → Appearance toggle: when off, gradient-only across the board.
-            if ( entry.pack != null
-                    && com.micatechnologies.minecraft.launcher.config.ConfigManager.getShowPackBackgrounds() ) {
-                String bgUrl = MCLauncherMainGui.resolveBackgroundUrl( entry.pack );
-                if ( bgUrl != null ) {
-                    String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
-                    bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
-                }
-            }
 
             // ----- Logo overlay (matches main-menu visual) -----
             StackPane logoContainer = new StackPane();
             logoContainer.getStyleClass().add( "heroPackLogoContainer" );
             logoContainer.setMinSize( 56, 56 );
             logoContainer.setMaxSize( 56, 56 );
-            ImageView logo = new ImageView();
+            logo = new ImageView();
             logo.setFitWidth( 52 );
             logo.setFitHeight( 52 );
             logo.setPreserveRatio( true );
-            Image logoImage = resolveLogoForEntry( entry );
-            if ( logoImage != null ) {
-                logo.setImage( logoImage );
-                // Fade the logo in once the bytes arrive — see ImageFadeIn for rationale.
-                ImageFadeIn.apply( logo );
-            }
             Rectangle logoClip = new Rectangle( 52, 52 );
             logoClip.setArcWidth( 12 );
             logoClip.setArcHeight( 12 );
@@ -1322,41 +1340,122 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             info.setAlignment( Pos.TOP_LEFT );
             info.setPadding( new Insets( 0, 14, 10, 14 ) );
 
-            Label name = new Label( entry.displayName );
+            name = new Label();
             name.getStyleClass().addAll( "heading-h3", "heroCardTitle" );
             name.setWrapText( true );
 
-            HBox chips = new HBox( 6 );
+            chips = new HBox( 6 );
             chips.setAlignment( Pos.CENTER_LEFT );
-            for ( String chip : entry.chips ) {
-                chips.getChildren().add( buildChip( chip ) );
-            }
 
-            Label status = new Label( entry.statusText );
+            status = new Label();
             status.getStyleClass().add( "heroLastPlayedSurface" );
 
             info.getChildren().addAll( logoContainer, name, chips, status );
             VBox.setVgrow( info, Priority.ALWAYS );
 
             // ----- Action row -----
-            HBox actions = new HBox( 8 );
+            // Children are rebuilt per-bind because buttons + handlers vary by
+            // entry kind (Install / Uninstall / Edit, each closing over the
+            // active entry). The HBox container itself is reused.
+            actions = new HBox( 8 );
             actions.setAlignment( Pos.CENTER_LEFT );
             actions.setPadding( new Insets( 0, 14, 12, 14 ) );
-            for ( javafx.scene.Node node : buildActionsFor( entry ) ) {
-                actions.getChildren().add( node );
-            }
 
             getChildren().addAll( imageBox, info, actions );
             setCursor( Cursor.HAND );
 
-            // Right-click context menu — only for installed modpacks where the
-            // shared MCLauncherMainGui.buildPackContextMenu's actions (open
-            // folders, copy invite link, uninstall) apply. Available packs
-            // can't be uninstalled and have no install folder to open;
-            // vanilla cards use a separate uninstall path and don't carry
-            // a full GameModPack to feed the helpers.
-            if ( entry.kind == LibraryEntry.Kind.MODPACK_INSTALLED && entry.pack != null ) {
-                final GameModPack ctxPack = entry.pack;
+            // Initial bind so the card has real content by the time the constructor returns.
+            bind( initialEntry );
+        }
+
+        /**
+         * Switches this card to display {@code newEntry}. Updates every per-entry
+         * visual element (background gradient + image, logo, badge, name, chips,
+         * status text, action row, context menu) but leaves the underlying scene
+         * graph intact for reuse across rebuilds.
+         *
+         * <p>Called by the constructor with the initial entry and again by
+         * {@link MCLauncherGameLibraryGui#rebuildCards()} whenever a pooled card
+         * is reassigned during page / filter / search changes — keeping the same
+         * VBox instance alive saves the per-card scene-graph allocation +
+         * CSS-apply cost on every rebuild, which is what makes the larger page
+         * sizes (and the new loader-version filters' big result sets) feel
+         * responsive.</p>
+         */
+        void bind( LibraryEntry newEntry )
+        {
+            this.entry = newEntry;
+
+            // ----- Background -----
+            // Clear any prior bind's inline -fx-background-image AND the dynamic
+            // style classes applyEntryBackground / applyDynamicBackground add
+            // (heroBackgroundDefaultVanilla / heroBackgroundDefaultForge) so they
+            // don't accumulate across rebinds and bleed previous-entry styling
+            // into the new state.
+            bgLayer.setStyle( null );
+            bgLayer.getStyleClass().removeAll( "heroBackgroundDefaultVanilla",
+                                                "heroBackgroundDefaultForge" );
+            applyEntryBackground( bgLayer, newEntry );
+
+            // Overlay the pack's real background image on top of the gradient when the
+            // image is already on disk (installed packs whose previous launch downloaded
+            // the bg, or available packs that happen to have been image-cached for any
+            // reason). Browse view doesn't trigger an async download for missing files —
+            // it'd be heavy when scrolling through dozens of available packs — so packs
+            // without a cached image stay on the gradient. The main-menu card handles the
+            // download for installed packs anyway, so the next visit to the library
+            // typically has them all on disk. Respects the user-facing
+            // Settings → Appearance toggle: when off, gradient-only across the board.
+            if ( newEntry.pack != null
+                    && com.micatechnologies.minecraft.launcher.config.ConfigManager.getShowPackBackgrounds() ) {
+                String bgUrl = MCLauncherMainGui.resolveBackgroundUrl( newEntry.pack );
+                if ( bgUrl != null ) {
+                    String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
+                    bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
+                }
+            }
+
+            // ----- Badge row -----
+            badgeRow.getChildren().clear();
+            String badge = topBadgeFor( newEntry );
+            String badgeStyle = topBadgeStyleFor( newEntry );
+            if ( badge != null ) {
+                badgeRow.getChildren().add( buildChip( badge, badgeStyle ) );
+            }
+
+            // ----- Logo -----
+            // Always clear first so a previous bind's image doesn't briefly flash
+            // through during the new resolveLogoForEntry's async fetch.
+            logo.setImage( null );
+            Image logoImage = resolveLogoForEntry( newEntry );
+            if ( logoImage != null ) {
+                logo.setImage( logoImage );
+                // Fade the logo in once the bytes arrive — see ImageFadeIn for rationale.
+                ImageFadeIn.apply( logo );
+            }
+
+            // ----- Body text + chips -----
+            name.setText( newEntry.displayName );
+            chips.getChildren().clear();
+            for ( String chip : newEntry.chips ) {
+                chips.getChildren().add( buildChip( chip ) );
+            }
+            status.setText( newEntry.statusText );
+
+            // ----- Action row -----
+            actions.getChildren().clear();
+            for ( javafx.scene.Node node : buildActionsFor( newEntry ) ) {
+                actions.getChildren().add( node );
+            }
+
+            // ----- Context menu -----
+            // Only installed modpacks get a right-click menu (open folder, copy
+            // invite link, uninstall). Clear any handler from a prior bind first
+            // so a recycled card whose previous entry was MODPACK_INSTALLED but
+            // is now (say) LOADER_AVAILABLE doesn't keep the old menu wired up.
+            setOnContextMenuRequested( null );
+            if ( newEntry.kind == LibraryEntry.Kind.MODPACK_INSTALLED && newEntry.pack != null ) {
+                final GameModPack ctxPack = newEntry.pack;
                 ContextMenu menu = MCLauncherMainGui.buildPackContextMenu(
                         ctxPack, stage,
                         MCLauncherGameLibraryGui.this::showBackgroundStatus,
