@@ -103,7 +103,7 @@ public class ConfigConstants
      *
      * @since 1.0
      */
-    public static final boolean RESIZE_WINDOWS_ENABLE_DEFAULT = false;
+    public static final boolean RESIZE_WINDOWS_ENABLE_DEFAULT = true;
 
     /**
      * The default value for the installed mod packs list.
@@ -554,6 +554,11 @@ public class ConfigConstants
      *  background. Falls back to a translucent dark look on macOS/Linux until
      *  the corresponding native bridges are implemented. */
     public static final String THEME_NATIVE        = "Native (Mica)";
+
+    /** Default theme for fresh installs. The Mica/native look is the brand
+     *  showpiece — first-time users see the launcher as the design team
+     *  intends rather than the more generic Automatic light/dark variant. */
+    public static final String THEME_DEFAULT       = THEME_NATIVE;
 
     public static final List< String > ALLOWED_THEMES = Arrays.asList( THEME_AUTOMATIC, THEME_DARK, THEME_LIGHT,
                                                                        THEME_BLUE_GRAY, THEME_ORANGE_PURPLE,

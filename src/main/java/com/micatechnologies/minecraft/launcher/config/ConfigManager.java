@@ -644,7 +644,7 @@ public class ConfigManager
         // Check for presence of field, and create default if does not exist
         if ( !configObject.has( ConfigConstants.THEME_KEY ) ) {
             // Add property with default value
-            configObject.addProperty( ConfigConstants.THEME_KEY, ConfigConstants.THEME_AUTOMATIC );
+            configObject.addProperty( ConfigConstants.THEME_KEY, ConfigConstants.THEME_DEFAULT );
 
             // Save configuration to disk
             writeConfigurationToDisk();
