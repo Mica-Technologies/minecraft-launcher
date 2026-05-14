@@ -223,6 +223,14 @@ th {
     color: var(--color-text);
 }
 
+/* Keyboard-shortcut table: key column stays narrow + nowrap so multi-key
+ * combos like "Cmd+Shift+/" don't soft-wrap and lose visual cohesion. */
+.shortcut-table td:first-child,
+.shortcut-table th:first-child {
+    white-space: nowrap;
+    width: 180px;
+}
+
 /* ===== Callout boxes ===== */
 
 .tip, .warning, .note {
