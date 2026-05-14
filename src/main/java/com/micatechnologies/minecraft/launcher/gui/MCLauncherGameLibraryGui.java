@@ -597,7 +597,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     .importMrpack( finalMrpackUrl, slug, summary.iconUrl() );
         }
         catch ( com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter.ImportException ie ) {
-            NotificationManager.error( "Import failed", ie.getMessage() );
+            NotificationManager.error( LocalizationManager.get( "notification.import.failed.title" ), ie.getMessage() );
             return;
         }
 
@@ -1832,7 +1832,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             try {
                 GameModPackManager.installModPackByFriendlyName( friendly );
                 GUIUtilities.JFXPlatformRun( this::rebuildCards );
-                NotificationManager.success( "Modpack installed", displayName + " is now available to play." );
+                NotificationManager.success(
+                        LocalizationManager.get( "notification.install.modpackSuccess.title" ),
+                        LocalizationManager.format( "notification.install.modpackSuccess.body", displayName ) );
             }
             finally {
                 hideBackgroundStatus();
@@ -1887,7 +1889,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 }
                 VanillaVersionManager.installVersion( id );
                 GUIUtilities.JFXPlatformRun( this::rebuildCards );
-                NotificationManager.success( "Minecraft installed", "Minecraft " + id + " is now available to play." );
+                NotificationManager.success(
+                        LocalizationManager.get( "notification.install.vanillaSuccess.title" ),
+                        LocalizationManager.format( "notification.install.vanillaSuccess.body", id ) );
             }
             finally {
                 hideBackgroundStatus();
@@ -1913,13 +1917,16 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 }
                 com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.installVersion( v );
                 GUIUtilities.JFXPlatformRun( this::rebuildCards );
-                NotificationManager.success( "Loader installed",
-                                             label + " is now available as an empty modpack." );
+                NotificationManager.success(
+                        LocalizationManager.get( "notification.install.loaderSuccess.title" ),
+                        LocalizationManager.format( "notification.install.loaderSuccess.body", label ) );
             }
             catch ( IOException ex ) {
                 Logger.logError( "Failed to install loader version " + label );
                 Logger.logThrowable( ex );
-                NotificationManager.error( "Install failed", "Could not install " + label + ": " + ex.getMessage() );
+                NotificationManager.error(
+                        LocalizationManager.get( "notification.install.failed.title" ),
+                        LocalizationManager.format( "notification.install.failed.body", label, ex.getMessage() ) );
             }
             finally {
                 hideBackgroundStatus();

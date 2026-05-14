@@ -1224,8 +1224,9 @@ public class MCLauncherModpackDetailModal extends StackPane
             javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
             content.putString( invite );
             javafx.scene.input.Clipboard.getSystemClipboard().setContent( content );
-            NotificationManager.success( "Invite link copied",
-                                         "Paste it in Discord or anywhere else to invite friends." );
+            NotificationManager.success(
+                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "notification.invite.copied.title" ),
+                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "notification.invite.copied.body" ) );
         } );
     }
 

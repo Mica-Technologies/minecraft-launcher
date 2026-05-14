@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
@@ -174,8 +175,9 @@ public final class LauncherUriHandler
             }
             try {
                 GameModPackManager.installModPackByURL( url );
-                NotificationManager.success( "Modpack added",
-                                             "Successfully registered the modpack from the link." );
+                NotificationManager.success(
+                        LocalizationManager.get( "notification.uri.modpackAdded.title" ),
+                        LocalizationManager.get( "notification.uri.modpackAdded.body" ) );
                 // Refresh the main GUI on the FX thread so the new pack appears in the
                 // hero-card grid without the user needing to navigate away and back.
                 GUIUtilities.JFXPlatformRun( () -> {
@@ -188,8 +190,9 @@ public final class LauncherUriHandler
             catch ( Exception e ) {
                 Logger.logError( "Failed to install modpack via mmcl://add — " + e.getMessage() );
                 Logger.logThrowable( e );
-                NotificationManager.error( "Couldn't add modpack",
-                                           "The link looked valid but the install failed. See log for detail." );
+                NotificationManager.error(
+                        LocalizationManager.get( "notification.uri.modpackAddFailed.title" ),
+                        LocalizationManager.get( "notification.uri.modpackAddFailed.body" ) );
             }
         } );
     }
@@ -213,8 +216,9 @@ public final class LauncherUriHandler
                 }
             }
             if ( pack == null ) {
-                NotificationManager.warn( "Modpack not installed",
-                                          "“" + name + "” isn't installed. Add it first via the website link." );
+                NotificationManager.warn(
+                        LocalizationManager.get( "notification.uri.modpackNotInstalled.title" ),
+                        LocalizationManager.format( "notification.uri.modpackNotInstalled.body", name ) );
                 return;
             }
             LauncherCore.play( pack );
@@ -255,14 +259,16 @@ public final class LauncherUriHandler
             }
             try {
                 GameModPackManager.installModPackByURL( url );
-                NotificationManager.success( "Joining via Discord",
-                                             "Installed the modpack — starting it now." );
+                NotificationManager.success(
+                        LocalizationManager.get( "notification.uri.discordJoin.title" ),
+                        LocalizationManager.get( "notification.uri.discordJoinModpack.body" ) );
             }
             catch ( Exception e ) {
                 Logger.logError( "Failed to install modpack via mmcl://join — " + e.getMessage() );
                 Logger.logThrowable( e );
-                NotificationManager.error( "Couldn't join",
-                                           "Tried to install the friend's modpack but it failed. See log." );
+                NotificationManager.error(
+                        LocalizationManager.get( "notification.uri.discordJoinFailed.title" ),
+                        LocalizationManager.get( "notification.uri.discordJoinModpackFailed.body" ) );
                 return;
             }
 
@@ -287,8 +293,9 @@ public final class LauncherUriHandler
                         .isInstalled( versionId ) ) {
                     com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager
                             .installVersion( versionId );
-                    NotificationManager.success( "Joining via Discord",
-                                                 "Installed Minecraft " + versionId + " — starting it now." );
+                    NotificationManager.success(
+                            LocalizationManager.get( "notification.uri.discordJoin.title" ),
+                            LocalizationManager.format( "notification.uri.discordJoinVanilla.body", versionId ) );
                 }
                 GameModPack vanilla = GameModPack.createVanillaModPack( versionId );
                 LauncherCore.play( vanilla );
@@ -297,9 +304,9 @@ public final class LauncherUriHandler
                 Logger.logError( "Failed to join vanilla via mmcl://join?vanilla=" + versionId + " — "
                                          + e.getMessage() );
                 Logger.logThrowable( e );
-                NotificationManager.error( "Couldn't join",
-                                           "Tried to install Minecraft " + versionId
-                                                   + " but it failed. See log." );
+                NotificationManager.error(
+                        LocalizationManager.get( "notification.uri.discordJoinFailed.title" ),
+                        LocalizationManager.format( "notification.uri.discordJoinVanillaFailed.body", versionId ) );
             }
         } );
     }
@@ -334,9 +341,9 @@ public final class LauncherUriHandler
                 return true;
             case REJECT:
                 Logger.logWarningSilent( "Refusing mmcl:// install URL: " + url );
-                NotificationManager.error( "Unsafe link",
-                                           "The link's target couldn't be verified, so the launcher refused it. "
-                                                   + "Only HTTPS modpack URLs are accepted." );
+                NotificationManager.error(
+                        LocalizationManager.get( "notification.uri.unsafeLink.title" ),
+                        LocalizationManager.get( "notification.uri.unsafeLink.body" ) );
                 return false;
             case REQUIRE_CONFIRMATION:
             default:

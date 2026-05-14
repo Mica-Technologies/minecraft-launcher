@@ -2437,8 +2437,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
             content.putString( invite );
             javafx.scene.input.Clipboard.getSystemClipboard().setContent( content );
-            NotificationManager.success( "Invite link copied",
-                                         "Paste it in Discord or anywhere else to invite friends." );
+            NotificationManager.success(
+                    LocalizationManager.get( "notification.invite.copied.title" ),
+                    LocalizationManager.get( "notification.invite.copied.body" ) );
         } );
     }
 
