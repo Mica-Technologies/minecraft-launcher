@@ -405,11 +405,27 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             beginImport( zip.getName() );
             SystemUtilities.spawnNewTask( () -> {
                 try {
-                    com.micatechnologies.minecraft.launcher.game.modpack.import_
+                    String resultUrl = com.micatechnologies.minecraft.launcher.game.modpack.import_
                             .ModpackZipImporter.importZip( new java.io.File( zipPath ) );
-                    GUIUtilities.JFXPlatformRun( () -> NotificationManager.success(
-                            "Import complete",
-                            "The pack is now in your library." ) );
+                    // Technic server-pack imports land with an empty
+                    // Minecraft version + loader URL — surface that the
+                    // user needs to edit those before launching so Play
+                    // doesn't just silently fail later.
+                    boolean isTechnicServer = resultUrl != null
+                            && resultUrl.contains( "/technic-server-" );
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        if ( isTechnicServer ) {
+                            NotificationManager.success(
+                                    "Technic server pack imported",
+                                    "Open the pack in the Modpack Editor to set the Minecraft "
+                                            + "version and loader installer URL before launching." );
+                        }
+                        else {
+                            NotificationManager.success(
+                                    "Import complete",
+                                    "The pack is now in your library." );
+                        }
+                    } );
                 }
                 catch ( com.micatechnologies.minecraft.launcher.game.modpack.import_
                                 .ModpackZipImporter.ImportException ie ) {

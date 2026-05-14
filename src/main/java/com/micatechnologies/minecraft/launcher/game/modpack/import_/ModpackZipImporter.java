@@ -96,15 +96,30 @@ public final class ModpackZipImporter
         }
 
         try ( ZipFile zip = new ZipFile( zipFile ) ) {
-            // Step 1: validate marker. Reject any ZIP that doesn't carry
-            // a recognizable mica-export marker — that's how we tell a
-            // Mica modpack export apart from any other random ZIP a user
-            // might point this importer at.
+            // Step 1: validate marker. The Mica-export marker is the
+            // primary indicator a ZIP came from this launcher; without
+            // it we fall through to format-specific detection paths
+            // (Technic server packs are the supported alternative) and
+            // only reject the ZIP when none of the known formats match.
             ZipEntry markerEntry = zip.getEntry( ModpackExporter.MARKER_FILENAME );
             if ( markerEntry == null ) {
-                throw new ImportException( "This ZIP isn't a Mica modpack export — no "
+                if ( TechnicServerZipImporter.looksLikeTechnicServerZip( zip ) ) {
+                    Logger.logStd( "ModpackZipImporter: ZIP matches Technic server format — "
+                                            + "delegating to TechnicServerZipImporter." );
+                    try {
+                        return TechnicServerZipImporter.importZip( zipFile );
+                    }
+                    catch ( TechnicServerZipImporter.ImportException tex ) {
+                        throw new ImportException( tex.getMessage() );
+                    }
+                }
+                throw new ImportException( "This ZIP isn't a Mica modpack export or a "
+                                                    + "recognized Technic Server Download — no "
                                                     + ModpackExporter.MARKER_FILENAME
-                                                    + " marker file found at the archive root." );
+                                                    + " marker found at the archive root, and "
+                                                    + "the structure doesn't match the Technic "
+                                                    + "server pack layout (mods/ + launch script + "
+                                                    + "top-level server JAR)." );
             }
             String markerJson;
             try ( InputStream in = zip.getInputStream( markerEntry ) ) {
