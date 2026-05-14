@@ -2286,11 +2286,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         catch ( Exception ignored ) { return null; }
     }
 
-    private static String safeForgeVersion( GameModPack pack ) {
-        try { return pack.getForgeVersion(); }
-        catch ( Exception ignored ) { return null; }
-    }
-
     private static String safeLoaderName( GameModPack pack ) {
         try { return pack.getLoaderName(); }
         catch ( Exception ignored ) { return null; }
