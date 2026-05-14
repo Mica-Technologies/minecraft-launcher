@@ -615,6 +615,8 @@
                             <MFXToggleButton fx:id="rgbEnableOpenRgbToggle" text="OpenRGB" />
                             <MFXToggleButton fx:id="rgbEnableChromaNativeToggle" text="Razer Chroma (Native SDK)" />
                             <MFXToggleButton fx:id="rgbEnableWindowsDlToggle" text="Windows Dynamic Lighting" />
+                            <MFXToggleButton fx:id="rgbEnableCorsairToggle" text="Corsair iCUE" />
+                            <MFXToggleButton fx:id="rgbEnableAsusAuraToggle" text="ASUS Aura (legacy SDK)" />
                             <MFXToggleButton fx:id="rgbEnableChromaRestToggle" text="Razer Chroma (REST — legacy)" />
                         </VBox>
                         <Label styleClass="muted" text="Turn off the integrations you don't want the launcher reaching, even if their software is installed. Off-by-default for Chroma REST since the native SDK supersedes it on any working Synapse install." wrapText="true">

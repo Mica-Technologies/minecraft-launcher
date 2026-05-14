@@ -381,6 +381,12 @@ public class ConfigConstants
     public static final String RGB_ENABLE_WINDOWS_DL_KEY     = "rgbEnableWindowsDL";
     public static final boolean RGB_ENABLE_WINDOWS_DL_DEFAULT = true;
 
+    public static final String RGB_ENABLE_CORSAIR_KEY     = "rgbEnableCorsair";
+    public static final boolean RGB_ENABLE_CORSAIR_DEFAULT = true;
+
+    public static final String RGB_ENABLE_ASUS_AURA_KEY     = "rgbEnableAsusAura";
+    public static final boolean RGB_ENABLE_ASUS_AURA_DEFAULT = true;
+
     /** Master toggle for the idle "menu" effect — when on, the launcher
      *  paints a slow breathe in the current theme's accent color while
      *  the user is in the menus (between game launches). Off means
@@ -419,6 +425,15 @@ public class ConfigConstants
      *  Lenovo / ASUS hardware that implements the HID Lighting And
      *  Illumination usage page). Razer hardware doesn't participate yet. */
     public static final String RGB_BACKEND_WINDOWS_DL = "windows-dl";
+    /** Corsair iCUE via the v3 SDK ({@code iCUESDK.x64_2017.dll} /
+     *  {@code iCUESDK.x64_2019.dll}). Requires iCUE installed and its
+     *  service running. */
+    public static final String RGB_BACKEND_CORSAIR = "corsair";
+    /** ASUS Aura via the legacy {@code AURA_SDK.dll}. Covers
+     *  motherboard / GPU / RAM / Claymore-family keyboards. Users on
+     *  newer Armoury Crate hardware should keep OpenRGB in the rotation
+     *  for broader ASUS coverage. */
+    public static final String RGB_BACKEND_ASUS_AURA = "asus-aura";
     public static final String RGB_BACKEND_NONE = "none";
 
     /** When true, in-game effects paint a gradient using the running

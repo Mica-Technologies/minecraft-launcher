@@ -335,6 +335,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaNativeToggle;
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaRestToggle;
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableWindowsDlToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableCorsairToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableAsusAuraToggle;
 
     /**
      * StackPane containing the category content panes.
@@ -1226,7 +1228,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( rgbBackendCombo != null ) {
             rgbBackendCombo.setItems( javafx.collections.FXCollections.observableArrayList(
                     "Auto", "OpenRGB", "Razer Chroma (Native)", "Razer Chroma (REST)",
-                    "Windows Dynamic Lighting", "None" ) );
+                    "Windows Dynamic Lighting", "Corsair iCUE", "ASUS Aura", "None" ) );
             rgbBackendCombo.selectItem( labelForBackend( ConfigManager.getRgbBackend() ) );
             rgbBackendCombo.setOnAction( e -> {
                 String label = rgbBackendCombo.getValue();
@@ -1325,6 +1327,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         wireBackendToggle( rgbEnableWindowsDlToggle,
                 ConfigManager.getRgbEnableWindowsDl(), ConfigManager::setRgbEnableWindowsDl,
                 ConfigManager::getRgbEnableWindowsDl );
+        wireBackendToggle( rgbEnableCorsairToggle,
+                ConfigManager.getRgbEnableCorsair(), ConfigManager::setRgbEnableCorsair,
+                ConfigManager::getRgbEnableCorsair );
+        wireBackendToggle( rgbEnableAsusAuraToggle,
+                ConfigManager.getRgbEnableAsusAura(), ConfigManager::setRgbEnableAsusAura,
+                ConfigManager::getRgbEnableAsusAura );
 
         if ( rgbTestBtn != null ) {
             rgbTestBtn.setOnAction( e -> runRgbConnectionTest() );
@@ -1383,6 +1391,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA_NATIVE -> "Razer Chroma (Native)";
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA        -> "Razer Chroma (REST)";
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_WINDOWS_DL    -> "Windows Dynamic Lighting";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CORSAIR       -> "Corsair iCUE";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_ASUS_AURA     -> "ASUS Aura";
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE          -> "None";
             default -> "Auto";
         };
@@ -1396,6 +1406,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             case "Razer Chroma (Native)"    -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA_NATIVE;
             case "Razer Chroma (REST)"      -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA;
             case "Windows Dynamic Lighting" -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_WINDOWS_DL;
+            case "Corsair iCUE"             -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CORSAIR;
+            case "ASUS Aura"                -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_ASUS_AURA;
             case "None"                     -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE;
             default                      -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_AUTO;
         };
