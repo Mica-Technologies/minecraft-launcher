@@ -222,23 +222,19 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
         currentRuntimes = RuntimeManager.getInstalledRuntimes();
 
         ObservableList< String > items = FXCollections.observableArrayList();
-        if ( currentRuntimes.isEmpty() ) {
-            items.add( "(No runtimes installed)" );
-        }
-        else {
-            for ( Map< String, String > rt : currentRuntimes ) {
-                String display = rt.get( "component" );
-                String version = rt.get( "version" );
-                if ( version != null && !version.equals( "Not verified" ) ) {
-                    display += " (" + version + ")";
-                }
-                display += "  -  " + rt.get( "sizeMB" ) + " MB";
-                items.add( display );
+        for ( Map< String, String > rt : currentRuntimes ) {
+            String display = rt.get( "component" );
+            String version = rt.get( "version" );
+            if ( version != null && !version.equals( "Not verified" ) ) {
+                display += " (" + version + ")";
             }
+            display += "  -  " + rt.get( "sizeMB" ) + " MB";
+            items.add( display );
         }
 
         GUIUtilities.JFXPlatformRun( () -> {
             runtimeListView.setItems( items );
+            ensureEmptyPlaceholder();
             if ( !currentRuntimes.isEmpty() ) {
                 statusLabel.setText( currentRuntimes.size() + " runtime(s) installed." );
             }
@@ -246,5 +242,31 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
                 statusLabel.setText( "No runtimes installed." );
             }
         } );
+    }
+
+    /** Builds + installs the empty-state placeholder shown by the runtime
+     *  {@link ListView} when {@code currentRuntimes} is empty. Replaces the
+     *  prior approach of jamming "(No runtimes installed)" into the list
+     *  itself, which looked clickable but did nothing and offered no path
+     *  forward. {@code setPlaceholder} is the JavaFX-native channel for
+     *  empty-state content — visible only when the list has zero items, so
+     *  this is safe to call on every refresh. */
+    private void ensureEmptyPlaceholder()
+    {
+        if ( runtimeListView.getPlaceholder() != null ) return;
+        javafx.scene.control.Label heading = new javafx.scene.control.Label( "No Java runtimes installed yet" );
+        heading.getStyleClass().add( "heading-h3" );
+        javafx.scene.control.Label body = new javafx.scene.control.Label(
+                "Runtimes download automatically the first time you launch a modpack that needs one. "
+                        + "You don't need to install anything here unless you want to pre-fetch a specific "
+                        + "Java version." );
+        body.getStyleClass().add( "muted" );
+        body.setWrapText( true );
+        body.setMaxWidth( 420 );
+        body.setStyle( "-fx-text-alignment: center;" );
+        javafx.scene.layout.VBox box = new javafx.scene.layout.VBox( 8, heading, body );
+        box.setAlignment( javafx.geometry.Pos.CENTER );
+        box.setPadding( new javafx.geometry.Insets( 24 ) );
+        runtimeListView.setPlaceholder( box );
     }
 }
