@@ -364,17 +364,30 @@ public final class ChromaRestBackend implements RgbBackend
         if ( result != 126 || result126HintLogged ) return;
         result126HintLogged = true;
         Logger.logStd( "Razer Chroma is rejecting frame pushes with result=126 "
-                               + "(MOD_NOT_FOUND). To fix:" );
-        Logger.logStd( "  1. Open Razer Synapse." );
-        Logger.logStd( "  2. Go to the CHROMA tab → CONNECT (or APPS) section." );
-        Logger.logStd( "  3. Ensure 'Chroma Connect' / 'SDK access' is enabled." );
-        Logger.logStd( "  4. Confirm 'Mica Minecraft Launcher' appears in the "
-                               + "connected apps list and is allowed." );
-        Logger.logStd( "  5. Restart Synapse if the toggle was just changed — "
-                               + "the SDK only re-reads on Synapse start." );
-        Logger.logStd( "If the issue persists, switch the RGB backend to OpenRGB "
-                               + "in Settings → RGB; OpenRGB has broader device "
-                               + "coverage than Razer's own SDK in our experience." );
+                               + "(MOD_NOT_FOUND)." );
+        Logger.logStd( "This is almost always a Synapse-side issue with the legacy "
+                               + "REST API rather than something the launcher can fix:" );
+        Logger.logStd( "" );
+        Logger.logStd( "Background: Razer ships two parallel Chroma SDK paths." );
+        Logger.logStd( "  * C++ SDK (native DLL)  — used by Fortnite, Overwatch, etc." );
+        Logger.logStd( "  * REST API (localhost:54235) — what the launcher uses." );
+        Logger.logStd( "Recent Synapse releases have effectively deprecated the REST" );
+        Logger.logStd( "API: init still succeeds, but the per-device dispatch behind it" );
+        Logger.logStd( "fails to find the device module (result=126). The C++ SDK path" );
+        Logger.logStd( "keeps working, which is why Razer-integrated games light up your" );
+        Logger.logStd( "hardware while the launcher doesn't." );
+        Logger.logStd( "" );
+        Logger.logStd( "Worth checking, but unlikely to fix it on a current Synapse:" );
+        Logger.logStd( "  * Synapse → Chroma → Apps / Connect → SDK access enabled" );
+        Logger.logStd( "  * Mica Minecraft Launcher visible in the connected-apps list" );
+        Logger.logStd( "  * Synapse fully restarted after toggling any of the above" );
+        Logger.logStd( "" );
+        Logger.logStd( "Recommended fix: switch the RGB backend to OpenRGB in" );
+        Logger.logStd( "Settings → RGB. OpenRGB has its own Razer-device drivers and" );
+        Logger.logStd( "bypasses Chroma's REST surface entirely — covers the same fans," );
+        Logger.logStd( "mice, keyboards, etc. via a separate code path. You'll need" );
+        Logger.logStd( "OpenRGB Server installed and running (free / open-source / cross-" );
+        Logger.logStd( "platform — https://openrgb.org/)." );
     }
 
     /** Pulls the {@code result} integer out of a Chroma REST response
