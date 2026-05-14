@@ -72,32 +72,112 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
-     * Cached Forge mod-loader instance for this pack. Constructing a
-     * {@link GameModLoaderForge} eagerly verifies the on-disk Forge installer JAR
-     * (and re-downloads it on hash mismatch), so we cache the instance to avoid
-     * paying that verification cost — and emitting "FILE FAILED VERIFICATION"
-     * console spam — on every UI card render that asks for the pack's MC or
-     * Forge version. The cache is {@code transient} so a re-fetch of the
-     * modpack list still produces a fresh verification on the new instance.
+     * Cached modloader instance for this pack. Constructing a
+     * {@link GameModLoader} eagerly verifies the on-disk installer / profile
+     * artifact (and re-downloads on hash mismatch), so we cache the instance to
+     * avoid paying that verification cost — and emitting "FILE FAILED
+     * VERIFICATION" console spam — on every UI card render that asks for the
+     * pack's MC or loader version. The cache is {@code transient} so a re-fetch
+     * of the modpack list still produces a fresh verification on the new
+     * instance.
      *
      * @since 3.3
      */
-    private transient GameModLoaderForge cachedForgeApp;
+    private transient GameModLoader cachedModLoader;
+
+    /**
+     * The modloader type identifier for this pack — one of
+     * {@link com.micatechnologies.minecraft.launcher.consts.ModPackConstants#MOD_LOADER_FORGE},
+     * {@code MOD_LOADER_NEOFORGE}, or {@code MOD_LOADER_FABRIC}. Vanilla
+     * packs return {@code null}. Absent / blank in the manifest defaults
+     * to Forge for back-compat with every modpack created before the
+     * multi-loader work.
+     */
+    public String getModLoaderType() {
+        if ( vanillaVersion ) return null;
+        if ( packModLoader == null || packModLoader.isBlank() ) {
+            return com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_DEFAULT;
+        }
+        return packModLoader.trim().toLowerCase( java.util.Locale.ROOT );
+    }
+
+    /** Loader installer / profile URL — generalised replacement for
+     *  {@code packForgeURL}. Falls back to {@code packForgeURL} when
+     *  the new field isn't present in the manifest. */
+    String getModLoaderURL() {
+        if ( packModLoaderURL != null && !packModLoaderURL.isBlank() ) {
+            return packModLoaderURL;
+        }
+        return packForgeURL;
+    }
+
+    /** Loader installer / profile SHA-1 — generalised replacement for
+     *  {@code packForgeHash}. Falls back to {@code packForgeHash}. May
+     *  be null/empty for loaders that don't hash-verify their meta
+     *  artifact. */
+    String getModLoaderHash() {
+        if ( packModLoaderHash != null && !packModLoaderHash.isBlank() ) {
+            return packModLoaderHash;
+        }
+        return packForgeHash;
+    }
+
+    /**
+     * Get the polymorphic modloader for this pack. Returns {@code null}
+     * for vanilla packs. Cached per pack instance.
+     *
+     * <p>The concrete class is chosen from {@link #getModLoaderType()};
+     * each loader interprets its own {@code packModLoaderURL} /
+     * {@code packModLoaderHash} according to its own conventions
+     * (installer JAR for Forge / NeoForge, profile-JSON URL for
+     * Fabric).</p>
+     *
+     * @throws ModpackException if the loader type is unknown or
+     *                          construction (which validates the
+     *                          installer artifact) fails.
+     */
+    public GameModLoader getModLoader() throws ModpackException {
+        if ( vanillaVersion ) return null;
+        if ( cachedModLoader == null ) {
+            cachedModLoader = createModLoader();
+        }
+        return cachedModLoader;
+    }
+
+    private GameModLoader createModLoader() throws ModpackException {
+        String type = getModLoaderType();
+        String url = getModLoaderURL();
+        String hash = getModLoaderHash();
+        return switch ( type ) {
+            case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE ->
+                    new GameModLoaderForge( url, hash, this );
+            // NeoForge and Fabric land in follow-up commits — until then,
+            // a manifest declaring those types will surface a clear
+            // error rather than silently falling back to Forge against
+            // the wrong installer.
+            default -> throw new ModpackException(
+                    "Unsupported modloader type \"" + type + "\" for pack "
+                            + getPackName() + " — known types: forge, neoforge, fabric." );
+        };
+    }
 
     /**
      * Get a Forge application object referencing the Forge application jar in this modpack.
-     * Cached per pack instance so repeat callers (card rendering, classpath build,
-     * launch sequence) all share the same verification result.
+     * Backwards-compat alias for callers that haven't migrated to
+     * {@link #getModLoader()}. Throws if the pack isn't a Forge pack.
      *
      * @return mod pack MCForgeApp
      *
-     * @throws ModpackException if unable to get Forge app object
+     * @throws ModpackException if unable to get Forge app object or if the
+     *                          pack uses a non-Forge modloader
      */
     GameModLoaderForge getForgeApp() throws ModpackException {
-        if ( cachedForgeApp == null ) {
-            cachedForgeApp = new GameModLoaderForge( packForgeURL, packForgeHash, this );
+        GameModLoader loader = getModLoader();
+        if ( loader instanceof GameModLoaderForge forge ) {
+            return forge;
         }
-        return cachedForgeApp;
+        throw new ModpackException( "Pack " + getPackName()
+                + " is not a Forge pack — modloader type is " + getModLoaderType() );
     }
 
     /**
