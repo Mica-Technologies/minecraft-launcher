@@ -606,7 +606,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                 () -> createDesktopShortcut( pack ) ) );
         grid.getChildren().add( buildQuickActionBtn(
                 com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.exportPack.label" ),
-                () -> exportPackAsZip( pack ) ) );
+                () -> showSmartExportDialog( pack ) ) );
 
         // Copy Invite Link — only enabled when the pack has something to invite to.
         MFXButton inviteBtn = buildQuickActionBtn( "Copy Invite Link",
@@ -620,6 +620,136 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         section.getChildren().add( grid );
         return section;
+    }
+
+    /**
+     * Smart-export entry point. Classifies the pack and lets the user
+     * pick between the three sharing modes:
+     * <ul>
+     *   <li><b>Share URL</b> — copy the manifest URL to clipboard. Cheapest
+     *       option for packs installed from a remote manifest.</li>
+     *   <li><b>Share Manifest JSON</b> — save the manifest body to a file
+     *       so a friend can drop it on any HTTPS host. Available when every
+     *       mod in the pack has an HTTP/S download URL.</li>
+     *   <li><b>Export as ZIP</b> — full archive including mods, configs,
+     *       and the embedded manifest. Always available; required when
+     *       the pack has any local-file-reference mods.</li>
+     * </ul>
+     */
+    private void showSmartExportDialog( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
+    {
+        if ( pack == null ) return;
+        com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.ExportMode mode
+                = com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.classifyExport( pack );
+
+        javafx.scene.control.Alert chooser = new javafx.scene.control.Alert(
+                javafx.scene.control.Alert.AlertType.CONFIRMATION );
+        chooser.setTitle( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get(
+                "detailModal.exportPack.label" ) );
+        chooser.setHeaderText( pack.getFriendlyName() != null
+                                        ? pack.getFriendlyName() : pack.getPackName() );
+
+        // Build the body text dynamically — explain what each option does
+        // and which one is "recommended" for this pack so the user picks
+        // the lightest mode that actually works.
+        StringBuilder body = new StringBuilder();
+        body.append( "How would you like to share this pack?\n\n" );
+        switch ( mode ) {
+            case SHARE_URL -> body.append( "Recommended: Share URL — this pack was installed "
+                                                    + "from a remote manifest, so anyone with the URL "
+                                                    + "can install it directly." );
+            case SHARE_MANIFEST_JSON -> body.append( "Recommended: Share Manifest JSON — every mod in "
+                                                              + "this pack downloads from an HTTPS URL, so "
+                                                              + "the manifest file alone is enough to install." );
+            case EXPORT_ZIP -> body.append( "This pack contains local-file mod references, so the only "
+                                                     + "way to share it is as a full ZIP archive that "
+                                                     + "includes the mod files themselves." );
+        }
+        chooser.setContentText( body.toString() );
+
+        // Button types per available mode. ButtonType is mutable here so we
+        // can also offer ZIP as a fallback regardless of recommended mode.
+        javafx.scene.control.ButtonType shareUrlBtn = new javafx.scene.control.ButtonType( "Share URL" );
+        javafx.scene.control.ButtonType shareJsonBtn = new javafx.scene.control.ButtonType( "Share Manifest" );
+        javafx.scene.control.ButtonType zipBtn = new javafx.scene.control.ButtonType( "Export as ZIP" );
+        javafx.scene.control.ButtonType cancel = new javafx.scene.control.ButtonType( "Cancel",
+                javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE );
+
+        java.util.List< javafx.scene.control.ButtonType > buttons = new java.util.ArrayList<>();
+        if ( mode == com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.ExportMode.SHARE_URL ) {
+            buttons.add( shareUrlBtn );
+        }
+        if ( mode == com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.ExportMode.SHARE_URL
+                || mode == com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.ExportMode.SHARE_MANIFEST_JSON ) {
+            buttons.add( shareJsonBtn );
+        }
+        buttons.add( zipBtn );
+        buttons.add( cancel );
+        chooser.getButtonTypes().setAll( buttons );
+
+        java.util.Optional< javafx.scene.control.ButtonType > picked = chooser.showAndWait();
+        if ( picked.isEmpty() || picked.get() == cancel ) return;
+
+        if ( picked.get() == shareUrlBtn ) {
+            shareManifestUrlToClipboard( pack );
+        }
+        else if ( picked.get() == shareJsonBtn ) {
+            saveManifestJsonToFile( pack );
+        }
+        else if ( picked.get() == zipBtn ) {
+            exportPackAsZip( pack );
+        }
+    }
+
+    /** Copies the pack's manifest URL to the system clipboard and
+     *  surfaces a success notification. No file IO. */
+    private void shareManifestUrlToClipboard( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
+    {
+        String url = pack.getManifestUrl();
+        if ( url == null || url.isBlank() ) {
+            NotificationManager.error( "Couldn't share URL",
+                                        "This pack has no manifest URL on record." );
+            return;
+        }
+        javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+        content.putString( url );
+        javafx.scene.input.Clipboard.getSystemClipboard().setContent( content );
+        NotificationManager.success( "Copied manifest URL",
+                                      url );
+    }
+
+    /** Saves the pack's manifest JSON body to a user-chosen file via a
+     *  FileChooser. Default filename is {@code <packName>-manifest.json}.
+     *  The body comes from the on-disk manifest cache via
+     *  {@link com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter#loadManifestText}. */
+    private void saveManifestJsonToFile( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
+    {
+        String body = com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.loadManifestText( pack );
+        if ( body == null || body.isBlank() ) {
+            NotificationManager.error( "Couldn't read manifest",
+                                        "The pack's manifest body isn't available locally. Try refreshing the pack first." );
+            return;
+        }
+        javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+        chooser.setTitle( "Save Manifest" );
+        String defaultName = ( pack.getPackName() == null ? "modpack" : pack.getPackName() )
+                + "-manifest.json";
+        chooser.setInitialFileName( defaultName );
+        chooser.getExtensionFilters().add(
+                new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+        javafx.stage.Stage owner = MCLauncherGuiController.getTopStageOrNull();
+        java.io.File dest = chooser.showSaveDialog( owner );
+        if ( dest == null ) return;
+        try {
+            java.nio.file.Files.writeString( dest.toPath(), body,
+                                              java.nio.charset.StandardCharsets.UTF_8 );
+            NotificationManager.success( "Manifest saved",
+                                          dest.getAbsolutePath() );
+        }
+        catch ( java.io.IOException ex ) {
+            Logger.logErrorSilent( "Failed to save manifest JSON: " + ex.getMessage() );
+            NotificationManager.error( "Couldn't save manifest", ex.getMessage() );
+        }
     }
 
     /** Pops a file chooser for the destination ZIP, then runs the
