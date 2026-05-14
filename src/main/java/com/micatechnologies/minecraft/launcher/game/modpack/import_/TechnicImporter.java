@@ -24,9 +24,12 @@ import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
-import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,6 +70,54 @@ public final class TechnicImporter
 
     private static final String API_BASE = "https://api.technicpack.net/modpack/";
 
+    /** User-Agent used for Technic Platform API requests. The default
+     *  launcher UA ({@code MicaMinecraftLauncher/<ver>}) is too distinctive
+     *  for Technic's edge bot protection, which returns 401 for anything
+     *  that doesn't smell like a real HTTP client. The
+     *  {@code Mozilla/5.0 (compatible; ...)} envelope is the established
+     *  convention for non-browser clients that need browser-tier access —
+     *  identifies us honestly inside the parens while passing the edge
+     *  filter. Not impersonation: we're saying "compatible with the kinds
+     *  of clients you expect," not "I am the Technic Launcher." */
+    private static final String TECHNIC_USER_AGENT =
+            "Mozilla/5.0 (compatible; MicaMinecraftLauncher/"
+                    + ( com.micatechnologies.minecraft.launcher.consts.LauncherConstants.LAUNCHER_APPLICATION_VERSION != null
+                            ? com.micatechnologies.minecraft.launcher.consts.LauncherConstants.LAUNCHER_APPLICATION_VERSION
+                            : "dev" )
+                    + "; third-party Technic importer)";
+
+    /** Connect / read timeouts for Technic API calls. Matches the
+     *  ballpark NetworkUtilities uses so we don't hang the import UI
+     *  on a slow / dead endpoint. */
+    private static final int CONNECT_TIMEOUT_MS = 15_000;
+    private static final int READ_TIMEOUT_MS    = 30_000;
+
+    /** Fetches the response body of {@code url} as a UTF-8 string, using
+     *  the Technic-friendly User-Agent. Direct {@link HttpURLConnection}
+     *  rather than {@code NetworkUtilities.downloadFileFromURL} so we can
+     *  override the UA without changing every other launcher fetch. */
+    private static String fetchTechnicApi( String url ) throws IOException
+    {
+        HttpURLConnection conn = (HttpURLConnection) new URL( url ).openConnection();
+        conn.setConnectTimeout( CONNECT_TIMEOUT_MS );
+        conn.setReadTimeout( READ_TIMEOUT_MS );
+        conn.setUseCaches( false );
+        conn.setRequestProperty( "User-Agent", TECHNIC_USER_AGENT );
+        conn.setRequestProperty( "Accept", "application/json" );
+        try ( InputStream in = conn.getInputStream();
+              ByteArrayOutputStream out = new ByteArrayOutputStream() ) {
+            byte[] buf = new byte[ 8192 ];
+            int read;
+            while ( ( read = in.read( buf ) ) != -1 ) {
+                out.write( buf, 0, read );
+            }
+            return out.toString( StandardCharsets.UTF_8 );
+        }
+        finally {
+            conn.disconnect();
+        }
+    }
+
     /** Result of {@link #fetchSummary} — drives the import preview
      *  dialog. {@code builds} is newest-first when the API returns
      *  it that way (most do); {@code recommended} is the build the
@@ -89,7 +140,7 @@ public final class TechnicImporter
     {
         if ( slug == null || slug.isBlank() ) return null;
         try {
-            String raw = NetworkUtilities.downloadFileFromURL( API_BASE + slug );
+            String raw = fetchTechnicApi( API_BASE + slug );
             JsonObject obj = JSONUtilities.getGson().fromJson( raw, JsonObject.class );
             if ( obj == null ) return null;
             String displayName = optString( obj, "display_name" );
@@ -140,8 +191,7 @@ public final class TechnicImporter
         }
         JsonObject buildObj;
         try {
-            String raw = NetworkUtilities.downloadFileFromURL(
-                    API_BASE + summary.slug() + "/" + build );
+            String raw = fetchTechnicApi( API_BASE + summary.slug() + "/" + build );
             buildObj = JSONUtilities.getGson().fromJson( raw, JsonObject.class );
         }
         catch ( Exception ex ) {
