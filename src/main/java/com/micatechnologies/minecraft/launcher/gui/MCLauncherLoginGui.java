@@ -26,6 +26,7 @@ import com.micatechnologies.minecraft.launcher.utilities.AuthUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.*;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.RowConstraints;
@@ -171,6 +172,17 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         authWebView.getEngine().setJavaScriptEnabled( true );
         authWebView.getEngine().setUserAgent( "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0" );
 
+        // Attach the OAuth-callback listener exactly once. Previously this was
+        // registered inside loadMsAuthFrame(), which was re-entered on every
+        // failed login via handleBadLogin() — each retry stacked another
+        // listener on the same stateProperty, so after N failures all N
+        // listeners would fire on the next navigation, all N would spawn an
+        // auth-code-redemption task, and only the first could succeed (MS
+        // codes are single-use). Subsequent redemptions failed and recursed
+        // back through handleBadLogin, multiplying the leak. Registering once
+        // here keeps the handler-set small and predictable.
+        attachOAuthCallbackListener();
+
         // Display announcements if present
         String announcementText = AnnouncementManager.getAnnouncementLogin();
         if ( announcementText.length() > 0 ) {
@@ -209,6 +221,11 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.LOGIN; }
 
+    /**
+     * Loads (or reloads) the Microsoft OAuth sign-in page into the embedded
+     * WebView. Must run on the FX application thread — callers from background
+     * threads (e.g. {@link #handleBadLogin}) marshal via {@link Platform#runLater}.
+     */
     private void loadMsAuthFrame() {
         // Load MS login website
         CookieManager cookieManager = new CookieManager();
@@ -225,89 +242,105 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         // account picker even when the session is live, so logging out and
         // signing in as someone else is a single click instead of impossible.
         String loginUrl = MicrosoftService.oAuthLoginUrl().toString() + "&prompt=select_account";
-        authWebView.getEngine().load( loginUrl );
-
-        // Set waiting on web view response flag to true
         waitingOnWebViewResponse.set( true );
+        authWebView.getEngine().load( loginUrl );
+    }
 
-        // Configure web view listener
+    /**
+     * Wires the WebView load-worker state listener that watches for the
+     * Microsoft OAuth callback URL and kicks off the auth-code redemption.
+     * Called exactly once from {@link #setup()}.
+     */
+    private void attachOAuthCallbackListener() {
         authWebView.getEngine().getLoadWorker().stateProperty().addListener( ( observable, oldValue, newValue ) -> {
             // Only run handler if expecting a response
-            if ( waitingOnWebViewResponse.get() ) {
-                // Check if page is on callback/redirect URI
-                String location = authWebView.getEngine().getLocation();
-                if ( location.startsWith( Constants.MICROSOFT_OAUTH_REDIRECT_URL ) ) {
-                    // Set waiting on web view response flag to false
-                    waitingOnWebViewResponse.set( false );
-
-                    // Clear web view and return to regular login view
-                    authWebView.getEngine().load( "about:blank" );
-
-                    SystemUtilities.spawnNewTask( () -> {
-                        // Split URL into parameters
-                        String locationParamsString = location.substring( location.indexOf( "?" ) + 1 );
-                        Map< String, List< String > > locationParamsList = Pattern.compile( "&" )
-                                                                                  .splitAsStream( locationParamsString )
-                                                                                  .map( s -> Arrays.copyOf(
-                                                                                          s.split( "=", 2 ), 2 ) )
-                                                                                  .collect( groupingBy(
-                                                                                          s -> URLDecoder.decode(
-                                                                                                  s[ 0 ],
-                                                                                                  Charset.defaultCharset() ),
-                                                                                          mapping(
-                                                                                                  s -> URLDecoder.decode(
-                                                                                                          s[ 1 ],
-                                                                                                          Charset.defaultCharset() ),
-                                                                                                  toList() ) ) );
-
-                        // Handle response and error, if applicable
-                        if ( !locationParamsList.containsKey( "error" ) && locationParamsList.containsKey( "code" ) ) {
-                            String authCode = locationParamsList.get( "code" ).get( 0 );
-
-                            // Attempt login
-                            MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMicrosoftAccount( authCode,
-                                                                                                               msStayLoggedInCheckBox.isSelected() );
-
-                            // Check login result
-                            boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
-
-                            // If successful, register login with app and save account if applicable
-                            if ( authSuccess ) {
-                                loginSuccessLatch.countDown();
-                            }
-                            else {
-                                handleBadLogin();
-                            }
-                        }
-                        else {
-                            // Get error description
-                            String errorDescription = "(Unknown)";
-                            if ( locationParamsList.containsKey( "error_description" ) ) {
-                                errorDescription = locationParamsList.get( "error_description" ).get( 0 );
-                            }
-
-                            if ( errorDescription.contains( "user has denied access" ) ) {
-                                Logger.logDebug( "User cancelled or denied during the Microsoft authentication flow!" );
-                            }
-                            else {
-                                Logger.logError( "A Microsoft account login error occurred: " + errorDescription );
-                            }
-                        }
-                    } );
-                }
+            if ( !waitingOnWebViewResponse.get() ) {
+                return;
             }
+            // Check if page is on callback/redirect URI
+            String location = authWebView.getEngine().getLocation();
+            if ( !location.startsWith( Constants.MICROSOFT_OAUTH_REDIRECT_URL ) ) {
+                return;
+            }
+            // Set waiting on web view response flag to false
+            waitingOnWebViewResponse.set( false );
+
+            // Clear web view and return to regular login view
+            authWebView.getEngine().load( "about:blank" );
+
+            SystemUtilities.spawnNewTask( () -> {
+                // Split URL into parameters
+                String locationParamsString = location.substring( location.indexOf( "?" ) + 1 );
+                Map< String, List< String > > locationParamsList = Pattern.compile( "&" )
+                                                                          .splitAsStream( locationParamsString )
+                                                                          .map( s -> Arrays.copyOf(
+                                                                                  s.split( "=", 2 ), 2 ) )
+                                                                          .collect( groupingBy(
+                                                                                  s -> URLDecoder.decode(
+                                                                                          s[ 0 ],
+                                                                                          Charset.defaultCharset() ),
+                                                                                  mapping(
+                                                                                          s -> URLDecoder.decode(
+                                                                                                  s[ 1 ],
+                                                                                                  Charset.defaultCharset() ),
+                                                                                          toList() ) ) );
+
+                // Handle response and error, if applicable
+                if ( !locationParamsList.containsKey( "error" ) && locationParamsList.containsKey( "code" ) ) {
+                    String authCode = locationParamsList.get( "code" ).get( 0 );
+
+                    // Attempt login
+                    MCLauncherAuthResult authResult = MCLauncherAuthManager.loginWithMicrosoftAccount( authCode,
+                                                                                                       msStayLoggedInCheckBox.isSelected() );
+
+                    // Check login result
+                    boolean authSuccess = AuthUtilities.checkAuthResponse( authResult );
+
+                    // If successful, register login with app and save account if applicable
+                    if ( authSuccess ) {
+                        loginSuccessLatch.countDown();
+                    }
+                    else {
+                        handleBadLogin();
+                    }
+                }
+                else {
+                    // Get error description
+                    String errorDescription = "(Unknown)";
+                    if ( locationParamsList.containsKey( "error_description" ) ) {
+                        errorDescription = locationParamsList.get( "error_description" ).get( 0 );
+                    }
+
+                    if ( errorDescription.contains( "user has denied access" ) ) {
+                        Logger.logDebug( "User cancelled or denied during the Microsoft authentication flow!" );
+                    }
+                    else {
+                        Logger.logError( "A Microsoft account login error occurred: " + errorDescription );
+                    }
+                    // The OAuth flow returned an error parameter (server rejected
+                    // the request, user cancelled, etc.). WebView is now sitting
+                    // on about:blank — without re-loading the sign-in URL the
+                    // user is stuck on a blank screen. Reload via the same
+                    // recovery path used for downstream auth failures.
+                    handleBadLogin();
+                }
+            } );
         } );
     }
 
     /**
      * Method to handle the processing of a bad login. This method should show a warning to the end-user, and reset the
-     * password field.
+     * password field. Called from the auth-code-redemption background task, so
+     * the WebView reload is marshalled back to the FX application thread —
+     * without this trip, {@link javafx.scene.web.WebEngine#load} throws
+     * {@code IllegalStateException: Not on FX application thread} and the user
+     * is left staring at a blank login surface with no way to retry.
      *
      * @since 1.0
      */
     private void handleBadLogin() {
         Logger.logError( "Failed to login with Microsoft!" );
-        loadMsAuthFrame();
+        Platform.runLater( this::loadMsAuthFrame );
     }
 
     /**
