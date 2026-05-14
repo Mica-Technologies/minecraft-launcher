@@ -157,6 +157,31 @@
                             </MFXButton>
                         </HBox>
                     </VBox>
+                    <!-- Saved Accounts — populated by setupAccountTab() from
+                         the ProfileArchive list. Rows are appended at runtime
+                         to the savedAccountsList VBox; the FXML just declares
+                         the container chrome. -->
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="%settings.fxml.savedAccounts">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="%settings.fxml.savedAccountsHint" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <VBox fx:id="savedAccountsList" spacing="6" />
+                        <MFXButton fx:id="addAccountBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.fxml.addAccount">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </MFXButton>
+                    </VBox>
                     <!-- Log out -->
                     <VBox styleClass="settingsContainer, dangerZone" spacing="8">
                         <padding>

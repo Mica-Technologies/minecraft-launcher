@@ -446,6 +446,76 @@ public class MCLauncherAuthManager
     }
 
     /**
+     * Like {@link #logout()} but copies the active credentials to
+     * {@code <config>/profiles/<uuid>/} first via {@link ProfileArchive}
+     * so the account can be re-activated later from the Settings →
+     * Account "Saved Accounts" list without re-running the Microsoft
+     * OAuth flow.
+     *
+     * <p>The active session files are still deleted after the archive
+     * copy, so the immediate-effect behaviour is identical to a plain
+     * logout — login GUI lands on the next restart. The difference
+     * only matters on the NEXT logged-out state, when the user opens
+     * Settings and sees their previous accounts ready to switch to.</p>
+     *
+     * <p>Called by the Settings → Account "Save & Sign Out" /
+     * "Add Another Account" UI; plain {@link #logout()} is left for
+     * cases where the user explicitly wants to forget the account
+     * (the existing red "Log Out" button is wired to it).</p>
+     *
+     * @since 2026.5
+     */
+    public static void archiveAndLogout() {
+        User user = loggedIn;
+        if ( user != null && user.uuid() != null && !user.uuid().isBlank() ) {
+            ProfileArchive.archiveActive( user.uuid(), user.name() );
+        }
+        logout();
+    }
+
+    /**
+     * Switches to a previously-archived profile. Archives the active
+     * profile first (so we don't lose the current session), then
+     * copies the archived files back into the active slots. The
+     * in-memory {@link #loggedIn} state is cleared so the next caller
+     * picks up the swapped-in token via the existing renewal /
+     * restore path.
+     *
+     * <p>Caller should restart the launcher (or trigger a session
+     * refresh) so the new identity is visible across every screen.
+     * The Settings UI does this via {@code LauncherCore.restartApp()}
+     * after a successful switch.</p>
+     *
+     * @param targetUuid UUID of the archived profile to activate
+     * @return true if the swap succeeded, false otherwise
+     * @since 2026.5
+     */
+    public static boolean switchToArchivedProfile( String targetUuid ) {
+        if ( targetUuid == null || targetUuid.isBlank() ) return false;
+        // Archive current — non-destructive so the existing session
+        // stays valid until ProfileArchive.activate overwrites the
+        // active files on the next line.
+        User active = loggedIn;
+        if ( active != null && active.uuid() != null && !active.uuid().isBlank() ) {
+            if ( !active.uuid().equals( targetUuid ) ) {
+                ProfileArchive.archiveActive( active.uuid(), active.name() );
+            }
+            else {
+                // Switching to the already-active profile is a no-op.
+                return true;
+            }
+        }
+        boolean ok = ProfileArchive.activate( targetUuid );
+        if ( ok ) {
+            // Clear in-memory cache so the next renewal / launch
+            // reads the swapped-in token from disk.
+            loggedIn = null;
+            lastSuccessfulRenewalMs = 0;
+        }
+        return ok;
+    }
+
+    /**
      * If the cached token's age is in the {@link #TOKEN_SOFT_REFRESH_INTERVAL_MS}..
      * {@link #TOKEN_REFRESH_INTERVAL_MS} window — too fresh to require synchronous
      * renewal, but old enough that the next launch will hit the sync renewal path —

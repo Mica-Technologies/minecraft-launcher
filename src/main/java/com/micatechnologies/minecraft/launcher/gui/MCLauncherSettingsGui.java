@@ -382,7 +382,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton minecraftNetBtn, msAccountBtn, logoutBtn;
+    MFXButton minecraftNetBtn, msAccountBtn, logoutBtn, addAccountBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.layout.VBox savedAccountsList;
 
     /**
      * Array of nav buttons in category order, populated during setup.
@@ -1226,6 +1230,96 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
             } );
         } );
+
+        // "Add Another Account" — archives the current login so it can
+        // be re-activated later from the Saved Accounts list, then
+        // restarts the launcher to land back on the login screen.
+        addAccountBtn.setOnAction( e -> {
+            int response = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "settings.savedAccounts.confirmAdd.title" ),
+                    LocalizationManager.get( "settings.savedAccounts.confirmAdd.body" ),
+                    "",
+                    LocalizationManager.get( "settings.fxml.addAccount" ),
+                    "Cancel", stage );
+            if ( response != 1 ) return;
+            com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.archiveAndLogout();
+            LauncherCore.restartApp();
+        } );
+
+        rebuildSavedAccountsList();
+    }
+
+    /** Renders the Saved Accounts container's rows from the
+     *  {@link com.micatechnologies.minecraft.launcher.game.auth.ProfileArchive}
+     *  list. Skips the currently-active profile so we don't surface
+     *  a "Switch" button pointing at the user's own already-active
+     *  identity. */
+    private void rebuildSavedAccountsList() {
+        if ( savedAccountsList == null ) return;
+        savedAccountsList.getChildren().clear();
+        var active = MCLauncherAuthManager.getLoggedInUser();
+        String activeUuid = active == null ? null : active.uuid();
+
+        var profiles = com.micatechnologies.minecraft.launcher.game.auth.ProfileArchive.list();
+        if ( profiles.isEmpty() ) {
+            return;  // empty state: nothing to render; hint label is in FXML
+        }
+        java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat( "yyyy-MM-dd HH:mm" );
+        for ( var entry : profiles ) {
+            if ( activeUuid != null && activeUuid.equals( entry.uuid() ) ) continue;
+
+            javafx.scene.layout.HBox row = new javafx.scene.layout.HBox( 8 );
+            row.setAlignment( javafx.geometry.Pos.CENTER_LEFT );
+
+            // Avatar — same Crafatar URL pattern the active player uses.
+            javafx.scene.image.ImageView av = new javafx.scene.image.ImageView();
+            av.setFitWidth( 32 );
+            av.setFitHeight( 32 );
+            av.setPreserveRatio( true );
+            String avatarUrl = com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS
+                    .replace( com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
+                              entry.uuid() );
+            av.setImage( new javafx.scene.image.Image( avatarUrl, true ) );
+
+            javafx.scene.layout.VBox info = new javafx.scene.layout.VBox( 2 );
+            Label nameLbl = new Label( entry.displayName() == null || entry.displayName().isBlank()
+                                                ? entry.uuid() : entry.displayName() );
+            nameLbl.setStyle( "-fx-font-weight: bold;" );
+            Label lastLbl = new Label( LocalizationManager.format( "settings.savedAccounts.lastUsed",
+                    fmt.format( new java.util.Date( entry.lastUsedMs() ) ) ) );
+            lastLbl.getStyleClass().add( "muted" );
+            info.getChildren().addAll( nameLbl, lastLbl );
+            javafx.scene.layout.HBox.setHgrow( info, javafx.scene.layout.Priority.ALWAYS );
+
+            MFXButton switchBtn = new MFXButton( LocalizationManager.get( "settings.savedAccounts.switchBtn" ) );
+            switchBtn.setPrefHeight( 28 );
+            switchBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+                boolean ok = MCLauncherAuthManager.switchToArchivedProfile( entry.uuid() );
+                if ( ok ) {
+                    GUIUtilities.JFXPlatformRun( LauncherCore::restartApp );
+                }
+            } ) );
+
+            MFXButton forgetBtn = new MFXButton( LocalizationManager.get( "settings.savedAccounts.forgetBtn" ) );
+            forgetBtn.setPrefHeight( 28 );
+            forgetBtn.getStyleClass().add( "dangerZone" );
+            forgetBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+                int resp = GUIUtilities.showQuestionMessage(
+                        LocalizationManager.get( "settings.savedAccounts.confirmForget.title" ),
+                        LocalizationManager.format( "settings.savedAccounts.confirmForget.body",
+                                                     entry.displayName() == null
+                                                             ? entry.uuid() : entry.displayName() ),
+                        "",
+                        LocalizationManager.get( "settings.savedAccounts.forgetBtn" ),
+                        "Cancel", stage );
+                if ( resp != 1 ) return;
+                com.micatechnologies.minecraft.launcher.game.auth.ProfileArchive.forget( entry.uuid() );
+                GUIUtilities.JFXPlatformRun( this::rebuildSavedAccountsList );
+            } ) );
+
+            row.getChildren().addAll( av, info, switchBtn, forgetBtn );
+            savedAccountsList.getChildren().add( row );
+        }
     }
 
     /**
