@@ -338,6 +338,46 @@ public class ConfigConstants
      */
     public static final boolean INGAME_CONSOLE_ENABLE_DEFAULT = false;
 
+    // region RGB Integration
+
+    /** Master enable for the RGB-integration subsystem. When false, the
+     *  RgbController stays inert — no backend probes, no worker thread,
+     *  no socket / DLL activity. Default off so users opt in deliberately
+     *  before the launcher touches any peripheral devices. */
+    public static final String RGB_ENABLE_KEY = "rgbEnable";
+    public static final boolean RGB_ENABLE_DEFAULT = false;
+
+    /** Selected RGB backend identifier. One of:
+     *  <ul>
+     *    <li>{@code "auto"} — probe each known backend in priority order
+     *        (OpenRGB first, then Razer Chroma) and pick the first one
+     *        that reports available.</li>
+     *    <li>{@code "openrgb"} — force OpenRGB.</li>
+     *    <li>{@code "chroma"} — force Razer Chroma REST.</li>
+     *    <li>{@code "none"} — explicit no-op; same effect as disabling
+     *        the master toggle but kept distinct for users who want the
+     *        Settings tab visible without touching their keyboard.</li>
+     *  </ul> */
+    public static final String RGB_BACKEND_KEY = "rgbBackend";
+    public static final String RGB_BACKEND_DEFAULT = "auto";
+
+    public static final String RGB_BACKEND_AUTO = "auto";
+    public static final String RGB_BACKEND_OPENRGB = "openrgb";
+    public static final String RGB_BACKEND_CHROMA = "chroma";
+    public static final String RGB_BACKEND_NONE = "none";
+
+    /** When true, in-game effects paint a gradient using the running
+     *  modpack's logo dominant colors. When false, effects use the
+     *  launcher theme's accent palette. Default true — the modpack tie-in
+     *  is the headline feature. */
+    public static final String RGB_USE_PACK_COLORS_KEY = "rgbUsePackColors";
+    public static final boolean RGB_USE_PACK_COLORS_DEFAULT = true;
+
+    /** When true, the in-game effect highlights WASD / E / Space / Shift
+     *  in a contrasting accent over the pack-color background. */
+    public static final String RGB_HIGHLIGHT_KEYS_KEY = "rgbHighlightKeys";
+    public static final boolean RGB_HIGHLIGHT_KEYS_DEFAULT = true;
+
     // region Proxy Configuration
 
     /**
