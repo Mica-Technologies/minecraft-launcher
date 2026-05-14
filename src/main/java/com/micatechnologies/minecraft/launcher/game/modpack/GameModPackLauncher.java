@@ -56,6 +56,29 @@ class GameModPackLauncher
      */
     private final GameModPackProgressProvider progressProvider;
 
+    /** Periodically-checked cancellation flag. Set when
+     *  {@code LauncherCore.LaunchSession.cancel()} fires for the
+     *  current launch — branches poll this between major steps so an
+     *  in-flight cancel doesn't have to wait for the entire branch
+     *  to complete before honouring the user's click. */
+    private final java.util.function.BooleanSupplier cancellationCheck =
+            () -> {
+                com.micatechnologies.minecraft.launcher.LauncherCore.LaunchSession s =
+                        com.micatechnologies.minecraft.launcher.LauncherCore.getCurrentLaunch();
+                return s != null && s.isCancelled();
+            };
+
+    /** Throws if the current launch has been cancelled. Branches call
+     *  this at strategic checkpoints (top of branch, between major
+     *  steps) so the launch aborts shortly after the user clicks
+     *  cancel rather than after every blocking download finishes. */
+    private void checkCancelled() throws ModpackException
+    {
+        if ( cancellationCheck.getAsBoolean() ) {
+            throw new ModpackException( "Launch cancelled by user" );
+        }
+    }
+
     /**
      * The last launched game process, if any.
      */
@@ -577,12 +600,14 @@ class GameModPackLauncher
     {
         if ( handle != null ) handle.markRunning();
         try {
+            checkCancelled();
             GameModPackFileSync fileSync = new GameModPackFileSync( pack,
                     handle != null ? handle : progressProvider );
             if ( handle != null ) {
                 handle.startProgressSection( "Downloading mods...", 15.0 );
             }
             fileSync.fetchLatestMods();
+            checkCancelled();
             if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
                 Lwjgl2ArmPatcher.disableIncompatibleMods(
                         pack.getPackRootFolder() + File.separator + "mods" );
@@ -592,9 +617,13 @@ class GameModPackLauncher
                 handle.startProgressSection( "Downloading configs and resources...", 5.0 );
             }
             fileSync.fetchLatestConfigs();
+            checkCancelled();
             fileSync.fetchLatestResourcePacks();
+            checkCancelled();
             fileSync.fetchLatestShaderPacks();
+            checkCancelled();
             fileSync.fetchLatestInitialFiles();
+            checkCancelled();
             pack.cacheImages();
             if ( handle != null ) {
                 handle.endProgressSection( "Configs and resources ready" );
@@ -613,6 +642,7 @@ class GameModPackLauncher
     {
         if ( handle != null ) handle.markRunning();
         try {
+            checkCancelled();
             GameModLoader loader = pack.getModLoader();
             String loaderName = loader.getName();
             if ( handle != null ) {
@@ -621,6 +651,7 @@ class GameModPackLauncher
             String cp = loader.buildClasspath(
                     GameModeManager.getCurrentGameMode(),
                     handle != null ? handle : progressProvider );
+            checkCancelled();
             if ( handle != null ) {
                 handle.endProgressSection( loaderName + " libraries ready" );
                 handle.markDone();
@@ -643,6 +674,7 @@ class GameModPackLauncher
         final GameLibraryManifest libraryManifest;
         final String classpath;
         try {
+            checkCancelled();
             if ( mcHandle != null ) {
                 mcHandle.startProgressSection(
                         "Downloading Minecraft libraries and assets...",
@@ -650,9 +682,11 @@ class GameModPackLauncher
             }
             libraryManifest = GameVersionManifest.getMinecraftLibraryManifest(
                     pack.getMinecraftVersion(), pack );
+            checkCancelled();
             classpath = libraryManifest.buildMinecraftClasspath(
                     GameModeManager.getCurrentGameMode(),
                     mcHandle != null ? mcHandle : progressProvider );
+            checkCancelled();
             if ( mcHandle != null ) {
                 mcHandle.endProgressSection( "Minecraft libraries and assets ready" );
                 mcHandle.markDone();
