@@ -55,12 +55,59 @@ const TARGET_LOCALES = [
 
 const FORCE = process.argv.includes('--force');
 const DRY_RUN = process.argv.includes('--dry-run');
-const DELAY_MS = 120;   // be polite to Google's free endpoint
+// Re-encode existing locale files using the current escape rules, without
+// hitting the translation API. Useful after changing the writer (e.g.
+// switching from UTF-8 bytes to \uXXXX escapes) — preserves all
+// translated values, only changes the on-disk encoding form.
+const REENCODE_ONLY = process.argv.includes('--reencode-only');
+const DELAY_MS = 250;   // be polite to Google's free endpoint — 120ms triggered occasional
+                        // "Partial Translation Request Fail" rate-limit responses; 250ms keeps
+                        // the rate well below where Google starts pushing back
+
+/**
+ * Encodes non-ASCII characters as Java {@code \\uXXXX} escapes so the resulting
+ * .properties file is portable across Java versions (pre-Java 9 defaults to
+ * ISO-8859-1 for PropertyResourceBundle) and looks correct in editors that
+ * default to Latin-1 / Windows-1252 on Windows. Plain ASCII chars pass
+ * through unchanged. Backslashes are doubled so they survive the .properties
+ * format's own escape parsing.
+ */
+function escapeNonAscii(str) {
+    let out = '';
+    for (const ch of str) {
+        const code = ch.codePointAt(0);
+        if (code < 0x80) {
+            // Plain ASCII — escape literal backslashes so the result stays
+            // round-trippable through java.util.Properties.
+            if (ch === '\\') {
+                out += '\\\\';
+            }
+            else {
+                out += ch;
+            }
+        }
+        else if (code <= 0xFFFF) {
+            out += '\\u' + code.toString(16).padStart(4, '0').toUpperCase();
+        }
+        else {
+            // Supratrans-BMP — encode as a UTF-16 surrogate pair (two \uXXXX).
+            const adj = code - 0x10000;
+            const hi = 0xD800 + (adj >> 10);
+            const lo = 0xDC00 + (adj & 0x3FF);
+            out += '\\u' + hi.toString(16).padStart(4, '0').toUpperCase();
+            out += '\\u' + lo.toString(16).padStart(4, '0').toUpperCase();
+        }
+    }
+    return out;
+}
 
 function parseProperties(text) {
     // Returns { keysInOrder: [...], values: { key: value }, leadingComments: '...' }.
     // Mirrors the way java.util.Properties handles the file but preserves comment
-    // ordering by capturing the leading comment block separately.
+    // ordering by capturing the leading comment block separately. Decodes
+    // \uXXXX escapes on read so the in-memory value matches what Java
+    // would see — the writer re-escapes on output, so round-trips are
+    // lossless for existing-translation passthrough.
     const lines = text.split(/\r?\n/);
     const values = {};
     const keysInOrder = [];
@@ -78,12 +125,48 @@ function parseProperties(text) {
         const eq = line.indexOf('=');
         if (eq < 0) continue;
         const key = line.substring(0, eq).trim();
-        const value = line.substring(eq + 1);   // do not trim — preserve trailing spaces
+        const value = decodeUnicodeEscapes(line.substring(eq + 1));
         if (!(key in values)) keysInOrder.push(key);
         values[key] = value;
         seenFirstKey = true;
     }
     return { keysInOrder, values, leadingComments };
+}
+
+/** Reverse of escapeNonAscii — turns \uXXXX sequences back into their
+ *  character form so the script's in-memory state matches what Java sees
+ *  when loading the bundle. Also collapses the doubled backslashes that
+ *  escapeNonAscii produces for literal '\\' chars. */
+function decodeUnicodeEscapes(text) {
+    if (!text.includes('\\')) return text;
+    let out = '';
+    let i = 0;
+    while (i < text.length) {
+        const c = text[i];
+        if (c === '\\' && i + 1 < text.length) {
+            const next = text[i + 1];
+            if (next === 'u' && i + 5 < text.length) {
+                const hex = text.substring(i + 2, i + 6);
+                if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+                    out += String.fromCharCode(parseInt(hex, 16));
+                    i += 6;
+                    continue;
+                }
+            }
+            if (next === '\\') {
+                out += '\\';
+                i += 2;
+                continue;
+            }
+            // Other backslash-x escapes (\\n, \\t, etc.) pass through
+            // literally — the original .properties format does decode
+            // these, but our translated values don't contain them so
+            // we don't bother handling them.
+        }
+        out += c;
+        i++;
+    }
+    return out;
 }
 
 function writeProperties(filePath, { keysInOrder, values, leadingComments }, sourceLocaleTag) {
@@ -96,7 +179,7 @@ function writeProperties(filePath, { keysInOrder, values, leadingComments }, sou
     for (const key of keysInOrder) {
         const v = values[key];
         if (v === undefined) continue;
-        out += `${key}=${v}\n`;
+        out += `${key}=${escapeNonAscii(v)}\n`;
     }
     return writeFile(filePath, out, 'utf8');
 }
@@ -152,6 +235,20 @@ async function main() {
         let existing = { keysInOrder: [], values: {}, leadingComments: '' };
         if (await fileExists(targetPath)) {
             existing = parseProperties(await readFile(targetPath, 'utf8'));
+        }
+        if (REENCODE_ONLY) {
+            if (existing.keysInOrder.length === 0) {
+                console.log(`  → ${locale.name} (${locale.tag})  skipped — no existing file`);
+                continue;
+            }
+            const reencoded = {
+                keysInOrder: existing.keysInOrder,
+                values: existing.values,
+                leadingComments: existing.leadingComments,
+            };
+            await writeProperties(targetPath, reencoded, locale.tag);
+            console.log(`  → ${locale.name} (${locale.tag})  re-encoded ${existing.keysInOrder.length} keys`);
+            continue;
         }
         console.log(`\n→ ${locale.name} (${locale.tag})  [existing: ${existing.keysInOrder.length} keys]`);
         const merged = {
