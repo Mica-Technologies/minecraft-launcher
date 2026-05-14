@@ -558,7 +558,7 @@
                 <msi.user.path>${msi.user.dir}/${packaging.name}-${jpackage.app.version}.msi</msi.user.path>
                 <msi.machine.path>${msi.machine.dir}/${packaging.name}-${jpackage.app.version}.msi</msi.machine.path>
                 <!-- ${bundle.build.revision} is computed at build time by the
-                     compute-bundle-revision antrun step below (scripts/compute_bundle_revision.ps1)
+                     compute-bundle-revision antrun step below (tools/scripts/compute_bundle_revision.ps1)
                      and exported as a Maven property via exportAntProperties=true. Each
                      new build produces a strictly-greater 16-bit value so the Burn
                      bootstrapper's same-UpgradeCode upgrade detection kicks in and
@@ -613,7 +613,7 @@
                                             <arg value="-ExecutionPolicy"/>
                                             <arg value="RemoteSigned"/>
                                             <arg value="-File"/>
-                                            <arg value="${project.basedir}/scripts/compute_bundle_revision.ps1"/>
+                                            <arg value="${project.basedir}/tools/scripts/compute_bundle_revision.ps1"/>
                                         </exec>
                                         <echo>Burn bundle revision suffix: ${bundle.build.revision}</echo>
                                     </target>

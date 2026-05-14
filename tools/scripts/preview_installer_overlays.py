@@ -14,7 +14,7 @@ the working directory:
 
 The text positions come from the standard WixUI_InstallDir dialog definitions
 (WelcomeDlg / LicenseAgreementDlg / InstallDirDlg) — see the comments in
-scripts/generate_installer_bitmaps.py for the coordinate math.
+tools/scripts/generate_installer_bitmaps.py for the coordinate math.
 """
 from __future__ import annotations
 

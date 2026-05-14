@@ -64,6 +64,14 @@ public abstract class MCLauncherAbstractGui
                 URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
                 fxmlLoader.setLocation( resource );
                 fxmlLoader.setController( this );
+                // Bind FXML to the active translations bundle so attributes
+                // can use the standard %key syntax to resolve localized
+                // strings (e.g. text="%navbar.browse"). The bundle is
+                // already wired to LocaleBootstrap's resolved locale by
+                // the time any scene loads.
+                fxmlLoader.setResources(
+                        com.micatechnologies.minecraft.launcher.consts.localization
+                                .LocalizationManager.currentBundle() );
                 if ( stage.getScene() != null ) {
                     scene = new Scene( fxmlLoader.load(), stage.getScene().getWidth(), stage.getScene().getHeight() );
                 }
@@ -98,6 +106,9 @@ public abstract class MCLauncherAbstractGui
                 URL resource = getClass().getClassLoader().getResource( getSceneFxmlPath() );
                 fxmlLoader.setLocation( resource );
                 fxmlLoader.setController( this );
+                fxmlLoader.setResources(
+                        com.micatechnologies.minecraft.launcher.consts.localization
+                                .LocalizationManager.currentBundle() );
                 if ( stage.getScene() != null ) {
                     scene = new Scene( fxmlLoader.load(), width, height );
                 }
