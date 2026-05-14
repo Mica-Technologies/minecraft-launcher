@@ -312,7 +312,17 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @SuppressWarnings( "unused" )
     @FXML
-    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navDiscord, navAbout;
+    MFXButton navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navDiscord, navRgb, navAbout;
+
+    // RGB tab controls — populated by setupRgbTab() and bound to the
+    // RGB-integration settings under config keys "rgbEnable", "rgbBackend",
+    // "rgbUsePackColors", "rgbHighlightKeys".
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbBackendCombo;
+    @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbStatusChip;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbUsePackColorsToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbHighlightKeysToggle;
+    @SuppressWarnings( "unused" ) @FXML MFXButton rgbTestBtn;
 
     /**
      * StackPane containing the category content panes.
@@ -998,8 +1008,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             } );
         }
 
-        // Wire up sidebar navigation buttons
-        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navDiscord, navAbout };
+        // Wire up sidebar navigation buttons. The visual order here must
+        // match the ScrollPane order inside settingsContent — showCategory
+        // looks up navButtons[index] to apply the "selected" style.
+        navButtons = new MFXButton[]{ navAccount, navGame, navAppearance, navAdvanced, navNetwork, navSecurity, navSystem, navDiscord, navRgb, navAbout };
         navAccount.setOnAction( e -> showCategory( 0 ) );
         navGame.setOnAction( e -> showCategory( 1 ) );
         navAppearance.setOnAction( e -> showCategory( 2 ) );
@@ -1008,9 +1020,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         navSecurity.setOnAction( e -> showCategory( 5 ) );
         navSystem.setOnAction( e -> showCategory( 6 ) );
         navDiscord.setOnAction( e -> showCategory( 7 ) );
-        navAbout.setOnAction( e -> showCategory( 8 ) );
+        navRgb.setOnAction( e -> showCategory( 8 ) );
+        navAbout.setOnAction( e -> showCategory( 9 ) );
 
         setupAboutTab();
+        setupRgbTab();
 
         // Populate account tab
         setupAccountTab();
@@ -1024,7 +1038,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      * state.
      *
      * @param index the zero-based category index (0=Account, 1=Game, 2=Appearance, 3=Advanced, 4=Network, 5=Security,
-     *              6=System, 7=Discord, 8=About)
+     *              6=System, 7=Discord, 8=RGB, 9=About)
      *
      * @since 3.0
      */
@@ -1155,6 +1169,195 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
             } ) );
         }
+    }
+
+    /**
+     * Populates the RGB Lighting tab. Binds the master enable toggle, the
+     * backend combo, the in-game-effect toggles, and the test button to
+     * the underlying {@code rgb*} config keys + the {@link com.micatechnologies.minecraft.launcher.rgb.RgbController}
+     * singleton.
+     *
+     * <p>Backend changes are applied immediately: flipping the master
+     * toggle or picking a different backend stops the current
+     * controller and restarts on the new choice. The status chip is
+     * refreshed on every change so users get instant feedback (e.g.
+     * "Connected: OpenRGB" → "Not detected" when the OpenRGB server
+     * isn't running).</p>
+     *
+     * <p>All control wiring is null-guarded — if the FXML hasn't been
+     * updated to include the RGB pane fields (e.g. running against an
+     * older FXML in dev), the method silently no-ops on the missing
+     * controls rather than NPE'ing the whole settings GUI.</p>
+     */
+    private void setupRgbTab()
+    {
+        // Backend combo first — populated before the toggles so when we
+        // wire the enable toggle below, applying the current backend
+        // picks the right combo entry.
+        if ( rgbBackendCombo != null ) {
+            rgbBackendCombo.setItems( javafx.collections.FXCollections.observableArrayList(
+                    "Auto", "OpenRGB", "Razer Chroma", "None" ) );
+            rgbBackendCombo.selectItem( labelForBackend( ConfigManager.getRgbBackend() ) );
+            rgbBackendCombo.setOnAction( e -> {
+                String label = rgbBackendCombo.getValue();
+                ConfigManager.setRgbBackend( backendForLabel( label ) );
+                restartRgbController();
+            } );
+        }
+
+        if ( rgbEnableToggle != null ) {
+            rgbEnableToggle.setSelected( ConfigManager.getRgbEnable() );
+            rgbEnableToggle.selectedProperty().addListener( ( obs, oldV, newV ) -> {
+                ConfigManager.setRgbEnable( newV );
+                restartRgbController();
+            } );
+        }
+
+        if ( rgbUsePackColorsToggle != null ) {
+            rgbUsePackColorsToggle.setSelected( ConfigManager.getRgbUsePackColors() );
+            rgbUsePackColorsToggle.selectedProperty().addListener(
+                    ( obs, oldV, newV ) -> ConfigManager.setRgbUsePackColors( newV ) );
+        }
+
+        if ( rgbHighlightKeysToggle != null ) {
+            rgbHighlightKeysToggle.setSelected( ConfigManager.getRgbHighlightKeys() );
+            rgbHighlightKeysToggle.selectedProperty().addListener(
+                    ( obs, oldV, newV ) -> ConfigManager.setRgbHighlightKeys( newV ) );
+        }
+
+        if ( rgbTestBtn != null ) {
+            rgbTestBtn.setOnAction( e -> runRgbConnectionTest() );
+        }
+
+        refreshRgbStatusChip();
+    }
+
+    /** Maps the config-stored backend identifier to the user-facing
+     *  combo label. Defaults to "Auto" for unknown values. */
+    private static String labelForBackend( String backend )
+    {
+        return switch ( backend == null ? "" : backend ) {
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_OPENRGB -> "OpenRGB";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA  -> "Razer Chroma";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE    -> "None";
+            default -> "Auto";
+        };
+    }
+
+    /** Inverse of {@link #labelForBackend}. */
+    private static String backendForLabel( String label )
+    {
+        return switch ( label == null ? "" : label ) {
+            case "OpenRGB"      -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_OPENRGB;
+            case "Razer Chroma" -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA;
+            case "None"         -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE;
+            default             -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_AUTO;
+        };
+    }
+
+    /** Stops the RgbController and restarts it with whatever the current
+     *  config says — used when the user toggles the master enable or
+     *  picks a different backend. Off the FX thread because the backend
+     *  start() may do socket I/O which we don't want to block GUI updates
+     *  on. */
+    private void restartRgbController()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                com.micatechnologies.minecraft.launcher.rgb.RgbController controller =
+                        com.micatechnologies.minecraft.launcher.rgb.RgbController.getInstance();
+                controller.stop();
+                if ( ConfigManager.getRgbEnable() ) {
+                    controller.start(
+                            com.micatechnologies.minecraft.launcher.rgb.RgbBackendRegistry
+                                    .resolveFromConfig() );
+                }
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "RGB controller restart from Settings threw", t );
+            }
+            GUIUtilities.JFXPlatformRun( this::refreshRgbStatusChip );
+        } );
+    }
+
+    /** Recomputes and re-applies the RGB status chip text + style. Safe
+     *  to call from any thread; FX work is dispatched. */
+    private void refreshRgbStatusChip()
+    {
+        if ( rgbStatusChip == null ) return;
+        GUIUtilities.JFXPlatformRun( () -> {
+            com.micatechnologies.minecraft.launcher.rgb.RgbController.Status s =
+                    com.micatechnologies.minecraft.launcher.rgb.RgbController.getInstance().status();
+            String text;
+            String styleSuffix;
+            if ( !ConfigManager.getRgbEnable() ) {
+                text = "Disabled";
+                styleSuffix = ""; // base muted chip
+            }
+            else if ( !s.running() || "None".equals( s.backendName() ) ) {
+                text = "Not detected";
+                styleSuffix = "-warn";
+            }
+            else {
+                text = switch ( s.health() ) {
+                    case HEALTHY  -> "Connected: " + s.backendName();
+                    case DEGRADED -> "Degraded: " + s.backendName();
+                    case DEAD     -> "Unavailable: " + s.backendName();
+                };
+                styleSuffix = switch ( s.health() ) {
+                    case HEALTHY  -> "-success";
+                    case DEGRADED -> "-warn";
+                    case DEAD     -> "-danger";
+                };
+            }
+            rgbStatusChip.setText( text );
+            rgbStatusChip.getStyleClass().removeIf( c -> c.startsWith( "stat-chip-" ) );
+            if ( !styleSuffix.isEmpty() ) {
+                rgbStatusChip.getStyleClass().add( "stat-chip" + styleSuffix );
+            }
+        } );
+    }
+
+    /** Flashes the launcher's accent color on every connected device
+     *  for ~2 seconds, then restores whatever effect was active. Lets
+     *  the user confirm the backend is reaching their keyboard before
+     *  relying on it during a launch. */
+    private void runRgbConnectionTest()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                com.micatechnologies.minecraft.launcher.rgb.RgbController controller =
+                        com.micatechnologies.minecraft.launcher.rgb.RgbController.getInstance();
+                // Make sure the controller is running before the test — if
+                // the user toggled enable on but hasn't navigated away from
+                // settings since, the restart task may still be in flight.
+                if ( !ConfigManager.getRgbEnable() ) {
+                    com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
+                            "RGB disabled",
+                            "Turn on \"Enable RGB lighting\" first, then try the test again." );
+                    return;
+                }
+                com.micatechnologies.minecraft.launcher.rgb.RgbEffect prior = controller.activeEffect();
+                // Picking a fixed magenta so the test reads as a deliberate
+                // signal — using the launcher theme's accent color would
+                // produce a different result per theme and the user might
+                // miss whether it actually fired.
+                com.micatechnologies.minecraft.launcher.rgb.effects.SolidEffect test =
+                        new com.micatechnologies.minecraft.launcher.rgb.effects.SolidEffect(
+                                "Connection Test",
+                                new com.micatechnologies.minecraft.launcher.rgb.RgbColor( 255, 0, 255 ) );
+                controller.setEffect( test );
+                Thread.sleep( 2_000L );
+                controller.setEffect( prior ); // restore (null = stop)
+            }
+            catch ( InterruptedException ie ) {
+                Thread.currentThread().interrupt();
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "RGB connection test threw", t );
+            }
+            GUIUtilities.JFXPlatformRun( this::refreshRgbStatusChip );
+        } );
     }
 
     /**
