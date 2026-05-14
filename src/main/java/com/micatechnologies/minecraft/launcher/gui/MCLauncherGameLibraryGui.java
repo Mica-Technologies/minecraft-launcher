@@ -129,6 +129,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private static final String TYPE_VANILLA_SNAPSHOT = "Vanilla — Snapshots";
     private static final String TYPE_VANILLA_BETA     = "Vanilla — Old Beta";
     private static final String TYPE_VANILLA_ALPHA    = "Vanilla — Old Alpha";
+    // Loader-version filters — show all available Forge / NeoForge /
+    // Fabric versions as installable "empty modpacks". Picking one
+    // and clicking Install writes a real local manifest (under
+    // imported-manifests/) so the result is a normal editable modpack.
+    private static final String TYPE_FORGE_VERSIONS    = "Forge — Versions";
+    private static final String TYPE_NEOFORGE_VERSIONS = "NeoForge — Versions";
+    private static final String TYPE_FABRIC_VERSIONS   = "Fabric — Versions";
 
     private static final String STATUS_ALL         = "All";
     private static final String STATUS_INSTALLED   = "Installed";
@@ -190,8 +197,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
         // Filters
         typeFilter.setItems( FXCollections.observableArrayList(
-                TYPE_ALL, TYPE_MODPACKS, TYPE_VANILLA_RELEASE, TYPE_VANILLA_SNAPSHOT,
-                TYPE_VANILLA_BETA, TYPE_VANILLA_ALPHA ) );
+                TYPE_ALL, TYPE_MODPACKS,
+                TYPE_VANILLA_RELEASE, TYPE_VANILLA_SNAPSHOT,
+                TYPE_VANILLA_BETA, TYPE_VANILLA_ALPHA,
+                TYPE_FORGE_VERSIONS, TYPE_NEOFORGE_VERSIONS, TYPE_FABRIC_VERSIONS ) );
         typeFilter.selectItem( TYPE_ALL );
         typeFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
 
@@ -927,7 +936,17 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         boolean wantInstalled = !STATUS_AVAILABLE.equals( status );
         boolean wantAvailable = !STATUS_INSTALLED.equals( status );
         boolean wantModpacks  = TYPE_ALL.equals( type ) || TYPE_MODPACKS.equals( type );
-        boolean wantVanilla   = !TYPE_MODPACKS.equals( type );
+        // Vanilla rows are shown for TYPE_ALL and any TYPE_VANILLA_*
+        // filter — NOT for the loader-version filters, which want a
+        // focused list of just that loader's versions.
+        boolean wantVanilla   = TYPE_ALL.equals( type )
+                || type != null && type.startsWith( "Vanilla" );
+        // Loader-version rows fire only when the user explicitly
+        // picks that filter. They're not included in TYPE_ALL because
+        // the combined list would be enormous (~50 vanilla releases
+        // + ~150 Forge promotions + ~100 NeoForge + ~50 Fabric) and
+        // not what a "show me everything" search wants.
+        String wantLoaderType = loaderTypeFor( type );
 
         // Installed modpacks
         if ( wantModpacks && wantInstalled ) {
@@ -959,6 +978,35 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
         }
 
+        // Loader versions — Forge / NeoForge / Fabric installable
+        // "empty packs". Each entry's install action writes a real
+        // manifest under imported-manifests/ and registers it with
+        // GameModPackManager, so installed loader packs show up as
+        // normal modpacks (under the Modpacks filter) — we never
+        // emit a LOADER_INSTALLED entry here, only LOADER_AVAILABLE.
+        if ( wantLoaderType != null && wantAvailable ) {
+            List< com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion > versions =
+                    switch ( wantLoaderType ) {
+                        case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE ->
+                                com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.getForgeVersions();
+                        case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE ->
+                                com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.getNeoForgeVersions();
+                        case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC ->
+                                com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.getFabricVersions();
+                        default -> java.util.Collections.emptyList();
+                    };
+            for ( var v : versions ) {
+                if ( com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.isInstalled( v ) ) {
+                    // The on-disk manifest already exists. It'll
+                    // surface under the Modpacks filter through the
+                    // normal installed-packs path; don't duplicate it
+                    // here as an "available" entry.
+                    continue;
+                }
+                out.add( LibraryEntry.availableLoader( v ) );
+            }
+        }
+
         // Vanilla versions — installed always come first within their type bucket; available
         // are capped at VANILLA_VISIBLE_CAP to keep the FlowPane snappy.
         if ( wantVanilla ) {
@@ -984,6 +1032,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
         }
         return out;
+    }
+
+    /** Maps a top-level type filter to the modloader identifier
+     *  ({@code ModPackConstants.MOD_LOADER_*}) when one of the
+     *  loader-version filters is selected; null otherwise. */
+    private static String loaderTypeFor( String type )
+    {
+        return switch ( type == null ? "" : type ) {
+            case TYPE_FORGE_VERSIONS    -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE;
+            case TYPE_NEOFORGE_VERSIONS -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE;
+            case TYPE_FABRIC_VERSIONS   -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC;
+            default                      -> null;
+        };
     }
 
     /** Maps a top-level type filter to the vanilla-type strings VanillaVersionManager
@@ -1027,7 +1088,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     private static final class LibraryEntry
     {
-        enum Kind { MODPACK_INSTALLED, MODPACK_AVAILABLE, VANILLA_INSTALLED, VANILLA_AVAILABLE }
+        enum Kind { MODPACK_INSTALLED, MODPACK_AVAILABLE,
+                     VANILLA_INSTALLED, VANILLA_AVAILABLE,
+                     /** Forge / NeoForge / Fabric version that's available to install as an
+                      *  empty modpack. There's no LOADER_INSTALLED counterpart — installed
+                      *  loader packs surface through the existing MODPACK_INSTALLED path since
+                      *  installation writes a real manifest. */
+                     LOADER_AVAILABLE }
 
         final Kind kind;
         final String displayName;
@@ -1040,9 +1107,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         final GameModPack pack;
         final String vanillaVersionId;   // non-null for VANILLA_*
         final JsonObject vanillaInfo;    // non-null for VANILLA_AVAILABLE
+        /** Non-null for LOADER_AVAILABLE — carries the (loaderType,
+         *  mcVersion, loaderVersion, installerUrl) tuple the install
+         *  action needs to write the manifest. */
+        final com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion loaderVersion;
 
         private LibraryEntry( Kind kind, String displayName, List< String > chips, String statusText,
-                              GameModPack pack, String vanillaVersionId, JsonObject vanillaInfo )
+                              GameModPack pack, String vanillaVersionId, JsonObject vanillaInfo,
+                              com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion loaderVersion )
         {
             this.kind = kind;
             this.displayName = displayName;
@@ -1051,6 +1123,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             this.pack = pack;
             this.vanillaVersionId = vanillaVersionId;
             this.vanillaInfo = vanillaInfo;
+            this.loaderVersion = loaderVersion;
         }
 
         static LibraryEntry installedModpack( GameModPack pack )
@@ -1068,7 +1141,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
              // hosted manifest we surface that as "Recently updated" to indicate the
              // launcher has fresh metadata cached for the next launch.
             String status = pack.isUpdateAvailable() ? "Recently updated" : "Installed";
-            return new LibraryEntry( Kind.MODPACK_INSTALLED, name, chips, status, pack, null, null );
+            return new LibraryEntry( Kind.MODPACK_INSTALLED, name, chips, status, pack, null, null, null );
         }
 
         static LibraryEntry availableModpack( GameModPack pack )
@@ -1082,7 +1155,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
             catch ( Exception ignored ) { /* leave off if not resolvable */ }
             return new LibraryEntry( Kind.MODPACK_AVAILABLE, name, chips, "From manifest",
-                                     pack, null, null );
+                                     pack, null, null, null );
         }
 
         static LibraryEntry installedVanilla( String versionId, JsonObject info )
@@ -1092,7 +1165,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             chips.add( "Vanilla" );
             chips.add( prettyVanillaType( typeStr ) );
             return new LibraryEntry( Kind.VANILLA_INSTALLED, "Minecraft " + versionId,
-                                     chips, "Installed", null, versionId, info );
+                                     chips, "Installed", null, versionId, info, null );
         }
 
         static LibraryEntry availableVanilla( String versionId, JsonObject info )
@@ -1106,7 +1179,25 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                           : "";
             String status = date.isEmpty() ? "Available" : "Released " + date;
             return new LibraryEntry( Kind.VANILLA_AVAILABLE, "Minecraft " + versionId,
-                                     chips, status, null, versionId, info );
+                                     chips, status, null, versionId, info, null );
+        }
+
+        static LibraryEntry availableLoader(
+                com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion v )
+        {
+            String loaderPretty = switch ( v.loaderType() ) {
+                case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE    -> "Forge";
+                case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE -> "NeoForge";
+                case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC   -> "Fabric";
+                default                                                                                  -> v.loaderType();
+            };
+            List< String > chips = new ArrayList<>();
+            chips.add( loaderPretty );
+            chips.add( "Minecraft " + v.mcVersion() );
+            return new LibraryEntry( Kind.LOADER_AVAILABLE,
+                                     loaderPretty + " " + v.loaderVersion(),
+                                     chips, "Installs as empty modpack",
+                                     null, null, null, v );
         }
 
         private static String prettyVanillaType( String t )
@@ -1285,6 +1376,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 case VANILLA_INSTALLED  -> "Installed";
                 case MODPACK_AVAILABLE  -> "Available";
                 case VANILLA_AVAILABLE  -> null;  // Status row text already says "Available" / "Released ..."
+                case LOADER_AVAILABLE   -> "Available";
             };
         }
 
@@ -1297,6 +1389,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 // was a contrast trainwreck in the prior pass.
                 case MODPACK_AVAILABLE  -> "stat-chip-info";
                 case VANILLA_AVAILABLE  -> "stat-chip-info";
+                case LOADER_AVAILABLE   -> "stat-chip-info";
             };
         }
 
@@ -1321,6 +1414,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 }
                 case VANILLA_AVAILABLE -> {
                     MFXButton install = primaryAction( "Install", "primary", () -> installAvailableVanilla( entry ) );
+                    out.add( install );
+                }
+                case LOADER_AVAILABLE -> {
+                    MFXButton install = primaryAction( "Install", "primary", () -> installAvailableLoader( entry ) );
                     out.add( install );
                 }
             }
@@ -1515,6 +1612,38 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         } );
     }
 
+    /** Install handler for a {@link LibraryEntry.Kind#LOADER_AVAILABLE}
+     *  entry. Writes the synthetic loader manifest via
+     *  {@link com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager}
+     *  and rebuilds cards so the new pack shows up under
+     *  Installed Modpacks immediately. */
+    private void installAvailableLoader( LibraryEntry entry )
+    {
+        var v = entry.loaderVersion;
+        if ( v == null ) return;
+        String label = v.displayName();
+        showBackgroundStatus( "Installing " + label + "…" );
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                if ( com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.isInstalled( v ) ) {
+                    return;
+                }
+                com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.installVersion( v );
+                GUIUtilities.JFXPlatformRun( this::rebuildCards );
+                NotificationManager.success( "Loader installed",
+                                             label + " is now available as an empty modpack." );
+            }
+            catch ( IOException ex ) {
+                Logger.logError( "Failed to install loader version " + label );
+                Logger.logThrowable( ex );
+                NotificationManager.error( "Install failed", "Could not install " + label + ": " + ex.getMessage() );
+            }
+            finally {
+                hideBackgroundStatus();
+            }
+        } );
+    }
+
     private void openModpackEditor( GameModPack initialPack )
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -1557,6 +1686,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // vanilla; no logo means nothing to sample anyway.
         if ( entry.kind == LibraryEntry.Kind.VANILLA_AVAILABLE ) {
             bgLayer.getStyleClass().add( "heroBackgroundDefaultVanilla" );
+            return;
+        }
+        // Available loader versions (Forge/NeoForge/Fabric) — these install
+        // as empty packs, so they share the modded-defaults look with the
+        // catch-all branch below. Explicit case for exhaustive readability.
+        if ( entry.kind == LibraryEntry.Kind.LOADER_AVAILABLE ) {
+            bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
             return;
         }
         bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
