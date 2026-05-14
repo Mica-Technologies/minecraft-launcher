@@ -1368,6 +1368,37 @@
                     <groupId>org.jetbrains</groupId>
                     <artifactId>annotations</artifactId>
                 </exclusion>
+                <!-- FXTaskbarProgressBar v11.4 ALSO declares javafx-*:11
+                     (classifier=linux) as runtime deps — same issue
+                     MaterialFX had above. The previous fix excluded
+                     MaterialFX's transitive 11s but left this dep's
+                     copies in the tree, so the packaged build still
+                     bundled JavaFX 11 classes ahead of our top-level 26
+                     declarations. Identical exclusion list here. -->
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-base</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-controls</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-fxml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-graphics</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-media</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-web</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
