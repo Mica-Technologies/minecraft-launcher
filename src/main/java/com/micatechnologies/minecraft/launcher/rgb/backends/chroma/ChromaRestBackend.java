@@ -305,8 +305,10 @@ public final class ChromaRestBackend implements RgbBackend
         }
         int result = parseResultField( resp.body() );
         if ( result != 0 ) {
-            throw new IOException( "Chroma " + endpoint + " returned result="
-                                           + result + " body=" + resp.body() );
+            maybeLogResult126Hint( result );
+            throw new IOException( "Chroma " + endpoint + " returned result=" + result
+                                           + " (" + describeChromaResult( result )
+                                           + ") body=" + resp.body() );
         }
         if ( endpointsSucceededOnce.add( endpoint ) ) {
             // One-shot: first time this endpoint accepted a frame for
@@ -317,6 +319,62 @@ public final class ChromaRestBackend implements RgbBackend
             // rather than something the launcher can fix.
             Logger.logStd( "Chroma " + endpoint + ": first frame succeeded (result=0)" );
         }
+    }
+
+    /** Translates a {@code result} code from a Chroma REST response into
+     *  a short human-readable label so log lines self-explain. The Razer
+     *  Chroma SDK forwards a mix of Windows system error codes and
+     *  Razer-specific RZRESULT codes, none of which are particularly
+     *  greppable as raw integers. Surfacing the meaning + likely-cause
+     *  alongside the number saves a round-trip through Razer's docs. */
+    private static String describeChromaResult( int result )
+    {
+        return switch ( result ) {
+            case 0    -> "SUCCESS";
+            case 1    -> "RZRESULT_FAILED";
+            case 5    -> "ACCESS_DENIED — Synapse declined the request; check Chroma → "
+                       + "Apps in Synapse and ensure SDK access is enabled";
+            case 50   -> "NOT_SUPPORTED — effect type isn't valid for this device";
+            case 87   -> "INVALID_PARAMETER — malformed payload (effect name, grid "
+                       + "shape, or color format)";
+            case 126  -> "MOD_NOT_FOUND — Synapse can't find the Chroma module for "
+                       + "this device. Almost always means Chroma SDK access is "
+                       + "disabled in Synapse, OR the user's installation is "
+                       + "missing the per-device Chroma module";
+            case 1168 -> "NOT_FOUND — device not registered with Synapse";
+            case 1247 -> "ALREADY_INITIALIZED";
+            case 4309 -> "RESOURCE_DISABLED";
+            case 4319 -> "DEVICE_NOT_AVAILABLE — no device of this type connected";
+            default   -> "unknown Chroma result code (see Razer SDK docs)";
+        };
+    }
+
+    /** Whether the one-shot Synapse-config hint has been printed this
+     *  session. We want to tell the user how to fix result=126 once,
+     *  not 6 times a frame at 30fps. */
+    private volatile boolean result126HintLogged = false;
+
+    /** When result=126 lands the actionable fix is the same every time
+     *  (toggle SDK access in Synapse). Print a single user-facing hint
+     *  with the steps the first time the result code appears this
+     *  session; the per-frame log lines from the caller still record
+     *  every push that fails. */
+    private void maybeLogResult126Hint( int result )
+    {
+        if ( result != 126 || result126HintLogged ) return;
+        result126HintLogged = true;
+        Logger.logStd( "Razer Chroma is rejecting frame pushes with result=126 "
+                               + "(MOD_NOT_FOUND). To fix:" );
+        Logger.logStd( "  1. Open Razer Synapse." );
+        Logger.logStd( "  2. Go to the CHROMA tab → CONNECT (or APPS) section." );
+        Logger.logStd( "  3. Ensure 'Chroma Connect' / 'SDK access' is enabled." );
+        Logger.logStd( "  4. Confirm 'Mica Minecraft Launcher' appears in the "
+                               + "connected apps list and is allowed." );
+        Logger.logStd( "  5. Restart Synapse if the toggle was just changed — "
+                               + "the SDK only re-reads on Synapse start." );
+        Logger.logStd( "If the issue persists, switch the RGB backend to OpenRGB "
+                               + "in Settings → RGB; OpenRGB has broader device "
+                               + "coverage than Razer's own SDK in our experience." );
     }
 
     /** Pulls the {@code result} integer out of a Chroma REST response
@@ -383,6 +441,7 @@ public final class ChromaRestBackend implements RgbBackend
         sessionUri = null;
         http = null;
         endpointsSucceededOnce.clear();
+        result126HintLogged = false;
     }
 
     // =========================================================================
