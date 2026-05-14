@@ -417,8 +417,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                         if ( isTechnicServer ) {
                             NotificationManager.success(
                                     "Technic server pack imported",
-                                    "Open the pack in the Modpack Editor to set the Minecraft "
-                                            + "version and loader installer URL before launching." );
+                                    "Open the pack in the Modpack Editor to set the loader "
+                                            + "installer URL (and verify the auto-detected "
+                                            + "Minecraft version + mod loader) before launching." );
                         }
                         else {
                             NotificationManager.success(

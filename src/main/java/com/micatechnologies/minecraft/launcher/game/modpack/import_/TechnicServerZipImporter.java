@@ -25,6 +25,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,10 +35,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 /**
  * Imports a Technic Launcher "Server Download" ZIP. Since Technic's
@@ -122,6 +125,37 @@ public final class TechnicServerZipImporter
         return false;
     }
 
+    /** Reads {@code launch.bat} (preferred) or {@code launch.sh} from {@code zip}
+     *  and extracts the server JAR filename from the {@code -jar <name>} argument.
+     *  Falls back to {@code null} when no launch script is present or no
+     *  {@code -jar} reference parses; the caller then walks top-level entries to
+     *  find any candidate {@code .jar}. */
+    private static String findServerJarFromLaunchScript( ZipFile zip )
+    {
+        Pattern jarArg = Pattern.compile( "-jar\\s+([^\\s\"]+\\.jar)", Pattern.CASE_INSENSITIVE );
+        for ( String scriptName : new String[] { "launch.bat", "launch.sh" } ) {
+            ZipEntry entry = zip.getEntry( scriptName );
+            if ( entry == null ) continue;
+            try ( InputStream in = zip.getInputStream( entry ) ) {
+                String body = new String( in.readAllBytes(), StandardCharsets.UTF_8 );
+                Matcher m = jarArg.matcher( body );
+                if ( m.find() ) {
+                    String jarName = m.group( 1 );
+                    // The path inside the script may include directories (e.g.
+                    // "./Tekkit.jar"); strip leading components so it matches
+                    // the top-level entry name inside the ZIP.
+                    int slash = Math.max( jarName.lastIndexOf( '/' ),
+                                            jarName.lastIndexOf( '\\' ) );
+                    return slash >= 0 ? jarName.substring( slash + 1 ) : jarName;
+                }
+            }
+            catch ( IOException ignored ) {
+                // Try the next script.
+            }
+        }
+        return null;
+    }
+
     /**
      * Imports {@code zipFile} as a Technic server pack. The caller (typically
      * {@link ModpackZipImporter}) has already verified
@@ -168,7 +202,25 @@ public final class TechnicServerZipImporter
             List< String > modFilenames = new ArrayList<>();
             extractContents( zip, installFolder, modFilenames );
 
-            JsonObject manifest = buildManifest( packName, packVersion, modFilenames );
+            // Inspect the server JAR for loader + MC version signals. We
+            // identify the server JAR via the launch script's -jar arg
+            // (more reliable than "first top-level .jar"); the detection
+            // routine below opens that entry's bytes and walks its inner
+            // entries for the telltale FML / Forge / Fabric / NeoForge
+            // markers. If we don't find anything definitive, loaderInfo
+            // is null and the manifest ships with empty loader fields —
+            // user fills those in via the modpack editor.
+            String serverJarName = findServerJarFromLaunchScript( zip );
+            LoaderInfo loaderInfo = serverJarName != null
+                    ? detectLoader( zip, serverJarName ) : null;
+            if ( loaderInfo != null ) {
+                Logger.logStd( "TechnicServerZipImporter: detected " + loaderInfo.loader
+                                       + " loader" + ( loaderInfo.mcVersion != null
+                                                                ? " for MC " + loaderInfo.mcVersion : "" )
+                                       + " from " + serverJarName );
+            }
+
+            JsonObject manifest = buildManifest( packName, packVersion, modFilenames, loaderInfo );
             String manifestFilename = "technic-server-" + sanitize( sanitized ) + ".json";
             Path manifestPath = Path.of( LocalPathManager.getLauncherConfigFolderPath(),
                                             IMPORTED_MANIFESTS_DIR,
@@ -251,13 +303,16 @@ public final class TechnicServerZipImporter
      *  finds them on disk and skips the download step since the
      *  {@code remote} URL is empty.
      *
-     *  <p>{@code packMinecraftVersion} + {@code packModLoaderURL} are
-     *  left empty on purpose — the user must fill these in via the
-     *  modpack editor before launching. We don't try to derive them
-     *  from the server JAR because the heuristics are fragile across
-     *  the wide range of Technic-era packs.</p> */
+     *  <p>{@code packModLoader} + {@code packMinecraftVersion} are
+     *  pre-populated when {@code loaderInfo} is non-null (detector
+     *  found markers in the server JAR). The loader installer URL is
+     *  always left blank since deriving it would require pinning a
+     *  specific Forge / Fabric / NeoForge build URL that the launcher
+     *  doesn't host for every MC version — user fills that in via the
+     *  modpack editor.</p> */
     private static JsonObject buildManifest( String packName, String packVersion,
-                                              List< String > modFilenames )
+                                              List< String > modFilenames,
+                                              LoaderInfo loaderInfo )
     {
         JsonObject manifest = new JsonObject();
         manifest.addProperty( "manifestFormat", 2 );
@@ -270,16 +325,19 @@ public final class TechnicServerZipImporter
         manifest.addProperty( "packLogoURL", ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
         manifest.addProperty( "packBackgroundURL", ModPackConstants.MODPACK_DEFAULT_BG_URL );
 
-        // Loader + MC version left empty. The user fills these in via the
-        // editor; the surrounding UI surfaces the "needs editing" prompt
-        // in the import-complete notification so they know to do that
-        // before clicking Play.
-        manifest.addProperty( "packModLoader", ModPackConstants.MOD_LOADER_FORGE );
+        // Loader pre-populated from the detector when available, else
+        // defaults to Forge. The installer URL stays empty regardless —
+        // the user fills it in via the editor to point at the right
+        // installer for their MC version.
+        String loader = loaderInfo != null ? loaderInfo.loader : ModPackConstants.MOD_LOADER_FORGE;
+        String mcVersion = loaderInfo != null && loaderInfo.mcVersion != null
+                ? loaderInfo.mcVersion : "";
+        manifest.addProperty( "packModLoader", loader );
         manifest.addProperty( "packModLoaderURL", "" );
         manifest.addProperty( "packModLoaderHash", "" );
         manifest.addProperty( "packForgeURL", "" );
         manifest.addProperty( "packForgeHash", "" );
-        manifest.addProperty( "packMinecraftVersion", "" );
+        manifest.addProperty( "packMinecraftVersion", mcVersion );
 
         JsonArray mods = new JsonArray();
         for ( String modName : modFilenames ) {
@@ -311,6 +369,99 @@ public final class TechnicServerZipImporter
     {
         if ( s == null ) return "unknown";
         return s.replaceAll( "[^A-Za-z0-9._-]", "_" );
+    }
+
+    /** Detected mod loader (Forge / NeoForge / Fabric) + Minecraft version
+     *  parsed from the server JAR. Either field may be null when the
+     *  detector found one signal but not the other — e.g. a Forge JAR with
+     *  no embedded version properties produces {@code loader=forge,
+     *  mcVersion=null}. */
+    private record LoaderInfo( String loader, String mcVersion ) {}
+
+    /**
+     * Inspects the {@code serverJarEntryName} entry inside {@code outerZip}
+     * and tries to identify the mod loader + Minecraft version. Reads the
+     * entry's bytes into memory (server JARs are typically &lt;15MB) and
+     * streams through them with {@link ZipInputStream} — no temp file,
+     * no JarFile open from a nested entry.
+     *
+     * <p>Detection priorities:</p>
+     * <ol>
+     *   <li>{@code fmlversion.properties} at root → old-era Forge
+     *       (1.2.5-1.6 MCPC). Parses {@code fmlbuild.mcversion} for the
+     *       Minecraft version. Highest priority because it's the most
+     *       authoritative signal we get for that era.</li>
+     *   <li>{@code net/neoforged/...} class paths → NeoForge.</li>
+     *   <li>{@code fabric-server-launch.properties} or
+     *       {@code net/fabricmc/...} class paths → Fabric.</li>
+     *   <li>{@code net/minecraftforge/...} or {@code cpw/mods/fml/...}
+     *       class paths → modern Forge.</li>
+     * </ol>
+     *
+     * <p>Returns {@code null} when none of the markers are present;
+     * caller falls back to a blank manifest loader field.</p>
+     */
+    private static LoaderInfo detectLoader( ZipFile outerZip, String serverJarEntryName )
+    {
+        ZipEntry entry = outerZip.getEntry( serverJarEntryName );
+        if ( entry == null ) return null;
+
+        byte[] jarBytes;
+        try ( InputStream in = outerZip.getInputStream( entry ) ) {
+            jarBytes = in.readAllBytes();
+        }
+        catch ( IOException ioe ) {
+            Logger.logWarningSilent( "TechnicServerZipImporter: couldn't read " + serverJarEntryName
+                                              + " for loader detection: " + ioe.getMessage() );
+            return null;
+        }
+
+        boolean sawNeoforged    = false;
+        boolean sawFabric       = false;
+        boolean sawForgeModern  = false;
+        boolean sawFml          = false;
+        String fmlMcVersion = null;
+
+        try ( ZipInputStream zin = new ZipInputStream( new ByteArrayInputStream( jarBytes ) ) ) {
+            ZipEntry inner;
+            while ( ( inner = zin.getNextEntry() ) != null ) {
+                String name = inner.getName();
+                if ( name.equals( "fmlversion.properties" ) ) {
+                    // Highest-priority signal — parse it inline. The
+                    // resource is small (a few hundred bytes); zin's
+                    // read() yields just this entry's content until
+                    // closeEntry / getNextEntry.
+                    Properties props = new Properties();
+                    try { props.load( zin ); }
+                    catch ( IOException ignored ) { /* fall through */ }
+                    fmlMcVersion = props.getProperty( "fmlbuild.mcversion" );
+                    sawFml = true;
+                    // Don't break — keep scanning to confirm whether this
+                    // is also a modern Forge / NeoForge variant.
+                    continue;
+                }
+                if ( name.startsWith( "net/neoforged/" ) ) sawNeoforged = true;
+                else if ( name.startsWith( "net/fabricmc/" )
+                        || name.equals( "fabric-server-launch.properties" )
+                        || name.equals( "fabric.mod.json" ) ) sawFabric = true;
+                else if ( name.startsWith( "net/minecraftforge/" )
+                        || name.startsWith( "cpw/mods/fml/" ) ) sawForgeModern = true;
+            }
+        }
+        catch ( IOException ioe ) {
+            Logger.logWarningSilent( "TechnicServerZipImporter: error scanning " + serverJarEntryName
+                                              + ": " + ioe.getMessage() );
+        }
+
+        // Apply detection priorities. NeoForge / Fabric win over generic
+        // Forge signals because the NeoForge / Fabric loaders may still
+        // include some net/minecraftforge/... compat classes.
+        if ( sawNeoforged ) return new LoaderInfo( ModPackConstants.MOD_LOADER_NEOFORGE, fmlMcVersion );
+        if ( sawFabric )    return new LoaderInfo( ModPackConstants.MOD_LOADER_FABRIC, fmlMcVersion );
+        if ( sawForgeModern || sawFml ) {
+            return new LoaderInfo( ModPackConstants.MOD_LOADER_FORGE, fmlMcVersion );
+        }
+        return null;
     }
 
     /** Mirrors the other importers' checked exception type so the GUI
