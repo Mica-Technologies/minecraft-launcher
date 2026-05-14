@@ -1455,18 +1455,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 chips.getChildren().add( buildChip( "v" + packVersion ) );
             }
 
-            // Last-played hint. getLastPlayedFormatted() returns the literal
-            // string "Never played" as a sentinel — string-compare against
-            // that constant (not the localized text) so the sentinel detection
-            // works regardless of UI locale. The user-facing text on both
-            // branches is fully localized through LocalizationManager.
-            String lastPlayed = newPack.getLastPlayedFormatted();
-            if ( lastPlayed != null && !"Never played".equals( lastPlayed ) ) {
-                played.setText( LocalizationManager.format(
-                        "main.card.lastPlayed", lastPlayed.toLowerCase() ) );
+            // Last-played hint. Use isNeverPlayed() rather than string-comparing
+            // the formatted output — the formatted string is now localized, so
+            // a string-compare would only work for English-locale users.
+            if ( newPack.isNeverPlayed() ) {
+                played.setText( LocalizationManager.get( "main.card.neverPlayed" ) );
             }
             else {
-                played.setText( LocalizationManager.get( "main.card.neverPlayed" ) );
+                played.setText( LocalizationManager.format(
+                        "main.card.lastPlayed", newPack.getLastPlayedFormatted().toLowerCase() ) );
             }
 
             // Button enable / disable state
