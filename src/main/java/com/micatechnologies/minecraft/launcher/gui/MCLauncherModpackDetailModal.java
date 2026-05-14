@@ -604,6 +604,9 @@ public class MCLauncherModpackDetailModal extends StackPane
                 () -> openPackSubfolder( pack, "shaderpacks" ) ) );
         grid.getChildren().add( buildQuickActionBtn( "Desktop Shortcut",
                 () -> createDesktopShortcut( pack ) ) );
+        grid.getChildren().add( buildQuickActionBtn(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.exportPack.label" ),
+                () -> exportPackAsZip( pack ) ) );
 
         // Copy Invite Link — only enabled when the pack has something to invite to.
         MFXButton inviteBtn = buildQuickActionBtn( "Copy Invite Link",
@@ -617,6 +620,66 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         section.getChildren().add( grid );
         return section;
+    }
+
+    /** Pops a file chooser for the destination ZIP, then runs the
+     *  export off the FX thread via FxAsyncTask. Shows a notification
+     *  on completion (success path links the saved file; failure
+     *  path surfaces the exception message). */
+    private void exportPackAsZip( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
+    {
+        if ( pack == null || pack.getPackRootFolder() == null ) return;
+        // Confirmation dialog with the "include worlds" toggle.
+        javafx.scene.control.Alert prompt = new javafx.scene.control.Alert(
+                javafx.scene.control.Alert.AlertType.CONFIRMATION );
+        prompt.setTitle( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get(
+                "detailModal.exportPack.dialogTitle" ) );
+        prompt.setHeaderText( pack.getFriendlyName() != null
+                                       ? pack.getFriendlyName() : pack.getPackName() );
+        prompt.setContentText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get(
+                "detailModal.exportPack.dialogPrompt" ) );
+        javafx.scene.control.CheckBox worldsToggle = new javafx.scene.control.CheckBox(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get(
+                        "detailModal.exportPack.includeWorlds" ) );
+        prompt.getDialogPane().setExpandableContent( worldsToggle );
+        prompt.getDialogPane().setExpanded( true );
+
+        java.util.Optional< javafx.scene.control.ButtonType > ok = prompt.showAndWait();
+        if ( ok.isEmpty() || ok.get() != javafx.scene.control.ButtonType.OK ) return;
+        final boolean includeWorlds = worldsToggle.isSelected();
+
+        javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+        chooser.setTitle( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get(
+                "detailModal.exportPack.dialogTitle" ) );
+        String defaultName = ( pack.getPackName() == null ? "modpack" : pack.getPackName() )
+                + "-" + System.currentTimeMillis() + ".zip";
+        chooser.setInitialFileName( defaultName );
+        chooser.getExtensionFilters().add(
+                new javafx.stage.FileChooser.ExtensionFilter( "ZIP archive", "*.zip" ) );
+        javafx.stage.Stage owner = MCLauncherGuiController.getTopStageOrNull();
+        java.io.File dest = chooser.showSaveDialog( owner );
+        if ( dest == null ) return;
+
+        final String displayName = pack.getFriendlyName() != null
+                ? pack.getFriendlyName() : pack.getPackName();
+        NotificationManager.success(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                        "detailModal.exportPack.starting", displayName ),
+                dest.getAbsolutePath() );
+
+        com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.run(
+                () -> com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.exportToZip(
+                        pack, dest, includeWorlds, null ),
+                () -> NotificationManager.success(
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                                "detailModal.exportPack.success", displayName ),
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                                "detailModal.exportPack.successBody", dest.getAbsolutePath() ) ),
+                err -> NotificationManager.error(
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get(
+                                "detailModal.exportPack.failed" ),
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                                "detailModal.exportPack.failedBody", err.getMessage() ) ) );
     }
 
     private Node buildStatsSection( GameModPack pack )
