@@ -58,6 +58,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -87,6 +88,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML MFXTextField searchField;
     @SuppressWarnings( "unused" ) @FXML MFXComboBox< String > typeFilter;
     @SuppressWarnings( "unused" ) @FXML MFXComboBox< String > statusFilter;
+    @SuppressWarnings( "unused" ) @FXML MFXComboBox< String > sortFilter;
 
     // ===== FXML — pagination bar =====
     @SuppressWarnings( "unused" ) @FXML Label paginationRangeLabel;
@@ -140,6 +142,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private static final String STATUS_ALL         = "All";
     private static final String STATUS_INSTALLED   = "Installed";
     private static final String STATUS_AVAILABLE   = "Available";
+
+    // Sort options. "Default" preserves the collectEntries grouping
+    // (installed kinds first, then available, with vanilla/loader catalogs
+    // in their upstream-fetched order). The play-stat / update-log sorts
+    // are only meaningful for MODPACK_INSTALLED entries; other kinds are
+    // treated as "never played" / "no update history" and sort to the
+    // bottom while preserving their relative order via stable sort.
+    private static final String SORT_DEFAULT      = "Default";
+    private static final String SORT_NAME_AZ      = "Name (A–Z)";
+    private static final String SORT_NAME_ZA      = "Name (Z–A)";
+    private static final String SORT_LAST_PLAYED  = "Last Played";
+    private static final String SORT_MOST_PLAYED  = "Most Played";
+    private static final String SORT_RECENT_UPDATE = "Recently Updated";
 
     /** Page-size ladder. Bumped past the original 20/40/60 once {@link LibraryCard}
      *  picked up the same pool + bind pattern as the main menu's hero card — the
@@ -229,6 +244,17 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 STATUS_ALL, STATUS_INSTALLED, STATUS_AVAILABLE ) );
         statusFilter.selectItem( STATUS_INSTALLED );
         statusFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
+
+        // Sort filter — labels mirror the main menu's so users learn one
+        // vocabulary across screens. Last/Most-Played and Recently-Updated
+        // are only meaningful for MODPACK_INSTALLED entries; vanilla / loader
+        // catalogs degrade to "no play history" / "no update timestamp" and
+        // sink to the bottom while keeping their natural intra-kind order.
+        sortFilter.setItems( FXCollections.observableArrayList(
+                SORT_DEFAULT, SORT_NAME_AZ, SORT_NAME_ZA,
+                SORT_LAST_PLAYED, SORT_MOST_PLAYED, SORT_RECENT_UPDATE ) );
+        sortFilter.selectItem( SORT_DEFAULT );
+        sortFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
 
         // Search — debounce keystrokes so a rapid burst coalesces into one rebuild.
         // Without this, FlowPane.getChildren().clear() + re-instantiate fires per
@@ -749,6 +775,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             entries.removeIf( e -> !e.displayName.toLowerCase( Locale.ROOT ).contains( search ) );
         }
 
+        String sortSel = sortFilter == null ? SORT_DEFAULT
+                : Objects.requireNonNullElse( sortFilter.getValue(), SORT_DEFAULT );
+        sortEntries( entries, sortSel );
+
         // Pagination math. Clamp currentPage to [1, totalPages] so out-of-range states from
         // prev/next clicks or filter changes that shrink the list quietly snap back.
         int totalItems = entries.size();
@@ -1070,6 +1100,59 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
         }
         return out;
+    }
+
+    /** Re-orders {@code entries} per the user's selected sort. Stable
+     *  sort — entries that tie on the sort key keep their {@link #collectEntries}
+     *  order, which already groups by kind (installed, then available) so a
+     *  tie-broken "Most Played" list still reads naturally with the modpacks
+     *  ahead of the vanilla / loader catalog rows.
+     *
+     *  <p>{@code SORT_LAST_PLAYED} / {@code SORT_MOST_PLAYED} / {@code SORT_RECENT_UPDATE}
+     *  are well-defined only for {@link LibraryEntry.Kind#MODPACK_INSTALLED}; non-modpack
+     *  kinds get a sentinel ({@code Long.MIN_VALUE}) so they sink to the bottom
+     *  rather than disrupting the intent.</p> */
+    private static void sortEntries( List< LibraryEntry > entries, String sortKey )
+    {
+        switch ( sortKey ) {
+            case SORT_NAME_AZ -> entries.sort( Comparator.comparing(
+                    e -> e.displayName.toLowerCase( Locale.ROOT ) ) );
+            case SORT_NAME_ZA -> entries.sort( Comparator.comparing(
+                    ( LibraryEntry e ) -> e.displayName.toLowerCase( Locale.ROOT ) ).reversed() );
+            case SORT_LAST_PLAYED -> entries.sort( Comparator.comparingLong(
+                    MCLauncherGameLibraryGui::lastPlayedKey ).reversed() );
+            case SORT_MOST_PLAYED -> entries.sort( Comparator.comparingLong(
+                    MCLauncherGameLibraryGui::totalPlayedKey ).reversed() );
+            case SORT_RECENT_UPDATE -> entries.sort( Comparator.comparingLong(
+                    MCLauncherGameLibraryGui::lastUpdateKey ).reversed() );
+            default -> { /* SORT_DEFAULT — keep collectEntries order */ }
+        }
+    }
+
+    private static long lastPlayedKey( LibraryEntry e )
+    {
+        if ( e.pack == null ) return Long.MIN_VALUE;
+        return e.pack.getLastPlayedMs();
+    }
+
+    private static long totalPlayedKey( LibraryEntry e )
+    {
+        if ( e.pack == null ) return Long.MIN_VALUE;
+        return e.pack.getTotalPlayTimeMs();
+    }
+
+    private static long lastUpdateKey( LibraryEntry e )
+    {
+        if ( e.pack == null ) return Long.MIN_VALUE;
+        try {
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog.Entry > log
+                    = com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog.readEntries( e.pack );
+            if ( log.isEmpty() ) return Long.MIN_VALUE;
+            return log.get( 0 ).timestampMs();   // readEntries returns newest-first
+        }
+        catch ( Exception ignored ) {
+            return Long.MIN_VALUE;
+        }
     }
 
     /** Maps a top-level type filter to the modloader identifier
@@ -1819,8 +1902,20 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     return new Image( url, true );
                 }
             }
-            if ( entry.kind == LibraryEntry.Kind.VANILLA_INSTALLED ) {
-                return new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL, true );
+            if ( entry.kind == LibraryEntry.Kind.VANILLA_INSTALLED
+                    || entry.kind == LibraryEntry.Kind.VANILLA_AVAILABLE ) {
+                // Vanilla cards have no per-version artwork. Use the green-grass
+                // "MC" placeholder so the card visually reads as Minecraft at
+                // a glance instead of generic launcher branding.
+                return PlaceholderLogoFactory.getVanillaLogo();
+            }
+            if ( entry.kind == LibraryEntry.Kind.LOADER_AVAILABLE
+                    && entry.loaderVersion != null ) {
+                // Forge / NeoForge / Fabric placeholders — each has a brand-
+                // coloured gradient + initial so the loader catalogues are
+                // visually distinguishable from each other and from vanilla.
+                return PlaceholderLogoFactory.forLoaderType(
+                        entry.loaderVersion.loaderType() );
             }
         }
         catch ( Exception ignored ) { /* fall through */ }
