@@ -38,6 +38,7 @@ public enum HelpTopic
     RUNTIME_MANAGEMENT( "Runtime Management", "help/runtime-management.html" ),
     KEYBOARD_SHORTCUTS( "Keyboard Shortcuts", "help/keyboard-shortcuts.html" ),
     JVM_PRESETS( "JVM Presets", "help/jvm-presets.html" ),
+    ACTION_REFERENCE( "Action Reference", "help/action-reference.html" ),
     TROUBLESHOOTING( "Troubleshooting", "help/troubleshooting.html" );
 
     private final String displayName;
