@@ -64,11 +64,11 @@
               maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
             <fx:include source="components/micaBrandLogo-small.fxml"/>
         </Pane>
-        <Label text="Modpack Editor" styleClass="navBrand"/>
+        <Label text="%editor.navbar.title" styleClass="navBrand"/>
 
         <Pane HBox.hgrow="ALWAYS"/>
 
-        <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false"
+        <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false"
                styleClass="chip-offline"/>
         <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
     </HBox>
@@ -80,17 +80,17 @@
         <padding>
             <Insets bottom="6.0" left="16.0" right="16.0" top="6.0"/>
         </padding>
-        <MFXButton fx:id="newBtn" prefHeight="28.0" text="New"/>
-        <MFXButton fx:id="openFileBtn" prefHeight="28.0" text="Open File"/>
-        <MFXButton fx:id="openUrlBtn" prefHeight="28.0" text="Open URL"/>
+        <MFXButton fx:id="newBtn" prefHeight="28.0" text="%editor.toolbar.new"/>
+        <MFXButton fx:id="openFileBtn" prefHeight="28.0" text="%editor.toolbar.openFile"/>
+        <MFXButton fx:id="openUrlBtn" prefHeight="28.0" text="%editor.toolbar.openUrl"/>
         <Pane HBox.hgrow="SOMETIMES" minWidth="16.0"/>
-        <MFXButton fx:id="validateBtn" prefHeight="28.0" text="Validate"/>
-        <MFXButton fx:id="diffBtn" prefHeight="28.0" text="Diff"/>
+        <MFXButton fx:id="validateBtn" prefHeight="28.0" text="%editor.toolbar.validate"/>
+        <MFXButton fx:id="diffBtn" prefHeight="28.0" text="%editor.toolbar.diff"/>
     </HBox>
 
     <!-- Row 3: TabPane -->
     <TabPane fx:id="editorTabPane" tabClosingPolicy="UNAVAILABLE" GridPane.rowIndex="3">
-        <Tab text="Metadata" closable="false">
+        <Tab text="%editor.tab.metadata" closable="false">
             <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
                 <VBox fx:id="metadataVBox" spacing="12.0" style="-fx-background-color: transparent;">
                     <padding>
@@ -98,7 +98,7 @@
                     </padding>
 
                     <!-- Pack Identity -->
-                    <Label text="Pack Identity" style="-fx-font-weight: bold;">
+                    <Label text="%editor.section.packIdentity" style="-fx-font-weight: bold;">
                         <font><Font size="14.0"/></font>
                     </Label>
                     <MFXTextField fx:id="packNameField" floatingText="Pack Name" maxWidth="500.0"
@@ -106,9 +106,9 @@
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
                         <MFXTextField fx:id="packVersionField" floatingText="Pack Version" maxWidth="300.0"
                                       prefWidth="300.0" minHeight="48.0" prefHeight="48.0"/>
-                        <MFXButton fx:id="bumpMajorBtn" text="Major" prefHeight="28.0"/>
-                        <MFXButton fx:id="bumpMinorBtn" text="Minor" prefHeight="28.0"/>
-                        <MFXButton fx:id="bumpPatchBtn" text="Patch" prefHeight="28.0"/>
+                        <MFXButton fx:id="bumpMajorBtn" text="%editor.bumpBtn.major" prefHeight="28.0"/>
+                        <MFXButton fx:id="bumpMinorBtn" text="%editor.bumpBtn.minor" prefHeight="28.0"/>
+                        <MFXButton fx:id="bumpPatchBtn" text="%editor.bumpBtn.patch" prefHeight="28.0"/>
                     </HBox>
                     <MFXTextField fx:id="packURLField" floatingText="Pack Website URL" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
@@ -116,30 +116,30 @@
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
 
                     <!-- Flags -->
-                    <Label text="Flags" style="-fx-font-weight: bold;">
+                    <Label text="%editor.section.flags" style="-fx-font-weight: bold;">
                         <padding><Insets top="8.0"/></padding>
                         <font><Font size="14.0"/></font>
                     </Label>
-                    <MFXToggleButton fx:id="packUnstableToggle" text="Unstable (Beta)"/>
-                    <MFXToggleButton fx:id="packCustomDiscordRpcToggle" text="Custom Discord RPC"/>
+                    <MFXToggleButton fx:id="packUnstableToggle" text="%editor.toggle.unstable"/>
+                    <MFXToggleButton fx:id="packCustomDiscordRpcToggle" text="%editor.toggle.customDiscordRpc"/>
 
                     <!-- Modloader -->
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
-                        <Label text="Modloader" style="-fx-font-weight: bold;">
+                        <Label text="%editor.section.modloader" style="-fx-font-weight: bold;">
                             <font><Font size="14.0"/></font>
                         </Label>
                         <MFXComboBox fx:id="packModLoaderTypeCombo" prefWidth="160.0" minHeight="32.0"/>
-                        <MFXButton fx:id="forgePickerBtn" text="Pick Forge Version" prefHeight="28.0"/>
+                        <MFXButton fx:id="forgePickerBtn" text="%editor.pickerBtn.forge" prefHeight="28.0"/>
                     </HBox>
                     <Label fx:id="packModLoaderHint" styleClass="muted" wrapText="true"
-                           text="Forge / NeoForge: paste the installer JAR URL. Fabric: paste the meta.fabricmc.net profile-JSON URL (hash optional)."/>
+                           text="%editor.modloaderHint"/>
                     <MFXTextField fx:id="packForgeURLField" floatingText="Modloader URL (installer JAR or Fabric profile JSON)" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                     <MFXTextField fx:id="packForgeHashField" floatingText="Modloader SHA-1 (optional for Fabric)" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
 
                     <!-- Images -->
-                    <Label text="Images" style="-fx-font-weight: bold;">
+                    <Label text="%editor.section.images" style="-fx-font-weight: bold;">
                         <padding><Insets top="8.0"/></padding>
                         <font><Font size="14.0"/></font>
                     </Label>
@@ -165,7 +165,7 @@
                     </HBox>
 
                     <!-- Scan Exclusions -->
-                    <Label text="Scan Exclusions (one per line)" style="-fx-font-weight: bold;">
+                    <Label text="%editor.section.scanExclusions" style="-fx-font-weight: bold;">
                         <padding><Insets top="8.0"/></padding>
                         <font><Font size="14.0"/></font>
                     </Label>
@@ -181,9 +181,9 @@
          contextual info on the left). -->
     <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="4">
         <padding><Insets left="14.0" right="14.0"/></padding>
-        <Label fx:id="statusLabel" text="No file loaded" styleClass="muted"/>
+        <Label fx:id="statusLabel" text="%editor.status.noFile" styleClass="muted"/>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="Save"/>
-        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="Return"/>
+        <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="%editor.saveBtn"/>
+        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="%editor.returnBtn"/>
     </HBox>
 </GridPane>
