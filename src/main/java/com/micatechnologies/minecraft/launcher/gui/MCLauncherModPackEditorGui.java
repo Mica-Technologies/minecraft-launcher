@@ -975,6 +975,27 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             HBox versionBar = new HBox( 8, versionFilterCheck, versionFilterField );
             versionBar.setAlignment( Pos.CENTER_LEFT );
 
+            // Loader filter — Modrinth returns a {loaders: [...]} facet on
+            // every mod. Without it, a Forge-only modpack gets a search
+            // result list polluted with Fabric-only mods that look fine
+            // until install time. Auto-default to the modpack's loader
+            // type ("Any" only when there isn't one set yet).
+            javafx.scene.control.CheckBox loaderFilterCheck = new javafx.scene.control.CheckBox(
+                    "Filter by modloader:" );
+            io.github.palexdev.materialfx.controls.MFXComboBox< String > loaderFilterCombo =
+                    new io.github.palexdev.materialfx.controls.MFXComboBox<>();
+            loaderFilterCombo.getItems().addAll( "forge", "neoforge", "fabric", "quilt" );
+            loaderFilterCombo.setPrefWidth( 150 );
+            loaderFilterCombo.setMinHeight( 32 );
+            String packLoader = packModLoaderTypeCombo == null ? null : packModLoaderTypeCombo.getValue();
+            if ( packLoader != null && loaderFilterCombo.getItems().contains( packLoader.toLowerCase() ) ) {
+                loaderFilterCombo.selectItem( packLoader.toLowerCase() );
+                loaderFilterCheck.setSelected( true );
+            }
+            loaderFilterCombo.disableProperty().bind( loaderFilterCheck.selectedProperty().not() );
+            HBox loaderBar = new HBox( 8, loaderFilterCheck, loaderFilterCombo );
+            loaderBar.setAlignment( Pos.CENTER_LEFT );
+
             // Capture theme colors for use inside the cell factory
             String[] cellColors = getThemeColors();
             String cellBg = cellColors[ 0 ];
@@ -1089,8 +1110,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
             Label infoLabel = new Label( "Enter a search term and click Search" );
 
-            javafx.scene.layout.VBox content = new javafx.scene.layout.VBox( 8, searchBar, versionBar, infoLabel,
-                                                                              resultsList );
+            javafx.scene.layout.VBox content = new javafx.scene.layout.VBox( 8, searchBar, versionBar, loaderBar,
+                                                                              infoLabel, resultsList );
             content.setPrefWidth( 600 );
 
             // Apply inline theme colors to every dialog element
@@ -1165,18 +1186,26 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 infoLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "editor.modSearch.searching" ) );
                 resultsList.getItems().clear();
 
-                // Build facets: always filter to mods, optionally filter by game version
+                // Build facets: always filter to mods, optionally filter by game version + loader
                 String gameVersion = versionFilterCheck.isSelected() ? versionFilterField.getText().trim() : "";
+                String loaderFacet = loaderFilterCheck.isSelected() && loaderFilterCombo.getValue() != null
+                        ? loaderFilterCombo.getValue().toLowerCase() : "";
                 SystemUtilities.spawnNewTask( () -> {
                     try {
                         String encodedQuery = java.net.URLEncoder.encode( query, "UTF-8" );
-                        String facetsJson;
+                        // Modrinth facets are AND-of-ORs: each inner array is an
+                        // OR group, the outer array is the AND. We use one OR-
+                        // group per filter so "project_type:mod AND
+                        // versions:1.20.1 AND categories:forge" all stack.
+                        StringBuilder facets = new StringBuilder( "[[\"project_type:mod\"]" );
                         if ( !gameVersion.isEmpty() ) {
-                            facetsJson = "[[\"project_type:mod\"],[\"versions:" + gameVersion + "\"]]";
+                            facets.append( ",[\"versions:" ).append( gameVersion ).append( "\"]" );
                         }
-                        else {
-                            facetsJson = "[[\"project_type:mod\"]]";
+                        if ( !loaderFacet.isEmpty() ) {
+                            facets.append( ",[\"categories:" ).append( loaderFacet ).append( "\"]" );
                         }
+                        facets.append( "]" );
+                        String facetsJson = facets.toString();
                         String encodedFacets = java.net.URLEncoder.encode( facetsJson, "UTF-8" );
                         String apiUrl = "https://api.modrinth.com/v2/search?query=" + encodedQuery +
                                 "&facets=" + encodedFacets + "&limit=25";
@@ -1229,23 +1258,33 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 return null;
             } );
 
-            // Capture game version for version-filtered fetching
+            // Capture game version + loader for version-filtered fetching
             final String selectedGameVersion = versionFilterCheck.isSelected() ?
                     versionFilterField.getText().trim() : "";
+            final String selectedLoader = loaderFilterCheck.isSelected() && loaderFilterCombo.getValue() != null
+                    ? loaderFilterCombo.getValue().toLowerCase() : "";
 
             dialog.showAndWait().ifPresent( entries -> {
                 ObservableList< ModPackEditorFileEntry > modsData = fileListData.get( "packMods" );
                 if ( modsData != null && !entries.isEmpty() ) {
-                    // For each entry, fetch a compatible version from Modrinth to get the download URL
+                    // For each entry, fetch a compatible version from Modrinth to get the download URL.
+                    // Loader filter narrows the per-mod version list so we don't accidentally pull a
+                    // Fabric jar into a Forge pack — Modrinth's /version endpoint accepts the same
+                    // facet shape as the search endpoint.
                     SystemUtilities.spawnNewTask( () -> {
                         for ( ModPackEditorFileEntry entry : entries ) {
                             String slug = entry.getRemote().replace( "modrinth:", "" );
                             try {
-                                String versionFilter = selectedGameVersion.isEmpty() ? "" :
-                                        "&game_versions=[\"" + selectedGameVersion + "\"]";
+                                StringBuilder filter = new StringBuilder();
+                                if ( !selectedGameVersion.isEmpty() ) {
+                                    filter.append( "&game_versions=[\"" ).append( selectedGameVersion ).append( "\"]" );
+                                }
+                                if ( !selectedLoader.isEmpty() ) {
+                                    filter.append( "&loaders=[\"" ).append( selectedLoader ).append( "\"]" );
+                                }
                                 String versionsUrl =
                                         "https://api.modrinth.com/v2/project/" + slug + "/version?limit=1" +
-                                        versionFilter;
+                                        filter;
                                 String versionsJson = NetworkUtilities.downloadFileFromURL( versionsUrl );
                                 JsonArray versions = JSONUtilities.getGson().fromJson( versionsJson, JsonArray.class );
                                 if ( !versions.isEmpty() ) {
