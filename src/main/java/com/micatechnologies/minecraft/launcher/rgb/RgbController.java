@@ -112,6 +112,11 @@ public final class RgbController
     private volatile boolean running = false;
     private Thread worker;
 
+    /** Lazily-created effect engine. Null until the first
+     *  {@link #setEffect} call needs it; nulled back out on
+     *  {@link #stop} so a subsequent restart gets a fresh scheduler. */
+    private RgbEffectEngine effectEngine;
+
     private RgbController() { /* singleton */ }
 
     /**
@@ -184,6 +189,12 @@ public final class RgbController
     public synchronized void stop()
     {
         if ( !running ) return;
+        // Tear down the effect engine first so it stops pushing frames
+        // into the queue while we're trying to drain it.
+        if ( effectEngine != null ) {
+            effectEngine.shutdown();
+            effectEngine = null;
+        }
         stopWorkerAndShutdownBackend();
         activeBackend = new NoOpBackend();
         health = new RgbBackendHealth();
@@ -202,6 +213,47 @@ public final class RgbController
         // the worker is wedged; queueing more frames just delays the
         // recovery. Drop and move on.
         frameQueue.offer( frame );
+    }
+
+    /**
+     * Switch the active effect. {@code null} stops the effect engine
+     * (one final black frame, scheduler idles). Safe to call from any
+     * thread. No-op when the controller isn't running — callers don't
+     * need to guard with {@link #status} checks.
+     *
+     * <p>The effect engine is created lazily on first use, so a launcher
+     * session that never enables RGB never spins up the
+     * {@code mica-rgb-effects} scheduler thread.</p>
+     */
+    public void setEffect( RgbEffect effect )
+    {
+        if ( !running && effect != null ) return;
+        RgbEffectEngine eng;
+        synchronized ( this ) {
+            if ( effectEngine == null ) {
+                effectEngine = new RgbEffectEngine( this );
+            }
+            eng = effectEngine;
+        }
+        eng.setEffect( effect );
+    }
+
+    /** Convenience for {@code setEffect(null)}. */
+    public void stopEffect()
+    {
+        setEffect( null );
+    }
+
+    /** Returns the currently-active effect (for the Settings status
+     *  chip). Null when no effect or when the engine hasn't been
+     *  created yet. */
+    public RgbEffect activeEffect()
+    {
+        RgbEffectEngine eng;
+        synchronized ( this ) {
+            eng = effectEngine;
+        }
+        return eng == null ? null : eng.activeEffect();
     }
 
     /** Snapshot of subsystem state for the Settings status chip. Safe
