@@ -250,6 +250,17 @@ public class ConfigConstants
     public static final String THEME_KEY = "theme";
 
     /**
+     * Key for the user-supplied locale override. Stored as a BCP-47 tag
+     * (e.g. {@code "fr-FR"}, {@code "es"}) so it round-trips cleanly
+     * through {@link java.util.Locale#forLanguageTag} and
+     * {@link java.util.Locale#toLanguageTag}. Blank / missing value means
+     * "use OS-detected locale" — see {@code LocaleBootstrap.detectOsLocale}.
+     *
+     * @since 2026.5
+     */
+    public static final String LOCALE_OVERRIDE_KEY = "localeOverride";
+
+    /**
      * Key for accessing the debug logging enable value.
      *
      * @since 1.0
