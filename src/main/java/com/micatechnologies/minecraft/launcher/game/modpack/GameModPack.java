@@ -151,13 +151,14 @@ public class GameModPack extends GameModPackMetadata
         return switch ( type ) {
             case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE ->
                     new GameModLoaderForge( url, hash, this );
-            // NeoForge and Fabric land in follow-up commits — until then,
-            // a manifest declaring those types will surface a clear
-            // error rather than silently falling back to Forge against
-            // the wrong installer.
+            case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC ->
+                    new GameModLoaderFabric( url, hash, this );
+            // NeoForge lands in a follow-up commit. Manifests declaring
+            // unknown types surface a clear error rather than silently
+            // falling back to Forge against the wrong installer.
             default -> throw new ModpackException(
                     "Unsupported modloader type \"" + type + "\" for pack "
-                            + getPackName() + " — known types: forge, neoforge, fabric." );
+                            + getPackName() + " — known types: forge, fabric." );
         };
     }
 
