@@ -88,6 +88,10 @@
         <MFXComboBox fx:id="statusFilter" minWidth="120.0" prefWidth="130.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
 
+        <Label text="Sort:" styleClass="muted"/>
+        <MFXComboBox fx:id="sortFilter" minWidth="150.0" prefWidth="160.0"
+                     minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
+
         <!-- Navbar-anchored help button, same pattern as mainGUI / settings / editor /
              runtime / console so MCLauncherGuiWindow.injectHelpButton's corner-overlay
              fallback doesn't drop it on top of the navbar at runtime. -->
