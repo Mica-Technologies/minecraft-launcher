@@ -162,25 +162,6 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
-     * Get a Forge application object referencing the Forge application jar in this modpack.
-     * Backwards-compat alias for callers that haven't migrated to
-     * {@link #getModLoader()}. Throws if the pack isn't a Forge pack.
-     *
-     * @return mod pack MCForgeApp
-     *
-     * @throws ModpackException if unable to get Forge app object or if the
-     *                          pack uses a non-Forge modloader
-     */
-    GameModLoaderForge getForgeApp() throws ModpackException {
-        GameModLoader loader = getModLoader();
-        if ( loader instanceof GameModLoaderForge forge ) {
-            return forge;
-        }
-        throw new ModpackException( "Pack " + getPackName()
-                + " is not a Forge pack — modloader type is " + getModLoaderType() );
-    }
-
-    /**
      * Get the Minecraft version of this modpack.
      *
      * @return modpack Minecraft version
@@ -193,36 +174,8 @@ public class GameModPack extends GameModPackMetadata
             return vanillaMinecraftVersion;
         }
         // Dispatch through the polymorphic modloader so Fabric / NeoForge
-        // packs get their own MC version reads — getForgeApp() throws
-        // for non-Forge packs by design.
+        // packs get their own MC version reads.
         return getModLoader().getMinecraftVersion();
-    }
-
-    /**
-     * Get the Forge version of this modpack. Vanilla packs have no Forge loader,
-     * so this returns {@code null} for them instead of attempting to construct a
-     * {@link GameModLoaderForge} against null URL/hash fields (which previously
-     * triggered a misleading "FILE FAILED VERIFICATION" message every time the
-     * main-menu card builder asked vanilla packs for a Forge version).
-     *
-     * @return modpack Forge version, or {@code null} for vanilla packs
-     *
-     * @throws ModpackException if unable to get Forge version
-     */
-    @SuppressWarnings( "WeakerAccess" )
-    public String getForgeVersion() throws ModpackException {
-        if ( vanillaVersion ) {
-            return null;
-        }
-        // Backwards-compat: this method historically returned the
-        // installed Forge version. For non-Forge packs, return null
-        // rather than the wrong loader's version — callers that want
-        // a loader-agnostic version should use {@link #getLoaderVersion()}.
-        GameModLoader loader = getModLoader();
-        if ( !( loader instanceof GameModLoaderForge ) ) {
-            return null;
-        }
-        return loader.getLoaderVersion();
     }
 
     /** Display name of this pack's modloader — {@code "Forge"},
