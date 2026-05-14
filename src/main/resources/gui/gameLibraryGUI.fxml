@@ -71,31 +71,31 @@
              users here. The main menu's wordmark area uses "Library" for the
              installed-packs surface, so this screen — the install / manage / browse
              surface — uses "Browse" to mirror the entry point's verb. -->
-        <Label text="Browse" styleClass="navBrand"/>
+        <Label text="%browse.navbar.title" styleClass="navBrand"/>
 
         <Pane HBox.hgrow="ALWAYS" minWidth="20.0"/>
 
-        <Label text="Search:" styleClass="muted"/>
+        <Label text="%main.filter.searchLabel" styleClass="muted"/>
         <MFXTextField fx:id="searchField" promptText="Name…" minWidth="180.0" prefWidth="200.0"
                       minHeight="32.0" prefHeight="32.0" maxHeight="32.0"
                       styleClass="no-floating-label"/>
 
-        <Label text="Type:" styleClass="muted"/>
+        <Label text="%main.filter.typeLabel" styleClass="muted"/>
         <MFXComboBox fx:id="typeFilter" minWidth="150.0" prefWidth="160.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
 
-        <Label text="Status:" styleClass="muted"/>
+        <Label text="%browse.filter.statusLabel" styleClass="muted"/>
         <MFXComboBox fx:id="statusFilter" minWidth="120.0" prefWidth="130.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
 
-        <Label text="Sort:" styleClass="muted"/>
+        <Label text="%main.filter.sortLabel" styleClass="muted"/>
         <MFXComboBox fx:id="sortFilter" minWidth="150.0" prefWidth="160.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
 
         <!-- "Offline" chip — visible only when NetworkUtilities.isOffline() returns
              true. OfflineIndicator.applyTo() in the controller toggles it. Sits
              next to the help button so it's consistent across every screen. -->
-        <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false"
+        <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false"
                styleClass="chip-offline"/>
 
         <!-- Navbar-anchored help button, same pattern as mainGUI / settings / editor /
@@ -113,14 +113,14 @@
              from startup is still in flight. Hidden once the future completes (the controller
              re-runs rebuildCards at that point so the new cards merge in without a manual
              refresh). Mirrors the indicator on the main menu. -->
-        <Label fx:id="backgroundFetchLabel" text="Loading available packs…"
+        <Label fx:id="backgroundFetchLabel" text="%main.fetchLabel.loading"
                styleClass="muted" visible="false" managed="false"/>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="60.0" text="◀ Prev"/>
+        <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="60.0" text="%main.pagination.prev"/>
         <Label fx:id="paginationPageLabel" text="Page 1 of 1" styleClass="muted"/>
-        <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="Next ▶"/>
+        <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.next"/>
         <Pane HBox.hgrow="SOMETIMES" minWidth="20.0"/>
-        <Label text="Per page:" styleClass="muted"/>
+        <Label text="%main.pagination.perPageLabel" styleClass="muted"/>
         <MFXComboBox fx:id="pageSizeFilter" minWidth="80.0" prefWidth="80.0"
                      minHeight="28.0" prefHeight="28.0" maxHeight="28.0"/>
     </HBox>
@@ -140,17 +140,17 @@
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="4">
         <padding><Insets left="12.0" right="12.0"/></padding>
 
-        <Label text="URL:" styleClass="muted"/>
+        <Label text="%browse.bottomBar.urlLabel" styleClass="muted"/>
         <MFXTextField fx:id="urlAddField" promptText="Modpack manifest URL" minHeight="32.0"
                       prefHeight="32.0" prefWidth="320.0" HBox.hgrow="SOMETIMES"
                       styleClass="no-floating-label"/>
-        <MFXButton fx:id="urlAddBtn" prefHeight="32.0" prefWidth="120.0" text="Add from URL"/>
+        <MFXButton fx:id="urlAddBtn" prefHeight="32.0" prefWidth="120.0" text="%browse.bottomBar.urlAddBtn"/>
 
         <Pane HBox.hgrow="ALWAYS"/>
 
-        <MFXButton fx:id="editorBtn" prefHeight="32.0" prefWidth="130.0" text="Modpack Editor"/>
+        <MFXButton fx:id="editorBtn" prefHeight="32.0" prefWidth="130.0" text="%browse.bottomBar.editorBtn"/>
         <MFXButton fx:id="hostingManifestBtn" prefHeight="32.0" prefWidth="170.0"
-                   text="Generate Hosting Manifest"/>
-        <MFXButton fx:id="returnBtn" prefHeight="32.0" prefWidth="80.0" text="Return"/>
+                   text="%browse.hostingManifest.label"/>
+        <MFXButton fx:id="returnBtn" prefHeight="32.0" prefWidth="80.0" text="%browse.bottomBar.returnBtn"/>
     </HBox>
 </GridPane>
