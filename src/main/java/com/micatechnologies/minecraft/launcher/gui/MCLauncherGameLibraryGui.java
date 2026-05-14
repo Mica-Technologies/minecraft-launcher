@@ -184,7 +184,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *
      *  <p>ArrayDeque is fine here: rebuildCards always runs on the FX thread,
      *  so no synchronization is needed.</p> */
-    private final java.util.Deque< LibraryCard > cardPool = new java.util.ArrayDeque<>();
+    private final CardPool< LibraryCard > cardPool = new CardPool<>();
 
     /** Coalesces a burst of keystrokes in the search box into a single rebuild after
      *  the user pauses typing — see the listener in {@link #setup()} for rationale. */
@@ -827,12 +827,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // the FlowPane, so the next pass can pull them out and rebind to the
         // new entry set instead of constructing fresh ones. Non-card children
         // (ImportProgressCard, empty-state Label) are skipped by the cast
-        // guard so they don't pollute the pool.
-        for ( javafx.scene.Node child : cardList.getChildren() ) {
-            if ( child instanceof LibraryCard card ) {
-                cardPool.push( card );
-            }
-        }
+        // guard in CardPool.recycleAll.
+        cardPool.recycleAll( cardList.getChildren(), LibraryCard.class );
         cardList.getChildren().clear();
         // Active import card always shows first regardless of filter / page —
         // see field doc on activeImportCard. Persists across rebuildCards
@@ -848,7 +844,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             return;
         }
         for ( int i = startIdx; i < endIdx; i++ ) {
-            LibraryCard card = cardPool.isEmpty() ? null : cardPool.pop();
+            LibraryCard card = cardPool.acquireOrNull();
             if ( card == null ) {
                 card = new LibraryCard( entries.get( i ) );
             }
