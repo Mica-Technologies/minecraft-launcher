@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -828,13 +829,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     private void updatePaginationControls( int totalItems, int totalPages, int startIdx, int endIdx )
     {
         if ( totalItems == 0 ) {
-            paginationRangeLabel.setText( "No packs" );
-            paginationPageLabel.setText( "Page 1 of 1" );
+            paginationRangeLabel.setText( LocalizationManager.get( "main.pagination.empty" ) );
+            paginationPageLabel.setText( LocalizationManager.format( "main.pagination.pageOfPages", 1, 1 ) );
         }
         else {
-            paginationRangeLabel.setText( "Showing " + ( startIdx + 1 ) + "–" + endIdx
-                                                  + " of " + totalItems );
-            paginationPageLabel.setText( "Page " + currentPage + " of " + totalPages );
+            paginationRangeLabel.setText( LocalizationManager.format(
+                    "main.pagination.range", startIdx + 1, endIdx, totalItems ) );
+            paginationPageLabel.setText( LocalizationManager.format(
+                    "main.pagination.pageOfPages", currentPage, totalPages ) );
         }
         prevPageBtn.setDisable( currentPage <= 1 );
         nextPageBtn.setDisable( currentPage >= totalPages );
@@ -1012,7 +1014,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // a manual refresh rather than the passive startup language.
         GUIUtilities.JFXPlatformRun( () -> {
             if ( backgroundFetchLabel != null ) {
-                backgroundFetchLabel.setText( "Refreshing modpacks…" );
+                backgroundFetchLabel.setText( LocalizationManager.get( "main.fetchLabel.refreshing" ) );
                 backgroundFetchLabel.setVisible( true );
                 backgroundFetchLabel.setManaged( true );
             }
@@ -1041,7 +1043,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                         backgroundFetchLabel.setManaged( false );
                         // Reset to the canonical startup-fetch text in case the
                         // deferred startup fetch hasn't fired yet on this session.
-                        backgroundFetchLabel.setText( "Loading available packs…" );
+                        backgroundFetchLabel.setText( LocalizationManager.get( "main.fetchLabel.loading" ) );
                     }
                     if ( refreshIcon != null ) {
                         refreshIcon.setDisable( false );
@@ -1453,13 +1455,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 chips.getChildren().add( buildChip( "v" + packVersion ) );
             }
 
-            // Last-played hint
+            // Last-played hint. getLastPlayedFormatted() returns the literal
+            // string "Never played" as a sentinel — string-compare against
+            // that constant (not the localized text) so the sentinel detection
+            // works regardless of UI locale. The user-facing text on both
+            // branches is fully localized through LocalizationManager.
             String lastPlayed = newPack.getLastPlayedFormatted();
             if ( lastPlayed != null && !"Never played".equals( lastPlayed ) ) {
-                played.setText( "Last played " + lastPlayed.toLowerCase() );
+                played.setText( LocalizationManager.format(
+                        "main.card.lastPlayed", lastPlayed.toLowerCase() ) );
             }
             else {
-                played.setText( "Never played" );
+                played.setText( LocalizationManager.get( "main.card.neverPlayed" ) );
             }
 
             // Button enable / disable state
@@ -2341,7 +2348,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             if ( backgroundFetchLabel == null ) return;
             backgroundFetchLabel.setVisible( false );
             backgroundFetchLabel.setManaged( false );
-            backgroundFetchLabel.setText( "Loading available packs…" );
+            backgroundFetchLabel.setText( LocalizationManager.get( "main.fetchLabel.loading" ) );
         } );
     }
 
