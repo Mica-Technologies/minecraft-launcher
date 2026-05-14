@@ -943,6 +943,17 @@ public class ConfigManager
         writeBoolean( ConfigConstants.RGB_ENABLE_WINDOWS_DL_KEY, enable );
     }
 
+    public synchronized static boolean getRgbMenuEffectEnable()
+    {
+        return readBooleanWithDefault( ConfigConstants.RGB_MENU_EFFECT_ENABLE_KEY,
+                                        ConfigConstants.RGB_MENU_EFFECT_ENABLE_DEFAULT );
+    }
+
+    public synchronized static void setRgbMenuEffectEnable( boolean enable )
+    {
+        writeBoolean( ConfigConstants.RGB_MENU_EFFECT_ENABLE_KEY, enable );
+    }
+
     /** Lazy-default boolean read shared by the per-backend enable
      *  getters above. Mirrors the lazy-init pattern of the older
      *  getX methods but factored out so we don't duplicate the

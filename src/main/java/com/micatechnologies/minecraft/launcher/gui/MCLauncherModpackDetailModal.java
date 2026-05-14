@@ -265,6 +265,12 @@ public class MCLauncherModpackDetailModal extends StackPane
         setVisible( true );
         setManaged( true );
 
+        // Switch the idle RGB effect to the modpack's sampled colors so
+        // the user's keyboard reflects the pack they're inspecting.
+        // Reverted to the theme accent in hide(). Safe to call when RGB
+        // is off — RgbIntegration short-circuits.
+        com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu( pack );
+
         // Install the ESC handler on the scene only after the overlay enters the scene
         // graph. We use addEventFilter (not setOnKeyPressed) so we don't clobber
         // existing scene-level key handlers (e.g. the F5 refresh on the main GUI).
@@ -295,6 +301,11 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         if ( !visibleState ) return;
         visibleState = false;
+
+        // Revert the idle RGB effect to the theme accent now that we're
+        // leaving the pack-specific context. Same null-pack overload as
+        // a generic launcher menu.
+        com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu();
 
         Scene s = getScene();
         if ( s != null ) {

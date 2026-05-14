@@ -381,6 +381,13 @@ public class ConfigConstants
     public static final String RGB_ENABLE_WINDOWS_DL_KEY     = "rgbEnableWindowsDL";
     public static final boolean RGB_ENABLE_WINDOWS_DL_DEFAULT = true;
 
+    /** Master toggle for the idle "menu" effect — when on, the launcher
+     *  paints a slow breathe in the current theme's accent color while
+     *  the user is in the menus (between game launches). Off means
+     *  devices stay dark in menus, only lighting up during a game. */
+    public static final String RGB_MENU_EFFECT_ENABLE_KEY     = "rgbMenuEffectEnable";
+    public static final boolean RGB_MENU_EFFECT_ENABLE_DEFAULT = true;
+
     public static final String RGB_BACKEND_AUTO = "auto";
     public static final String RGB_BACKEND_OPENRGB = "openrgb";
     public static final String RGB_BACKEND_CHROMA = "chroma";

@@ -624,6 +624,24 @@
                         </Label>
                     </VBox>
 
+                    <!-- Idle/menu effect toggle. -->
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Menu Effect">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="rgbMenuEffectToggle" text="Light up devices in menus" />
+                        <Label styleClass="muted" text="When on, your devices breathe in the active theme's accent color while you're in the launcher menus. Opening a modpack's detail view switches to that modpack's sampled colors. When off, devices stay dark between game launches." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+
                     <!-- Effect behavior toggles. -->
                     <VBox styleClass="settingsContainer" spacing="8">
                         <padding>
@@ -648,8 +666,8 @@
                         </Label>
                     </VBox>
 
-                    <!-- Test button — flashes the launcher accent color so the user
-                         can confirm the backend is talking to their device. -->
+                    <!-- Test button — flashes solid magenta on every connected device so the user
+                         can confirm the backend is talking to their hardware. -->
                     <VBox styleClass="settingsContainer" spacing="8">
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
@@ -659,7 +677,7 @@
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label styleClass="muted" text="Flashes a 2-second accent-color frame on every connected device. Useful to confirm the backend is reaching your keyboard before relying on it during a launch." wrapText="true">
+                        <Label styleClass="muted" text="Flashes solid magenta (RGB 255, 0, 255) on every connected device for 2 seconds, then restores the prior effect. A steady, full-brightness flash confirms the backend is reaching your hardware. Note for Razer Chroma: Chroma Connect only forwards frames to third-party devices (case fans, strips, etc.) when a primary Razer device — keyboard, mouse, or mousepad — is also connected. If only those third-party devices flicker or stay dark, plug in a Razer keyboard/mouse and retry. Flicker with a primary device present usually means another RGB app (Synapse, iCUE, Signal RGB) is fighting for the device." wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
