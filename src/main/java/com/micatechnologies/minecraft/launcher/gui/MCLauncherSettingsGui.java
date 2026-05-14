@@ -1208,7 +1208,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // trusting the event-firing order.
         if ( rgbBackendCombo != null ) {
             rgbBackendCombo.setItems( javafx.collections.FXCollections.observableArrayList(
-                    "Auto", "OpenRGB", "Razer Chroma", "None" ) );
+                    "Auto", "OpenRGB", "Razer Chroma (Native)", "Razer Chroma (REST)", "None" ) );
             rgbBackendCombo.selectItem( labelForBackend( ConfigManager.getRgbBackend() ) );
             rgbBackendCombo.setOnAction( e -> {
                 String label = rgbBackendCombo.getValue();
@@ -1256,9 +1256,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     private static String labelForBackend( String backend )
     {
         return switch ( backend == null ? "" : backend ) {
-            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_OPENRGB -> "OpenRGB";
-            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA  -> "Razer Chroma";
-            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE    -> "None";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_OPENRGB       -> "OpenRGB";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA_NATIVE -> "Razer Chroma (Native)";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA        -> "Razer Chroma (REST)";
+            case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE          -> "None";
             default -> "Auto";
         };
     }
@@ -1267,10 +1268,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     private static String backendForLabel( String label )
     {
         return switch ( label == null ? "" : label ) {
-            case "OpenRGB"      -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_OPENRGB;
-            case "Razer Chroma" -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA;
-            case "None"         -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE;
-            default             -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_AUTO;
+            case "OpenRGB"               -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_OPENRGB;
+            case "Razer Chroma (Native)" -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA_NATIVE;
+            case "Razer Chroma (REST)"   -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_CHROMA;
+            case "None"                  -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE;
+            default                      -> com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_AUTO;
         };
     }
 

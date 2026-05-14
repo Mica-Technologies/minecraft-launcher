@@ -364,6 +364,12 @@ public class ConfigConstants
     public static final String RGB_BACKEND_AUTO = "auto";
     public static final String RGB_BACKEND_OPENRGB = "openrgb";
     public static final String RGB_BACKEND_CHROMA = "chroma";
+    /** Razer Chroma via the native {@code RzChromaSDK64.dll} (the path
+     *  Fortnite / Overwatch use). Distinct from RGB_BACKEND_CHROMA which
+     *  speaks the deprecated REST API at localhost:54235 — kept as a
+     *  separate option so users on older Synapse can fall back to the
+     *  REST one if needed. */
+    public static final String RGB_BACKEND_CHROMA_NATIVE = "chroma-native";
     public static final String RGB_BACKEND_NONE = "none";
 
     /** When true, in-game effects paint a gradient using the running

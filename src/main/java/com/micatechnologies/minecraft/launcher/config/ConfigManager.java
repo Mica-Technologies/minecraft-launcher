@@ -807,6 +807,7 @@ public class ConfigManager
             case ConfigConstants.RGB_BACKEND_AUTO,
                  ConfigConstants.RGB_BACKEND_OPENRGB,
                  ConfigConstants.RGB_BACKEND_CHROMA,
+                 ConfigConstants.RGB_BACKEND_CHROMA_NATIVE,
                  ConfigConstants.RGB_BACKEND_NONE -> value;
             default -> ConfigConstants.RGB_BACKEND_DEFAULT;
         };
