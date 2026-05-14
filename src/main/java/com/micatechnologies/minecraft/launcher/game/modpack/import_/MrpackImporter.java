@@ -89,7 +89,8 @@ public final class MrpackImporter
     /** Mod loaders the launcher's existing pack pipeline understands. v1
      *  imports Forge only; the others surface as an explicit failure so
      *  users don't get a confusing partial install. */
-    private static final java.util.Set< String > SUPPORTED_LOADERS = java.util.Set.of( "forge" );
+    private static final java.util.Set< String > SUPPORTED_LOADERS =
+            java.util.Set.of( "forge", "neoforge", "fabric-loader" );
 
     private MrpackImporter() { /* static-only */ }
 
@@ -180,8 +181,8 @@ public final class MrpackImporter
                                    + " " + loader + "=" + loaderVersion );
 
             // (5) + (6) Build Mica manifest JSON.
-            Logger.logStd( "Modrinth import: building Mica manifest + fetching Forge installer for hash…" );
-            JsonObject manifest = buildMicaManifest( index, mcVersion, loaderVersion, iconUrl );
+            Logger.logStd( "Modrinth import: building Mica manifest + fetching loader installer for hash…" );
+            JsonObject manifest = buildMicaManifest( index, mcVersion, loaderVersion, loader, iconUrl );
             Logger.logStd( "Modrinth import: manifest built" );
 
             // (7) Write the manifest to disk.
@@ -276,6 +277,7 @@ public final class MrpackImporter
     private static JsonObject buildMicaManifest( ModrinthIndex index,
                                                   String mcVersion,
                                                   String forgeVersion,
+                                                  String forgeLoaderKey,
                                                   String iconUrl ) throws ImportException
     {
         JsonObject manifest = new JsonObject();
@@ -320,19 +322,40 @@ public final class MrpackImporter
         manifest.addProperty( "packBackgroundURL",
                               com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MODPACK_DEFAULT_BG_URL );
 
-        // Forge installer. Maven-coords URL is well-known; we compute the
-        // SHA-1 of the actual installer bytes so the launcher's later
-        // hash-verify pass sees a match. A failure here is fatal — we'd
-        // ship a manifest the launcher would reject on install.
-        String forgeUrl = buildForgeInstallerUrl( mcVersion, forgeVersion );
-        String forgeHash = computeForgeInstallerSha1( forgeUrl );
-        if ( forgeHash == null ) {
-            throw new ImportException( "Couldn't fetch the Forge installer at " + forgeUrl
-                                               + " to compute its hash. Check the Minecraft / Forge "
-                                               + "versions in the pack." );
+        // Modloader installer / profile. URL construction is loader-
+        // specific (Forge / NeoForge / Fabric each have their own maven
+        // or meta-service pattern). The launcher's manifest schema
+        // supports all three via packModLoader{,URL,Hash}; the legacy
+        // packForge{URL,Hash} fields are no longer the source of truth
+        // and are written empty for forward compatibility with pack
+        // authors who hand-edit the imported manifest.
+        String loaderType = loaderKeyToType( forgeLoaderKey );
+        String installerUrl = buildLoaderInstallerUrl( loaderType, mcVersion, forgeVersion );
+        String installerHash;
+        if ( "fabric".equals( loaderType ) ) {
+            // Fabric's meta service serves a dynamically-generated
+            // profile JSON; no stable SHA-1 to pin.
+            installerHash = "";
         }
-        manifest.addProperty( "packForgeURL", forgeUrl );
-        manifest.addProperty( "packForgeHash", forgeHash );
+        else {
+            installerHash = computeForgeInstallerSha1( installerUrl );
+            if ( installerHash == null ) {
+                throw new ImportException( "Couldn't fetch the " + loaderType + " installer at "
+                                                   + installerUrl + " to compute its hash. Check the "
+                                                   + "Minecraft / " + loaderType + " versions in the "
+                                                   + "pack." );
+            }
+        }
+        manifest.addProperty( "packModLoader", loaderType );
+        manifest.addProperty( "packModLoaderURL", installerUrl );
+        manifest.addProperty( "packModLoaderHash", installerHash );
+        // Empty legacy fields — the launcher's back-compat path
+        // (getModLoaderURL falls back to packForgeURL when the new
+        // field is absent) means we don't need to populate them, but
+        // we emit them empty so a future schema migration that drops
+        // the new fields can still parse the imported manifest.
+        manifest.addProperty( "packForgeURL", "" );
+        manifest.addProperty( "packForgeHash", "" );
 
         // Empty scan-exclusions list — pack authors can edit the local file
         // if they want to whitelist anything specific. Acknowledgements
@@ -510,6 +533,37 @@ public final class MrpackImporter
         return String.format(
                 "https://maven.minecraftforge.net/net/minecraftforge/forge/%s-%s/forge-%s-%s-installer.jar",
                 mcVersion, forgeVersion, mcVersion, forgeVersion );
+    }
+
+    /** Maps a Modrinth {@code dependencies} key to the Mica manifest's
+     *  {@code packModLoader} value. The mrpack keys for the three
+     *  loaders we currently import: {@code forge}, {@code neoforge},
+     *  {@code fabric-loader}. */
+    private static String loaderKeyToType( String loaderKey )
+    {
+        return switch ( loaderKey == null ? "" : loaderKey ) {
+            case "neoforge"      -> "neoforge";
+            case "fabric-loader" -> "fabric";
+            default              -> "forge";
+        };
+    }
+
+    /** Build the installer / profile URL for the requested loader.
+     *  Forge / NeoForge return an installer-jar URL on the loader's
+     *  Maven; Fabric returns the meta service's profile-JSON endpoint. */
+    private static String buildLoaderInstallerUrl( String loaderType,
+                                                     String mcVersion,
+                                                     String loaderVersion )
+    {
+        return switch ( loaderType ) {
+            case "neoforge" -> String.format(
+                    "https://maven.neoforged.net/releases/net/neoforged/neoforge/%s/neoforge-%s-installer.jar",
+                    loaderVersion, loaderVersion );
+            case "fabric" -> String.format(
+                    "https://meta.fabricmc.net/v2/versions/loader/%s/%s/profile/json",
+                    mcVersion, loaderVersion );
+            default -> buildForgeInstallerUrl( mcVersion, loaderVersion );
+        };
     }
 
     /** Writes the Mica-format manifest into {@code <config>/imported-manifests/}

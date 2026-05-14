@@ -523,11 +523,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         if ( mc != null && !mc.isBlank() ) {
             chips.getChildren().add( buildChip( "Minecraft " + mc, "stat-chip" ) );
         }
-        String forge = safeForgeVersion( pack );
-        if ( forge != null && !forge.isBlank() ) {
-            // Same short-Forge formatting as the hero card so the two surfaces match.
-            String shortForge = forge.contains( "-" ) ? forge.substring( forge.lastIndexOf( '-' ) + 1 ) : forge;
-            chips.getChildren().add( buildChip( "Forge " + shortForge, "stat-chip" ) );
+        String loaderName = safeLoaderName( pack );
+        String loaderVersion = safeLoaderVersion( pack );
+        if ( loaderName != null && loaderVersion != null && !loaderVersion.isBlank() ) {
+            // Same short-version formatting as the hero card so the two surfaces match.
+            String shortLoader = loaderVersion.contains( "-" )
+                    ? loaderVersion.substring( loaderVersion.lastIndexOf( '-' ) + 1 )
+                    : loaderVersion;
+            chips.getChildren().add( buildChip( loaderName + " " + shortLoader, "stat-chip" ) );
         }
         String packVersion = pack.getPackVersion();
         if ( packVersion != null && !packVersion.isBlank() && !packVersion.equals( mc ) ) {
@@ -1091,6 +1094,18 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static String safeForgeVersion( GameModPack pack )
     {
         try { return pack.getForgeVersion(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    private static String safeLoaderName( GameModPack pack )
+    {
+        try { return pack.getLoaderName(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    private static String safeLoaderVersion( GameModPack pack )
+    {
+        try { return pack.getLoaderVersion(); }
         catch ( Exception ignored ) { return null; }
     }
 

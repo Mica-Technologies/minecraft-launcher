@@ -865,13 +865,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         if ( packVersion != null ) sb.append( packVersion ).append( ' ' );
         String mc = safeMinecraftVersion( pack );
         if ( mc != null ) sb.append( mc ).append( ' ' );
-        String forge = safeForgeVersion( pack );
-        if ( forge != null ) sb.append( forge ).append( ' ' );
+        String loaderName = safeLoaderName( pack );
+        String loaderVersion = safeLoaderVersion( pack );
+        if ( loaderName != null ) sb.append( loaderName ).append( ' ' );
+        if ( loaderVersion != null ) sb.append( loaderVersion ).append( ' ' );
         // Include "forge" / "vanilla" type tags so a user can filter by pack
-        // shape via the search box ("forge 1.12") in addition to the type
-        // selector dropdown.
+        // shape via the search box ("forge 1.12", "fabric") in addition to
+        // the type selector dropdown.
         if ( pack.isVanillaVersion() ) sb.append( "vanilla " );
-        else sb.append( "forge modpack " );
+        else sb.append( "modpack " );
         return sb.toString().toLowerCase( Locale.ROOT );
     }
 
@@ -1412,10 +1414,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             name.setText( resolveDisplayName( newPack ) );
             chips.getChildren().clear();
             String mc = safeMinecraftVersion( newPack );
-            String forge = safeForgeVersion( newPack );
+            String loaderName = safeLoaderName( newPack );
+            String loaderVersion = safeLoaderVersion( newPack );
             String packVersion = newPack.getPackVersion();
             // "Vanilla" chip — placed first so it's the first visual cue that this card
-            // is a stock Minecraft version, not a Forge modpack.
+            // is a stock Minecraft version, not a modded pack.
             if ( newPack.isVanillaVersion() ) {
                 chips.getChildren().add( buildChip( "Vanilla" ) );
             }
@@ -1423,9 +1426,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // has room. Minecraft is a trademark of Mojang Synergies AB / Microsoft;
             // attribution is surfaced in the Settings → About / Attributions section.
             if ( mc != null && !mc.isBlank() ) chips.getChildren().add( buildChip( "Minecraft " + mc ) );
-            if ( forge != null && !forge.isBlank() ) {
-                String shortForge = forge.contains( "-" ) ? forge.substring( forge.lastIndexOf( '-' ) + 1 ) : forge;
-                chips.getChildren().add( buildChip( "Forge " + shortForge ) );
+            if ( loaderName != null && loaderVersion != null && !loaderVersion.isBlank() ) {
+                String shortLoader = loaderVersion.contains( "-" )
+                        ? loaderVersion.substring( loaderVersion.lastIndexOf( '-' ) + 1 )
+                        : loaderVersion;
+                chips.getChildren().add( buildChip( loaderName + " " + shortLoader ) );
             }
             // Pack-version chip: skip when it would just duplicate the MC version chip.
             // Vanilla packs by construction have packVersion == mcVersion, so this drops
@@ -2266,6 +2271,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     private static String safeForgeVersion( GameModPack pack ) {
         try { return pack.getForgeVersion(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    private static String safeLoaderName( GameModPack pack ) {
+        try { return pack.getLoaderName(); }
+        catch ( Exception ignored ) { return null; }
+    }
+
+    private static String safeLoaderVersion( GameModPack pack ) {
+        try { return pack.getLoaderVersion(); }
         catch ( Exception ignored ) { return null; }
     }
 
