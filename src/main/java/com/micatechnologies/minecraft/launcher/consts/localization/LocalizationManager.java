@@ -17,14 +17,44 @@
 
 package com.micatechnologies.minecraft.launcher.consts.localization;
 
+import java.text.MessageFormat;
+import java.util.Locale;
+import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
 /**
- * Class for managing the application localization components and access to the display string resources manifest in
- * multiple languages.
+ * Application-wide localization facade. Wraps the {@code lang.DisplayStrings}
+ * {@link ResourceBundle} family with:
+ *
+ * <ul>
+ *   <li><b>Dynamic key lookup</b> — {@link #get(String)} / {@link #getOr(String, String)} /
+ *       {@link #format(String, Object...)} for callers that don't have a compile-time
+ *       constant to point at;</li>
+ *   <li><b>OS-locale autodetect</b> — {@link #detectOsLocale()} returns
+ *       {@link Locale#getDefault()} with a sanity check that falls back to
+ *       English when the platform reports {@code POSIX} or {@code C};</li>
+ *   <li><b>Settings override</b> — {@link #applyFromConfig(String)} resolves
+ *       a user-supplied BCP-47 locale tag (e.g. {@code fr-FR}) against the
+ *       OS detection and switches the active bundle;</li>
+ *   <li><b>FXML resource binding</b> — {@link #currentBundle()} returns a
+ *       handle suitable for {@link javafx.fxml.FXMLLoader#setResources}, so
+ *       FXML files can use the standard {@code text="%key"} syntax to bind
+ *       attributes to localized strings.</li>
+ * </ul>
+ *
+ * <h3>Locale-switch semantics</h3>
+ * <p>Switching locale at runtime via {@link #setLocale} updates
+ * {@link #currentBundle()} so any subsequent {@code get/format} calls and any
+ * newly-loaded FXML scenes resolve against the new bundle. The existing
+ * {@code public static final} fields below were bound at class-load time
+ * and remain at the launch-time locale — they're kept for backward
+ * compatibility with the ~83 existing call sites, but new code should
+ * prefer {@link #get(String)} so locale switches take effect everywhere.
+ * In practice, switching language via Settings prompts a restart, so the
+ * mismatch only matters when a developer or test toggles the locale mid
+ * session.</p>
  *
  * @author Mica Technologies
- * @version 1.0
  * @since 1.0
  */
 public class LocalizationManager
@@ -37,12 +67,152 @@ public class LocalizationManager
     private static final String localResourceBundleDisplayStringsBaseName = "lang.DisplayStrings";
 
     /**
-     * The resource bundle for the display strings collection in the current locale.
+     * The active resource bundle. Mutable — {@link #setLocale} swaps it.
+     * Initialised against the JVM default locale, which is itself set at
+     * launch time via {@link #applyFromConfig} so the first bundle load
+     * already reflects the user's preferred language (or the OS default
+     * when no override is configured).
      *
      * @since 1.0
      */
-    private static final ResourceBundle localResourceBundle = ResourceBundle.getBundle(
+    private static volatile ResourceBundle localResourceBundle = ResourceBundle.getBundle(
             localResourceBundleDisplayStringsBaseName );
+
+    /** The locale the active bundle was loaded against. */
+    private static volatile Locale currentLocale = localResourceBundle.getLocale();
+
+    // ====================================================================
+    // Dynamic API — prefer this over the static-final fields below.
+    // ====================================================================
+
+    /**
+     * Looks up the localized string for {@code key} against the
+     * {@linkplain #currentBundle() currently active bundle}.
+     *
+     * @param key resource-bundle key
+     * @return the localized string, or {@code key} itself when no
+     *         translation is registered — so a missing entry surfaces as a
+     *         visible "KEY_NAME_LIKE_THIS" in the UI rather than a crash or
+     *         silent empty string.
+     */
+    public static String get( String key )
+    {
+        if ( key == null ) return "";
+        try {
+            return localResourceBundle.getString( key );
+        }
+        catch ( MissingResourceException ex ) {
+            return key;
+        }
+    }
+
+    /** {@link #get(String)} with an explicit fallback when the key is
+     *  missing from the bundle. Useful when the call site has a known-good
+     *  English default that shouldn't bleed the key name into the UI. */
+    public static String getOr( String key, String fallback )
+    {
+        if ( key == null ) return fallback;
+        try {
+            return localResourceBundle.getString( key );
+        }
+        catch ( MissingResourceException ex ) {
+            return fallback;
+        }
+    }
+
+    /**
+     * Returns the localized template for {@code key} with {@code args}
+     * substituted via {@link MessageFormat}. Useful for messages with
+     * embedded data (counts, names, durations) that the static fields
+     * can't carry. When the key is missing, returns the key followed by
+     * the args joined with commas so debugging is straightforward.
+     */
+    public static String format( String key, Object... args )
+    {
+        String template = get( key );
+        if ( args == null || args.length == 0 ) return template;
+        try {
+            return MessageFormat.format( template, args );
+        }
+        catch ( IllegalArgumentException ex ) {
+            // Template had bad / mismatched placeholders. Surface a debug
+            // string rather than crashing — usually means the translation
+            // file is out of sync with the call site.
+            StringBuilder sb = new StringBuilder( template ).append( " [" );
+            for ( int i = 0; i < args.length; i++ ) {
+                if ( i > 0 ) sb.append( ", " );
+                sb.append( args[ i ] );
+            }
+            return sb.append( ']' ).toString();
+        }
+    }
+
+    /** Returns the currently active resource bundle. Pass to
+     *  {@code FXMLLoader.setResources(...)} so FXML attributes can use the
+     *  {@code text="%key"} syntax to bind to localized strings. */
+    public static ResourceBundle currentBundle()
+    {
+        return localResourceBundle;
+    }
+
+    /** Returns the locale of the currently active bundle. */
+    public static Locale currentLocale()
+    {
+        return currentLocale;
+    }
+
+    /**
+     * Switches the active bundle to one loaded for {@code locale} (or a
+     * fallback inferred by {@link ResourceBundle}'s lookup chain). After
+     * this call, {@link #get}, {@link #format}, and any future FXML load
+     * that uses {@link #currentBundle()} resolve against the new locale.
+     *
+     * <p>The existing {@code public static final} fields keep their
+     * launch-time values — see the class-level docs.</p>
+     *
+     * @param locale the target locale; null falls back to
+     *               {@link Locale#getDefault()}
+     */
+    public static synchronized void setLocale( Locale locale )
+    {
+        Locale target = locale == null ? Locale.getDefault() : locale;
+        Locale.setDefault( target );
+        localResourceBundle = ResourceBundle.getBundle(
+                localResourceBundleDisplayStringsBaseName, target );
+        currentLocale = localResourceBundle.getLocale();
+    }
+
+    /**
+     * Returns the OS default locale with a sanity-check fallback. Some
+     * Unix-y systems report {@code POSIX} or {@code C} as their locale
+     * when no user-level setting is configured; both are nonsense for our
+     * UI bundles and would surface as a missing-translation cascade. We
+     * fall those cases back to {@code en-US}.
+     */
+    public static Locale detectOsLocale()
+    {
+        Locale def = Locale.getDefault();
+        if ( def == null ) return Locale.US;
+        String tag = def.toLanguageTag();
+        if ( tag == null || tag.isBlank()
+                || "und".equalsIgnoreCase( tag )
+                || "POSIX".equalsIgnoreCase( tag )
+                || "C".equalsIgnoreCase( tag ) ) {
+            return Locale.US;
+        }
+        return def;
+    }
+
+    // Note: startup-time locale resolution (OS detect + override resolution)
+    // lives in a separate LocaleBootstrap class so it can run BEFORE this
+    // class first loads — otherwise the 89 static-final translation fields
+    // below would initialize against the JVM's launch-time default locale
+    // and stay stuck there even after the override is applied. LocaleBootstrap
+    // calls Locale.setDefault, which is read by the bundle initializer
+    // below the first time this class loads. setLocale() above is still
+    // useful for runtime switching (Settings dropdown), but Settings prompts
+    // a restart to keep the static-final fields consistent with new code
+    // that uses get()/format().
 
     /**
      * The initial value of the upper label on the progress window when fetching mod pack information.

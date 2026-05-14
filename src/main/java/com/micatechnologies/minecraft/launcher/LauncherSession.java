@@ -68,6 +68,16 @@ class LauncherSession
         // config folder — see the comment in LauncherCore.main().
         com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.bootstrap();
 
+        // Resolve + apply the effective UI locale (user override > OS
+        // detect > en-US) BEFORE any code touches LocalizationManager. The
+        // 89 static-final translation fields in that class initialize at
+        // class load, so they need Locale.getDefault() to already be
+        // correct by the time they fire. Calling LocaleBootstrap from a
+        // standalone class avoids triggering LocalizationManager class
+        // load here. See LocaleBootstrap class docs for the rationale.
+        com.micatechnologies.minecraft.launcher.consts.localization.LocaleBootstrap.apply(
+                com.micatechnologies.minecraft.launcher.config.ConfigManager.getLocaleOverride() );
+
         // Apply system properties
         LauncherCore.applySystemProperties();
 

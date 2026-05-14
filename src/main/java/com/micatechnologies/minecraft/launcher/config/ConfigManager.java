@@ -675,6 +675,49 @@ public class ConfigManager
     }
 
     /**
+     * Returns the user-supplied locale override as a BCP-47 tag (e.g.
+     * {@code "fr-FR"}), or an empty string when no override is set — in
+     * which case {@code LocaleBootstrap.detectOsLocale} picks the OS
+     * default at startup.
+     *
+     * <p>No default is written to disk on first read: a blank value is the
+     * canonical "use OS detection" signal and writing a concrete locale
+     * here would override the OS detection silently.</p>
+     *
+     * @since 2026.5
+     */
+    public synchronized static String getLocaleOverride() {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.LOCALE_OVERRIDE_KEY ) ) {
+            return "";
+        }
+        com.google.gson.JsonElement el = configObject.get( ConfigConstants.LOCALE_OVERRIDE_KEY );
+        if ( el == null || el.isJsonNull() ) return "";
+        return el.getAsString();
+    }
+
+    /**
+     * Sets the user-supplied locale override. Persists immediately. The
+     * new value takes effect at the next launcher startup (via
+     * {@code LocaleBootstrap.apply}) — calling this mid-session doesn't
+     * reload the existing scenes' translations.
+     *
+     * @param tag BCP-47 tag (e.g. {@code "fr-FR"}); null / empty clears
+     *            the override and falls back to OS detection
+     * @since 2026.5
+     */
+    public synchronized static void setLocaleOverride( String tag ) {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.LOCALE_OVERRIDE_KEY,
+                                   tag == null ? "" : tag );
+        writeConfigurationToDisk();
+    }
+
+    /**
      * Gets the configured list of installed mod packs by their manifest URLs.
      *
      * @return list of installed mod packs' manifest URLs
