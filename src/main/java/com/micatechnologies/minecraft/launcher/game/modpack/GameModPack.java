@@ -192,7 +192,10 @@ public class GameModPack extends GameModPackMetadata
         if ( vanillaVersion && vanillaMinecraftVersion != null ) {
             return vanillaMinecraftVersion;
         }
-        return getForgeApp().getMinecraftVersion();
+        // Dispatch through the polymorphic modloader so Fabric / NeoForge
+        // packs get their own MC version reads — getForgeApp() throws
+        // for non-Forge packs by design.
+        return getModLoader().getMinecraftVersion();
     }
 
     /**
