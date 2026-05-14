@@ -563,7 +563,16 @@ public class RuntimeManager
                 String installed = org.apache.commons.io.FileUtils.readFileToString( versionFile, "UTF-8" ).trim();
                 if ( installed.equals( newJavaVersion ) ) {
                     File javaExec = new File( effectiveFolder, RuntimeConstants.getJavaExecPathForOs() );
+                    if ( !javaExec.exists() ) {
+                        // Liberica archive layout (no .bundle wrapper) — find java by name.
+                        String found = findJavaExecutable( effectiveFolder );
+                        if ( found != null ) {
+                            javaExec = new File( found );
+                        }
+                    }
                     if ( javaExec.exists() ) {
+                        // Heal pre-2026.x installs that landed without execute bits set.
+                        markJavaBinariesExecutable( javaExec );
                         Logger.logStd( "JRE 8 (Liberica " + newJavaVersion + ") is already installed." );
                         verifiedPaths.put( component, javaExec.getAbsolutePath() );
                         verifiedVersions.put( component, newJavaVersion );
@@ -620,6 +629,12 @@ public class RuntimeManager
             if ( newJavaPath == null ) {
                 newJavaPath = "java";
                 newJavaVersion = "Unknown (System Java)";
+            }
+            else {
+                // ArchiveExtractor drops POSIX permissions, so the freshly
+                // extracted java binary lands non-executable on macOS/Linux.
+                // Restore the execute bit on every launcher binary.
+                markJavaBinariesExecutable( new File( newJavaPath ) );
             }
 
             // Write version marker
@@ -704,6 +719,39 @@ public class RuntimeManager
     private static String findJavaExecutable( File runtimeFolder ) {
         String javaName = org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ? "java.exe" : "java";
         return searchForFile( runtimeFolder, javaName );
+    }
+
+    /**
+     * Restores the owner execute bit on every regular file in the {@code bin/}
+     * directory containing {@code javaExec}, plus {@code lib/jspawnhelper} when
+     * present. No-op on Windows, where execution is governed by file extension.
+     * Used by the Liberica legacy-JRE flow, which extracts via
+     * {@link ArchiveExtractor} that intentionally drops POSIX permissions.
+     */
+    static void markJavaBinariesExecutable( File javaExec ) {
+        if ( javaExec == null || org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            return;
+        }
+        File binDir = javaExec.getParentFile();
+        if ( binDir == null || !binDir.isDirectory() ) {
+            return;
+        }
+        File[] binFiles = binDir.listFiles();
+        if ( binFiles != null ) {
+            for ( File f : binFiles ) {
+                if ( f.isFile() && !f.canExecute() && !f.setExecutable( true ) ) {
+                    Logger.logWarningSilent(
+                            "Failed to mark JRE binary executable: " + f.getAbsolutePath() );
+                }
+            }
+        }
+        File jreRoot = binDir.getParentFile();
+        if ( jreRoot != null ) {
+            File jspawnHelper = new File( jreRoot, "lib" + File.separator + "jspawnhelper" );
+            if ( jspawnHelper.isFile() && !jspawnHelper.canExecute() ) {
+                jspawnHelper.setExecutable( true );
+            }
+        }
     }
 
     /**
