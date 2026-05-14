@@ -16,6 +16,7 @@ import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.crash.CrashDiagnosis;
 import com.micatechnologies.minecraft.launcher.game.crash.CrashReportAnalyzer;
 import com.micatechnologies.minecraft.launcher.game.crash.Suggestion;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
@@ -177,7 +178,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                 Clipboard.getSystemClipboard().setContent( content );
                 // Brief visual feedback
                 String originalText = copyBtn.getText();
-                copyBtn.setText( "Copied!" );
+                copyBtn.setText( LocalizationManager.get( "console.copyBtn.success" ) );
                 SystemUtilities.spawnNewTask( () -> {
                     try { Thread.sleep( 1500 ); } catch ( InterruptedException ignored ) {}
                     GUIUtilities.JFXPlatformRun( () -> copyBtn.setText( originalText ) );
@@ -189,14 +190,14 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
             if ( showingCrashReport ) {
                 logArea.setText( getDisplayLog() );
                 logArea.positionCaret( logArea.getText().length() );
-                crashReportBtn.setText( "Crash Report" );
+                crashReportBtn.setText( LocalizationManager.get( "console.crashReportBtn.crashReport" ) );
                 showingCrashReport = false;
             }
             else {
                 if ( crashReportContent != null ) {
                     logArea.setText( crashReportContent );
                     logArea.positionCaret( 0 );
-                    crashReportBtn.setText( "Game Log" );
+                    crashReportBtn.setText( LocalizationManager.get( "console.crashReportBtn.gameLog" ) );
                     showingCrashReport = true;
                 }
             }
@@ -250,8 +251,8 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         initLogFile( packName );
 
         GUIUtilities.JFXPlatformRun( () -> {
-            titleLabel.setText( "Game Console: " + packName );
-            statusLabel.setText( "Running" );
+            titleLabel.setText( LocalizationManager.format( "console.title.console", packName ) );
+            statusLabel.setText( LocalizationManager.get( "console.status.running" ) );
             logArea.clear();
             truncationLabel.setVisible( false );
             truncationLabel.setManaged( false );
@@ -330,17 +331,17 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                     killBtn.setVisible( false );
                     killBtn.setManaged( false );
                     closeBtn.setDisable( false );
-                    closeBtn.setText( "Return to Launcher" );
+                    closeBtn.setText( LocalizationManager.get( "console.closeBtn.return" ) );
 
                     if ( crashed ) {
-                        titleLabel.setText( "Game Crashed" );
-                        statusLabel.setText( "Exit code " + exitCode );
+                        titleLabel.setText( LocalizationManager.get( "console.title.crashed" ) );
+                        statusLabel.setText( LocalizationManager.format( "console.status.exitCode", exitCode ) );
                         appendToDisplay( "\n--- Game crashed with exit code " + exitCode +
                                                  " (session: " + durationStr + ") ---\n" );
                     }
                     else {
-                        titleLabel.setText( "Game Session Complete" );
-                        statusLabel.setText( "Played for " + durationStr );
+                        titleLabel.setText( LocalizationManager.get( "console.title.complete" ) );
+                        statusLabel.setText( LocalizationManager.format( "console.status.playedFor", durationStr ) );
                         uptimeLabel.setText( "" );
                         appendToDisplay( "\n--- Game exited normally (session: " + durationStr + ") ---\n" );
                     }
@@ -389,7 +390,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
             // Auto-switch to crash report view
             logArea.setText( crashReport );
             logArea.positionCaret( 0 );
-            crashReportBtn.setText( "Game Log" );
+            crashReportBtn.setText( LocalizationManager.get( "console.crashReportBtn.gameLog" ) );
             showingCrashReport = true;
 
             populateDiagnosisCard( CrashReportAnalyzer.analyze( crashReport, pack, exitCode ) );
@@ -417,8 +418,8 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     public void showCrashOnly( String packName, int exitCode, String crashReport, String gameLog,
                                 GameModPack pack ) {
         GUIUtilities.JFXPlatformRun( () -> {
-            titleLabel.setText( "Game Crashed: " + packName );
-            statusLabel.setText( "Exit code " + exitCode );
+            titleLabel.setText( LocalizationManager.format( "console.title.crashedWithPack", packName ) );
+            statusLabel.setText( LocalizationManager.format( "console.status.exitCode", exitCode ) );
             killBtn.setDisable( true );
             closeBtn.setDisable( false );
             uptimeLabel.setText( "" );
@@ -435,7 +436,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                 logArea.setText( crashReport );
                 crashReportBtn.setVisible( true );
                 crashReportBtn.setManaged( true );
-                crashReportBtn.setText( "Game Log" );
+                crashReportBtn.setText( LocalizationManager.get( "console.crashReportBtn.gameLog" ) );
                 showingCrashReport = true;
 
                 if ( gameLog != null ) {
@@ -447,8 +448,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                 fullLogContent.append( gameLog );
             }
             else {
-                logArea.setText( "Game crashed with exit code " + exitCode +
-                                         ".\nNo crash report was generated." );
+                logArea.setText( LocalizationManager.format( "console.log.crashedExitCodeNoReport", exitCode ) );
             }
         } );
     }
@@ -615,12 +615,11 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
 
         if ( !truncated ) {
             truncated = true;
-            truncationLabel.setText( "Log exceeds " + MAX_DISPLAY_LINES +
-                                             " lines. Older entries are truncated." );
+            truncationLabel.setText( LocalizationManager.format( "console.truncationLabel", MAX_DISPLAY_LINES ) );
             truncationLabel.setVisible( true );
             truncationLabel.setManaged( true );
             if ( logFile != null ) {
-                openLogLink.setText( "Open full log file" );
+                openLogLink.setText( LocalizationManager.get( "console.openLogLink.text" ) );
                 openLogLink.setVisible( true );
                 openLogLink.setManaged( true );
             }
@@ -720,7 +719,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
             gameProcess.destroyForcibly();
             processRunning = false;
             GUIUtilities.JFXPlatformRun( () -> {
-                statusLabel.setText( "Killed" );
+                statusLabel.setText( LocalizationManager.get( "console.status.killed" ) );
                 killBtn.setDisable( true );
                 closeBtn.setDisable( false );
                 appendToDisplay( "\n--- Game was killed by user ---\n" );
