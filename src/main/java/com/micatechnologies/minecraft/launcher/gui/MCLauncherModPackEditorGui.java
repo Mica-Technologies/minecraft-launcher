@@ -192,8 +192,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             } );
         } );
 
-        // Forge picker
-        forgePickerBtn.setOnAction( e -> pickForgeVersion() );
+        // Modloader version-picker button. The same button serves all
+        // three loaders — the action dispatches on the combo's current
+        // value and the button label is rewritten in the combo listener
+        // so the user always sees "Pick Forge Version" / "Pick NeoForge
+        // Version" / "Pick Fabric Version" matching their selection.
+        forgePickerBtn.setOnAction( e -> pickLoaderVersion() );
 
         // Modloader type combo. Display labels (capitalised) map to
         // the stable ConfigConstants identifiers when persisted; the
@@ -204,14 +208,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     "Forge", "NeoForge", "Fabric" ) );
             packModLoaderTypeCombo.selectedItemProperty().addListener(
                     ( obs, oldV, newV ) -> {
-                        // The "Pick Forge Version" button still only
-                        // knows how to fetch Forge promos — hide it when
-                        // the user picks a non-Forge loader so they don't
-                        // think they can use it for Fabric / NeoForge.
+                        // Update the picker button label to match the
+                        // currently-selected loader.
                         if ( forgePickerBtn != null ) {
-                            boolean isForge = "Forge".equalsIgnoreCase( newV );
-                            forgePickerBtn.setVisible( isForge );
-                            forgePickerBtn.setManaged( isForge );
+                            String label = newV == null ? "Forge" : newV;
+                            forgePickerBtn.setText( "Pick " + label + " Version" );
                         }
                         // Update the hint line to reflect what the URL
                         // field expects for the current loader choice.
@@ -588,6 +589,233 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 + "to fetch the latest releases.";
     }
 
+    /** Dispatcher for the picker button — routes to the right loader-
+     *  specific picker based on the modloader-type combo's current
+     *  value. */
+    private void pickLoaderVersion()
+    {
+        String label = packModLoaderTypeCombo == null ? "Forge" : packModLoaderTypeCombo.getValue();
+        if ( label == null ) label = "Forge";
+        switch ( label ) {
+            case "Fabric"   -> pickFabricVersion();
+            case "NeoForge" -> pickNeoForgeVersion();
+            default         -> pickForgeVersion();
+        }
+    }
+
+    /** Download {@code url} into a temp file, SHA-1 hash it, write the
+     *  hash into {@link #packForgeHashField}, then clean up. Used by
+     *  the Forge + NeoForge pickers (both serve installer JARs that
+     *  the launcher hash-verifies). Fabric profile JSONs aren't
+     *  hash-pinned by the meta service so the Fabric picker skips
+     *  this. */
+    private void computeAndPopulateHash( String url, String loaderLabel )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                File tempFile = File.createTempFile( loaderLabel.toLowerCase() + "_installer_", ".jar" );
+                tempFile.deleteOnExit();
+                NetworkUtilities.downloadFileFromURL( new URL( url ), tempFile );
+                String sha1 = HashUtilities.getFileSHA1( tempFile );
+                tempFile.delete();
+                if ( sha1 != null ) {
+                    GUIUtilities.JFXPlatformRun( () -> packForgeHashField.setText( sha1 ) );
+                    updateStatus( loaderLabel + " hash computed: " + sha1.substring( 0, 8 ) + "..." );
+                }
+            }
+            catch ( Exception ex ) {
+                updateStatus( "Failed to compute " + loaderLabel + " hash: " + ex.getMessage() );
+            }
+        } );
+    }
+
+    /**
+     * Opens a NeoForge version picker dialog. Pulls the loader's
+     * Maven metadata from {@code maven.neoforged.net}, parses the
+     * {@code <version>...</version>} entries, derives the matching
+     * Minecraft version from the NeoForge version prefix
+     * ({@code 21.1.x} → MC {@code 1.21.1}), and auto-populates the
+     * URL + hash fields the same way the Forge picker does.
+     */
+    private void pickNeoForgeVersion()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                updateStatus( "Fetching NeoForge versions..." );
+                String xml = NetworkUtilities.downloadFileFromURL(
+                        "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml" );
+
+                // The maven-metadata.xml format is stable enough that
+                // a tiny regex pass beats pulling in a DOM parser for
+                // four lines of structure.
+                java.util.regex.Pattern versionTag = java.util.regex.Pattern.compile(
+                        "<version>([^<]+)</version>" );
+                java.util.regex.Matcher matcher = versionTag.matcher( xml );
+                List< String > versions = new ArrayList<>();
+                while ( matcher.find() ) versions.add( matcher.group( 1 ) );
+
+                // Newest first — NeoForge versions are well-ordered
+                // under our VersionUtilities comparator (numeric
+                // segments, no SemVer prerelease suffixes).
+                versions.sort( ( a, b ) -> com.micatechnologies.minecraft.launcher.utilities.VersionUtilities
+                        .compareVersionNumbers( b, a ) );
+
+                List< String > entries = new ArrayList<>();
+                Map< String, String > entryToUrl = new HashMap<>();
+                for ( String version : versions ) {
+                    String mcVersion = neoForgeMcVersionFor( version );
+                    String label = mcVersion != null
+                            ? "MC " + mcVersion + " - NeoForge " + version
+                            : "NeoForge " + version;
+                    String url = "https://maven.neoforged.net/releases/net/neoforged/neoforge/"
+                            + version + "/neoforge-" + version + "-installer.jar";
+                    entries.add( label );
+                    entryToUrl.put( label, url );
+                }
+
+                GUIUtilities.JFXPlatformRun( () -> {
+                    ChoiceDialog< String > dialog = new ChoiceDialog<>(
+                            entries.isEmpty() ? null : entries.get( 0 ), entries );
+                    dialog.setTitle( "Pick NeoForge Version" );
+                    dialog.setHeaderText( "Select a NeoForge version" );
+                    dialog.setContentText( "NeoForge:" );
+                    applyThemeToDialog( dialog );
+                    dialog.showAndWait().ifPresent( selected -> {
+                        String url = entryToUrl.get( selected );
+                        if ( url != null ) {
+                            packForgeURLField.setText( url );
+                            packForgeHashField.setText( "" );
+                            updateStatus( "NeoForge URL set. Computing hash..." );
+                            computeAndPopulateHash( url, "NeoForge" );
+                        }
+                    } );
+                } );
+            }
+            catch ( Exception ex ) {
+                Logger.logError( "Failed to fetch NeoForge versions." );
+                Logger.logThrowable( ex );
+                updateStatus( "Failed to fetch NeoForge versions: " + ex.getMessage() );
+            }
+        } );
+    }
+
+    /**
+     * Opens a Fabric version picker dialog. Queries the Fabric meta
+     * service for both the supported Minecraft versions and the loader
+     * versions, then shows one entry per (mcVersion × latest-stable
+     * loader) pair. User picks an MC version and the field is filled
+     * with the corresponding profile-JSON URL.
+     *
+     * <p>No hash computation — Fabric's meta service serves profile
+     * JSONs dynamically with no stable SHA-1 to pin. The launcher's
+     * Fabric loader path treats a blank hash as "skip verification."
+     * Users who want a specific loader version (rather than latest
+     * stable) can hand-edit the URL after the picker fills it.</p>
+     */
+    private void pickFabricVersion()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                updateStatus( "Fetching Fabric versions..." );
+                String gameJson = NetworkUtilities.downloadFileFromURL(
+                        "https://meta.fabricmc.net/v2/versions/game" );
+                String loaderJson = NetworkUtilities.downloadFileFromURL(
+                        "https://meta.fabricmc.net/v2/versions/loader" );
+
+                JsonArray games = JSONUtilities.getGson().fromJson( gameJson, JsonArray.class );
+                JsonArray loaders = JSONUtilities.getGson().fromJson( loaderJson, JsonArray.class );
+
+                // Pick the latest stable loader as the default pairing.
+                // The meta service returns loaders newest-first; the
+                // first entry with stable=true is what we want.
+                String latestLoader = null;
+                for ( JsonElement el : loaders ) {
+                    JsonObject obj = el.getAsJsonObject();
+                    if ( obj.has( "stable" ) && obj.get( "stable" ).getAsBoolean() ) {
+                        latestLoader = obj.get( "version" ).getAsString();
+                        break;
+                    }
+                }
+                // Fall back to the very first loader if no stable found
+                // (shouldn't happen on a healthy meta service).
+                if ( latestLoader == null && loaders.size() > 0 ) {
+                    latestLoader = loaders.get( 0 ).getAsJsonObject().get( "version" ).getAsString();
+                }
+                if ( latestLoader == null ) {
+                    updateStatus( "Fabric meta returned no loader versions." );
+                    return;
+                }
+                final String loaderVersion = latestLoader;
+
+                // Only list stable MC releases — snapshots are noise in
+                // a "set up a new modpack" workflow. Order is newest-
+                // first per the meta service's convention.
+                List< String > entries = new ArrayList<>();
+                Map< String, String > entryToUrl = new HashMap<>();
+                for ( JsonElement el : games ) {
+                    JsonObject obj = el.getAsJsonObject();
+                    if ( obj.has( "stable" ) && !obj.get( "stable" ).getAsBoolean() ) continue;
+                    String mcVersion = obj.get( "version" ).getAsString();
+                    String label = "MC " + mcVersion + " - Fabric loader " + loaderVersion;
+                    String url = "https://meta.fabricmc.net/v2/versions/loader/" + mcVersion
+                            + "/" + loaderVersion + "/profile/json";
+                    entries.add( label );
+                    entryToUrl.put( label, url );
+                }
+
+                GUIUtilities.JFXPlatformRun( () -> {
+                    ChoiceDialog< String > dialog = new ChoiceDialog<>(
+                            entries.isEmpty() ? null : entries.get( 0 ), entries );
+                    dialog.setTitle( "Pick Fabric Version" );
+                    dialog.setHeaderText(
+                            "Select a Minecraft version (paired with latest stable Fabric loader)" );
+                    dialog.setContentText( "Fabric:" );
+                    applyThemeToDialog( dialog );
+                    dialog.showAndWait().ifPresent( selected -> {
+                        String url = entryToUrl.get( selected );
+                        if ( url != null ) {
+                            packForgeURLField.setText( url );
+                            // Fabric meta JSONs aren't hash-pinned — leave
+                            // the field blank so the launcher's "skip
+                            // verification when hash empty" path kicks in.
+                            packForgeHashField.setText( "" );
+                            updateStatus( "Fabric URL set (no hash pinning for meta JSONs)." );
+                        }
+                    } );
+                } );
+            }
+            catch ( Exception ex ) {
+                Logger.logError( "Failed to fetch Fabric versions." );
+                Logger.logThrowable( ex );
+                updateStatus( "Failed to fetch Fabric versions: " + ex.getMessage() );
+            }
+        } );
+    }
+
+    /** Derive the matching Minecraft version from a NeoForge version
+     *  string. NeoForge versions follow {@code MAJOR.MINOR.PATCH}
+     *  where {@code MAJOR.MINOR} maps to MC {@code 1.MAJOR.MINOR}
+     *  — e.g. {@code 21.1.95} → MC {@code 1.21.1}, {@code 20.4.190}
+     *  → MC {@code 1.20.4}. Returns null for unparseable inputs so
+     *  the picker label gracefully falls back to "NeoForge X.Y.Z"
+     *  without the MC prefix. */
+    private static String neoForgeMcVersionFor( String neoForgeVersion )
+    {
+        if ( neoForgeVersion == null ) return null;
+        String[] parts = neoForgeVersion.split( "\\." );
+        if ( parts.length < 2 ) return null;
+        try {
+            int major = Integer.parseInt( parts[ 0 ] );
+            int minor = Integer.parseInt( parts[ 1 ] );
+            // The .0 minor was used as "first release for this MC major"
+            // historically — read it as 1.MAJOR (no .minor suffix).
+            return minor == 0 ? "1." + major : "1." + major + "." + minor;
+        }
+        catch ( NumberFormatException nfe ) {
+            return null;
+        }
+    }
+
     /**
      * Opens a Forge version picker dialog. Fetches available versions from the Forge Maven promotions API, displays
      * them grouped by Minecraft version, and auto-populates the Forge URL and hash fields.
@@ -664,24 +892,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                             packForgeURLField.setText( url );
                             packForgeHashField.setText( "" );
                             updateStatus( "Forge URL set. Computing hash..." );
-                            // Download and compute hash in background
-                            SystemUtilities.spawnNewTask( () -> {
-                                try {
-                                    File tempFile = File.createTempFile( "forge_installer_", ".jar" );
-                                    tempFile.deleteOnExit();
-                                    NetworkUtilities.downloadFileFromURL( new URL( url ), tempFile );
-                                    String sha1 = HashUtilities.getFileSHA1( tempFile );
-                                    tempFile.delete();
-                                    if ( sha1 != null ) {
-                                        GUIUtilities.JFXPlatformRun(
-                                                () -> packForgeHashField.setText( sha1 ) );
-                                        updateStatus( "Forge hash computed: " + sha1.substring( 0, 8 ) + "..." );
-                                    }
-                                }
-                                catch ( Exception ex ) {
-                                    updateStatus( "Failed to compute Forge hash: " + ex.getMessage() );
-                                }
-                            } );
+                            computeAndPopulateHash( url, "Forge" );
                         }
                     } );
                 } );
