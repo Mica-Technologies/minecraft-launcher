@@ -21,8 +21,10 @@ import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.backends.NoOpBackend;
+import com.micatechnologies.minecraft.launcher.rgb.backends.asusaura.AsusAuraBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.chroma.ChromaRestBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.chromanative.ChromaNativeBackend;
+import com.micatechnologies.minecraft.launcher.rgb.backends.corsair.CorsairBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.dynamiclighting.WindowsDynamicLightingBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.openrgb.OpenRgbBackend;
 
@@ -92,6 +94,8 @@ public final class RgbBackendRegistry
             case ConfigConstants.RGB_BACKEND_CHROMA        -> List.of( new ChromaRestBackend() );
             case ConfigConstants.RGB_BACKEND_CHROMA_NATIVE -> List.of( new ChromaNativeBackend() );
             case ConfigConstants.RGB_BACKEND_WINDOWS_DL    -> List.of( new WindowsDynamicLightingBackend() );
+            case ConfigConstants.RGB_BACKEND_CORSAIR       -> List.of( new CorsairBackend() );
+            case ConfigConstants.RGB_BACKEND_ASUS_AURA     -> List.of( new AsusAuraBackend() );
             case ConfigConstants.RGB_BACKEND_NONE          -> List.of();
             default -> {
                 Logger.logWarningSilent( "Unrecognized RGB backend choice '" + c
@@ -140,6 +144,8 @@ public final class RgbBackendRegistry
             case ConfigConstants.RGB_BACKEND_CHROMA        -> new ChromaRestBackend();
             case ConfigConstants.RGB_BACKEND_CHROMA_NATIVE -> new ChromaNativeBackend();
             case ConfigConstants.RGB_BACKEND_WINDOWS_DL    -> new WindowsDynamicLightingBackend();
+            case ConfigConstants.RGB_BACKEND_CORSAIR       -> new CorsairBackend();
+            case ConfigConstants.RGB_BACKEND_ASUS_AURA     -> new AsusAuraBackend();
             case ConfigConstants.RGB_BACKEND_NONE          -> new NoOpBackend();
             default -> {
                 Logger.logWarningSilent( "Unrecognized RGB backend choice '" + c
@@ -170,6 +176,8 @@ public final class RgbBackendRegistry
                 new Candidate( new OpenRgbBackend(),                 ConfigManager.getRgbEnableOpenRgb() ),
                 new Candidate( new ChromaNativeBackend(),            ConfigManager.getRgbEnableChromaNative() ),
                 new Candidate( new WindowsDynamicLightingBackend(),  ConfigManager.getRgbEnableWindowsDl() ),
+                new Candidate( new CorsairBackend(),                 ConfigManager.getRgbEnableCorsair() ),
+                new Candidate( new AsusAuraBackend(),                ConfigManager.getRgbEnableAsusAura() ),
                 new Candidate( new ChromaRestBackend(),              ConfigManager.getRgbEnableChromaRest() )
         );
         return filterCandidates( candidates );

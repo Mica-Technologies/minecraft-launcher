@@ -943,6 +943,28 @@ public class ConfigManager
         writeBoolean( ConfigConstants.RGB_ENABLE_WINDOWS_DL_KEY, enable );
     }
 
+    public synchronized static boolean getRgbEnableCorsair()
+    {
+        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CORSAIR_KEY,
+                                        ConfigConstants.RGB_ENABLE_CORSAIR_DEFAULT );
+    }
+
+    public synchronized static void setRgbEnableCorsair( boolean enable )
+    {
+        writeBoolean( ConfigConstants.RGB_ENABLE_CORSAIR_KEY, enable );
+    }
+
+    public synchronized static boolean getRgbEnableAsusAura()
+    {
+        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_ASUS_AURA_KEY,
+                                        ConfigConstants.RGB_ENABLE_ASUS_AURA_DEFAULT );
+    }
+
+    public synchronized static void setRgbEnableAsusAura( boolean enable )
+    {
+        writeBoolean( ConfigConstants.RGB_ENABLE_ASUS_AURA_KEY, enable );
+    }
+
     public synchronized static boolean getRgbMenuEffectEnable()
     {
         return readBooleanWithDefault( ConfigConstants.RGB_MENU_EFFECT_ENABLE_KEY,
