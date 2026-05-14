@@ -4,19 +4,42 @@
 On macOS the modifier is <strong>⌘ Command</strong>; on Windows and Linux it's <strong>Ctrl</strong>.
 The shortcuts below show the modifier as <strong>⌘/Ctrl</strong> to cover both.</p>
 
-<h2>Global (System Menu Bar)</h2>
+<h2>Global Navigation</h2>
 
-<p>Available everywhere as long as the launcher window has focus. They live on the system menu
-bar (top of the screen on macOS; top of the window on Windows / Linux).</p>
+<p>Available on every screen except Login, Launch Progress, and the in-game console window —
+those screens deliberately don't take navigation shortcuts so you don't accidentally walk away
+mid-flow.</p>
 
 <table class="shortcut-table">
     <thead>
         <tr><th>Shortcut</th><th>Action</th></tr>
     </thead>
     <tbody>
+        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>,</kbd></td><td>Open Settings (universal convention)</td></tr>
         <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>L</kbd></td><td>Open the Browse screen (install &amp; manage)</td></tr>
-        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>R</kbd></td><td>Refresh the modpack list (re-fetch available manifests)</td></tr>
-        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>?</kbd></td><td>Open the Help window on this screen's topic</td></tr>
+        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>E</kbd></td><td>Open the Modpack Editor</td></tr>
+        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></td><td>Return to the Main menu (Home)</td></tr>
+        <tr><td><kbd>F1</kbd> / <kbd>⌘/Ctrl</kbd> + <kbd>?</kbd></td><td>Open the Help window on the current screen's topic</td></tr>
+    </tbody>
+</table>
+
+<div class="note">
+    <div class="callout-title">Why Cmd+Shift+M for Home?</div>
+    <p>Plain <kbd>⌘</kbd> + <kbd>M</kbd> is the macOS "Minimize Window" system shortcut — the
+    launcher avoids overriding it. <kbd>⌘/Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd> sidesteps
+    the conflict on every platform.</p>
+</div>
+
+<h2>System Menu Bar (macOS)</h2>
+
+<p>The macOS system menu bar additionally surfaces:</p>
+
+<table class="shortcut-table">
+    <thead>
+        <tr><th>Shortcut</th><th>Action</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><kbd>⌘</kbd> + <kbd>R</kbd></td><td>Refresh the modpack list (Browse menu → Refresh Pack List)</td></tr>
     </tbody>
 </table>
 
@@ -29,6 +52,30 @@ bar (top of the screen on macOS; top of the window on Windows / Linux).</p>
     <tbody>
         <tr><td><kbd>Enter</kbd></td><td>Play the last-selected modpack</td></tr>
         <tr><td><kbd>F5</kbd></td><td>Refresh available modpacks (same as the navbar refresh icon)</td></tr>
+        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>F</kbd></td><td>Jump to the search field</td></tr>
+    </tbody>
+</table>
+
+<h2>Browse</h2>
+
+<table class="shortcut-table">
+    <thead>
+        <tr><th>Shortcut</th><th>Action</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>F</kbd></td><td>Jump to the search field</td></tr>
+    </tbody>
+</table>
+
+<h2>Modpack Editor</h2>
+
+<table class="shortcut-table">
+    <thead>
+        <tr><th>Shortcut</th><th>Action</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>S</kbd></td><td>Save the open manifest</td></tr>
+        <tr><td><kbd>⌘/Ctrl</kbd> + <kbd>N</kbd></td><td>Start a new manifest</td></tr>
     </tbody>
 </table>
 
@@ -45,20 +92,7 @@ bar (top of the screen on macOS; top of the window on Windows / Linux).</p>
 
 <div class="tip">
     <div class="callout-title">Tip</div>
-    <p>The help button (<strong>?</strong>) in the top-right of every screen is the fastest way
-    to surface the help topic for the surface you're on. The system menu bar's "Mica Minecraft
-    Help" item always opens the Getting Started page.</p>
+    <p>The help button (<strong>?</strong>) in the top-right of every screen is the click-friendly
+    way to surface this page or any other help topic. Hover its icon and you'll see the same
+    tooltip the screen reader announces.</p>
 </div>
-
-<h2>Not Yet Bound</h2>
-
-<p>The following actions are commonly bound to shortcuts in other launchers but are not yet
-shortcut-bound here. They can still be accessed via the toolbar / menu bar / right-click
-context menus:</p>
-
-<ul>
-    <li>Settings (no shortcut — use the navbar Settings button)</li>
-    <li>Runtime Management (Game menu in the system menu bar)</li>
-    <li>Modpack Editor (Browse screen → bottom-bar Modpack Editor button)</li>
-    <li>Game Console window (auto-opens when you launch a pack with the console toggle on)</li>
-</ul>
