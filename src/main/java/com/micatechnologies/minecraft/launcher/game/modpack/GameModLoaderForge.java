@@ -318,6 +318,26 @@ class GameModLoaderForge extends ManagedGameFile
                 }
             }
 
+            // Legacy Forge (1.7-1.12 era) puts the universal jar at the TOP LEVEL of the
+            // installer — e.g. "/forge-1.7.10-10.13.4.1614-1.7.10-universal.jar" — not
+            // under "maven/...". install_profile.json's versionInfo.libraries lists the
+            // Forge artifact as "net.minecraftforge:forge:VERSION" with a maven URL, but
+            // Forge's maven doesn't actually serve that file — trying to download it
+            // 404s. Redirect to the embedded top-level entry via a jar:file:// URL
+            // (the same mechanism the modern path uses for maven/-embedded artifacts).
+            boolean legacyForgeUniversalEmbedded = false;
+            String legacyForgeUniversalEntry = null;
+            if ( !isSpecifiedRepoPath && forgeAssetName.startsWith( "net.minecraftforge:forge:" ) ) {
+                String topLevelUniversalName = inferredForgeAssetRepoPath + "-universal.jar";
+                if ( hasEmbeddedTopLevelEntry( topLevelUniversalName ) ) {
+                    legacyForgeUniversalEmbedded = true;
+                    legacyForgeUniversalEntry = topLevelUniversalName;
+                    // No SHA-1 to verify against — the installer bundles the universal jar
+                    // but Forge's manifest doesn't carry a hash for the bare library entry.
+                    sha1 = null;
+                }
+            }
+
             // Build Full Repo URL and Path
             String forgeAssetURL;
             if ( forgeAssetDownloadsArtifactObj != null &&
@@ -331,6 +351,9 @@ class GameModLoaderForge extends ManagedGameFile
             }
             else if ( isSpecifiedRepoPath && hasEmbeddedMavenEntry( forgeAssetRepoPath ) ) {
                 forgeAssetURL = getEmbeddedMavenEntryURL( forgeAssetRepoPath );
+            }
+            else if ( legacyForgeUniversalEmbedded ) {
+                forgeAssetURL = getEmbeddedTopLevelEntryURL( legacyForgeUniversalEntry );
             }
             else {
                 // Determine the base repository URL. Legacy Forge manifests (1.7-1.12) provide a top-level
@@ -436,6 +459,28 @@ class GameModLoaderForge extends ManagedGameFile
     private String getEmbeddedMavenEntryURL( String repoPath ) {
         File forgeInstaller = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
         return "jar:" + forgeInstaller.toURI() + "!/maven/" + repoPath;
+    }
+
+    /** Legacy Forge sibling of {@link #hasEmbeddedMavenEntry} — checks
+     *  for an entry at the TOP LEVEL of the installer jar (not under
+     *  the {@code maven/} subtree). Used to detect the bundled
+     *  universal jar in pre-1.13 installers, which sit at the root. */
+    private boolean hasEmbeddedTopLevelEntry( String entryName ) {
+        try ( JarFile forgeJarFile = getForgeJarFile() ) {
+            return forgeJarFile.getEntry( entryName ) != null;
+        }
+        catch ( IOException | ModpackException e ) {
+            return false;
+        }
+    }
+
+    /** Build a {@code jar:file://} URL pointing at a top-level entry
+     *  inside the installer jar. Mirror of
+     *  {@link #getEmbeddedMavenEntryURL} for the legacy installer
+     *  layout. */
+    private String getEmbeddedTopLevelEntryURL( String entryName ) {
+        File forgeInstaller = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
+        return "jar:" + forgeInstaller.toURI() + "!/" + entryName;
     }
 
     private void downloadForgeAssets( GameMode gameAppMode, GameModPackProgressProvider progressProvider )
