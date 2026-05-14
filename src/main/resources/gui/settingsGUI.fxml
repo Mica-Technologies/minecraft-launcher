@@ -238,6 +238,22 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
+                        <Label text="Language">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="Defaults to your operating system's language. Pick a specific language here to override that detection. Takes effect on the next launcher restart." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXComboBox fx:id="languageSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="300.0" />
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
                         <Label text="Pack imagery">
                             <font>
                                 <Font name="System Bold" size="13.0" />

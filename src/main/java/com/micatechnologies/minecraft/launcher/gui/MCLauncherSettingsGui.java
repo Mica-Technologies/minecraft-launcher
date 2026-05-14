@@ -174,6 +174,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     MFXComboBox< String > themeSelection;
 
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXComboBox< String > languageSelection;
+
     /** Appearance toggle: when off, modpack / version cards on the main menu
      *  and Library view render with the procedural gradient only — no
      *  background-image overlay. Backed by
@@ -541,6 +545,28 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu();
             }
 
+            // Store language override. The first dropdown item is the
+            // "Use OS Language" sentinel which clears the override; any
+            // other selection maps back to a BCP-47 tag via the
+            // SupportedLocales lookup. New value takes effect on the
+            // next launcher restart — Locale.setDefault has already run
+            // for this session and the 89 static-final translation
+            // fields are locked at the launch-time bundle.
+            if ( languageSelection != null && languageSelection.getSelectedItem() != null ) {
+                String selectedDisplay = languageSelection.getSelectedItem();
+                String overrideTag = "";
+                for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
+                        .SupportedLocales.ENTRIES ) {
+                    if ( entry.displayName().equals( selectedDisplay ) ) {
+                        overrideTag = entry.tag();
+                        break;
+                    }
+                }
+                // Any other selectedDisplay (the OS-default sentinel)
+                // leaves overrideTag empty, which clears the config key.
+                ConfigManager.setLocaleOverride( overrideTag );
+            }
+
             // Store proxy settings
             ConfigManager.setProxyEnable( proxyEnableCheckBox.isSelected() );
             ConfigManager.setProxyHost( proxyHostField.getText() );
@@ -782,6 +808,55 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Populate theme selection dropdown
         themeSelection.getItems().clear();
         themeSelection.getItems().addAll( ConfigConstants.ALLOWED_THEMES );
+
+        // Populate language selection dropdown. First item is the "Use OS
+        // Language (detected: <name>)" sentinel — selecting it clears the
+        // config override so the next startup falls back to
+        // LocaleBootstrap.detectOsLocale. Concrete entries follow, listed
+        // in SupportedLocales by global speaker count. Display names are
+        // written in the target language so the dropdown reads correctly
+        // even when the user can't read the launcher's current UI
+        // language (a Spanish speaker on an English-UI launcher sees
+        // "Español" rather than "Spanish").
+        if ( languageSelection != null ) {
+            languageSelection.getItems().clear();
+            String osDetectedName = com.micatechnologies.minecraft.launcher.consts.localization
+                    .LocaleBootstrap.detectOsLocale()
+                    .getDisplayName( java.util.Locale.ENGLISH );
+            languageSelection.getItems().add(
+                    com.micatechnologies.minecraft.launcher.consts.localization
+                            .SupportedLocales.OS_DEFAULT_LABEL_PREFIX
+                            + " (detected: " + osDetectedName + ")" );
+            for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
+                    .SupportedLocales.ENTRIES ) {
+                languageSelection.getItems().add( entry.displayName() );
+            }
+            // Pick the item corresponding to the saved override, or the
+            // OS-default sentinel when no override is set.
+            String savedTag = ConfigManager.getLocaleOverride();
+            if ( savedTag == null || savedTag.isBlank() ) {
+                languageSelection.selectFirst();
+            }
+            else {
+                String matchedDisplay = null;
+                for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
+                        .SupportedLocales.ENTRIES ) {
+                    if ( entry.tag().equalsIgnoreCase( savedTag ) ) {
+                        matchedDisplay = entry.displayName();
+                        break;
+                    }
+                }
+                if ( matchedDisplay != null ) {
+                    languageSelection.selectItem( matchedDisplay );
+                }
+                else {
+                    // Override is set to something we don't ship — fall back
+                    // to the OS-default sentinel rather than silently leave
+                    // it pointing nowhere.
+                    languageSelection.selectFirst();
+                }
+            }
+        }
 
         // Pack-background display toggle (Appearance tab). Writes back to config
         // on change so the next card-grid rebuild on the main menu / Library
