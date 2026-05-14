@@ -663,24 +663,47 @@ public abstract class GameModPackMetadata
     {
         long lastPlayed = getLastPlayedMs();
         if ( lastPlayed == 0 ) {
-            return "Never played";
+            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                    .get( "metadata.lastPlayed.never" );
         }
         long elapsed = System.currentTimeMillis() - lastPlayed;
         if ( elapsed < 60_000 ) {
-            return "Just now";
+            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                    .get( "metadata.lastPlayed.justNow" );
         }
         else if ( elapsed < 3_600_000 ) {
             long mins = elapsed / 60_000;
-            return mins + ( mins == 1 ? " minute ago" : " minutes ago" );
+            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                    mins == 1 ? "metadata.lastPlayed.minuteAgo" : "metadata.lastPlayed.minutesAgo",
+                    mins );
         }
         else if ( elapsed < 86_400_000 ) {
             long hours = elapsed / 3_600_000;
-            return hours + ( hours == 1 ? " hour ago" : " hours ago" );
+            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                    hours == 1 ? "metadata.lastPlayed.hourAgo" : "metadata.lastPlayed.hoursAgo",
+                    hours );
         }
         else {
             long days = elapsed / 86_400_000;
-            return days + ( days == 1 ? " day ago" : " days ago" );
+            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                    days == 1 ? "metadata.lastPlayed.dayAgo" : "metadata.lastPlayed.daysAgo",
+                    days );
         }
+    }
+
+    /**
+     * Returns true when the pack has never been launched (i.e.
+     * {@link #getLastPlayedMs()} is 0). Use this instead of
+     * string-comparing the result of {@link #getLastPlayedFormatted()}
+     * against the literal "Never played" — that string is now
+     * localized, so a string-compare would only work in English.
+     *
+     * @return true if the pack has no recorded play history
+     * @since 2026.5
+     */
+    public boolean isNeverPlayed()
+    {
+        return getLastPlayedMs() == 0;
     }
 
     /**

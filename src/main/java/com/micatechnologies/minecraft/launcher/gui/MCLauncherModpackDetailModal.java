@@ -491,14 +491,18 @@ public class MCLauncherModpackDetailModal extends StackPane
         nameLabel.getStyleClass().add( "modpackDetailTitle" );
         nameLabel.setWrapText( true );
 
-        String lastPlayed = pack.getLastPlayedFormatted();
         Label playedLabel = new Label();
         playedLabel.getStyleClass().add( "modpackDetailSubtitle" );
-        if ( lastPlayed != null && !"Never played".equals( lastPlayed ) ) {
-            playedLabel.setText( "Last played " + lastPlayed.toLowerCase() );
+        if ( pack.isNeverPlayed() ) {
+            playedLabel.setText(
+                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                            .get( "main.card.neverPlayed" ) );
         }
         else {
-            playedLabel.setText( "Never played" );
+            playedLabel.setText(
+                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                            "main.card.lastPlayed",
+                            pack.getLastPlayedFormatted().toLowerCase() ) );
         }
 
         titleBox.getChildren().addAll( nameLabel, playedLabel );
