@@ -22,6 +22,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
@@ -335,12 +336,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
             switch ( c.source() ) {
                 case MODRINTH -> {
-                    urlAddBtn.setText( "Checking…" );
+                    urlAddBtn.setText( LocalizationManager.get( "browse.urlAdd.checking" ) );
                     handleModrinthImport( url, c.slug(), c.versionId(),
                                            urlAddDefaultText );
                 }
                 case CURSEFORGE -> {
-                    urlAddBtn.setText( "Checking…" );
+                    urlAddBtn.setText( LocalizationManager.get( "browse.urlAdd.checking" ) );
                     handleCurseForgeImport( url, c.slug(), c.versionId(),
                                              urlAddDefaultText );
                 }
@@ -348,7 +349,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     // MICA / UNKNOWN — existing path. UNKNOWN falls through to
                     // installModPackByURL which surfaces the usual "couldn't fetch
                     // manifest" error if the URL really wasn't anything we recognize.
-                    urlAddBtn.setText( "Adding…" );
+                    urlAddBtn.setText( LocalizationManager.get( "browse.urlAdd.adding" ) );
                     SystemUtilities.spawnNewTask( () -> {
                         try {
                             GameModPackManager.installModPackByURL( url );
@@ -398,12 +399,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     String json = new GsonBuilder().setPrettyPrinting().create().toJson( manifest );
                     java.nio.file.Files.writeString( file.toPath(), json,
                                                      java.nio.charset.StandardCharsets.UTF_8 );
-                    GUIUtilities.JFXPlatformRun( () -> hostingManifestBtn.setText( "Saved!" ) );
+                    GUIUtilities.JFXPlatformRun( () -> hostingManifestBtn.setText( LocalizationManager.get( "browse.hostingManifest.saved" ) ) );
                     SystemUtilities.spawnNewTask( () -> {
                         try { Thread.sleep( 2000 ); }
                         catch ( InterruptedException ignored ) {}
                         GUIUtilities.JFXPlatformRun(
-                                () -> hostingManifestBtn.setText( "Generate Hosting Manifest" ) );
+                                () -> hostingManifestBtn.setText( LocalizationManager.get( "browse.hostingManifest.label" ) ) );
                     } );
                 }
                 catch ( Exception ex ) {
@@ -1000,13 +1001,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private void updatePaginationControls( int totalItems, int totalPages, int startIdx, int endIdx )
     {
         if ( totalItems == 0 ) {
-            paginationRangeLabel.setText( "No items" );
-            paginationPageLabel.setText( "Page 1 of 1" );
+            paginationRangeLabel.setText( LocalizationManager.get( "browse.pagination.empty" ) );
+            paginationPageLabel.setText( LocalizationManager.format( "main.pagination.pageOfPages", 1, 1 ) );
         }
         else {
-            paginationRangeLabel.setText( "Showing " + ( startIdx + 1 ) + "–" + endIdx
-                                                  + " of " + totalItems );
-            paginationPageLabel.setText( "Page " + currentPage + " of " + totalPages );
+            paginationRangeLabel.setText( LocalizationManager.format(
+                    "main.pagination.range", startIdx + 1, endIdx, totalItems ) );
+            paginationPageLabel.setText( LocalizationManager.format(
+                    "main.pagination.pageOfPages", currentPage, totalPages ) );
         }
         prevPageBtn.setDisable( currentPage <= 1 );
         nextPageBtn.setDisable( currentPage >= totalPages );
