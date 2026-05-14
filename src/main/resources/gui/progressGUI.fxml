@@ -112,7 +112,7 @@
 
             <!-- Row 1: Upper label (overall task title) -->
             <Label fx:id="upperLabel" alignment="CENTER" contentDisplay="CENTER" maxWidth="420.0"
-                   prefWidth="400.0" styleClass="heading-display" text="Just a Moment"
+                   prefWidth="400.0" styleClass="heading-display" text="%progress.title.justAMoment"
                    textAlignment="CENTER" wrapText="true"
                    GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER"/>
 
@@ -158,7 +158,7 @@
                   GridPane.halignment="CENTER" GridPane.rowIndex="6"
                   GridPane.valignment="CENTER">
                 <padding><Insets top="12.0" bottom="2.0"/></padding>
-                <MFXButton fx:id="cancelBtn" text="Cancel" prefWidth="120.0" prefHeight="32.0"/>
+                <MFXButton fx:id="cancelBtn" text="%progress.cancelBtn.label" prefWidth="120.0" prefHeight="32.0"/>
             </HBox>
         </GridPane>
     </GridPane>
