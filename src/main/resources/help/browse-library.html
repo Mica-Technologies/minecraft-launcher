@@ -1,0 +1,109 @@
+<h1>Browse</h1>
+
+<p>The Browse screen is your install &amp; manage surface. From here you can install new modpacks
+from the public manifest, install pure vanilla Minecraft versions, install empty Forge / NeoForge /
+Fabric starter packs, edit packs you already have, and uninstall things you don't want any more.</p>
+
+<h2>Cards &amp; the Filter Bar</h2>
+
+<p>Every entry shows up as a hero card with a logo, badge, name, chips (loader / Minecraft version),
+a status line, and action buttons. The filter bar across the top is how you narrow the view.</p>
+
+<ul>
+    <li><strong>Search</strong> — free-text match against the card titles. Updates as you type
+        (with a short debounce so it doesn't thrash the layout).</li>
+    <li><strong>Type</strong> — All, Modpacks, or one of the version catalogues:
+        Vanilla (Releases / Snapshots / Old Beta / Old Alpha) and Forge / NeoForge / Fabric versions.
+        The loader-version filters are intentionally <em>not</em> included in "All" — the combined list
+        would be thousands of entries and isn't what a "show me everything" search wants.</li>
+    <li><strong>Status</strong> — All, Installed, or Available. "Available" shows things you
+        haven't installed yet; "Installed" shows what's already on disk.</li>
+    <li><strong>Sort</strong> — Default, Name (A-Z / Z-A), Release Date, Last Played, Most Played,
+        Recently Updated. Sorts that depend on play / update history (Last Played, Most Played,
+        Recently Updated) sink non-modpack entries to the bottom rather than mixing them in
+        confusingly.</li>
+</ul>
+
+<h2>Installed Modpacks</h2>
+
+<p>Cards for packs already on disk show two buttons:</p>
+
+<ul>
+    <li><strong>Uninstall</strong> — prompts whether to also delete the install folder. "Uninstall
+        (Keep Files)" keeps your worlds, configs, and mods even though the launcher no longer knows
+        about the pack — useful if you plan to reinstall the same pack later.</li>
+    <li><strong>Edit</strong> — opens the <a href="help://topic/MODPACK_EDITOR">Modpack Editor</a>
+        on the pack's local manifest. Changes are written to disk and apply on the next launch.</li>
+</ul>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>Right-click an installed modpack card for the same context menu the main menu offers:
+    open the pack folder, open the mods folder, create a desktop shortcut, view play stats, and
+    uninstall.</p>
+</div>
+
+<h2>Available Modpacks</h2>
+
+<p>Cards from the public manifest you don't yet have show an <strong>Install</strong> button.
+Clicking it downloads the manifest, installs the modpack, and bumps the card into the Installed
+group on the next rebuild. You can keep using filters while an install is in flight — the
+in-progress card stays pinned at the top of the grid until the install finishes.</p>
+
+<h2>Vanilla Versions</h2>
+
+<p>Mojang's full release / snapshot / beta / alpha catalogue. Each card installs that exact
+Minecraft version as a synthetic empty modpack you can play directly from the main menu. Old
+betas and alphas are runnable too — the launcher pulls the appropriate Java runtime for each
+version automatically.</p>
+
+<h2>Forge / NeoForge / Fabric Versions</h2>
+
+<p>The loader-version filters surface every release advertised by each project's version service:
+Forge promotions, NeoForge maven metadata, and the Fabric meta API. Clicking Install on one of
+these writes a synthetic "empty modpack" manifest under your config folder and registers it with
+the launcher — so the result behaves like any other installed modpack:</p>
+
+<ul>
+    <li>shows up in the main menu's hero cards;</li>
+    <li>is editable in the Modpack Editor (so you can add mods on top to build your own pack);</li>
+    <li>can be uninstalled like any other pack;</li>
+    <li>shares the same auto-update plumbing as a normal modpack.</li>
+</ul>
+
+<div class="note">
+    <div class="callout-title">Note</div>
+    <p>The cards show each project's official logo when the launcher has it cached locally. The
+    first visit to a loader filter renders the brand-coloured placeholder while the real logos
+    download in the background — once cached, subsequent visits are instant.</p>
+</div>
+
+<h2>Add by URL</h2>
+
+<p>The bottom-bar <strong>Add from URL</strong> button takes a direct URL to a hosted
+<code>installable.json</code> manifest and installs it the same way the available-pack cards do.
+Use this for modpacks distributed outside the public manifest — paste the link, click the button,
+and the manifest's metadata is downloaded and validated before install begins.</p>
+
+<h2>Modpack Editor</h2>
+
+<p>The bottom-bar <strong>Modpack Editor</strong> button opens the
+<a href="help://topic/MODPACK_EDITOR">Modpack Editor</a> with a blank manifest so you can build
+a new pack from scratch — set the loader (Forge / NeoForge / Fabric / vanilla), Minecraft version,
+mods list, etc. The Editor can also be opened on an existing pack via the <strong>Edit</strong>
+button on its card.</p>
+
+<h2>Generate Hosting Manifest</h2>
+
+<p>The bottom-bar <strong>Generate Hosting Manifest</strong> button creates an
+<code>installable.json</code> for the modpack currently in the editor, ready to host on any web
+server or file-sharing service. Anyone with the resulting URL can install your pack via Add from
+URL.</p>
+
+<h2>Pagination</h2>
+
+<p>Long lists are paginated. Use the <strong>Prev</strong> / <strong>Next</strong> buttons in the
+pagination bar (above the cards) to move between pages, and the <strong>Per page</strong>
+dropdown to set the page size — 24, 48, 72, or 96. The default of 48 fits the typical installed
+library on one page; bumping up to 96 keeps the loader-version filters scrollable in a single
+page.</p>
