@@ -115,6 +115,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     // ===== FXML — bottom bar =====
     @SuppressWarnings( "unused" ) @FXML MFXTextField urlAddField;
     @SuppressWarnings( "unused" ) @FXML MFXButton urlAddBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton importZipBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton editorBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton hostingManifestBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton returnBtn;
@@ -379,6 +380,61 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 Logger.logThrowable( ex );
             }
         } ) );
+
+        // Import-by-ZIP — reverses the Export as ZIP action from the detail
+        // modal. Picks a .zip via FileChooser, validates it carries the
+        // mica-export marker, then extracts contents + registers the embedded
+        // manifest through the standard installModPackByURL path.
+        importZipBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
+        importZipBtn.setOnAction( e -> {
+            javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+            fc.setTitle( "Import Modpack ZIP" );
+            fc.getExtensionFilters().add(
+                    new javafx.stage.FileChooser.ExtensionFilter( "Mica Modpack ZIP", "*.zip" ) );
+            java.io.File zip = fc.showOpenDialog( stage );
+            if ( zip == null ) return;
+            final String zipPath = zip.getAbsolutePath();
+            importZipBtn.setDisable( true );
+            String defaultText = importZipBtn.getText();
+            importZipBtn.setText( LocalizationManager.get( "browse.urlAdd.checking" ) );
+
+            // Match the Modrinth / Technic UX: surface an in-flight import
+            // placeholder card immediately so the user sees activity while
+            // extraction (potentially slow for GB-scale packs with worlds)
+            // chugs through.
+            beginImport( zip.getName() );
+            SystemUtilities.spawnNewTask( () -> {
+                try {
+                    com.micatechnologies.minecraft.launcher.game.modpack.import_
+                            .ModpackZipImporter.importZip( new java.io.File( zipPath ) );
+                    GUIUtilities.JFXPlatformRun( () -> NotificationManager.success(
+                            "Import complete",
+                            "The pack is now in your library." ) );
+                }
+                catch ( com.micatechnologies.minecraft.launcher.game.modpack.import_
+                                .ModpackZipImporter.ImportException ie ) {
+                    Logger.logWarningSilent( "ZIP import failed: " + ie.getMessage() );
+                    NotificationManager.error(
+                            LocalizationManager.get( "notification.import.failed.title" ),
+                            ie.getMessage() );
+                }
+                catch ( Throwable t ) {
+                    Logger.logErrorSilent( "ZIP import unexpected failure: " + t.getMessage() );
+                    Logger.logThrowable( t );
+                    NotificationManager.error(
+                            "Import failed",
+                            "An unexpected error occurred while importing the ZIP. "
+                                    + "Check the launcher log for details." );
+                }
+                finally {
+                    endImport();
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        importZipBtn.setText( defaultText );
+                        importZipBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
+                    } );
+                }
+            } );
+        } );
 
         // Hosting manifest export — same flow as the old Edit Packs screen
         hostingManifestBtn.setOnAction( e -> {
