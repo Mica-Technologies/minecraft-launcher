@@ -1510,7 +1510,17 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             // Always clear first so a previous bind's image doesn't briefly flash
             // through during the new resolveLogoForEntry's async fetch.
             logo.setImage( null );
-            Image logoImage = resolveLogoForEntry( newEntry );
+            final LibraryEntry capturedEntry = newEntry;
+            Image logoImage = resolveLogoForEntry( newEntry, officialImage -> {
+                // Pack-identity guard: the card may have been rebound to a
+                // different entry while the official-logo download was in
+                // flight; ignore the late update in that case so we don't
+                // paint over a now-newer entry's logo.
+                if ( this.entry == capturedEntry ) {
+                    logo.setImage( officialImage );
+                    ImageFadeIn.apply( logo );
+                }
+            } );
             if ( logoImage != null ) {
                 logo.setImage( logoImage );
                 // Fade the logo in once the bytes arrive — see ImageFadeIn for rationale.
@@ -1880,13 +1890,29 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
     }
 
+    /** No-callback overload for callers that don't care about the
+     *  official-logo async upgrade (e.g. dominant-colour sampling for the
+     *  card background — the placeholder's brand colour is fine there). */
+    private static Image resolveLogoForEntry( LibraryEntry entry )
+    {
+        return resolveLogoForEntry( entry, img -> { /* no async upgrade needed */ } );
+    }
+
     /** Resolves the logo for a card entry. Critical perf note: for available modpacks we use
      *  {@code pack.getPackLogoURL()} (the source URL from the manifest) directly with
      *  {@code new Image(url, true)} rather than {@code getPackLogoFilepath()} — the latter
      *  triggers an environment cache download synchronously, which on a fresh launcher with
      *  dozens of available packs would block the FX thread for seconds. JavaFX Image with
-     *  {@code backgroundLoading=true} fetches the URL on its own worker thread. */
-    private static Image resolveLogoForEntry( LibraryEntry entry )
+     *  {@code backgroundLoading=true} fetches the URL on its own worker thread.
+     *
+     *  <p>For {@code LOADER_AVAILABLE} entries the call returns the canvas placeholder
+     *  immediately and (if the official project logo isn't cached on disk yet) fires
+     *  {@code onOfficialReady} from the FX thread once the download finishes. The caller
+     *  is responsible for guarding against rebind-during-async by checking that the card
+     *  still represents the entry whose logo was requested before applying the late
+     *  upgrade.</p> */
+    private static Image resolveLogoForEntry( LibraryEntry entry,
+                                               PlaceholderLogoFactory.ImageReadyCallback onOfficialReady )
     {
         try {
             if ( entry.kind == LibraryEntry.Kind.MODPACK_INSTALLED && entry.pack != null ) {
@@ -1911,11 +1937,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
             if ( entry.kind == LibraryEntry.Kind.LOADER_AVAILABLE
                     && entry.loaderVersion != null ) {
-                // Forge / NeoForge / Fabric placeholders — each has a brand-
-                // coloured gradient + initial so the loader catalogues are
-                // visually distinguishable from each other and from vanilla.
-                return PlaceholderLogoFactory.forLoaderType(
-                        entry.loaderVersion.loaderType() );
+                // Forge / NeoForge / Fabric — return the project's official
+                // logo if it's been cached locally, otherwise a brand-coloured
+                // placeholder and a background fetch that will upgrade the
+                // card once the official PNG lands on disk.
+                return PlaceholderLogoFactory.resolveLogo(
+                        entry.loaderVersion.loaderType(), onOfficialReady );
             }
         }
         catch ( Exception ignored ) { /* fall through */ }
