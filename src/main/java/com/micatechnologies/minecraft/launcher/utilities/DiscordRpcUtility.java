@@ -413,17 +413,33 @@ public class DiscordRpcUtility
             try {
                 // IPCClient.close() just shuts the pipe — it doesn't tell Discord to clear
                 // the activity. Discord's own grace window for noticing the IPC disconnect
-                // and wiping a stale presence is a few seconds long, but on a fast app exit
+                // and wiping a stale presence is several seconds, but on a fast app exit
                 // (closeApp → System.exit) the process is gone before Discord notices,
                 // leaving the user's status stuck at the launcher's last state ("In Menus"
                 // / "In Game") indefinitely.
                 //
-                // Send a null rich presence first so Discord wipes the launcher activity
-                // immediately, then a short pause to let the named-pipe write reach the
-                // Discord client before we tear the pipe down.
+                // The clearing dance is intentionally redundant — Discord has been observed
+                // to ignore the bare-null version under specific client states, so we send
+                // both a null and an empty RichPresence, then wait long enough for the
+                // named-pipe writes to actually reach Discord before tearing the pipe down.
+                //
+                //   * sendRichPresence(null)  → CDAGaming's library serializes this as
+                //     {"cmd":"SET_ACTIVITY","args":{"pid":<pid>}} (no "activity" field).
+                //     Most Discord client versions treat this as "clear activity now".
+                //   * sendRichPresence(empty) → {"cmd":"SET_ACTIVITY","args":{"pid":<pid>,
+                //     "activity":{}}}. Some client versions only honor the explicit
+                //     activity-cleared shape rather than the implicit no-field one.
+                //   * 500ms sleep            → Discord's pipe reader is async; the
+                //     previous 150ms occasionally raced the close() and Discord never
+                //     got a chance to process the clear.
                 try { discordRpcClient.sendRichPresence( null ); }
                 catch ( Exception ignored ) { /* best-effort */ }
-                try { Thread.sleep( 150 ); }
+                try {
+                    discordRpcClient.sendRichPresence(
+                            new com.jagrosh.discordipc.entities.RichPresence.Builder().build() );
+                }
+                catch ( Exception ignored ) { /* best-effort */ }
+                try { Thread.sleep( 500 ); }
                 catch ( InterruptedException ie ) { Thread.currentThread().interrupt(); }
 
                 discordRpcClient.close();
