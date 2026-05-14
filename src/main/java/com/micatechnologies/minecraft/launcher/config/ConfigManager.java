@@ -754,6 +754,138 @@ public class ConfigManager
         writeConfigurationToDisk();
     }
 
+    // region RGB Integration
+
+    /**
+     * Master enable for the RGB-integration subsystem. When false, the
+     * {@code RgbController} stays inert — no backend probes, no worker
+     * thread, no socket or DLL activity. See
+     * {@link ConfigConstants#RGB_ENABLE_KEY} for default-off rationale.
+     *
+     * @since 2026.5
+     */
+    public synchronized static boolean getRgbEnable()
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.RGB_ENABLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.RGB_ENABLE_KEY,
+                                       ConfigConstants.RGB_ENABLE_DEFAULT );
+        }
+        return configObject.get( ConfigConstants.RGB_ENABLE_KEY ).getAsBoolean();
+    }
+
+    public synchronized static void setRgbEnable( boolean enable )
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.RGB_ENABLE_KEY, enable );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Selected RGB backend identifier — see {@link ConfigConstants#RGB_BACKEND_KEY}
+     * for the valid set ({@code "auto"} / {@code "openrgb"} / {@code "chroma"}
+     * / {@code "none"}). Reads that don't match a known identifier fall back
+     * to {@code "auto"}.
+     *
+     * @since 2026.5
+     */
+    public synchronized static String getRgbBackend()
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.RGB_BACKEND_KEY ) ) {
+            configObject.addProperty( ConfigConstants.RGB_BACKEND_KEY,
+                                       ConfigConstants.RGB_BACKEND_DEFAULT );
+        }
+        String value = configObject.get( ConfigConstants.RGB_BACKEND_KEY ).getAsString();
+        return switch ( value ) {
+            case ConfigConstants.RGB_BACKEND_AUTO,
+                 ConfigConstants.RGB_BACKEND_OPENRGB,
+                 ConfigConstants.RGB_BACKEND_CHROMA,
+                 ConfigConstants.RGB_BACKEND_NONE -> value;
+            default -> ConfigConstants.RGB_BACKEND_DEFAULT;
+        };
+    }
+
+    public synchronized static void setRgbBackend( String backend )
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        // Defensive: only accept known identifiers — same set as getRgbBackend
+        // validates. Unknown strings would silently fall back to "auto" on
+        // read, but it's cleaner to refuse them at the setter so the on-disk
+        // config stays predictable.
+        String normalized = switch ( backend ) {
+            case ConfigConstants.RGB_BACKEND_AUTO,
+                 ConfigConstants.RGB_BACKEND_OPENRGB,
+                 ConfigConstants.RGB_BACKEND_CHROMA,
+                 ConfigConstants.RGB_BACKEND_NONE -> backend;
+            case null, default -> ConfigConstants.RGB_BACKEND_DEFAULT;
+        };
+        configObject.addProperty( ConfigConstants.RGB_BACKEND_KEY, normalized );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Whether in-game effects use the running modpack's logo dominant
+     * colors. When false, effects use the launcher theme's accent palette.
+     *
+     * @since 2026.5
+     */
+    public synchronized static boolean getRgbUsePackColors()
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.RGB_USE_PACK_COLORS_KEY ) ) {
+            configObject.addProperty( ConfigConstants.RGB_USE_PACK_COLORS_KEY,
+                                       ConfigConstants.RGB_USE_PACK_COLORS_DEFAULT );
+        }
+        return configObject.get( ConfigConstants.RGB_USE_PACK_COLORS_KEY ).getAsBoolean();
+    }
+
+    public synchronized static void setRgbUsePackColors( boolean usePackColors )
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.RGB_USE_PACK_COLORS_KEY, usePackColors );
+        writeConfigurationToDisk();
+    }
+
+    /**
+     * Whether the in-game effect highlights WASD / E / Space / Shift in
+     * a contrasting accent over the pack-color background.
+     *
+     * @since 2026.5
+     */
+    public synchronized static boolean getRgbHighlightKeys()
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY ) ) {
+            configObject.addProperty( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY,
+                                       ConfigConstants.RGB_HIGHLIGHT_KEYS_DEFAULT );
+        }
+        return configObject.get( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY ).getAsBoolean();
+    }
+
+    public synchronized static void setRgbHighlightKeys( boolean highlight )
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY, highlight );
+        writeConfigurationToDisk();
+    }
+
     // region LWJGL ARM64 Patching
 
     /**
