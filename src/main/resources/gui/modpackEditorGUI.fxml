@@ -120,16 +120,19 @@
                     <MFXToggleButton fx:id="packUnstableToggle" text="Unstable (Beta)"/>
                     <MFXToggleButton fx:id="packCustomDiscordRpcToggle" text="Custom Discord RPC"/>
 
-                    <!-- Forge -->
+                    <!-- Modloader -->
                     <HBox spacing="8.0" alignment="CENTER_LEFT">
-                        <Label text="Forge Installer" style="-fx-font-weight: bold;">
+                        <Label text="Modloader" style="-fx-font-weight: bold;">
                             <font><Font size="14.0"/></font>
                         </Label>
+                        <MFXComboBox fx:id="packModLoaderTypeCombo" prefWidth="160.0" minHeight="32.0"/>
                         <MFXButton fx:id="forgePickerBtn" text="Pick Forge Version" prefHeight="28.0"/>
                     </HBox>
-                    <MFXTextField fx:id="packForgeURLField" floatingText="Forge Installer URL" maxWidth="500.0"
+                    <Label fx:id="packModLoaderHint" styleClass="muted" wrapText="true"
+                           text="Forge / NeoForge: paste the installer JAR URL. Fabric: paste the meta.fabricmc.net profile-JSON URL (hash optional)."/>
+                    <MFXTextField fx:id="packForgeURLField" floatingText="Modloader URL (installer JAR or Fabric profile JSON)" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
-                    <MFXTextField fx:id="packForgeHashField" floatingText="Forge Installer SHA-1" maxWidth="500.0"
+                    <MFXTextField fx:id="packForgeHashField" floatingText="Modloader SHA-1 (optional for Fabric)" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
 
                     <!-- Images -->
