@@ -145,6 +145,41 @@ public abstract class GameModPackMetadata
     protected String packForgeHash;
 
     /**
+     * Modloader type — one of {@code forge}, {@code neoforge},
+     * {@code fabric}. Optional in the manifest; absence defaults to
+     * Forge for backward-compat with every existing pack. Read by
+     * {@link GameModPack#getModLoaderType()}.
+     *
+     * @since 2026.5
+     */
+    @SuppressWarnings( "unused" )
+    protected String packModLoader;
+
+    /**
+     * Modloader installer / profile URL. Generalised replacement for
+     * {@link #packForgeURL}. When absent, the launcher falls back to
+     * {@code packForgeURL} so legacy Forge manifests keep working
+     * without modification. Interpretation depends on the loader
+     * (Forge / NeoForge: installer jar URL; Fabric: meta-profile JSON
+     * URL).
+     *
+     * @since 2026.5
+     */
+    @SuppressWarnings( "unused" )
+    protected String packModLoaderURL;
+
+    /**
+     * SHA-1 of {@link #packModLoaderURL}. Generalised replacement for
+     * {@link #packForgeHash}. When absent, falls back to
+     * {@code packForgeHash}. May be empty for loaders that don't
+     * hash-verify their meta artifact (e.g. Fabric profile JSON).
+     *
+     * @since 2026.5
+     */
+    @SuppressWarnings( "unused" )
+    protected String packModLoaderHash;
+
+    /**
      * Mod pack scan exclusions (file or folder names, relative to mod pack root). Value read from manifest JSON.
      *
      * @since 1.3

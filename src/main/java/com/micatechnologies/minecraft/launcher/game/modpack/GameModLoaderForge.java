@@ -55,7 +55,7 @@ import java.util.jar.JarFile;
  * @version 1.0.1
  * @since 1.0
  */
-class GameModLoaderForge extends ManagedGameFile
+class GameModLoaderForge extends ManagedGameFile implements GameModLoader
 {
 
     /**
@@ -222,6 +222,46 @@ class GameModLoaderForge extends ManagedGameFile
      */
     public String getMinecraftMainClass() {
         return minecraftMainClass;
+    }
+
+    // ====================================================================
+    // GameModLoader interface — generalised names that the launcher and
+    // GUI use polymorphically across Forge / NeoForge / Fabric. The
+    // Forge-named methods above stay as aliases for callers that
+    // specifically need the Forge implementation (notably the modpack
+    // editor and the legacy gradle-style call sites that haven't
+    // migrated yet).
+    // ====================================================================
+
+    @Override
+    public String getName() {
+        return "Forge";
+    }
+
+    @Override
+    public String getLoaderVersion() {
+        return forgeVersion;
+    }
+
+    @Override
+    public String getJvmArguments() throws ModpackException {
+        return getForgeJvmArguments();
+    }
+
+    @Override
+    public String buildClasspath( GameMode gameAppMode,
+                                   GameModPackProgressProvider progressProvider )
+            throws ModpackException
+    {
+        return buildForgeClasspath( gameAppMode, progressProvider );
+    }
+
+    @Override
+    public void runPostInstallSteps( GameMode gameAppMode,
+                                      GameModPackProgressProvider progressProvider,
+                                      String runtimeComponent ) throws ModpackException
+    {
+        runForgeProcessors( gameAppMode, progressProvider, runtimeComponent );
     }
 
     /**

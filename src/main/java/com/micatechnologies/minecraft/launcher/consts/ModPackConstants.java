@@ -60,6 +60,20 @@ public class ModPackConstants
      */
     public static final String MODPACK_FORGE_JAR_LOCAL_PATH = "bin" + File.separator + "modpack.jar";
 
+    // ====================================================================
+    // Modloader type identifiers — values for the modpack manifest's
+    // `packModLoader` field. Stored lowercase; matched case-insensitively.
+    // ====================================================================
+
+    public static final String MOD_LOADER_FORGE    = "forge";
+    public static final String MOD_LOADER_NEOFORGE = "neoforge";
+    public static final String MOD_LOADER_FABRIC   = "fabric";
+
+    /** Default modloader assumed when {@code packModLoader} is absent
+     *  from a manifest — the historically-only-supported value, kept as
+     *  the default for back-compat with every existing modpack. */
+    public static final String MOD_LOADER_DEFAULT  = MOD_LOADER_FORGE;
+
     /**
      * Modpack install folder relative path to Forge jar
      *
