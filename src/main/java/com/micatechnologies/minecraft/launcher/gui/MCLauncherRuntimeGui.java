@@ -127,6 +127,9 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             TooltipManager.install( helpBtn, "Open the help window for this screen." );
         }
 
+        // Cross-platform shortcuts.
+        KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );
+
         // Refresh button
         refreshBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( this::refreshRuntimeList ) );
 

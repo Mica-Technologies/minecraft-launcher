@@ -379,6 +379,21 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         } );
 
+        // Cross-platform global shortcuts (Settings / Browse / Editor / Home / Help).
+        // setOnKeyPressed above only handles ENTER + F5; the global manager uses
+        // an event filter so the two coexist.
+        KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );
+
+        // Cmd/Ctrl+F focuses the search field. Layered as an event filter so the
+        // ENTER handler above doesn't swallow it.
+        scene.addEventFilter( javafx.scene.input.KeyEvent.KEY_PRESSED, ev -> {
+            if ( ev.isShortcutDown() && !ev.isAltDown()
+                    && !ev.isShiftDown() && ev.getCode() == KeyCode.F ) {
+                ev.consume();
+                if ( searchField != null ) searchField.requestFocus();
+            }
+        } );
+
         // Click handler for the navbar refresh icon. Same behavior as F5 — fires
         // an asynchronous announcement + modpack-manifest fetch, then reloads
         // the main GUI so the freshly-fetched data is rendered.

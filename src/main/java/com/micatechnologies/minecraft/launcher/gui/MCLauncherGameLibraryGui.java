@@ -450,6 +450,18 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 rebuildCards();
             } ) );
         }
+
+        // Cross-platform shortcuts: Settings / Browse / Editor / Home / Help.
+        KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );
+
+        // Cmd/Ctrl+F focuses the search field.
+        scene.addEventFilter( javafx.scene.input.KeyEvent.KEY_PRESSED, ev -> {
+            if ( ev.isShortcutDown() && !ev.isAltDown() && !ev.isShiftDown()
+                    && ev.getCode() == javafx.scene.input.KeyCode.F ) {
+                ev.consume();
+                if ( searchField != null ) searchField.requestFocus();
+            }
+        } );
     }
 
     @Override

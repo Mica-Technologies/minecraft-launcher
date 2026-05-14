@@ -1689,6 +1689,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             helpBtn.setCursor( javafx.scene.Cursor.HAND );
             TooltipManager.install( helpBtn, "Open the help window for this screen." );
         }
+
+        // Cross-platform shortcuts: Settings / Browse / Editor / Home / Help.
+        KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );
     }
 
     @Override

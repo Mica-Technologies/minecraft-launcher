@@ -263,6 +263,21 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             TooltipManager.install( helpBtn, "Open the help window for this screen." );
         }
 
+        // Cross-platform shortcuts.
+        KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );
+        // Editor-specific: Cmd/Ctrl+S saves, Cmd/Ctrl+N starts a new manifest.
+        scene.addEventFilter( javafx.scene.input.KeyEvent.KEY_PRESSED, ev -> {
+            if ( !ev.isShortcutDown() || ev.isAltDown() || ev.isShiftDown() ) return;
+            if ( ev.getCode() == javafx.scene.input.KeyCode.S ) {
+                ev.consume();
+                if ( saveBtn != null && !saveBtn.isDisabled() ) saveBtn.fire();
+            }
+            else if ( ev.getCode() == javafx.scene.input.KeyCode.N ) {
+                ev.consume();
+                if ( newBtn != null && !newBtn.isDisabled() ) newBtn.fire();
+            }
+        } );
+
         // Configure image preview refresh on URL field focus loss
         packLogoURLField.focusedProperty().addListener( ( obs, wasFocused, isFocused ) -> {
             if ( !isFocused ) {
