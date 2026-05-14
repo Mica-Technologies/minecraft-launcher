@@ -138,6 +138,11 @@ public class LauncherCore
             return;
         }
 
+        // Bring up the RGB-integration subsystem if the user has it enabled
+        // in Settings. Off-the-main-thread inside RgbIntegration.bootstrap so
+        // backend probes / socket connects don't delay launcher startup.
+        com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.bootstrap();
+
         while ( restartFlag ) {
             // Reset restart flag and create a new session for this lifecycle iteration
             String previousRestartError = restartError;
@@ -382,6 +387,13 @@ public class LauncherCore
 
                 Process gameProcess = gameModPack.getLastLaunchedProcess();
                 if ( gameProcess != null ) {
+                    // RGB: now that the JVM is spawned and we know which pack is
+                    // running, swap the keyboard to the in-game effect (pack-color
+                    // gradient + Minecraft-key highlights). Safe to call
+                    // unconditionally — RgbIntegration internally bails when
+                    // the master toggle is off, and any failure is contained.
+                    com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayStarted( gameModPack );
+
                     // Brief beat so the user sees the all-rows-green state on the launch
                     // progress screen before it dissolves into the game console or the
                     // launcher's main GUI. Without the pause the row layout transitions
@@ -400,6 +412,8 @@ public class LauncherCore
                                     // Record session duration
                                     gameModPack.recordSessionEnd(
                                             System.currentTimeMillis() - launchStartMs );
+                                    // RGB: game exited — drop the in-game effect.
+                                    com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayEnded();
                                     // On crash, find and display crash report; also toast so a
                                     // user who tabbed away mid-session notices.
                                     if ( exitCode != 0 ) {
@@ -433,6 +447,8 @@ public class LauncherCore
                             int exitCode = gameProcess.waitFor();
                             // Record session duration
                             gameModPack.recordSessionEnd( System.currentTimeMillis() - launchStartMs );
+                            // RGB: game exited — drop the in-game effect.
+                            com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayEnded();
                             if ( exitCode != 0 ) {
                                 Logger.logError( "Game crashed with exit code " + exitCode );
                                 NotificationManager.error(
@@ -891,6 +907,12 @@ public class LauncherCore
     public static void cleanupApp() {
         Logger.logStd( LocalizationManager.PERFORMING_APP_CLEANUP_TEXT );
         try {
+            // Tear down the RGB subsystem first so backends paint their
+            // final black frames + close sockets before the JVM exits.
+            // Synchronous on purpose — we don't want JVM exit to race
+            // with backend cleanup and leave the user's keyboard stuck
+            // on whatever the last effect was.
+            com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.shutdown();
             DiscordRpcUtility.exit();
             // Release the shared taskbar wrapper before tearing down the GUI controller —
             // closing it after the stage is gone occasionally leaves the COM thread blocked

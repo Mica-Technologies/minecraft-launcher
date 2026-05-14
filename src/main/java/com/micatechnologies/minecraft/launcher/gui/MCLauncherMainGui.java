@@ -1769,6 +1769,46 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         boolean hasSecondary() { return secondary != null; }
     }
 
+    /**
+     * Public-API counterpart to {@link #computeDominantColors} — extracts
+     * the same two-color result for {@code pack}'s logo, using the
+     * process-wide dominant-color cache so a pack already shown on the
+     * main menu hero card is a cache hit. Returns {@code null} when the
+     * pack is vanilla, has no logo on disk, or the histogram couldn't
+     * find any saturated hues (e.g. fully transparent logo).
+     *
+     * <p>Used by {@code RgbIntegration} to derive the in-game RGB
+     * effect's color palette from the selected modpack.</p>
+     *
+     * @since 2026.5
+     */
+    public static Color[] sampleDominantPackColors( GameModPack pack )
+    {
+        if ( pack == null || pack.isVanillaVersion() ) return null;
+        // Cache hit path — the main-menu hero card has likely populated
+        // this entry already on a normal play flow.
+        String cacheKey = packLogoCacheKey( pack );
+        DominantColors cached = cacheKey != null ? DOMINANT_COLOR_CACHE.get( cacheKey ) : null;
+        if ( cached != null ) {
+            return new Color[]{ cached.primary(), cached.secondary() };
+        }
+        // Cache miss: load the logo synchronously and sample. Acceptable
+        // because the caller is the launch flow's worker thread, not the
+        // FX thread, and this fires once per play() — no scroll-time cost.
+        String logoPath = null;
+        try { logoPath = pack.getPackLogoFilepath(); }
+        catch ( Throwable ignored ) { /* fall through to null below */ }
+        if ( logoPath == null || logoPath.isBlank() ) return null;
+        java.io.File f = new java.io.File( logoPath );
+        if ( !f.exists() || !f.isFile() ) return null;
+        Image img = new Image( f.toURI().toString(), false ); // sync load
+        if ( img.isError() ) return null;
+        DominantColors fresh = computeDominantColors( img );
+        if ( fresh == null ) return null;
+        if ( cacheKey != null ) DOMINANT_COLOR_CACHE.put( cacheKey, fresh );
+        return new Color[]{ fresh.primary(), fresh.secondary() };
+    }
+
     /** Builds the CSS {@code -fx-background-color: linear-gradient(...)} declaration from
      *  a sampled {@link DominantColors}. When two distinct colors were found the gradient
      *  uses them directly with a 50%-blended midpoint for a smoother transition; when only
