@@ -1828,18 +1828,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         if ( friendly == null || friendly.isBlank() ) return;
         final String displayName = entry.displayName;
         showBackgroundStatus( "Installing " + displayName + "…" );
-        SystemUtilities.spawnNewTask( () -> {
-            try {
-                GameModPackManager.installModPackByFriendlyName( friendly );
-                GUIUtilities.JFXPlatformRun( this::rebuildCards );
-                NotificationManager.success(
-                        LocalizationManager.get( "notification.install.modpackSuccess.title" ),
-                        LocalizationManager.format( "notification.install.modpackSuccess.body", displayName ) );
-            }
-            finally {
-                hideBackgroundStatus();
-            }
-        } );
+        com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.runWithFinally( () -> {
+            GameModPackManager.installModPackByFriendlyName( friendly );
+            GUIUtilities.JFXPlatformRun( this::rebuildCards );
+            NotificationManager.success(
+                    LocalizationManager.get( "notification.install.modpackSuccess.title" ),
+                    LocalizationManager.format( "notification.install.modpackSuccess.body", displayName ) );
+        }, this::hideBackgroundStatus );
     }
 
     private void uninstallInstalledVanilla( LibraryEntry entry )
@@ -1854,27 +1849,22 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         if ( response == 0 ) return;
 
         showBackgroundStatus( "Removing Minecraft " + id + "…" );
-        SystemUtilities.spawnNewTask( () -> {
-            try {
-                if ( response == 1 ) {
-                    GameModPack vanilla = GameModPack.createVanillaModPack( id );
-                    try {
-                        File installDir = new File( vanilla.getPackRootFolder() );
-                        if ( installDir.exists() ) {
-                            org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
-                        }
-                    }
-                    catch ( Exception e ) {
-                        Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
+        com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.runWithFinally( () -> {
+            if ( response == 1 ) {
+                GameModPack vanilla = GameModPack.createVanillaModPack( id );
+                try {
+                    File installDir = new File( vanilla.getPackRootFolder() );
+                    if ( installDir.exists() ) {
+                        org.codehaus.plexus.util.FileUtils.deleteDirectory( installDir );
                     }
                 }
-                VanillaVersionManager.uninstallVersion( id );
-                GUIUtilities.JFXPlatformRun( this::rebuildCards );
+                catch ( Exception e ) {
+                    Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
+                }
             }
-            finally {
-                hideBackgroundStatus();
-            }
-        } );
+            VanillaVersionManager.uninstallVersion( id );
+            GUIUtilities.JFXPlatformRun( this::rebuildCards );
+        }, this::hideBackgroundStatus );
     }
 
     private void installAvailableVanilla( LibraryEntry entry )
@@ -1882,21 +1872,16 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         if ( entry.vanillaVersionId == null ) return;
         String id = entry.vanillaVersionId;
         showBackgroundStatus( "Installing Minecraft " + id + "…" );
-        SystemUtilities.spawnNewTask( () -> {
-            try {
-                if ( VanillaVersionManager.isInstalled( id ) ) {
-                    return;
-                }
-                VanillaVersionManager.installVersion( id );
-                GUIUtilities.JFXPlatformRun( this::rebuildCards );
-                NotificationManager.success(
-                        LocalizationManager.get( "notification.install.vanillaSuccess.title" ),
-                        LocalizationManager.format( "notification.install.vanillaSuccess.body", id ) );
+        com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.runWithFinally( () -> {
+            if ( VanillaVersionManager.isInstalled( id ) ) {
+                return;
             }
-            finally {
-                hideBackgroundStatus();
-            }
-        } );
+            VanillaVersionManager.installVersion( id );
+            GUIUtilities.JFXPlatformRun( this::rebuildCards );
+            NotificationManager.success(
+                    LocalizationManager.get( "notification.install.vanillaSuccess.title" ),
+                    LocalizationManager.format( "notification.install.vanillaSuccess.body", id ) );
+        }, this::hideBackgroundStatus );
     }
 
     /** Install handler for a {@link LibraryEntry.Kind#LOADER_AVAILABLE}
@@ -1910,6 +1895,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         if ( v == null ) return;
         String label = v.displayName();
         showBackgroundStatus( "Installing " + label + "…" );
+        // Keeps explicit catch(IOException) form here because the
+        // failure path surfaces a NotificationManager.error to the
+        // user with the loader-specific failed-install body; the
+        // generic FxAsyncTask error path would only log.
         SystemUtilities.spawnNewTask( () -> {
             try {
                 if ( com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.isInstalled( v ) ) {
