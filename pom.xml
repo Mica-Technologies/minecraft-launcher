@@ -1287,6 +1287,41 @@
             <groupId>io.github.palexdev</groupId>
             <artifactId>materialfx</artifactId>
             <version>11.17.0</version>
+            <!-- MaterialFX 11.17.0 transitively declares javafx-* version 11
+                 as runtime deps (with classifier=linux for some reason). On
+                 a packaged build the JDK module path Maven assembles ends up
+                 with javafx-* 11 classes ahead of our explicit 26 ones, and
+                 the 11 build doesn't have ReadOnlyObjectProperty.flatMap
+                 (added in JavaFX 19). The launcher then bombs out at the
+                 first Scene construction with NoSuchMethodError and never
+                 shows a window. Exclude every transitive javafx-* dep so
+                 only our top-level openjfx:*:26 entries above get pulled in. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-base</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-controls</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-fxml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-graphics</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-media</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.openjfx</groupId>
+                    <artifactId>javafx-web</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.github.oshi</groupId>
