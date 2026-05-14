@@ -26,26 +26,41 @@ import com.micatechnologies.minecraft.launcher.rgb.backends.chromanative.ChromaN
 import com.micatechnologies.minecraft.launcher.rgb.backends.dynamiclighting.WindowsDynamicLightingBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.openrgb.OpenRgbBackend;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Resolves the user's selected backend identifier
- * ({@code "auto"}/{@code "openrgb"}/{@code "chroma"}/{@code "none"})
- * into an actual {@link RgbBackend} instance.
+ * Resolves the user's RGB-backend configuration into the concrete
+ * {@link RgbBackend} instances {@link RgbController} should drive.
  *
  * <p>Lives in its own class — not on {@link RgbController} — so the
  * controller stays free of vendor-specific imports. Adding a future
- * backend (Logitech, Corsair, Windows Dynamic Lighting) means editing
- * this file plus shipping the new backend class; the controller and
+ * backend (Logitech G HUB, Corsair iCUE, etc.) means editing this
+ * file plus shipping the new backend class; the controller and
  * effect engine don't change.</p>
  *
- * <h3>Auto-probe order</h3>
+ * <h3>Auto-mode (multi-backend)</h3>
  *
- * <p>When the user picks {@code "auto"} the registry probes backends in
- * priority order and returns the first one whose {@link
- * RgbBackend#isAvailable()} returns true. The order intentionally favors
- * OpenRGB over Razer Chroma even on Razer-only systems — OpenRGB usually
- * supports Razer devices via its built-in detector, runs cross-platform,
- * and breaks less often on vendor driver updates. A user who specifically
- * wants Razer's own SDK can pick {@code "chroma"} explicitly.</p>
+ * <p>When {@code rgbBackend = "auto"} the registry returns every
+ * backend whose per-backend enable flag is {@code true} AND whose
+ * {@link RgbBackend#isAvailable()} probe succeeds. This is the
+ * "mixed-vendor rig" path — a user with Razer Chroma fans plus a
+ * Windows-Dynamic-Lighting keyboard gets all of it lit at once
+ * instead of having to pick one ecosystem.</p>
+ *
+ * <p>The per-backend enable flags default true for everything except
+ * the Razer Chroma REST backend (deprecated in favor of the native
+ * SDK on any working Synapse install). The Settings tab exposes one
+ * toggle per backend so users can suppress an ecosystem they don't
+ * want the launcher reaching.</p>
+ *
+ * <h3>Manual mode (single-backend)</h3>
+ *
+ * <p>An explicit {@code rgbBackend} pick (e.g. "openrgb", "chroma-native")
+ * skips the per-backend toggles entirely and returns just that one
+ * backend. This is the escape hatch for users debugging a particular
+ * SDK or who want guaranteed single-vendor behavior regardless of
+ * what else is connected.</p>
  *
  * @since 2026.5
  */
@@ -54,37 +69,73 @@ public final class RgbBackendRegistry
     private RgbBackendRegistry() { /* static-only */ }
 
     /**
-     * Convenience entry point: read the master enable + backend choice
-     * from {@link ConfigManager} and return the resolved backend
-     * instance. When the master toggle is off, returns {@link NoOpBackend}
-     * without probing anything — keeping the launcher quiet on systems
-     * the user hasn't opted in for RGB.
+     * Reads the master-enable flag plus the backend choice from config
+     * and returns the list of backends {@link RgbController} should
+     * run simultaneously.
+     *
+     * <p>Returns an empty list when the master toggle is off — the
+     * controller then idles without probing any backend. In Auto mode
+     * the list may have 0–N entries; in Manual mode it has 0 or 1.</p>
      */
-    public static RgbBackend resolveFromConfig()
+    public static List< RgbBackend > resolveBackendsFromConfig()
     {
         if ( !ConfigManager.getRgbEnable() ) {
-            return new NoOpBackend();
+            return List.of();
         }
-        return resolve( ConfigManager.getRgbBackend() );
+
+        String choice = ConfigManager.getRgbBackend();
+        String c = choice == null ? "" : choice;
+
+        return switch ( c ) {
+            case ConfigConstants.RGB_BACKEND_AUTO          -> probeAutoEnabled();
+            case ConfigConstants.RGB_BACKEND_OPENRGB       -> List.of( new OpenRgbBackend() );
+            case ConfigConstants.RGB_BACKEND_CHROMA        -> List.of( new ChromaRestBackend() );
+            case ConfigConstants.RGB_BACKEND_CHROMA_NATIVE -> List.of( new ChromaNativeBackend() );
+            case ConfigConstants.RGB_BACKEND_WINDOWS_DL    -> List.of( new WindowsDynamicLightingBackend() );
+            case ConfigConstants.RGB_BACKEND_NONE          -> List.of();
+            default -> {
+                Logger.logWarningSilent( "Unrecognized RGB backend choice '" + c
+                                                 + "' — treating as Auto." );
+                yield probeAutoEnabled();
+            }
+        };
     }
 
     /**
-     * Returns the backend implementation for {@code choice}. Probes for
-     * availability when {@code choice} is {@code "auto"}; explicit
-     * choices skip the probe so a user who picks Razer specifically gets
-     * a Razer attempt even if OpenRGB is also running on the system.
+     * Legacy single-backend entry point. Picks the first available
+     * backend the new multi-backend resolver would have returned, or
+     * NoOp when nothing is available. Kept for back-compat with any
+     * call site still expecting one backend.
      *
-     * <p>An unrecognized {@code choice} string falls back to NoOp — the
-     * launcher logs the unrecognized value and stays silent on the
-     * hardware. {@link ConfigManager#getRgbBackend()} already filters
-     * unknown values, but a defensive default here keeps the contract
-     * tight if someone calls this method directly.</p>
+     * @deprecated Use {@link #resolveBackendsFromConfig()} and pass
+     *             the resulting list to
+     *             {@link RgbController#start(List)} so mixed-vendor
+     *             rigs get all of their devices lit instead of just
+     *             the first that probes.
+     */
+    @Deprecated
+    public static RgbBackend resolveFromConfig()
+    {
+        List< RgbBackend > backends = resolveBackendsFromConfig();
+        return backends.isEmpty() ? new NoOpBackend() : backends.get( 0 );
+    }
+
+    /**
+     * Legacy by-name resolver. Kept for tests / debug entry points; the
+     * controller no longer reaches this path. Unrecognized names fall
+     * back to NoOp with a warning. {@code "auto"} returns the first
+     * backend Auto mode would pick — which loses the "run several at
+     * once" property, so production code should call
+     * {@link #resolveBackendsFromConfig()} instead.
      */
     public static RgbBackend resolve( String choice )
     {
         String c = choice == null ? "" : choice;
         return switch ( c ) {
-            case ConfigConstants.RGB_BACKEND_AUTO          -> probeAuto();
+            case ConfigConstants.RGB_BACKEND_AUTO -> {
+                List< RgbBackend > auto = probeAutoEnabled();
+                yield auto.isEmpty() ? new NoOpBackend() : auto.get( 0 );
+            }
             case ConfigConstants.RGB_BACKEND_OPENRGB       -> new OpenRgbBackend();
             case ConfigConstants.RGB_BACKEND_CHROMA        -> new ChromaRestBackend();
             case ConfigConstants.RGB_BACKEND_CHROMA_NATIVE -> new ChromaNativeBackend();
@@ -99,43 +150,54 @@ public final class RgbBackendRegistry
     }
 
     /**
-     * Probe each known backend in priority order; return the first
-     * available, or NoOp if nothing answers. Each probe is bounded by
-     * the backend's own {@link RgbBackend#isAvailable} timeout, so the
-     * worst-case auto-resolve time is the sum of those — currently
-     * ~1s total for the two V1 backends, both at 500ms.
+     * Probe every backend whose per-backend enable flag is on; return
+     * the ones whose {@code isAvailable()} succeeds. Each probe is
+     * bounded by the backend's own {@code isAvailable} timeout (~500 ms
+     * each), so worst-case auto-resolve time is the sum across enabled
+     * backends.
+     *
+     * <p>Probe order matters even though everything available will run:
+     * the FIRST entry in the returned list is what the Settings status
+     * chip names as the "primary" connected backend and the order frame
+     * dispatch iterates. Order chosen so the most broadly-supported /
+     * most reliable backend leads — OpenRGB, then the native Chroma
+     * SDK, then Windows Dynamic Lighting, then the deprecated Chroma
+     * REST as a last-resort fallback.</p>
      */
-    private static RgbBackend probeAuto()
+    private static List< RgbBackend > probeAutoEnabled()
     {
-        // Order matters. OpenRGB first because it covers the most vendors
-        // cross-platform and is the easiest "just works" path. Then the
-        // native Chroma SDK — same DLL Fortnite/Overwatch use, fully
-        // supported by current Synapse, lights up the user's Razer
-        // hardware. The REST Chroma backend goes LAST as a fallback for
-        // older Synapse installs where the native SDK might not be
-        // installed but the REST surface is still responsive.
-        RgbBackend[] candidates = {
-                new OpenRgbBackend(),
-                new ChromaNativeBackend(),
-                new WindowsDynamicLightingBackend(),
-                new ChromaRestBackend()
+        record Candidate( RgbBackend backend, boolean enabled ) {}
+        Candidate[] candidates = {
+                new Candidate( new OpenRgbBackend(),                 ConfigManager.getRgbEnableOpenRgb() ),
+                new Candidate( new ChromaNativeBackend(),            ConfigManager.getRgbEnableChromaNative() ),
+                new Candidate( new WindowsDynamicLightingBackend(),  ConfigManager.getRgbEnableWindowsDl() ),
+                new Candidate( new ChromaRestBackend(),              ConfigManager.getRgbEnableChromaRest() )
         };
-        for ( RgbBackend candidate : candidates ) {
+
+        List< RgbBackend > selected = new ArrayList<>( candidates.length );
+        for ( Candidate cand : candidates ) {
+            if ( !cand.enabled() ) {
+                Logger.logDebug( "RGB auto-probe: " + cand.backend().name()
+                                         + " skipped — disabled in Settings." );
+                continue;
+            }
             boolean available;
             try {
-                available = candidate.isAvailable();
+                available = cand.backend().isAvailable();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "RGB auto-probe: " + candidate.name()
+                Logger.logWarningSilent( "RGB auto-probe: " + cand.backend().name()
                                                  + " isAvailable() threw — skipping", t );
                 continue;
             }
             if ( available ) {
-                Logger.logStd( "RGB auto-probe: selected " + candidate.name() );
-                return candidate;
+                Logger.logStd( "RGB auto-probe: including " + cand.backend().name() );
+                selected.add( cand.backend() );
             }
         }
-        Logger.logStd( "RGB auto-probe: no backend available on this system." );
-        return new NoOpBackend();
+        if ( selected.isEmpty() ) {
+            Logger.logStd( "RGB auto-probe: no enabled backend available on this system." );
+        }
+        return selected;
     }
 }

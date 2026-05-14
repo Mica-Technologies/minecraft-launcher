@@ -324,6 +324,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbHighlightKeysToggle;
     @SuppressWarnings( "unused" ) @FXML MFXButton rgbTestBtn;
 
+    // Per-backend Auto-mode integration toggles — let mixed-vendor rigs
+    // run several backends at once (Razer + Windows DL etc.), or disable
+    // an installed-but-unwanted vendor without leaving Auto.
+    @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbAutoToggleHeader;
+    @SuppressWarnings( "unused" ) @FXML javafx.scene.layout.VBox rgbAutoToggleBox;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableOpenRgbToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaNativeToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaRestToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableWindowsDlToggle;
+
     /**
      * StackPane containing the category content panes.
      *
@@ -1218,6 +1228,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     return; // value didn't actually change — don't churn the controller
                 }
                 ConfigManager.setRgbBackend( newBackend );
+                refreshAutoToggleVisibility();
                 restartRgbController();
             } );
         }
@@ -1229,6 +1240,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     return; // no real change — guard against spurious property fires
                 }
                 ConfigManager.setRgbEnable( newV );
+                refreshAutoToggleVisibility();
                 restartRgbController();
             } );
         }
@@ -1245,11 +1257,71 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     ( obs, oldV, newV ) -> ConfigManager.setRgbHighlightKeys( newV ) );
         }
 
+        // Per-backend Auto-mode integration toggles. Each one persists
+        // its own enable flag and triggers a restart so the controller
+        // immediately picks up the new active set. Same idempotency
+        // guard as the master toggle — comparing against the persisted
+        // value rather than oldV catches spurious property fires (the
+        // pattern that previously caused Razer Synapse session churn).
+        wireBackendToggle( rgbEnableOpenRgbToggle,
+                ConfigManager.getRgbEnableOpenRgb(), ConfigManager::setRgbEnableOpenRgb,
+                ConfigManager::getRgbEnableOpenRgb );
+        wireBackendToggle( rgbEnableChromaNativeToggle,
+                ConfigManager.getRgbEnableChromaNative(), ConfigManager::setRgbEnableChromaNative,
+                ConfigManager::getRgbEnableChromaNative );
+        wireBackendToggle( rgbEnableChromaRestToggle,
+                ConfigManager.getRgbEnableChromaRest(), ConfigManager::setRgbEnableChromaRest,
+                ConfigManager::getRgbEnableChromaRest );
+        wireBackendToggle( rgbEnableWindowsDlToggle,
+                ConfigManager.getRgbEnableWindowsDl(), ConfigManager::setRgbEnableWindowsDl,
+                ConfigManager::getRgbEnableWindowsDl );
+
         if ( rgbTestBtn != null ) {
             rgbTestBtn.setOnAction( e -> runRgbConnectionTest() );
         }
 
+        refreshAutoToggleVisibility();
         refreshRgbStatusChip();
+    }
+
+    /** Wire one of the per-backend Auto-mode toggles. The supplied
+     *  getter is consulted at event-fire time (not capture time) so
+     *  the idempotency check sees the current persisted value rather
+     *  than a stale snapshot. */
+    private void wireBackendToggle( io.github.palexdev.materialfx.controls.MFXToggleButton toggle,
+                                    boolean initialValue,
+                                    java.util.function.Consumer< Boolean > setter,
+                                    java.util.function.BooleanSupplier currentGetter )
+    {
+        if ( toggle == null ) return;
+        toggle.setSelected( initialValue );
+        toggle.selectedProperty().addListener( ( obs, oldV, newV ) -> {
+            if ( newV == null || newV == currentGetter.getAsBoolean() ) {
+                return; // no real change — guard against spurious property fires
+            }
+            setter.accept( newV );
+            restartRgbController();
+        } );
+    }
+
+    /** Auto-mode toggles are only meaningful when the backend choice is
+     *  Auto — in Manual mode the user has explicitly picked one backend,
+     *  so the integration filter doesn't apply. Hide them rather than
+     *  disable so the section doesn't compete for attention. */
+    private void refreshAutoToggleVisibility()
+    {
+        boolean isAuto = com.micatechnologies.minecraft.launcher.consts.ConfigConstants
+                .RGB_BACKEND_AUTO.equals( ConfigManager.getRgbBackend() );
+        boolean enabled = ConfigManager.getRgbEnable();
+        boolean show = isAuto && enabled;
+        if ( rgbAutoToggleHeader != null ) {
+            rgbAutoToggleHeader.setVisible( show );
+            rgbAutoToggleHeader.setManaged( show );
+        }
+        if ( rgbAutoToggleBox != null ) {
+            rgbAutoToggleBox.setVisible( show );
+            rgbAutoToggleBox.setManaged( show );
+        }
     }
 
     /** Maps the config-stored backend identifier to the user-facing
@@ -1294,7 +1366,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 if ( ConfigManager.getRgbEnable() ) {
                     controller.start(
                             com.micatechnologies.minecraft.launcher.rgb.RgbBackendRegistry
-                                    .resolveFromConfig() );
+                                    .resolveBackendsFromConfig() );
                 }
             }
             catch ( Throwable t ) {
@@ -1305,7 +1377,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     /** Recomputes and re-applies the RGB status chip text + style. Safe
-     *  to call from any thread; FX work is dispatched. */
+     *  to call from any thread; FX work is dispatched.
+     *
+     *  <p>For multi-backend sessions the chip shows the aggregate: one
+     *  backend connected reads "Connected: OpenRGB"; multiple reads
+     *  "Connected: OpenRGB +1" with the count of additional active
+     *  backends. The chip style escalates to the worst per-backend
+     *  health so any single backend going DEGRADED/DEAD surfaces
+     *  visibly in the compact view.</p>
+     */
     private void refreshRgbStatusChip()
     {
         if ( rgbStatusChip == null ) return;
@@ -1318,17 +1398,23 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 text = "Disabled";
                 styleSuffix = ""; // base muted chip
             }
-            else if ( !s.running() || "None".equals( s.backendName() ) ) {
+            else if ( !s.running() || s.backends().isEmpty() ) {
                 text = "Not detected";
                 styleSuffix = "-warn";
             }
             else {
-                text = switch ( s.health() ) {
-                    case HEALTHY  -> "Connected: " + s.backendName();
-                    case DEGRADED -> "Degraded: " + s.backendName();
-                    case DEAD     -> "Unavailable: " + s.backendName();
+                String label = s.primaryName();
+                int extra = s.backends().size() - 1;
+                if ( extra > 0 ) {
+                    label = label + " +" + extra;
+                }
+                com.micatechnologies.minecraft.launcher.rgb.RgbBackendHealth.State worst = s.worstHealth();
+                text = switch ( worst ) {
+                    case HEALTHY  -> "Connected: " + label;
+                    case DEGRADED -> "Degraded: " + label;
+                    case DEAD     -> "Unavailable: " + label;
                 };
-                styleSuffix = switch ( s.health() ) {
+                styleSuffix = switch ( worst ) {
                     case HEALTHY  -> "-success";
                     case DEGRADED -> "-warn";
                     case DEAD     -> "-danger";
