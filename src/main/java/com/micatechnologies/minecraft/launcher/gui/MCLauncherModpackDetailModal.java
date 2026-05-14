@@ -348,6 +348,19 @@ public class MCLauncherModpackDetailModal extends StackPane
         body.getChildren().add( buildQuickActionsSection( pack ) );
         body.getChildren().add( buildStatsSection( pack ) );
         body.getChildren().add( buildUpdateLogSection( pack ) );
+        // Content browser sections — Worlds / Screenshots / Shader Packs /
+        // Resource Packs. Each reads from <packRoot>/saves|screenshots|
+        // shaderpacks|resourcepacks and shows an empty-state when the
+        // corresponding folder is missing or empty. Skipped entirely for
+        // failed-load placeholder packs since there's no real install
+        // folder to browse.
+        if ( pack != null && pack.getPackRootFolder() != null ) {
+            Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+            body.getChildren().add( ModpackContentBrowser.buildWorldsSection( pack, this::buildSectionBox, ownerStage ) );
+            body.getChildren().add( ModpackContentBrowser.buildScreenshotsSection( pack, this::buildSectionBox, this ) );
+            body.getChildren().add( ModpackContentBrowser.buildShaderPacksSection( pack, this::buildSectionBox ) );
+            body.getChildren().add( ModpackContentBrowser.buildResourcePacksSection( pack, this::buildSectionBox ) );
+        }
         // Advanced section: per-pack verify toggle + "Verify this pack now" button.
         // Skipped for failed-load placeholder packs since there's no real manifest
         // to verify against.
