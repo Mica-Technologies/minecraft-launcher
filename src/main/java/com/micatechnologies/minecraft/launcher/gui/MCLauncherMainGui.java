@@ -1579,7 +1579,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     static void applyDynamicBackground( Region bgLayer, GameModPack pack, Image logoImage )
     {
         if ( pack.isVanillaVersion() ) {
-            bgLayer.getStyleClass().add( "heroBackgroundDefaultVanilla" );
+            // Vanilla cards adopt the launcher's own logo palette so the
+            // gradient stays on-brand instead of stuck on the hardcoded
+            // "Minecraft landscape" gradient. The launcher logo never
+            // changes per session so this samples once + memoises.
+            Color[] launcherPalette = getLauncherLogoPalette();
+            if ( launcherPalette != null && launcherPalette.length > 0 ) {
+                setBgLayerGradientFromPalette( bgLayer, launcherPalette );
+            }
+            else {
+                // Resource missing or fully transparent — keep the
+                // legacy hardcoded gradient as a graceful fallback.
+                bgLayer.getStyleClass().add( "heroBackgroundDefaultVanilla" );
+            }
             return;
         }
         if ( logoImage == null ) {
@@ -1587,27 +1599,47 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             return;
         }
 
+        // Up to 4-color palette — produces a richer multi-stop gradient
+        // when the logo carries that many distinct hues. Falls back to
+        // however many were sampled (1-3) for monochromatic logos.
+        final int PALETTE_TARGET = 4;
+
         // Cache hit path — when the user navigates away and back, the logo file path is
         // stable per pack, so we skip the histogram work entirely.
         String cacheKey = packLogoCacheKey( pack );
-        DominantColors cached = ( cacheKey != null ) ? DOMINANT_COLOR_CACHE.get( cacheKey ) : null;
-        if ( cached != null ) {
-            setBgLayerGradient( bgLayer, cached );
+        Color[] cachedPalette = ( cacheKey != null ) ? DOMINANT_PALETTE_CACHE.get( cacheKey ) : null;
+        if ( cachedPalette != null && cachedPalette.length > 0 ) {
+            setBgLayerGradientFromPalette( bgLayer, cachedPalette );
             return;
+        }
+        // Legacy 2-color cache fallback — the prefetch pre-populated this
+        // before the palette cache existed; let it serve a 2-color gradient
+        // immediately while a richer sample, if available, takes over on
+        // the next visit.
+        DominantColors cached2 = ( cacheKey != null ) ? DOMINANT_COLOR_CACHE.get( cacheKey ) : null;
+        if ( cached2 != null ) {
+            setBgLayerGradient( bgLayer, cached2 );
+            // Don't return yet — also kick off an n-color sample so
+            // the next render can use the richer palette.
         }
 
         // Logo loaded: sample immediately. May still return null if the logo is fully
         // transparent / monochrome — fall through to Forge default in that case.
         if ( logoImage.getProgress() >= 1.0 && !logoImage.isError() ) {
-            DominantColors fresh = computeDominantColors( logoImage );
-            if ( fresh != null ) {
+            Color[] fresh = computeDominantColorPalette( logoImage, PALETTE_TARGET );
+            if ( fresh != null && fresh.length > 0 ) {
                 if ( cacheKey != null ) {
-                    DOMINANT_COLOR_CACHE.put( cacheKey, fresh );
+                    DOMINANT_PALETTE_CACHE.put( cacheKey, fresh );
+                    Color sec = fresh.length >= 2 ? fresh[ 1 ] : null;
+                    DOMINANT_COLOR_CACHE.putIfAbsent( cacheKey,
+                                                      new DominantColors( fresh[ 0 ], sec ) );
                 }
-                setBgLayerGradient( bgLayer, fresh );
+                setBgLayerGradientFromPalette( bgLayer, fresh );
                 return;
             }
-            bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
+            if ( cached2 == null ) {
+                bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
+            }
             return;
         }
 
@@ -1615,18 +1647,23 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // gradient as soon as the load completes. Listener fires on the FX thread so it's
         // safe to mutate styleClass / setStyle directly. The result is cached so a future
         // re-construction of this card doesn't repeat the sample.
-        bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
+        if ( cached2 == null ) {
+            bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
+        }
         logoImage.progressProperty().addListener( ( obs, oldVal, newVal ) -> {
             if ( newVal.doubleValue() < 1.0 || logoImage.isError() ) {
                 return;
             }
-            DominantColors fresh = computeDominantColors( logoImage );
-            if ( fresh != null ) {
+            Color[] fresh = computeDominantColorPalette( logoImage, PALETTE_TARGET );
+            if ( fresh != null && fresh.length > 0 ) {
                 if ( cacheKey != null ) {
-                    DOMINANT_COLOR_CACHE.put( cacheKey, fresh );
+                    DOMINANT_PALETTE_CACHE.put( cacheKey, fresh );
+                    Color sec = fresh.length >= 2 ? fresh[ 1 ] : null;
+                    DOMINANT_COLOR_CACHE.putIfAbsent( cacheKey,
+                                                      new DominantColors( fresh[ 0 ], sec ) );
                 }
                 bgLayer.getStyleClass().remove( "heroBackgroundDefaultForge" );
-                setBgLayerGradient( bgLayer, fresh );
+                setBgLayerGradientFromPalette( bgLayer, fresh );
             }
         } );
     }
@@ -1679,6 +1716,27 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  recomputed once the file path differs). */
     private static final java.util.concurrent.ConcurrentHashMap< String, DominantColors >
             DOMINANT_COLOR_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** N-color palette cache, parallel to {@link #DOMINANT_COLOR_CACHE}.
+     *  Holds up to 4 colors per logo for the richer gradient renderer +
+     *  the RGB cycle effect; the 2-color sibling cache stays as-is for
+     *  callers that only need primary + secondary (in-game RGB effect,
+     *  bg-image gradient fast path before n-color landed). Same string
+     *  key — typically the pack's logo URL. */
+    private static final java.util.concurrent.ConcurrentHashMap< String, Color[] >
+            DOMINANT_PALETTE_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Cache-key stand-in for the bundled launcher logo, used by the
+     *  vanilla-version dynamic gradient. The logo is a single bundled
+     *  resource so there's no per-pack URL to key on — this sentinel
+     *  lets one cache entry serve every vanilla card. */
+    private static final String LAUNCHER_LOGO_PALETTE_KEY = "__mica_launcher_logo__";
+
+    /** Launcher logo resource path. The vanilla-version card samples
+     *  dominant colors from this image at startup so vanilla version
+     *  hero cards adopt the launcher's own brand palette instead of
+     *  the hardcoded "Minecraft landscape" gradient. */
+    private static final String LAUNCHER_LOGO_RESOURCE_PATH = "/micaminecraftlauncher.png";
 
     /** Cache key for a pack's logo. Prefers the URL (stable per-manifest, doesn't trigger
      *  the environment's image-cache download) before falling back to file path / pack name.
@@ -1751,9 +1809,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     // FX-thread work later.
                     Image img = new Image( url );
                     if ( img.isError() ) continue;
-                    DominantColors colors = computeDominantColors( img );
-                    if ( colors != null ) {
-                        DOMINANT_COLOR_CACHE.put( url, colors );
+                    // Compute the n-color palette directly; the 2-color
+                    // cache entry derives from its first two slots so
+                    // legacy callers (in-game RGB effect, single-color
+                    // fallback) still hit the cache too.
+                    Color[] palette = computeDominantColorPalette( img, 4 );
+                    if ( palette != null && palette.length > 0 ) {
+                        DOMINANT_PALETTE_CACHE.put( url, palette );
+                        Color sec = palette.length >= 2 ? palette[ 1 ] : null;
+                        DOMINANT_COLOR_CACHE.put( url, new DominantColors( palette[ 0 ], sec ) );
                     }
                 }
                 catch ( Exception | Error ignored ) { /* skip on any failure */ }
@@ -1817,11 +1881,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     {
         if ( pack == null || pack.isVanillaVersion() ) return null;
         if ( count < 1 ) return null;
-        // Load the logo image (cache miss) or fetch the cached primary +
-        // secondary. The n-color path always re-runs the histogram from
-        // the image because the cached entry only carries 2 colors —
-        // re-extracting from the source is cheap and only happens on a
-        // user action (open detail modal / start a launch).
+
+        // Cache hit path. Same key as the 2-color cache so prefetched
+        // entries and on-demand entries share storage. If the cached
+        // palette already has >= count entries we slice; if fewer, we
+        // fall through to a re-sample with the larger ask (logo could
+        // have been re-sampled with a smaller count previously).
+        String cacheKey = packLogoCacheKey( pack );
+        Color[] cachedPalette = ( cacheKey != null ) ? DOMINANT_PALETTE_CACHE.get( cacheKey ) : null;
+        if ( cachedPalette != null && cachedPalette.length >= count ) {
+            return java.util.Arrays.copyOf( cachedPalette, count );
+        }
+
         String logoPath = null;
         try { logoPath = pack.getPackLogoFilepath(); }
         catch ( Throwable ignored ) { /* fall through to null below */ }
@@ -1831,18 +1902,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         Image img = new Image( f.toURI().toString(), false );
         if ( img.isError() ) return null;
 
-        // Run the n-color histogram pick. We keep the original 2-color
-        // result populated in the cache so the hero card's existing
-        // gradient renderer stays cheap, but the n-color slice is a
-        // separate result that doesn't go into the 2-color cache.
         Color[] palette = computeDominantColorPalette( img, count );
         if ( palette == null || palette.length == 0 ) return null;
 
-        // Update the 2-color cache opportunistically — same image, same
-        // pixels, no reason to re-sample on the next sampleDominantPackColors
-        // call.
-        String cacheKey = packLogoCacheKey( pack );
-        if ( cacheKey != null && palette.length >= 1 ) {
+        // Cache the freshly-sampled palette. Also opportunistically
+        // populate the legacy 2-color cache from palette[0..1] so the
+        // hero-card render path (which still calls sampleDominantPackColors
+        // when n > 2 isn't needed) doesn't repeat the histogram.
+        if ( cacheKey != null ) {
+            DOMINANT_PALETTE_CACHE.put( cacheKey, palette );
             Color sec = palette.length >= 2 ? palette[ 1 ] : null;
             DOMINANT_COLOR_CACHE.putIfAbsent( cacheKey,
                                                new DominantColors( palette[ 0 ], sec ) );
@@ -1928,27 +1996,122 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     }
 
     /** Builds the CSS {@code -fx-background-color: linear-gradient(...)} declaration from
-     *  a sampled {@link DominantColors}. When two distinct colors were found the gradient
-     *  uses them directly with a 50%-blended midpoint for a smoother transition; when only
-     *  one color was found the second stop is derived as a darker variant of the first. */
+     *  a sampled {@link DominantColors}. Thin wrapper over the n-color builder so existing
+     *  callers don't have to migrate to {@code Color[]}; the n-color path is preferred when
+     *  the caller has a multi-color palette (richer gradients for logo-rich packs). */
     private static String buildGradientStyle( DominantColors colors )
     {
-        if ( colors.hasSecondary() ) {
-            // Linear gradient diagonally across the card image, primary at the top-left
-            // corner, secondary at the bottom-right, 50/50 blend in the middle. The
-            // midpoint blend smooths out the transition so the gradient doesn't feel like
-            // two-stripe poster art.
-            Color mid = blend( colors.primary(), colors.secondary(), 0.5 );
-            return String.format(
-                    "-fx-background-color: linear-gradient(to bottom right, %s 0%%, %s 50%%, %s 100%%);",
-                    toHexRgb( colors.primary() ), toHexRgb( mid ), toHexRgb( colors.secondary() ) );
+        Color[] palette = colors.hasSecondary()
+                ? new Color[]{ colors.primary(), colors.secondary() }
+                : new Color[]{ colors.primary() };
+        return buildGradientStyleFromPalette( palette );
+    }
+
+    /**
+     * N-color sibling of {@link #buildGradientStyle}. Generates a
+     * diagonal {@code linear-gradient(to bottom right, ...)} with
+     * {@code 2N-1} stops: each palette color anchored at its evenly
+     * spaced position, plus a 50/50 blend between every adjacent pair
+     * inserted at the midpoint between them. The extra midpoint stops
+     * smooth out what would otherwise be hard transitions between
+     * adjacent palette colors when the colors are visually distant.
+     *
+     * <p>Layouts:</p>
+     * <ul>
+     *   <li>1 color — primary + two derived darker stops (same fallback
+     *       as the original 2-color builder's single-color branch).</li>
+     *   <li>2 colors — primary, 50% midpoint, secondary (3 stops).</li>
+     *   <li>3 colors — primary, mid12, secondary, mid23, tertiary
+     *       (5 stops).</li>
+     *   <li>4+ colors — same pattern extended; 7+ stops.</li>
+     * </ul>
+     */
+    private static String buildGradientStyleFromPalette( Color[] palette )
+    {
+        if ( palette == null || palette.length == 0 ) {
+            return null;
         }
-        // Single-color fallback — pair primary with a derived darker stop for depth.
-        Color dim    = colors.primary().deriveColor( 0.0, 1.0, 0.60, 1.0 );
-        Color shadow = colors.primary().deriveColor( 0.0, 1.0, 0.35, 1.0 );
-        return String.format(
-                "-fx-background-color: linear-gradient(to bottom right, %s 0%%, %s 55%%, %s 100%%);",
-                toHexRgb( colors.primary() ), toHexRgb( dim ), toHexRgb( shadow ) );
+        if ( palette.length == 1 ) {
+            // Single-color fallback — pair primary with two derived darker
+            // stops for depth. Same shape as the original buildGradientStyle
+            // single-color branch.
+            Color primary = palette[ 0 ];
+            Color dim    = primary.deriveColor( 0.0, 1.0, 0.60, 1.0 );
+            Color shadow = primary.deriveColor( 0.0, 1.0, 0.35, 1.0 );
+            return String.format(
+                    "-fx-background-color: linear-gradient(to bottom right, %s 0%%, %s 55%%, %s 100%%);",
+                    toHexRgb( primary ), toHexRgb( dim ), toHexRgb( shadow ) );
+        }
+
+        // Multi-color: anchor each color at an evenly-spaced position
+        // from 0% to 100%, and slot a 50/50 blend halfway between every
+        // adjacent pair. With N colors the result has 2N-1 stops; the
+        // anchor positions are i/(N-1) and the midpoint positions are
+        // (i + 0.5)/(N-1).
+        int n = palette.length;
+        StringBuilder sb = new StringBuilder( "-fx-background-color: linear-gradient(to bottom right" );
+        for ( int i = 0; i < n; i++ ) {
+            double anchorPct = ( 100.0 * i ) / ( n - 1 );
+            sb.append( ", " ).append( toHexRgb( palette[ i ] ) )
+              .append( String.format( " %.2f%%", anchorPct ) );
+            if ( i < n - 1 ) {
+                Color mid = blend( palette[ i ], palette[ i + 1 ], 0.5 );
+                double midPct = ( 100.0 * ( i + 0.5 ) ) / ( n - 1 );
+                sb.append( ", " ).append( toHexRgb( mid ) )
+                  .append( String.format( " %.2f%%", midPct ) );
+            }
+        }
+        sb.append( ");" );
+        return sb.toString();
+    }
+
+    /** {@link #setBgLayerGradient} sibling that takes the {@code Color[]}
+     *  palette directly. Same bg-image preservation logic — the inline
+     *  style is rebuilt as "gradient + image overlay" if an image was
+     *  already declared. */
+    private static void setBgLayerGradientFromPalette( Region bgLayer, Color[] palette )
+    {
+        String gradientPart = buildGradientStyleFromPalette( palette );
+        if ( gradientPart == null ) return;
+        String existingBgImage = extractBackgroundImageDeclaration( bgLayer.getStyle() );
+        if ( existingBgImage != null ) {
+            bgLayer.setStyle( gradientPart + " " + existingBgImage );
+        }
+        else {
+            bgLayer.setStyle( gradientPart );
+        }
+    }
+
+    /**
+     * Loads + samples the bundled launcher logo and returns its
+     * dominant-color palette. Result is memoised in
+     * {@link #DOMINANT_PALETTE_CACHE} under
+     * {@link #LAUNCHER_LOGO_PALETTE_KEY} — the logo never changes
+     * per session, so this is effectively a one-shot computation.
+     * Returns {@code null} when the image can't be loaded or no
+     * dominant hues are extractable (fully transparent / monochrome
+     * grey logo — neither applies to the current Mica logo, but we
+     * keep the fallback so callers don't NPE on a future rebrand).
+     */
+    private static Color[] getLauncherLogoPalette()
+    {
+        Color[] cached = DOMINANT_PALETTE_CACHE.get( LAUNCHER_LOGO_PALETTE_KEY );
+        if ( cached != null ) {
+            return cached;
+        }
+        try {
+            java.net.URL url = MCLauncherMainGui.class.getResource( LAUNCHER_LOGO_RESOURCE_PATH );
+            if ( url == null ) return null;
+            Image img = new Image( url.toExternalForm(), false );
+            if ( img.isError() ) return null;
+            Color[] palette = computeDominantColorPalette( img, 4 );
+            if ( palette == null || palette.length == 0 ) return null;
+            DOMINANT_PALETTE_CACHE.put( LAUNCHER_LOGO_PALETTE_KEY, palette );
+            return palette;
+        }
+        catch ( Throwable t ) {
+            return null;
+        }
     }
 
     /** Linear blend between two colors at parameter t ∈ [0, 1]. t=0 returns a; t=1 returns b. */
