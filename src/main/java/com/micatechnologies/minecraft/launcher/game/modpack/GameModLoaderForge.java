@@ -238,6 +238,15 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return "Forge";
     }
 
+    /** Maven-coord prefix the installer's own artifact lives under.
+     *  Used in {@code getForgeAssets} to detect the loader's own
+     *  library entries (which need universal-jar / install-jar
+     *  redirection rather than a direct maven download). Overridden
+     *  by NeoForge to point at its own group / artifact id. */
+    protected String loaderCoordPrefix() {
+        return "net.minecraftforge:forge:";
+    }
+
     @Override
     public String getLoaderVersion() {
         return forgeVersion;
@@ -344,7 +353,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             // Legacy Forge (1.7-1.12) only has the universal JAR.
             boolean addUniversalAsExtra = false;
             String universalRepoPath = null;
-            if ( isSpecifiedRepoPath && forgeAssetName.startsWith( "net.minecraftforge:forge:" ) &&
+            if ( isSpecifiedRepoPath && forgeAssetName.startsWith( loaderCoordPrefix() ) &&
                     !forgeAssetRepoPath.contains( "-universal" ) ) {
                 universalRepoPath = forgeAssetRepoPath.replace( ".jar", "-universal.jar" );
                 if ( hasEmbeddedMavenEntry( universalRepoPath ) && hasEmbeddedMavenEntry( forgeAssetRepoPath ) ) {
@@ -367,7 +376,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             // (the same mechanism the modern path uses for maven/-embedded artifacts).
             boolean legacyForgeUniversalEmbedded = false;
             String legacyForgeUniversalEntry = null;
-            if ( !isSpecifiedRepoPath && forgeAssetName.startsWith( "net.minecraftforge:forge:" ) ) {
+            if ( !isSpecifiedRepoPath && forgeAssetName.startsWith( loaderCoordPrefix() ) ) {
                 String topLevelUniversalName = inferredForgeAssetRepoPath + "-universal.jar";
                 if ( hasEmbeddedTopLevelEntry( topLevelUniversalName ) ) {
                     legacyForgeUniversalEmbedded = true;
