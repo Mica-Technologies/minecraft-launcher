@@ -383,12 +383,87 @@ class GameModPackLauncher
                 LaunchProgressTracker.StepId.SECURITY_SCAN );
         doSecurityScan( scanH );
 
-        // Combine classpaths
-        if ( !forgeAssetClasspath.isEmpty() && !forgeAssetClasspath.endsWith( File.pathSeparator ) ) {
-            forgeAssetClasspath += File.pathSeparator;
-        }
+        // Combine classpaths with Maven-coord-aware dedup. Naive
+        // concatenation would put two versions of the same library on
+        // the classpath when Fabric / NeoForge ships a newer version of
+        // an artifact Mojang's vanilla manifest also lists (ASM is the
+        // common case — Fabric needs ASM 9.7.1, vanilla MC 1.21.5 ships
+        // ASM 9.6; Fabric refuses to start when both are present).
+        // The loader's classpath entries win — they're the ones the
+        // loader was built against and the launcher contract is "the
+        // loader knows what versions it needs."
+        return mergeClasspathsLoaderPriority( forgeAssetClasspath, minecraftAssetClasspath );
+    }
 
-        return forgeAssetClasspath + minecraftAssetClasspath;
+    /**
+     * Merge two classpath strings, deduplicating entries by Maven
+     * coordinate (group/artifact + classifier) and preferring entries
+     * from {@code loaderClasspath} when there's a conflict. Order is
+     * preserved within each input — loader entries first in their
+     * original order, then any MC entries that don't collide.
+     *
+     * <p>The dedup key is derived from the path structure: each
+     * library lives at {@code .../libraries/<group>/<artifact>/<version>/<artifact>-<version>[-<classifier>].jar}.
+     * The version directory and the version segment of the filename
+     * are stripped, leaving {@code <group-path>/<artifact>:<artifact>[-<classifier>].jar}
+     * as the key. Different versions of the same artifact + classifier
+     * collide; different classifiers of the same artifact don't (LWJGL
+     * natives variants stay distinct).</p>
+     */
+    private static String mergeClasspathsLoaderPriority( String loaderClasspath,
+                                                          String mcClasspath )
+    {
+        java.util.LinkedHashMap< String, String > byCoord = new java.util.LinkedHashMap<>();
+        addClasspathEntries( byCoord, loaderClasspath, false );
+        addClasspathEntries( byCoord, mcClasspath, true );
+        return String.join( File.pathSeparator, byCoord.values() );
+    }
+
+    private static void addClasspathEntries( java.util.LinkedHashMap< String, String > byCoord,
+                                              String classpath, boolean skipIfPresent )
+    {
+        if ( classpath == null || classpath.isEmpty() ) return;
+        for ( String entry : classpath.split( java.util.regex.Pattern.quote( File.pathSeparator ) ) ) {
+            if ( entry.isBlank() ) continue;
+            String key = mavenCoordDedupKey( entry );
+            if ( skipIfPresent ) {
+                byCoord.putIfAbsent( key, entry );
+            }
+            else {
+                byCoord.put( key, entry );
+            }
+        }
+    }
+
+    /** Compute a dedup key for a classpath entry that's stable across
+     *  versions of the same Maven artifact but distinct across
+     *  classifiers. Falls back to the raw path when the entry doesn't
+     *  match the Maven directory layout. */
+    private static String mavenCoordDedupKey( String classpathEntry )
+    {
+        File f = new File( classpathEntry );
+        File parent = f.getParentFile();
+        if ( parent == null ) return classpathEntry;
+        File grandparent = parent.getParentFile();
+        if ( grandparent == null ) return classpathEntry;
+        String versionDir = parent.getName();
+        String filename = f.getName();
+        // Strip "-<version>" from the filename to produce a
+        // version-agnostic key — "asm-9.7.1.jar" → "asm.jar",
+        // "lwjgl-3.3.3-natives-windows.jar" → "lwjgl-natives-windows.jar".
+        String versionToken = "-" + versionDir;
+        int idx = filename.indexOf( versionToken );
+        String coordSuffix;
+        if ( idx > 0 ) {
+            coordSuffix = filename.substring( 0, idx ) + filename.substring( idx + versionToken.length() );
+        }
+        else {
+            // Non-standard filename (no "<artifact>-<version>" pattern);
+            // use the filename as-is so we don't accidentally dedup
+            // unrelated jars together.
+            coordSuffix = filename;
+        }
+        return grandparent.getAbsolutePath() + ":" + coordSuffix;
     }
 
     /** Constructs a handle for the given step. Bridge-aware: returns a real
