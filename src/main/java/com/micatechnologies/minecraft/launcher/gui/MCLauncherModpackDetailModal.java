@@ -565,7 +565,7 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     private Node buildQuickActionsSection( GameModPack pack )
     {
-        VBox section = buildSectionBox( "Quick Actions" );
+        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.quickActions" ) );
         // Tile-style grid of action buttons — uses a FlowPane so it reflows on
         // narrower modal widths (e.g. when the user has a small window) instead of
         // overflowing horizontally.
@@ -607,25 +607,37 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     private Node buildStatsSection( GameModPack pack )
     {
-        VBox section = buildSectionBox( "Stats" );
+        VBox section = buildSectionBox(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.stats" ) );
 
         VBox rows = new VBox( 4 );
-        rows.getChildren().add( buildStatRow( "Last played", pack.getLastPlayedFormatted() ) );
-        rows.getChildren().add( buildStatRow( "Total play time", pack.getTotalPlayTimeFormatted() ) );
-        rows.getChildren().add( buildStatRow( "Launches", String.valueOf( pack.getLaunchCount() ) ) );
+        rows.getChildren().add( buildStatRow(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.lastPlayed" ),
+                pack.getLastPlayedFormatted() ) );
+        rows.getChildren().add( buildStatRow(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.totalPlayTime" ),
+                pack.getTotalPlayTimeFormatted() ) );
+        rows.getChildren().add( buildStatRow(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.launches" ),
+                String.valueOf( pack.getLaunchCount() ) ) );
 
         String installed = pack.getInstalledVersion();
         if ( installed != null && !installed.isBlank() ) {
             String remote = pack.getPackVersion();
             String installedDisplay = pack.isUpdateAvailable() && remote != null && !remote.equals( installed )
-                    ? installed + " (update " + remote + " available)"
+                    ? com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                            "detailModal.stats.installedDisplay.withUpdate", installed, remote )
                     : installed;
-            rows.getChildren().add( buildStatRow( "Installed version", installedDisplay ) );
+            rows.getChildren().add( buildStatRow(
+                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.installedVersion" ),
+                    installedDisplay ) );
         }
 
         String manifestUrl = pack.getManifestUrl();
         if ( manifestUrl != null && !manifestUrl.isBlank() ) {
-            rows.getChildren().add( buildStatRow( "Manifest", manifestUrl ) );
+            rows.getChildren().add( buildStatRow(
+                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.manifest" ),
+                    manifestUrl ) );
         }
 
         section.getChildren().add( rows );
@@ -634,7 +646,7 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     private Node buildUpdateLogSection( GameModPack pack )
     {
-        VBox section = buildSectionBox( "Update Log" );
+        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.updateLog" ) );
 
         List< ModPackUpdateLog.Entry > entries = ModPackUpdateLog.readEntries( pack );
         if ( entries.isEmpty() ) {
@@ -674,7 +686,7 @@ public class MCLauncherModpackDetailModal extends StackPane
      */
     private Node buildAdvancedSection( GameModPack pack )
     {
-        VBox section = buildSectionBox( "Advanced" );
+        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.advanced" ) );
 
         Label hint = new Label( "Per-pack power-user controls. Defaults are fine for most users." );
         hint.setWrapText( true );
@@ -894,7 +906,7 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     private Node buildComingSoonSection()
     {
-        VBox section = buildSectionBox( "Coming Soon" );
+        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.comingSoon" ) );
         Label hint = new Label(
                 "This area will eventually host per-pack news, custom action buttons "
                         + "defined by the pack manifest, and more — let us know what you'd like to see!" );
