@@ -64,8 +64,8 @@
                 <fx:include source="components/micaBrandLogo.fxml"/>
             </Pane>
             <VBox alignment="CENTER_LEFT" spacing="2">
-                <Label styleClass="heading-display" text="MICA LAUNCHER" />
-                <Label styleClass="muted" text="Sign in to continue" />
+                <Label styleClass="heading-display" text="%login.title" />
+                <Label styleClass="muted" text="%login.subtitle" />
             </VBox>
         </HBox>
 
@@ -102,7 +102,7 @@
                   card has extra room, so the inner padding is symmetric on
                   both sides regardless of the card's current width. -->
              <WebView fx:id="authWebView" prefHeight="780.0" prefWidth="720.0" maxWidth="1.7976931348623157E308" GridPane.columnSpan="2" GridPane.halignment="CENTER" GridPane.hgrow="ALWAYS" GridPane.vgrow="ALWAYS" />
-             <MFXToggleButton fx:id="msStayLoggedInCheckBox" text="Stay Logged In" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+             <MFXToggleButton fx:id="msStayLoggedInCheckBox" text="%login.stayLoggedIn" GridPane.halignment="CENTER" GridPane.rowIndex="1" GridPane.valignment="CENTER">
                 <GridPane.margin>
                     <Insets left="20.0" />
                 </GridPane.margin>
@@ -113,7 +113,7 @@
                   25 px constraint was clipping the bottom of the glyphs. Width
                   stays pinned to 80 so the button doesn't snap to the row's full
                   trailing width when "Exit" is the only character content. -->
-             <MFXButton fx:id="exitBtn" maxWidth="80.0" minWidth="80.0" prefHeight="32.0" prefWidth="80.0" text="Exit" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.valignment="CENTER">
+             <MFXButton fx:id="exitBtn" maxWidth="80.0" minWidth="80.0" prefHeight="32.0" prefWidth="80.0" text="%login.exitBtn" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.valignment="CENTER">
                  <GridPane.margin>
                      <Insets right="20.0" />
                  </GridPane.margin>

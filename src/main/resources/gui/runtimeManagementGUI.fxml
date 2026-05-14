@@ -57,11 +57,11 @@
               maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
             <fx:include source="components/micaBrandLogo-small.fxml"/>
         </Pane>
-        <Label text="Runtime Management" styleClass="navBrand"/>
+        <Label text="%runtime.navbar.title" styleClass="navBrand"/>
 
         <Pane HBox.hgrow="ALWAYS"/>
 
-        <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false"
+        <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false"
                styleClass="chip-offline"/>
         <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
     </HBox>
@@ -70,27 +70,27 @@
     <VBox spacing="10.0" GridPane.rowIndex="2">
         <padding><Insets top="16.0" bottom="16.0" left="24.0" right="24.0"/></padding>
 
-        <Label text="Installed Java Runtimes" styleClass="heading-h3"/>
+        <Label text="%runtime.section.installed" styleClass="heading-h3"/>
 
         <ListView fx:id="runtimeListView" VBox.vgrow="ALWAYS"/>
 
         <HBox spacing="10.0" alignment="CENTER_LEFT">
-            <Label fx:id="statusLabel" text="Select a runtime to manage it." styleClass="muted"/>
+            <Label fx:id="statusLabel" text="%runtime.status.selectAPrompt" styleClass="muted"/>
             <Pane HBox.hgrow="ALWAYS"/>
-            <MFXButton fx:id="refreshBtn" prefHeight="28.0" prefWidth="110.0" text="Refresh"/>
+            <MFXButton fx:id="refreshBtn" prefHeight="28.0" prefWidth="110.0" text="%runtime.refreshBtn"/>
             <MFXButton fx:id="deleteBtn" prefHeight="28.0" prefWidth="110.0" styleClass="dangerZone"
-                       text="Delete"/>
+                       text="%runtime.deleteBtn"/>
             <MFXButton fx:id="deleteAllBtn" prefHeight="28.0" prefWidth="110.0" styleClass="dangerZone"
-                       text="Delete All"/>
+                       text="%runtime.deleteAllBtn"/>
         </HBox>
     </VBox>
 
     <!-- Row 3: Bottom action bar — info text on the left, Return on the right -->
     <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="3">
         <padding><Insets left="14.0" right="14.0"/></padding>
-        <Label fx:id="infoLabel" text="Runtimes are downloaded automatically when launching a modpack."
+        <Label fx:id="infoLabel" text="%runtime.infoLabel"
                styleClass="muted"/>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="Return"/>
+        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="%runtime.returnBtn"/>
     </HBox>
 </GridPane>

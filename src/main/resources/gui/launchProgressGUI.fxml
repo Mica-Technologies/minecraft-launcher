@@ -60,7 +60,7 @@
                  generic phrase so the screen still reads sensibly if a caller
                  forgets to set it. -->
             <Label fx:id="titleLabel" alignment="CENTER" textAlignment="CENTER"
-                   styleClass="heading-display" text="Preparing launch…"
+                   styleClass="heading-display" text="%progress.title.preparingLaunch"
                    maxWidth="560.0" wrapText="true"/>
 
             <!-- Optional pack subtitle (e.g. version string under the pack name).
@@ -84,7 +84,7 @@
             <HBox fx:id="cancelBtnRow" alignment="CENTER"
                   visible="false" managed="false">
                 <padding><Insets top="8.0"/></padding>
-                <MFXButton fx:id="cancelBtn" text="Cancel" prefWidth="120.0" prefHeight="32.0"/>
+                <MFXButton fx:id="cancelBtn" text="%progress.cancelBtn.label" prefWidth="120.0" prefHeight="32.0"/>
             </HBox>
         </VBox>
     </GridPane>
