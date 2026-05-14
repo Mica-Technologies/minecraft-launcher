@@ -99,6 +99,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @FXML MFXTextField packMinRAMField;
     @FXML MFXToggleButton packUnstableToggle;
     @FXML MFXToggleButton packCustomDiscordRpcToggle;
+    @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > packModLoaderTypeCombo;
+    @FXML javafx.scene.control.Label packModLoaderHint;
     @FXML MFXTextField packForgeURLField;
     @FXML MFXTextField packForgeHashField;
     @FXML MFXTextField packLogoURLField;
@@ -192,6 +194,32 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
         // Forge picker
         forgePickerBtn.setOnAction( e -> pickForgeVersion() );
+
+        // Modloader type combo. Display labels (capitalised) map to
+        // the stable ConfigConstants identifiers when persisted; the
+        // combo only carries the display label so we round-trip via
+        // case-insensitive matching against the constants on save/load.
+        if ( packModLoaderTypeCombo != null ) {
+            packModLoaderTypeCombo.setItems( javafx.collections.FXCollections.observableArrayList(
+                    "Forge", "NeoForge", "Fabric" ) );
+            packModLoaderTypeCombo.selectedItemProperty().addListener(
+                    ( obs, oldV, newV ) -> {
+                        // The "Pick Forge Version" button still only
+                        // knows how to fetch Forge promos — hide it when
+                        // the user picks a non-Forge loader so they don't
+                        // think they can use it for Fabric / NeoForge.
+                        if ( forgePickerBtn != null ) {
+                            boolean isForge = "Forge".equalsIgnoreCase( newV );
+                            forgePickerBtn.setVisible( isForge );
+                            forgePickerBtn.setManaged( isForge );
+                        }
+                        // Update the hint line to reflect what the URL
+                        // field expects for the current loader choice.
+                        if ( packModLoaderHint != null ) {
+                            packModLoaderHint.setText( hintForLoaderType( newV ) );
+                        }
+                    } );
+        }
 
         // Version bump buttons
         bumpMajorBtn.setOnAction( e -> bumpVersion( 0 ) );
@@ -371,6 +399,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         workingDocument.addProperty( "packBackgroundSha1", "" );
         workingDocument.addProperty( "packForgeURL", "" );
         workingDocument.addProperty( "packForgeHash", "" );
+        // New-document defaults for the modloader-agnostic fields. Type
+        // defaults to Forge so existing "Pick Forge Version" muscle
+        // memory keeps working out of the box.
+        workingDocument.addProperty( "packModLoader",
+                com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE );
+        workingDocument.addProperty( "packModLoaderURL", "" );
+        workingDocument.addProperty( "packModLoaderHash", "" );
         workingDocument.add( "packScanExclusions", new JsonArray() );
         workingDocument.add( "packMods", new JsonArray() );
         workingDocument.add( "packConfigs", new JsonArray() );
@@ -508,6 +543,49 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 } );
             }
         } );
+    }
+
+    /** Map a stored {@code packModLoader} identifier
+     *  (forge / neoforge / fabric) to the combo's display label.
+     *  Defaults to {@code "Forge"} for unknown / missing values —
+     *  matches the GameModPack back-compat behaviour. */
+    private static String displayLabelForLoaderType( String stored )
+    {
+        if ( stored == null || stored.isBlank() ) return "Forge";
+        return switch ( stored.trim().toLowerCase( java.util.Locale.ROOT ) ) {
+            case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE -> "NeoForge";
+            case com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC   -> "Fabric";
+            default -> "Forge";
+        };
+    }
+
+    /** Inverse of {@link #displayLabelForLoaderType}. */
+    private static String configTypeForLabel( String label )
+    {
+        if ( label == null ) return com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE;
+        return switch ( label ) {
+            case "NeoForge" -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_NEOFORGE;
+            case "Fabric"   -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FABRIC;
+            default         -> com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE;
+        };
+    }
+
+    /** Hint text explaining what URL the user should paste into the
+     *  modloader URL field for the current loader choice. */
+    private static String hintForLoaderType( String label )
+    {
+        if ( "Fabric".equalsIgnoreCase( label ) ) {
+            return "Fabric: paste the meta.fabricmc.net profile JSON URL "
+                    + "(e.g. https://meta.fabricmc.net/v2/versions/loader/<mc>/<loader>/profile/json). "
+                    + "Hash is optional — Fabric's meta service doesn't pin SHA-1s.";
+        }
+        if ( "NeoForge".equalsIgnoreCase( label ) ) {
+            return "NeoForge: paste the installer JAR URL from maven.neoforged.net "
+                    + "(e.g. https://maven.neoforged.net/releases/net/neoforged/neoforge/"
+                    + "<version>/neoforge-<version>-installer.jar).";
+        }
+        return "Forge: paste the installer JAR URL or use the Pick Forge Version button "
+                + "to fetch the latest releases.";
     }
 
     /**
@@ -1109,8 +1187,23 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         packMinRAMField.setText( getDocString( "packMinRAMGB" ) );
         packUnstableToggle.setSelected( getDocBool( "packUnstable" ) );
         packCustomDiscordRpcToggle.setSelected( getDocBool( "packCustomDiscordRpc" ) );
-        packForgeURLField.setText( getDocString( "packForgeURL" ) );
-        packForgeHashField.setText( getDocString( "packForgeHash" ) );
+        // Modloader fields. Prefer the new packModLoader* keys; fall
+        // back to the legacy packForge* fields so manifests authored
+        // before the multi-loader work still round-trip cleanly.
+        String storedType = getDocString( "packModLoader" );
+        String storedUrl = getDocString( "packModLoaderURL" );
+        String storedHash = getDocString( "packModLoaderHash" );
+        if ( storedUrl == null || storedUrl.isBlank() ) {
+            storedUrl = getDocString( "packForgeURL" );
+        }
+        if ( storedHash == null || storedHash.isBlank() ) {
+            storedHash = getDocString( "packForgeHash" );
+        }
+        if ( packModLoaderTypeCombo != null ) {
+            packModLoaderTypeCombo.selectItem( displayLabelForLoaderType( storedType ) );
+        }
+        packForgeURLField.setText( storedUrl == null ? "" : storedUrl );
+        packForgeHashField.setText( storedHash == null ? "" : storedHash );
         packLogoURLField.setText( getDocString( "packLogoURL" ) );
         packLogoSha1Field.setText( getDocString( "packLogoSha1" ) );
         packBgURLField.setText( getDocString( "packBackgroundURL" ) );
@@ -1154,8 +1247,23 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         workingDocument.addProperty( "packMinRAMGB", packMinRAMField.getText() );
         workingDocument.addProperty( "packUnstable", packUnstableToggle.isSelected() );
         workingDocument.addProperty( "packCustomDiscordRpc", packCustomDiscordRpcToggle.isSelected() );
-        workingDocument.addProperty( "packForgeURL", packForgeURLField.getText() );
-        workingDocument.addProperty( "packForgeHash", packForgeHashField.getText() );
+        // Modloader fields — write into the modloader-agnostic
+        // packModLoader* slots. Emit empty legacy packForge* fields
+        // too so manifests round-trip on older launcher builds without
+        // the back-compat code path nullifying them.
+        String loaderType = configTypeForLabel(
+                packModLoaderTypeCombo != null ? packModLoaderTypeCombo.getValue() : null );
+        workingDocument.addProperty( "packModLoader", loaderType );
+        workingDocument.addProperty( "packModLoaderURL", packForgeURLField.getText() );
+        workingDocument.addProperty( "packModLoaderHash", packForgeHashField.getText() );
+        // Forge-specific fields kept around for back-compat with older
+        // launcher builds reading the same manifest. Mirror the URL +
+        // hash only when the loader is actually Forge — for Fabric /
+        // NeoForge they'd be misleading.
+        boolean isForge = com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE
+                .equals( loaderType );
+        workingDocument.addProperty( "packForgeURL", isForge ? packForgeURLField.getText() : "" );
+        workingDocument.addProperty( "packForgeHash", isForge ? packForgeHashField.getText() : "" );
         workingDocument.addProperty( "packLogoURL", packLogoURLField.getText() );
         workingDocument.addProperty( "packLogoSha1", packLogoSha1Field.getText() );
         workingDocument.addProperty( "packBackgroundURL", packBgURLField.getText() );
