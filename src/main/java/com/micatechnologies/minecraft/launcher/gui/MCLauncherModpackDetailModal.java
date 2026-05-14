@@ -360,6 +360,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             body.getChildren().add( ModpackContentBrowser.buildScreenshotsSection( pack, this::buildSectionBox, this ) );
             body.getChildren().add( ModpackContentBrowser.buildShaderPacksSection( pack, this::buildSectionBox ) );
             body.getChildren().add( ModpackContentBrowser.buildResourcePacksSection( pack, this::buildSectionBox ) );
+            body.getChildren().add( ModpackContentBrowser.buildCrashHistorySection( pack, this::buildSectionBox, this ) );
         }
         // Advanced section: per-pack verify toggle + "Verify this pack now" button.
         // Skipped for failed-load placeholder packs since there's no real manifest
