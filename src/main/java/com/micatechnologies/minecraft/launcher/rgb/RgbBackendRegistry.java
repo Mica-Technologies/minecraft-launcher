@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.backends.NoOpBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.chroma.ChromaRestBackend;
+import com.micatechnologies.minecraft.launcher.rgb.backends.chromanative.ChromaNativeBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.openrgb.OpenRgbBackend;
 
 /**
@@ -82,10 +83,11 @@ public final class RgbBackendRegistry
     {
         String c = choice == null ? "" : choice;
         return switch ( c ) {
-            case ConfigConstants.RGB_BACKEND_AUTO    -> probeAuto();
-            case ConfigConstants.RGB_BACKEND_OPENRGB -> new OpenRgbBackend();
-            case ConfigConstants.RGB_BACKEND_CHROMA  -> new ChromaRestBackend();
-            case ConfigConstants.RGB_BACKEND_NONE    -> new NoOpBackend();
+            case ConfigConstants.RGB_BACKEND_AUTO          -> probeAuto();
+            case ConfigConstants.RGB_BACKEND_OPENRGB       -> new OpenRgbBackend();
+            case ConfigConstants.RGB_BACKEND_CHROMA        -> new ChromaRestBackend();
+            case ConfigConstants.RGB_BACKEND_CHROMA_NATIVE -> new ChromaNativeBackend();
+            case ConfigConstants.RGB_BACKEND_NONE          -> new NoOpBackend();
             default -> {
                 Logger.logWarningSilent( "Unrecognized RGB backend choice '" + c
                                                  + "' — falling back to NoOp." );
@@ -103,7 +105,18 @@ public final class RgbBackendRegistry
      */
     private static RgbBackend probeAuto()
     {
-        RgbBackend[] candidates = { new OpenRgbBackend(), new ChromaRestBackend() };
+        // Order matters. OpenRGB first because it covers the most vendors
+        // cross-platform and is the easiest "just works" path. Then the
+        // native Chroma SDK — same DLL Fortnite/Overwatch use, fully
+        // supported by current Synapse, lights up the user's Razer
+        // hardware. The REST Chroma backend goes LAST as a fallback for
+        // older Synapse installs where the native SDK might not be
+        // installed but the REST surface is still responsive.
+        RgbBackend[] candidates = {
+                new OpenRgbBackend(),
+                new ChromaNativeBackend(),
+                new ChromaRestBackend()
+        };
         for ( RgbBackend candidate : candidates ) {
             boolean available;
             try {

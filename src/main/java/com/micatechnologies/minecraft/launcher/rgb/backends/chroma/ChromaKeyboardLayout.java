@@ -44,12 +44,12 @@ import java.util.Map;
  *
  * @since 2026.5
  */
-final class ChromaKeyboardLayout
+public final class ChromaKeyboardLayout
 {
     /** Number of rows in the Chroma keyboard grid. */
-    static final int ROWS = 6;
+    public static final int ROWS = 6;
     /** Number of columns in the Chroma keyboard grid. */
-    static final int COLS = 22;
+    public static final int COLS = 22;
 
     /** Per-key (row, col) lookup. Immutable, populated at class init. */
     private static final Map< KeyboardKey, int[] > KEY_TO_RC;
@@ -114,7 +114,7 @@ final class ChromaKeyboardLayout
      *  color" — same graceful-degradation behavior as
      *  {@link com.micatechnologies.minecraft.launcher.rgb.backends.openrgb.OpenRgbBackend}'s
      *  unrecognized-name path. */
-    static int[] coordOf( KeyboardKey key )
+    public static int[] coordOf( KeyboardKey key )
     {
         return KEY_TO_RC.get( key );
     }
