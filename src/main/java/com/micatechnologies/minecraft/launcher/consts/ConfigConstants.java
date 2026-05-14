@@ -388,6 +388,23 @@ public class ConfigConstants
     public static final String RGB_MENU_EFFECT_ENABLE_KEY     = "rgbMenuEffectEnable";
     public static final boolean RGB_MENU_EFFECT_ENABLE_DEFAULT = true;
 
+    /** Animation style for the menu / detail-modal effect. Values are
+     *  stable identifiers; the Settings dropdown maps them to user-
+     *  facing display names. */
+    public static final String RGB_EFFECT_STYLE_KEY     = "rgbEffectStyle";
+    public static final String RGB_EFFECT_STYLE_SOLID   = "solid";
+    public static final String RGB_EFFECT_STYLE_BREATHE = "breathe";
+    public static final String RGB_EFFECT_STYLE_PULSE   = "pulse";
+    public static final String RGB_EFFECT_STYLE_CYCLE   = "cycle";
+    public static final String RGB_EFFECT_STYLE_RAINBOW = "rainbow";
+    /** Default = breathe = current behaviour, so existing users see no
+     *  change when the option ships. */
+    public static final String RGB_EFFECT_STYLE_DEFAULT = RGB_EFFECT_STYLE_BREATHE;
+
+    public static final List< String > RGB_EFFECT_STYLES = Arrays.asList(
+            RGB_EFFECT_STYLE_SOLID, RGB_EFFECT_STYLE_BREATHE, RGB_EFFECT_STYLE_PULSE,
+            RGB_EFFECT_STYLE_CYCLE, RGB_EFFECT_STYLE_RAINBOW );
+
     public static final String RGB_BACKEND_AUTO = "auto";
     public static final String RGB_BACKEND_OPENRGB = "openrgb";
     public static final String RGB_BACKEND_CHROMA = "chroma";

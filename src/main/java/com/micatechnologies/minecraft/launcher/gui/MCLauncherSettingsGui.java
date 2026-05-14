@@ -321,6 +321,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbBackendCombo;
     @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbStatusChip;
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbMenuEffectToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbEffectStyleSelection;
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbUsePackColorsToggle;
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbHighlightKeysToggle;
     @SuppressWarnings( "unused" ) @FXML MFXButton rgbTestBtn;
@@ -1257,6 +1258,39 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 ConfigManager.setRgbMenuEffectEnable( newV );
                 // Repaint immediately so the user sees the effect of
                 // the toggle without having to leave/re-enter Settings.
+                com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu();
+            } );
+        }
+
+        if ( rgbEffectStyleSelection != null ) {
+            // Display names map to stable config-value identifiers.
+            // LinkedHashMap so iteration order matches the order shown
+            // in the dropdown.
+            java.util.LinkedHashMap< String, String > styleDisplay = new java.util.LinkedHashMap<>();
+            styleDisplay.put( "Solid",   ConfigConstants.RGB_EFFECT_STYLE_SOLID );
+            styleDisplay.put( "Breathe", ConfigConstants.RGB_EFFECT_STYLE_BREATHE );
+            styleDisplay.put( "Pulse",   ConfigConstants.RGB_EFFECT_STYLE_PULSE );
+            styleDisplay.put( "Cycle",   ConfigConstants.RGB_EFFECT_STYLE_CYCLE );
+            styleDisplay.put( "Rainbow", ConfigConstants.RGB_EFFECT_STYLE_RAINBOW );
+
+            rgbEffectStyleSelection.getItems().clear();
+            rgbEffectStyleSelection.getItems().addAll( styleDisplay.keySet() );
+
+            String currentValue = ConfigManager.getRgbEffectStyle();
+            for ( var entry : styleDisplay.entrySet() ) {
+                if ( entry.getValue().equals( currentValue ) ) {
+                    rgbEffectStyleSelection.selectItem( entry.getKey() );
+                    break;
+                }
+            }
+
+            rgbEffectStyleSelection.selectedItemProperty().addListener( ( obs, oldV, newV ) -> {
+                if ( newV == null ) return;
+                String value = styleDisplay.get( newV );
+                if ( value == null ) return;
+                ConfigManager.setRgbEffectStyle( value );
+                // Immediate repaint so the user sees the new style
+                // without leaving Settings.
                 com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu();
             } );
         }

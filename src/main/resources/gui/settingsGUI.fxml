@@ -624,7 +624,7 @@
                         </Label>
                     </VBox>
 
-                    <!-- Idle/menu effect toggle. -->
+                    <!-- Idle/menu effect toggle + animation style picker. -->
                     <VBox styleClass="settingsContainer" spacing="8">
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
@@ -635,7 +635,18 @@
                             </font>
                         </Label>
                         <MFXToggleButton fx:id="rgbMenuEffectToggle" text="Light up devices in menus" />
-                        <Label styleClass="muted" text="When on, your devices breathe in the active theme's accent color while you're in the launcher menus. Opening a modpack's detail view switches to that modpack's sampled colors. When off, devices stay dark between game launches." wrapText="true">
+                        <Label styleClass="muted" text="When on, your devices light up while you're in the launcher menus, using the active theme's accent color. Opening a modpack's detail view switches to that modpack's sampled colors. When off, devices stay dark between game launches." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <Label text="Animation style" styleClass="muted">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXComboBox fx:id="rgbEffectStyleSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="220.0" />
+                        <Label styleClass="muted" text="Solid: single steady color. Breathe: slow fade in and out (default). Pulse: faster pulse between the accent and its complement. Cycle: smooth loop through 3-4 colors — sampled from the modpack logo when a pack is in focus, otherwise analogous hues around the theme accent. Rainbow: continuous hue sweep across the full spectrum, no pack dependency." wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
