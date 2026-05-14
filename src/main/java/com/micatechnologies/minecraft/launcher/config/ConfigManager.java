@@ -890,6 +890,83 @@ public class ConfigManager
         writeConfigurationToDisk();
     }
 
+    /**
+     * Per-backend enable flags. When the master {@link ConfigConstants#RGB_ENABLE_KEY}
+     * is on the controller starts every backend whose enable flag is true
+     * AND whose {@code isAvailable} probe returns true at runtime — so a
+     * user with mixed-vendor hardware (Razer + Logitech-WinDL + etc.) can
+     * drive all of it at once instead of having to pick a single backend.
+     *
+     * @since 2026.5
+     */
+    public synchronized static boolean getRgbEnableOpenRgb()
+    {
+        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_OPENRGB_KEY,
+                                        ConfigConstants.RGB_ENABLE_OPENRGB_DEFAULT );
+    }
+
+    public synchronized static void setRgbEnableOpenRgb( boolean enable )
+    {
+        writeBoolean( ConfigConstants.RGB_ENABLE_OPENRGB_KEY, enable );
+    }
+
+    public synchronized static boolean getRgbEnableChromaNative()
+    {
+        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_KEY,
+                                        ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_DEFAULT );
+    }
+
+    public synchronized static void setRgbEnableChromaNative( boolean enable )
+    {
+        writeBoolean( ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_KEY, enable );
+    }
+
+    public synchronized static boolean getRgbEnableChromaRest()
+    {
+        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CHROMA_REST_KEY,
+                                        ConfigConstants.RGB_ENABLE_CHROMA_REST_DEFAULT );
+    }
+
+    public synchronized static void setRgbEnableChromaRest( boolean enable )
+    {
+        writeBoolean( ConfigConstants.RGB_ENABLE_CHROMA_REST_KEY, enable );
+    }
+
+    public synchronized static boolean getRgbEnableWindowsDl()
+    {
+        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_WINDOWS_DL_KEY,
+                                        ConfigConstants.RGB_ENABLE_WINDOWS_DL_DEFAULT );
+    }
+
+    public synchronized static void setRgbEnableWindowsDl( boolean enable )
+    {
+        writeBoolean( ConfigConstants.RGB_ENABLE_WINDOWS_DL_KEY, enable );
+    }
+
+    /** Lazy-default boolean read shared by the per-backend enable
+     *  getters above. Mirrors the lazy-init pattern of the older
+     *  getX methods but factored out so we don't duplicate the
+     *  read-or-add boilerplate four times. */
+    private synchronized static boolean readBooleanWithDefault( String key, boolean dflt )
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( key ) ) {
+            configObject.addProperty( key, dflt );
+        }
+        return configObject.get( key ).getAsBoolean();
+    }
+
+    private synchronized static void writeBoolean( String key, boolean value )
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( key, value );
+        writeConfigurationToDisk();
+    }
+
     // region LWJGL ARM64 Patching
 
     /**

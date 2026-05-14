@@ -50,17 +50,20 @@ public final class RgbIntegration
 
     /**
      * Startup hook. Called once during launcher bootstrap. If RGB is
-     * enabled in config, starts the {@link RgbController} on whichever
-     * backend the user picked (or auto-probes). Off the FX thread —
-     * backend start() may probe sockets / load DLLs and we don't want
-     * to block the splash screen on either.
+     * enabled in config, starts the {@link RgbController} on every
+     * backend the user has opted into that probes available (Auto
+     * mode multi-backend), or on the single explicit pick (Manual
+     * mode). Off the FX thread — backend start() may probe sockets /
+     * load DLLs and we don't want to block the splash screen on
+     * either.
      */
     public static void bootstrap()
     {
         if ( !ConfigManager.getRgbEnable() ) return;
         SystemUtilities.spawnNewTask( () -> {
             try {
-                RgbController.getInstance().start( RgbBackendRegistry.resolveFromConfig() );
+                RgbController.getInstance().start(
+                        RgbBackendRegistry.resolveBackendsFromConfig() );
             }
             catch ( Throwable t ) {
                 Logger.logWarningSilent( "RGB bootstrap threw — RGB will be disabled "

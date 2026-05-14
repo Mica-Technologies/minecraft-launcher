@@ -361,6 +361,26 @@ public class ConfigConstants
     public static final String RGB_BACKEND_KEY = "rgbBackend";
     public static final String RGB_BACKEND_DEFAULT = "auto";
 
+    /** Per-backend enable flags. When the master {@link #RGB_ENABLE_KEY}
+     *  is on, the controller starts every backend whose enable flag is
+     *  true AND whose {@code isAvailable} probe returns true. Lets a
+     *  user with mixed-vendor hardware (e.g. Razer fans + a Logitech
+     *  Windows-Dynamic-Lighting keyboard) drive all of it at once. */
+    public static final String RGB_ENABLE_OPENRGB_KEY        = "rgbEnableOpenRGB";
+    public static final boolean RGB_ENABLE_OPENRGB_DEFAULT    = true;
+
+    public static final String RGB_ENABLE_CHROMA_NATIVE_KEY  = "rgbEnableChromaNative";
+    public static final boolean RGB_ENABLE_CHROMA_NATIVE_DEFAULT = true;
+
+    public static final String RGB_ENABLE_CHROMA_REST_KEY    = "rgbEnableChromaRest";
+    /** REST backend defaults OFF — the native backend supersedes it on
+     *  any working Synapse install, and the REST API is effectively
+     *  deprecated. Users who specifically want REST can flip this on. */
+    public static final boolean RGB_ENABLE_CHROMA_REST_DEFAULT = false;
+
+    public static final String RGB_ENABLE_WINDOWS_DL_KEY     = "rgbEnableWindowsDL";
+    public static final boolean RGB_ENABLE_WINDOWS_DL_DEFAULT = true;
+
     public static final String RGB_BACKEND_AUTO = "auto";
     public static final String RGB_BACKEND_OPENRGB = "openrgb";
     public static final String RGB_BACKEND_CHROMA = "chroma";

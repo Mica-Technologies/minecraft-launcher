@@ -600,7 +600,24 @@
                             <MFXComboBox fx:id="rgbBackendCombo" prefWidth="200.0" />
                             <Label fx:id="rgbStatusChip" text="Disabled" styleClass="stat-chip" />
                         </HBox>
-                        <Label styleClass="muted" text="Auto probes OpenRGB first (broadest device coverage, cross-platform), then Razer Chroma. Pick a specific backend to skip the auto-probe." wrapText="true">
+                        <Label styleClass="muted" text="Auto runs every enabled backend below that has hardware available, so a mixed rig (e.g. Razer fans + a Windows Dynamic Lighting keyboard) lights up everything at once. Pick a specific backend instead to force only that one." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+
+                        <Label fx:id="rgbAutoToggleHeader" text="Auto-mode integrations:" styleClass="muted">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <VBox fx:id="rgbAutoToggleBox" spacing="4">
+                            <MFXToggleButton fx:id="rgbEnableOpenRgbToggle" text="OpenRGB" />
+                            <MFXToggleButton fx:id="rgbEnableChromaNativeToggle" text="Razer Chroma (Native SDK)" />
+                            <MFXToggleButton fx:id="rgbEnableWindowsDlToggle" text="Windows Dynamic Lighting" />
+                            <MFXToggleButton fx:id="rgbEnableChromaRestToggle" text="Razer Chroma (REST — legacy)" />
+                        </VBox>
+                        <Label styleClass="muted" text="Turn off the integrations you don't want the launcher reaching, even if their software is installed. Off-by-default for Chroma REST since the native SDK supersedes it on any working Synapse install." wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>

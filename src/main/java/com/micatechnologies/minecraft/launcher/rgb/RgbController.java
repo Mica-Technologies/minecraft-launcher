@@ -20,28 +20,44 @@ package com.micatechnologies.minecraft.launcher.rgb;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.backends.NoOpBackend;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Singleton entry point for the RGB-integration subsystem.
  *
  * <p>Owns the dedicated {@code mica-rgb} worker thread, the bounded
- * frame queue, the active backend reference, and the per-backend
- * circuit breaker. Callers ({@code LauncherCore.play}, the main GUI,
- * effect engine — Phase 4) interact only with {@link #submitFrame} and
- * the lifecycle methods; they never touch a {@link RgbBackend} directly.
+ * frame queue, the active backend list, and the per-backend circuit
+ * breakers. Callers ({@code LauncherCore.play}, the main GUI, effect
+ * engine) interact only with {@link #submitFrame} and the lifecycle
+ * methods; they never touch a {@link RgbBackend} directly.</p>
+ *
+ * <h3>Multi-backend operation</h3>
+ *
+ * <p>Each {@link #start(List)} call activates every backend in the
+ * list whose {@code isAvailable()} probe succeeds and whose
+ * {@code start()} doesn't throw. Per-frame, the worker dispatches the
+ * same frame to every healthy backend in turn — so a user with both
+ * Razer Chroma fans and a Windows-Dynamic-Lighting keyboard gets both
+ * ecosystems lit from one effect render. Each backend has its own
+ * {@link RgbBackendHealth} circuit breaker, so one vendor blowing up
+ * doesn't take the others down with it.</p>
  *
  * <h3>Error isolation</h3>
  *
  * <p>The launcher must continue functioning even if every RGB backend
  * blows up — driver updates, removed devices, network glitches, vendor
- * SDK protocol breaks. Five containment layers are in play here:</p>
+ * SDK protocol breaks. Containment layers in play:</p>
  *
  * <ol>
  *   <li><b>Lazy probe.</b> Backends are only instantiated when RGB is
- *       enabled in Settings. {@link #start()} bails immediately if
- *       config says off.</li>
+ *       enabled in Settings. {@link #start(List)} bails immediately
+ *       when given an empty list.</li>
  *   <li><b>{@link #safelyInvoke} wrapper.</b> Every call into a backend
  *       is wrapped in catch-{@link Throwable} — covers {@link Error}s
  *       like {@code UnsatisfiedLinkError} from a missing DLL post
@@ -49,14 +65,11 @@ import java.util.concurrent.TimeUnit;
  *   <li><b>Per-backend circuit breaker</b> via {@link RgbBackendHealth}.
  *       Three states (HEALTHY → DEGRADED → DEAD) with exponential
  *       backoff; a dead backend stops being called for the rest of the
- *       session.</li>
+ *       session, but its siblings keep running.</li>
  *   <li><b>Bounded queue + drop-on-full.</b> The frame queue caps at
  *       4 entries; {@link #submitFrame} returns immediately and drops
- *       frames silently rather than queueing them when the backend
- *       worker is stalled.</li>
- *   <li><b>NoOp fallback.</b> When the configured real backend goes
- *       DEAD, the active reference flips to {@link NoOpBackend} —
- *       callers can keep submitting frames without checking state.</li>
+ *       frames silently rather than queueing them when the worker is
+ *       stalled.</li>
  * </ol>
  *
  * <h3>Threading model</h3>
@@ -101,11 +114,26 @@ public final class RgbController
     private final LinkedBlockingQueue< RgbFrame > frameQueue =
             new LinkedBlockingQueue<>( FRAME_QUEUE_CAPACITY );
 
-    /** The active backend. Reads are unsynchronized via {@code volatile} —
-     *  callers see a consistent reference even when {@link #start} or a
-     *  DEAD-state flip swaps it. */
-    private volatile RgbBackend activeBackend = new NoOpBackend();
-    private volatile RgbBackendHealth health = new RgbBackendHealth();
+    /** Pairs a running backend with its own circuit breaker. The worker
+     *  iterates this list per frame and gives each slot independent
+     *  health tracking — one vendor going DEAD doesn't poison the
+     *  others. */
+    private static final class BackendSlot
+    {
+        final RgbBackend backend;
+        final RgbBackendHealth health;
+
+        BackendSlot( RgbBackend backend )
+        {
+            this.backend = backend;
+            this.health = new RgbBackendHealth();
+        }
+    }
+
+    /** Active slots. CopyOnWriteArrayList so the worker can iterate
+     *  without locking even while {@link #start} or
+     *  {@link #safelyInvoke}'s DEAD-state demotion swaps entries. */
+    private final CopyOnWriteArrayList< BackendSlot > slots = new CopyOnWriteArrayList<>();
 
     /** Drives the worker loop. Flipped to false in {@link #stop}; the
      *  worker checks it after each queue poll and exits cleanly. */
@@ -120,87 +148,111 @@ public final class RgbController
     private RgbController() { /* singleton */ }
 
     /**
-     * Activate the subsystem with the given backend. Idempotent — calling
-     * start with the same backend again is a no-op; calling with a
-     * different backend stops the current one and swaps in the new one.
-     * Safe to call from any thread.
-     *
-     * <p>If {@code backend.isAvailable()} returns false, or {@code start()}
-     * throws, the controller falls back to {@link NoOpBackend} silently.
-     * The launcher continues; subsequent {@link #submitFrame} calls are
-     * harmless no-ops.</p>
+     * Single-backend convenience overload. {@code null} or a
+     * {@link NoOpBackend} starts an empty session (no real backends).
      */
     public synchronized void start( RgbBackend backend )
     {
-        if ( backend == null ) backend = new NoOpBackend();
+        if ( backend == null || backend instanceof NoOpBackend ) {
+            start( Collections.< RgbBackend >emptyList() );
+        }
+        else {
+            start( Collections.singletonList( backend ) );
+        }
+    }
 
-        // Already running this exact backend instance — leave it alone.
-        if ( running && activeBackend == backend ) return;
+    /**
+     * Activate the subsystem with the given backend list. Idempotent
+     * against the same backend types — restarting with the same set is
+     * a no-op when every existing slot is still healthy. A different
+     * set tears down the current slots and rebuilds with the new ones.
+     * Safe to call from any thread.
+     *
+     * <p>For each backend in {@code backends}, the controller probes
+     * {@code isAvailable()} and calls {@code start()}; either failing
+     * (or throwing) drops just that backend from the active list. The
+     * launcher continues with whatever subset succeeded — including
+     * none.</p>
+     */
+    public synchronized void start( List< RgbBackend > backends )
+    {
+        List< RgbBackend > requested = backends == null
+                ? Collections.< RgbBackend >emptyList() : backends;
 
-        // Also short-circuit on same backend TYPE — RgbBackendRegistry
-        // creates a fresh instance every resolve, so a "restart with the
-        // same backend type" from a Settings UI listener that fired
-        // spuriously would otherwise tear down a perfectly healthy
-        // session and open a new one. Vendor SDKs (notably Razer
-        // Synapse) don't tolerate rapid session churn — the prior fix
-        // here was per-listener idempotency in the Settings UI; this
-        // adds defense in depth so a future caller from anywhere else
-        // doesn't repro the bug.
-        if ( running && activeBackend != null
-                && activeBackend.getClass() == backend.getClass()
-                && health.state() != RgbBackendHealth.State.DEAD ) {
-            Logger.logDebug( "RGB: same backend type already running ("
-                                     + safeName( backend ) + ") — no-op restart." );
+        // Filter NoOps — they're never worth a slot. The single-backend
+        // overload uses them as a sentinel, so callers can pass one
+        // without meaning "spin up an empty no-op session".
+        List< RgbBackend > real = new ArrayList<>( requested.size() );
+        for ( RgbBackend b : requested ) {
+            if ( b != null && !( b instanceof NoOpBackend ) ) real.add( b );
+        }
+
+        // Already running this exact set of backend TYPES with every
+        // existing slot still HEALTHY/DEGRADED — leave it alone.
+        // RgbBackendRegistry creates fresh instances every resolve, so
+        // a "restart with the same set" from a Settings UI listener
+        // that fired spuriously would otherwise tear down a perfectly
+        // healthy session and reopen each one. Vendor SDKs (notably
+        // Razer Synapse) don't tolerate rapid session churn, so this
+        // is defense in depth on top of the Settings UI's idempotent
+        // listeners.
+        if ( running && sameTypesAndAllHealthy( real ) ) {
+            Logger.logDebug( "RGB: same backend set already running ("
+                                     + describeSlots() + ") — no-op restart." );
             return;
         }
 
         if ( running ) {
-            stopWorkerAndShutdownBackend();
+            stopWorkerAndShutdownSlots();
         }
 
-        // Probe before we commit. A failing probe routes to NoOp without
-        // ever spinning up the worker thread.
-        boolean available;
-        try {
-            available = backend.isAvailable();
-        }
-        catch ( Throwable t ) {
-            Logger.logWarningSilent( "RGB backend " + safeName( backend )
-                                             + " isAvailable() threw — falling back to NoOp", t );
-            available = false;
+        slots.clear();
+
+        // Probe + start each backend independently. One failing doesn't
+        // stop the rest.
+        for ( RgbBackend backend : real ) {
+            boolean available;
+            try {
+                available = backend.isAvailable();
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "RGB backend " + safeName( backend )
+                                                 + " isAvailable() threw — skipping", t );
+                continue;
+            }
+            if ( !available ) {
+                Logger.logDebug( "RGB backend " + safeName( backend )
+                                         + " not available on this system; skipping." );
+                continue;
+            }
+
+            try {
+                backend.start();
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "RGB backend " + safeName( backend )
+                                                 + " start() threw — skipping", t );
+                continue;
+            }
+
+            slots.add( new BackendSlot( backend ) );
         }
 
-        if ( !available ) {
-            Logger.logDebug( "RGB backend " + safeName( backend )
-                                     + " not available on this system; using NoOp." );
-            activeBackend = new NoOpBackend();
-            health = new RgbBackendHealth();
+        if ( slots.isEmpty() ) {
+            Logger.logDebug( "RGB subsystem: no backends started — controller idle." );
+            running = false;
             return;
         }
 
-        // Probe passed — try to start the real backend.
-        try {
-            backend.start();
-        }
-        catch ( Throwable t ) {
-            Logger.logWarningSilent( "RGB backend " + safeName( backend )
-                                             + " start() threw — falling back to NoOp", t );
-            activeBackend = new NoOpBackend();
-            health = new RgbBackendHealth();
-            return;
-        }
-
-        activeBackend = backend;
-        health = new RgbBackendHealth();
         running = true;
         worker = new Thread( this::workerLoop, "mica-rgb" );
         worker.setDaemon( true );
         worker.start();
-        Logger.logStd( "RGB subsystem started on backend: " + safeName( backend ) );
+        Logger.logStd( "RGB subsystem started on backend(s): " + describeSlots() );
     }
 
     /**
-     * Stop the subsystem and release the active backend's resources.
+     * Stop the subsystem and release every active backend's resources.
      * Idempotent. Safe to call from any thread including shutdown hooks.
      */
     public synchronized void stop()
@@ -212,16 +264,15 @@ public final class RgbController
             effectEngine.shutdown();
             effectEngine = null;
         }
-        stopWorkerAndShutdownBackend();
-        activeBackend = new NoOpBackend();
-        health = new RgbBackendHealth();
+        stopWorkerAndShutdownSlots();
+        slots.clear();
     }
 
     /**
-     * Push a frame for the active backend to render. Non-blocking — if
-     * the queue is full (worker stalled on a slow SDK call) the frame
-     * is dropped silently. Returns immediately on every thread including
-     * the FX thread.
+     * Push a frame for the active backends to render. Non-blocking —
+     * if the queue is full (worker stalled on a slow SDK call) the
+     * frame is dropped silently. Returns immediately on every thread
+     * including the FX thread.
      */
     public void submitFrame( RgbFrame frame )
     {
@@ -273,16 +324,57 @@ public final class RgbController
         return eng == null ? null : eng.activeEffect();
     }
 
+    /**
+     * Per-backend snapshot for the Settings status chip and any
+     * future telemetry. {@code name} is the backend's
+     * {@link RgbBackend#name()} string, {@code health} is the circuit
+     * breaker state, and {@code consecutiveFailures} is the current
+     * failure run length (useful for "Degraded (3 errors)" displays).
+     */
+    public record BackendStatus( String name, RgbBackendHealth.State health,
+                                 int consecutiveFailures ) {}
+
     /** Snapshot of subsystem state for the Settings status chip. Safe
-     *  from any thread. */
-    public Status status()
+     *  from any thread. {@code backends} is in dispatch order; the
+     *  first entry is the "primary" displayed in compact status
+     *  surfaces. Empty when nothing is running. */
+    public record Status( List< BackendStatus > backends, boolean running )
     {
-        return new Status( safeName( activeBackend ), health.state(),
-                            health.consecutiveFailures(), running );
+        /** Convenience accessor for legacy chip code that only renders
+         *  one backend. Returns {@code "None"} when empty. */
+        public String primaryName()
+        {
+            return backends.isEmpty() ? "None" : backends.get( 0 ).name();
+        }
+
+        /** Worst health across all slots — HEALTHY > DEGRADED > DEAD.
+         *  Lets the chip show DEAD when any one backend is dead even if
+         *  others are fine, which is the right thing for "is everything
+         *  working" status. */
+        public RgbBackendHealth.State worstHealth()
+        {
+            RgbBackendHealth.State worst = RgbBackendHealth.State.HEALTHY;
+            for ( BackendStatus b : backends ) {
+                if ( b.health() == RgbBackendHealth.State.DEAD ) return RgbBackendHealth.State.DEAD;
+                if ( b.health() == RgbBackendHealth.State.DEGRADED ) worst = RgbBackendHealth.State.DEGRADED;
+            }
+            return worst;
+        }
     }
 
-    public record Status( String backendName, RgbBackendHealth.State health,
-                          int consecutiveFailures, boolean running ) {}
+    public Status status()
+    {
+        if ( slots.isEmpty() ) {
+            return new Status( List.of(), running );
+        }
+        List< BackendStatus > out = new ArrayList<>( slots.size() );
+        for ( BackendSlot slot : slots ) {
+            out.add( new BackendStatus( safeName( slot.backend ),
+                                        slot.health.state(),
+                                        slot.health.consecutiveFailures() ) );
+        }
+        return new Status( Collections.unmodifiableList( out ), running );
+    }
 
     // =========================================================================
     //  Worker
@@ -302,37 +394,56 @@ public final class RgbController
                 break;
             }
             if ( frame == null ) continue;
-            if ( !health.canCall( System.currentTimeMillis() ) ) continue;
 
-            safelyInvoke( "renderFrame", () -> activeBackend.renderFrame( frame ) );
+            long now = System.currentTimeMillis();
+            for ( BackendSlot slot : slots ) {
+                if ( !slot.health.canCall( now ) ) continue;
+                renderTo( slot, frame );
+            }
         }
         Logger.logDebug( "mica-rgb worker thread exiting." );
     }
 
-    /** Wrap a backend call. Catches Throwable (not just Exception) so
-     *  Errors like UnsatisfiedLinkError land in the circuit breaker
-     *  rather than killing the worker thread. */
+    /** Render the frame to a single slot under its own circuit
+     *  breaker. Failures are isolated to this slot — the iterator in
+     *  {@link #workerLoop} keeps going. */
+    private void renderTo( BackendSlot slot, RgbFrame frame )
+    {
+        try {
+            slot.backend.renderFrame( frame );
+            slot.health.recordSuccess();
+        }
+        catch ( Throwable t ) {
+            long now = System.currentTimeMillis();
+            slot.health.recordFailure( now );
+            RgbBackendHealth.State newState = slot.health.state();
+            Logger.logWarningSilent( "RGB renderFrame on " + safeName( slot.backend )
+                                             + " threw (health=" + newState + ", failures="
+                                             + slot.health.consecutiveFailures() + ")", t );
+            if ( newState == RgbBackendHealth.State.DEAD ) {
+                // Permanent for the rest of the session. Drop this slot
+                // so its siblings keep running unaffected.
+                Logger.logError( "RGB backend " + safeName( slot.backend )
+                                         + " marked DEAD after repeated failures — dropping from active set." );
+                safelyShutdown( slot.backend );
+                slots.remove( slot );
+                if ( slots.isEmpty() ) {
+                    Logger.logStd( "RGB: every active backend has failed — controller will idle." );
+                }
+            }
+        }
+    }
+
+    /** Wrap a generic shutdown / lifecycle call. Catches Throwable
+     *  (not just Exception) so Errors like UnsatisfiedLinkError don't
+     *  kill the launcher's overall shutdown sequence. */
     private void safelyInvoke( String op, BackendOp body )
     {
         try {
             body.run();
-            health.recordSuccess();
         }
         catch ( Throwable t ) {
-            long now = System.currentTimeMillis();
-            health.recordFailure( now );
-            RgbBackendHealth.State newState = health.state();
-            Logger.logWarningSilent( "RGB " + op + " on " + safeName( activeBackend )
-                                             + " threw (health=" + newState + ", failures="
-                                             + health.consecutiveFailures() + ")", t );
-            if ( newState == RgbBackendHealth.State.DEAD ) {
-                // Permanent for the rest of the session. Demote to NoOp so
-                // subsequent submitFrame calls don't bother the dead backend.
-                Logger.logError( "RGB backend " + safeName( activeBackend )
-                                         + " marked DEAD after repeated failures — falling back to NoOp." );
-                safelyShutdownActive();
-                activeBackend = new NoOpBackend();
-            }
+            Logger.logWarningSilent( "RGB " + op + " threw — ignoring", t );
         }
     }
 
@@ -342,7 +453,7 @@ public final class RgbController
         void run() throws Throwable;
     }
 
-    private void stopWorkerAndShutdownBackend()
+    private void stopWorkerAndShutdownSlots()
     {
         running = false;
         Thread w = worker;
@@ -352,20 +463,40 @@ public final class RgbController
             catch ( InterruptedException ie ) { Thread.currentThread().interrupt(); }
             worker = null;
         }
-        safelyShutdownActive();
+        for ( BackendSlot slot : slots ) {
+            safelyShutdown( slot.backend );
+        }
         frameQueue.clear();
     }
 
-    private void safelyShutdownActive()
+    private void safelyShutdown( RgbBackend backend )
     {
-        try { activeBackend.shutdown(); }
-        catch ( Throwable t ) {
-            // Backends' shutdown should never throw, but if a vendor SDK
-            // produces an Error during teardown we don't want it to mask
-            // the actual launcher shutdown sequence.
-            Logger.logWarningSilent( "RGB shutdown on " + safeName( activeBackend )
-                                             + " threw — ignoring", t );
+        safelyInvoke( "shutdown on " + safeName( backend ), backend::shutdown );
+    }
+
+    /** True when {@code requested} matches the current slot list 1:1
+     *  by backend class AND every existing slot is still
+     *  HEALTHY/DEGRADED (a DEAD slot needs replacing even if the
+     *  caller asked for the same type). Order matters — same set in a
+     *  different order counts as a change so the primary-display
+     *  ordering reflects the new request. */
+    private boolean sameTypesAndAllHealthy( List< RgbBackend > requested )
+    {
+        if ( requested.size() != slots.size() ) return false;
+        for ( int i = 0; i < requested.size(); i++ ) {
+            BackendSlot existing = slots.get( i );
+            if ( existing.backend.getClass() != requested.get( i ).getClass() ) return false;
+            if ( existing.health.state() == RgbBackendHealth.State.DEAD ) return false;
         }
+        return true;
+    }
+
+    private String describeSlots()
+    {
+        if ( slots.isEmpty() ) return "<none>";
+        List< String > names = new ArrayList<>( slots.size() );
+        for ( BackendSlot slot : slots ) names.add( safeName( slot.backend ) );
+        return String.join( ", ", names );
     }
 
     private static String safeName( RgbBackend b )
