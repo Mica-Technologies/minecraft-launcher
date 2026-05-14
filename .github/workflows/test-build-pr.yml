@@ -38,9 +38,50 @@ jobs:
           echo "revision=$REV" >> $GITHUB_OUTPUT
           echo "Resolved revision: $REV"
 
+  # Dedicated unit-test gate. The platform `package` builds further down
+  # already run tests as a side effect of the Maven `package` phase, but
+  # burying a test failure inside a 10-minute jpackage run makes it hard
+  # to spot at a glance in the PR check timeline. Running `mvn test` once
+  # here on Linux (the suite is JVM-only, no platform-sensitive cases yet)
+  # surfaces failures distinctly within seconds, and the platform builds
+  # `needs:` this job so they skip on test failure instead of burning four
+  # full runner allotments rebuilding for an outcome that's already known.
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 26 (Zulu FX)
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '26'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      - name: Run unit tests
+        run: mvn -B test --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
+
+      # Surfaces JUnit XML output as a downloadable artifact on test
+      # failures — quicker than scrolling through the raw log when a
+      # specific assertion failed. surefire-reports/ is created even
+      # when tests pass; the if-no-files-found:warn keeps a successful
+      # run from spuriously failing this step.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: surefire-reports-pr${{ github.event.pull_request.number }}
+          path: build/target/surefire-reports/
+          retention-days: 14
+          if-no-files-found: warn
+
   build-windows:
     name: Test Build (Windows)
-    needs: prepare
+    needs: [prepare, unit-tests]
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -92,7 +133,7 @@ jobs:
 
   build-macos-arm:
     name: Test Build (macOS arm64)
-    needs: prepare
+    needs: [prepare, unit-tests]
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -143,7 +184,7 @@ jobs:
   # until GitHub fully drops x86_64 macOS support in Fall 2027.
   build-macos-intel:
     name: Test Build (macOS x64 Intel)
-    needs: prepare
+    needs: [prepare, unit-tests]
     runs-on: macos-15-intel
     steps:
       - name: Checkout code
@@ -184,7 +225,7 @@ jobs:
 
   build-linux:
     name: Test Build (Linux)
-    needs: prepare
+    needs: [prepare, unit-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
