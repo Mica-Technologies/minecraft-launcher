@@ -145,6 +145,7 @@
                       prefHeight="32.0" prefWidth="320.0" HBox.hgrow="SOMETIMES"
                       styleClass="no-floating-label"/>
         <MFXButton fx:id="urlAddBtn" prefHeight="32.0" prefWidth="120.0" text="%browse.bottomBar.urlAddBtn"/>
+        <MFXButton fx:id="importZipBtn" prefHeight="32.0" prefWidth="130.0" text="%browse.bottomBar.importZipBtn"/>
 
         <Pane HBox.hgrow="ALWAYS"/>
 
