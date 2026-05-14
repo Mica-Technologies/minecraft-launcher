@@ -84,14 +84,16 @@ public final class ModpackImportClassifier
             "^https?://(?:www\\.)?curseforge\\.com/minecraft/modpacks/([A-Za-z0-9_-]+)(?:/(?:files|download)/(\\d+))?/?(?:\\?.*)?$",
             Pattern.CASE_INSENSITIVE );
 
-    /** Technic project URL: {@code https://www.technicpack.net/modpack/<slug>}
-     *  optionally followed by an extra path segment like {@code /mods} that
-     *  the Technic site uses for tabbed views. The slug typically has a
-     *  numeric suffix appended for SEO (e.g. {@code tekkit.552560}); the
-     *  Technic Solder API at {@code api.technicpack.net/modpack/<slug>}
-     *  accepts that full form. */
+    /** Technic project URL: matches the website form
+     *  {@code https://www.technicpack.net/modpack/<slug>} (optionally with
+     *  an extra path segment like {@code /mods} for the site's tabbed views)
+     *  AND the Platform API form {@code https://api.technicpack.net/modpack/<slug>}.
+     *  Both route through the same handler; the handler always opens the
+     *  website variant in the user's browser regardless of which form they
+     *  pasted, since the API URL just returns JSON. The slug typically has
+     *  a numeric suffix appended for SEO (e.g. {@code tekkit.552560}). */
     private static final Pattern TECHNIC_URL = Pattern.compile(
-            "^https?://(?:www\\.)?technicpack\\.net/modpack/([A-Za-z0-9._-]+)(?:/[A-Za-z0-9._-]+)?/?(?:\\?.*)?$",
+            "^https?://(?:www\\.|api\\.)?technicpack\\.net/modpack/([A-Za-z0-9._-]+)(?:/[A-Za-z0-9._-]+)?/?(?:\\?.*)?$",
             Pattern.CASE_INSENSITIVE );
 
     /** Mica-format manifest URL — anything that ends in {@code .json} on an

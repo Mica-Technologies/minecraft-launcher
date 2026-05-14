@@ -348,7 +348,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 }
                 case TECHNIC -> {
                     urlAddBtn.setText( LocalizationManager.get( "browse.urlAdd.checking" ) );
-                    handleTechnicImport( c.slug(), urlAddDefaultText );
+                    handleTechnicImport( url, c.slug(), urlAddDefaultText );
                 }
                 default -> {
                     // MICA / UNKNOWN — existing path. UNKNOWN falls through to
@@ -768,87 +768,45 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Technic counterpart. Fetches the Technic Solder API's project summary
-     * for the slug, shows a preview dialog with the project's display name +
-     * recommended build, and — on confirm — translates the recommended build's
-     * mod list into a Mica manifest via {@link com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter#importBuild}.
+     * Technic counterpart. Mirrors {@link #handleCurseForgeImport}: the
+     * Technic Platform API ({@code api.technicpack.net}) gates anonymous
+     * clients with a 401 (their edge bot protection is strict), and we
+     * don't want to ship a User-Agent that impersonates the official
+     * Technic Launcher. So we recognize Technic URLs, surface a clear
+     * "we can't auto-import this" message, and offer to open the
+     * project page in the user's browser instead.
      *
-     * <p>Build selection is intentionally limited to "recommended" for v1: most
-     * Technic packs only ever publish a handful of builds and the recommended
-     * one is what shows up first on the project page. A future enhancement
-     * could surface a build picker if users routinely want a specific older
-     * build (legacy 1.5/1.6 packs sometimes have a "last working" build that
-     * isn't recommended).</p>
+     * <p>If a future iteration wires up Solder API support (per-pack
+     * author-hosted endpoints with no edge gating) or a user-supplied
+     * Technic Platform API key, this handler is the place to swap out
+     * the dialog for the real import flow.</p>
      */
-    private void handleTechnicImport( String slug, String urlAddDefaultText )
+    private void handleTechnicImport( String originalUrl, String slug, String urlAddDefaultText )
     {
         SystemUtilities.spawnNewTask( () -> {
-            com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter.ProjectSummary summary
-                    = com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter
-                            .fetchSummary( slug );
             GUIUtilities.JFXPlatformRun( () -> resetUrlControls( urlAddDefaultText ) );
 
-            if ( summary == null ) {
-                NotificationManager.error(
-                        "Couldn't reach Technic",
-                        "The launcher recognized your URL as a Technic modpack but "
-                                + "couldn't load details for it. Check your connection and try again, "
-                                + "or paste a Mica manifest URL instead." );
-                return;
-            }
-
-            String build = summary.recommended() != null && !summary.recommended().isBlank()
-                    ? summary.recommended() : summary.latest();
-            if ( build == null || build.isBlank() ) {
-                NotificationManager.error(
-                        "No build available",
-                        "Technic returned no recommended or latest build for this pack. "
-                                + "It may have been unpublished, or it has no builds yet." );
-                return;
-            }
-
-            String preview = buildTechnicPreview( summary, build );
+            String preview = buildTechnicPreview( originalUrl, slug );
             int choice = GUIUtilities.showQuestionMessageMultiline(
-                    "Import from Technic?",
                     "Technic modpack detected",
+                    "Direct import isn't available yet",
                     preview,
-                    "Continue",
+                    "Open Technic page",
                     "Cancel",
                     stage );
-            if ( choice != 1 ) return;
-
-            String packTitle = summary.displayName() != null ? summary.displayName() : slug;
-            Logger.logStd( "Technic import: user confirmed preview for slug=" + slug
-                                   + " build=\"" + build + "\" title=\"" + packTitle + "\"" );
-            beginImport( packTitle );
-            try {
-                updateImportStatus( "Translating Technic build manifest…" );
-                String manifestUrl = com.micatechnologies.minecraft.launcher.game.modpack.import_
-                        .TechnicImporter.importBuild( summary, build );
-                Logger.logStd( "Technic import: installModPackByURL returned for " + manifestUrl );
-                GUIUtilities.JFXPlatformRun( () -> NotificationManager.success(
-                        "Import complete",
-                        "The pack is now in your library. Note that Technic packs sometimes "
-                                + "ship their own loader bundled inside — if launch fails with a "
-                                + "missing-Forge error, edit the modpack manifest to point at the "
-                                + "correct loader installer." ) );
-            }
-            catch ( com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter.ImportException ie ) {
-                Logger.logWarningSilent( "Technic import failed: " + ie.getMessage() );
-                NotificationManager.error( LocalizationManager.get( "notification.import.failed.title" ),
-                                            ie.getMessage() );
-            }
-            catch ( Throwable t ) {
-                Logger.logErrorSilent( "Technic import unexpected failure: " + t.getMessage() );
-                Logger.logThrowable( t );
-                NotificationManager.error(
-                        "Import failed",
-                        "An unexpected error occurred while importing the Technic pack. "
-                                + "Check the launcher log for details." );
-            }
-            finally {
-                Logger.logStd( "Technic import: flow ended for slug=" + slug );
-                endImport();
+            if ( choice == 1 ) {
+                // The classifier matches both technicpack.net (the website)
+                // and api.technicpack.net (the platform API). Always send
+                // the user to the website form — opening the API URL in a
+                // browser would dump JSON, not a usable page.
+                String websiteUrl = "https://www.technicpack.net/modpack/"
+                        + ( slug != null ? slug : "" );
+                try {
+                    java.awt.Desktop.getDesktop().browse( java.net.URI.create( websiteUrl ) );
+                }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( "Could not open Technic URL: " + t.getMessage() );
+                }
             }
         } );
     }
@@ -921,39 +879,31 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         return sb.toString();
     }
 
-    /** Renders the Technic project summary as preview text. Surfaces the
-     *  build we'll actually import (recommended → latest fallback) plus a
-     *  loader-bundling caveat so the user isn't surprised if the imported
-     *  manifest needs hand-editing for a non-Forge legacy pack. */
-    private String buildTechnicPreview(
-            com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter.ProjectSummary s,
-            String build )
+    /** Technic preview text. Similar to the CurseForge variant — we can't
+     *  fetch project metadata without either an API key or impersonating
+     *  the official Technic Launcher, neither of which this launcher is
+     *  willing to do, so the dialog is informational + a one-click out to
+     *  the project page on technicpack.net. */
+    private String buildTechnicPreview( String originalUrl, String slug )
     {
         StringBuilder sb = new StringBuilder();
-        sb.append( s.displayName() != null && !s.displayName().isBlank()
-                           ? s.displayName() : s.slug() ).append( '\n' );
-        if ( s.description() != null && !s.description().isBlank() ) {
-            sb.append( '\n' ).append( s.description().trim() ).append( '\n' );
-        }
-        sb.append( "\nSource: Technic" );
-        if ( s.slug() != null ) sb.append( " (" ).append( s.slug() ).append( ")" );
+        sb.append( "Detected a Technic modpack URL." ).append( '\n' );
         sb.append( '\n' );
-        sb.append( "Build: " ).append( build );
-        if ( s.recommended() != null && s.recommended().equals( build ) ) {
-            sb.append( " (recommended)" );
-        }
-        else if ( s.latest() != null && s.latest().equals( build ) ) {
-            sb.append( " (latest)" );
-        }
+        sb.append( "Source: Technic" );
+        if ( slug != null ) sb.append( " (" ).append( slug ).append( ")" );
         sb.append( '\n' );
-        if ( s.builds() != null && !s.builds().isEmpty() ) {
-            sb.append( "Total builds available: " ).append( s.builds().size() ).append( '\n' );
-        }
         sb.append( '\n' );
-        sb.append( "Note: Technic packs often bundle their own mod loader. The import "
-                          + "defaults to Forge — if the pack ships with a different loader "
-                          + "(common for Minecraft 1.5/1.6-era packs), edit the imported "
-                          + "manifest to point at the correct loader installer after import." );
+        sb.append( "Technic's API requires an authenticated client for programmatic "
+                          + "access, so this launcher can't import packs directly from "
+                          + "the Technic Platform yet. The workaround:" );
+        sb.append( '\n' ).append( '\n' );
+        sb.append( "1. Open the project page below.\n" );
+        sb.append( "2. Look for the \"Server Download\" link on the pack's page and "
+                          + "download the server ZIP.\n" );
+        sb.append( "3. Back in this launcher, click \"Import ZIP\" on the browse screen "
+                          + "and pick the downloaded ZIP. The launcher will recognize "
+                          + "the Technic server-pack format and set it up for you." );
+        sb.append( '\n' ).append( '\n' ).append( "URL: " ).append( originalUrl );
         return sb.toString();
     }
 
