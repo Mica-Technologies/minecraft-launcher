@@ -92,7 +92,7 @@
              Launcher", so repeating the app name inside the navbar was redundant. The
              screen name reads more like a section header pattern (cf. Win11 Settings'
              sidebar / page-title layout) and gives the navbar a clearer purpose. -->
-        <Label text="Library" styleClass="navBrand"/>
+        <Label text="%main.navbar.library" styleClass="navBrand"/>
 
         <!-- Spacer pushes everything else to the right -->
         <Pane HBox.hgrow="ALWAYS"/>
@@ -111,8 +111,8 @@
              the wordmark area above now uses "Library" as the screen-name header
              for the main menu itself — "Browse" reads better as the verb for going
              out to find more packs to add to that library. -->
-        <MFXButton fx:id="libraryBtn" text="Browse" prefHeight="28.0"/>
-        <MFXButton fx:id="settingsBtn" text="Settings" prefHeight="28.0"/>
+        <MFXButton fx:id="libraryBtn" text="%main.navbar.browse" prefHeight="28.0"/>
+        <MFXButton fx:id="settingsBtn" text="%main.navbar.settings" prefHeight="28.0"/>
 
         <!-- Update available icon. Inline SVG (download-arrow over a tray bar) instead of
              a PNG file so it's theme-coloured via -fx-fill: -color-primary and never breaks
@@ -134,7 +134,7 @@
                    pickOnBounds="true" preserveRatio="true">
             <Image url="@../no_user.png"/>
         </ImageView>
-        <Label fx:id="playerLabel" text="Player"/>
+        <Label fx:id="playerLabel" text="%main.navbar.player"/>
     </HBox>
 
     <!-- Row 2: Filter / search row. Label prefixes (Search / Type / Sort) rather
@@ -144,16 +144,16 @@
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar" GridPane.rowIndex="2">
         <padding><Insets left="14.0" right="14.0"/></padding>
 
-        <Label text="Search:" styleClass="muted"/>
+        <Label text="%main.filter.searchLabel" styleClass="muted"/>
         <MFXTextField fx:id="searchField" promptText="Name…" minWidth="180.0" prefWidth="220.0"
                       minHeight="32.0" prefHeight="32.0" maxHeight="32.0"
                       styleClass="no-floating-label"/>
 
-        <Label text="Type:" styleClass="muted"/>
+        <Label text="%main.filter.typeLabel" styleClass="muted"/>
         <MFXComboBox fx:id="typeFilter" minWidth="120.0" prefWidth="130.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
 
-        <Label text="Sort:" styleClass="muted"/>
+        <Label text="%main.filter.sortLabel" styleClass="muted"/>
         <MFXComboBox fx:id="sortFilter" minWidth="150.0" prefWidth="170.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
 
@@ -162,7 +162,7 @@
              the ones with new manifest content. Phrased "Recently updated" to
              match the same terminology the Library screen uses on its badges. -->
         <Pane HBox.hgrow="ALWAYS" minWidth="10.0"/>
-        <MFXCheckbox fx:id="recentlyUpdatedOnlyCheck" text="Recently updated only"/>
+        <MFXCheckbox fx:id="recentlyUpdatedOnlyCheck" text="%main.filter.recentlyUpdatedOnly"/>
     </HBox>
 
     <!-- Row 3: Pagination bar — matches the Game Library screen's layout so the
@@ -172,11 +172,11 @@
         <padding><Insets left="20.0" right="20.0"/></padding>
         <Label fx:id="paginationRangeLabel" text="" styleClass="muted"/>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="70.0" text="◀ Prev"/>
+        <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.prev"/>
         <Label fx:id="paginationPageLabel" text="Page 1 of 1" styleClass="muted"/>
-        <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="Next ▶"/>
+        <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.next"/>
         <Pane HBox.hgrow="SOMETIMES" minWidth="20.0"/>
-        <Label text="Per page:" styleClass="muted"/>
+        <Label text="%main.pagination.perPageLabel" styleClass="muted"/>
         <MFXComboBox fx:id="pageSizeFilter" minWidth="80.0" prefWidth="80.0"
                      minHeight="28.0" prefHeight="28.0" maxHeight="28.0"/>
     </HBox>
@@ -197,8 +197,8 @@
     <!-- Row 5: Bottom status bar -->
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="5">
         <padding><Insets left="14.0" right="14.0"/></padding>
-        <Label fx:id="versionLabel" text="Mica Launcher"/>
-        <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false" styleClass="chip-offline">
+        <Label fx:id="versionLabel" text="%main.bottomBar.versionLabel"/>
+        <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false" styleClass="chip-offline">
             <font><Font size="11.0"/></font>
         </Label>
         <!-- Background-fetch indicator. Visible while the available-modpacks fetch
@@ -207,11 +207,11 @@
              that future completes. Lets the main menu render immediately without
              waiting for the available-packs network call, but still signals to the
              user that the Library screen will catch up shortly. -->
-        <Label fx:id="backgroundFetchLabel" text="Loading available packs…"
+        <Label fx:id="backgroundFetchLabel" text="%main.fetchLabel.loading"
                managed="false" visible="false" styleClass="muted">
             <font><Font size="11.0"/></font>
         </Label>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="exitBtn" text="Exit" prefHeight="26.0"/>
+        <MFXButton fx:id="exitBtn" text="%main.navbar.exit" prefHeight="26.0"/>
     </HBox>
 </GridPane>
