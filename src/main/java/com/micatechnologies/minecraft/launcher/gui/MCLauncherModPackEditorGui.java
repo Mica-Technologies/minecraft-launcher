@@ -104,6 +104,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @FXML javafx.scene.control.Label packModLoaderHint;
     @FXML MFXTextField packForgeURLField;
     @FXML MFXTextField packForgeHashField;
+    @FXML MFXTextField packMinecraftVersionField;
     @FXML MFXTextField packLogoURLField;
     @FXML MFXTextField packLogoSha1Field;
     @FXML MFXTextField packBgURLField;
@@ -426,6 +427,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE );
         workingDocument.addProperty( "packModLoaderURL", "" );
         workingDocument.addProperty( "packModLoaderHash", "" );
+        workingDocument.addProperty( "packMinecraftVersion", "" );
         workingDocument.add( "packScanExclusions", new JsonArray() );
         workingDocument.add( "packMods", new JsonArray() );
         workingDocument.add( "packConfigs", new JsonArray() );
@@ -1473,6 +1475,14 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         }
         packForgeURLField.setText( storedUrl == null ? "" : storedUrl );
         packForgeHashField.setText( storedHash == null ? "" : storedHash );
+        // Informational MC version — written by Technic-server import (and
+        // any future detect-from-installer flow), read back here so the
+        // user can see what was detected. The runtime ignores this field
+        // (derives MC version from the loader installer at launch time)
+        // but the editor shows + persists it for human inspection.
+        if ( packMinecraftVersionField != null ) {
+            packMinecraftVersionField.setText( getDocString( "packMinecraftVersion" ) );
+        }
         packLogoURLField.setText( getDocString( "packLogoURL" ) );
         packLogoSha1Field.setText( getDocString( "packLogoSha1" ) );
         packBgURLField.setText( getDocString( "packBackgroundURL" ) );
@@ -1533,6 +1543,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 .equals( loaderType );
         workingDocument.addProperty( "packForgeURL", isForge ? packForgeURLField.getText() : "" );
         workingDocument.addProperty( "packForgeHash", isForge ? packForgeHashField.getText() : "" );
+        // Informational MC version field — round-trip through the
+        // manifest JSON. Runtime ignores it; only the editor surfaces it.
+        if ( packMinecraftVersionField != null ) {
+            workingDocument.addProperty( "packMinecraftVersion", packMinecraftVersionField.getText() );
+        }
         workingDocument.addProperty( "packLogoURL", packLogoURLField.getText() );
         workingDocument.addProperty( "packLogoSha1", packLogoSha1Field.getText() );
         workingDocument.addProperty( "packBackgroundURL", packBgURLField.getText() );
