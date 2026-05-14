@@ -861,11 +861,17 @@ class GameModPackLauncher
                 minecraftMainClass = loader.getMinecraftMainClass();
             }
             else {
-                // Server-mode main class is still Forge-specific —
-                // Fabric / NeoForge server entry points will be wired
-                // through the modloader interface in a follow-up
-                // commit (needs a getServerMainClass() addition).
-                minecraftMainClass = "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
+                // Server-mode main class: prefer the loader's
+                // getServerMainClass() (legacy Forge ships
+                // ServerLaunchWrapper, Fabric ships FabricServerLauncher);
+                // fall back to the client main when the loader doesn't
+                // have a distinct server entry (modern Forge / NeoForge
+                // use the same BootstrapLauncher class differentiated
+                // by --launchTarget args).
+                String serverMain = loader.getServerMainClass();
+                minecraftMainClass = serverMain != null
+                        ? serverMain
+                        : loader.getMinecraftMainClass();
             }
 
             // Build game arguments: combine vanilla game args with the

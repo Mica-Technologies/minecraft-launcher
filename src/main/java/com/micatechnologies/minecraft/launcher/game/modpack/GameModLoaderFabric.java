@@ -152,6 +152,20 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
     public String getMinecraftMainClass() { return minecraftMainClass; }
 
     /**
+     * Fabric's server side has its own bootstrap class —
+     * {@code KnotServer} via the {@code FabricServerLauncher} shim —
+     * distinct from the client's {@code KnotClient}. The Fabric meta
+     * service's server profile JSON would name this explicitly, but
+     * we only fetch the client profile; hardcoding the canonical
+     * server entry is safe across Fabric loader 0.13+ (the class
+     * hasn't moved in years).
+     */
+    @Override
+    public String getServerMainClass() {
+        return "net.fabricmc.loader.impl.launch.server.FabricServerLauncher";
+    }
+
+    /**
      * Build the Fabric portion of the classpath. Downloads each library
      * in {@link #librariesArray} via {@link GameAsset} (so hash
      * verification + retry logic comes for free), collects the local

@@ -274,6 +274,34 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     }
 
     /**
+     * Legacy Forge (1.7-1.12) ships a dedicated server bootstrap class
+     * — {@code net.minecraftforge.fml.relauncher.ServerLaunchWrapper}
+     * — that the client main ({@code net.minecraft.launchwrapper.Launch})
+     * doesn't double for. Modern Forge (1.13+) uses
+     * {@code cpw.mods.modlauncher.Launcher} or
+     * {@code cpw.mods.bootstraplauncher.BootstrapLauncher} for both
+     * sides, differentiated by {@code --launchTarget fmlclient} vs
+     * {@code forgeserver}; return null so the dispatcher reuses the
+     * client main and we let arg-construction do the rest.
+     *
+     * <p>NeoForge inherits this — its installer is always modern, so
+     * the {@code cpw.mods.*} branch fires and the default (null,
+     * meaning "use client main") is returned.</p>
+     */
+    @Override
+    public String getServerMainClass() {
+        if ( minecraftMainClass != null
+                && ( minecraftMainClass.startsWith( "cpw.mods.modlauncher" )
+                        || minecraftMainClass.startsWith( "cpw.mods.bootstraplauncher" ) ) ) {
+            // Modern Forge / NeoForge — client + server share the
+            // entry point; the dispatcher will reuse the client main.
+            return null;
+        }
+        // Legacy Forge 1.7-1.12 — distinct server class.
+        return "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
+    }
+
+    /**
      * Gets the {@link JarFile} for this Forge mod loader instance.
      *
      * @return Forge {@link JarFile}
