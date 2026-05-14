@@ -452,7 +452,10 @@ public class ManagedGameFile
      * (e.g. {@code jar:http://attacker/x.jar!/...}), and anything we fail to
      * parse — defaults closed so a parser surprise can't widen the rule.</p>
      */
-    private static boolean isJarUrlContainedInLauncher( String remote ) {
+    // Package-private (not private) so the unit test in the same package
+    // can exercise the gate directly. Inlined into downloadLocalFile via
+    // a static call so behavior is identical regardless of visibility.
+    static boolean isJarUrlContainedInLauncher( String remote ) {
         if ( remote == null || !remote.startsWith( "jar:" ) ) {
             return false;
         }

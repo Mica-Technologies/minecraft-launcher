@@ -166,15 +166,33 @@ public final class RgbBackendRegistry
      */
     private static List< RgbBackend > probeAutoEnabled()
     {
-        record Candidate( RgbBackend backend, boolean enabled ) {}
-        Candidate[] candidates = {
+        List< Candidate > candidates = List.of(
                 new Candidate( new OpenRgbBackend(),                 ConfigManager.getRgbEnableOpenRgb() ),
                 new Candidate( new ChromaNativeBackend(),            ConfigManager.getRgbEnableChromaNative() ),
                 new Candidate( new WindowsDynamicLightingBackend(),  ConfigManager.getRgbEnableWindowsDl() ),
                 new Candidate( new ChromaRestBackend(),              ConfigManager.getRgbEnableChromaRest() )
-        };
+        );
+        return filterCandidates( candidates );
+    }
 
-        List< RgbBackend > selected = new ArrayList<>( candidates.length );
+    /** One enable-flag-paired backend candidate. Package-private so the
+     *  unit tests can build candidate lists from stub backends without
+     *  pulling in the real vendor SDK classes. */
+    record Candidate( RgbBackend backend, boolean enabled ) {}
+
+    /**
+     * Pure filter pass over {@code candidates}: keep the backend when
+     * its enable flag is true AND its {@code isAvailable()} succeeds.
+     * Order is preserved. {@code isAvailable()} throwing is treated
+     * the same as returning false (skip + log).
+     *
+     * <p>Package-private to give the unit tests a seam they can drive
+     * with stub backends instead of having to install real vendor SDKs
+     * on the test runner.</p>
+     */
+    static List< RgbBackend > filterCandidates( List< Candidate > candidates )
+    {
+        List< RgbBackend > selected = new ArrayList<>( candidates.size() );
         for ( Candidate cand : candidates ) {
             if ( !cand.enabled() ) {
                 Logger.logDebug( "RGB auto-probe: " + cand.backend().name()
