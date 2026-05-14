@@ -26,6 +26,7 @@ import java.nio.file.Path;
 
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
+import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
@@ -299,11 +300,21 @@ public class ManagedGameFile
             // swap on networks without TLS termination; file:// would let a malicious
             // manifest cause the launcher to copy arbitrary local files into the
             // modpack folder (where they'd later be loaded onto the classpath as
-            // "mods"). jar://, ftp://, gopher://, etc. similarly have no legitimate
-            // use case for mod downloads. Accept https only.
+            // "mods"). ftp://, gopher://, etc. similarly have no legitimate
+            // use case for mod downloads. Accept https plus the narrow jar:file:
+            // case — the Forge installer extraction pipeline synthesizes URLs of
+            // the form jar:file:/.../installs/<pack>/bin/modpack.jar!/maven/... to
+            // pull embedded Maven artifacts out of an already-hash-verified Forge
+            // installer JAR. Those URLs are constructed by trusted launcher code,
+            // not the modpack JSON, and the inner file path is restricted to the
+            // launcher's local data folder so a hostile manifest can't redirect it
+            // at arbitrary locations on disk.
             URL parsed = new URL( remote );
             String scheme = parsed.getProtocol();
-            if ( scheme == null || !scheme.equalsIgnoreCase( "https" ) ) {
+            boolean acceptHttps    = scheme != null && scheme.equalsIgnoreCase( "https" );
+            boolean acceptTrustedJar = scheme != null && scheme.equalsIgnoreCase( "jar" )
+                    && isJarUrlContainedInLauncher( remote );
+            if ( !acceptHttps && !acceptTrustedJar ) {
                 throw new ModpackException(
                         "Refusing managed file with non-https URL scheme: " + remote );
             }
@@ -422,6 +433,43 @@ public class ManagedGameFile
             Path prefix = Path.of( localPathPrefix ).toAbsolutePath().normalize();
             Path full = Path.of( getFullLocalFilePath() ).toAbsolutePath().normalize();
             return full.startsWith( prefix );
+        }
+        catch ( Exception e ) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns true when {@code remote} is a {@code jar:file:/<path>!/<entry>}
+     * URL whose inner file path canonicalizes to a location under the
+     * launcher's local data folder ({@link LocalPathManager#getLauncherLocalPath()}).
+     *
+     * <p>Lets the Forge installer extraction pipeline pull embedded Maven
+     * artifacts (e.g. {@code maven/net/minecraftforge/forge/.../forge-X.jar})
+     * out of a hash-verified {@code modpack.jar} living in
+     * {@code installs/<pack>/bin/}. Rejects anything pointing outside the
+     * launcher folder, anything with a non-{@code file:} inner URL
+     * (e.g. {@code jar:http://attacker/x.jar!/...}), and anything we fail to
+     * parse — defaults closed so a parser surprise can't widen the rule.</p>
+     */
+    private static boolean isJarUrlContainedInLauncher( String remote ) {
+        if ( remote == null || !remote.startsWith( "jar:" ) ) {
+            return false;
+        }
+        int bang = remote.indexOf( "!/" );
+        if ( bang < 0 ) {
+            return false;
+        }
+        try {
+            String innerSpec = remote.substring( "jar:".length(), bang );
+            URL innerUrl = new URL( innerSpec );
+            if ( !"file".equalsIgnoreCase( innerUrl.getProtocol() ) ) {
+                return false;
+            }
+            Path innerPath = Path.of( innerUrl.toURI() ).toAbsolutePath().normalize();
+            Path root = Path.of( LocalPathManager.getLauncherLocalPath() )
+                            .toAbsolutePath().normalize();
+            return innerPath.startsWith( root );
         }
         catch ( Exception e ) {
             return false;
