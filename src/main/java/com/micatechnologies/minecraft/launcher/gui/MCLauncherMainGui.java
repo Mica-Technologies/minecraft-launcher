@@ -258,6 +258,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // could differ if a refresh races with the click.
         if ( announcementClose != null ) {
             announcementClose.setCursor( Cursor.HAND );
+            TooltipManager.install( announcementClose, "Dismiss this announcement." );
             announcementClose.setOnMouseClicked( e -> {
                 String shown = announcement.getText();
                 if ( shown != null && !shown.isEmpty() ) {
