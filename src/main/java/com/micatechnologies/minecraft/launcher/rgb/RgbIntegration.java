@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
 import com.micatechnologies.minecraft.launcher.rgb.effects.InGameEffect;
+import com.micatechnologies.minecraft.launcher.rgb.effects.PulseEffect;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 
 import javafx.scene.paint.Color;
@@ -64,12 +65,91 @@ public final class RgbIntegration
             try {
                 RgbController.getInstance().start(
                         RgbBackendRegistry.resolveBackendsFromConfig() );
+                // Now that backends are up, paint the idle "menu" effect
+                // so devices don't sit dark on the main screen. No-op when
+                // the user has the menu effect toggle off in Settings —
+                // they keep darkness until a game launches.
+                applyMenuEffect( null );
             }
             catch ( Throwable t ) {
                 Logger.logWarningSilent( "RGB bootstrap threw — RGB will be disabled "
                                                  + "this session", t );
             }
         } );
+    }
+
+    /**
+     * Switch to the idle "menu" effect, with colors chosen based on
+     * context. Callers pass {@code null} when the user is in a generic
+     * launcher menu (use the active theme's accent), or a non-null
+     * {@link GameModPack} when the user is looking at that pack's
+     * detail modal (use the pack's sampled colors for an immersive
+     * "this is the modpack you're hovering" feel).
+     *
+     * <p>No-op when RGB is master-disabled or when the menu-effect
+     * toggle is off in Settings; in the latter case devices stay dark
+     * between game launches.</p>
+     */
+    public static void onMenu( GameModPack contextPack )
+    {
+        if ( !ConfigManager.getRgbEnable() ) return;
+        try {
+            applyMenuEffect( contextPack );
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "RGB onMenu threw — effect not applied", t );
+        }
+    }
+
+    /** Convenience overload for the generic-menu case (no specific
+     *  modpack in focus). */
+    public static void onMenu()
+    {
+        onMenu( null );
+    }
+
+    /** Compute the menu effect and push it to the controller. Internal
+     *  helper shared by {@link #bootstrap}, {@link #onMenu}, and
+     *  {@link #onPlayEnded} so they all produce the same effect when
+     *  the user has the menu-effect toggle on. */
+    private static void applyMenuEffect( GameModPack contextPack )
+    {
+        if ( !ConfigManager.getRgbMenuEffectEnable() ) {
+            // User opted out of the menu effect — keep devices dark
+            // between launches. Match the prior "stop effect" behaviour
+            // so the transition out of an in-game effect still paints
+            // a final black frame.
+            RgbController.getInstance().stopEffect();
+            return;
+        }
+
+        RgbColor accent;
+        String effectLabel;
+        if ( contextPack != null ) {
+            Color[] sampled = MCLauncherMainGui.sampleDominantPackColors( contextPack );
+            if ( sampled != null && sampled.length >= 1 && sampled[ 0 ] != null ) {
+                accent = fromFxColor( sampled[ 0 ] );
+                effectLabel = "Menu (" + contextPack.getFriendlyName() + ")";
+            }
+            else {
+                accent = ThemeAccentColors.accentForCurrentTheme();
+                effectLabel = "Menu (theme accent)";
+            }
+        }
+        else {
+            accent = ThemeAccentColors.accentForCurrentTheme();
+            effectLabel = "Menu (theme accent)";
+        }
+
+        // Breathe between the accent and a dim 35%-brightness version
+        // of itself. Period intentionally slow (4 s) so the effect reads
+        // as "idle, listening" rather than "something's about to happen"
+        // — InGameEffect is the static "we're playing now" look; the
+        // launching path doesn't currently use a separate fast pulse but
+        // could later.
+        RgbColor dim = RgbColor.blend( accent, RgbColor.BLACK, 0.65 );
+        PulseEffect effect = new PulseEffect( effectLabel, accent, dim, 4_000L );
+        RgbController.getInstance().setEffect( effect );
     }
 
     /**
@@ -150,15 +230,16 @@ public final class RgbIntegration
 
     /**
      * Called when the game process exits (or the launch is cancelled).
-     * Stops the active effect — engine pushes one final black frame,
-     * scheduler idles. The controller stays running so a subsequent
-     * launch is a cheap setEffect call rather than a full start.
+     * Drops the in-game effect and returns to the idle menu effect
+     * (or stops entirely when the user has the menu-effect toggle off).
+     * The controller stays running so a subsequent launch is a cheap
+     * setEffect call rather than a full start.
      */
     public static void onPlayEnded()
     {
         if ( !ConfigManager.getRgbEnable() ) return;
         try {
-            RgbController.getInstance().stopEffect();
+            applyMenuEffect( null );
         }
         catch ( Throwable t ) {
             Logger.logWarningSilent( "RGB onPlayEnded threw — ignoring", t );

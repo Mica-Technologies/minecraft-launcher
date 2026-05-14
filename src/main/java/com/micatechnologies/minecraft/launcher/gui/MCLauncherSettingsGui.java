@@ -320,6 +320,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableToggle;
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbBackendCombo;
     @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbStatusChip;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbMenuEffectToggle;
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbUsePackColorsToggle;
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbHighlightKeysToggle;
     @SuppressWarnings( "unused" ) @FXML MFXButton rgbTestBtn;
@@ -526,6 +527,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
                 ConfigManager.setTheme( themeSelection.getSelectedItem() );
                 MCLauncherGuiController.forceThemeRefresh();
+                // The menu RGB effect derives its accent from the active
+                // theme — repaint so the user's keyboard reflects the new
+                // theme immediately instead of waiting for the next idle
+                // tick / game-exit transition.
+                com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu();
             }
 
             // Store proxy settings
@@ -1245,6 +1251,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             } );
         }
 
+        if ( rgbMenuEffectToggle != null ) {
+            rgbMenuEffectToggle.setSelected( ConfigManager.getRgbMenuEffectEnable() );
+            rgbMenuEffectToggle.selectedProperty().addListener( ( obs, oldV, newV ) -> {
+                ConfigManager.setRgbMenuEffectEnable( newV );
+                // Repaint immediately so the user sees the effect of
+                // the toggle without having to leave/re-enter Settings.
+                com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu();
+            } );
+        }
+
         if ( rgbUsePackColorsToggle != null ) {
             rgbUsePackColorsToggle.setSelected( ConfigManager.getRgbUsePackColors() );
             rgbUsePackColorsToggle.selectedProperty().addListener(
@@ -1428,10 +1444,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         } );
     }
 
-    /** Flashes the launcher's accent color on every connected device
+    /** Flashes solid magenta (255, 0, 255) on every connected device
      *  for ~2 seconds, then restores whatever effect was active. Lets
      *  the user confirm the backend is reaching their keyboard before
-     *  relying on it during a launch. */
+     *  relying on it during a launch. Magenta is used (rather than the
+     *  theme accent) so the flash reads as a deliberate signal regardless
+     *  of which theme is active. */
     private void runRgbConnectionTest()
     {
         SystemUtilities.spawnNewTask( () -> {
