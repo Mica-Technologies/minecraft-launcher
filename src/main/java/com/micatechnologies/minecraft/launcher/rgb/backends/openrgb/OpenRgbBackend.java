@@ -86,10 +86,14 @@ public final class OpenRgbBackend implements RgbBackend
     private DataInputStream in;
     private OutputStream out;
 
-    /** Keyboards we successfully enumerated. One {@link Keyboard} per
-     *  matching device — renderFrame iterates and sends one UPDATELEDS
-     *  packet per entry. */
-    private final List< Keyboard > keyboards = new ArrayList<>();
+    /** Every connected RGB device. Keyboards carry a per-key map for
+     *  the in-game highlight effect; other devices (mice, mousemats,
+     *  fans, GPU shrouds, motherboard zones, light strips, etc.) get
+     *  {@code keyMap == null} and the background color across every LED.
+     *  Drawing all device types is what makes the launcher's "test
+     *  connection" actually light up a user's full RGB setup, not just
+     *  the keyboard. */
+    private final List< Device > devices = new ArrayList<>();
 
     @Override
     public String name() { return "OpenRGB"; }
@@ -145,7 +149,12 @@ public final class OpenRgbBackend implements RgbBackend
                 .order( java.nio.ByteOrder.LITTLE_ENDIAN )
                 .getInt();
 
-        // (3) For each controller, fetch its data and keep the keyboards.
+        // (3) For each controller, fetch its data and register every
+        // device — not just keyboards. Mice, mousemats, fan controllers,
+        // GPU shrouds, motherboard zones, light strips, everything
+        // OpenRGB exposes gets a {@link Device} entry. Keyboards
+        // additionally get a per-key LED-name map; other devices fall
+        // through to "paint all LEDs with the frame background".
         for ( int i = 0; i < controllerCount; i++ ) {
             OpenRgbProtocol.sendPacket( out, i,
                                          OpenRgbProtocol.PKT_REQUEST_CONTROLLER_DATA,
@@ -164,47 +173,63 @@ public final class OpenRgbBackend implements RgbBackend
                                                  + i + " data — skipping", t );
                 continue;
             }
-            if ( !data.isKeyboard() ) continue;
+            if ( data.ledCount() <= 0 ) continue; // no addressable LEDs — nothing to drive
 
-            // (4) Switch the keyboard to "custom" mode so UPDATELEDS
+            // (4) Switch the device to "custom" mode so UPDATELEDS
             // actually takes effect. Without this the server may keep
-            // running the device's last vendor mode (rainbow,
-            // breathing, etc.) and ignore our color pushes.
-            OpenRgbProtocol.sendPacket( out, i,
-                                         OpenRgbProtocol.PKT_RGBCONTROLLER_SETCUSTOMMODE,
-                                         null );
+            // running the device's last vendor mode (rainbow, breathing,
+            // etc.) and ignore our color pushes. Best-effort — some
+            // device types ignore SETCUSTOMMODE without an error reply.
+            try {
+                OpenRgbProtocol.sendPacket( out, i,
+                                             OpenRgbProtocol.PKT_RGBCONTROLLER_SETCUSTOMMODE,
+                                             null );
+            }
+            catch ( Throwable ignored ) { /* fall through — try renderFrame anyway */ }
 
-            Map< KeyboardKey, Integer > keyMap = buildLedNameKeyMap( data.ledNames() );
-            keyboards.add( new Keyboard( i, data.ledCount(), keyMap, data.name() ) );
-            Logger.logStd( "OpenRGB: registered keyboard #" + i + " — \""
-                                   + data.name() + "\" (" + data.ledCount() + " LEDs, "
-                                   + keyMap.size() + " mapped keys)" );
+            Map< KeyboardKey, Integer > keyMap = data.isKeyboard()
+                    ? buildLedNameKeyMap( data.ledNames() )
+                    : null;
+            devices.add( new Device( i, data.deviceType(), data.ledCount(), keyMap, data.name() ) );
+            Logger.logStd( "OpenRGB: registered " + deviceTypeName( data.deviceType() )
+                                   + " #" + i + " — \"" + data.name() + "\" ("
+                                   + data.ledCount() + " LEDs"
+                                   + ( keyMap != null ? ", " + keyMap.size() + " mapped keys" : "" )
+                                   + ")" );
         }
 
-        if ( keyboards.isEmpty() ) {
-            Logger.logStd( "OpenRGB: connected but no keyboards detected. "
-                                   + "Effects will run as no-ops until a keyboard appears." );
+        if ( devices.isEmpty() ) {
+            Logger.logStd( "OpenRGB: connected but no usable devices detected. "
+                                   + "Effects will run as no-ops until a device appears." );
         }
     }
 
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {
-        if ( keyboards.isEmpty() ) return; // nothing to drive
+        if ( devices.isEmpty() ) return; // nothing to drive
 
-        for ( Keyboard kb : keyboards ) {
-            int[] packed = new int[ kb.numLeds() ];
-            int bgPacked = frame.background().packRgb();
+        int bgPacked = frame.background().packRgb();
+        for ( Device dev : devices ) {
+            int[] packed = new int[ dev.numLeds() ];
             for ( int i = 0; i < packed.length; i++ ) {
                 packed[ i ] = bgPacked;
             }
-            for ( Map.Entry< KeyboardKey, RgbColor > e : frame.overrides().entrySet() ) {
-                Integer ledIdx = kb.keyMap().get( e.getKey() );
-                if ( ledIdx != null && ledIdx >= 0 && ledIdx < packed.length ) {
-                    packed[ ledIdx ] = e.getValue().packRgb();
+            // Keyboards get per-key overrides; other devices stay on the
+            // solid background fill. Mice / mousemats with multi-zone
+            // backlight could one day get a finer mapping, but for V1
+            // "paint everything matching the keyboard background" is the
+            // right approximation — same color everywhere reads as a
+            // single cohesive theme.
+            if ( dev.keyMap() != null ) {
+                for ( Map.Entry< KeyboardKey, RgbColor > e : frame.overrides().entrySet() ) {
+                    Integer ledIdx = dev.keyMap().get( e.getKey() );
+                    if ( ledIdx != null && ledIdx >= 0 && ledIdx < packed.length ) {
+                        packed[ ledIdx ] = e.getValue().packRgb();
+                    }
                 }
             }
-            OpenRgbProtocol.sendPacket( out, kb.deviceIndex(),
+            OpenRgbProtocol.sendPacket( out, dev.deviceIndex(),
                                          OpenRgbProtocol.PKT_RGBCONTROLLER_UPDATELEDS,
                                          OpenRgbProtocol.buildUpdateLedsBody( packed ) );
         }
@@ -213,16 +238,16 @@ public final class OpenRgbBackend implements RgbBackend
     @Override
     public void shutdown()
     {
-        // Paint one final black frame so the user's keyboard doesn't
-        // stay stuck on whatever colors the last effect was driving.
+        // Paint one final black frame across every device so nothing
+        // stays stuck on whatever colors the last effect was driving.
         // Best-effort — a broken socket here just means we close it
         // below without the final paint, which is fine. The zero-init
         // int[] is already "all black" — RGB packed value 0x000000.
         try {
-            if ( out != null && !keyboards.isEmpty() ) {
-                for ( Keyboard kb : keyboards ) {
-                    int[] packed = new int[ kb.numLeds() ];
-                    OpenRgbProtocol.sendPacket( out, kb.deviceIndex(),
+            if ( out != null && !devices.isEmpty() ) {
+                for ( Device dev : devices ) {
+                    int[] packed = new int[ dev.numLeds() ];
+                    OpenRgbProtocol.sendPacket( out, dev.deviceIndex(),
                                                  OpenRgbProtocol.PKT_RGBCONTROLLER_UPDATELEDS,
                                                  OpenRgbProtocol.buildUpdateLedsBody( packed ) );
                 }
@@ -233,15 +258,46 @@ public final class OpenRgbBackend implements RgbBackend
         socket = null;
         in = null;
         out = null;
-        keyboards.clear();
+        devices.clear();
     }
 
     // =========================================================================
-    //  Per-keyboard state
+    //  Per-device state
     // =========================================================================
 
-    private record Keyboard( int deviceIndex, int numLeds,
-                              Map< KeyboardKey, Integer > keyMap, String displayName ) {}
+    /** One row per device enumerated from the OpenRGB server.
+     *  {@code keyMap} is non-null for keyboards (drives per-key
+     *  overrides), null for everything else (mice / mousemats /
+     *  motherboard zones / fans / strips — paint background across
+     *  every LED). */
+    private record Device( int deviceIndex, int deviceType, int numLeds,
+                            Map< KeyboardKey, Integer > keyMap, String displayName ) {}
+
+    /** Human label for an OpenRGB device-type code — used in the
+     *  "registered ..." log line so the user can see what the launcher
+     *  enumerated. The codes come straight from the OpenRGB
+     *  server's RGBController.h enum; unknown values fall through to
+     *  a generic "device" label. */
+    private static String deviceTypeName( int type )
+    {
+        return switch ( type ) {
+            case 0  -> "motherboard";
+            case 1  -> "DRAM";
+            case 2  -> "GPU";
+            case 3  -> "cooler";
+            case 4  -> "LED strip";
+            case 5  -> "keyboard";
+            case 6  -> "mouse";
+            case 7  -> "mousemat";
+            case 8  -> "headset";
+            case 9  -> "headset stand";
+            case 10 -> "gamepad";
+            case 11 -> "light";
+            case 12 -> "speaker";
+            case 13 -> "virtual";
+            default -> "device (type=" + type + ")";
+        };
+    }
 
     /**
      * Builds an LED-name → {@link KeyboardKey} mapping for one device.

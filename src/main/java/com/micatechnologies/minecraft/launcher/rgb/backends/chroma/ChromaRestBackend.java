@@ -115,9 +115,12 @@ public final class ChromaRestBackend implements RgbBackend
                           .build();
 
         // Init payload describes the application to Synapse. The fields
-        // appear in Synapse's connected-apps list; "device_supported":
-        // ["keyboard"] tells the SDK to only allocate keyboard-relevant
-        // session capacity (not strictly required but reduces overhead).
+        // appear in Synapse's connected-apps list; "device_supported"
+        // tells the SDK which device categories we want session capacity
+        // for. We declare ALL Chroma device types so PC-case ARGB fans
+        // routed through Chromalink, plus any connected mice / mousepads
+        // / headsets / keypads, all light up alongside the keyboard.
+        // Devices the user doesn't own are silently ignored by the SDK.
         String initBody = """
                 {
                   "title": "Mica Minecraft Launcher",
@@ -126,7 +129,7 @@ public final class ChromaRestBackend implements RgbBackend
                     "name": "Mica Technologies",
                     "contact": "https://github.com/Mica-Technologies/minecraft-launcher"
                   },
-                  "device_supported": ["keyboard"],
+                  "device_supported": ["keyboard", "mouse", "mousepad", "headset", "keypad", "chromalink"],
                   "category": "application"
                 }
                 """;
@@ -160,15 +163,27 @@ public final class ChromaRestBackend implements RgbBackend
         heartbeatThread.start();
     }
 
+    /** Non-keyboard Chroma endpoints we push the background color to.
+     *  Each gets a CHROMA_STATIC effect so the entire device paints in
+     *  the same color as the keyboard background — fans, mice, ARGB
+     *  strips, headsets all react in sync with the launcher's effect.
+     *  Per-zone targeting on these devices is a future feature; V1
+     *  treats them as "follow the background." */
+    private static final String[] NON_KEYBOARD_ENDPOINTS = {
+            "/mouse", "/mousepad", "/headset", "/keypad", "/chromalink"
+    };
+
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {
         if ( sessionUri == null ) return;
 
-        // Build the 6×22 color grid from the frame. Start with the
-        // background fill, then overlay each per-key override the
-        // layout table knows how to address.
         int bgPacked = chromaPack( frame.background() );
+
+        // (1) Keyboard — full 6×22 grid with per-key highlights. This is
+        // the headline visual; failures here are surfaced to the
+        // controller's circuit breaker so the user gets feedback if the
+        // primary push stops working.
         int[][] grid = new int[ ChromaKeyboardLayout.ROWS ][ ChromaKeyboardLayout.COLS ];
         for ( int r = 0; r < ChromaKeyboardLayout.ROWS; r++ ) {
             int[] row = grid[ r ];
@@ -181,7 +196,35 @@ public final class ChromaRestBackend implements RgbBackend
             if ( coord == null ) continue; // key not in our Chroma layout — fall through
             grid[ coord[0] ][ coord[1] ] = chromaPack( e.getValue() );
         }
+        sendKeyboardCustom( grid );
 
+        // (2) Other Chroma devices — solid background. We don't bubble
+        // their failures up to the breaker because most users won't
+        // have every device type connected; a 4xx for "no device of
+        // this type" would otherwise pile on health failures and trip
+        // the breaker on a fully-working setup. Log silently per
+        // endpoint and move on.
+        for ( String endpoint : NON_KEYBOARD_ENDPOINTS ) {
+            try {
+                sendStatic( endpoint, bgPacked );
+            }
+            catch ( Throwable t ) {
+                // Most likely cause: that device type isn't connected.
+                // Silent log so debugging is possible without polluting
+                // the user-visible launcher log on a normal run.
+                Logger.logWarningSilent( "Chroma " + endpoint + " push failed: "
+                                                 + t.getClass().getSimpleName()
+                                                 + " — " + t.getMessage() );
+            }
+        }
+    }
+
+    /** Push the keyboard's CHROMA_CUSTOM matrix. Throws on non-200 so
+     *  the controller's circuit breaker records a failure — the
+     *  keyboard is the headline device and we want the user to know
+     *  if it's silently dropping frames. */
+    private void sendKeyboardCustom( int[][] grid ) throws Exception
+    {
         String body = buildKeyboardEffectBody( grid );
         HttpRequest req = HttpRequest.newBuilder( URI.create( sessionUri + "/keyboard" ) )
                 .timeout( HTTP_TIMEOUT )
@@ -192,6 +235,27 @@ public final class ChromaRestBackend implements RgbBackend
                                                  HttpResponse.BodyHandlers.discarding() );
         if ( resp.statusCode() != 200 ) {
             throw new IOException( "Chroma /keyboard returned HTTP " + resp.statusCode() );
+        }
+    }
+
+    /** Push a single CHROMA_STATIC frame to a device endpoint. Used
+     *  for mouse / mousepad / headset / keypad / chromalink — these
+     *  devices either don't have a meaningful per-LED layout for our
+     *  effects to target, or they're variable-shape (ARGB strips,
+     *  fan controllers via Chromalink), so a solid color matched to
+     *  the keyboard background is the right approximation for V1. */
+    private void sendStatic( String endpoint, int packedColor ) throws Exception
+    {
+        String body = "{\"effect\":\"CHROMA_STATIC\",\"param\":{\"color\":" + packedColor + "}}";
+        HttpRequest req = HttpRequest.newBuilder( URI.create( sessionUri + endpoint ) )
+                .timeout( HTTP_TIMEOUT )
+                .header( "Content-Type", "application/json" )
+                .PUT( HttpRequest.BodyPublishers.ofString( body ) )
+                .build();
+        HttpResponse< Void > resp = http.send( req,
+                                                 HttpResponse.BodyHandlers.discarding() );
+        if ( resp.statusCode() != 200 ) {
+            throw new IOException( "Chroma " + endpoint + " returned HTTP " + resp.statusCode() );
         }
     }
 
