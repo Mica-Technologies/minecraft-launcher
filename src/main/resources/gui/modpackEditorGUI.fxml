@@ -137,6 +137,8 @@
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
                     <MFXTextField fx:id="packForgeHashField" floatingText="Modloader SHA-1 (optional for Fabric)" maxWidth="500.0"
                                   prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
+                    <MFXTextField fx:id="packMinecraftVersionField" floatingText="Minecraft Version (informational — runtime derives from loader installer)" maxWidth="500.0"
+                                  prefWidth="500.0" minHeight="48.0" prefHeight="48.0"/>
 
                     <!-- Images -->
                     <Label text="%editor.section.images" style="-fx-font-weight: bold;">
