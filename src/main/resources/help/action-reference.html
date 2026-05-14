@@ -1,0 +1,67 @@
+<h1>Action Reference</h1>
+
+<p>Every modpack action in the launcher can be reached from at least one canonical
+surface, with a context-menu duplicate for fast access when you're already looking at
+a card. This page documents where each action lives so you don't have to hunt.</p>
+
+<h2>Canonical Surfaces</h2>
+
+<table class="settings-table">
+    <tr><th>Surface</th><th>What lives here</th></tr>
+    <tr>
+        <td>Main menu hero cards</td>
+        <td>Primary <strong>Play</strong> + <strong>Website</strong> buttons per pack.
+            Click-through opens the <a href="help://topic/MAIN_SCREEN">detail modal</a>.</td>
+    </tr>
+    <tr>
+        <td>Modpack Detail Modal</td>
+        <td>The richest per-pack surface: Quick Actions tiles
+            (Open Folder / Mods / Config / Screenshots / Resource Packs / Shaders /
+            Desktop Shortcut / Copy Invite Link / Export as ZIP), Stats, Update Log,
+            Worlds, Screenshots grid, Shader / Resource Packs lists, Crash History,
+            Advanced section (verify), and Play / Website action buttons.</td>
+    </tr>
+    <tr>
+        <td>Browse screen cards</td>
+        <td><strong>Install</strong> / <strong>Uninstall</strong> / <strong>Edit</strong>
+            depending on the entry's kind (modpack / vanilla / loader version).</td>
+    </tr>
+    <tr>
+        <td>Right-click context menu</td>
+        <td>Fast access to the common Quick Actions from any pack card without opening
+            the detail modal. Shares all the same handlers as the modal.</td>
+    </tr>
+    <tr>
+        <td>Settings</td>
+        <td>Launcher-wide preferences: account, game / runtime, appearance, advanced,
+            network, security, system, Discord, RGB, About.</td>
+    </tr>
+</table>
+
+<h2>Where to Find Each Action</h2>
+
+<table class="settings-table">
+    <tr><th>Action</th><th>Canonical surface</th><th>Also available via</th></tr>
+    <tr><td>Play modpack</td><td>Hero card Play button / Detail modal Play button</td><td>Right-click → (none — clicking the card plays implicitly through detail modal)</td></tr>
+    <tr><td>Open install folder</td><td>Detail modal Quick Actions</td><td>Right-click context menu</td></tr>
+    <tr><td>Open mods / config / screenshots / shaderpacks / resourcepacks</td><td>Detail modal Quick Actions</td><td>Right-click context menu</td></tr>
+    <tr><td>View worlds / screenshots / shader packs / resource packs / crash history</td><td>Detail modal corresponding section</td><td>—</td></tr>
+    <tr><td>Edit modpack manifest</td><td>Browse card Edit button</td><td>Right-click → Edit Pack…</td></tr>
+    <tr><td>Uninstall pack</td><td>Browse card Uninstall button</td><td>Right-click → Uninstall…</td></tr>
+    <tr><td>Create desktop shortcut</td><td>Detail modal Quick Actions</td><td>Right-click context menu</td></tr>
+    <tr><td>Copy Discord invite link</td><td>Detail modal Quick Actions</td><td>Right-click context menu</td></tr>
+    <tr><td>Export pack as ZIP</td><td>Detail modal Quick Actions</td><td>Right-click → Export as ZIP…</td></tr>
+    <tr><td>Verify pack files</td><td>Detail modal Advanced section</td><td>Settings → Security → Verify all game files (global variant)</td></tr>
+    <tr><td>Install vanilla / loader versions</td><td><a href="help://topic/BROWSE_LIBRARY">Browse</a></td><td>—</td></tr>
+    <tr><td>Switch Microsoft account</td><td>Settings → Account → Saved Accounts</td><td>Logout button (single-account workflow)</td></tr>
+    <tr><td>Change language</td><td>Settings → Appearance → Language</td><td>—</td></tr>
+    <tr><td>Adjust RAM / JVM flags</td><td>Settings → Game / Advanced</td><td>—</td></tr>
+</table>
+
+<div class="tip">
+    <div class="callout-title">Tip</div>
+    <p>Almost every per-pack action has a right-click context menu shortcut on the
+    pack's card. If you find yourself repeatedly clicking through the detail modal
+    just to reach the same folder, try right-clicking the card on the main menu —
+    the same items live one click away.</p>
+</div>

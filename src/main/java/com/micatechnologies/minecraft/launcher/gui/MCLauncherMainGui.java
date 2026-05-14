@@ -2377,6 +2377,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         MenuItem openConfig       = new MenuItem( "Open Config Folder" );
         MenuItem createShortcut   = new MenuItem( "Create Desktop Shortcut" );
         MenuItem copyInviteLink   = new MenuItem( "Copy Discord Invite Link" );
+        MenuItem editPack         = new MenuItem( "Edit Pack…" );
+        MenuItem exportPack       = new MenuItem( "Export as ZIP…" );
         MenuItem uninstall        = new MenuItem( "Uninstall…" );
 
         openFolder.setOnAction(       e -> openPackSubfolder( pack, "" ) );
@@ -2387,6 +2389,32 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         openConfig.setOnAction(       e -> openPackSubfolder( pack, "config" ) );
         createShortcut.setOnAction(   e -> createDesktopShortcut( pack ) );
         copyInviteLink.setOnAction(   e -> copyInviteLinkToClipboard( pack ) );
+        editPack.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+            try { MCLauncherGuiController.goToModPackEditorGui( pack ); }
+            catch ( IOException ex ) {
+                Logger.logError( "Unable to open modpack editor." );
+                Logger.logThrowable( ex );
+            }
+        } ) );
+        exportPack.setOnAction( e -> {
+            javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
+            chooser.setTitle( "Export Modpack" );
+            String safeName = pack.getPackName() == null ? "modpack" : pack.getPackName();
+            chooser.setInitialFileName( safeName + "-" + System.currentTimeMillis() + ".zip" );
+            chooser.getExtensionFilters().add(
+                    new javafx.stage.FileChooser.ExtensionFilter( "ZIP archive", "*.zip" ) );
+            File dest = chooser.showSaveDialog( owner );
+            if ( dest == null ) return;
+            com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.run(
+                    () -> com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter
+                            .exportToZip( pack, dest ),
+                    () -> NotificationManager.success( "Exported", "Saved to " + dest.getAbsolutePath() ),
+                    err -> NotificationManager.error( "Export failed", err.getMessage() ) );
+        } );
+        // Disable Export when there's no install folder (e.g. failed-load placeholder packs).
+        if ( pack.getPackRootFolder() == null ) {
+            exportPack.setDisable( true );
+        }
         uninstall.setOnAction( e -> MCLauncherGameLibraryGui.confirmAndUninstallModpack(
                 pack, pack.getFriendlyName(), owner,
                 showProgress, hideProgress, afterUninstall ) );
@@ -2408,6 +2436,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                 openScreenshots, openResourcePks, openShaderPacks,
                                 new SeparatorMenuItem(), openMods, openConfig,
                                 new SeparatorMenuItem(), createShortcut, copyInviteLink,
+                                new SeparatorMenuItem(), editPack, exportPack,
                                 new SeparatorMenuItem(), uninstall );
         return menu;
     }
