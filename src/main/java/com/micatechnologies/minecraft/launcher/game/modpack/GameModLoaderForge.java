@@ -957,18 +957,44 @@ class GameModLoaderForge extends ManagedGameFile
 
     private JsonObject getForgeVersionManifest() throws ModpackException {
         try ( JarFile forgeJarFile = getForgeJarFile() ) {
-            Enumeration< JarEntry > enumeration = forgeJarFile.entries();
-            while ( enumeration.hasMoreElements() ) {
-                JarEntry jarEntry = enumeration.nextElement();
-                if ( jarEntry.getName().equals( ForgeConstants.FORGE_JAR_VERSION_FILE_NAME ) ) {
-                    try ( InputStream inputStream = forgeJarFile.getInputStream( jarEntry );
-                          InputStreamReader inputStreamReader = new InputStreamReader( inputStream ) ) {
-                        return JSONUtilities.getGson().fromJson( inputStreamReader, JsonObject.class );
+            // Modern Forge (1.13+, plus some 1.12.x builds): version.json
+            // lives at the root of the installer jar with the full
+            // launcher-version manifest shape.
+            JarEntry versionEntry = forgeJarFile.getJarEntry( ForgeConstants.FORGE_JAR_VERSION_FILE_NAME );
+            if ( versionEntry != null ) {
+                try ( InputStream inputStream = forgeJarFile.getInputStream( versionEntry );
+                      InputStreamReader inputStreamReader = new InputStreamReader( inputStream ) ) {
+                    return JSONUtilities.getGson().fromJson( inputStreamReader, JsonObject.class );
+                }
+                catch ( IOException e ) {
+                    throw new ModpackException(
+                            LocalizationManager.UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT, e );
+                }
+            }
+
+            // Legacy Forge (1.7.10 through ~1.12.x early builds): no
+            // top-level version.json. The same metadata — id, mainClass,
+            // libraries, inheritsFrom, minecraftArguments — lives nested
+            // inside install_profile.json under "versionInfo" with the
+            // same field shape as the modern version.json. Returning that
+            // nested object lets every downstream caller of
+            // getForgeVersionManifest (libraries list, main-class read,
+            // arguments parse) work without branching on Forge era.
+            JarEntry profileEntry = forgeJarFile.getJarEntry( "install_profile.json" );
+            if ( profileEntry != null ) {
+                try ( InputStream is = forgeJarFile.getInputStream( profileEntry );
+                      InputStreamReader reader = new InputStreamReader( is ) ) {
+                    JsonObject installProfile = JSONUtilities.getGson().fromJson( reader, JsonObject.class );
+                    if ( installProfile != null && installProfile.has( "versionInfo" ) ) {
+                        com.google.gson.JsonElement versionInfo = installProfile.get( "versionInfo" );
+                        if ( versionInfo.isJsonObject() ) {
+                            return versionInfo.getAsJsonObject();
+                        }
                     }
-                    catch ( IOException e ) {
-                        throw new ModpackException(
-                                LocalizationManager.UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT, e );
-                    }
+                }
+                catch ( IOException e ) {
+                    throw new ModpackException(
+                            LocalizationManager.UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT, e );
                 }
             }
         }
