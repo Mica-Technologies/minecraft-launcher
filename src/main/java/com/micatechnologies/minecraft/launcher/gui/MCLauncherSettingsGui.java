@@ -209,6 +209,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     Label helpBtn;
 
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label offlineLabel;
+
     /**
      * Announcement banner row constraints.
      *
@@ -1689,6 +1693,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             helpBtn.setCursor( javafx.scene.Cursor.HAND );
             TooltipManager.install( helpBtn, "Open the help window for this screen." );
         }
+
+        OfflineIndicator.applyTo( offlineLabel );
 
         // Cross-platform shortcuts: Settings / Browse / Editor / Home / Help.
         KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );

@@ -15,6 +15,24 @@ check the launcher logs for error details.</p>
     <li>If a specific file consistently fails, its download URL may be broken. Report this to the modpack author.</li>
 </ul>
 
+<h2>Offline Indicator</h2>
+
+<p>A red <strong>Offline</strong> chip appears next to the help button on every main screen
+when the launcher detects no internet connectivity. While offline:</p>
+
+<ul>
+    <li>You can still launch any modpack whose files are already fully downloaded.</li>
+    <li>Installs, updates, and the version-picker dialogs in the Modpack Editor will fail or
+        show stale data.</li>
+    <li>The <a href="help://topic/BROWSE_LIBRARY">Browse</a> screen's available-packs and
+        loader-version filters will be empty until the network is back.</li>
+    <li>Authentication is unaffected as long as your existing token is still valid (cached
+        on disk between launches).</li>
+</ul>
+
+<p>The indicator refreshes when you navigate between screens, so once your network is
+working again, switching to another screen and back updates the chip.</p>
+
 <h2>Game Crashes</h2>
 
 <p>The game starts but crashes shortly after, or crashes during gameplay.</p>

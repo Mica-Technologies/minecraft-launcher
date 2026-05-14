@@ -325,10 +325,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         playerLabel.setText( MCLauncherAuthManager.getLoggedInUser().name() );
         versionLabel.setText( "Mica Launcher v" + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
 
-        if ( NetworkUtilities.isOffline() ) {
-            offlineLabel.setVisible( true );
-            offlineLabel.setManaged( true );
-        }
+        OfflineIndicator.applyTo( offlineLabel );
 
         // "Loading available packs…" indicator. Show only while the background available-
         // modpacks fetch (kicked off at startup, see
