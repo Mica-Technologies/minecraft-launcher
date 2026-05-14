@@ -69,6 +69,112 @@ public final class ModpackExporter
 {
     private ModpackExporter() { /* static-only */ }
 
+    /** Marker file embedded at the root of every Mica modpack export. The
+     *  import path uses its presence + the {@code format} field to confirm
+     *  a ZIP actually came from this launcher before extracting anything —
+     *  unrecognized ZIPs surface a clear "not a Mica modpack export" message
+     *  rather than scattering files into a half-formed pack folder. */
+    public static final String MARKER_FILENAME = "mica-export.json";
+
+    /** Pack manifest body embedded alongside the marker file. This is the
+     *  same JSON the launcher reads at install time, so the import path
+     *  can simply drop it into {@code imported-manifests/} and call
+     *  {@code installModPackByURL} — no re-derivation needed. */
+    public static final String MANIFEST_FILENAME = "manifest.json";
+
+    /** Current export marker version. Bumped from v1 (metadata-only) to
+     *  v2 when we started embedding the full pack manifest body in the
+     *  archive — import-by-ZIP requires v2+ so v1 ZIPs (no manifest)
+     *  produce a friendly upgrade-needed message rather than silently
+     *  failing later in the extract path. */
+    public static final String EXPORT_FORMAT_V2 = "mica-export-v2";
+
+    /**
+     * Which sharing mode makes sense for a given pack. Drives the
+     * smart-export UI: a pack installed from a remote URL can be
+     * shared by URL; a locally-imported pack whose mods are all
+     * fetched from HTTPS URLs can be shared as raw JSON; everything
+     * else (local-file-reference mods, no manifest body) needs the
+     * full ZIP roundtrip.
+     */
+    public enum ExportMode
+    {
+        /** Manifest URL is HTTP/S — recipient pastes the URL into Add by URL. */
+        SHARE_URL,
+        /** Manifest is local but every {@code packMods.remote} is an HTTP/S
+         *  URL, so the JSON alone is sufficient for the recipient to install. */
+        SHARE_MANIFEST_JSON,
+        /** Pack has local-file-reference mods (or no usable manifest) — full
+         *  archive needed. */
+        EXPORT_ZIP
+    }
+
+    /**
+     * Inspects {@code pack} and decides which export modes apply. Cheap —
+     * reads the manifest body from the on-disk cache, no network. Returns
+     * a non-null mode; callers can still offer the lower-tier modes
+     * (every pack supports EXPORT_ZIP, and SHARE_URL implies the JSON is
+     * also self-contained) but the returned value is the "best" / most
+     * lightweight mode available.
+     */
+    public static ExportMode classifyExport( GameModPack pack )
+    {
+        if ( pack == null ) return ExportMode.EXPORT_ZIP;
+        String url = pack.getManifestUrl();
+        if ( url != null && ( url.startsWith( "http://" ) || url.startsWith( "https://" ) ) ) {
+            return ExportMode.SHARE_URL;
+        }
+        // Read the manifest body so we can inspect each mod's remote field.
+        // A file:// URL pointing at imported-manifests/ is the common case
+        // for Modrinth / Technic imports; their packMods are all HTTPS-backed
+        // so the JSON is portable on its own.
+        if ( url != null && url.startsWith( "file:" ) ) {
+            String body = GameModPackFetcher.loadManifestText( url );
+            if ( body != null && allPackModsRemoteHttp( body ) ) {
+                return ExportMode.SHARE_MANIFEST_JSON;
+            }
+        }
+        return ExportMode.EXPORT_ZIP;
+    }
+
+    /** Returns the raw manifest body for {@code pack}, or {@code null} when
+     *  no readable manifest exists (vanilla / failed packs). Convenience
+     *  for the Share-Manifest path; identical to
+     *  {@link GameModPackFetcher#loadManifestText(String)} but takes a
+     *  pack so callers don't have to thread the URL through. */
+    public static String loadManifestText( GameModPack pack )
+    {
+        if ( pack == null ) return null;
+        return GameModPackFetcher.loadManifestText( pack.getManifestUrl() );
+    }
+
+    private static boolean allPackModsRemoteHttp( String manifestJson )
+    {
+        try {
+            com.google.gson.JsonObject obj = com.google.gson.JsonParser.parseString( manifestJson )
+                    .getAsJsonObject();
+            if ( !obj.has( "packMods" ) || !obj.get( "packMods" ).isJsonArray() ) {
+                // No mods at all — nothing to download, JSON is trivially portable.
+                return true;
+            }
+            for ( com.google.gson.JsonElement el : obj.getAsJsonArray( "packMods" ) ) {
+                if ( !el.isJsonObject() ) return false;
+                com.google.gson.JsonObject mod = el.getAsJsonObject();
+                if ( !mod.has( "remote" ) || !mod.get( "remote" ).isJsonPrimitive() ) return false;
+                String remote = mod.get( "remote" ).getAsString();
+                if ( remote == null || remote.isBlank() ) return false;
+                String lower = remote.toLowerCase( java.util.Locale.ROOT );
+                if ( !lower.startsWith( "http://" ) && !lower.startsWith( "https://" ) ) return false;
+            }
+            return true;
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "ModpackExporter: manifest parse failed during mode classification — "
+                                              + t.getClass().getSimpleName() + ": " + t.getMessage() );
+            return false;
+        }
+    }
+
     /** Folder names under the pack root that are excluded from
      *  exports by default. The launcher recreates these on next
      *  launch, and including them would balloon the ZIP from MB to
@@ -135,10 +241,13 @@ public final class ModpackExporter
         try ( ZipOutputStream zip = new ZipOutputStream(
                 new BufferedOutputStream( new FileOutputStream( destinationZip ) ) ) )
         {
-            // Write a tiny manifest at the root of the ZIP describing
-            // what's inside. Helps the recipient's launcher (or a
-            // human inspector with WinRAR open) verify what they got.
+            // Write the marker file (mica-export.json) + the full pack
+            // manifest body (manifest.json) at the ZIP root. The marker
+            // is what import uses to validate the ZIP actually came from
+            // this launcher; the manifest is what gets registered with
+            // GameModPackManager on the recipient's side.
             writeExportMetadata( zip, pack, includeWorlds );
+            writeManifestBody( zip, pack );
 
             Files.walkFileTree( root, new SimpleFileVisitor<>() {
                 @Override
@@ -185,7 +294,7 @@ public final class ModpackExporter
                                               boolean worldsIncluded ) throws IOException
     {
         StringBuilder sb = new StringBuilder( "{\n" );
-        sb.append( "  \"format\": \"mica-export-v1\",\n" );
+        sb.append( "  \"format\": \"" ).append( EXPORT_FORMAT_V2 ).append( "\",\n" );
         sb.append( "  \"packName\": " ).append( jsonString( pack.getPackName() ) ).append( ",\n" );
         try {
             sb.append( "  \"packVersion\": " ).append( jsonString( pack.getPackVersion() ) ).append( ",\n" );
@@ -203,9 +312,35 @@ public final class ModpackExporter
         sb.append( "  \"exportedAtMs\": " ).append( System.currentTimeMillis() ).append( "\n" );
         sb.append( "}\n" );
 
-        ZipEntry entry = new ZipEntry( "mica-export.json" );
+        ZipEntry entry = new ZipEntry( MARKER_FILENAME );
         zip.putNextEntry( entry );
         zip.write( sb.toString().getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
+        zip.closeEntry();
+    }
+
+    /** Embeds the pack's manifest JSON at the ZIP root. The import path
+     *  reads this back verbatim, writes it into {@code imported-manifests/},
+     *  and hands the resulting {@code file:} URL to
+     *  {@code GameModPackManager.installModPackByURL} — so the full mod
+     *  list / configs / loader settings round-trip through the archive.
+     *
+     *  <p>Falls back gracefully when the manifest body can't be read
+     *  (vanilla packs, failed-load placeholders): the ZIP still gets
+     *  the marker file + pack contents, but import will reject it as
+     *  "no manifest in archive" instead of completing into an unusable
+     *  state.</p> */
+    private static void writeManifestBody( ZipOutputStream zip, GameModPack pack ) throws IOException
+    {
+        String body = GameModPackFetcher.loadManifestText( pack.getManifestUrl() );
+        if ( body == null || body.isBlank() ) {
+            Logger.logWarningSilent( "ModpackExporter: no manifest body available for "
+                                              + pack.getPackName() + " — ZIP will lack "
+                                              + MANIFEST_FILENAME + " entry." );
+            return;
+        }
+        ZipEntry entry = new ZipEntry( MANIFEST_FILENAME );
+        zip.putNextEntry( entry );
+        zip.write( body.getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
         zip.closeEntry();
     }
 
