@@ -213,7 +213,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         // currently-selected loader.
                         if ( forgePickerBtn != null ) {
                             String label = newV == null ? "Forge" : newV;
-                            forgePickerBtn.setText( "Pick " + label + " Version" );
+                            forgePickerBtn.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format( "editor.pickerBtn.label", label ) );
                         }
                         // Update the hint line to reflect what the URL
                         // field expects for the current loader choice.
@@ -1162,7 +1162,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 if ( query == null || query.isBlank() ) {
                     return;
                 }
-                infoLabel.setText( "Searching..." );
+                infoLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "editor.modSearch.searching" ) );
                 resultsList.getItems().clear();
 
                 // Build facets: always filter to mods, optionally filter by game version
@@ -1193,7 +1193,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     }
                     catch ( Exception ex ) {
                         GUIUtilities.JFXPlatformRun(
-                                () -> infoLabel.setText( "Search failed: " + ex.getMessage() ) );
+                                () -> infoLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format( "editor.modSearch.failed", ex.getMessage() ) ) );
                     }
                 } );
             } );
