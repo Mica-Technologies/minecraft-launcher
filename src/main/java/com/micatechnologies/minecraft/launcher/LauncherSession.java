@@ -58,6 +58,16 @@ class LauncherSession
         // Parse launcher args and set game mode
         String initialModPackSelection = LauncherCore.parseLauncherArgs( args );
 
+        // Bring up the RGB-integration subsystem if the user has it enabled
+        // in Settings. Must be called AFTER parseLauncherArgs because the
+        // bootstrap reads ConfigManager, which in turn picks the
+        // client-vs-server config folder from GameModeManager. Before
+        // parseLauncherArgs, GameModeManager.isClient() returns false (no
+        // mode set yet) and the read would target the server-mode path (=
+        // current working directory) instead of the launcher's per-user
+        // config folder — see the comment in LauncherCore.main().
+        com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.bootstrap();
+
         // Apply system properties
         LauncherCore.applySystemProperties();
 

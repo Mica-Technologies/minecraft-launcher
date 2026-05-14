@@ -138,11 +138,13 @@ public class LauncherCore
             return;
         }
 
-        // Bring up the RGB-integration subsystem if the user has it enabled
-        // in Settings. Off-the-main-thread inside RgbIntegration.bootstrap so
-        // backend probes / socket connects don't delay launcher startup.
-        com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.bootstrap();
-
+        // NOTE: don't call any ConfigManager getter from here — GameModeManager
+        // hasn't been initialized yet, isClient() returns false, and a config
+        // read would resolve to LocalPathConstants.SERVER_MODE_LAUNCHER_FOLDER_PATH
+        // (= the current working directory) instead of the real config folder.
+        // That used to create a stale empty config and load defaults into the
+        // ConfigManager singleton before the real config was read. The RGB
+        // bootstrap moved to LauncherSession.run() after parseLauncherArgs.
         while ( restartFlag ) {
             // Reset restart flag and create a new session for this lifecycle iteration
             String previousRestartError = restartError;
