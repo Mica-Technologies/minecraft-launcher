@@ -85,6 +85,16 @@ public final class ChromaRestBackend implements RgbBackend
     private Thread heartbeatThread;
     private volatile boolean heartbeatRunning;
 
+    /** First-time-success tracking per endpoint. Without this it's
+     *  hard to tell from logs whether the Test Connection button
+     *  actually reached the device endpoint or silently no-op'd —
+     *  if every endpoint here gets a "first frame succeeded" line
+     *  but the user's fans still don't light up, the gap is on the
+     *  Synapse side (overlapping profile, game-mode override, etc.)
+     *  rather than in our launcher → REST → SDK chain. */
+    private final java.util.Set< String > endpointsSucceededOnce =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     @Override
     public String name() { return "Razer Chroma"; }
 
@@ -238,23 +248,16 @@ public final class ChromaRestBackend implements RgbBackend
                                          + " — " + t.getMessage() );
     }
 
-    /** Push the keyboard's CHROMA_CUSTOM matrix. Throws on non-200 so
-     *  the controller's circuit breaker records a failure — the
-     *  keyboard is the headline device and we want the user to know
-     *  if it's silently dropping frames. */
+    /** Push the keyboard's CHROMA_CUSTOM matrix. Razer Chroma's REST
+     *  API returns errors as a {@code "result"} field inside a 200 OK
+     *  body rather than via HTTP status code — a plain
+     *  {@code statusCode() != 200} check misses every SDK-level failure
+     *  (session expired, unknown effect, device missing, etc.) and
+     *  the launcher silently does nothing. Parse the body and throw
+     *  on a non-zero result. */
     private void sendKeyboardCustom( int[][] grid ) throws Exception
     {
-        String body = buildKeyboardEffectBody( grid );
-        HttpRequest req = HttpRequest.newBuilder( URI.create( sessionUri + "/keyboard" ) )
-                .timeout( HTTP_TIMEOUT )
-                .header( "Content-Type", "application/json" )
-                .PUT( HttpRequest.BodyPublishers.ofString( body ) )
-                .build();
-        HttpResponse< Void > resp = http.send( req,
-                                                 HttpResponse.BodyHandlers.discarding() );
-        if ( resp.statusCode() != 200 ) {
-            throw new IOException( "Chroma /keyboard returned HTTP " + resp.statusCode() );
-        }
+        sendEffectAndCheck( "/keyboard", buildKeyboardEffectBody( grid ) );
     }
 
     /** Push a single CHROMA_STATIC frame to a device endpoint. Used
@@ -266,15 +269,78 @@ public final class ChromaRestBackend implements RgbBackend
     private void sendStatic( String endpoint, int packedColor ) throws Exception
     {
         String body = "{\"effect\":\"CHROMA_STATIC\",\"param\":{\"color\":" + packedColor + "}}";
+        sendEffectAndCheck( endpoint, body );
+    }
+
+    /** Common PUT-and-parse-result wrapper used by every endpoint-push
+     *  helper. Reads the response body, parses the standard Razer
+     *  Chroma {@code result} field, and throws when either the HTTP
+     *  status isn't 200 or the SDK reports a non-zero result code.
+     *  This is the layer that catches issues like:
+     *
+     *  <ul>
+     *    <li>{@code result: -1} — generic SDK failure (often "no
+     *        device of this type connected").</li>
+     *    <li>{@code result: -57} — RZRESULT_NOT_VALID_STATE; usually
+     *        the session got dropped by Synapse.</li>
+     *    <li>{@code result: -1073741275} — invalid parameter; usually
+     *        a malformed effect payload or wrong grid dimensions.</li>
+     *  </ul>
+     *
+     *  Surfacing these to the controller's circuit breaker is how
+     *  failures bubble up to the Settings status chip and how the
+     *  user finds out the session needs re-establishment. */
+    private void sendEffectAndCheck( String endpoint, String body ) throws Exception
+    {
         HttpRequest req = HttpRequest.newBuilder( URI.create( sessionUri + endpoint ) )
                 .timeout( HTTP_TIMEOUT )
                 .header( "Content-Type", "application/json" )
                 .PUT( HttpRequest.BodyPublishers.ofString( body ) )
                 .build();
-        HttpResponse< Void > resp = http.send( req,
-                                                 HttpResponse.BodyHandlers.discarding() );
+        HttpResponse< String > resp = http.send( req,
+                                                   HttpResponse.BodyHandlers.ofString() );
         if ( resp.statusCode() != 200 ) {
-            throw new IOException( "Chroma " + endpoint + " returned HTTP " + resp.statusCode() );
+            throw new IOException( "Chroma " + endpoint + " returned HTTP "
+                                           + resp.statusCode() + " body=" + resp.body() );
+        }
+        int result = parseResultField( resp.body() );
+        if ( result != 0 ) {
+            throw new IOException( "Chroma " + endpoint + " returned result="
+                                           + result + " body=" + resp.body() );
+        }
+        if ( endpointsSucceededOnce.add( endpoint ) ) {
+            // One-shot: first time this endpoint accepted a frame for
+            // the current session. Helps debug "no errors, no visible
+            // change" cases — if every endpoint here gets a "first
+            // frame succeeded" line but devices stay dark, the gap is
+            // Synapse-side (active profile override, game mode, etc.)
+            // rather than something the launcher can fix.
+            Logger.logStd( "Chroma " + endpoint + ": first frame succeeded (result=0)" );
+        }
+    }
+
+    /** Pulls the {@code result} integer out of a Chroma REST response
+     *  body. Returns {@code 0} (success) when the field is absent so a
+     *  vendor change to the response format doesn't fail-closed
+     *  unnecessarily — the HTTP status check above already gates the
+     *  obvious failure path. Returns a sentinel value when the body
+     *  is unparseable so the caller surfaces it. */
+    private static int parseResultField( String body )
+    {
+        if ( body == null || body.isBlank() ) return 0;
+        try {
+            com.google.gson.JsonObject json = com.micatechnologies.minecraft.launcher.utilities
+                    .JSONUtilities.getGson()
+                    .fromJson( body, com.google.gson.JsonObject.class );
+            if ( json == null || !json.has( "result" ) ) return 0;
+            return json.get( "result" ).getAsInt();
+        }
+        catch ( Throwable t ) {
+            // Malformed JSON in a 200 reply is itself unexpected — surface
+            // it as a non-zero "unknown result" to the caller's circuit
+            // breaker so the user sees something rather than silent dead-
+            // air pushes.
+            return -1;
         }
     }
 
@@ -316,6 +382,7 @@ public final class ChromaRestBackend implements RgbBackend
         }
         sessionUri = null;
         http = null;
+        endpointsSucceededOnce.clear();
     }
 
     // =========================================================================
