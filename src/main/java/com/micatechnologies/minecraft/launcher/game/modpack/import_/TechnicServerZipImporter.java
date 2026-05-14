@@ -125,6 +125,23 @@ public final class TechnicServerZipImporter
         return false;
     }
 
+    /** Walks {@code zip}'s entries and returns the first top-level
+     *  {@code .jar} filename, or {@code null} if there isn't one. Used
+     *  as a fallback when the launch-script parser fails — many older
+     *  Technic packs only ship a single root JAR so this is reliable
+     *  in practice. */
+    private static String findFirstTopLevelJar( ZipFile zip )
+    {
+        Enumeration< ? extends ZipEntry > entries = zip.entries();
+        while ( entries.hasMoreElements() ) {
+            String name = entries.nextElement().getName().replace( '\\', '/' );
+            if ( !name.contains( "/" ) && name.toLowerCase().endsWith( ".jar" ) ) {
+                return name;
+            }
+        }
+        return null;
+    }
+
     /** Reads {@code launch.bat} (preferred) or {@code launch.sh} from {@code zip}
      *  and extracts the server JAR filename from the {@code -jar <name>} argument.
      *  Falls back to {@code null} when no launch script is present or no
@@ -211,6 +228,18 @@ public final class TechnicServerZipImporter
             // is null and the manifest ships with empty loader fields —
             // user fills those in via the modpack editor.
             String serverJarName = findServerJarFromLaunchScript( zip );
+            Logger.logStd( "TechnicServerZipImporter: launch-script-derived server JAR = "
+                                   + ( serverJarName != null ? serverJarName : "<none>" ) );
+            // Fallback: if launch script didn't surface a JAR (missing /
+            // unparseable / -jar uses a path that doesn't normalize to a
+            // top-level entry), scan the ZIP for the first top-level .jar.
+            // Many older Technic server packs ship just one root JAR so
+            // this catches the common case without false positives.
+            if ( serverJarName == null ) {
+                serverJarName = findFirstTopLevelJar( zip );
+                Logger.logStd( "TechnicServerZipImporter: fallback top-level JAR scan = "
+                                       + ( serverJarName != null ? serverJarName : "<none>" ) );
+            }
             LoaderInfo loaderInfo = serverJarName != null
                     ? detectLoader( zip, serverJarName ) : null;
             if ( loaderInfo != null ) {
@@ -218,6 +247,11 @@ public final class TechnicServerZipImporter
                                        + " loader" + ( loaderInfo.mcVersion != null
                                                                 ? " for MC " + loaderInfo.mcVersion : "" )
                                        + " from " + serverJarName );
+            }
+            else {
+                Logger.logStd( "TechnicServerZipImporter: no loader markers found in "
+                                       + ( serverJarName != null ? serverJarName : "any JAR" )
+                                       + " — manifest will ship with empty loader / MC version fields." );
             }
 
             JsonObject manifest = buildManifest( packName, packVersion, modFilenames, loaderInfo );
@@ -421,10 +455,12 @@ public final class TechnicServerZipImporter
         boolean sawForgeModern  = false;
         boolean sawFml          = false;
         String fmlMcVersion = null;
+        int entriesScanned = 0;
 
         try ( ZipInputStream zin = new ZipInputStream( new ByteArrayInputStream( jarBytes ) ) ) {
             ZipEntry inner;
             while ( ( inner = zin.getNextEntry() ) != null ) {
+                entriesScanned++;
                 String name = inner.getName();
                 if ( name.equals( "fmlversion.properties" ) ) {
                     // Highest-priority signal — parse it inline. The
@@ -436,6 +472,8 @@ public final class TechnicServerZipImporter
                     catch ( IOException ignored ) { /* fall through */ }
                     fmlMcVersion = props.getProperty( "fmlbuild.mcversion" );
                     sawFml = true;
+                    Logger.logStd( "TechnicServerZipImporter: found fmlversion.properties — "
+                                            + "mcversion=" + fmlMcVersion );
                     // Don't break — keep scanning to confirm whether this
                     // is also a modern Forge / NeoForge variant.
                     continue;
@@ -452,6 +490,12 @@ public final class TechnicServerZipImporter
             Logger.logWarningSilent( "TechnicServerZipImporter: error scanning " + serverJarEntryName
                                               + ": " + ioe.getMessage() );
         }
+        Logger.logStd( "TechnicServerZipImporter: scanned " + entriesScanned + " entries in "
+                               + serverJarEntryName + " — fml=" + sawFml
+                               + " forgeModern=" + sawForgeModern
+                               + " neoforged=" + sawNeoforged
+                               + " fabric=" + sawFabric
+                               + " fmlMcVersion=" + fmlMcVersion );
 
         // Apply detection priorities. NeoForge / Fabric win over generic
         // Forge signals because the NeoForge / Fabric loaders may still
