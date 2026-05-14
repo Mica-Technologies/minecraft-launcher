@@ -57,10 +57,20 @@ public final class LaunchProgressTracker
     public enum StepId
     {
         MODPACK_CONTENT( "Modpack content" ),
-        FORGE_LIBS( "Forge libraries" ),
+        // "Modloader libraries" rather than "Forge libraries" so the
+        // label reads correctly for Fabric and NeoForge packs too. The
+        // enum names stay FORGE_* for source-stability — only the user-
+        // facing displayLabel changed.
+        FORGE_LIBS( "Modloader libraries" ),
         MC_LIBS_ASSETS( "Minecraft libraries & assets" ),
         JRE_INSTALL( "Java runtime" ),
-        FORGE_PROCESSORS( "Forge processors" ),
+        // "Game patching" matches the existing "Patching game files..."
+        // log line + reads correctly for every loader that has a post-
+        // install pipeline (modern Forge, NeoForge, future "patching"
+        // loaders). Loaders without a post-install pipeline (Fabric)
+        // are excluded from the step list entirely via
+        // {@link GameModPack#usesPostInstallSteps()}, so no row renders.
+        FORGE_PROCESSORS( "Game patching" ),
         SECURITY_SCAN( "Security scan" );
 
         private final String displayLabel;

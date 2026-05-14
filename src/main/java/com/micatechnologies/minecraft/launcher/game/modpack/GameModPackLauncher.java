@@ -351,11 +351,17 @@ class GameModPackLauncher
                 throw unwrapModpackException( ce );
             }
 
-            // --- Step 5: Forge install processors ---
-            // Sequential, depends on MC libs + Forge libs + JRE all present.
-            final StepProgressHandle procH = handleFor( bridge,
-                    LaunchProgressTracker.StepId.FORGE_PROCESSORS );
-            doForgeProcessors( procH, libraryManifest.getRequiredRuntimeComponent() );
+            // --- Step 5: post-install patching (Forge / NeoForge processors) ---
+            // Sequential, depends on MC libs + loader libs + JRE all present.
+            // Skipped entirely for loaders without a post-install step
+            // (Fabric is a runtime loader — KnotClient patches in-memory at
+            // launch rather than at install). Skipping the call avoids
+            // logging a "running" + "done" pair for a no-op.
+            if ( pack.usesPostInstallSteps() ) {
+                final StepProgressHandle procH = handleFor( bridge,
+                        LaunchProgressTracker.StepId.FORGE_PROCESSORS );
+                doForgeProcessors( procH, libraryManifest.getRequiredRuntimeComponent() );
+            }
         }
         else {
             // Vanilla packs have no modpack content or Forge stages. Just MC libs + JRE
@@ -897,9 +903,15 @@ class GameModPackLauncher
         if ( GameModeManager.isClient() ) {
             fullArgs = fullArgs.replace( "${auth_player_name}",
                                           MCLauncherAuthManager.getLoggedInUser().name() );
+            // ${version_name} is the launcher's identifier for the
+            // running profile — Forge: "1.16.5-forge-36.1.31",
+            // Fabric: "0.16.10", NeoForge: "21.1.95". Reads come from
+            // the polymorphic loader so Fabric / NeoForge land here
+            // with a non-null value instead of tripping over Forge's
+            // null-for-non-Forge alias.
             fullArgs = fullArgs.replace( "${version_name}",
                                           pack.isVanillaVersion() ? pack.getMinecraftVersion() :
-                                          pack.getForgeVersion() );
+                                          pack.getLoaderVersion() );
             // Modern MC reads assets through the shared launcher-wide tree by hash, so the
             // ${assets_root} placeholder points at the deduplicated location instead of a
             // per-pack copy. Legacy MC uses ${game_assets} which is handled below.
