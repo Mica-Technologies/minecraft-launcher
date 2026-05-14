@@ -57,18 +57,7 @@ public class ConfigManager
      * @since 1.0
      */
     public synchronized static long getMinRam() {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Add default if missing
-        if ( !configObject.has( ConfigConstants.MIN_RAM_KEY ) ) {
-            configObject.addProperty( ConfigConstants.MIN_RAM_KEY, ConfigConstants.MIN_RAM_MEGABYTES_DEFAULT );
-        }
-
-        // Get and return value of min RAM
-        return configObject.get( ConfigConstants.MIN_RAM_KEY ).getAsLong();
+        return RuntimeConfig.getMinRam();
     }
 
     /**
@@ -79,16 +68,7 @@ public class ConfigManager
      * @since 1.0
      */
     public synchronized static void setMinRam( long minRam ) {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Set value of min RAM
-        configObject.addProperty( ConfigConstants.MIN_RAM_KEY, minRam );
-
-        // Save configuration to disk
-        writeConfigurationToDisk();
+        RuntimeConfig.setMinRam( minRam );
     }
 
     /**
@@ -99,18 +79,7 @@ public class ConfigManager
      * @since 1.0
      */
     public synchronized static long getMaxRam() {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Add default if missing
-        if ( !configObject.has( ConfigConstants.MAX_RAM_KEY ) ) {
-            configObject.addProperty( ConfigConstants.MAX_RAM_KEY, ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT );
-        }
-
-        // Get and return value of max RAM
-        return configObject.get( ConfigConstants.MAX_RAM_KEY ).getAsLong();
+        return RuntimeConfig.getMaxRam();
     }
 
     /**
@@ -121,7 +90,7 @@ public class ConfigManager
      * @since 1.0
      */
     public synchronized static double getMaxRamInGb() {
-        return getMaxRam() / 1024.0;
+        return RuntimeConfig.getMaxRamInGb();
     }
 
     /**
@@ -132,16 +101,7 @@ public class ConfigManager
      * @since 1.0
      */
     public synchronized static void setMaxRam( long maxRam ) {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Set value of max RAM
-        configObject.addProperty( ConfigConstants.MAX_RAM_KEY, maxRam );
-
-        // Save configuration to disk
-        writeConfigurationToDisk();
+        RuntimeConfig.setMaxRam( maxRam );
     }
 
     /**
@@ -504,22 +464,7 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static String getCustomJvmArgs() {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Check for presence of field, and create default if does not exist
-        if ( !configObject.has( ConfigConstants.JVM_ARGS_KEY ) ) {
-            // Add property with default value
-            configObject.addProperty( ConfigConstants.JVM_ARGS_KEY, ConfigConstants.JVM_ARGS_VALUE_DEFAULT );
-
-            // Save configuration to disk
-            writeConfigurationToDisk();
-        }
-
-        // Get and return value of custom JVM args
-        return configObject.get( ConfigConstants.JVM_ARGS_KEY ).getAsString();
+        return RuntimeConfig.getCustomJvmArgs();
     }
 
     /**
@@ -545,14 +490,14 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static void setCustomJvmArgs( String jvmArgs ) {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
+        // Keep the security validation here (not in RuntimeConfig) — the
+        // reject-on-injection-characters check is a public-API contract
+        // of ConfigManager's setter and shouldn't be bypassable by
+        // calling RuntimeConfig.setCustomJvmArgs directly. RuntimeConfig
+        // is for trusted internal use; this entry point is what
+        // user-facing code (Settings GUI, etc.) calls.
         String sanitized = validateCustomJvmArgs( jvmArgs );
-        configObject.addProperty( ConfigConstants.JVM_ARGS_KEY, sanitized );
-        writeConfigurationToDisk();
+        RuntimeConfig.setCustomJvmArgs( sanitized );
     }
 
     /** Validates custom JVM args input against the rejection list. Returns the input
