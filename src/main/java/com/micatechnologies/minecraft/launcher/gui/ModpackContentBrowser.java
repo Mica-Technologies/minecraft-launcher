@@ -153,6 +153,129 @@ public final class ModpackContentBrowser
         return buildSimplePackList( pack, "resourcepacks", "detailModal.section.resourcePacks", sectionBox );
     }
 
+    /** Lists {@code <packRoot>/crash-reports/*.txt} sorted newest-first
+     *  with each row showing the filename + mtime + a View action
+     *  that opens the crash text in an overlay. Empty when the
+     *  folder is missing or empty — typical state for a pack that's
+     *  never crashed. */
+    public static Node buildCrashHistorySection( GameModPack pack, SectionBuilder sectionBox,
+                                                   StackPane overlayHost )
+    {
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.crashHistory" ) );
+        File crashDir = subDir( pack, "crash-reports" );
+        File[] reports = crashDir == null ? null
+                : crashDir.listFiles( ( dir, name ) -> name.endsWith( ".txt" ) );
+        if ( reports == null || reports.length == 0 ) {
+            section.getChildren().add( emptyLabel() );
+            return section;
+        }
+        Arrays.sort( reports, Comparator.comparingLong( File::lastModified ).reversed() );
+        for ( File r : reports ) {
+            section.getChildren().add( buildCrashRow( r, overlayHost ) );
+        }
+        return section;
+    }
+
+    private static HBox buildCrashRow( File report, StackPane overlayHost )
+    {
+        HBox row = new HBox( 10 );
+        row.setAlignment( Pos.CENTER_LEFT );
+        row.getStyleClass().add( "modpackDetailContentRow" );
+        row.setPadding( new Insets( 4, 0, 4, 0 ) );
+
+        Label name = new Label( report.getName() );
+        name.getStyleClass().add( "modpackDetailContentName" );
+        HBox.setHgrow( name, Priority.ALWAYS );
+        name.setMaxWidth( Double.MAX_VALUE );
+
+        Label meta = new Label( LocalizationManager.format( "detailModal.content.lastModified",
+                DATE_FORMAT.format( new Date( report.lastModified() ) ) ) );
+        meta.getStyleClass().add( "muted" );
+
+        MFXButton viewBtn = new MFXButton( LocalizationManager.get( "detailModal.crash.viewBtn" ) );
+        viewBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+        viewBtn.setPrefHeight( 28 );
+        viewBtn.setOnAction( e -> showCrashViewer( report, overlayHost ) );
+
+        MFXButton openBtn = new MFXButton( LocalizationManager.get( "detailModal.content.openFolder" ) );
+        openBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+        openBtn.setPrefHeight( 28 );
+        openBtn.setOnAction( e -> openInFileBrowser( report ) );
+
+        row.getChildren().addAll( name, meta, viewBtn, openBtn );
+        return row;
+    }
+
+    /** Opens a centered scrollable overlay with the crash report's
+     *  raw text + Copy / Close actions. Mirrors the image viewer
+     *  overlay pattern from buildScreenshotsSection. */
+    private static void showCrashViewer( File report, StackPane host )
+    {
+        if ( host == null || report == null || !report.isFile() ) return;
+        String text;
+        try {
+            text = java.nio.file.Files.readString( report.toPath() );
+        }
+        catch ( Exception ex ) {
+            text = "Failed to read " + report.getName() + ":\n" + ex.getMessage();
+        }
+        final String crashText = text;
+
+        StackPane overlay = new StackPane();
+        overlay.setStyle( "-fx-background-color: rgba(0,0,0,0.8);" );
+        overlay.setPickOnBounds( true );
+
+        VBox card = new VBox( 12 );
+        card.setAlignment( Pos.CENTER );
+        card.setPadding( new Insets( 16 ) );
+        card.setStyle( "-fx-background-color: -color-surface; -fx-background-radius: 12;" );
+        card.setMaxWidth( host.getWidth() * 0.85 );
+        card.setMaxHeight( host.getHeight() * 0.85 );
+
+        Label title = new Label( report.getName() );
+        title.getStyleClass().add( "heading-h3" );
+
+        javafx.scene.control.TextArea area = new javafx.scene.control.TextArea( crashText );
+        area.setEditable( false );
+        area.setWrapText( false );
+        area.getStyleClass().add( "text-mono" );
+        area.setStyle( "-fx-font-size: 12px;" );
+        area.setPrefWidth( host.getWidth() * 0.8 );
+        area.setPrefHeight( host.getHeight() * 0.7 );
+        VBox.setVgrow( area, Priority.ALWAYS );
+
+        HBox actions = new HBox( 8 );
+        actions.setAlignment( Pos.CENTER );
+
+        MFXButton copyBtn = new MFXButton( LocalizationManager.get( "detailModal.crash.viewer.copy" ) );
+        copyBtn.getStyleClass().add( "primary" );
+        copyBtn.setPrefHeight( 32 );
+        copyBtn.setOnAction( e -> {
+            ClipboardContent content = new ClipboardContent();
+            content.putString( crashText );
+            Clipboard.getSystemClipboard().setContent( content );
+            copyBtn.setText( LocalizationManager.get( "detailModal.crash.viewer.copied" ) );
+            FxAsyncTask.run( () -> {
+                Thread.sleep( 1500 );
+                javafx.application.Platform.runLater( () -> copyBtn.setText(
+                        LocalizationManager.get( "detailModal.crash.viewer.copy" ) ) );
+            } );
+        } );
+
+        MFXButton closeBtn = new MFXButton( LocalizationManager.get( "detailModal.crash.viewer.close" ) );
+        closeBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+        closeBtn.setPrefHeight( 32 );
+        closeBtn.setOnAction( e -> host.getChildren().remove( overlay ) );
+
+        actions.getChildren().addAll( copyBtn, closeBtn );
+        card.getChildren().addAll( title, area, actions );
+        overlay.getChildren().add( card );
+        overlay.setOnMouseClicked( e -> {
+            if ( e.getTarget() == overlay ) host.getChildren().remove( overlay );
+        } );
+        host.getChildren().add( overlay );
+    }
+
     // ====================================================================
     // Section helpers
     // ====================================================================
