@@ -23,6 +23,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.backends.NoOpBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.chroma.ChromaRestBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.chromanative.ChromaNativeBackend;
+import com.micatechnologies.minecraft.launcher.rgb.backends.dynamiclighting.WindowsDynamicLightingBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.openrgb.OpenRgbBackend;
 
 /**
@@ -87,6 +88,7 @@ public final class RgbBackendRegistry
             case ConfigConstants.RGB_BACKEND_OPENRGB       -> new OpenRgbBackend();
             case ConfigConstants.RGB_BACKEND_CHROMA        -> new ChromaRestBackend();
             case ConfigConstants.RGB_BACKEND_CHROMA_NATIVE -> new ChromaNativeBackend();
+            case ConfigConstants.RGB_BACKEND_WINDOWS_DL    -> new WindowsDynamicLightingBackend();
             case ConfigConstants.RGB_BACKEND_NONE          -> new NoOpBackend();
             default -> {
                 Logger.logWarningSilent( "Unrecognized RGB backend choice '" + c
@@ -115,6 +117,7 @@ public final class RgbBackendRegistry
         RgbBackend[] candidates = {
                 new OpenRgbBackend(),
                 new ChromaNativeBackend(),
+                new WindowsDynamicLightingBackend(),
                 new ChromaRestBackend()
         };
         for ( RgbBackend candidate : candidates ) {
