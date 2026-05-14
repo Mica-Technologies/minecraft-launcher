@@ -790,7 +790,21 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
         List< LibraryEntry > entries = collectEntries( type, status );
         if ( !search.isEmpty() ) {
-            entries.removeIf( e -> !e.displayName.toLowerCase( Locale.ROOT ).contains( search ) );
+            // Match displayName OR any mod filename inside the pack's
+            // mods/ folder. Lets the user find "the pack with the Create
+            // mod" by typing "create" without remembering the pack's
+            // own name. The mod-filename cache is populated lazily per
+            // pack the first time a search matches; a session-long miss
+            // (search never touches the pack) means we never even read
+            // its mods folder.
+            final String needle = search;
+            entries.removeIf( e -> {
+                if ( e.displayName.toLowerCase( Locale.ROOT ).contains( needle ) ) return false;
+                if ( e.pack != null ) {
+                    return !packModsMatch( e.pack, needle );
+                }
+                return true;
+            } );
         }
 
         String sortSel = sortFilter == null ? SORT_DEFAULT
@@ -1187,6 +1201,38 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  proxy ("if the pack doesn't have a real release date, treat last-updated
      *  as the release date"). Available manifest modpacks fall through both
      *  paths and sink to the bottom. */
+    /** Session cache of lowercased mod filenames per pack-root path,
+     *  for {@link #packModsMatch}. Populated lazily on first lookup
+     *  per pack so a Browse view that never gets searched doesn't pay
+     *  the filesystem read; never invalidated mid-session since the
+     *  cache is bounded by the user's modpack count (typically dozens
+     *  at most) and re-populates on the next launcher start. */
+    private static final java.util.Map< String, java.util.List< String > > MOD_FILENAME_CACHE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** True iff the pack's {@code mods/} folder contains any file
+     *  whose lowercased name contains the lowercased search needle. */
+    private static boolean packModsMatch( GameModPack pack, String lowerNeedle )
+    {
+        if ( pack == null ) return false;
+        String root = pack.getPackRootFolder();
+        if ( root == null ) return false;
+        java.util.List< String > names = MOD_FILENAME_CACHE.computeIfAbsent( root, key -> {
+            File mods = new File( key, "mods" );
+            if ( !mods.isDirectory() ) return java.util.List.of();
+            File[] children = mods.listFiles( ( dir, name ) -> name.endsWith( ".jar" )
+                                                                || name.endsWith( ".disabled" ) );
+            if ( children == null ) return java.util.List.of();
+            java.util.List< String > out = new java.util.ArrayList<>( children.length );
+            for ( File c : children ) out.add( c.getName().toLowerCase( Locale.ROOT ) );
+            return out;
+        } );
+        for ( String n : names ) {
+            if ( n.contains( lowerNeedle ) ) return true;
+        }
+        return false;
+    }
+
     private static long releaseDateKey( LibraryEntry e )
     {
         if ( e.releaseTimeMs != Long.MIN_VALUE ) return e.releaseTimeMs;
