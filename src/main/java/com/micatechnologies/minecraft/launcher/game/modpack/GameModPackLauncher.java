@@ -416,7 +416,49 @@ class GameModPackLauncher
         java.util.LinkedHashMap< String, String > byCoord = new java.util.LinkedHashMap<>();
         addClasspathEntries( byCoord, loaderClasspath, false );
         addClasspathEntries( byCoord, mcClasspath, true );
+
+        // When the loader provides a patched MC client (modern Forge
+        // 1.13+ or any NeoForge), the vanilla bin/minecraft.jar is
+        // redundant — and on Java's module system (used by modlauncher
+        // 10+ and bootstraplauncher 2+) it actively collides because
+        // both the patched-client jar AND the vanilla minecraft.jar
+        // get auto-named the "minecraft" module, producing
+        // "java.lang.module.ResolutionException: Module X reads more
+        // than one module named minecraft". Drop the vanilla one when
+        // a patched client is present. Legacy Forge (1.7-1.12) has no
+        // patched client so the vanilla jar stays on the classpath.
+        if ( loaderProvidesPatchedClient( byCoord.values() ) ) {
+            byCoord.values().removeIf( GameModPackLauncher::isVanillaMinecraftJar );
+        }
+
         return String.join( File.pathSeparator, byCoord.values() );
+    }
+
+    /** True iff any classpath entry is a modern-Forge / NeoForge
+     *  patched client jar. Recognises both by their Maven path
+     *  (libraries/net/minecraftforge/forge/.../forge-VERSION-client.jar
+     *  or libraries/net/neoforged/neoforge/.../neoforge-VERSION-client.jar). */
+    private static boolean loaderProvidesPatchedClient( java.util.Collection< String > entries )
+    {
+        for ( String entry : entries ) {
+            String normalized = entry.replace( '\\', '/' );
+            if ( !normalized.endsWith( "-client.jar" ) ) continue;
+            if ( normalized.contains( "/net/minecraftforge/forge/" )
+                    || normalized.contains( "/net/neoforged/neoforge/" ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True iff the entry is the vanilla {@code bin/minecraft.jar} the
+     *  launcher places into each pack's install. We look for the
+     *  trailing path component rather than the full path because the
+     *  modpack root varies per-pack. */
+    private static boolean isVanillaMinecraftJar( String entry )
+    {
+        String normalized = entry.replace( '\\', '/' );
+        return normalized.endsWith( "/bin/minecraft.jar" );
     }
 
     private static void addClasspathEntries( java.util.LinkedHashMap< String, String > byCoord,
