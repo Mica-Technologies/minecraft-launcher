@@ -84,6 +84,16 @@ public final class ModpackImportClassifier
             "^https?://(?:www\\.)?curseforge\\.com/minecraft/modpacks/([A-Za-z0-9_-]+)(?:/(?:files|download)/(\\d+))?/?(?:\\?.*)?$",
             Pattern.CASE_INSENSITIVE );
 
+    /** Technic project URL: {@code https://www.technicpack.net/modpack/<slug>}
+     *  optionally followed by an extra path segment like {@code /mods} that
+     *  the Technic site uses for tabbed views. The slug typically has a
+     *  numeric suffix appended for SEO (e.g. {@code tekkit.552560}); the
+     *  Technic Solder API at {@code api.technicpack.net/modpack/<slug>}
+     *  accepts that full form. */
+    private static final Pattern TECHNIC_URL = Pattern.compile(
+            "^https?://(?:www\\.)?technicpack\\.net/modpack/([A-Za-z0-9._-]+)(?:/[A-Za-z0-9._-]+)?/?(?:\\?.*)?$",
+            Pattern.CASE_INSENSITIVE );
+
     /** Mica-format manifest URL — anything that ends in {@code .json} on an
      *  http(s) scheme. Deliberately permissive: we don't try to match the
      *  exact host because users self-host manifests on a wide variety of
@@ -119,6 +129,12 @@ public final class ModpackImportClassifier
             return new Classification( ModpackImportSource.CURSEFORGE,
                                         m.group( 1 ),
                                         m.group( 2 ) );
+        }
+        m = TECHNIC_URL.matcher( trimmed );
+        if ( m.matches() ) {
+            return new Classification( ModpackImportSource.TECHNIC,
+                                        m.group( 1 ),
+                                        null );
         }
         if ( MICA_MANIFEST_URL.matcher( trimmed ).matches() ) {
             return new Classification( ModpackImportSource.MICA, null, null );

@@ -345,6 +345,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     handleCurseForgeImport( url, c.slug(), c.versionId(),
                                              urlAddDefaultText );
                 }
+                case TECHNIC -> {
+                    urlAddBtn.setText( LocalizationManager.get( "browse.urlAdd.checking" ) );
+                    handleTechnicImport( c.slug(), urlAddDefaultText );
+                }
                 default -> {
                     // MICA / UNKNOWN — existing path. UNKNOWN falls through to
                     // installModPackByURL which surfaces the usual "couldn't fetch
@@ -707,6 +711,92 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * Technic counterpart. Fetches the Technic Solder API's project summary
+     * for the slug, shows a preview dialog with the project's display name +
+     * recommended build, and — on confirm — translates the recommended build's
+     * mod list into a Mica manifest via {@link com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter#importBuild}.
+     *
+     * <p>Build selection is intentionally limited to "recommended" for v1: most
+     * Technic packs only ever publish a handful of builds and the recommended
+     * one is what shows up first on the project page. A future enhancement
+     * could surface a build picker if users routinely want a specific older
+     * build (legacy 1.5/1.6 packs sometimes have a "last working" build that
+     * isn't recommended).</p>
+     */
+    private void handleTechnicImport( String slug, String urlAddDefaultText )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter.ProjectSummary summary
+                    = com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter
+                            .fetchSummary( slug );
+            GUIUtilities.JFXPlatformRun( () -> resetUrlControls( urlAddDefaultText ) );
+
+            if ( summary == null ) {
+                NotificationManager.error(
+                        "Couldn't reach Technic",
+                        "The launcher recognized your URL as a Technic modpack but "
+                                + "couldn't load details for it. Check your connection and try again, "
+                                + "or paste a Mica manifest URL instead." );
+                return;
+            }
+
+            String build = summary.recommended() != null && !summary.recommended().isBlank()
+                    ? summary.recommended() : summary.latest();
+            if ( build == null || build.isBlank() ) {
+                NotificationManager.error(
+                        "No build available",
+                        "Technic returned no recommended or latest build for this pack. "
+                                + "It may have been unpublished, or it has no builds yet." );
+                return;
+            }
+
+            String preview = buildTechnicPreview( summary, build );
+            int choice = GUIUtilities.showQuestionMessageMultiline(
+                    "Import from Technic?",
+                    "Technic modpack detected",
+                    preview,
+                    "Continue",
+                    "Cancel",
+                    stage );
+            if ( choice != 1 ) return;
+
+            String packTitle = summary.displayName() != null ? summary.displayName() : slug;
+            Logger.logStd( "Technic import: user confirmed preview for slug=" + slug
+                                   + " build=\"" + build + "\" title=\"" + packTitle + "\"" );
+            beginImport( packTitle );
+            try {
+                updateImportStatus( "Translating Technic build manifest…" );
+                String manifestUrl = com.micatechnologies.minecraft.launcher.game.modpack.import_
+                        .TechnicImporter.importBuild( summary, build );
+                Logger.logStd( "Technic import: installModPackByURL returned for " + manifestUrl );
+                GUIUtilities.JFXPlatformRun( () -> NotificationManager.success(
+                        "Import complete",
+                        "The pack is now in your library. Note that Technic packs sometimes "
+                                + "ship their own loader bundled inside — if launch fails with a "
+                                + "missing-Forge error, edit the modpack manifest to point at the "
+                                + "correct loader installer." ) );
+            }
+            catch ( com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter.ImportException ie ) {
+                Logger.logWarningSilent( "Technic import failed: " + ie.getMessage() );
+                NotificationManager.error( LocalizationManager.get( "notification.import.failed.title" ),
+                                            ie.getMessage() );
+            }
+            catch ( Throwable t ) {
+                Logger.logErrorSilent( "Technic import unexpected failure: " + t.getMessage() );
+                Logger.logThrowable( t );
+                NotificationManager.error(
+                        "Import failed",
+                        "An unexpected error occurred while importing the Technic pack. "
+                                + "Check the launcher log for details." );
+            }
+            finally {
+                Logger.logStd( "Technic import: flow ended for slug=" + slug );
+                endImport();
+            }
+        } );
+    }
+
     /** Restores the urlAdd field + button to their idle state. Called from
      *  both platform-import paths since both need this cleanup regardless of
      *  whether the user clicked Import or Cancel. */
@@ -772,6 +862,42 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                           + "CurseForge, and either repackage it as a Mica manifest or wait for "
                           + "the next launcher update that adds CurseForge import support." );
         sb.append( '\n' ).append( '\n' ).append( "URL: " ).append( originalUrl );
+        return sb.toString();
+    }
+
+    /** Renders the Technic project summary as preview text. Surfaces the
+     *  build we'll actually import (recommended → latest fallback) plus a
+     *  loader-bundling caveat so the user isn't surprised if the imported
+     *  manifest needs hand-editing for a non-Forge legacy pack. */
+    private String buildTechnicPreview(
+            com.micatechnologies.minecraft.launcher.game.modpack.import_.TechnicImporter.ProjectSummary s,
+            String build )
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append( s.displayName() != null && !s.displayName().isBlank()
+                           ? s.displayName() : s.slug() ).append( '\n' );
+        if ( s.description() != null && !s.description().isBlank() ) {
+            sb.append( '\n' ).append( s.description().trim() ).append( '\n' );
+        }
+        sb.append( "\nSource: Technic" );
+        if ( s.slug() != null ) sb.append( " (" ).append( s.slug() ).append( ")" );
+        sb.append( '\n' );
+        sb.append( "Build: " ).append( build );
+        if ( s.recommended() != null && s.recommended().equals( build ) ) {
+            sb.append( " (recommended)" );
+        }
+        else if ( s.latest() != null && s.latest().equals( build ) ) {
+            sb.append( " (latest)" );
+        }
+        sb.append( '\n' );
+        if ( s.builds() != null && !s.builds().isEmpty() ) {
+            sb.append( "Total builds available: " ).append( s.builds().size() ).append( '\n' );
+        }
+        sb.append( '\n' );
+        sb.append( "Note: Technic packs often bundle their own mod loader. The import "
+                          + "defaults to Forge — if the pack ships with a different loader "
+                          + "(common for Minecraft 1.5/1.6-era packs), edit the imported "
+                          + "manifest to point at the correct loader installer after import." );
         return sb.toString();
     }
 

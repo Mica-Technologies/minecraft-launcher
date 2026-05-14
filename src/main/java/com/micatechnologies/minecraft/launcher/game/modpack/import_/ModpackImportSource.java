@@ -38,6 +38,14 @@ public enum ModpackImportSource
     /** A curseforge.com project URL (Core API requires a key, CF zip format). */
     CURSEFORGE,
 
+    /** A technicpack.net modpack project URL. Imported via the Technic
+     *  Solder API (api.technicpack.net) which exposes a per-build JSON
+     *  manifest listing each mod's URL + MD5. We translate that into
+     *  a Mica manifest with each Technic mod as a {@code packMods}
+     *  entry. Build-version selection happens in the preview dialog;
+     *  the default is the pack's "recommended" build. */
+    TECHNIC,
+
     /** A Mica-format {@code manifest.json} URL — the launcher's native shape.
      *  Direct install via the existing {@code installModPackByURL} path. */
     MICA,
