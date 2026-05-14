@@ -954,6 +954,39 @@ public class ConfigManager
         writeBoolean( ConfigConstants.RGB_MENU_EFFECT_ENABLE_KEY, enable );
     }
 
+    public synchronized static String getRgbEffectStyle()
+    {
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        if ( !configObject.has( ConfigConstants.RGB_EFFECT_STYLE_KEY ) ) {
+            configObject.addProperty( ConfigConstants.RGB_EFFECT_STYLE_KEY,
+                                       ConfigConstants.RGB_EFFECT_STYLE_DEFAULT );
+            writeConfigurationToDisk();
+        }
+        String value = configObject.get( ConfigConstants.RGB_EFFECT_STYLE_KEY ).getAsString();
+        // Defensive: a stale or hand-edited config could carry an
+        // unknown identifier (e.g. value from a future build that
+        // dropped a style). Fall back to the default rather than
+        // letting the RGB subsystem crash.
+        if ( !ConfigConstants.RGB_EFFECT_STYLES.contains( value ) ) {
+            return ConfigConstants.RGB_EFFECT_STYLE_DEFAULT;
+        }
+        return value;
+    }
+
+    public synchronized static void setRgbEffectStyle( String style )
+    {
+        if ( style == null || !ConfigConstants.RGB_EFFECT_STYLES.contains( style ) ) {
+            return; // ignore — don't persist garbage
+        }
+        if ( configObject == null ) {
+            readConfigurationFromDisk();
+        }
+        configObject.addProperty( ConfigConstants.RGB_EFFECT_STYLE_KEY, style );
+        writeConfigurationToDisk();
+    }
+
     /** Lazy-default boolean read shared by the per-backend enable
      *  getters above. Mirrors the lazy-init pattern of the older
      *  getX methods but factored out so we don't duplicate the

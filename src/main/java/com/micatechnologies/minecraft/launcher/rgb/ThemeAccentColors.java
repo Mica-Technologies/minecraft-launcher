@@ -106,4 +106,98 @@ public final class ThemeAccentColors
             return true;
         }
     }
+
+    /**
+     * Derive a {@code count}-entry palette around {@code primary} by
+     * rotating its hue in equal steps. Used by the Cycle effect when
+     * the user isn't viewing a specific modpack — instead of cycling
+     * between sampled pack hues, we fan the theme accent into a small
+     * analogous palette so the cycle is still based on the launcher's
+     * brand.
+     *
+     * <p>Rotation step is {@code 30°} per slot — analogous rather than
+     * triadic — so the cycle reads as a smooth hue drift through the
+     * accent's neighbourhood rather than jarring jumps across the
+     * color wheel. {@code count = 1} returns just the primary;
+     * {@code count = 2} is the primary plus one neighbour; etc.</p>
+     */
+    public static java.util.List< RgbColor > derivePalette( RgbColor primary, int count )
+    {
+        if ( count < 1 ) count = 1;
+        if ( count == 1 ) return java.util.List.of( primary );
+        java.util.List< RgbColor > palette = new java.util.ArrayList<>( count );
+        double[] hsl = rgbToHsl( primary );
+        // Centre the rotation on the primary so it's the middle hue of
+        // the analogous spread (rather than the first one) — easier on
+        // the eye when count is small.
+        double centreHue = hsl[ 0 ];
+        double s = hsl[ 1 ];
+        double l = hsl[ 2 ];
+        double stepDeg = 30.0;
+        double startOffset = -stepDeg * ( count - 1 ) / 2.0;
+        for ( int i = 0; i < count; i++ ) {
+            double hue = ( ( centreHue + startOffset + i * stepDeg ) % 360.0 + 360.0 ) % 360.0;
+            palette.add( hslToRgb( hue, s, l ) );
+        }
+        return palette;
+    }
+
+    // =========================================================================
+    //  HSL helpers
+    // =========================================================================
+    //  Kept package-private — these are general enough to belong on
+    //  RgbColor itself, but the only current caller is derivePalette
+    //  and we don't want to grow that class's API surface speculatively.
+    //  Move them up if a second caller appears.
+
+    /** Returns {@code { hue°, saturation, lightness }} in HSL space.
+     *  Hue ∈ [0, 360); saturation, lightness ∈ [0, 1]. */
+    static double[] rgbToHsl( RgbColor c )
+    {
+        double r = c.r() / 255.0;
+        double g = c.g() / 255.0;
+        double b = c.b() / 255.0;
+        double max = Math.max( r, Math.max( g, b ) );
+        double min = Math.min( r, Math.min( g, b ) );
+        double l = ( max + min ) / 2.0;
+        double h, s;
+        if ( max == min ) {
+            h = 0;
+            s = 0;
+        }
+        else {
+            double d = max - min;
+            s = l > 0.5 ? d / ( 2.0 - max - min ) : d / ( max + min );
+            if ( max == r )      h = ( g - b ) / d + ( g < b ? 6 : 0 );
+            else if ( max == g ) h = ( b - r ) / d + 2;
+            else                 h = ( r - g ) / d + 4;
+            h *= 60.0;
+        }
+        return new double[]{ h, s, l };
+    }
+
+    /** HSL → RGB. Hue in degrees, saturation + lightness in [0, 1]. */
+    static RgbColor hslToRgb( double hueDeg, double s, double l )
+    {
+        double h = ( ( hueDeg % 360.0 ) + 360.0 ) % 360.0;
+        double c = ( 1.0 - Math.abs( 2.0 * l - 1.0 ) ) * s;
+        double x = c * ( 1.0 - Math.abs( ( h / 60.0 ) % 2.0 - 1.0 ) );
+        double m = l - c / 2.0;
+        double r1, g1, b1;
+        if      ( h <  60 ) { r1 = c; g1 = x; b1 = 0; }
+        else if ( h < 120 ) { r1 = x; g1 = c; b1 = 0; }
+        else if ( h < 180 ) { r1 = 0; g1 = c; b1 = x; }
+        else if ( h < 240 ) { r1 = 0; g1 = x; b1 = c; }
+        else if ( h < 300 ) { r1 = x; g1 = 0; b1 = c; }
+        else                { r1 = c; g1 = 0; b1 = x; }
+        int r = clamp255( (int) Math.round( ( r1 + m ) * 255.0 ) );
+        int g = clamp255( (int) Math.round( ( g1 + m ) * 255.0 ) );
+        int b = clamp255( (int) Math.round( ( b1 + m ) * 255.0 ) );
+        return new RgbColor( r, g, b );
+    }
+
+    private static int clamp255( int v )
+    {
+        return v < 0 ? 0 : ( v > 255 ? 255 : v );
+    }
 }

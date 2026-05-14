@@ -18,14 +18,21 @@
 package com.micatechnologies.minecraft.launcher.rgb;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
+import com.micatechnologies.minecraft.launcher.rgb.effects.CycleEffect;
 import com.micatechnologies.minecraft.launcher.rgb.effects.InGameEffect;
 import com.micatechnologies.minecraft.launcher.rgb.effects.PulseEffect;
+import com.micatechnologies.minecraft.launcher.rgb.effects.RainbowEffect;
+import com.micatechnologies.minecraft.launcher.rgb.effects.SolidEffect;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 
 import javafx.scene.paint.Color;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Glue layer between the rest of the launcher and the RGB subsystem.
@@ -123,33 +130,116 @@ public final class RgbIntegration
             return;
         }
 
-        RgbColor accent;
-        String effectLabel;
-        if ( contextPack != null ) {
-            Color[] sampled = MCLauncherMainGui.sampleDominantPackColors( contextPack );
-            if ( sampled != null && sampled.length >= 1 && sampled[ 0 ] != null ) {
-                accent = fromFxColor( sampled[ 0 ] );
-                effectLabel = "Menu (" + contextPack.getFriendlyName() + ")";
-            }
-            else {
-                accent = ThemeAccentColors.accentForCurrentTheme();
-                effectLabel = "Menu (theme accent)";
-            }
-        }
-        else {
-            accent = ThemeAccentColors.accentForCurrentTheme();
-            effectLabel = "Menu (theme accent)";
+        String style = ConfigManager.getRgbEffectStyle();
+        String labelContext = contextPack != null
+                ? contextPack.getFriendlyName()
+                : "theme accent";
+
+        // The rainbow style is intentionally palette-agnostic — sweeping
+        // the entire hue circle regardless of pack or theme. Build it
+        // first so we can short-circuit the palette computation below.
+        if ( ConfigConstants.RGB_EFFECT_STYLE_RAINBOW.equals( style ) ) {
+            RgbController.getInstance().setEffect(
+                    new RainbowEffect( "Menu (rainbow)", 8_000L ) );
+            return;
         }
 
-        // Breathe between the accent and a dim 35%-brightness version
-        // of itself. Period intentionally slow (4 s) so the effect reads
-        // as "idle, listening" rather than "something's about to happen"
-        // — InGameEffect is the static "we're playing now" look; the
-        // launching path doesn't currently use a separate fast pulse but
-        // could later.
-        RgbColor dim = RgbColor.blend( accent, RgbColor.BLACK, 0.65 );
-        PulseEffect effect = new PulseEffect( effectLabel, accent, dim, 4_000L );
+        // Build the palette this effect should drive from. For pack
+        // context: sampled dominant colors. For generic menu: theme
+        // accent +/- analogous neighbours when the cycle effect needs
+        // more than one hue.
+        List< RgbColor > palette = resolvePalette( contextPack, style );
+        if ( palette.isEmpty() ) {
+            // Defensive — every path above should have produced at
+            // least one color. Bail to a safe fallback rather than
+            // crash the bootstrap.
+            palette = List.of( ThemeAccentColors.accentForCurrentTheme() );
+        }
+        RgbColor primary = palette.get( 0 );
+
+        RgbEffect effect = switch ( style ) {
+            case ConfigConstants.RGB_EFFECT_STYLE_SOLID ->
+                    new SolidEffect( "Menu (solid · " + labelContext + ")", primary );
+            case ConfigConstants.RGB_EFFECT_STYLE_PULSE ->
+                    // Fast, energetic — accent ↔ its complement, 1.5 s
+                    // per cycle. Reads as "alive and waiting" vs.
+                    // breathe's softer "idle and listening".
+                    new PulseEffect( "Menu (pulse · " + labelContext + ")",
+                                     primary, primary.complement(), 1_500L );
+            case ConfigConstants.RGB_EFFECT_STYLE_CYCLE ->
+                    new CycleEffect( "Menu (cycle · " + labelContext + ")",
+                                     palette, perCycleMs( palette.size() ) );
+            // Breathe is the default — slow accent pulse, the same
+            // behaviour the menu effect had before the style dropdown
+            // shipped. ConfigManager already filters unknown style
+            // values back to default before they reach this dispatcher,
+            // so falling through to the default arm covers both the
+            // breathe case and any future-migration unknown.
+            default ->
+                    new PulseEffect( "Menu (breathe · " + labelContext + ")",
+                                     primary,
+                                     RgbColor.blend( primary, RgbColor.BLACK, 0.65 ),
+                                     4_000L );
+        };
         RgbController.getInstance().setEffect( effect );
+    }
+
+    /**
+     * Build the palette feeding the active effect style. The number of
+     * colors returned depends on the style — cycle wants 3-4, breathe /
+     * pulse / solid only need the primary. We always over-provide
+     * rather than risk a too-short list at the dispatcher's switch.
+     */
+    private static List< RgbColor > resolvePalette( GameModPack contextPack, String style )
+    {
+        int wanted = ConfigConstants.RGB_EFFECT_STYLE_CYCLE.equals( style ) ? 4 : 1;
+
+        if ( contextPack != null ) {
+            // Use the n-color path for cycle, the cached 2-color path
+            // for everything else (cheaper, already populated).
+            Color[] sampled = wanted > 2
+                    ? MCLauncherMainGui.sampleDominantPackPalette( contextPack, wanted )
+                    : MCLauncherMainGui.sampleDominantPackColors( contextPack );
+            if ( sampled != null && sampled.length >= 1 && sampled[ 0 ] != null ) {
+                List< RgbColor > out = new ArrayList<>( sampled.length );
+                for ( Color c : sampled ) {
+                    if ( c != null ) out.add( fromFxColor( c ) );
+                }
+                if ( !out.isEmpty() ) {
+                    // If cycle asked for 4 and the logo only had 2,
+                    // analogous-pad up to 3 around the primary so the
+                    // cycle still has visible motion. Better than
+                    // crashing the user back to breathe behaviour just
+                    // because the pack art is monochrome.
+                    if ( ConfigConstants.RGB_EFFECT_STYLE_CYCLE.equals( style )
+                            && out.size() < 3 ) {
+                        return ThemeAccentColors.derivePalette( out.get( 0 ), 3 );
+                    }
+                    return out;
+                }
+            }
+        }
+
+        // No pack (or sampling failed) — derive the palette from the
+        // theme accent. Cycle gets 3 analogous hues; everything else
+        // gets just the accent.
+        RgbColor themePrimary = ThemeAccentColors.accentForCurrentTheme();
+        if ( ConfigConstants.RGB_EFFECT_STYLE_CYCLE.equals( style ) ) {
+            return ThemeAccentColors.derivePalette( themePrimary, 3 );
+        }
+        return List.of( themePrimary );
+    }
+
+    /**
+     * Per-cycle duration for the cycle effect, scaled by color count
+     * so each color gets roughly the same dwell time regardless of
+     * palette size. Tuned to ~2.5 s per color which is slow enough
+     * to feel intentional but fast enough that a 4-color palette
+     * loops every ~10 s.
+     */
+    private static long perCycleMs( int colorCount )
+    {
+        return Math.max( 1L, colorCount ) * 2_500L;
     }
 
     /**

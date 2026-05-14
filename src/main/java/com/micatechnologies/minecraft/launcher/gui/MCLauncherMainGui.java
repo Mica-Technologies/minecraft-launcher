@@ -1784,29 +1784,147 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     public static Color[] sampleDominantPackColors( GameModPack pack )
     {
+        // Backwards-compatible 2-color wrapper. Most callers want exactly
+        // the two-color gradient inputs the hero card and in-game effect
+        // were originally designed for; the n-color path is for the RGB
+        // cycle effect.
+        Color[] palette = sampleDominantPackPalette( pack, 2 );
+        if ( palette == null ) return null;
+        // Always return a 2-element array — null in slot 1 when the
+        // logo is too monochrome to find a second hue. Mirrors the
+        // original {primary, secondary} contract.
+        Color primary = palette.length > 0 ? palette[ 0 ] : null;
+        Color secondary = palette.length > 1 ? palette[ 1 ] : null;
+        return new Color[]{ primary, secondary };
+    }
+
+    /**
+     * Multi-color variant of {@link #sampleDominantPackColors}. Returns
+     * up to {@code count} distinct dominant colors from the modpack's
+     * logo. Same saturation-weighted histogram, same minimum-distance
+     * filter between successive picks. Returns null when the logo
+     * can't be loaded; returns a possibly-shorter array when the logo
+     * doesn't have {@code count} sufficiently-distinct hues.
+     *
+     * <p>Used by the {@code CycleEffect} in the RGB subsystem — looping
+     * through 3-4 dominant pack colors produces a per-modpack signature
+     * RGB animation that the user can recognise at a glance.</p>
+     *
+     * @param pack  the modpack whose logo to sample.
+     * @param count maximum colors to return. Must be ≥ 1.
+     */
+    public static Color[] sampleDominantPackPalette( GameModPack pack, int count )
+    {
         if ( pack == null || pack.isVanillaVersion() ) return null;
-        // Cache hit path — the main-menu hero card has likely populated
-        // this entry already on a normal play flow.
-        String cacheKey = packLogoCacheKey( pack );
-        DominantColors cached = cacheKey != null ? DOMINANT_COLOR_CACHE.get( cacheKey ) : null;
-        if ( cached != null ) {
-            return new Color[]{ cached.primary(), cached.secondary() };
-        }
-        // Cache miss: load the logo synchronously and sample. Acceptable
-        // because the caller is the launch flow's worker thread, not the
-        // FX thread, and this fires once per play() — no scroll-time cost.
+        if ( count < 1 ) return null;
+        // Load the logo image (cache miss) or fetch the cached primary +
+        // secondary. The n-color path always re-runs the histogram from
+        // the image because the cached entry only carries 2 colors —
+        // re-extracting from the source is cheap and only happens on a
+        // user action (open detail modal / start a launch).
         String logoPath = null;
         try { logoPath = pack.getPackLogoFilepath(); }
         catch ( Throwable ignored ) { /* fall through to null below */ }
         if ( logoPath == null || logoPath.isBlank() ) return null;
         java.io.File f = new java.io.File( logoPath );
         if ( !f.exists() || !f.isFile() ) return null;
-        Image img = new Image( f.toURI().toString(), false ); // sync load
+        Image img = new Image( f.toURI().toString(), false );
         if ( img.isError() ) return null;
-        DominantColors fresh = computeDominantColors( img );
-        if ( fresh == null ) return null;
-        if ( cacheKey != null ) DOMINANT_COLOR_CACHE.put( cacheKey, fresh );
-        return new Color[]{ fresh.primary(), fresh.secondary() };
+
+        // Run the n-color histogram pick. We keep the original 2-color
+        // result populated in the cache so the hero card's existing
+        // gradient renderer stays cheap, but the n-color slice is a
+        // separate result that doesn't go into the 2-color cache.
+        Color[] palette = computeDominantColorPalette( img, count );
+        if ( palette == null || palette.length == 0 ) return null;
+
+        // Update the 2-color cache opportunistically — same image, same
+        // pixels, no reason to re-sample on the next sampleDominantPackColors
+        // call.
+        String cacheKey = packLogoCacheKey( pack );
+        if ( cacheKey != null && palette.length >= 1 ) {
+            Color sec = palette.length >= 2 ? palette[ 1 ] : null;
+            DOMINANT_COLOR_CACHE.putIfAbsent( cacheKey,
+                                               new DominantColors( palette[ 0 ], sec ) );
+        }
+        return palette;
+    }
+
+    /**
+     * N-color sibling of {@link #computeDominantColors}. Walks the same
+     * saturation-weighted histogram, picks the heaviest bucket as the
+     * first color, then repeatedly picks the next heaviest bucket whose
+     * distance from every already-picked color exceeds the threshold —
+     * stopping when {@code count} colors are picked or no more distinct
+     * buckets remain.
+     */
+    private static Color[] computeDominantColorPalette( Image image, int count )
+    {
+        if ( image == null || image.isError() || count < 1 ) {
+            return null;
+        }
+        PixelReader reader = image.getPixelReader();
+        if ( reader == null ) {
+            return null;
+        }
+        int w = ( int ) image.getWidth();
+        int h = ( int ) image.getHeight();
+        if ( w <= 0 || h <= 0 ) {
+            return null;
+        }
+
+        final int LEVELS  = 16;
+        final int BUCKETS = LEVELS * LEVELS * LEVELS;
+        int[]    counts = new int[ BUCKETS ];
+        double[] rSum   = new double[ BUCKETS ];
+        double[] gSum   = new double[ BUCKETS ];
+        double[] bSum   = new double[ BUCKETS ];
+
+        int step = Math.max( 1, Math.min( w, h ) / 32 );
+        for ( int y = 0; y < h; y += step ) {
+            for ( int x = 0; x < w; x += step ) {
+                Color c = reader.getColor( x, y );
+                if ( c.getOpacity() < 0.5 ) continue;
+                double sat = Math.max( c.getRed(), Math.max( c.getGreen(), c.getBlue() ) )
+                           - Math.min( c.getRed(), Math.min( c.getGreen(), c.getBlue() ) );
+                int weight = 1 + ( int ) ( sat * 20 );
+                int rIdx = Math.min( LEVELS - 1, ( int ) ( c.getRed()   * LEVELS ) );
+                int gIdx = Math.min( LEVELS - 1, ( int ) ( c.getGreen() * LEVELS ) );
+                int bIdx = Math.min( LEVELS - 1, ( int ) ( c.getBlue()  * LEVELS ) );
+                int idx  = ( rIdx * LEVELS + gIdx ) * LEVELS + bIdx;
+                counts[ idx ] += weight;
+                rSum  [ idx ] += c.getRed()   * weight;
+                gSum  [ idx ] += c.getGreen() * weight;
+                bSum  [ idx ] += c.getBlue()  * weight;
+            }
+        }
+
+        final double DIST_THRESHOLD = 0.25;
+        java.util.List< Color > picked = new java.util.ArrayList<>( count );
+        // Greedy pass: repeatedly find the heaviest unpicked bucket that's
+        // far enough away from every already-picked color. O(count * BUCKETS)
+        // which is fine for count ≤ ~8.
+        for ( int slot = 0; slot < count; slot++ ) {
+            int bestIdx = -1;
+            int bestCount = 0;
+            outer:
+            for ( int i = 0; i < BUCKETS; i++ ) {
+                if ( counts[ i ] == 0 || counts[ i ] <= bestCount ) continue;
+                Color candidate = bucketAverage( i, counts, rSum, gSum, bSum );
+                for ( Color already : picked ) {
+                    if ( colorDistance( candidate, already ) <= DIST_THRESHOLD ) {
+                        continue outer;
+                    }
+                }
+                bestCount = counts[ i ];
+                bestIdx = i;
+            }
+            if ( bestIdx < 0 ) break;
+            picked.add( bucketAverage( bestIdx, counts, rSum, gSum, bSum ) );
+        }
+
+        if ( picked.isEmpty() ) return null;
+        return picked.toArray( new Color[ 0 ] );
     }
 
     /** Builds the CSS {@code -fx-background-color: linear-gradient(...)} declaration from
