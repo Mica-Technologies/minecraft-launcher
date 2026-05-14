@@ -490,14 +490,16 @@ class GameModPackLauncher
     {
         if ( handle != null ) handle.markRunning();
         try {
+            GameModLoader loader = pack.getModLoader();
+            String loaderName = loader.getName();
             if ( handle != null ) {
-                handle.startProgressSection( "Downloading Forge libraries...", 15.0 );
+                handle.startProgressSection( "Downloading " + loaderName + " libraries...", 15.0 );
             }
-            String cp = pack.getForgeApp().buildForgeClasspath(
+            String cp = loader.buildClasspath(
                     GameModeManager.getCurrentGameMode(),
                     handle != null ? handle : progressProvider );
             if ( handle != null ) {
-                handle.endProgressSection( "Forge libraries ready" );
+                handle.endProgressSection( loaderName + " libraries ready" );
                 handle.markDone();
             }
             return cp;
@@ -506,7 +508,7 @@ class GameModPackLauncher
             if ( handle != null ) handle.markFailed( extractMessage( t ) );
             if ( t instanceof ModpackException me ) throw me;
             if ( t instanceof RuntimeException re ) throw re;
-            throw new ModpackException( "Forge library sync failed", t );
+            throw new ModpackException( "Modloader library sync failed", t );
         }
     }
 
@@ -576,7 +578,7 @@ class GameModPackLauncher
             if ( handle != null ) {
                 handle.startProgressSection( "Patching game files...", 10.0 );
             }
-            pack.getForgeApp().runForgeProcessors( GameModeManager.getCurrentGameMode(),
+            pack.getModLoader().runPostInstallSteps( GameModeManager.getCurrentGameMode(),
                     handle != null ? handle : progressProvider,
                     procRuntimeComponent );
             if ( handle != null ) {
@@ -730,22 +732,31 @@ class GameModPackLauncher
             }
         }
         else {
-            // Forge launch
-            minecraftMainClass = GameModeManager.isClient() ?
-                                 pack.getForgeApp().getMinecraftMainClass() :
-                                 "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
+            // Modded launch — dispatch through the polymorphic modloader.
+            GameModLoader loader = pack.getModLoader();
+            if ( GameModeManager.isClient() ) {
+                minecraftMainClass = loader.getMinecraftMainClass();
+            }
+            else {
+                // Server-mode main class is still Forge-specific —
+                // Fabric / NeoForge server entry points will be wired
+                // through the modloader interface in a follow-up
+                // commit (needs a getServerMainClass() addition).
+                minecraftMainClass = "net.minecraftforge.fml.relauncher.ServerLaunchWrapper";
+            }
 
-            // Build game arguments: combine vanilla game args with Forge-specific game args
+            // Build game arguments: combine vanilla game args with the
+            // loader's extra game args.
             if ( GameModeManager.isClient() ) {
                 String vanillaGameArgs = libraryManifest.getGameArguments();
-                String forgeGameArgs = pack.getForgeApp().getMinecraftArguments();
+                String loaderGameArgs = loader.getMinecraftArguments();
 
-                if ( !forgeGameArgs.isEmpty() && !vanillaGameArgs.isEmpty() &&
-                        !forgeGameArgs.contains( "${auth_player_name}" ) ) {
-                    minecraftArgs = vanillaGameArgs + " " + forgeGameArgs;
+                if ( !loaderGameArgs.isEmpty() && !vanillaGameArgs.isEmpty() &&
+                        !loaderGameArgs.contains( "${auth_player_name}" ) ) {
+                    minecraftArgs = vanillaGameArgs + " " + loaderGameArgs;
                 }
-                else if ( !forgeGameArgs.isEmpty() ) {
-                    minecraftArgs = forgeGameArgs;
+                else if ( !loaderGameArgs.isEmpty() ) {
+                    minecraftArgs = loaderGameArgs;
                 }
                 else {
                     minecraftArgs = vanillaGameArgs;
@@ -837,11 +848,12 @@ class GameModPackLauncher
             jvmArgs.append( manifestJvmArgs ).append( " " );
         }
 
-        // Add Forge-specific JVM arguments (e.g. module system flags for modern Forge)
+        // Add loader-specific JVM arguments (e.g. module system flags
+        // for modern Forge / NeoForge; Fabric typically returns empty).
         if ( !pack.isVanillaVersion() && GameModeManager.isClient() ) {
-            String forgeJvmArgs = pack.getForgeApp().getForgeJvmArguments();
-            if ( !forgeJvmArgs.isEmpty() ) {
-                jvmArgs.append( forgeJvmArgs ).append( " " );
+            String loaderJvmArgs = pack.getModLoader().getJvmArguments();
+            if ( !loaderJvmArgs.isEmpty() ) {
+                jvmArgs.append( loaderJvmArgs ).append( " " );
             }
         }
 

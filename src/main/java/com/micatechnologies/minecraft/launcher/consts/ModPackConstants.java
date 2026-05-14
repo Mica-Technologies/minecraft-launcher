@@ -60,6 +60,17 @@ public class ModPackConstants
      */
     public static final String MODPACK_FORGE_JAR_LOCAL_PATH = "bin" + File.separator + "modpack.jar";
 
+    /**
+     * Modpack install folder relative path to the Fabric loader's
+     * cached profile JSON. Distinct from the Forge jar path because the
+     * artifact is JSON (not a JAR) and lives separately in case a pack
+     * ever needs both (theoretical multi-loader future).
+     *
+     * @since 2026.5
+     */
+    public static final String MODPACK_FABRIC_PROFILE_LOCAL_PATH =
+            "bin" + File.separator + "fabric-profile.json";
+
     // ====================================================================
     // Modloader type identifiers — values for the modpack manifest's
     // `packModLoader` field. Stored lowercase; matched case-insensitively.
