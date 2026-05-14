@@ -1679,39 +1679,37 @@ public class ConfigManager
      *
      * @since 1.0
      */
+    /** Public for {@link ConfigStore} to call back into ConfigManager
+     *  after a fresh-default JsonObject is created on first launch.
+     *  Populates the defaults that the rest of the launcher expects
+     *  to be present so the first cold-start doesn't surface as a
+     *  cascade of "key not found" branches.
+     *
+     *  <p>Sets {@link #configObject} from {@link ConfigStore#peek}
+     *  first so the {@code setX} calls below find a non-null state
+     *  and don't re-enter {@code ConfigStore.ensureLoaded()} (which
+     *  is currently holding its synchronized lock as the caller of
+     *  this method).</p> */
+    static void populateFirstRunDefaults() {
+        configObject = ConfigStore.peek();
+        setMinRam( ConfigConstants.MIN_RAM_MEGABYTES_DEFAULT );
+        setMaxRam( ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT );
+        setDebugLogging( ConfigConstants.LOG_DEBUG_ENABLE_DEFAULT );
+        setDiscordRpcEnable( ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
+        setResizableWindows( ConfigConstants.RESIZE_WINDOWS_ENABLE_DEFAULT );
+        setInstalledModPacks( ConfigConstants.MOD_PACKS_INSTALLED_DEFAULT );
+    }
+
+    /** Lazily loads the configuration via {@link ConfigStore} and
+     *  caches the shared JsonObject reference in {@link #configObject}
+     *  so the ~80 setter / getter pairs in this file continue to use
+     *  the same field-style access pattern without each having to
+     *  call into ConfigStore directly. The actual disk I/O lives in
+     *  ConfigStore.loadFromDisk; ConfigManager just hands ConfigStore
+     *  a callback for first-run defaulting via
+     *  {@link #populateFirstRunDefaults}. */
     private synchronized static void readConfigurationFromDisk() {
-        // Get file path and file object for config file
-        String configFilePath = LocalPathManager.getLauncherConfigFolderPath() + ConfigConstants.CONFIG_FILE_NAME;
-        File configFile = SynchronizedFileManager.getSynchronizedFile( configFilePath );
-
-        // Check if file exists (and is file), and attempt to read
-        boolean read = configFile.isFile();
-        if ( read ) {
-            try {
-                configObject = FileUtilities.readAsJsonObject( configFile );
-            }
-            catch ( Exception e ) {
-                Logger.logError( LocalizationManager.CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT );
-                Logger.logThrowable( e );
-                read = false;
-            }
-        }
-
-        // If configuration not read or failed to read, use default configuration
-        if ( !read ) {
-            configObject = new JsonObject();
-            setMinRam( ConfigConstants.MIN_RAM_MEGABYTES_DEFAULT );
-            setMaxRam( ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT );
-            setDebugLogging( ConfigConstants.LOG_DEBUG_ENABLE_DEFAULT );
-            setDiscordRpcEnable( ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
-            setResizableWindows( ConfigConstants.RESIZE_WINDOWS_ENABLE_DEFAULT );
-            setInstalledModPacks( ConfigConstants.MOD_PACKS_INSTALLED_DEFAULT );
-            configObject.addProperty( ConfigConstants.CONFIG_VERSION_KEY, ConfigConstants.CONFIG_VERSION );
-            Logger.logStd( LocalizationManager.CONFIG_RESET_SUCCESS_TEXT );
-        }
-
-        // Migrate existing config if schema version is outdated or missing
-        migrateConfigIfNeeded();
+        configObject = ConfigStore.ensureLoaded();
     }
 
     /**
@@ -1720,8 +1718,13 @@ public class ConfigManager
      *
      * @since 3.0
      */
-    private synchronized static void migrateConfigIfNeeded()
+    // Package-private so ConfigStore.loadFromDisk can call back into the
+    // migration after replacing the JsonObject on a fresh load.
+    static synchronized void migrateConfigIfNeeded()
     {
+        if ( configObject == null ) {
+            configObject = ConfigStore.peek();
+        }
         int storedVersion = 0;
         if ( configObject.has( ConfigConstants.CONFIG_VERSION_KEY ) ) {
             storedVersion = configObject.get( ConfigConstants.CONFIG_VERSION_KEY ).getAsInt();
@@ -1800,6 +1803,11 @@ public class ConfigManager
     public synchronized static boolean importConfig( File source ) {
         try {
             JsonObject imported = FileUtilities.readAsJsonObject( source );
+            // Plumb the swapped-in JSON through ConfigStore so the
+            // store's view of the live config stays in sync with this
+            // class's cached configObject reference — otherwise the
+            // debounced write would still flush the pre-import object.
+            ConfigStore.setJson( imported );
             configObject = imported;
             migrateConfigIfNeeded();
             writeConfigurationToDisk();
@@ -1811,128 +1819,26 @@ public class ConfigManager
         }
     }
 
-    // ====================================================================
-    // Debounced write queue
-    //
-    // Every setter in this file ends with writeConfigurationToDisk(),
-    // which serialises configObject and pushes it to disk synchronously
-    // on the caller's thread. A typical Settings → Save click triggers
-    // ~12 setters back-to-back; pre-debouncing, the FX thread blocked
-    // on 12 separate file writes inside the save handler.
-    //
-    // scheduleWrite() coalesces all those into one delayed flush.
-    // Every setter calls scheduleWrite(); the first call queues a
-    // 500 ms flush task; subsequent calls within that window cancel
-    // and reschedule, so a burst of N setters produces exactly one
-    // disk write.
-    //
-    // Synchronous writes are still available for places that need
-    // durability before returning (config import / launcher exit) —
-    // both fall through to writeConfigurationToDiskNow() directly.
-    //
-    // The shutdown hook below drains a pending flush at JVM exit so
-    // the last config change isn't lost when the process terminates
-    // before the 500 ms debounce window elapses.
-    // ====================================================================
-
-    /** Delay between the most-recent setter call and the actual disk
-     *  write. 500 ms is short enough that users don't notice "did my
-     *  setting save?" lag, long enough to coalesce the typical
-     *  Settings-save flurry. */
-    private static final long WRITE_DEBOUNCE_MS = 500L;
-
-    /** Single-thread scheduled executor backing the debounce.
-     *  Daemon-named so it doesn't keep the JVM alive past launcher
-     *  exit. */
-    private static final java.util.concurrent.ScheduledExecutorService WRITE_SCHEDULER =
-            java.util.concurrent.Executors.newSingleThreadScheduledExecutor( r -> {
-                Thread t = new Thread( r, "mica-config-write" );
-                t.setDaemon( true );
-                return t;
-            } );
-
-    /** Pending flush task — non-null while a write is queued.
-     *  Mutated only under {@code synchronized(WRITE_SCHEDULER)}. */
-    private static java.util.concurrent.ScheduledFuture< ? > pendingWrite = null;
-
-    static {
-        // JVM shutdown hook: if a debounced write is pending when the
-        // launcher exits, flush it synchronously so the last config
-        // change isn't dropped. Idempotent — drainPendingWrite() is a
-        // no-op when no flush is queued.
-        Runtime.getRuntime().addShutdownHook( new Thread( ConfigManager::drainPendingWrite,
-                                                          "mica-config-shutdown-flush" ) );
-    }
-
-    /** Schedules a debounced disk write. Idempotent — repeated calls
-     *  within the {@link #WRITE_DEBOUNCE_MS} window cancel the
-     *  previous schedule and queue a new one, so a burst of setters
-     *  produces exactly one disk write. */
-    private synchronized static void scheduleWrite() {
-        synchronized ( WRITE_SCHEDULER ) {
-            if ( pendingWrite != null && !pendingWrite.isDone() ) {
-                pendingWrite.cancel( false );
-            }
-            pendingWrite = WRITE_SCHEDULER.schedule(
-                    ConfigManager::writeConfigurationToDiskNow,
-                    WRITE_DEBOUNCE_MS,
-                    java.util.concurrent.TimeUnit.MILLISECONDS );
-        }
-    }
-
-    /** Synchronously flushes any pending debounced write. Called from
-     *  the JVM shutdown hook so the last config change survives
-     *  process exit, and from {@link #flushPendingWrite()} for code
-     *  paths that need durability guarantees (config import,
-     *  reset-to-defaults). No-op when nothing is queued. */
-    private synchronized static void drainPendingWrite() {
-        java.util.concurrent.ScheduledFuture< ? > pending;
-        synchronized ( WRITE_SCHEDULER ) {
-            pending = pendingWrite;
-            pendingWrite = null;
-        }
-        if ( pending != null && !pending.isDone() ) {
-            pending.cancel( false );
-            writeConfigurationToDiskNow();
-        }
+    /** Schedules a debounced disk write via {@link ConfigStore}. All
+     *  the public {@code setX} methods in this file call this; the
+     *  store coalesces a burst of setter calls into one disk write
+     *  through its 500 ms debounce window. See the
+     *  {@link ConfigStore} class docs for the threading + shutdown
+     *  semantics.
+     *
+     *  <p>Kept as a thin wrapper rather than inlined at every setter
+     *  call site so a future change to the persistence model (sync
+     *  writes, append-only journal, etc.) lands in one place.</p> */
+    private static void writeConfigurationToDisk() {
+        ConfigStore.scheduleWrite();
     }
 
     /** Public flush hook — call before exiting a code path that needs
      *  the on-disk state to match the in-memory configObject right
      *  now (e.g. after a settings import + before returning to the
-     *  caller). The shutdown hook covers normal process exit. */
+     *  caller). The {@link ConfigStore} shutdown hook covers normal
+     *  process exit. */
     public static void flushPendingWrite() {
-        drainPendingWrite();
-    }
-
-    /** Debounce-friendly setter call site. Setters use this in place
-     *  of the old synchronous writeConfigurationToDisk(). */
-    private static void writeConfigurationToDisk() {
-        scheduleWrite();
-    }
-
-    /** Actual disk-write implementation — runs on the scheduled-writer
-     *  thread under normal operation, or on the shutdown-hook thread
-     *  during JVM exit. Both paths synchronise on the ConfigManager
-     *  class lock so concurrent setters see a consistent
-     *  {@code configObject}. */
-    private synchronized static void writeConfigurationToDiskNow() {
-        // Check if configuration is loaded, return if not
-        if ( configObject == null ) {
-            Logger.logError( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
-            return;
-        }
-
-        // Get file path and file object for config file
-        String configFilePath = LocalPathManager.getLauncherConfigFolderPath() + ConfigConstants.CONFIG_FILE_NAME;
-        File configFile = SynchronizedFileManager.getSynchronizedFile( configFilePath );
-
-        try {
-            FileUtilities.writeFromJson( configObject, configFile );
-        }
-        catch ( Exception e ) {
-            Logger.logError( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
-            Logger.logThrowable( e );
-        }
+        ConfigStore.flushNow();
     }
 }
