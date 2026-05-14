@@ -52,29 +52,41 @@ public class VersionUtilities
 
         int i = 0;
         while ( i < arr1.length || i < arr2.length ) {
-            if ( i < arr1.length && i < arr2.length ) {
-                if ( Integer.parseInt( arr1[ i ] ) < Integer.parseInt( arr2[ i ] ) ) {
-                    return -1;
-                }
-                else if ( Integer.parseInt( arr1[ i ] ) > Integer.parseInt( arr2[ i ] ) ) {
-                    return 1;
-                }
-            }
-            else if ( i < arr1.length ) {
-                if ( Integer.parseInt( arr1[ i ] ) != 0 ) {
-                    return 1;
-                }
-            }
-            else {
-                if ( Integer.parseInt( arr2[ i ] ) != 0 ) {
-                    return -1;
-                }
-            }
-
+            int a = i < arr1.length ? parseSegment( arr1[ i ] ) : 0;
+            int b = i < arr2.length ? parseSegment( arr2[ i ] ) : 0;
+            if      ( a < b ) return -1;
+            else if ( a > b ) return  1;
             i++;
         }
 
         return 0;
+    }
+
+    /**
+     * Parse one dot-segment to an int. Per-segment {@link Integer#parseInt}
+     * was the original implementation but it threw on any non-numeric
+     * content — Forge versions like {@code "2855_230729ER"} (the trailing
+     * build-date suffix some modpack maintainers append) and prerelease
+     * tags like {@code "rc3"} both surface as raw segments after
+     * {@link #stripSuffixes} can't safely strip them (the build metadata
+     * is wedged between numeric segments rather than after a recognised
+     * separator). A thrown exception there propagated up to the FX
+     * thread and broke main-menu card rebuilds.
+     *
+     * <p>Strategy: pull the leading digit run, parse that. {@code ""} or
+     * pure-non-numeric falls back to {@code 0}. Loses fidelity vs a real
+     * SemVer comparator on prerelease tags but never throws, and the
+     * launcher's use case (is the installed pack older than the manifest
+     * pack?) cares about ordinal precedence not lexicographic detail.</p>
+     */
+    private static int parseSegment( String s )
+    {
+        if ( s == null || s.isEmpty() ) return 0;
+        int end = 0;
+        while ( end < s.length() && Character.isDigit( s.charAt( end ) ) ) end++;
+        if ( end == 0 ) return 0;
+        try { return Integer.parseInt( s.substring( 0, end ) ); }
+        catch ( NumberFormatException e ) { return 0; }
     }
 
     private static String stripSuffixes( String version )
@@ -86,6 +98,15 @@ public class VersionUtilities
         int plus = version.indexOf( '+' );
         if ( plus >= 0 ) {
             version = version.substring( 0, plus );
+        }
+        // Forge / modpack build-metadata convention: some maintainers
+        // append _YYYYMMDDxx (build date + suffix tag) after a 4-part
+        // version like 14.23.5.2855_230729ER. SemVer says metadata
+        // hangs off `+`; Forge's tooling has used `_` for years
+        // because Maven-coords don't allow `+`. Strip it the same way.
+        int underscore = version.indexOf( '_' );
+        if ( underscore >= 0 ) {
+            version = version.substring( 0, underscore );
         }
         return version.isEmpty() ? "0" : version;
     }

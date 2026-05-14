@@ -445,8 +445,21 @@ public abstract class GameModPackMetadata
             updateAvailable = false;
             return false;
         }
-        // compareVersionNumbers returns -1 if first < second (i.e., installed is older)
-        updateAvailable = VersionUtilities.compareVersionNumbers( installed, remote ) == -1;
+        // Belt-and-suspenders against any future weirdness in the
+        // version string format. compareVersionNumbers was hardened
+        // not to throw on Forge-style "_buildmeta" suffixes, but this
+        // method runs on the FX thread during card rebuilds and any
+        // throwable here would kill the main-menu render — better to
+        // log + assume no update than crash the menu.
+        try {
+            updateAvailable = VersionUtilities.compareVersionNumbers( installed, remote ) == -1;
+        }
+        catch ( Throwable t ) {
+            com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
+                    "isUpdateAvailable: comparing \"" + installed + "\" vs \""
+                            + remote + "\" for " + getPackName() + " — assuming no update", t );
+            updateAvailable = false;
+        }
         return updateAvailable;
     }
 
