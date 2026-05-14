@@ -67,11 +67,11 @@
               maxWidth="36.0" maxHeight="36.0" styleClass="navBrandLogo">
             <fx:include source="components/micaBrandLogo-small.fxml"/>
         </Pane>
-        <Label text="Settings" styleClass="navBrand"/>
+        <Label text="%settings.fxml.settings" styleClass="navBrand"/>
 
         <Pane HBox.hgrow="ALWAYS"/>
 
-        <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false"
+        <Label fx:id="offlineLabel" text="%settings.fxml.offline" managed="false" visible="false"
                styleClass="chip-offline"/>
         <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
     </HBox>
@@ -83,20 +83,20 @@
             <padding>
                 <Insets top="8.0" bottom="8.0" left="4.0" right="4.0" />
             </padding>
-            <MFXButton fx:id="navAccount" text="Account" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navGame" text="Game" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navAppearance" text="Appearance" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navAdvanced" text="Advanced" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navNetwork" text="Network" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navSecurity" text="Security" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navSystem" text="System" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navDiscord" text="Discord" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
-            <MFXButton fx:id="navRgb" text="RGB" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navAccount" text="%settings.fxml.account" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navGame" text="%settings.fxml.game" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navAppearance" text="%settings.fxml.appearance" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navAdvanced" text="%settings.fxml.advanced" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navNetwork" text="%settings.fxml.network" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navSecurity" text="%settings.fxml.security" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navSystem" text="%settings.fxml.system" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navDiscord" text="%settings.fxml.discord" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navRgb" text="%settings.fxml.rgb" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <!-- About pinned to the bottom of the sidebar via a flex spacer — it's
                  a destination users rarely visit, so we get it out of the primary
                  settings rhythm without hiding it entirely. -->
             <Pane VBox.vgrow="ALWAYS" />
-            <MFXButton fx:id="navAbout" text="About" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navAbout" text="%settings.fxml.about" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
         </VBox>
 
         <!-- Right content area: stacked category panes -->
@@ -108,7 +108,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="Account" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.account" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -121,12 +121,12 @@
                         <HBox spacing="16" alignment="CENTER_LEFT">
                             <ImageView fx:id="accountAvatar" fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true" />
                             <VBox spacing="4">
-                                <Label fx:id="accountNameLabel" text="Player">
+                                <Label fx:id="accountNameLabel" text="%settings.fxml.player">
                                     <font>
                                         <Font name="System Bold" size="16.0" />
                                     </font>
                                 </Label>
-                                <Label fx:id="accountUuidLabel" text="UUID: ..." wrapText="true">
+                                <Label fx:id="accountUuidLabel" text="%settings.fxml.uuid" wrapText="true">
                                     <font>
                                         <Font size="11.0" />
                                     </font>
@@ -139,18 +139,18 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Helpful Links">
+                        <Label text="%settings.fxml.helpfulLinks">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
                         <HBox spacing="8">
-                            <MFXButton fx:id="minecraftNetBtn" prefHeight="30.0" text="Minecraft.net">
+                            <MFXButton fx:id="minecraftNetBtn" prefHeight="30.0" text="%settings.fxml.minecraftNet">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
                             </MFXButton>
-                            <MFXButton fx:id="msAccountBtn" prefHeight="30.0" text="Microsoft Account">
+                            <MFXButton fx:id="msAccountBtn" prefHeight="30.0" text="%settings.fxml.microsoftAccount">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
@@ -162,17 +162,17 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Sign Out">
+                        <Label text="%settings.fxml.signOut">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="Signing out will clear your saved login and restart the launcher." wrapText="true">
+                        <Label text="%settings.fxml.signingOutWill" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <MFXButton fx:id="logoutBtn" prefHeight="30.0" prefWidth="120.0" text="Log Out" styleClass="dangerZone">
+                        <MFXButton fx:id="logoutBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.logOut" styleClass="dangerZone">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -187,7 +187,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="Game" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.game" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -196,11 +196,11 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Minimum RAM (GB)" />
+                        <Label text="%settings.fxml.minimumRamGb" />
                         <Spinner fx:id="minRamGb" editable="true" prefWidth="120.0" />
-                        <Label text="Maximum RAM (GB)" />
+                        <Label text="%settings.fxml.maximumRamGb" />
                         <Spinner fx:id="maxRamGb" editable="true" prefWidth="120.0" />
-                        <Label fx:id="sysRamLabel" text="You have X GB RAM. You're currently using X GB." wrapText="true">
+                        <Label fx:id="sysRamLabel" text="%settings.fxml.youHaveX" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -210,7 +210,7 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="JVM Preset" />
+                        <Label text="%settings.fxml.jvmPreset" />
                         <MFXComboBox fx:id="jvmPresetSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
                     </VBox>
                 </VBox>
@@ -222,7 +222,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="Appearance" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.appearance" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -231,19 +231,19 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Theme" />
+                        <Label text="%settings.fxml.theme" />
                         <MFXComboBox fx:id="themeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
                     </VBox>
                     <VBox styleClass="settingsContainer" spacing="8">
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Language">
+                        <Label text="%settings.fxml.language">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="Defaults to your operating system's language. Pick a specific language here to override that detection. Takes effect on the next launcher restart." wrapText="true">
+                        <Label text="%settings.fxml.defaultsToYour" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -254,17 +254,17 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Pack imagery">
+                        <Label text="%settings.fxml.packImagery">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="When on, modpack and version cards on the main menu and Browse view show the pack's background image on top of the procedural gradient. When off, only the gradient is shown for a cleaner, more uniform look." wrapText="true">
+                        <Label text="%settings.fxml.whenOnModpack" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <MFXToggleButton fx:id="showPackBackgroundsToggle" text="Show pack background images on cards" />
+                        <MFXToggleButton fx:id="showPackBackgroundsToggle" text="%settings.fxml.showPackBackground" />
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -275,7 +275,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="Advanced" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.advanced" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -284,13 +284,13 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <MFXToggleButton fx:id="debugCheckBox" text="Debug Mode" />
-                        <MFXToggleButton fx:id="windowResizeCheckBox" text="Window Resizing" />
-                        <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="Enhanced Logging" />
-                        <MFXToggleButton fx:id="inGameConsoleCheckBox" text="In-Game Console" />
-                        <MFXToggleButton fx:id="batteryThrottleCheckBox" text="Throttle Downloads on Battery" />
-                        <MFXToggleButton fx:id="lwjglArmPatchCheckBox" text="LWJGL ARM64 Patching" />
-                        <Label styleClass="muted" text="Replaces x86_64 LWJGL2 natives with ARM64 builds for Minecraft 1.12.2 and below on Apple Silicon / ARM Linux." wrapText="true">
+                        <MFXToggleButton fx:id="debugCheckBox" text="%settings.fxml.debugMode" />
+                        <MFXToggleButton fx:id="windowResizeCheckBox" text="%settings.fxml.windowResizing" />
+                        <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="%settings.fxml.enhancedLogging" />
+                        <MFXToggleButton fx:id="inGameConsoleCheckBox" text="%settings.fxml.inGameConsole" />
+                        <MFXToggleButton fx:id="batteryThrottleCheckBox" text="%settings.fxml.throttleDownloadsOn" />
+                        <MFXToggleButton fx:id="lwjglArmPatchCheckBox" text="%settings.fxml.lwjglArm64Patching" />
+                        <Label styleClass="muted" text="%settings.fxml.replacesX86_64Lwjgl2" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -300,12 +300,12 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Security Scan Frequency">
+                        <Label text="%settings.fxml.securityScanFrequency">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="How often the malware scan runs before launch. Daily is recommended — catches manifest changes immediately and otherwise runs at most once per day so launches stay quick. Individual packs can override this in their Advanced section." wrapText="true">
+                        <Label text="%settings.fxml.howOftenThe" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -316,18 +316,18 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Game File Integrity">
+                        <Label text="%settings.fxml.gameFileIntegrity">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="Re-hashes every mod, library, and asset across every installed pack against its manifest. Repairs anything corrupted. Takes a few seconds per pack — large libraries can run a couple minutes total." wrapText="true">
+                        <Label text="%settings.fxml.reHashesEvery" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
                         <HBox spacing="8">
-                            <MFXButton fx:id="verifyAllGameFilesBtn" prefHeight="30.0" prefWidth="180.0" text="Verify all game files">
+                            <MFXButton fx:id="verifyAllGameFilesBtn" prefHeight="30.0" prefWidth="180.0" text="%settings.fxml.verifyAllGame">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
@@ -338,24 +338,24 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Third-party integrations">
+                        <Label text="%settings.fxml.thirdPartyIntegrations">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="CurseForge Core API key. Required to import CurseForge modpacks by URL. Get one at console.curseforge.com → My API Keys. Stored encrypted on this machine using the same scheme that protects your Minecraft sign-in token — it never leaves the launcher in plaintext." wrapText="true">
+                        <Label text="%settings.fxml.curseforgeCoreApi" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
                         <HBox spacing="8" alignment="CENTER_LEFT">
                             <MFXPasswordField fx:id="curseForgeApiKeyField" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="320.0" floatingText="CurseForge API key" />
-                            <MFXButton fx:id="curseForgeApiKeySaveBtn" prefHeight="30.0" prefWidth="80.0" text="Save">
+                            <MFXButton fx:id="curseForgeApiKeySaveBtn" prefHeight="30.0" prefWidth="80.0" text="%settings.fxml.save">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
                             </MFXButton>
-                            <MFXButton fx:id="curseForgeApiKeyClearBtn" prefHeight="30.0" prefWidth="80.0" text="Clear">
+                            <MFXButton fx:id="curseForgeApiKeyClearBtn" prefHeight="30.0" prefWidth="80.0" text="%settings.fxml.clear">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
@@ -376,7 +376,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="Network" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.network" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -385,12 +385,12 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <MFXToggleButton fx:id="proxyEnableCheckBox" text="Enable Proxy" />
-                        <Label text="Proxy Type" />
+                        <MFXToggleButton fx:id="proxyEnableCheckBox" text="%settings.fxml.enableProxy" />
+                        <Label text="%settings.fxml.proxyType" />
                         <MFXComboBox fx:id="proxyTypeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="120.0" />
-                        <Label text="Proxy Host" />
+                        <Label text="%settings.fxml.proxyHost" />
                         <TextField fx:id="proxyHostField" promptText="Proxy Host (e.g. 127.0.0.1)" prefWidth="250.0" />
-                        <Label text="Proxy Port" />
+                        <Label text="%settings.fxml.proxyPort" />
                         <Spinner fx:id="proxyPortSpinner" editable="true" prefWidth="120.0" />
                     </VBox>
                 </VBox>
@@ -402,7 +402,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="Security" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.security" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -411,46 +411,46 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Malware Scanning">
+                        <Label text="%settings.fxml.malwareScanning">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label fx:id="scanFolderLabel" text="Scan Folder: /path" wrapText="true">
+                        <Label fx:id="scanFolderLabel" text="%settings.fxml.scanFolderPath" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
                         <HBox spacing="8">
-                            <MFXButton fx:id="scanBtn" prefHeight="30.0" prefWidth="110.0" text="Scan">
+                            <MFXButton fx:id="scanBtn" prefHeight="30.0" prefWidth="110.0" text="%settings.fxml.scan">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
                             </MFXButton>
-                            <MFXButton fx:id="scanFolderBtn" prefHeight="30.0" prefWidth="110.0" text="Change Folder">
+                            <MFXButton fx:id="scanFolderBtn" prefHeight="30.0" prefWidth="110.0" text="%settings.fxml.changeFolder">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
                             </MFXButton>
                             <MFXProgressBar fx:id="scanProgressBar" />
                         </HBox>
-                        <Label fx:id="scanOutputLabel" text="Scan Output" wrapText="true" />
+                        <Label fx:id="scanOutputLabel" text="%settings.fxml.scanOutput" wrapText="true" />
                     </VBox>
                     <VBox styleClass="settingsContainer" spacing="8">
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Deep Links (mmcl://)">
+                        <Label text="%settings.fxml.deepLinksMmcl">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="When enabled, &quot;Install in Launcher&quot; links on the website and Discord &quot;Join Game&quot; buttons open this launcher and add or launch the linked modpack. Untrusted hosts always require a confirmation click before installing." wrapText="true">
+                        <Label text="%settings.fxml.whenEnabledQuot" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <MFXToggleButton fx:id="uriHandlerToggle" text="Allow mmcl:// deep links" />
+                        <MFXToggleButton fx:id="uriHandlerToggle" text="%settings.fxml.allowMmclDeep" />
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -461,7 +461,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="System" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.system" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -470,24 +470,24 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Reset &amp; Runtime Options">
+                        <Label text="%settings.fxml.resetAmpRuntime">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
                         <HBox spacing="8">
-                            <MFXButton fx:id="resetLauncherBtn" prefHeight="30.0" prefWidth="120.0" text="Reset Launcher">
+                            <MFXButton fx:id="resetLauncherBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.resetLauncher">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
                             </MFXButton>
-                            <MFXButton fx:id="resetRuntimeBtn" prefHeight="30.0" prefWidth="120.0" text="Reset Runtimes">
+                            <MFXButton fx:id="resetRuntimeBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.resetRuntimes">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
                             </MFXButton>
                         </HBox>
-                        <MFXButton fx:id="manageRuntimeBtn" prefHeight="30.0" prefWidth="140.0" text="Manage Runtimes">
+                        <MFXButton fx:id="manageRuntimeBtn" prefHeight="30.0" prefWidth="140.0" text="%settings.fxml.manageRuntimes">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -497,18 +497,18 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Import / Export">
+                        <Label text="%settings.fxml.importExport">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
                         <HBox spacing="8">
-                            <MFXButton fx:id="exportSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="Export Settings">
+                            <MFXButton fx:id="exportSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.exportSettings">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
                             </MFXButton>
-                            <MFXButton fx:id="importSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="Import Settings">
+                            <MFXButton fx:id="importSettingsBtn" prefHeight="30.0" prefWidth="120.0" text="%settings.fxml.importSettings">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
@@ -519,8 +519,8 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <MFXButton fx:id="openFolderBtn" prefHeight="28.0" prefWidth="180.0" text="Open Launcher Folder" />
-                        <Label fx:id="versionLabel" text="Launcher Version: ERR_UNK" wrapText="true">
+                        <MFXButton fx:id="openFolderBtn" prefHeight="28.0" prefWidth="180.0" text="%settings.fxml.openLauncherFolder" />
+                        <Label fx:id="versionLabel" text="%settings.fxml.launcherVersionErr_unk" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -535,7 +535,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="Discord" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.discord" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -546,13 +546,13 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Rich Presence">
+                        <Label text="%settings.fxml.richPresence">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <MFXToggleButton fx:id="discordCheckBox" text="Discord Integration" />
-                        <Label styleClass="muted" text="Show what you're playing on your Discord profile. Requires the Discord desktop app to be running on the same machine — the launcher talks to it locally via IPC, no token or login required." wrapText="true">
+                        <MFXToggleButton fx:id="discordCheckBox" text="%settings.fxml.discordIntegration" />
+                        <Label styleClass="muted" text="%settings.fxml.showWhatYou" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -565,18 +565,18 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Friend Invites">
+                        <Label text="%settings.fxml.friendInvites">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <MFXToggleButton fx:id="discordInvitesCheckBox" text="Allow Discord Invites" />
-                        <Label styleClass="muted" text="When enabled, friends who see your Discord status while you're in-game get a &quot;Join Game&quot; button on your profile that auto-installs and launches the same modpack on their machine. Disables only the join button — the rich presence itself is controlled by the toggle above." wrapText="true">
+                        <MFXToggleButton fx:id="discordInvitesCheckBox" text="%settings.fxml.allowDiscordInvites" />
+                        <Label styleClass="muted" text="%settings.fxml.whenEnabledFriends" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <Label styleClass="muted" text="You can also right-click any modpack card on the main menu and pick &quot;Copy Discord Invite Link&quot; to share the join URL directly in any chat." wrapText="true">
+                        <Label styleClass="muted" text="%settings.fxml.youCanAlso" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -591,7 +591,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="RGB Lighting" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.rgbLighting" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -602,42 +602,42 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Lighting Backend">
+                        <Label text="%settings.fxml.lightingBackend">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <MFXToggleButton fx:id="rgbEnableToggle" text="Enable RGB lighting" />
-                        <Label styleClass="muted" text="When enabled, the launcher lights up your supported keyboard with modpack-derived colors during play. Default off — opt in only when you want the launcher to talk to your peripheral devices." wrapText="true">
+                        <MFXToggleButton fx:id="rgbEnableToggle" text="%settings.fxml.enableRgbLighting" />
+                        <Label styleClass="muted" text="%settings.fxml.whenEnabledThe" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
                         <HBox spacing="8" alignment="CENTER_LEFT">
-                            <Label text="Backend:" />
+                            <Label text="%settings.fxml.backend" />
                             <MFXComboBox fx:id="rgbBackendCombo" prefWidth="200.0" />
-                            <Label fx:id="rgbStatusChip" text="Disabled" styleClass="stat-chip" />
+                            <Label fx:id="rgbStatusChip" text="%settings.fxml.disabled" styleClass="stat-chip" />
                         </HBox>
-                        <Label styleClass="muted" text="Auto runs every enabled backend below that has hardware available, so a mixed rig (e.g. Razer fans + a Windows Dynamic Lighting keyboard) lights up everything at once. Pick a specific backend instead to force only that one." wrapText="true">
+                        <Label styleClass="muted" text="%settings.fxml.autoRunsEvery" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
 
-                        <Label fx:id="rgbAutoToggleHeader" text="Auto-mode integrations:" styleClass="muted">
+                        <Label fx:id="rgbAutoToggleHeader" text="%settings.fxml.autoModeIntegrations" styleClass="muted">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
                         <VBox fx:id="rgbAutoToggleBox" spacing="4">
-                            <MFXToggleButton fx:id="rgbEnableOpenRgbToggle" text="OpenRGB" />
-                            <MFXToggleButton fx:id="rgbEnableChromaNativeToggle" text="Razer Chroma (Native SDK)" />
-                            <MFXToggleButton fx:id="rgbEnableWindowsDlToggle" text="Windows Dynamic Lighting" />
-                            <MFXToggleButton fx:id="rgbEnableCorsairToggle" text="Corsair iCUE" />
-                            <MFXToggleButton fx:id="rgbEnableAsusAuraToggle" text="ASUS Aura (legacy SDK)" />
-                            <MFXToggleButton fx:id="rgbEnableChromaRestToggle" text="Razer Chroma (REST — legacy)" />
+                            <MFXToggleButton fx:id="rgbEnableOpenRgbToggle" text="%settings.fxml.openrgb" />
+                            <MFXToggleButton fx:id="rgbEnableChromaNativeToggle" text="%settings.fxml.razerChromaNative" />
+                            <MFXToggleButton fx:id="rgbEnableWindowsDlToggle" text="%settings.fxml.windowsDynamicLighting" />
+                            <MFXToggleButton fx:id="rgbEnableCorsairToggle" text="%settings.fxml.corsairIcue" />
+                            <MFXToggleButton fx:id="rgbEnableAsusAuraToggle" text="%settings.fxml.asusAuraLegacy" />
+                            <MFXToggleButton fx:id="rgbEnableChromaRestToggle" text="%settings.fxml.razerChromaRest" />
                         </VBox>
-                        <Label styleClass="muted" text="Turn off the integrations you don't want the launcher reaching, even if their software is installed. Off-by-default for Chroma REST since the native SDK supersedes it on any working Synapse install." wrapText="true">
+                        <Label styleClass="muted" text="%settings.fxml.turnOffThe" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -649,24 +649,24 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Menu Effect">
+                        <Label text="%settings.fxml.menuEffect">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <MFXToggleButton fx:id="rgbMenuEffectToggle" text="Light up devices in menus" />
-                        <Label styleClass="muted" text="When on, your devices light up while you're in the launcher menus, using the active theme's accent color. Opening a modpack's detail view switches to that modpack's sampled colors. When off, devices stay dark between game launches." wrapText="true">
+                        <MFXToggleButton fx:id="rgbMenuEffectToggle" text="%settings.fxml.lightUpDevices" />
+                        <Label styleClass="muted" text="%settings.fxml.whenOnYour" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <Label text="Animation style" styleClass="muted">
+                        <Label text="%settings.fxml.animationStyle" styleClass="muted">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
                         <MFXComboBox fx:id="rgbEffectStyleSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="220.0" />
-                        <Label styleClass="muted" text="Solid: single steady color. Breathe: slow fade in and out (default). Pulse: faster pulse between the accent and its complement. Cycle: smooth loop through 3-4 colors — sampled from the modpack logo when a pack is in focus, otherwise analogous hues around the theme accent. Rainbow: continuous hue sweep across the full spectrum, no pack dependency." wrapText="true">
+                        <Label styleClass="muted" text="%settings.fxml.solidSingleSteady" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -678,19 +678,19 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="In-Game Effects">
+                        <Label text="%settings.fxml.inGameEffects">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <MFXToggleButton fx:id="rgbUsePackColorsToggle" text="Use modpack colors" />
-                        <Label styleClass="muted" text="Light up the keyboard in colors sampled from the running modpack's logo. When off, effects use the launcher theme's accent palette." wrapText="true">
+                        <MFXToggleButton fx:id="rgbUsePackColorsToggle" text="%settings.fxml.useModpackColors" />
+                        <Label styleClass="muted" text="%settings.fxml.lightUpThe" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <MFXToggleButton fx:id="rgbHighlightKeysToggle" text="Highlight Minecraft keys" />
-                        <Label styleClass="muted" text="Overlay WASD / E / Q / F / Space / Shift / Ctrl in a contrasting accent over the modpack color background, so the gameplay keys stand out at a glance." wrapText="true">
+                        <MFXToggleButton fx:id="rgbHighlightKeysToggle" text="%settings.fxml.highlightMinecraftKeys" />
+                        <Label styleClass="muted" text="%settings.fxml.overlayWasdE" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -703,17 +703,17 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
-                        <Label text="Test">
+                        <Label text="%settings.fxml.test">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label styleClass="muted" text="Flashes solid magenta (RGB 255, 0, 255) on every connected device for 2 seconds, then restores the prior effect. A steady, full-brightness flash confirms the backend is reaching your hardware. Note for Razer Chroma: Chroma Connect only forwards frames to third-party devices (case fans, strips, etc.) when a primary Razer device — keyboard, mouse, or mousepad — is also connected. If only those third-party devices flicker or stay dark, plug in a Razer keyboard/mouse and retry. Flicker with a primary device present usually means another RGB app (Synapse, iCUE, Signal RGB) is fighting for the device." wrapText="true">
+                        <Label styleClass="muted" text="%settings.fxml.flashesSolidMagenta" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <MFXButton fx:id="rgbTestBtn" prefHeight="30.0" prefWidth="160.0" text="Test Connection" />
+                        <MFXButton fx:id="rgbTestBtn" prefHeight="30.0" prefWidth="160.0" text="%settings.fxml.testConnection" />
                     </VBox>
                 </VBox>
             </ScrollPane>
@@ -724,7 +724,7 @@
                     <padding>
                         <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
                     </padding>
-                    <Label text="About" styleClass="settingsCategoryHeader">
+                    <Label text="%settings.fxml.about" styleClass="settingsCategoryHeader">
                         <font>
                             <Font name="System Bold" size="18.0" />
                         </font>
@@ -735,12 +735,12 @@
                         <padding>
                             <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
                         </padding>
-                        <Label fx:id="aboutAppNameLabel" text="Mica Minecraft Launcher">
+                        <Label fx:id="aboutAppNameLabel" text="%settings.fxml.micaMinecraftLauncher">
                             <font>
                                 <Font name="System Bold" size="16.0" />
                             </font>
                         </Label>
-                        <Label fx:id="aboutVersionLabel" text="Version ..." wrapText="true">
+                        <Label fx:id="aboutVersionLabel" text="%settings.fxml.version" wrapText="true">
                             <font>
                                 <Font size="12.0" />
                             </font>
@@ -755,19 +755,19 @@
                              a user noticing they're on an old version naturally
                              looks here for "how do I get updates." Default ON so
                              new installs receive update prompts. -->
-                        <MFXToggleButton fx:id="launcherUpdateCheckBox" text="Check for launcher updates"/>
-                        <Label styleClass="muted" text="When off, the launcher won't reach out on startup or show the update-available icon in the navbar." wrapText="true">
+                        <MFXToggleButton fx:id="launcherUpdateCheckBox" text="%settings.fxml.checkForLauncher"/>
+                        <Label styleClass="muted" text="%settings.fxml.whenOffThe" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
                         </Label>
                         <HBox spacing="8" alignment="CENTER_LEFT">
-                            <MFXButton fx:id="aboutWebsiteBtn" prefHeight="28.0" prefWidth="140.0" text="Visit Website">
+                            <MFXButton fx:id="aboutWebsiteBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.visitWebsite">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
                             </MFXButton>
-                            <MFXButton fx:id="aboutSourceBtn" prefHeight="28.0" prefWidth="140.0" text="View Source">
+                            <MFXButton fx:id="aboutSourceBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.viewSource">
                                 <font>
                                     <Font size="11.0" />
                                 </font>
@@ -780,12 +780,12 @@
                         <padding>
                             <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
                         </padding>
-                        <Label text="Minecraft Trademark">
+                        <Label text="%settings.fxml.minecraftTrademark">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="Minecraft is a trademark of Mojang Synergies AB and Microsoft Corporation. This launcher uses the Minecraft name solely to identify the game it launches and is not affiliated with, endorsed by, sponsored by, or specifically approved by Mojang AB or Microsoft." wrapText="true">
+                        <Label text="%settings.fxml.minecraftIsA" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -797,12 +797,12 @@
                         <padding>
                             <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
                         </padding>
-                        <Label text="Open Source Acknowledgments">
+                        <Label text="%settings.fxml.openSourceAcknowledgments">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="The launcher uses the following open source software:" wrapText="true">
+                        <Label text="%settings.fxml.theLauncherUses" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -812,7 +812,7 @@
                                 <Font size="11.0" />
                             </font>
                         </Label>
-                        <Label text="Full license texts ship with the installed launcher under the LICENSES folder, and are available in this project's source repository." wrapText="true">
+                        <Label text="%settings.fxml.fullLicenseTexts" wrapText="true">
                             <font>
                                 <Font size="10.0" />
                             </font>
@@ -825,12 +825,12 @@
                         <padding>
                             <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
                         </padding>
-                        <Label text="Java Runtimes">
+                        <Label text="%settings.fxml.javaRuntimes">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="Modern Minecraft versions use Mojang's official Java runtime distributions. Legacy Forge (Minecraft 1.12.2 and below) uses Bell-SW Liberica JRE 8 for compatibility." wrapText="true">
+                        <Label text="%settings.fxml.modernMinecraftVersions" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -843,12 +843,12 @@
                         <padding>
                             <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
                         </padding>
-                        <Label text="ARM64 Native Libraries">
+                        <Label text="%settings.fxml.arm64NativeLibraries">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
                         </Label>
-                        <Label text="When LWJGL ARM Patching is enabled, the launcher replaces x86_64 LWJGL2 and jinput natives shipped with Minecraft 1.12.2 and below with community-built ARM64 binaries. Thanks to the maintainers of these projects:" wrapText="true">
+                        <Label text="%settings.fxml.whenLwjglArm" wrapText="true">
                             <font>
                                 <Font size="11.0" />
                             </font>
@@ -872,7 +872,7 @@
             <Insets left="14.0" right="14.0" />
         </padding>
         <Pane HBox.hgrow="ALWAYS"/>
-        <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="Save" />
-        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="Return" />
+        <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="%settings.fxml.save" />
+        <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="%settings.fxml.return" />
     </HBox>
 </GridPane>
