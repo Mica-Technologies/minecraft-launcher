@@ -1,0 +1,15 @@
+{
+  "name": "mica-launcher-i18n-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Translation tooling for the Mica Minecraft Launcher's localized resource bundles. Reads src/main/resources/lang/DisplayStrings.properties as the English source-of-truth and produces / refreshes DisplayStrings_<tag>.properties for every supported locale via google-translate-api-x.",
+  "scripts": {
+    "translate": "node translate-locales.js",
+    "translate:dry": "node translate-locales.js --dry-run",
+    "translate:force": "node translate-locales.js --force"
+  },
+  "dependencies": {
+    "google-translate-api-x": "^10.7.2"
+  }
+}

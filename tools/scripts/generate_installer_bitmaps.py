@@ -35,7 +35,7 @@ Both BMPs are written as 24-bit uncompressed BMP (PIL's default for RGB mode).
 WiX rejects 32-bit / indexed / RLE variants.
 
 Run from the project root:
-    python scripts/generate_installer_bitmaps.py
+    python tools/scripts/generate_installer_bitmaps.py
 """
 from __future__ import annotations
 
