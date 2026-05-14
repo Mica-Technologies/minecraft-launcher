@@ -101,6 +101,35 @@ public final class ChromaNativeBackend implements RgbBackend
      *  confirm the launcher is actually reaching each device. */
     private final java.util.Set< String > familySucceededOnce = ConcurrentHashMap.newKeySet();
 
+    /** Per-family consecutive-failure counter. Once a family hits
+     *  {@link #FAMILY_FAILURE_DROP_THRESHOLD} consecutive failures
+     *  AND has never succeeded in this session, it's added to
+     *  {@link #familyPermanentlyDropped} and renderFrame stops trying
+     *  it — kills the spammy "result=87" log loop a user gets when
+     *  e.g. they don't own a Razer mouse but the SDK still rejects
+     *  the family-specific create with an invalid-parameter error.
+     *  Any family that's succeeded at least once stays in the rotation
+     *  (transient failures on a real device should still circuit-break,
+     *  not be permanently dropped). */
+    private final java.util.Map< String, Integer > familyFailureCount = new ConcurrentHashMap<>();
+
+    /** Families we've given up on for this session — never retried, never
+     *  logged. Cleared on {@link #shutdown()}. */
+    private final java.util.Set< String > familyPermanentlyDropped = ConcurrentHashMap.newKeySet();
+
+    /** Families whose name appears in {@link #familyPermanentlyDropped}
+     *  but whose drop message we haven't logged yet. Used to emit a
+     *  single "giving up on family X" line at drop time, after which
+     *  the family contributes nothing to log volume. */
+    private final java.util.Set< String > familyDropLoggedOnce = ConcurrentHashMap.newKeySet();
+
+    /** Consecutive failure count at which a never-succeeded family is
+     *  permanently dropped for the session. Picked low enough that a
+     *  user without (say) a Razer mouse sees the warning ~5 times then
+     *  silence, rather than thousands of identical lines over an hour
+     *  of play. */
+    private static final int FAMILY_FAILURE_DROP_THRESHOLD = 5;
+
     @Override
     public String name() { return "Razer Chroma (Native)"; }
 
@@ -171,59 +200,83 @@ public final class ChromaNativeBackend implements RgbBackend
         int attempts = 0;
         int lastFailure = 0;
 
-        attempts++;
-        if ( tryFamily( "keyboard",
-                         family -> RzChromaSdkLibrary.INSTANCE.CreateKeyboardEffect(
-                                 ChromaEffectTypes.KEYBOARD_CUSTOM,
-                                 keyboardParam, family ) ) ) {
-            successes++;
+        // Each family contributes to attempts only when it's still in
+        // the active rotation. Permanently-dropped families (never-
+        // succeeded + >= FAMILY_FAILURE_DROP_THRESHOLD strikes) don't
+        // count — otherwise a user with only a keyboard would see
+        // "all 6 families failed" on every render once the rest dropped.
+        if ( !familyPermanentlyDropped.contains( "keyboard" ) ) {
+            attempts++;
+            if ( tryFamily( "keyboard",
+                             family -> RzChromaSdkLibrary.INSTANCE.CreateKeyboardEffect(
+                                     ChromaEffectTypes.KEYBOARD_CUSTOM,
+                                     keyboardParam, family ) ) ) {
+                successes++;
+            }
+            else { lastFailure = lastResult; }
         }
-        else { lastFailure = lastResult; }
 
-        attempts++;
-        if ( tryFamily( "mouse",
-                         family -> RzChromaSdkLibrary.INSTANCE.CreateMouseEffect(
-                                 ChromaEffectTypes.MOUSE_STATIC,
-                                 mouseParam, family ) ) ) {
-            successes++;
+        if ( !familyPermanentlyDropped.contains( "mouse" ) ) {
+            attempts++;
+            if ( tryFamily( "mouse",
+                             family -> RzChromaSdkLibrary.INSTANCE.CreateMouseEffect(
+                                     ChromaEffectTypes.MOUSE_STATIC,
+                                     mouseParam, family ) ) ) {
+                successes++;
+            }
+            else { lastFailure = lastResult; }
         }
-        else { lastFailure = lastResult; }
 
-        attempts++;
-        if ( tryFamily( "mousepad",
-                         family -> RzChromaSdkLibrary.INSTANCE.CreateMousepadEffect(
-                                 ChromaEffectTypes.MOUSEPAD_STATIC,
-                                 staticParam, family ) ) ) {
-            successes++;
+        if ( !familyPermanentlyDropped.contains( "mousepad" ) ) {
+            attempts++;
+            if ( tryFamily( "mousepad",
+                             family -> RzChromaSdkLibrary.INSTANCE.CreateMousepadEffect(
+                                     ChromaEffectTypes.MOUSEPAD_STATIC,
+                                     staticParam, family ) ) ) {
+                successes++;
+            }
+            else { lastFailure = lastResult; }
         }
-        else { lastFailure = lastResult; }
 
-        attempts++;
-        if ( tryFamily( "headset",
-                         family -> RzChromaSdkLibrary.INSTANCE.CreateHeadsetEffect(
-                                 ChromaEffectTypes.HEADSET_STATIC,
-                                 staticParam, family ) ) ) {
-            successes++;
+        if ( !familyPermanentlyDropped.contains( "headset" ) ) {
+            attempts++;
+            if ( tryFamily( "headset",
+                             family -> RzChromaSdkLibrary.INSTANCE.CreateHeadsetEffect(
+                                     ChromaEffectTypes.HEADSET_STATIC,
+                                     staticParam, family ) ) ) {
+                successes++;
+            }
+            else { lastFailure = lastResult; }
         }
-        else { lastFailure = lastResult; }
 
-        attempts++;
-        if ( tryFamily( "keypad",
-                         family -> RzChromaSdkLibrary.INSTANCE.CreateKeypadEffect(
-                                 ChromaEffectTypes.KEYPAD_STATIC,
-                                 staticParam, family ) ) ) {
-            successes++;
+        if ( !familyPermanentlyDropped.contains( "keypad" ) ) {
+            attempts++;
+            if ( tryFamily( "keypad",
+                             family -> RzChromaSdkLibrary.INSTANCE.CreateKeypadEffect(
+                                     ChromaEffectTypes.KEYPAD_STATIC,
+                                     staticParam, family ) ) ) {
+                successes++;
+            }
+            else { lastFailure = lastResult; }
         }
-        else { lastFailure = lastResult; }
 
-        attempts++;
-        if ( tryFamily( "chromalink",
-                         family -> RzChromaSdkLibrary.INSTANCE.CreateChromaLinkEffect(
-                                 ChromaEffectTypes.CHROMALINK_STATIC,
-                                 staticParam, family ) ) ) {
-            successes++;
+        if ( !familyPermanentlyDropped.contains( "chromalink" ) ) {
+            attempts++;
+            if ( tryFamily( "chromalink",
+                             family -> RzChromaSdkLibrary.INSTANCE.CreateChromaLinkEffect(
+                                     ChromaEffectTypes.CHROMALINK_STATIC,
+                                     staticParam, family ) ) ) {
+                successes++;
+            }
+            else { lastFailure = lastResult; }
         }
-        else { lastFailure = lastResult; }
+
+        // No families left to try — every device family has either
+        // succeeded historically (and is still rotating) or been
+        // dropped. With attempts==0 we report a clean "no-op" frame
+        // rather than a circuit-breaker failure; the user has no
+        // Razer hardware connected and that's fine.
+        if ( attempts == 0 ) return;
 
         if ( successes == 0 ) {
             throw new java.io.IOException( "Razer Chroma (Native) renderFrame: "
@@ -247,6 +300,9 @@ public final class ChromaNativeBackend implements RgbBackend
         initialized = false;
         appInfoMemory = null;
         familySucceededOnce.clear();
+        familyFailureCount.clear();
+        familyPermanentlyDropped.clear();
+        familyDropLoggedOnce.clear();
     }
 
     // =========================================================================
@@ -281,7 +337,7 @@ public final class ChromaNativeBackend implements RgbBackend
         int createResult = createFn.apply( effectId );
         if ( createResult != 0 ) {
             lastResult = createResult;
-            logFamilyFailure( familyName, "Create", createResult );
+            recordFamilyFailure( familyName, "Create", createResult );
             return false;
         }
         int setResult = RzChromaSdkLibrary.INSTANCE.SetEffect( effectId );
@@ -293,10 +349,14 @@ public final class ChromaNativeBackend implements RgbBackend
 
         if ( setResult != 0 ) {
             lastResult = setResult;
-            logFamilyFailure( familyName, "SetEffect", setResult );
+            recordFamilyFailure( familyName, "SetEffect", setResult );
             return false;
         }
 
+        // Success — reset the consecutive-failure counter so a
+        // previously-flaky family doesn't get dropped because of a
+        // transient run from a few minutes ago.
+        familyFailureCount.put( familyName, 0 );
         if ( familySucceededOnce.add( familyName ) ) {
             Logger.logStd( "Razer Chroma (Native): " + familyName
                                    + " first frame succeeded (result=0)" );
@@ -304,12 +364,36 @@ public final class ChromaNativeBackend implements RgbBackend
         return true;
     }
 
-    private static void logFamilyFailure( String familyName, String op, int result )
+    /** Records one failure for the given family. Logs the per-frame
+     *  warning ONLY while we're still considering the family — once we
+     *  permanently drop it (never-succeeded + threshold strikes), a
+     *  single "giving up on this family" line replaces the per-frame
+     *  spam for the rest of the session. */
+    private void recordFamilyFailure( String familyName, String op, int result )
     {
+        int count = familyFailureCount.merge( familyName, 1, Integer::sum );
+
+        // Drop check: only families that never succeeded in this
+        // session get permanently dropped. A family that previously
+        // worked but is now failing is a real device problem and
+        // should keep circuit-breaking via the controller, not be
+        // silenced here.
+        if ( !familySucceededOnce.contains( familyName )
+                && count >= FAMILY_FAILURE_DROP_THRESHOLD ) {
+            if ( familyPermanentlyDropped.add( familyName )
+                    && familyDropLoggedOnce.add( familyName ) ) {
+                Logger.logStd( "Razer Chroma (Native): giving up on family "
+                                       + familyName + " after "
+                                       + FAMILY_FAILURE_DROP_THRESHOLD
+                                       + " consecutive failures (no Razer "
+                                       + familyName + " device connected?). "
+                                       + "Will not be retried this session." );
+            }
+            return; // suppress the per-frame log for the dropped family
+        }
+
         // logWarningSilent so a user without (say) a Razer keyboard
-        // doesn't see "ERROR" toast spam every frame. The aggregate
-        // "all families failed" path in renderFrame is what surfaces
-        // to the user via the controller's circuit breaker.
+        // doesn't see "ERROR" toast spam every frame.
         Logger.logWarningSilent( "Razer Chroma (Native) " + op + " for family "
                                          + familyName + " returned result=" + result
                                          + " (" + describeResult( result ) + ")" );

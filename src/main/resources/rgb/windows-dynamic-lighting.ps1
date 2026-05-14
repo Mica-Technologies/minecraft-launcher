@@ -22,9 +22,27 @@
 # PowerShell is on every supported Windows install and can call WinRT
 # projections directly — slower than a native helper but no new build
 # dependencies.
+#
+# ---------------------------------------------------------------------
+# Output channel discipline: every line going to the parent goes via
+# [Console]::Out.WriteLine + Flush rather than Write-Output. Write-Output
+# routes objects through PowerShell's formatting + pipeline buffers,
+# which on PS 5.1 + a child-process scenario can hold a line in the
+# buffer indefinitely before the parent's stdin reader sees it — the
+# parent's handshake then times out even though the script printed
+# "READY 1" within milliseconds. WriteLine writes straight to the
+# .NET TextWriter sitting on the redirected stdout FileStream, and
+# Flush() forces the C runtime to push the bytes through immediately.
+# ---------------------------------------------------------------------
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = 'Stop'
+
+function Emit {
+    param( [string] $line )
+    [Console]::Out.WriteLine( $line )
+    [Console]::Out.Flush()
+}
 
 # --- Load WinRT type projections -------------------------------------
 try {
@@ -33,8 +51,7 @@ try {
     $null = [Windows.UI.Color,                              Windows.UI,                  ContentType = WindowsRuntime]
 }
 catch {
-    Write-Output "ERROR Failed to load WinRT projections — likely a pre-Windows-10 host or PowerShell < 5.1"
-    [Console]::Out.Flush()
+    Emit "ERROR Failed to load WinRT projections — likely a pre-Windows-10 host or PowerShell < 5.1"
     exit 1
 }
 
@@ -57,14 +74,12 @@ try {
     $infos     = Await-Op $infosOp
 }
 catch {
-    Write-Output "ERROR Device enumeration failed: $($_.Exception.Message)"
-    [Console]::Out.Flush()
+    Emit "ERROR Device enumeration failed: $($_.Exception.Message)"
     exit 1
 }
 
 if ( $infos.Count -eq 0 ) {
-    Write-Output "NO_DEVICES"
-    [Console]::Out.Flush()
+    Emit "NO_DEVICES"
     exit 0
 }
 
@@ -86,13 +101,11 @@ foreach ( $info in $infos ) {
 }
 
 if ( $lamps.Count -eq 0 ) {
-    Write-Output "NO_DEVICES"
-    [Console]::Out.Flush()
+    Emit "NO_DEVICES"
     exit 0
 }
 
-Write-Output "READY $($lamps.Count)"
-[Console]::Out.Flush()
+Emit "READY $($lamps.Count)"
 
 # --- Command loop ----------------------------------------------------
 while ( $true ) {
@@ -111,16 +124,14 @@ while ( $true ) {
             foreach ( $lamp in $lamps ) {
                 $lamp.SetColor( $color )
             }
-            Write-Output 'OK'
+            Emit 'OK'
         }
         catch {
-            Write-Output "ERROR Color apply failed: $($_.Exception.Message)"
+            Emit "ERROR Color apply failed: $($_.Exception.Message)"
         }
-        [Console]::Out.Flush()
     }
     else {
-        Write-Output "ERROR Unknown command: $line"
-        [Console]::Out.Flush()
+        Emit "ERROR Unknown command: $line"
     }
 }
 

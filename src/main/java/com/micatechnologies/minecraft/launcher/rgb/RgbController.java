@@ -135,6 +135,15 @@ public final class RgbController
      *  {@link #safelyInvoke}'s DEAD-state demotion swaps entries. */
     private final CopyOnWriteArrayList< BackendSlot > slots = new CopyOnWriteArrayList<>();
 
+    /** Backend types most recently asked for via {@link #start(List)}.
+     *  Compared against the next start() call to decide whether to
+     *  no-op or rebuild. This list is what the CALLER requested — not
+     *  the subset that actually started — so a transient backend
+     *  failure (e.g. Windows Dynamic Lighting's PowerShell handshake
+     *  timing out) doesn't trigger a full teardown of the working
+     *  siblings every time the user toggles a Settings checkbox. */
+    private List< Class< ? extends RgbBackend > > lastRequestedTypes = List.of();
+
     /** Drives the worker loop. Flipped to false in {@link #stop}; the
      *  worker checks it after each queue poll and exits cleanly. */
     private volatile boolean running = false;
@@ -187,17 +196,23 @@ public final class RgbController
             if ( b != null && !( b instanceof NoOpBackend ) ) real.add( b );
         }
 
-        // Already running this exact set of backend TYPES with every
-        // existing slot still HEALTHY/DEGRADED — leave it alone.
-        // RgbBackendRegistry creates fresh instances every resolve, so
-        // a "restart with the same set" from a Settings UI listener
-        // that fired spuriously would otherwise tear down a perfectly
-        // healthy session and reopen each one. Vendor SDKs (notably
-        // Razer Synapse) don't tolerate rapid session churn, so this
-        // is defense in depth on top of the Settings UI's idempotent
-        // listeners.
-        if ( running && sameTypesAndAllHealthy( real ) ) {
-            Logger.logDebug( "RGB: same backend set already running ("
+        // Already running this exact set of backend TYPES (as last
+        // requested by a caller — NOT as currently surviving in slots)
+        // and every surviving slot is still healthy → leave it alone.
+        //
+        // The "as requested" part matters: WinDL fails its handshake
+        // sometimes, so a request for {ChromaNative, WinDL} surfaces
+        // as slots={ChromaNative}. The Settings UI may then call start()
+        // again with the same {ChromaNative, WinDL} request after a
+        // user toggle elsewhere — comparing to slots would see "size
+        // changed!" and tear down the working ChromaNative just to try
+        // WinDL again. Comparing to the prior request avoids that.
+        //
+        // Vendor SDKs (notably Razer Synapse) don't tolerate rapid
+        // session churn — this is defense in depth on top of the
+        // Settings UI's idempotent listeners.
+        if ( running && sameRequestAndAllSlotsHealthy( real ) ) {
+            Logger.logDebug( "RGB: same backend set already requested ("
                                      + describeSlots() + ") — no-op restart." );
             return;
         }
@@ -207,6 +222,12 @@ public final class RgbController
         }
 
         slots.clear();
+        // Remember the new request even before we know how many slots
+        // will successfully start. A follow-up start() with the same
+        // request list short-circuits via the check above.
+        List< Class< ? extends RgbBackend > > newTypes = new ArrayList<>( real.size() );
+        for ( RgbBackend b : real ) newTypes.add( b.getClass() );
+        lastRequestedTypes = Collections.unmodifiableList( newTypes );
 
         // Probe + start each backend independently. One failing doesn't
         // stop the rest.
@@ -266,6 +287,7 @@ public final class RgbController
         }
         stopWorkerAndShutdownSlots();
         slots.clear();
+        lastRequestedTypes = List.of();
     }
 
     /**
@@ -474,19 +496,27 @@ public final class RgbController
         safelyInvoke( "shutdown on " + safeName( backend ), backend::shutdown );
     }
 
-    /** True when {@code requested} matches the current slot list 1:1
-     *  by backend class AND every existing slot is still
-     *  HEALTHY/DEGRADED (a DEAD slot needs replacing even if the
-     *  caller asked for the same type). Order matters — same set in a
-     *  different order counts as a change so the primary-display
-     *  ordering reflects the new request. */
-    private boolean sameTypesAndAllHealthy( List< RgbBackend > requested )
+    /** True when {@code requested} matches the last-requested set
+     *  ({@link #lastRequestedTypes}) 1:1 by backend class AND every
+     *  surviving slot is still HEALTHY/DEGRADED. Order matters within
+     *  the request — same set in a different order counts as a change
+     *  so the primary-display ordering reflects the new request.
+     *
+     *  <p>A DEAD slot needs replacing even if the caller asked for the
+     *  same set, so its presence in {@link #slots} fails the check.
+     *  Backends that the caller asked for but which never made it into
+     *  {@link #slots} (e.g. failed isAvailable/start) do NOT fail the
+     *  check — that's the point of comparing to the request, not the
+     *  surviving slots.</p>
+     */
+    private boolean sameRequestAndAllSlotsHealthy( List< RgbBackend > requested )
     {
-        if ( requested.size() != slots.size() ) return false;
+        if ( requested.size() != lastRequestedTypes.size() ) return false;
         for ( int i = 0; i < requested.size(); i++ ) {
-            BackendSlot existing = slots.get( i );
-            if ( existing.backend.getClass() != requested.get( i ).getClass() ) return false;
-            if ( existing.health.state() == RgbBackendHealth.State.DEAD ) return false;
+            if ( requested.get( i ).getClass() != lastRequestedTypes.get( i ) ) return false;
+        }
+        for ( BackendSlot slot : slots ) {
+            if ( slot.health.state() == RgbBackendHealth.State.DEAD ) return false;
         }
         return true;
     }

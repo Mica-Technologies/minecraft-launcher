@@ -55,14 +55,24 @@ final class ChromaEffectTypes
 
     // ============================================================
     //  Mouse effects — ChromaSDK::Mouse::EFFECT_TYPE
+    //  (full enum: NONE=0, BLINKING=1, BREATHING=2, CUSTOM=3,
+    //   REACTIVE=4, SPECTRUMCYCLING=5, STATIC=6, WAVE=7, CUSTOM2=8)
     // ============================================================
 
     /** Static single-color fill across all mouse zones.
      *  Param layout: { LEDId (uint32 = 0 for "all zones"), Color (COLORREF) }. */
-    static final int MOUSE_STATIC = 4;
+    static final int MOUSE_STATIC = 6;
 
     // ============================================================
     //  Mousepad effects — ChromaSDK::Mousepad::EFFECT_TYPE
+    //  (full enum: NONE=0, BREATHING=1, CUSTOM=2, SPECTRUMCYCLING=3,
+    //   STATIC=4, WAVE=5, CUSTOM2=6)
+    //
+    //  We pick CUSTOM2 (6) here rather than STATIC (4): CUSTOM2 is the
+    //  modern path Razer points new integrations at — the deprecated
+    //  STATIC enum is "may still work but don't rely on it" in their
+    //  current SDK headers. Param is still a bare COLORREF; CUSTOM2 just
+    //  bypasses Synapse's legacy preset cache.
     // ============================================================
 
     /** Param = COLORREF. */
@@ -70,6 +80,8 @@ final class ChromaEffectTypes
 
     // ============================================================
     //  Headset effects — ChromaSDK::Headset::EFFECT_TYPE
+    //  (full enum: NONE=0, STATIC=1, BREATHING=2, SPECTRUMCYCLING=3,
+    //   CUSTOM=4)
     // ============================================================
 
     /** Param = COLORREF. */
@@ -77,10 +89,12 @@ final class ChromaEffectTypes
 
     // ============================================================
     //  Keypad effects — ChromaSDK::Keypad::EFFECT_TYPE
+    //  (full enum: NONE=0, BREATHING=1, CUSTOM=2, REACTIVE=3,
+    //   STATIC=4, SPECTRUMCYCLING=5, WAVE=6)
     // ============================================================
 
     /** Param = COLORREF. */
-    static final int KEYPAD_STATIC = 1;
+    static final int KEYPAD_STATIC = 4;
 
     // ============================================================
     //  ChromaLink effects — ChromaSDK::ChromaLink::EFFECT_TYPE
