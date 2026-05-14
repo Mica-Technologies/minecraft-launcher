@@ -276,8 +276,10 @@ public final class MCLauncherQuickStartWizard
         }
         currentStep = idx;
         backBtn.setDisable( idx == 0 );
-        nextBtn.setText( idx == steps.length - 1 ? "Get Started" : "Next" );
-        progressIndicator.setText( "Step " + ( idx + 1 ) + " of " + steps.length );
+        nextBtn.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get(
+                idx == steps.length - 1 ? "quickStart.nextBtn.getStarted" : "quickStart.nextBtn.next" ) );
+        progressIndicator.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                "quickStart.progressIndicator", idx + 1, steps.length ) );
     }
 
     private void finish()
