@@ -89,6 +89,7 @@
             <MFXButton fx:id="navSecurity" text="Security" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navSystem" text="System" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <MFXButton fx:id="navDiscord" text="Discord" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
+            <MFXButton fx:id="navRgb" text="RGB" styleClass="settingsNavBtn" maxWidth="1.7976931348623157E308" minHeight="36.0" prefHeight="36.0" />
             <!-- About pinned to the bottom of the sidebar via a flex spacer — it's
                  a destination users rarely visit, so we get it out of the primary
                  settings rhythm without hiding it entirely. -->
@@ -566,7 +567,92 @@
                 </VBox>
             </ScrollPane>
 
-            <!-- Category 8: About / Attributions -->
+            <!-- Category 8: RGB Integration -->
+            <ScrollPane fx:id="rgbPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
+                <VBox spacing="12" fillWidth="true">
+                    <padding>
+                        <Insets top="16.0" bottom="16.0" left="16.0" right="16.0" />
+                    </padding>
+                    <Label text="RGB Lighting" styleClass="settingsCategoryHeader">
+                        <font>
+                            <Font name="System Bold" size="18.0" />
+                        </font>
+                    </Label>
+
+                    <!-- Master enable + backend choice + live status. -->
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Lighting Backend">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="rgbEnableToggle" text="Enable RGB lighting" />
+                        <Label styleClass="muted" text="When enabled, the launcher lights up your supported keyboard with modpack-derived colors during play. Default off — opt in only when you want the launcher to talk to your peripheral devices." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <Label text="Backend:" />
+                            <MFXComboBox fx:id="rgbBackendCombo" prefWidth="200.0" />
+                            <Label fx:id="rgbStatusChip" text="Disabled" styleClass="stat-chip" />
+                        </HBox>
+                        <Label styleClass="muted" text="Auto probes OpenRGB first (broadest device coverage, cross-platform), then Razer Chroma. Pick a specific backend to skip the auto-probe." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+
+                    <!-- Effect behavior toggles. -->
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="In-Game Effects">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="rgbUsePackColorsToggle" text="Use modpack colors" />
+                        <Label styleClass="muted" text="Light up the keyboard in colors sampled from the running modpack's logo. When off, effects use the launcher theme's accent palette." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="rgbHighlightKeysToggle" text="Highlight Minecraft keys" />
+                        <Label styleClass="muted" text="Overlay WASD / E / Q / F / Space / Shift / Ctrl in a contrasting accent over the modpack color background, so the gameplay keys stand out at a glance." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+
+                    <!-- Test button — flashes the launcher accent color so the user
+                         can confirm the backend is talking to their device. -->
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="Test">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label styleClass="muted" text="Flashes a 2-second accent-color frame on every connected device. Useful to confirm the backend is reaching your keyboard before relying on it during a launch." wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXButton fx:id="rgbTestBtn" prefHeight="30.0" prefWidth="160.0" text="Test Connection" />
+                    </VBox>
+                </VBox>
+            </ScrollPane>
+
+            <!-- Category 9: About / Attributions -->
             <ScrollPane fx:id="aboutPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-width: 0;" visible="false" managed="false">
                 <VBox spacing="12" fillWidth="true">
                     <padding>
