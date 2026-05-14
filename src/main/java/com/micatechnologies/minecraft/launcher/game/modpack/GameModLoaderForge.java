@@ -819,50 +819,13 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     }
 
     /**
-     * Converts a Maven coordinate (e.g. "net.minecraftforge:forge:1.15.2-31.2.50:client") to a local path
-     * (e.g. "net/minecraftforge/forge/1.15.2-31.2.50/forge-1.15.2-31.2.50-client.jar").
+     * Converts a Maven coordinate to a local path under a libraries
+     * folder. Delegates to {@link MavenArtifactPath#toRelativePathStrict}
+     * so coordinate parsing + path-traversal validation are shared
+     * across every modloader.
      */
     private static String mavenCoordToPath( String coord ) throws ModpackException {
-        // Strip brackets if present (e.g. "[group:artifact:version]")
-        if ( coord.startsWith( "[" ) && coord.endsWith( "]" ) ) {
-            coord = coord.substring( 1, coord.length() - 1 );
-        }
-
-        // Handle @ext suffix
-        String ext = "jar";
-        if ( coord.contains( "@" ) ) {
-            ext = coord.substring( coord.indexOf( "@" ) + 1 );
-            coord = coord.substring( 0, coord.indexOf( "@" ) );
-        }
-
-        String[] parts = coord.split( ":" );
-        if ( parts.length < 3 ) {
-            throw new ModpackException( "Invalid Maven coordinate (expected group:artifact:version): " + coord );
-        }
-        String group = parts[ 0 ].replace( ".", "/" );
-        String artifact = parts[ 1 ];
-        String version = parts[ 2 ];
-        String classifier = parts.length > 3 ? parts[ 3 ] : null;
-
-        // Validate no path traversal in coordinate components. Classifier is included
-        // in the assembled filename verbatim, so the same checks have to cover it —
-        // otherwise an attacker-controlled coordinate could smuggle "../" through the
-        // classifier slot to write outside the libs folder.
-        if ( group.contains( ".." ) || artifact.contains( ".." ) || version.contains( ".." ) ) {
-            throw new ModpackException( "Path traversal detected in Maven coordinate: " + coord );
-        }
-        if ( classifier != null && ( classifier.contains( ".." )
-                || classifier.indexOf( '/' ) >= 0
-                || classifier.indexOf( '\\' ) >= 0 ) ) {
-            throw new ModpackException( "Path traversal detected in Maven classifier: " + coord );
-        }
-        // ext lands in the same path component too; reject separators / .. there as well.
-        if ( ext.contains( ".." ) || ext.indexOf( '/' ) >= 0 || ext.indexOf( '\\' ) >= 0 ) {
-            throw new ModpackException( "Path traversal detected in Maven extension: " + coord );
-        }
-
-        String fileName = artifact + "-" + version + ( classifier != null ? "-" + classifier : "" ) + "." + ext;
-        return group + "/" + artifact + "/" + version + "/" + fileName;
+        return MavenArtifactPath.toRelativePathStrict( coord );
     }
 
     /**

@@ -281,22 +281,13 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
         return ManifestRuleUtilities.flattenArguments( argsObj.getAsJsonArray( kind ) );
     }
 
-    /** Maven coord ("group:artifact:version") → relative repo path
-     *  ("group-as-path/artifact/version/artifact-version.jar"). */
+    /** Maven coord ("group:artifact:version") → relative repo path.
+     *  Delegates to the shared {@link MavenArtifactPath} utility so
+     *  bad coordinates return null (Fabric's manifest-skip semantics)
+     *  but path-traversal attempts still throw. */
     private static String mavenCoordToPath( String coord )
     {
-        String[] parts = coord.split( ":" );
-        if ( parts.length < 3 ) return null;
-        String group = parts[ 0 ].replace( '.', '/' );
-        String artifact = parts[ 1 ];
-        String version = parts[ 2 ];
-        String classifier = parts.length >= 4 ? parts[ 3 ] : null;
-        StringBuilder sb = new StringBuilder();
-        sb.append( group ).append( '/' ).append( artifact ).append( '/' ).append( version )
-          .append( '/' ).append( artifact ).append( '-' ).append( version );
-        if ( classifier != null && !classifier.isBlank() ) sb.append( '-' ).append( classifier );
-        sb.append( LocalPathConstants.JAR_FILE_EXTENSION );
-        return sb.toString();
+        return MavenArtifactPath.toRelativePathOrNull( coord );
     }
 
     /** Pick a sensible default Maven base URL for a coord whose
