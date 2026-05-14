@@ -37,6 +37,7 @@ public enum HelpTopic
     VANILLA_VERSIONS( "Vanilla Versions", "help/vanilla-versions.html" ),
     RUNTIME_MANAGEMENT( "Runtime Management", "help/runtime-management.html" ),
     KEYBOARD_SHORTCUTS( "Keyboard Shortcuts", "help/keyboard-shortcuts.html" ),
+    JVM_PRESETS( "JVM Presets", "help/jvm-presets.html" ),
     TROUBLESHOOTING( "Troubleshooting", "help/troubleshooting.html" );
 
     private final String displayName;

@@ -1,0 +1,105 @@
+<h1>JVM Presets</h1>
+
+<p>The <strong>JVM Preset</strong> dropdown in Settings → Advanced picks a
+named set of arguments the launcher passes to the JVM when it starts
+Minecraft. The arguments tune the garbage collector, control heap-region
+sizing, and toggle GC logging — they don't change how the game itself
+behaves, only how the JVM hosting it manages memory.</p>
+
+<p>Picking the right preset matters most for large modpacks (200+
+mods) where the GC has to clean up after thousands of chunks loading +
+unloading. For vanilla and small modpacks any preset is fine and the
+default "Performance" works well.</p>
+
+<h2>Performance (Aikar's Flags)</h2>
+
+<p>Default preset and recommended for the vast majority of users. Uses
+the G1 garbage collector with the parameter tuning Aikar (the Paper
+Minecraft server author) published years ago and many tutorials still
+cite. Designed to minimise GC-pause stutters during heavy gameplay.</p>
+
+<p>Best for: <strong>modpacks with 6+ GB of RAM allocated</strong>,
+heavily-modded packs where you've noticed periodic frame-rate hiccups
+under load.</p>
+
+<h2>Low Memory</h2>
+
+<p>Trimmed-down flags for systems with little spare RAM. Uses G1 with a
+shorter pause target and smaller heap regions, sacrificing some
+throughput for predictability under tight memory pressure.</p>
+
+<p>Best for: <strong>systems with ≤ 8 GB total system RAM</strong>,
+laptops on battery, or when you want to keep multiple modpacks
+running alongside other apps. Not recommended for large modpacks
+(200+ mods) where Aikar's flags will reclaim memory more efficiently
+even on the same total allocation.</p>
+
+<h2>Debug</h2>
+
+<p>Performance flags plus GC verbose logging + Java assertions
+enabled. Writes a {@code gc.log} file to the modpack's install folder
+that records every GC event with timestamps. Mostly useful for mod
+developers and people diagnosing repeatable OOM crashes — adds a
+small steady-state overhead so don't leave it on for everyday play.</p>
+
+<p>Best for: <strong>diagnosing GC-pause complaints</strong>,
+investigating "stops responding for a few seconds every minute"
+reports.</p>
+
+<h2>None</h2>
+
+<p>Empty argument list — the JVM uses its own defaults. Useful for
+testing whether a perceived performance issue is caused by the preset
+flags themselves (rare but possible if the JDK version is much newer
+than when the Aikar flags were written).</p>
+
+<p>Best for: <strong>verifying baseline behaviour</strong> when a
+preset is suspected to interact badly with a specific mod or JDK
+release.</p>
+
+<h2>RAM Allocation Notes</h2>
+
+<p>Presets tune the JVM at startup, but the launcher's
+<strong>Minimum RAM</strong> and <strong>Maximum RAM</strong> sliders
+in Settings → Account / Game decide how much memory the JVM is allowed
+to use. The right amount depends on the modpack:</p>
+
+<ul>
+    <li>Vanilla Minecraft: 2 GB is plenty.</li>
+    <li>Light modpacks (≤ 50 mods): 4 GB.</li>
+    <li>Medium modpacks (50-150 mods): 6 GB.</li>
+    <li>Heavy modpacks (150+ mods, shaders): 8-12 GB.</li>
+    <li>Extreme modpacks (300+ mods, custom worldgen): 12-16 GB.</li>
+</ul>
+
+<div class="warning">
+    <div class="callout-title">Warning</div>
+    <p>Allocating more RAM than your system can spare causes Minecraft
+    to swap to disk, which makes stutters <em>worse</em>, not better.
+    Keep maximum RAM at or below half your system's total RAM. A
+    16 GB system shouldn't allocate more than 8 GB to Minecraft.</p>
+</div>
+
+<h2>Custom Flags</h2>
+
+<p>The Settings field below the preset dropdown is editable — you can
+paste your own argument string if a preset doesn't fit your needs.
+Common additions:</p>
+
+<ul>
+    <li><code>-XX:+UseZGC</code> — switch to the Z garbage collector
+        (low-pause, requires JDK 15+). Sometimes outperforms G1 on
+        very large heaps (32 GB+) but generally not worth changing
+        from G1 on typical Minecraft setups.</li>
+    <li><code>-Dfile.encoding=UTF-8</code> — useful when mods generate
+        config files with non-ASCII content on Windows where the
+        default charset can be Latin-1.</li>
+    <li><code>-Xss2M</code> — bumps thread stack size from the JVM
+        default; some modpacks with deep call chains (heavy worldgen
+        mods, large dimension generators) need this.</li>
+</ul>
+
+<p>Mistakes in custom flags surface as launch failures with messages
+like "Error: Could not create the Java Virtual Machine" or
+"Unrecognized VM option". If you see one of those, switch back to
+Performance and try again before reaching for the custom field.</p>
