@@ -263,18 +263,18 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
                 cancelBtnRow.setVisible( false );
                 cancelBtnRow.setManaged( false );
                 cancelBtn.setOnAction( null );
-                cancelBtn.setText( "Cancel" );
+                cancelBtn.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "progress.cancelBtn.label" ) );
                 cancelBtn.setDisable( false );
                 return;
             }
             cancelBtnRow.setVisible( true );
             cancelBtnRow.setManaged( true );
-            cancelBtn.setText( "Cancel" );
+            cancelBtn.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "progress.cancelBtn.label" ) );
             cancelBtn.setDisable( false );
             cancelBtn.setOnAction( e -> {
                 // Optimistic UI: immediately reflect "we heard you" so the user doesn't
                 // wonder if their click registered. The actual abort happens off-thread.
-                cancelBtn.setText( "Cancelling…" );
+                cancelBtn.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "progress.cancelBtn.cancelling" ) );
                 cancelBtn.setDisable( true );
                 handler.run();
             } );

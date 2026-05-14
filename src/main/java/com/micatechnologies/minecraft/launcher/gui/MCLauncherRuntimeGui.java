@@ -144,7 +144,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             int selectedIndex = runtimeListView.getSelectionModel().getSelectedIndex();
             if ( selectedIndex < 0 || currentRuntimes == null || selectedIndex >= currentRuntimes.size() ) {
                 GUIUtilities.JFXPlatformRun(
-                        () -> statusLabel.setText( "No runtime selected." ) );
+                        () -> statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.noneSelected" ) ) );
                 return;
             }
 
@@ -168,7 +168,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
                 Logger.logError( "Failed to delete " + component + " runtime." );
                 Logger.logThrowable( e );
                 GUIUtilities.JFXPlatformRun(
-                        () -> statusLabel.setText( "Failed to delete runtime." ) );
+                        () -> statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.deleteFailed" ) ) );
             }
 
             refreshRuntimeList();
@@ -178,7 +178,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
         deleteAllBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             if ( currentRuntimes == null || currentRuntimes.isEmpty() ) {
                 GUIUtilities.JFXPlatformRun(
-                        () -> statusLabel.setText( "No runtimes installed." ) );
+                        () -> statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.noneInstalled" ) ) );
                 return;
             }
 
@@ -200,7 +200,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             }
 
             GUIUtilities.JFXPlatformRun(
-                    () -> statusLabel.setText( "All runtimes deleted." ) );
+                    () -> statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.allDeleted" ) ) );
             refreshRuntimeList();
         } ) );
 
@@ -245,7 +245,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
                 statusLabel.setText( currentRuntimes.size() + " runtime(s) installed." );
             }
             else {
-                statusLabel.setText( "No runtimes installed." );
+                statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.noneInstalled" ) );
             }
         } );
     }
