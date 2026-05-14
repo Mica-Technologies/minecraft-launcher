@@ -31,7 +31,7 @@ public enum HelpTopic
     MAIN_SCREEN( "Main Screen", "help/main-screen.html" ),
     LOGIN( "Login", "help/login.html" ),
     SETTINGS( "Settings", "help/settings.html" ),
-    EDIT_MODPACKS( "Edit Mod Packs", "help/edit-modpacks.html" ),
+    BROWSE_LIBRARY( "Browse", "help/browse-library.html" ),
     MODPACK_EDITOR( "Modpack Editor", "help/modpack-editor.html" ),
     GAME_CONSOLE( "Game Console", "help/game-console.html" ),
     VANILLA_VERSIONS( "Vanilla Versions", "help/vanilla-versions.html" ),

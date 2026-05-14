@@ -200,7 +200,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     String getSceneName() { return "Browse"; }
 
     @Override
-    HelpTopic getHelpTopic() { return HelpTopic.EDIT_MODPACKS; }
+    HelpTopic getHelpTopic() { return HelpTopic.BROWSE_LIBRARY; }
 
     @Override
     void setup()
