@@ -21,114 +21,110 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.RgbBackend;
 import com.micatechnologies.minecraft.launcher.rgb.RgbColor;
 import com.micatechnologies.minecraft.launcher.rgb.RgbFrame;
+import com.micatechnologies.minecraft.launcher.rgb.backends.dynamiclighting.winrt.Combase;
+import com.micatechnologies.minecraft.launcher.rgb.backends.dynamiclighting.winrt.WinRt;
+import com.sun.jna.Pointer;
+import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.ptr.PointerByReference;
 import org.apache.commons.lang3.SystemUtils;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * RGB backend driving Windows 11 Dynamic Lighting (the
- * {@code Windows.Devices.Lights.LampArray} WinRT API) through a
- * long-lived PowerShell subprocess.
+ * {@code Windows.Devices.Lights.LampArray} WinRT API) through a JNA
+ * bridge to {@code combase.dll}.
  *
- * <h3>Why PowerShell?</h3>
+ * <h3>Why JNA instead of a PowerShell helper</h3>
  *
- * <p>Java has no first-class WinRT bindings. The realistic options for
- * a Java app to call into LampArray are:</p>
- * <ul>
- *   <li>A JNA bridge to {@code combase.dll} (HSTRING / RoActivateInstance
- *       / IAsyncOperation polling). ~1500 lines of fragile glue —
- *       async-to-sync conversion across a JNA boundary is the brittle
- *       part. Pure-Java, no external deps.</li>
- *   <li>A bundled native helper (C# / C++ / Rust). Cleanest impl
- *       (~50 lines) but adds a new toolchain to the launcher's
- *       cross-platform build pipeline.</li>
- *   <li>A PowerShell subprocess. PowerShell ships on every supported
- *       Windows install (5.1 baseline) and projects WinRT types
- *       directly via the {@code [Type,Assembly,ContentType=WindowsRuntime]}
- *       loader syntax. Slow to start (~1-2s) but functional with no
- *       new build steps.</li>
- * </ul>
+ * <p>This was originally a PowerShell-subprocess backend. The handshake
+ * to the PS subprocess kept timing out on real hardware regardless of
+ * stdout-flush workarounds — verified on a fresh launcher run with a
+ * Logitech G502 X registered as a LampArray device. Replacing the PS
+ * round-trip with a direct WinRT-via-JNA call removes the subprocess
+ * lifetime, child-pipe scheduling, and the 15-second handshake budget
+ * from the picture entirely.</p>
  *
- * <p>This backend goes with PowerShell. The slow startup happens once
- * per launcher session at {@link #start()} time, off the FX thread.
- * After that, the subprocess sits in a read-stdin loop and applies
- * colors via {@code LampArray::SetColor} when we send them. Per-command
- * latency is in the low hundreds of milliseconds — too slow for true
- * 30fps streaming, but the launcher's effects are mostly static
- * (idle pack-color, in-game gradient) and the per-backend frame
- * deduplication below collapses a 30fps stream of identical frames
- * down to one PowerShell write per actual color change.</p>
+ * <p>The cost is ~600 lines of WinRT vtable-dispatch plumbing (see
+ * {@link com.micatechnologies.minecraft.launcher.rgb.backends.dynamiclighting.winrt}).
+ * Worth it because the launcher is the only meaningful consumer — no
+ * native helper toolchain, no per-platform binary to ship.</p>
  *
  * <h3>Lifecycle</h3>
  *
  * <ol>
- *   <li>{@link #isAvailable()} — quick OS check (Windows 10+) plus a
- *       PATH check for {@code powershell.exe}. No subprocess spawn.</li>
- *   <li>{@link #start()} — write the bundled PowerShell helper script
- *       to a temp file, spawn it as a subprocess, wait for the
- *       {@code READY <n>} handshake. If the host has zero LampArray
- *       devices the script emits {@code NO_DEVICES} and exits; we
- *       throw so the controller's circuit breaker routes to NoOp.</li>
- *   <li>{@link #renderFrame} — pack the frame's background color as
- *       an {@code RRGGBB} hex string, write to the PS stdin, wait
- *       for the {@code OK} ack. Frame deduplication skips the write
- *       entirely when the new color matches what we sent last.</li>
- *   <li>{@link #shutdown} — send {@code EXIT}, wait briefly, force-
- *       kill the subprocess if it doesn't terminate on its own.
- *       The script itself paints black across all devices before
- *       exiting so they don't stay stuck on the last effect color.</li>
+ *   <li>{@link #isAvailable()} — quick check: Windows + combase.dll
+ *       loadable. No WinRT calls.</li>
+ *   <li>{@link #start()} — initialise the WinRT MTA on the calling
+ *       thread, fetch {@code ILampArrayStatics} and
+ *       {@code IDeviceInformationStatics}, get the LampArray device
+ *       selector, enumerate matching devices via
+ *       {@code FindAllAsyncAqsFilter}, and for each device call
+ *       {@code LampArray.FromIdAsync}. Each {@code ILampArray} pointer
+ *       is added to {@link #lampArrays} for later use.</li>
+ *   <li>{@link #renderFrame} — for every cached LampArray, call
+ *       {@code SetColor} with the frame's background color. Frame
+ *       deduplication skips the call entirely when the color hasn't
+ *       changed. WinRT is initialised lazily on the calling thread
+ *       (the mica-rgb worker is not the same thread that ran start()).</li>
+ *   <li>{@link #shutdown} — Release every cached LampArray pointer,
+ *       drop the cache. The WinRT apartment stays initialised until
+ *       process exit — RoUninitialize is intentionally not called per
+ *       thread because the standard guidance is "do not pair on a
+ *       worker that may receive future jobs", and the launcher only
+ *       leaves WinRT at JVM exit anyway.</li>
  * </ol>
+ *
+ * <h3>Threading</h3>
+ *
+ * <p>WinRT requires every thread that touches WinRT objects to first
+ * call {@code RoInitialize}. {@code start()} initialises on whatever
+ * thread it's called on; {@code renderFrame} uses a {@link ThreadLocal}
+ * to lazily initialise the {@code mica-rgb} worker on its first frame.
+ * MTA means the LampArray pointers created on the start thread are
+ * legal to call from the worker thread.</p>
  *
  * <h3>Device coverage</h3>
  *
  * <p>Windows Dynamic Lighting only sees devices that ship HID Lighting
- * And Illumination support (HID Usage Page 0x59). As of mid-2025 that's
- * a narrow set: some Logitech keyboards (G Pro X TKL), some HP/Lenovo
- * laptops with first-party RGB keyboards, certain SteelSeries / ASUS
- * accessories. Razer hardware explicitly does NOT participate in DL
- * yet — Razer users should pin "Razer Chroma (Native)" instead of
- * relying on this backend.</p>
+ * &amp; Illumination support (HID Usage Page 0x59) AND that the user
+ * has enabled in Settings → Personalization → Dynamic Lighting. As of
+ * mid-2026 that's a narrow set: some Logitech keyboards/mice, some
+ * SteelSeries / ASUS / HP / Lenovo accessories, certain Microsoft
+ * peripherals. Razer hardware does NOT participate in DL natively —
+ * Razer users should keep Razer Chroma (Native) in the Auto-mode
+ * rotation instead of relying on this backend for their Razer gear.</p>
  *
  * @since 2026.5
  */
 public final class WindowsDynamicLightingBackend implements RgbBackend
 {
-    /** Path inside the launcher jar where the helper script lives.
-     *  Extracted to a temp file on each {@link #start()} so PowerShell
-     *  can {@code -File} it directly — passing a script via stdin
-     *  conflicts with sending commands via the same channel. */
-    private static final String SCRIPT_RESOURCE = "/rgb/windows-dynamic-lighting.ps1";
+    /** Maximum wait per async WinRT call (enumeration + per-device
+     *  open). 5 s is generous — a healthy system completes in
+     *  ~milliseconds. Anything longer than this is a wedged op that
+     *  we want to bail on. */
+    private static final long ASYNC_TIMEOUT_MS = 5_000L;
 
-    /** Handshake / command timeouts. The READY handshake includes
-     *  PowerShell startup + WinRT projection load + LampArray enum
-     *  via two async device-info calls — easily multi-second on a
-     *  cold launcher. The per-command timeout is much shorter since
-     *  once the subprocess is warm a SetColor call is sub-100ms. */
-    private static final long READY_HANDSHAKE_TIMEOUT_MS = 15_000L;
-    private static final long COMMAND_ACK_TIMEOUT_MS     = 2_000L;
-    private static final long SHUTDOWN_GRACE_MS          = 1_500L;
+    /** Cached LampArray interface pointers, one per connected device.
+     *  Held for the lifetime of the backend; released in
+     *  {@link #shutdown}. */
+    private final List< Pointer > lampArrays = new ArrayList<>();
 
-    private Process psProcess;
-    private BufferedWriter psStdin;
-    private BufferedReader psStdout;
-    private Path scriptTempFile;
+    /** Per-thread "this thread has already called RoInitialize" flag.
+     *  WinRT requires each thread that touches WinRT objects to init
+     *  its own apartment association — the mica-rgb worker thread is
+     *  not the same thread that ran {@link #start()}, so renderFrame
+     *  must init itself on first call. */
+    private static final ThreadLocal< Boolean > THREAD_WINRT_INITED =
+            ThreadLocal.withInitial( () -> Boolean.FALSE );
 
-    /** Frame deduplication. The effect engine ticks at 30fps even when
-     *  the active effect is static (SolidEffect, InGameEffect — both
-     *  emit the same frame every tick). Without dedup we'd send the
-     *  same COLOR command 30× per second, swamping the per-command
-     *  ~100ms latency. Tracking the last-sent color and skipping
-     *  identical pushes makes the backend usable for any effect. */
-    private int lastSentColor = -1;
+    /** Frame dedup. The effect engine ticks at 30 fps even when the
+     *  active effect is static; without dedup we'd push the same
+     *  SetColor call to every LampArray 30 times per second. Tracking
+     *  the last-sent packed Windows.UI.Color and skipping identical
+     *  pushes keeps the worker thread idle when nothing is moving. */
+    private int lastSentColor = Integer.MIN_VALUE;
 
     private volatile boolean started = false;
 
@@ -138,107 +134,160 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
     @Override
     public boolean isAvailable()
     {
-        // Cheap check: must be Windows. The subprocess spawn happens at
-        // start() — if the host doesn't have PowerShell or LampArray
-        // support, that's where it fails and gets routed to NoOp.
-        // Windows 10 1809 (build 17763) added LampArray, but the
-        // launcher already requires Win10+ for its own reasons, so we
-        // skip a precise version check here.
-        return SystemUtils.IS_OS_WINDOWS;
+        // Cheap probe: must be Windows AND combase.dll must load.
+        // The latter is essentially universal on Windows 10/11, but
+        // failing the check costs us nothing and the controller's
+        // auto-probe expects isAvailable to be safe.
+        return SystemUtils.IS_OS_WINDOWS && Combase.isLoadable();
     }
 
     @Override
     public void start() throws Exception
     {
-        // (1) Extract the bundled script to a temp file. PowerShell's
-        // -File flag wants an on-disk path; -Command via stdin would
-        // collide with our command-loop reading from the same stdin.
-        scriptTempFile = extractScriptToTempFile();
-
-        // (2) Spawn powershell.exe with the script. -NoProfile so user
-        // profile scripts don't slow startup; -ExecutionPolicy Bypass
-        // for the launcher's lifetime only (the temp file is gone
-        // after shutdown); -NonInteractive so PS doesn't try to
-        // prompt for anything if a WinRT call fails partway.
-        ProcessBuilder pb = new ProcessBuilder(
-                "powershell.exe",
-                "-NoProfile",
-                "-NoLogo",
-                "-NonInteractive",
-                "-ExecutionPolicy", "Bypass",
-                "-File", scriptTempFile.toString()
-        );
-        pb.redirectErrorStream( false );
-        psProcess = pb.start();
-        psStdin   = new BufferedWriter( new OutputStreamWriter(
-                psProcess.getOutputStream(), StandardCharsets.UTF_8 ) );
-        psStdout  = new BufferedReader( new InputStreamReader(
-                psProcess.getInputStream(), StandardCharsets.UTF_8 ) );
-
-        // (3) Wait for the handshake line. Anything other than
-        // "READY <n>" means the script bailed before reaching the
-        // command loop — throw and let the controller demote us.
-        String handshake = readLineWithTimeout( psStdout, READY_HANDSHAKE_TIMEOUT_MS );
-        if ( handshake == null ) {
-            throw new IOException( "Windows Dynamic Lighting handshake timeout; "
-                                           + "PowerShell subprocess never replied" );
+        if ( !isAvailable() ) {
+            throw new IllegalStateException( "Windows Dynamic Lighting: not "
+                                                     + "available on this host." );
         }
-        if ( handshake.startsWith( "READY " ) ) {
-            int deviceCount;
-            try { deviceCount = Integer.parseInt( handshake.substring( 6 ).trim() ); }
-            catch ( NumberFormatException nfe ) { deviceCount = -1; }
-            Logger.logStd( "Windows Dynamic Lighting: " + deviceCount
-                                   + " LampArray device(s) connected." );
+
+        ensureThreadWinRtInited();
+
+        // Activation factories. Lifetimes are scoped to start() — released
+        // before we return regardless of success/failure.
+        Pointer lampStatics = null;
+        Pointer devInfoStatics = null;
+        Pointer selectorHstring = null;
+        Pointer asyncFindOp = null;
+        Pointer collection = null;
+
+        try {
+            // (1) Get ILampArrayStatics.
+            lampStatics = getActivationFactory( WinRt.CLASS_LAMP_ARRAY,
+                                                 WinRt.IID_ILAMP_ARRAY_STATICS );
+
+            // (2) Ask LampArray for the AQS device selector string. This
+            //     is the filter we'll pass to DeviceInformation.FindAll
+            //     so the enumeration only returns LampArrays, not every
+            //     PnP device on the box.
+            PointerByReference selectorOut = new PointerByReference();
+            int hr = WinRt.invokeHr( lampStatics, WinRt.ILAMP_ARRAY_STATICS_GET_DEVICE_SELECTOR,
+                                      selectorOut );
+            WinRt.check( hr, "ILampArrayStatics::GetDeviceSelector" );
+            selectorHstring = selectorOut.getValue();
+            String selectorStr = WinRt.readHstring( selectorHstring );
+            Logger.logDebug( "Windows Dynamic Lighting: device selector = "
+                                     + selectorStr );
+
+            // (3) Get IDeviceInformationStatics + call FindAllAsyncAqsFilter
+            //     with the LampArray selector. Returns IAsyncOperation
+            //     <DeviceInformationCollection>.
+            devInfoStatics = getActivationFactory( WinRt.CLASS_DEVICE_INFORMATION,
+                                                    WinRt.IID_IDEV_INFO_STATICS );
+            PointerByReference findOpOut = new PointerByReference();
+            hr = WinRt.invokeHr( devInfoStatics, WinRt.IDEV_INFO_STATICS_FIND_ALL_AQS,
+                                  selectorHstring, findOpOut );
+            WinRt.check( hr, "IDeviceInformationStatics::FindAllAsyncAqsFilter" );
+            asyncFindOp = findOpOut.getValue();
+
+            // (4) Wait for the async enumeration to complete.
+            int status = WinRt.waitForAsync( asyncFindOp, ASYNC_TIMEOUT_MS );
+            if ( status != WinRt.ASYNC_COMPLETED ) {
+                throw new IllegalStateException( "Windows Dynamic Lighting: "
+                                                         + "device enumeration "
+                                                         + asyncDescription( status )
+                                                         + " (no devices opened)." );
+            }
+
+            // (5) Pull the DeviceInformationCollection — an IVectorView
+            //     <DeviceInformation>. Vtable layout: GetAt(6), get_Size(7).
+            PointerByReference collOut = new PointerByReference();
+            hr = WinRt.invokeHr( asyncFindOp, WinRt.IASYNC_OPERATION_GET_RESULTS, collOut );
+            WinRt.check( hr, "IAsyncOperation<DeviceInformationCollection>::GetResults" );
+            collection = collOut.getValue();
+
+            // (6) For each DeviceInformation, get its Id (path), then call
+            //     LampArray.FromIdAsync to open a working LampArray ptr.
+            IntByReference sizeRef = new IntByReference();
+            hr = WinRt.invokeHr( collection, WinRt.IVECTORVIEW_GET_SIZE, sizeRef );
+            WinRt.check( hr, "IVectorView<DeviceInformation>::get_Size" );
+            int count = sizeRef.getValue();
+            Logger.logStd( "Windows Dynamic Lighting: " + count + " LampArray "
+                                   + "device(s) reported by enumeration." );
+
+            for ( int i = 0; i < count; i++ ) {
+                openLampArray( lampStatics, collection, i );
+            }
+
+            if ( lampArrays.isEmpty() ) {
+                throw new IllegalStateException( "Windows Dynamic Lighting: "
+                                                         + "enumeration reported "
+                                                         + count + " device(s) but "
+                                                         + "none opened — check that "
+                                                         + "\"Use dynamic lighting on my "
+                                                         + "devices\" is on in Windows "
+                                                         + "Settings." );
+            }
+
             started = true;
-            return;
+            Logger.logStd( "Windows Dynamic Lighting: " + lampArrays.size()
+                                   + " LampArray device(s) connected and ready." );
         }
-        if ( handshake.equals( "NO_DEVICES" ) ) {
-            throw new IOException( "Windows Dynamic Lighting: no LampArray devices "
-                                           + "found on this system. Use OpenRGB or "
-                                           + "Razer Chroma backends for non-DL "
-                                           + "hardware." );
+        catch ( Throwable t ) {
+            // Roll back any LampArrays we already opened so we don't
+            // leak refcounts on a failed start.
+            for ( Pointer lamp : lampArrays ) WinRt.release( lamp );
+            lampArrays.clear();
+            throw t;
         }
-        if ( handshake.startsWith( "ERROR " ) ) {
-            throw new IOException( "Windows Dynamic Lighting helper: "
-                                           + handshake.substring( 6 ) );
+        finally {
+            // Always release the per-start interfaces — they're not
+            // needed for renderFrame.
+            WinRt.release( collection );
+            WinRt.release( asyncFindOp );
+            WinRt.deleteHstring( selectorHstring );
+            WinRt.release( devInfoStatics );
+            WinRt.release( lampStatics );
         }
-        throw new IOException( "Windows Dynamic Lighting: unexpected handshake "
-                                       + "line: " + handshake );
     }
 
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {
-        if ( !started ) return;
+        if ( !started || lampArrays.isEmpty() ) return;
 
-        // Pack background as 0xRRGGBB. Per-key overrides are ignored —
-        // LampArray's basic SetColor sets one color across every lamp.
-        // (LampArray::SetColorsForIndices exists for per-LED control,
-        //  but the launcher's effects address keys via the KeyboardKey
-        //  enum and there's no portable DL→key map yet. Solid fill is
-        //  the right approximation for V1.)
+        ensureThreadWinRtInited();
+
+        // Pack the background color into the byte order Win64 expects
+        // when passing Windows.UI.Color by value (see WinRt#packWinUiColor
+        // — it is NOT the obvious ARGB order). Alpha is always 0xFF; the
+        // launcher's effect engine has no concept of translucent lamps.
         RgbColor bg = frame.background();
-        int packed = ( bg.r() << 16 ) | ( bg.g() << 8 ) | bg.b();
+        int packed = WinRt.packWinUiColor( 0xFF, bg.r(), bg.g(), bg.b() );
         if ( packed == lastSentColor ) {
-            // Frame dedup — see field doc. Skip the PowerShell round-
-            // trip entirely when the color hasn't changed.
-            return;
+            return; // dedup — see field doc
         }
 
-        String command = String.format( "COLOR %06X", packed );
-        psStdin.write( command );
-        psStdin.newLine();
-        psStdin.flush();
-
-        String reply = readLineWithTimeout( psStdout, COMMAND_ACK_TIMEOUT_MS );
-        if ( reply == null ) {
-            throw new IOException( "Windows Dynamic Lighting: no reply to "
-                                           + command + " within "
-                                           + COMMAND_ACK_TIMEOUT_MS + "ms" );
+        // Fire SetColor at every cached LampArray. A device failing
+        // doesn't take down the rest — the worst case is partial colour
+        // coverage this frame; the next frame retries.
+        int successCount = 0;
+        int lastHr = Combase.S_OK;
+        for ( Pointer lamp : lampArrays ) {
+            try {
+                int hr = WinRt.invokeHr( lamp, WinRt.ILAMP_ARRAY_SET_COLOR, packed );
+                if ( hr >= 0 ) successCount++;
+                else           lastHr = hr;
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Windows Dynamic Lighting: SetColor threw on "
+                                                 + "device — continuing", t );
+            }
         }
-        if ( !"OK".equals( reply ) ) {
-            throw new IOException( "Windows Dynamic Lighting helper rejected "
-                                           + command + ": " + reply );
+
+        if ( successCount == 0 ) {
+            throw new IllegalStateException( "Windows Dynamic Lighting: SetColor "
+                                                     + "failed on every device "
+                                                     + "(last HRESULT 0x"
+                                                     + Integer.toHexString( lastHr ) + ")" );
         }
         lastSentColor = packed;
     }
@@ -247,91 +296,136 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
     public void shutdown()
     {
         started = false;
-        // (1) Best-effort EXIT. The PS script handles this by painting
-        // black across all LampArrays before exiting, so devices don't
-        // stay stuck on the last effect's color.
-        if ( psStdin != null ) {
-            try {
-                psStdin.write( "EXIT" );
-                psStdin.newLine();
-                psStdin.flush();
-            }
-            catch ( Throwable ignored ) { /* best-effort */ }
-            try { psStdin.close(); }
-            catch ( Throwable ignored ) { }
-        }
-        // (2) Give the subprocess a brief grace period to clean up,
-        // then force-kill if it's still alive. JVM exit shouldn't be
-        // waiting on a wedged child process.
-        if ( psProcess != null ) {
-            try {
-                if ( !psProcess.waitFor( SHUTDOWN_GRACE_MS, TimeUnit.MILLISECONDS ) ) {
-                    psProcess.destroyForcibly();
-                }
-            }
-            catch ( InterruptedException ie ) {
-                Thread.currentThread().interrupt();
-                psProcess.destroyForcibly();
-            }
-        }
-        if ( psStdout != null ) {
-            try { psStdout.close(); }
-            catch ( Throwable ignored ) { }
-        }
-        // (3) Clean up the extracted script temp file. Not critical —
-        // it's a small text file in temp dir — but tidy.
-        if ( scriptTempFile != null ) {
-            try { Files.deleteIfExists( scriptTempFile ); }
-            catch ( Throwable ignored ) { }
-        }
-        psProcess = null;
-        psStdin = null;
-        psStdout = null;
-        scriptTempFile = null;
-        lastSentColor = -1;
+        // Release every LampArray pointer we hold. Doesn't matter what
+        // thread we're on for Release — refcount decrement is thread-safe
+        // in COM/WinRT.
+        for ( Pointer lamp : lampArrays ) WinRt.release( lamp );
+        lampArrays.clear();
+        lastSentColor = Integer.MIN_VALUE;
+        // Intentionally NOT calling RoUninitialize. Per-thread init is
+        // refcounted; the worker thread may still hold references to
+        // other objects, and tearing the MTA down here would risk a
+        // CO_E_NOTINITIALIZED later. Process exit will clean up.
     }
 
-    // =========================================================================
-    //  Helpers
-    // =========================================================================
+    // ====================================================================
+    // Helpers
+    // ====================================================================
 
-    /** Copies the bundled PS script to a temp file with a .ps1 extension
-     *  (PowerShell's -File flag requires .ps1) and returns the path. */
-    private static Path extractScriptToTempFile() throws IOException
+    /** Get the activation factory for a runtime class as the given
+     *  statics-interface IID. Caller owns the returned pointer and
+     *  must release with {@link WinRt#release}. */
+    private static Pointer getActivationFactory( String runtimeClass,
+                                                  com.sun.jna.platform.win32.Guid.IID iid )
+            throws Exception
     {
-        try ( InputStream in = WindowsDynamicLightingBackend.class
-                .getResourceAsStream( SCRIPT_RESOURCE ) )
-        {
-            if ( in == null ) {
-                throw new IOException( "Bundled Windows Dynamic Lighting helper "
-                                               + "script not found at "
-                                               + SCRIPT_RESOURCE );
-            }
-            Path tmp = Files.createTempFile( "mica-rgb-dl-", ".ps1" );
-            Files.copy( in, tmp, java.nio.file.StandardCopyOption.REPLACE_EXISTING );
-            tmp.toFile().deleteOnExit();
-            return tmp;
+        Pointer classNameHstring = null;
+        try {
+            classNameHstring = WinRt.createHstring( runtimeClass );
+            PointerByReference factoryOut = new PointerByReference();
+            int hr = Combase.INSTANCE.RoGetActivationFactory( classNameHstring,
+                                                                WinRt.asIidRef( iid ),
+                                                                factoryOut );
+            WinRt.check( hr, "RoGetActivationFactory(" + runtimeClass + ")" );
+            return factoryOut.getValue();
+        }
+        finally {
+            WinRt.deleteHstring( classNameHstring );
         }
     }
 
-    /** Reads one line from {@code reader} but caps the wait at
-     *  {@code timeoutMs}. {@link BufferedReader#readLine()} is
-     *  blocking and not interruptible across all platforms, so we
-     *  poll {@link BufferedReader#ready()} on a small sleep loop. */
-    private static String readLineWithTimeout( BufferedReader reader,
-                                                 long timeoutMs ) throws IOException
+    /** Open the LampArray at {@code index} in the
+     *  {@code DeviceInformationCollection} and cache it in
+     *  {@link #lampArrays}. Failure of one device does not abort the
+     *  loop — log + continue. */
+    private void openLampArray( Pointer lampStatics, Pointer collection, int index )
     {
-        long deadline = System.currentTimeMillis() + timeoutMs;
-        while ( System.currentTimeMillis() < deadline ) {
-            if ( reader.ready() ) {
-                return reader.readLine();
+        Pointer devInfo = null;
+        Pointer idHstring = null;
+        Pointer fromIdOp = null;
+
+        try {
+            // Fetch the DeviceInformation at this index.
+            PointerByReference devInfoOut = new PointerByReference();
+            int hr = WinRt.invokeHr( collection, WinRt.IVECTORVIEW_GET_AT, index, devInfoOut );
+            WinRt.check( hr, "IVectorView::GetAt(" + index + ")" );
+            devInfo = devInfoOut.getValue();
+
+            // Read its Id HSTRING (the device's PnP path — what
+            // FromIdAsync needs).
+            PointerByReference idOut = new PointerByReference();
+            hr = WinRt.invokeHr( devInfo, WinRt.IDEVICE_INFORMATION_GET_ID, idOut );
+            WinRt.check( hr, "IDeviceInformation::get_Id" );
+            idHstring = idOut.getValue();
+            String idStr = WinRt.readHstring( idHstring );
+
+            // Open the LampArray asynchronously.
+            PointerByReference opOut = new PointerByReference();
+            hr = WinRt.invokeHr( lampStatics, WinRt.ILAMP_ARRAY_STATICS_FROM_ID_ASYNC,
+                                  idHstring, opOut );
+            WinRt.check( hr, "ILampArrayStatics::FromIdAsync" );
+            fromIdOp = opOut.getValue();
+
+            int status = WinRt.waitForAsync( fromIdOp, ASYNC_TIMEOUT_MS );
+            if ( status != WinRt.ASYNC_COMPLETED ) {
+                Logger.logWarningSilent( "Windows Dynamic Lighting: FromIdAsync "
+                                                 + asyncDescription( status )
+                                                 + " for device " + idStr );
+                return;
             }
-            try { Thread.sleep( 20L ); }
-            catch ( InterruptedException ie ) {
-                Thread.currentThread().interrupt();
-                return null;
+
+            PointerByReference lampOut = new PointerByReference();
+            hr = WinRt.invokeHr( fromIdOp, WinRt.IASYNC_OPERATION_GET_RESULTS, lampOut );
+            WinRt.check( hr, "IAsyncOperation<LampArray>::GetResults" );
+            Pointer lamp = lampOut.getValue();
+            if ( lamp == null || Pointer.nativeValue( lamp ) == 0L ) {
+                Logger.logWarningSilent( "Windows Dynamic Lighting: GetResults "
+                                                 + "returned null for device "
+                                                 + idStr );
+                return;
             }
+            lampArrays.add( lamp );
+            Logger.logStd( "Windows Dynamic Lighting: opened LampArray " + idStr );
         }
-        return null;
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "Windows Dynamic Lighting: failed to open "
+                                             + "LampArray at index " + index, t );
+        }
+        finally {
+            WinRt.release( fromIdOp );
+            WinRt.deleteHstring( idHstring );
+            WinRt.release( devInfo );
+        }
+    }
+
+    /** One-shot WinRT init for the calling thread. Idempotent — WinRT
+     *  ref-counts RoInitialize internally, but we still guard with a
+     *  ThreadLocal to avoid the unnecessary native round-trip. */
+    private static void ensureThreadWinRtInited() throws Exception
+    {
+        if ( THREAD_WINRT_INITED.get() ) return;
+        int hr = Combase.INSTANCE.RoInitialize( Combase.RO_INIT_MULTITHREADED );
+        // S_OK = first init for this thread. S_FALSE = already inited
+        // on a different MTA-compatible apartment. RPC_E_CHANGED_MODE
+        // (0x80010106) = something else previously chose a different
+        // apartment on this thread — fatal for us.
+        if ( hr != Combase.S_OK && hr != Combase.S_FALSE ) {
+            throw new IllegalStateException( "Windows Dynamic Lighting: "
+                                                     + "RoInitialize returned HRESULT 0x"
+                                                     + Integer.toHexString( hr )
+                                                     + " — apartment conflict?" );
+        }
+        THREAD_WINRT_INITED.set( Boolean.TRUE );
+    }
+
+    private static String asyncDescription( int status )
+    {
+        return switch ( status ) {
+            case WinRt.ASYNC_COMPLETED -> "completed";
+            case WinRt.ASYNC_CANCELED  -> "was cancelled";
+            case WinRt.ASYNC_ERROR     -> "reported an error";
+            case WinRt.ASYNC_STARTED   -> "timed out (still running)";
+            default -> "returned unknown status " + status;
+        };
     }
 }
