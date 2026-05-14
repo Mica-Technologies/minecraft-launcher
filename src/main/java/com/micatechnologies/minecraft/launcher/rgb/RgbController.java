@@ -137,6 +137,23 @@ public final class RgbController
         // Already running this exact backend instance — leave it alone.
         if ( running && activeBackend == backend ) return;
 
+        // Also short-circuit on same backend TYPE — RgbBackendRegistry
+        // creates a fresh instance every resolve, so a "restart with the
+        // same backend type" from a Settings UI listener that fired
+        // spuriously would otherwise tear down a perfectly healthy
+        // session and open a new one. Vendor SDKs (notably Razer
+        // Synapse) don't tolerate rapid session churn — the prior fix
+        // here was per-listener idempotency in the Settings UI; this
+        // adds defense in depth so a future caller from anywhere else
+        // doesn't repro the bug.
+        if ( running && activeBackend != null
+                && activeBackend.getClass() == backend.getClass()
+                && health.state() != RgbBackendHealth.State.DEAD ) {
+            Logger.logDebug( "RGB: same backend type already running ("
+                                     + safeName( backend ) + ") — no-op restart." );
+            return;
+        }
+
         if ( running ) {
             stopWorkerAndShutdownBackend();
         }

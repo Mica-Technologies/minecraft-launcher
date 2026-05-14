@@ -1194,13 +1194,29 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Backend combo first — populated before the toggles so when we
         // wire the enable toggle below, applying the current backend
         // picks the right combo entry.
+        //
+        // Listener idempotency note: MFXComboBox.selectItem defers its
+        // ActionEvent firing to the next FX pulse, so even though we
+        // call setOnAction AFTER selectItem, the lambda still gets
+        // invoked once at startup with the same value selectItem just
+        // set. Razer Chroma's session model breaks if we open / close
+        // sessions in rapid succession (Synapse silently drops the
+        // most recent one), so every spurious "the value didn't really
+        // change" restart was producing a connection-refused state on
+        // the user's actual Test Connection click. The no-op guard
+        // below compares against the persisted config value rather than
+        // trusting the event-firing order.
         if ( rgbBackendCombo != null ) {
             rgbBackendCombo.setItems( javafx.collections.FXCollections.observableArrayList(
                     "Auto", "OpenRGB", "Razer Chroma", "None" ) );
             rgbBackendCombo.selectItem( labelForBackend( ConfigManager.getRgbBackend() ) );
             rgbBackendCombo.setOnAction( e -> {
                 String label = rgbBackendCombo.getValue();
-                ConfigManager.setRgbBackend( backendForLabel( label ) );
+                String newBackend = backendForLabel( label );
+                if ( newBackend.equals( ConfigManager.getRgbBackend() ) ) {
+                    return; // value didn't actually change — don't churn the controller
+                }
+                ConfigManager.setRgbBackend( newBackend );
                 restartRgbController();
             } );
         }
@@ -1208,6 +1224,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( rgbEnableToggle != null ) {
             rgbEnableToggle.setSelected( ConfigManager.getRgbEnable() );
             rgbEnableToggle.selectedProperty().addListener( ( obs, oldV, newV ) -> {
+                if ( newV == null || newV == ConfigManager.getRgbEnable() ) {
+                    return; // no real change — guard against spurious property fires
+                }
                 ConfigManager.setRgbEnable( newV );
                 restartRgbController();
             } );
