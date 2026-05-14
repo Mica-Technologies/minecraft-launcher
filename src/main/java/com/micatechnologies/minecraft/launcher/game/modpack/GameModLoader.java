@@ -117,4 +117,21 @@ public interface GameModLoader
     {
         // Default: no post-install pipeline.
     }
+
+    /**
+     * Server-mode main class to launch. Returns {@code null} to fall
+     * back to {@link #getMinecraftMainClass()} (the client main); the
+     * dispatcher then assumes the loader's client + server entry
+     * points are the same class differentiated by launch-target args
+     * (modern Forge / NeoForge via {@code BootstrapLauncher} +
+     * {@code --launchTarget forgeserver}).
+     *
+     * <p>Loaders with a distinct server bootstrap class — legacy Forge
+     * 1.7-1.12 ({@code ServerLaunchWrapper}), Fabric
+     * ({@code FabricServerLauncher}) — override to return it
+     * explicitly.</p>
+     */
+    default String getServerMainClass() {
+        return null;
+    }
 }
