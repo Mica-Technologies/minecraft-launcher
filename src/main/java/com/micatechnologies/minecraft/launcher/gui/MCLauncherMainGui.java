@@ -174,7 +174,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      *  <p>ArrayDeque is fine here: rebuildCards always runs on the FX thread,
      *  so no synchronization is needed.</p> */
-    private final java.util.Deque< ModpackHeroCard > cardPool = new java.util.ArrayDeque<>();
+    private final CardPool< ModpackHeroCard > cardPool = new CardPool<>();
 
     /** When true, the rebuild pass keeps only packs with isUpdateAvailable() == true.
      *  Mirror of {@link #recentlyUpdatedOnlyCheck}'s selected state, cached here so
@@ -739,12 +739,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Recycle currently-displayed cards back to the pool before clearing the
         // FlowPane, so the next pass can pull them out and rebind to the new
         // pack set instead of constructing fresh ones. The "empty state" child
-        // isn't a card, so the cast guard skips it gracefully.
-        for ( javafx.scene.Node child : modpackCardList.getChildren() ) {
-            if ( child instanceof ModpackHeroCard card ) {
-                cardPool.push( card );
-            }
-        }
+        // isn't a card, so the cast guard in CardPool.recycleAll skips it.
+        cardPool.recycleAll( modpackCardList.getChildren(), ModpackHeroCard.class );
         modpackCardList.getChildren().clear();
 
         if ( totalItems == 0 ) {
@@ -752,7 +748,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             return;
         }
         for ( int i = startIdx; i < endIdx; i++ ) {
-            ModpackHeroCard card = cardPool.isEmpty() ? null : cardPool.pop();
+            ModpackHeroCard card = cardPool.acquireOrNull();
             if ( card == null ) {
                 card = new ModpackHeroCard( all.get( i ) );
             }
@@ -778,23 +774,23 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             case SORT_RECENT_UPDATE -> {
                 // Sort by the timestamp of the newest update-log entry for the pack
                 // (proxy for "this manifest changed recently"). Packs with no update
-                // history fall to the bottom — getUpdateRank returns Long.MIN_VALUE
-                // for those, which sorts last under reversed-natural ordering.
-                packs.sort( Comparator.comparingLong( MCLauncherMainGui::lastUpdateTimestamp ).reversed() );
+                // history fall to the bottom via Long.MIN_VALUE sentinel returned
+                // by LibrarySortKeys.lastUpdate.
+                packs.sort( Comparator.comparingLong( LibrarySortKeys::lastUpdate ).reversed() );
             }
             case SORT_MOST_PLAYED -> {
                 // Total play time descending. Packs that have never been launched
                 // have a total of 0 and bunch at the bottom; the relative order
                 // amongst those doesn't matter since the user can't tell them
                 // apart by play-count anyway.
-                packs.sort( Comparator.comparingLong( GameModPack::getTotalPlayTimeMs ).reversed() );
+                packs.sort( Comparator.comparingLong( LibrarySortKeys::totalPlayed ).reversed() );
             }
             default -> {
                 // SORT_LAST_PLAYED — reuse the pre-filter behavior: float the
                 // last-played pack to position 0, then sort the rest by lastPlayedMs
                 // descending (most recently played near the top, never-played at
                 // the bottom).
-                packs.sort( Comparator.comparingLong( GameModPack::getLastPlayedMs ).reversed() );
+                packs.sort( Comparator.comparingLong( LibrarySortKeys::lastPlayed ).reversed() );
                 String lastSelected = ConfigManager.getLastModPackSelected();
                 if ( lastSelected != null && !lastSelected.isBlank() ) {
                     for ( int i = 0; i < packs.size(); i++ ) {
@@ -807,21 +803,6 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     }
                 }
             }
-        }
-    }
-
-    /** Returns the newest update-log timestamp for the pack, or {@code Long.MIN_VALUE}
-     *  if the pack has no recorded updates. Used by the "Recently Updated" sort. */
-    private static long lastUpdateTimestamp( GameModPack pack )
-    {
-        try {
-            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog.Entry > entries
-                    = com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog.readEntries( pack );
-            if ( entries.isEmpty() ) return Long.MIN_VALUE;
-            return entries.get( 0 ).timestampMs();  // readEntries returns newest-first
-        }
-        catch ( Exception ignored ) {
-            return Long.MIN_VALUE;
         }
     }
 
