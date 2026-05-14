@@ -370,6 +370,11 @@ public class ConfigConstants
      *  separate option so users on older Synapse can fall back to the
      *  REST one if needed. */
     public static final String RGB_BACKEND_CHROMA_NATIVE = "chroma-native";
+    /** Windows 11 Dynamic Lighting via the LampArray WinRT API. Windows-
+     *  only, narrow device coverage today (specific Logitech / HP /
+     *  Lenovo / ASUS hardware that implements the HID Lighting And
+     *  Illumination usage page). Razer hardware doesn't participate yet. */
+    public static final String RGB_BACKEND_WINDOWS_DL = "windows-dl";
     public static final String RGB_BACKEND_NONE = "none";
 
     /** When true, in-game effects paint a gradient using the running
