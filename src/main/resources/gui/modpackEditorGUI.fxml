@@ -68,6 +68,8 @@
 
         <Pane HBox.hgrow="ALWAYS"/>
 
+        <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false"
+               styleClass="chip-offline"/>
         <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
     </HBox>
 

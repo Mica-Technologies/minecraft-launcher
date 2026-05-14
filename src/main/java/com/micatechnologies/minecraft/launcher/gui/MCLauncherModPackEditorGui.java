@@ -82,6 +82,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @FXML Label statusLabel;
     @FXML Label announcement;
     @FXML Label helpBtn;
+    @FXML Label offlineLabel;
     @FXML RowConstraints announcementRow;
 
     // Version bump buttons
@@ -262,6 +263,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             helpBtn.setCursor( javafx.scene.Cursor.HAND );
             TooltipManager.install( helpBtn, "Open the help window for this screen." );
         }
+
+        OfflineIndicator.applyTo( offlineLabel );
 
         // Cross-platform shortcuts.
         KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );

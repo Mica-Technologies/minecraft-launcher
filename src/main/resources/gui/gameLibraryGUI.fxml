@@ -92,6 +92,12 @@
         <MFXComboBox fx:id="sortFilter" minWidth="150.0" prefWidth="160.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
 
+        <!-- "Offline" chip — visible only when NetworkUtilities.isOffline() returns
+             true. OfflineIndicator.applyTo() in the controller toggles it. Sits
+             next to the help button so it's consistent across every screen. -->
+        <Label fx:id="offlineLabel" text="Offline" managed="false" visible="false"
+               styleClass="chip-offline"/>
+
         <!-- Navbar-anchored help button, same pattern as mainGUI / settings / editor /
              runtime / console so MCLauncherGuiWindow.injectHelpButton's corner-overlay
              fallback doesn't drop it on top of the navbar at runtime. -->

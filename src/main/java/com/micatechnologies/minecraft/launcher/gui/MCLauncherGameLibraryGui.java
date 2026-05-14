@@ -122,6 +122,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML Label announcement;
     @SuppressWarnings( "unused" ) @FXML RowConstraints announcementRow;
     @SuppressWarnings( "unused" ) @FXML Label helpBtn;
+    @SuppressWarnings( "unused" ) @FXML Label offlineLabel;
 
     // Filter options exposed in the dropdowns. Strings rather than enum so FXML/MFX can
     // bind them directly.
@@ -286,6 +287,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             helpBtn.setCursor( javafx.scene.Cursor.HAND );
             TooltipManager.install( helpBtn, "Open the help window for this screen." );
         }
+
+        OfflineIndicator.applyTo( offlineLabel );
 
         // Pagination controls
         pageSizeFilter.setItems( FXCollections.observableArrayList( PAGE_SIZES ) );

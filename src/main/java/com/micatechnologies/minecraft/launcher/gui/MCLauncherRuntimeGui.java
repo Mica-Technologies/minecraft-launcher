@@ -56,6 +56,10 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
+    Label offlineLabel;
+
+    @SuppressWarnings( "unused" )
+    @FXML
     Label statusLabel;
 
     @SuppressWarnings( "unused" )
@@ -126,6 +130,8 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             helpBtn.setCursor( javafx.scene.Cursor.HAND );
             TooltipManager.install( helpBtn, "Open the help window for this screen." );
         }
+
+        OfflineIndicator.applyTo( offlineLabel );
 
         // Cross-platform shortcuts.
         KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );
