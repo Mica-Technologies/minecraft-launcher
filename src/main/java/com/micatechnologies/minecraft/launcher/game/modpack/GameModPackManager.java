@@ -62,6 +62,46 @@ public class GameModPackManager
     private static List< GameModPack > installedGameModPacks = null;
 
     /**
+     * Listener for non-fatal errors from background tasks (cache warming,
+     * available-pack fetch, install-index revalidate) that don't have a
+     * {@link GameModPackProgressProvider} attached. Lets the launcher's
+     * UI subscribe once and surface a notification toast instead of every
+     * background-task failure being silently logged. {@code null} when no
+     * listener is registered (e.g. before the GUI is up, or in headless
+     * server mode).
+     *
+     * <p>{@code volatile} so the GUI thread's set-once at startup is
+     * visible to the background-task threads that fire it without a
+     * synchronized block on the hot path.</p>
+     *
+     * @since 2026.5
+     */
+    private static volatile java.util.function.BiConsumer< String, Throwable > backgroundErrorListener = null;
+
+    /** Sets (or clears with {@code null}) the listener invoked when a
+     *  background task hits a non-fatal error. Idempotent — last writer
+     *  wins. Wire this once from the launcher session right after the
+     *  GUI is up; clear it during shutdown. */
+    public static void setBackgroundErrorListener( java.util.function.BiConsumer< String, Throwable > listener ) {
+        backgroundErrorListener = listener;
+    }
+
+    /** Invokes {@link #backgroundErrorListener} with {@code message} +
+     *  {@code cause}, swallowing any exception the listener throws so a
+     *  bad UI handler can't crash the background task that called it.
+     *  No-op when no listener is registered. */
+    static void fireBackgroundError( String message, Throwable cause ) {
+        java.util.function.BiConsumer< String, Throwable > listener = backgroundErrorListener;
+        if ( listener == null ) return;
+        try {
+            listener.accept( message, cause );
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "background-error listener threw: " + t.getClass().getSimpleName() );
+        }
+    }
+
+    /**
      * In-flight (or completed) future for the background available-modpacks fetch kicked off
      * at launcher startup. Read by the main GUI to show a "loading available packs" indicator
      * and by {@link #getAvailableModPacks()} to block on completion when a caller actually
@@ -401,6 +441,8 @@ public class GameModPackManager
             catch ( Throwable t ) {
                 Logger.logErrorSilent( "Installed-modpack background revalidate failed." );
                 Logger.logThrowable( t );
+                fireBackgroundError(
+                        "Couldn't refresh installed-modpack info — using cached data.", t );
             }
         } );
     }
@@ -471,6 +513,8 @@ public class GameModPackManager
                 catch ( Throwable t ) {
                     Logger.logErrorSilent( "Background available-modpacks fetch failed." );
                     Logger.logThrowable( t );
+                    fireBackgroundError(
+                            "Couldn't load the available-modpacks list — Browse will show only installed packs.", t );
                 }
             } );
             return availableFetchFuture;

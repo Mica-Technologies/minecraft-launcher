@@ -170,4 +170,28 @@ public abstract class GameModPackProgressProvider
     /** Called once when the named launch step throws. {@code errorMessage} is
      *  surfaced to the user in the failed-row sub-text. */
     public void failStep( LaunchProgressTracker.StepId id, String errorMessage ) { /* no-op default */ }
+
+    /**
+     * Called when work tracked by this provider hits a recoverable error
+     * outside the formal step lifecycle — e.g. a per-file download retry
+     * that gave up, a non-fatal manifest fetch that fell back to cached
+     * data, or a mod-scan that couldn't read one entry of many. Lets
+     * provider implementations surface a user-facing notification rather
+     * than relying on the silent log line that's all the launcher had
+     * before this hook existed.
+     *
+     * <p>The base implementation is a no-op so legacy progress GUIs that
+     * don't care keep working unchanged. {@link LaunchTrackerProgressBridge}
+     * overrides this to emit a {@code NotificationManager.warn} toast so
+     * mid-launch hiccups aren't silently swallowed when the user has
+     * minimised the launcher to the system tray during install.</p>
+     *
+     * @param message short human-readable summary of the failure (becomes the
+     *                toast body / failed-row sub-text). Should not include
+     *                stack-trace text — that goes to the log.
+     * @param cause   the originating throwable, or {@code null} when the
+     *                error is synthetic (deliberate abort, validation
+     *                failure with no exception).
+     */
+    public void onError( String message, Throwable cause ) { /* no-op default */ }
 }
