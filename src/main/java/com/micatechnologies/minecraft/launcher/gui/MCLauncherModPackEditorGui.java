@@ -23,6 +23,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.CacheManager;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
@@ -182,10 +183,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             windowEvent.consume();
             SystemUtilities.spawnNewTask( () -> {
                 if ( isDirty() ) {
-                    int response = GUIUtilities.showQuestionMessage( "Unsaved Changes",
-                                                                     "Discard Changes?",
-                                                                     "You have unsaved changes. Discard them?",
-                                                                     "Discard", "Cancel", stage );
+                    int response = GUIUtilities.showQuestionMessage(
+                            LocalizationManager.get( "dialog.editor.discardChanges.title" ),
+                            LocalizationManager.get( "dialog.editor.discardChanges.header" ),
+                            LocalizationManager.get( "dialog.editor.discardChanges.body" ),
+                            LocalizationManager.get( "dialog.editor.discardChanges.button.discard" ),
+                            LocalizationManager.get( "dialog.button.cancel" ), stage );
                     if ( response != 1 ) {
                         return;
                     }
@@ -238,10 +241,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         diffBtn.setOnAction( e -> showDiff() );
         returnBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             if ( isDirty() ) {
-                int response = GUIUtilities.showQuestionMessage( "Unsaved Changes",
-                                                                 "Discard Changes?",
-                                                                 "You have unsaved changes. Discard them?",
-                                                                 "Discard", "Cancel", stage );
+                int response = GUIUtilities.showQuestionMessage(
+                        LocalizationManager.get( "dialog.editor.discardChanges.title" ),
+                        LocalizationManager.get( "dialog.editor.discardChanges.header" ),
+                        LocalizationManager.get( "dialog.editor.discardChanges.body" ),
+                        LocalizationManager.get( "dialog.editor.discardChanges.button.discard" ),
+                        LocalizationManager.get( "dialog.button.cancel" ), stage );
                 if ( response != 1 ) {
                     return;
                 }
@@ -487,10 +492,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     private void openFromUrl()
     {
         SystemUtilities.spawnNewTask( () -> {
-            int response = GUIUtilities.showQuestionMessage( "Open from URL",
-                                                              "Enter Modpack URL",
-                                                              "Paste the modpack manifest JSON URL:",
-                                                              "OK", "Cancel", stage );
+            int response = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "dialog.editor.openFromUrl.title" ),
+                    LocalizationManager.get( "dialog.editor.openFromUrl.header" ),
+                    LocalizationManager.get( "dialog.editor.openFromUrl.body" ),
+                    LocalizationManager.get( "dialog.button.ok" ),
+                    LocalizationManager.get( "dialog.button.cancel" ), stage );
             // The question dialog doesn't support text input, so use a simpler approach:
             // Prompt via a JavaFX TextInputDialog
             GUIUtilities.JFXPlatformRun( () -> {

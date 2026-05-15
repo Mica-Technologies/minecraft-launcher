@@ -448,9 +448,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             windowEvent.consume();
             SystemUtilities.spawnNewTask( () -> {
                 if ( hasUnsavedChanges() ) {
-                    int response = GUIUtilities.showQuestionMessage( "Unsaved Changes", "You have unsaved changes",
-                                                                     "Would you like to save before closing?",
-                                                                     "Save & Close", "Close Without Saving", stage );
+                    int response = GUIUtilities.showQuestionMessage(
+                            LocalizationManager.get( "dialog.settings.unsavedOnClose.title" ),
+                            LocalizationManager.get( "dialog.settings.unsavedOnClose.header" ),
+                            LocalizationManager.get( "dialog.settings.unsavedOnClose.body" ),
+                            LocalizationManager.get( "dialog.settings.unsavedOnClose.button.saveAndClose" ),
+                            LocalizationManager.get( "dialog.settings.unsavedOnClose.button.closeWithoutSaving" ),
+                            stage );
                     if ( response == 1 ) {
                         GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
                         LauncherCore.closeApp();
@@ -469,9 +473,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Configure return button
         returnBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             if ( hasUnsavedChanges() ) {
-                int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
-                                                                 "Are you sure you want to return without saving " +
-                                                                         "changes?", "Save", "Return", stage );
+                int response = GUIUtilities.showQuestionMessage(
+                        LocalizationManager.get( "dialog.settings.unsavedOnReturn.title" ),
+                        LocalizationManager.get( "dialog.settings.unsavedOnReturn.header" ),
+                        LocalizationManager.get( "dialog.settings.unsavedOnReturn.body" ),
+                        LocalizationManager.get( "dialog.settings.unsavedOnReturn.button.save" ),
+                        LocalizationManager.get( "dialog.settings.unsavedOnReturn.button.return" ),
+                        stage );
                 if ( response == 1 ) {
                     GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
                     try {
@@ -611,9 +619,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Configure reset launcher button
         resetLauncherBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            int response = GUIUtilities.showQuestionMessage( "Continue?", "Entering the Danger Zone",
-                                                             "Are you sure you'd like to reset the launcher? This may take a few minutes!",
-                                                             "Reset", "Back to Safety", stage );
+            int response = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "dialog.settings.resetLauncher.title" ),
+                    LocalizationManager.get( "dialog.settings.resetLauncher.header" ),
+                    LocalizationManager.get( "dialog.settings.resetLauncher.body" ),
+                    LocalizationManager.get( "dialog.settings.resetLauncher.button.reset" ),
+                    LocalizationManager.get( "dialog.settings.resetLauncher.button.back" ),
+                    stage );
             if ( response != 1 ) {
                 return;
             }
@@ -640,10 +652,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Configure reset runtime button
         resetRuntimeBtn.setOnAction( event -> SystemUtilities.spawnNewTask( () -> {
             if ( hasUnsavedChanges() ) {
-                int response = GUIUtilities.showQuestionMessage( "Save?", "Unsaved Changes",
-                                                                 "Are you sure you want to reset the runtime without " +
-                                                                         "saving changes?", "Save & Reset Runtime",
-                                                                 "Reset Runtime", stage );
+                int response = GUIUtilities.showQuestionMessage(
+                        LocalizationManager.get( "dialog.settings.unsavedOnResetRuntime.title" ),
+                        LocalizationManager.get( "dialog.settings.unsavedOnResetRuntime.header" ),
+                        LocalizationManager.get( "dialog.settings.unsavedOnResetRuntime.body" ),
+                        LocalizationManager.get( "dialog.settings.unsavedOnResetRuntime.button.saveAndReset" ),
+                        LocalizationManager.get( "dialog.settings.unsavedOnResetRuntime.button.resetOnly" ),
+                        stage );
                 // Save first
                 if ( response == 1 ) {
                     GUIUtilities.JFXPlatformRun( () -> saveBtn.fire() );
@@ -654,9 +669,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
             }
 
-            int response = GUIUtilities.showQuestionMessage( "Continue?", "Entering the Danger Zone",
-                                                             "Are you sure you'd like to reset the runtime? This may take a few minutes!",
-                                                             "Reset", "Back to Safety", stage );
+            int response = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "dialog.settings.resetRuntime.title" ),
+                    LocalizationManager.get( "dialog.settings.resetRuntime.header" ),
+                    LocalizationManager.get( "dialog.settings.resetRuntime.body" ),
+                    LocalizationManager.get( "dialog.settings.resetRuntime.button.reset" ),
+                    LocalizationManager.get( "dialog.settings.resetRuntime.button.back" ),
+                    stage );
             if ( response != 1 ) {
                 return;
             }
@@ -1240,7 +1259,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     LocalizationManager.get( "settings.savedAccounts.confirmAdd.body" ),
                     "",
                     LocalizationManager.get( "settings.fxml.addAccount" ),
-                    "Cancel", stage );
+                    LocalizationManager.get( "dialog.button.cancel" ), stage );
             if ( response != 1 ) return;
             com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.archiveAndLogout();
             LauncherCore.restartApp();
@@ -1311,7 +1330,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                                                              ? entry.uuid() : entry.displayName() ),
                         "",
                         LocalizationManager.get( "settings.savedAccounts.forgetBtn" ),
-                        "Cancel", stage );
+                        LocalizationManager.get( "dialog.button.cancel" ), stage );
                 if ( resp != 1 ) return;
                 com.micatechnologies.minecraft.launcher.game.auth.ProfileArchive.forget( entry.uuid() );
                 GUIUtilities.JFXPlatformRun( this::rebuildSavedAccountsList );
