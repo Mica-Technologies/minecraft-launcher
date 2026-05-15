@@ -415,110 +415,147 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 }
             }
 
-            // Build Full Repo URL and Path
-            String forgeAssetURL;
-            if ( forgeAssetDownloadsArtifactObj != null &&
-                    forgeAssetDownloadsArtifactObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY ) &&
-                    forgeAssetDownloadsArtifactObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY )
-                                                  .getAsString()
-                                                  .trim()
-                                                  .length() > 0 ) {
-                forgeAssetURL = forgeAssetDownloadsArtifactObj.get(
-                        ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY ).getAsString();
-            }
-            else if ( isSpecifiedRepoPath && hasEmbeddedMavenEntry( forgeAssetRepoPath ) ) {
-                forgeAssetURL = getEmbeddedMavenEntryURL( forgeAssetRepoPath );
-            }
-            else if ( legacyForgeUniversalEmbedded ) {
-                forgeAssetURL = getEmbeddedTopLevelEntryURL( legacyForgeUniversalEntry );
-            }
-            else {
-                // Determine the base repository URL. Legacy Forge manifests (1.7-1.12) provide a top-level
-                // "url" field on each library entry specifying the Maven repository base. Modern Forge (1.13+)
-                // uses the downloads.artifact.url path instead (handled above). If no top-level "url" is
-                // provided, fall back to well-known repositories based on the group ID.
-                String repoURL = JsonHelper.getString( forgeAssetObj, "url", null );
-                if ( repoURL == null || repoURL.isBlank() ) {
-                    repoURL = "https://repo1.maven.org/maven2/";
-                    if ( forgeAssetName.contains( "net.minecraft:" ) ) {
-                        repoURL = "https://libraries.minecraft.net/";
-                    }
-                    else if ( forgeAssetName.contains( "net.minecraftforge:" ) ) {
-                        repoURL = "https://maven.minecraftforge.net/";
-                    }
-                }
-                // Ensure trailing slash
-                if ( !repoURL.endsWith( "/" ) ) {
-                    repoURL += "/";
-                }
-
-                if ( isSpecifiedRepoPath ) {
-                    forgeAssetURL = repoURL + forgeAssetRepoPath;
-                }
-                else {
-                    forgeAssetURL = repoURL +
-                            forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) ).replace( ".", "/" ) +
-                            "/" +
-                            forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", "/" ) +
-                            "/" +
-                            forgeAssetRepoPath +
-                            ".jar";
-                }
-
-                // Fallback for lzma:lzma:0.0.1 which is not hosted on Maven Central or Forge Maven.
-                // This artifact is required by Forge 1.7-1.12 and is only available from SpongePowered.
-                if ( forgeAssetURL.contains( "lzma/lzma/0.0.1" ) && !forgeAssetURL.contains( "spongepowered" ) ) {
-                    forgeAssetURL = "https://repo.spongepowered.org/maven/lzma/lzma/0.0.1/lzma-0.0.1.jar";
-                }
-            }
-
-            // Build Local File Path
-            String localForgeAssetFilePath;
-            if ( isSpecifiedRepoPath ) {
-                localForgeAssetFilePath = forgeAssetRepoPath.replace( "/", File.separator );
-            }
-            else {
-                localForgeAssetFilePath = forgeAssetName.substring( 0, forgeAssetName.indexOf( ":" ) )
-                                               .replace( ".", File.separator ) +
-                        File.separator +
-                        forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 ).replace( ":", File.separator ) +
-                        File.separator +
-                        inferredForgeAssetRepoPath +
-                        LocalPathConstants.JAR_FILE_EXTENSION;
-            }
-
-            // Get Forge Asset Requirements
-            boolean clientReq = true;
-            if ( forgeAssetObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_CLIENT_REQ_KEY ) ) {
-                clientReq = forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_CLIENT_REQ_KEY )
-                                         .getAsBoolean();
-            }
-            boolean serverReq = true;
-            if ( forgeAssetObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_SERVER_REQ_KEY ) ) {
-                serverReq = forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_SERVER_REQ_KEY )
-                                         .getAsBoolean();
-            }
+            String forgeAssetURL = resolveForgeAssetUrl( forgeAssetObj, forgeAssetDownloadsArtifactObj,
+                                                          forgeAssetName, forgeAssetRepoPath,
+                                                          isSpecifiedRepoPath,
+                                                          legacyForgeUniversalEmbedded,
+                                                          legacyForgeUniversalEntry );
+            String localForgeAssetFilePath = buildForgeAssetLocalPath(
+                    forgeAssetName, forgeAssetRepoPath, isSpecifiedRepoPath, inferredForgeAssetRepoPath );
+            ForgeAssetRequirements reqs = readForgeAssetRequirements( forgeAssetObj );
 
             // Build Forge Asset Object and Add to List of Assets
             if ( sha1 != null ) {
                 forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, sha1,
-                                                ManagedGameFileHashType.SHA1, clientReq,
-                                                serverReq ) );
+                                                ManagedGameFileHashType.SHA1, reqs.clientReq(),
+                                                reqs.serverReq() ) );
             }
             else {
-                forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath, clientReq, serverReq ) );
+                forgeAssets.add( new GameAsset( forgeAssetURL, localForgeAssetFilePath,
+                                                reqs.clientReq(), reqs.serverReq() ) );
             }
 
             // For modern Forge: also add the universal JAR as a separate classpath entry
             if ( addUniversalAsExtra && universalRepoPath != null ) {
                 String universalURL = getEmbeddedMavenEntryURL( universalRepoPath );
                 String universalLocalPath = universalRepoPath.replace( "/", File.separator );
-                forgeAssets.add( new GameAsset( universalURL, universalLocalPath, clientReq, serverReq ) );
+                forgeAssets.add( new GameAsset( universalURL, universalLocalPath,
+                                                reqs.clientReq(), reqs.serverReq() ) );
             }
         }
 
         // Return resulting list of Forge Assets
         return forgeAssets;
+    }
+
+    /** clientReq + serverReq pair extracted from a Forge library entry — both
+     *  default true when the keys are absent, matching pre-extraction behaviour. */
+    private record ForgeAssetRequirements( boolean clientReq, boolean serverReq ) {}
+
+    /**
+     * Resolves the download URL for one Forge library entry. Branches in priority order:
+     * <ol>
+     *   <li>{@code downloads.artifact.url} from the manifest (modern Forge 1.13+).</li>
+     *   <li>{@code jar:file://} pointing inside the installer's {@code maven/} subtree
+     *       when {@link #hasEmbeddedMavenEntry} confirms the artifact is bundled.</li>
+     *   <li>{@code jar:file://} pointing at the installer's top-level universal-jar
+     *       entry when the legacy detection above set
+     *       {@code legacyForgeUniversalEmbedded} (pre-1.13 path).</li>
+     *   <li>Fall back to a Maven repository URL — top-level {@code "url"} on the
+     *       library entry, else well-known repos picked from the artifact's group ID
+     *       (Mojang for {@code net.minecraft:}, Forge for {@code net.minecraftforge:},
+     *       Maven Central otherwise). Special-cased {@code lzma:lzma:0.0.1} routes
+     *       to SpongePowered's repo since neither Central nor Forge Maven serves it.</li>
+     * </ol>
+     */
+    private String resolveForgeAssetUrl( JsonObject forgeAssetObj,
+                                          JsonObject forgeAssetDownloadsArtifactObj,
+                                          String forgeAssetName,
+                                          String forgeAssetRepoPath,
+                                          boolean isSpecifiedRepoPath,
+                                          boolean legacyForgeUniversalEmbedded,
+                                          String legacyForgeUniversalEntry ) {
+        if ( forgeAssetDownloadsArtifactObj != null
+                && forgeAssetDownloadsArtifactObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY )
+                && forgeAssetDownloadsArtifactObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY )
+                                                   .getAsString().trim().length() > 0 ) {
+            return forgeAssetDownloadsArtifactObj.get(
+                    ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY ).getAsString();
+        }
+        if ( isSpecifiedRepoPath && hasEmbeddedMavenEntry( forgeAssetRepoPath ) ) {
+            return getEmbeddedMavenEntryURL( forgeAssetRepoPath );
+        }
+        if ( legacyForgeUniversalEmbedded ) {
+            return getEmbeddedTopLevelEntryURL( legacyForgeUniversalEntry );
+        }
+
+        // Fall through to a Maven repository URL.
+        String repoURL = JsonHelper.getString( forgeAssetObj, "url", null );
+        if ( repoURL == null || repoURL.isBlank() ) {
+            repoURL = "https://repo1.maven.org/maven2/";
+            if ( forgeAssetName.contains( "net.minecraft:" ) ) {
+                repoURL = "https://libraries.minecraft.net/";
+            }
+            else if ( forgeAssetName.contains( "net.minecraftforge:" ) ) {
+                repoURL = "https://maven.minecraftforge.net/";
+            }
+        }
+        if ( !repoURL.endsWith( "/" ) ) {
+            repoURL += "/";
+        }
+
+        String url;
+        if ( isSpecifiedRepoPath ) {
+            url = repoURL + forgeAssetRepoPath;
+        }
+        else {
+            int colon = forgeAssetName.indexOf( ":" );
+            url = repoURL
+                    + forgeAssetName.substring( 0, colon ).replace( ".", "/" )
+                    + "/"
+                    + forgeAssetName.substring( colon + 1 ).replace( ":", "/" )
+                    + "/"
+                    + forgeAssetRepoPath
+                    + ".jar";
+        }
+
+        // Fallback for lzma:lzma:0.0.1 which is not hosted on Maven Central or Forge Maven.
+        // Required by Forge 1.7-1.12, only available from SpongePowered.
+        if ( url.contains( "lzma/lzma/0.0.1" ) && !url.contains( "spongepowered" ) ) {
+            url = "https://repo.spongepowered.org/maven/lzma/lzma/0.0.1/lzma-0.0.1.jar";
+        }
+        return url;
+    }
+
+    /** Builds the on-disk relative path the launcher caches a Forge library at.
+     *  Modern entries with an explicit {@code downloads.artifact.path} map directly
+     *  to the platform-separator form of that path; legacy entries get a path
+     *  reconstructed from the Maven coordinate ({@code group/artifact/version-classifier.jar}). */
+    private String buildForgeAssetLocalPath( String forgeAssetName,
+                                              String forgeAssetRepoPath,
+                                              boolean isSpecifiedRepoPath,
+                                              String inferredForgeAssetRepoPath ) {
+        if ( isSpecifiedRepoPath ) {
+            return forgeAssetRepoPath.replace( "/", File.separator );
+        }
+        int colon = forgeAssetName.indexOf( ":" );
+        return forgeAssetName.substring( 0, colon ).replace( ".", File.separator )
+                + File.separator
+                + forgeAssetName.substring( colon + 1 ).replace( ":", File.separator )
+                + File.separator
+                + inferredForgeAssetRepoPath
+                + LocalPathConstants.JAR_FILE_EXTENSION;
+    }
+
+    /** Reads the {@code clientreq} / {@code serverreq} flags off a Forge library
+     *  entry. Both default to {@code true} when absent — matches Forge's own
+     *  default + the launcher's pre-extraction behaviour. */
+    private ForgeAssetRequirements readForgeAssetRequirements( JsonObject forgeAssetObj ) {
+        boolean clientReq = !forgeAssetObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_CLIENT_REQ_KEY )
+                || forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_CLIENT_REQ_KEY ).getAsBoolean();
+        boolean serverReq = !forgeAssetObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_SERVER_REQ_KEY )
+                || forgeAssetObj.get( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_SERVER_REQ_KEY ).getAsBoolean();
+        return new ForgeAssetRequirements( clientReq, serverReq );
     }
 
     private boolean hasEmbeddedMavenEntry( String repoPath ) {
