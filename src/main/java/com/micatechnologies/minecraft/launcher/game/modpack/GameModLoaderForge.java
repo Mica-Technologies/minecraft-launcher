@@ -522,11 +522,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     }
 
     private boolean hasEmbeddedMavenEntry( String repoPath ) {
-        try {
-            JarFile forgeJarFile = getForgeJarFile();
-            boolean exists = forgeJarFile.getEntry( "maven/" + repoPath ) != null;
-            forgeJarFile.close();
-            return exists;
+        try ( JarFile forgeJarFile = getForgeJarFile() ) {
+            return forgeJarFile.getEntry( "maven/" + repoPath ) != null;
         }
         catch ( IOException | ModpackException e ) {
             return false;
