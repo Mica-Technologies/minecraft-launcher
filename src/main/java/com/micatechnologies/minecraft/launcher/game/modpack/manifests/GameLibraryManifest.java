@@ -285,7 +285,13 @@ public class GameLibraryManifest extends ManagedGameFile
             Callable< Boolean > updateFileCallable = () -> {
                 library.setLocalPathPrefix( localLibPath );
                 boolean didChange = library.updateLocalFile();
-                if ( library.isNativeLib() && didChange ) {
+                if ( library.isNativeLib() ) {
+                    // Extract every launch, not just when the JAR was re-downloaded.
+                    // The previous "didChange" gate left the launcher unable to recover
+                    // from any state where bin/natives was wiped but the source JARs
+                    // still verify intact (manual cleanup, OS reset, FAST_PATH skipping
+                    // re-download): the extracted .dll/.so/.dylib files would never come
+                    // back, and LWJGL would crash with UnsatisfiedLinkError on launch.
                     try {
                         SystemUtilities.extractJarFile( new JarFile( library.getFullLocalFilePath() ),
                                                         localNativePath );
