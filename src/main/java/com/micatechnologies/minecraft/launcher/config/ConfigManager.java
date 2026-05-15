@@ -17,11 +17,9 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
-import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
@@ -535,22 +533,7 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static String getLastModPackSelected() {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Check for presence of field, and create default if does not exist
-        if ( !configObject.has( ConfigConstants.LAST_MP_KEY ) ) {
-            // Add property with default value
-            configObject.addProperty( ConfigConstants.LAST_MP_KEY, "" );
-
-            // Save configuration to disk
-            writeConfigurationToDisk();
-        }
-
-        // Get and return value of custom JVM args
-        return configObject.get( ConfigConstants.LAST_MP_KEY ).getAsString();
+        return ModPackConfig.getLastModPackSelected();
     }
 
     /**
@@ -561,16 +544,7 @@ public class ConfigManager
      * @since 2.0
      */
     public synchronized static void setLastModPackSelected( String lastModPackSelected ) {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Set value of last mod pack selected
-        configObject.addProperty( ConfigConstants.LAST_MP_KEY, lastModPackSelected );
-
-        // Save configuration to disk
-        writeConfigurationToDisk();
+        ModPackConfig.setLastModPackSelected( lastModPackSelected );
     }
 
     /**
@@ -670,21 +644,7 @@ public class ConfigManager
      * @since 1.0
      */
     public synchronized static List< String > getInstalledModPacks() {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Add default if missing
-        if ( !configObject.has( ConfigConstants.MOD_PACKS_INSTALLED_KEY ) ) {
-            JsonArray defaultArray = ( JsonArray ) JSONUtilities.getGson().toJsonTree(
-                    ConfigConstants.MOD_PACKS_INSTALLED_DEFAULT, ConfigConstants.modPacksListType );
-            configObject.add( ConfigConstants.MOD_PACKS_INSTALLED_KEY, defaultArray );
-        }
-
-        // Get and return value of installed mod packs
-        JsonArray installedModPacksArray = configObject.get( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).getAsJsonArray();
-        return JSONUtilities.getGson().fromJson( installedModPacksArray, ConfigConstants.modPacksListType );
+        return ModPackConfig.getInstalledModPacks();
     }
 
     /**
@@ -695,18 +655,7 @@ public class ConfigManager
      * @since 1.0
      */
     public synchronized static void setInstalledModPacks( List< String > installedModPacks ) {
-        // Read configuration from disk if not loaded
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-
-        // Set value of min RAM
-        JsonArray installedModPacksArray = ( JsonArray ) JSONUtilities.getGson().toJsonTree( installedModPacks,
-                                                                                ConfigConstants.modPacksListType );
-        configObject.add( ConfigConstants.MOD_PACKS_INSTALLED_KEY, installedModPacksArray );
-
-        // Save configuration to disk
-        writeConfigurationToDisk();
+        ModPackConfig.setInstalledModPacks( installedModPacks );
     }
 
     /**
@@ -754,23 +703,12 @@ public class ConfigManager
      */
     public synchronized static boolean getRgbEnable()
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.RGB_ENABLE_KEY ) ) {
-            configObject.addProperty( ConfigConstants.RGB_ENABLE_KEY,
-                                       ConfigConstants.RGB_ENABLE_DEFAULT );
-        }
-        return configObject.get( ConfigConstants.RGB_ENABLE_KEY ).getAsBoolean();
+        return RgbConfig.getRgbEnable();
     }
 
     public synchronized static void setRgbEnable( boolean enable )
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        configObject.addProperty( ConfigConstants.RGB_ENABLE_KEY, enable );
-        writeConfigurationToDisk();
+        RgbConfig.setRgbEnable( enable );
     }
 
     /**
@@ -783,45 +721,12 @@ public class ConfigManager
      */
     public synchronized static String getRgbBackend()
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.RGB_BACKEND_KEY ) ) {
-            configObject.addProperty( ConfigConstants.RGB_BACKEND_KEY,
-                                       ConfigConstants.RGB_BACKEND_DEFAULT );
-        }
-        String value = configObject.get( ConfigConstants.RGB_BACKEND_KEY ).getAsString();
-        return switch ( value ) {
-            case ConfigConstants.RGB_BACKEND_AUTO,
-                 ConfigConstants.RGB_BACKEND_OPENRGB,
-                 ConfigConstants.RGB_BACKEND_CHROMA,
-                 ConfigConstants.RGB_BACKEND_CHROMA_NATIVE,
-                 ConfigConstants.RGB_BACKEND_WINDOWS_DL,
-                 ConfigConstants.RGB_BACKEND_NONE -> value;
-            default -> ConfigConstants.RGB_BACKEND_DEFAULT;
-        };
+        return RgbConfig.getRgbBackend();
     }
 
     public synchronized static void setRgbBackend( String backend )
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        // Defensive: only accept known identifiers — same set as getRgbBackend
-        // validates. Unknown strings would silently fall back to "auto" on
-        // read, but it's cleaner to refuse them at the setter so the on-disk
-        // config stays predictable.
-        String normalized = switch ( backend ) {
-            case ConfigConstants.RGB_BACKEND_AUTO,
-                 ConfigConstants.RGB_BACKEND_OPENRGB,
-                 ConfigConstants.RGB_BACKEND_CHROMA,
-                 ConfigConstants.RGB_BACKEND_CHROMA_NATIVE,
-                 ConfigConstants.RGB_BACKEND_WINDOWS_DL,
-                 ConfigConstants.RGB_BACKEND_NONE -> backend;
-            case null, default -> ConfigConstants.RGB_BACKEND_DEFAULT;
-        };
-        configObject.addProperty( ConfigConstants.RGB_BACKEND_KEY, normalized );
-        writeConfigurationToDisk();
+        RgbConfig.setRgbBackend( backend );
     }
 
     /**
@@ -832,23 +737,12 @@ public class ConfigManager
      */
     public synchronized static boolean getRgbUsePackColors()
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.RGB_USE_PACK_COLORS_KEY ) ) {
-            configObject.addProperty( ConfigConstants.RGB_USE_PACK_COLORS_KEY,
-                                       ConfigConstants.RGB_USE_PACK_COLORS_DEFAULT );
-        }
-        return configObject.get( ConfigConstants.RGB_USE_PACK_COLORS_KEY ).getAsBoolean();
+        return RgbConfig.getRgbUsePackColors();
     }
 
     public synchronized static void setRgbUsePackColors( boolean usePackColors )
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        configObject.addProperty( ConfigConstants.RGB_USE_PACK_COLORS_KEY, usePackColors );
-        writeConfigurationToDisk();
+        RgbConfig.setRgbUsePackColors( usePackColors );
     }
 
     /**
@@ -859,23 +753,12 @@ public class ConfigManager
      */
     public synchronized static boolean getRgbHighlightKeys()
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY ) ) {
-            configObject.addProperty( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY,
-                                       ConfigConstants.RGB_HIGHLIGHT_KEYS_DEFAULT );
-        }
-        return configObject.get( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY ).getAsBoolean();
+        return RgbConfig.getRgbHighlightKeys();
     }
 
     public synchronized static void setRgbHighlightKeys( boolean highlight )
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        configObject.addProperty( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY, highlight );
-        writeConfigurationToDisk();
+        RgbConfig.setRgbHighlightKeys( highlight );
     }
 
     /**
@@ -887,138 +770,37 @@ public class ConfigManager
      *
      * @since 2026.5
      */
-    public synchronized static boolean getRgbEnableOpenRgb()
-    {
-        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_OPENRGB_KEY,
-                                        ConfigConstants.RGB_ENABLE_OPENRGB_DEFAULT );
-    }
-
-    public synchronized static void setRgbEnableOpenRgb( boolean enable )
-    {
-        writeBoolean( ConfigConstants.RGB_ENABLE_OPENRGB_KEY, enable );
-    }
-
-    public synchronized static boolean getRgbEnableChromaNative()
-    {
-        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_KEY,
-                                        ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_DEFAULT );
-    }
-
-    public synchronized static void setRgbEnableChromaNative( boolean enable )
-    {
-        writeBoolean( ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_KEY, enable );
-    }
-
-    public synchronized static boolean getRgbEnableChromaRest()
-    {
-        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CHROMA_REST_KEY,
-                                        ConfigConstants.RGB_ENABLE_CHROMA_REST_DEFAULT );
-    }
-
-    public synchronized static void setRgbEnableChromaRest( boolean enable )
-    {
-        writeBoolean( ConfigConstants.RGB_ENABLE_CHROMA_REST_KEY, enable );
-    }
-
-    public synchronized static boolean getRgbEnableWindowsDl()
-    {
-        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_WINDOWS_DL_KEY,
-                                        ConfigConstants.RGB_ENABLE_WINDOWS_DL_DEFAULT );
-    }
-
-    public synchronized static void setRgbEnableWindowsDl( boolean enable )
-    {
-        writeBoolean( ConfigConstants.RGB_ENABLE_WINDOWS_DL_KEY, enable );
-    }
-
-    public synchronized static boolean getRgbEnableCorsair()
-    {
-        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CORSAIR_KEY,
-                                        ConfigConstants.RGB_ENABLE_CORSAIR_DEFAULT );
-    }
-
-    public synchronized static void setRgbEnableCorsair( boolean enable )
-    {
-        writeBoolean( ConfigConstants.RGB_ENABLE_CORSAIR_KEY, enable );
-    }
-
-    public synchronized static boolean getRgbEnableAsusAura()
-    {
-        return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_ASUS_AURA_KEY,
-                                        ConfigConstants.RGB_ENABLE_ASUS_AURA_DEFAULT );
-    }
-
-    public synchronized static void setRgbEnableAsusAura( boolean enable )
-    {
-        writeBoolean( ConfigConstants.RGB_ENABLE_ASUS_AURA_KEY, enable );
-    }
+    public synchronized static boolean getRgbEnableOpenRgb()  { return RgbConfig.getRgbEnableOpenRgb(); }
+    public synchronized static void    setRgbEnableOpenRgb( boolean enable ) { RgbConfig.setRgbEnableOpenRgb( enable ); }
+    public synchronized static boolean getRgbEnableChromaNative() { return RgbConfig.getRgbEnableChromaNative(); }
+    public synchronized static void    setRgbEnableChromaNative( boolean enable ) { RgbConfig.setRgbEnableChromaNative( enable ); }
+    public synchronized static boolean getRgbEnableChromaRest()   { return RgbConfig.getRgbEnableChromaRest(); }
+    public synchronized static void    setRgbEnableChromaRest( boolean enable ) { RgbConfig.setRgbEnableChromaRest( enable ); }
+    public synchronized static boolean getRgbEnableWindowsDl()    { return RgbConfig.getRgbEnableWindowsDl(); }
+    public synchronized static void    setRgbEnableWindowsDl( boolean enable ) { RgbConfig.setRgbEnableWindowsDl( enable ); }
+    public synchronized static boolean getRgbEnableCorsair()      { return RgbConfig.getRgbEnableCorsair(); }
+    public synchronized static void    setRgbEnableCorsair( boolean enable ) { RgbConfig.setRgbEnableCorsair( enable ); }
+    public synchronized static boolean getRgbEnableAsusAura()     { return RgbConfig.getRgbEnableAsusAura(); }
+    public synchronized static void    setRgbEnableAsusAura( boolean enable ) { RgbConfig.setRgbEnableAsusAura( enable ); }
 
     public synchronized static boolean getRgbMenuEffectEnable()
     {
-        return readBooleanWithDefault( ConfigConstants.RGB_MENU_EFFECT_ENABLE_KEY,
-                                        ConfigConstants.RGB_MENU_EFFECT_ENABLE_DEFAULT );
+        return RgbConfig.getRgbMenuEffectEnable();
     }
 
     public synchronized static void setRgbMenuEffectEnable( boolean enable )
     {
-        writeBoolean( ConfigConstants.RGB_MENU_EFFECT_ENABLE_KEY, enable );
+        RgbConfig.setRgbMenuEffectEnable( enable );
     }
 
     public synchronized static String getRgbEffectStyle()
     {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.RGB_EFFECT_STYLE_KEY ) ) {
-            configObject.addProperty( ConfigConstants.RGB_EFFECT_STYLE_KEY,
-                                       ConfigConstants.RGB_EFFECT_STYLE_DEFAULT );
-            writeConfigurationToDisk();
-        }
-        String value = configObject.get( ConfigConstants.RGB_EFFECT_STYLE_KEY ).getAsString();
-        // Defensive: a stale or hand-edited config could carry an
-        // unknown identifier (e.g. value from a future build that
-        // dropped a style). Fall back to the default rather than
-        // letting the RGB subsystem crash.
-        if ( !ConfigConstants.RGB_EFFECT_STYLES.contains( value ) ) {
-            return ConfigConstants.RGB_EFFECT_STYLE_DEFAULT;
-        }
-        return value;
+        return RgbConfig.getRgbEffectStyle();
     }
 
     public synchronized static void setRgbEffectStyle( String style )
     {
-        if ( style == null || !ConfigConstants.RGB_EFFECT_STYLES.contains( style ) ) {
-            return; // ignore — don't persist garbage
-        }
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        configObject.addProperty( ConfigConstants.RGB_EFFECT_STYLE_KEY, style );
-        writeConfigurationToDisk();
-    }
-
-    /** Lazy-default boolean read shared by the per-backend enable
-     *  getters above. Mirrors the lazy-init pattern of the older
-     *  getX methods but factored out so we don't duplicate the
-     *  read-or-add boilerplate four times. */
-    private synchronized static boolean readBooleanWithDefault( String key, boolean dflt )
-    {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( key ) ) {
-            configObject.addProperty( key, dflt );
-        }
-        return configObject.get( key ).getAsBoolean();
-    }
-
-    private synchronized static void writeBoolean( String key, boolean value )
-    {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        configObject.addProperty( key, value );
-        writeConfigurationToDisk();
+        RgbConfig.setRgbEffectStyle( style );
     }
 
     // region LWJGL ARM64 Patching
@@ -1069,18 +851,11 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static boolean getProxyEnable() {
-        if ( configObject == null ) readConfigurationFromDisk();
-        if ( !configObject.has( ConfigConstants.PROXY_ENABLE_KEY ) ) {
-            configObject.addProperty( ConfigConstants.PROXY_ENABLE_KEY, ConfigConstants.PROXY_ENABLE_DEFAULT );
-            writeConfigurationToDisk();
-        }
-        return configObject.get( ConfigConstants.PROXY_ENABLE_KEY ).getAsBoolean();
+        return NetworkConfig.getProxyEnable();
     }
 
     public synchronized static void setProxyEnable( boolean enable ) {
-        if ( configObject == null ) readConfigurationFromDisk();
-        configObject.addProperty( ConfigConstants.PROXY_ENABLE_KEY, enable );
-        writeConfigurationToDisk();
+        NetworkConfig.setProxyEnable( enable );
     }
 
     /**
@@ -1091,18 +866,11 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static String getProxyHost() {
-        if ( configObject == null ) readConfigurationFromDisk();
-        if ( !configObject.has( ConfigConstants.PROXY_HOST_KEY ) ) {
-            configObject.addProperty( ConfigConstants.PROXY_HOST_KEY, ConfigConstants.PROXY_HOST_DEFAULT );
-            writeConfigurationToDisk();
-        }
-        return configObject.get( ConfigConstants.PROXY_HOST_KEY ).getAsString();
+        return NetworkConfig.getProxyHost();
     }
 
     public synchronized static void setProxyHost( String host ) {
-        if ( configObject == null ) readConfigurationFromDisk();
-        configObject.addProperty( ConfigConstants.PROXY_HOST_KEY, host != null ? host : "" );
-        writeConfigurationToDisk();
+        NetworkConfig.setProxyHost( host );
     }
 
     /**
@@ -1113,18 +881,11 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static int getProxyPort() {
-        if ( configObject == null ) readConfigurationFromDisk();
-        if ( !configObject.has( ConfigConstants.PROXY_PORT_KEY ) ) {
-            configObject.addProperty( ConfigConstants.PROXY_PORT_KEY, ConfigConstants.PROXY_PORT_DEFAULT );
-            writeConfigurationToDisk();
-        }
-        return configObject.get( ConfigConstants.PROXY_PORT_KEY ).getAsInt();
+        return NetworkConfig.getProxyPort();
     }
 
     public synchronized static void setProxyPort( int port ) {
-        if ( configObject == null ) readConfigurationFromDisk();
-        configObject.addProperty( ConfigConstants.PROXY_PORT_KEY, port );
-        writeConfigurationToDisk();
+        NetworkConfig.setProxyPort( port );
     }
 
     /**
@@ -1135,18 +896,11 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static String getProxyType() {
-        if ( configObject == null ) readConfigurationFromDisk();
-        if ( !configObject.has( ConfigConstants.PROXY_TYPE_KEY ) ) {
-            configObject.addProperty( ConfigConstants.PROXY_TYPE_KEY, ConfigConstants.PROXY_TYPE_DEFAULT );
-            writeConfigurationToDisk();
-        }
-        return configObject.get( ConfigConstants.PROXY_TYPE_KEY ).getAsString();
+        return NetworkConfig.getProxyType();
     }
 
     public synchronized static void setProxyType( String type ) {
-        if ( configObject == null ) readConfigurationFromDisk();
-        configObject.addProperty( ConfigConstants.PROXY_TYPE_KEY, type != null ? type : "HTTP" );
-        writeConfigurationToDisk();
+        NetworkConfig.setProxyType( type );
     }
 
     // endregion
@@ -1272,16 +1026,7 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static List< String > getInstalledVanillaVersions() {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY ) ) {
-            configObject.add( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY,
-                              JSONUtilities.getGson().toJsonTree( ConfigConstants.VANILLA_VERSIONS_INSTALLED_DEFAULT,
-                                                      ConfigConstants.modPacksListType ) );
-        }
-        JsonArray arr = configObject.get( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY ).getAsJsonArray();
-        return JSONUtilities.getGson().fromJson( arr, ConfigConstants.modPacksListType );
+        return ModPackConfig.getInstalledVanillaVersions();
     }
 
     /**
@@ -1292,12 +1037,7 @@ public class ConfigManager
      * @since 3.0
      */
     public synchronized static void setInstalledVanillaVersions( List< String > versions ) {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        configObject.add( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY,
-                          JSONUtilities.getGson().toJsonTree( versions, ConfigConstants.modPacksListType ) );
-        writeConfigurationToDisk();
+        ModPackConfig.setInstalledVanillaVersions( versions );
     }
 
     /**
@@ -1311,28 +1051,7 @@ public class ConfigManager
      * @since 2026.3
      */
     public synchronized static boolean getAlwaysVerifyOnLaunch( String packUrl ) {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( packUrl == null || packUrl.isBlank() ) {
-            return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
-        }
-        if ( !configObject.has( ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY ) ) {
-            return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
-        }
-        try {
-            com.google.gson.JsonObject map = configObject.get(
-                    ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY ).getAsJsonObject();
-            if ( !map.has( packUrl ) ) {
-                return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
-            }
-            return map.get( packUrl ).getAsBoolean();
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( "Could not read alwaysVerifyOnLaunch for "
-                                             + packUrl + ", defaulting." );
-            return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
-        }
+        return ModPackConfig.getAlwaysVerifyOnLaunch( packUrl );
     }
 
     /**
@@ -1346,20 +1065,7 @@ public class ConfigManager
      * @since 2026.3
      */
     public synchronized static void setAlwaysVerifyOnLaunch( String packUrl, boolean value ) {
-        if ( packUrl == null || packUrl.isBlank() ) return;
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        com.google.gson.JsonObject map;
-        if ( configObject.has( ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY ) ) {
-            map = configObject.get( ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY ).getAsJsonObject();
-        }
-        else {
-            map = new com.google.gson.JsonObject();
-        }
-        map.addProperty( packUrl, value );
-        configObject.add( ConfigConstants.ALWAYS_VERIFY_BY_PACK_KEY, map );
-        writeConfigurationToDisk();
+        ModPackConfig.setAlwaysVerifyOnLaunch( packUrl, value );
     }
 
     /**
@@ -1371,19 +1077,7 @@ public class ConfigManager
      * @since 2026.3
      */
     public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency getDefaultScanFrequency() {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.DEFAULT_SCAN_FREQUENCY_KEY ) ) {
-            return com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.DEFAULT;
-        }
-        try {
-            String name = configObject.get( ConfigConstants.DEFAULT_SCAN_FREQUENCY_KEY ).getAsString();
-            return com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.fromNameSafe( name );
-        }
-        catch ( Exception e ) {
-            return com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.DEFAULT;
-        }
+        return ModPackConfig.getDefaultScanFrequency();
     }
 
     /**
@@ -1394,12 +1088,7 @@ public class ConfigManager
      */
     public synchronized static void setDefaultScanFrequency(
             com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency frequency ) {
-        if ( frequency == null ) frequency = com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.DEFAULT;
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        configObject.addProperty( ConfigConstants.DEFAULT_SCAN_FREQUENCY_KEY, frequency.name() );
-        writeConfigurationToDisk();
+        ModPackConfig.setDefaultScanFrequency( frequency );
     }
 
     /**
@@ -1413,31 +1102,7 @@ public class ConfigManager
      */
     public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency
             getScanFrequencyForPack( String packUrl ) {
-        if ( packUrl == null || packUrl.isBlank() ) return null;
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY ) ) return null;
-        try {
-            com.google.gson.JsonObject map = configObject.get(
-                    ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY ).getAsJsonObject();
-            if ( !map.has( packUrl ) ) return null;
-            String name = map.get( packUrl ).getAsString();
-            if ( name == null || name.isBlank() ) return null;
-            // Use raw valueOf so unknown values fall through to null (== use global default)
-            // rather than silently downgrading to DEFAULT — that would mask config corruption.
-            try {
-                return com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.valueOf( name );
-            }
-            catch ( IllegalArgumentException e ) {
-                return null;
-            }
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( "Could not read scanFrequency for "
-                                             + packUrl + ", falling back to default." );
-            return null;
-        }
+        return ModPackConfig.getScanFrequencyForPack( packUrl );
     }
 
     /**
@@ -1450,25 +1115,7 @@ public class ConfigManager
     public synchronized static void setScanFrequencyForPack(
             String packUrl,
             com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency frequency ) {
-        if ( packUrl == null || packUrl.isBlank() ) return;
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        com.google.gson.JsonObject map;
-        if ( configObject.has( ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY ) ) {
-            map = configObject.get( ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY ).getAsJsonObject();
-        }
-        else {
-            map = new com.google.gson.JsonObject();
-        }
-        if ( frequency == null ) {
-            map.remove( packUrl );
-        }
-        else {
-            map.addProperty( packUrl, frequency.name() );
-        }
-        configObject.add( ConfigConstants.SCAN_FREQUENCY_BY_PACK_KEY, map );
-        writeConfigurationToDisk();
+        ModPackConfig.setScanFrequencyForPack( packUrl, frequency );
     }
 
     /**
@@ -1481,9 +1128,7 @@ public class ConfigManager
      */
     public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency
             effectiveScanFrequencyForPack( String packUrl ) {
-        com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency override =
-                getScanFrequencyForPack( packUrl );
-        return override != null ? override : getDefaultScanFrequency();
+        return ModPackConfig.effectiveScanFrequencyForPack( packUrl );
     }
 
     /**
@@ -1502,26 +1147,7 @@ public class ConfigManager
      * @since 2026.3
      */
     public synchronized static String getCurseForgeApiKey() {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.CURSEFORGE_API_KEY_KEY ) ) return null;
-        String encoded;
-        try {
-            encoded = configObject.get( ConfigConstants.CURSEFORGE_API_KEY_KEY ).getAsString();
-        }
-        catch ( Exception e ) {
-            return null;
-        }
-        if ( encoded == null || encoded.isBlank() ) return null;
-        try {
-            return com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.decrypt( encoded );
-        }
-        catch ( Throwable t ) {
-            Logger.logWarningSilent( "CurseForge API key could not be decrypted on this machine: "
-                                             + t.getClass().getSimpleName() );
-            return null;
-        }
+        return AuthTokenStore.getCurseForgeApiKey();
     }
 
     /**
@@ -1538,24 +1164,7 @@ public class ConfigManager
      * @since 2026.3
      */
     public synchronized static void setCurseForgeApiKey( String apiKey ) {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( apiKey == null || apiKey.isBlank() ) {
-            configObject.remove( ConfigConstants.CURSEFORGE_API_KEY_KEY );
-            writeConfigurationToDisk();
-            return;
-        }
-        try {
-            String envelope = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher
-                    .encrypt( apiKey );
-            configObject.addProperty( ConfigConstants.CURSEFORGE_API_KEY_KEY, envelope );
-            writeConfigurationToDisk();
-        }
-        catch ( Throwable t ) {
-            Logger.logErrorSilent( "Could not encrypt CurseForge API key for storage: "
-                                           + t.getClass().getSimpleName() );
-        }
+        AuthTokenStore.setCurseForgeApiKey( apiKey );
     }
 
     /**
@@ -1575,18 +1184,7 @@ public class ConfigManager
      * @since 2026.3
      */
     public synchronized static boolean getShowPackBackgrounds() {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.SHOW_PACK_BACKGROUNDS_KEY ) ) {
-            return ConfigConstants.SHOW_PACK_BACKGROUNDS_DEFAULT;
-        }
-        try {
-            return configObject.get( ConfigConstants.SHOW_PACK_BACKGROUNDS_KEY ).getAsBoolean();
-        }
-        catch ( Exception e ) {
-            return ConfigConstants.SHOW_PACK_BACKGROUNDS_DEFAULT;
-        }
+        return ModPackConfig.getShowPackBackgrounds();
     }
 
     /**
@@ -1597,25 +1195,11 @@ public class ConfigManager
      * @since 2026.3
      */
     public synchronized static void setShowPackBackgrounds( boolean show ) {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        configObject.addProperty( ConfigConstants.SHOW_PACK_BACKGROUNDS_KEY, show );
-        writeConfigurationToDisk();
+        ModPackConfig.setShowPackBackgrounds( show );
     }
 
     public synchronized static boolean hasCurseForgeApiKey() {
-        if ( configObject == null ) {
-            readConfigurationFromDisk();
-        }
-        if ( !configObject.has( ConfigConstants.CURSEFORGE_API_KEY_KEY ) ) return false;
-        try {
-            String v = configObject.get( ConfigConstants.CURSEFORGE_API_KEY_KEY ).getAsString();
-            return v != null && !v.isBlank();
-        }
-        catch ( Exception e ) {
-            return false;
-        }
+        return AuthTokenStore.hasCurseForgeApiKey();
     }
 
     /**
