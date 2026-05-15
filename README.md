@@ -131,9 +131,9 @@ __Full Example__:
         "sha1": "0a81e8ce46a60629114ae9a55d6427b2150d14bf"
     }],
     "packInitialFiles": [{
-        "remote": "",
-        "local": "",
-        "sha1": "",
+        "remote": "https://www.example.com/initial-file.txt",
+        "local": "initial-file.txt",
+        "sha1": "-1",
         "clientReq": true,
         "serverReq": false
     }]

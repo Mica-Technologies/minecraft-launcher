@@ -264,17 +264,30 @@ public class ManagedGameFile
         // and MD5 is broken for both collision and preimage. Until upstream
         // manifests publish SHA-256 widely, the launcher consumes whatever
         // the manifest provides.
-        if ( this.sha256 != null && !this.sha256.equals( "-1" ) ) {
+        if ( hasUsableHash( this.sha256 ) ) {
             return HashUtilities.verifySHA256( localFile, sha256 );
         }
-        if ( this.sha1 != null && !this.sha1.equals( "-1" ) ) {
+        if ( hasUsableHash( this.sha1 ) ) {
             return HashUtilities.verifySHA1( localFile, sha1 );
         }
-        if ( this.md5 != null && !this.md5.equals( "-1" ) ) {
+        if ( hasUsableHash( this.md5 ) ) {
             return HashUtilities.verifyMD5( localFile, md5 );
         }
         // No hash declared — accept existence only.
         return localFile.exists() && localFile.isFile();
+    }
+
+    /**
+     * Whether a hash field represents a real declared hash (vs. a "no hash"
+     * sentinel). Treats null, the documented {@code "-1"} sentinel, and any
+     * empty/whitespace string as equivalent — historically only {@code "-1"}
+     * was recognized, but the editor and a few legacy manifest examples
+     * persist {@code ""} for the same intent. Without this normalization,
+     * {@code verifySHA1(file, "")} returns false on every launch and the
+     * file gets re-downloaded for no benefit.
+     */
+    private static boolean hasUsableHash( String hash ) {
+        return hash != null && !hash.isBlank() && !hash.equals( "-1" );
     }
 
     /**
