@@ -111,6 +111,12 @@ public class SingleInstanceLock
             lockSocket = new ServerSocket( port, 8, InetAddress.getLoopbackAddress() );
             ipcToken = writeIpcToken();
             startAcceptLoop();
+            // Confirm in the log so a user troubleshooting "deep links don't reach my
+            // running launcher" can verify the IPC server actually came up. Without
+            // this line, the only signal was a passive absence of "already running"
+            // popups across instances.
+            Logger.logDebug( "Single-instance lock acquired on loopback:" + port
+                                     + "; IPC accept loop running." );
             return true;
         }
         catch ( IOException e ) {
@@ -344,6 +350,7 @@ public class SingleInstanceLock
             MCLauncherGuiController.requestFocus();
 
             if ( LauncherUriHandler.isLauncherUri( line ) ) {
+                Logger.logDebug( "IPC: dispatching deep-link " + line );
                 LauncherUriHandler.handle( line );
             }
             else {
