@@ -34,6 +34,14 @@ public class MCLauncherGuiController
         return startSuccess.get() ? guiWindow.getStage() : null;
     }
 
+    /** Returns the launcher's currently-shown GUI controller (Main, Library, Settings,
+     *  Editor, etc.) or {@code null} if the GUI hasn't started yet. Lets external
+     *  callers make screen-aware decisions without reaching into {@link MCLauncherGuiWindow}
+     *  directly. */
+    public static MCLauncherAbstractGui getCurrentGuiOrNull() {
+        return startSuccess.get() ? guiWindow.getCurrentGui() : null;
+    }
+
     public static void requestFocus() {
         Stage topStage = getTopStageOrNull();
         if ( topStage != null ) {

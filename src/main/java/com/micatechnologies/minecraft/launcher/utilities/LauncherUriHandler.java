@@ -24,7 +24,9 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherAbstractGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
+import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
 
 import java.net.URI;
 import java.net.URLDecoder;
@@ -178,14 +180,11 @@ public final class LauncherUriHandler
                 NotificationManager.success(
                         LocalizationManager.get( "notification.uri.modpackAdded.title" ),
                         LocalizationManager.get( "notification.uri.modpackAdded.body" ) );
-                // Refresh the main GUI on the FX thread so the new pack appears in the
-                // hero-card grid without the user needing to navigate away and back.
-                GUIUtilities.JFXPlatformRun( () -> {
-                    try {
-                        MCLauncherGuiController.goToMainGui();
-                    }
-                    catch ( Exception ignored ) { /* user may not be on main; that's fine */ }
-                } );
+                // Only refresh Main when the user is already on Main — yanking them
+                // out of the Editor (loses unsaved work) / Settings / Browse / etc. is
+                // worse UX than just letting the toast tell them the install succeeded.
+                // The new pack's card paints next time they navigate to Main on their own.
+                refreshMainIfCurrent();
             }
             catch ( Exception e ) {
                 Logger.logError( "Failed to install modpack via mmcl://add — " + e.getMessage() );
@@ -194,6 +193,24 @@ public final class LauncherUriHandler
                         LocalizationManager.get( "notification.uri.modpackAddFailed.title" ),
                         LocalizationManager.get( "notification.uri.modpackAddFailed.body" ) );
             }
+        } );
+    }
+
+    /** Refreshes the Main GUI by re-navigating to it, but only when it's the screen
+     *  the user is currently on. Used after deep-link installs so the new pack's
+     *  card paints in-place without yanking the user away from whatever else they
+     *  were doing. */
+    private static void refreshMainIfCurrent()
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            MCLauncherAbstractGui current = MCLauncherGuiController.getCurrentGuiOrNull();
+            if ( !( current instanceof MCLauncherMainGui ) ) {
+                return;
+            }
+            try {
+                MCLauncherGuiController.goToMainGui();
+            }
+            catch ( Exception ignored ) { /* refresh is best-effort */ }
         } );
     }
 
