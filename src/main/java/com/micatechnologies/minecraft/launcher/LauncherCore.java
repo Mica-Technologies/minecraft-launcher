@@ -100,6 +100,37 @@ public class LauncherCore
     }
 
     /**
+     * Pending {@code .mmcjson} manifest files captured before the main GUI is up — the macOS
+     * {@code Desktop.setOpenFileHandler} bridge can fire during cold start (drag-drop a
+     * {@code .mmcjson} onto the dock icon, or double-click in Finder while the launcher
+     * is launching) before {@link com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController#getTopStageOrNull()}
+     * returns a stage we could meaningfully foreground. Stash here, drain in
+     * {@link LauncherSession#run} after auth + modpack list are ready. Same pattern as
+     * {@link #pendingLauncherUri} except the OPEN_FILE event can carry multiple files,
+     * so this is a list rather than a single slot.
+     */
+    private static final java.util.List< java.io.File > pendingMmcjsonFiles =
+            java.util.Collections.synchronizedList( new java.util.ArrayList<>() );
+
+    /** Adds a {@code .mmcjson} file to the pending-import queue. */
+    public static void addPendingMmcjsonFile( java.io.File file ) {
+        if ( file != null ) pendingMmcjsonFiles.add( file );
+    }
+
+    /** Returns and clears the pending {@code .mmcjson} files, or an empty list. Called by
+     *  the launcher session right after the main GUI loads. */
+    public static java.util.List< java.io.File > consumePendingMmcjsonFiles() {
+        synchronized ( pendingMmcjsonFiles ) {
+            if ( pendingMmcjsonFiles.isEmpty() ) {
+                return java.util.Collections.emptyList();
+            }
+            java.util.List< java.io.File > drained = new java.util.ArrayList<>( pendingMmcjsonFiles );
+            pendingMmcjsonFiles.clear();
+            return drained;
+        }
+    }
+
+    /**
      * Launcher application main method/entry point.
      *
      * @param args launcher arguments
