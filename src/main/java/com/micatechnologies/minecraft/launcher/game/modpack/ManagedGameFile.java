@@ -345,6 +345,29 @@ public class ManagedGameFile
         if ( sessionVerified ) {
             return false;
         }
+        // No remote URL means the file is local-only (e.g. a Technic
+        // server-pack mod referenced by filename, or a loader installer
+        // the user hasn't filled in yet). Skip the verify-then-download
+        // cycle: there's nothing to download, and re-running the SHA
+        // check on every pack-list reload spams the launcher log with
+        // "FILE FAILED VERIFICATION" warnings + futile download attempts
+        // that throw MalformedURLException on the empty URL. If the
+        // file exists on disk, accept it as-is. If it's missing, throw
+        // a clear "not configured" error instead of the cryptic empty-URL
+        // failure mode.
+        if ( remote == null || remote.isBlank() ) {
+            File localFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
+            if ( localFile.exists() && localFile.isFile() ) {
+                sessionVerified = true;
+                return false;
+            }
+            sessionVerified = true;
+            throw new ModpackException(
+                    "Required file is missing and no remote URL is configured for it: "
+                            + getFullLocalFilePath()
+                            + ". Open the modpack in the Modpack Editor to set the loader "
+                            + "installer URL (or restore the missing file)." );
+        }
         if ( !verifyLocalFile() ) {
             // Offline mode: refuse to launch with a hash-mismatched file. Previously
             // we'd accept any on-disk content as a courtesy ("better than nothing"),
