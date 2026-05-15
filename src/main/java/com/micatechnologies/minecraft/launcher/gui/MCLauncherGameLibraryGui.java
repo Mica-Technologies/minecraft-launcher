@@ -572,11 +572,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
             String preview = buildModrinthPreview( originalUrl, summary );
             int choice = GUIUtilities.showQuestionMessageMultiline(
-                    "Import from Modrinth?",
-                    "Modrinth modpack detected",
+                    LocalizationManager.get( "dialog.import.modrinth.title" ),
+                    LocalizationManager.get( "dialog.import.modrinth.header" ),
                     preview,
-                    "Continue",
-                    "Cancel",
+                    LocalizationManager.get( "dialog.import.modrinth.button.continue" ),
+                    LocalizationManager.get( "dialog.button.cancel" ),
                     stage );
             if ( choice != 1 ) return;
 
@@ -758,11 +758,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
             String preview = buildCurseForgePreview( originalUrl, slug, fileId );
             int choice = GUIUtilities.showQuestionMessageMultiline(
-                    "CurseForge modpack detected",
-                    "Direct import isn't available yet",
+                    LocalizationManager.get( "dialog.import.curseforge.title" ),
+                    LocalizationManager.get( "dialog.import.curseforge.header" ),
                     preview,
-                    "Open CurseForge page",
-                    "Cancel",
+                    LocalizationManager.get( "dialog.import.curseforge.button.openPage" ),
+                    LocalizationManager.get( "dialog.button.cancel" ),
                     stage );
             if ( choice == 1 ) {
                 try {
@@ -796,11 +796,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
             String preview = buildTechnicPreview( originalUrl, slug );
             int choice = GUIUtilities.showQuestionMessageMultiline(
-                    "Technic modpack detected",
-                    "Direct import isn't available yet",
+                    LocalizationManager.get( "dialog.import.technic.title" ),
+                    LocalizationManager.get( "dialog.import.technic.header" ),
                     preview,
-                    "Open Technic page",
-                    "Cancel",
+                    LocalizationManager.get( "dialog.import.technic.button.openPage" ),
+                    LocalizationManager.get( "dialog.button.cancel" ),
                     stage );
             if ( choice == 1 ) {
                 // The classifier matches both technicpack.net (the website)
@@ -1966,10 +1966,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     {
         if ( pack == null ) return;
         int response = GUIUtilities.showQuestionMessage(
-                "Uninstall Modpack",
-                "Uninstall " + displayName + "?",
-                "Would you also like to delete the installed game files?",
-                "Uninstall & Delete Files", "Uninstall (Keep Files)", owner );
+                LocalizationManager.get( "dialog.uninstall.modpack.title" ),
+                LocalizationManager.format( "dialog.uninstall.modpack.header", displayName ),
+                LocalizationManager.get( "dialog.uninstall.modpack.body" ),
+                LocalizationManager.get( "dialog.uninstall.button.deleteFiles" ),
+                LocalizationManager.get( "dialog.uninstall.button.keepFiles" ),
+                owner );
         if ( response == 0 ) return;
         boolean deleteFiles = ( response == 1 );
 
@@ -2019,10 +2021,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         if ( entry.vanillaVersionId == null ) return;
         String id = entry.vanillaVersionId;
         int response = GUIUtilities.showQuestionMessage(
-                "Uninstall Version",
-                "Uninstall Minecraft " + id + "?",
-                "Would you also like to delete the installed game files?",
-                "Uninstall & Delete Files", "Uninstall (Keep Files)", stage );
+                LocalizationManager.get( "dialog.uninstall.vanilla.title" ),
+                LocalizationManager.format( "dialog.uninstall.vanilla.header", id ),
+                LocalizationManager.get( "dialog.uninstall.modpack.body" ),
+                LocalizationManager.get( "dialog.uninstall.button.deleteFiles" ),
+                LocalizationManager.get( "dialog.uninstall.button.keepFiles" ),
+                stage );
         if ( response == 0 ) return;
 
         showBackgroundStatus( "Removing Minecraft " + id + "…" );

@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
@@ -151,10 +152,12 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             Map< String, String > selected = currentRuntimes.get( selectedIndex );
             String component = selected.get( "component" );
 
-            int response = GUIUtilities.showQuestionMessage( "Confirm Delete",
-                                                              "Delete " + component + " Runtime",
-                                                              "This runtime will be re-downloaded when a modpack that needs it is launched. Continue?",
-                                                              "Delete", "Cancel", stage );
+            int response = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "dialog.runtime.delete.title" ),
+                    LocalizationManager.format( "dialog.runtime.delete.header", component ),
+                    LocalizationManager.get( "dialog.runtime.delete.body" ),
+                    LocalizationManager.get( "dialog.runtime.delete.button.delete" ),
+                    LocalizationManager.get( "dialog.button.cancel" ), stage );
             if ( response != 1 ) {
                 return;
             }
@@ -182,10 +185,12 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
                 return;
             }
 
-            int response = GUIUtilities.showQuestionMessage( "Confirm Delete All",
-                                                              "Delete All Runtimes",
-                                                              "All runtimes will be re-downloaded when modpacks are launched. Continue?",
-                                                              "Delete All", "Cancel", stage );
+            int response = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "dialog.runtime.deleteAll.title" ),
+                    LocalizationManager.get( "dialog.runtime.deleteAll.header" ),
+                    LocalizationManager.get( "dialog.runtime.deleteAll.body" ),
+                    LocalizationManager.get( "dialog.runtime.deleteAll.button.deleteAll" ),
+                    LocalizationManager.get( "dialog.button.cancel" ), stage );
             if ( response != 1 ) {
                 return;
             }

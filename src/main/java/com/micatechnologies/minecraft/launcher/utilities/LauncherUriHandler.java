@@ -366,15 +366,11 @@ public final class LauncherUriHandler
             default:
                 String host = hostOf( url );
                 int answer = GUIUtilities.showQuestionMessage(
-                        "Confirm modpack source",
+                        LocalizationManager.get( "dialog.uri.confirmInstall.title" ),
                         headerText,
-                        "This link asks the launcher to install a modpack from:\n\n"
-                                + "    " + host + "\n\n"
-                                + "This isn't one of the official Mica modpack hosts. Only continue if you "
-                                + "explicitly trust the site — installing a malicious modpack can run code on "
-                                + "your computer.",
-                        "Install",
-                        "Cancel",
+                        LocalizationManager.format( "dialog.uri.confirmInstall.body", host ),
+                        LocalizationManager.get( "dialog.uri.confirmInstall.button.install" ),
+                        LocalizationManager.get( "dialog.button.cancel" ),
                         MCLauncherGuiController.getTopStageOrNull() );
                 // showQuestionMessage returns 1 for the first button (Install), 2 for the
                 // second, 0 for Cancel / dismiss. Anything other than 1 = refuse.

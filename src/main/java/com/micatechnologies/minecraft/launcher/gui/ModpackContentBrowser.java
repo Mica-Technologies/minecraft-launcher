@@ -554,7 +554,7 @@ public final class ModpackContentBrowser
                     LocalizationManager.format( "detailModal.content.deleteConfirm.body", f.getName() ),
                     f.getAbsolutePath(),
                     LocalizationManager.get( "detailModal.content.delete" ),
-                    "Cancel", owner );
+                    LocalizationManager.get( "dialog.button.cancel" ), owner );
             if ( response != 1 ) return;
             FxAsyncTask.run( () -> {
                 if ( f.isDirectory() ) {

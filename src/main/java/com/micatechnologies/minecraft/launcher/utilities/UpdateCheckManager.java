@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import javafx.scene.Node;
@@ -87,10 +88,13 @@ public class UpdateCheckManager
                                 updateImgView,
                                 "Mica Launcher " + latestVersion + " is available — click to download." );
                         updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
-                            int response = GUIUtilities.showQuestionMessage( "Update Available",
-                                                                             "Update Ready to Download",
-                                                                             "An update has been found and is ready to be downloaded and installed.",
-                                                                             "Update Now", "Update Later", stage );
+                            int response = GUIUtilities.showQuestionMessage(
+                                    LocalizationManager.get( "dialog.update.available.title" ),
+                                    LocalizationManager.get( "dialog.update.available.header" ),
+                                    LocalizationManager.get( "dialog.update.available.body" ),
+                                    LocalizationManager.get( "dialog.update.available.button.now" ),
+                                    LocalizationManager.get( "dialog.update.available.button.later" ),
+                                    stage );
                             if ( response == 1 ) {
                                 // latestVersionURL is GitHub's `html_url` from the release JSON.
                                 // GitHub is trusted infrastructure, but defense-in-depth: refuse
