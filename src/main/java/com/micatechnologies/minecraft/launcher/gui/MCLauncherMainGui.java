@@ -1509,18 +1509,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  async download for missing files (would be heavy on cold cache); it just
      *  uses what's already cached, falling through to the gradient otherwise. */
     static String resolveBackgroundUrl( GameModPack pack ) {
-        try {
-            if ( !pack.hasCustomBackground() ) {
-                return null;
-            }
-            String path = pack.getPackBackgroundFilepathRaw();
-            if ( path != null ) {
-                File f = new File( path );
-                if ( f.exists() && f.length() > 0 ) return f.toURI().toString();
-            }
-        }
-        catch ( Exception ignored ) { /* fall through */ }
-        return null;
+        return ModpackImageResolver.resolveBackgroundUrlFromDisk( pack );
     }
 
     // =========================================================================================
@@ -2214,28 +2203,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 ( int ) Math.round( c.getBlue()  * 255 ) );
     }
 
-    /** Returns the cached logo image when one exists on disk, falling back
-     *  to the bundled default URL. Critically uses
-     *  {@link GameModPack#getPackLogoFilepathRaw()} so the FX thread never
-     *  blocks on a synchronous cacheImages download — see the parallel
-     *  rationale on {@link #resolveBackgroundUrl}. The async warm-up that
-     *  actually fetches missing images lives in
-     *  {@link ModpackHeroCard#bind}. */
+    /** Delegates to {@link ModpackImageResolver#resolveLogoOrDefault} — kept as
+     *  a wrapper so the call sites in this file (and {@link ModpackHeroCard#bind})
+     *  read consistently with the rest of the screen-local helpers. */
     private static Image resolveLogoImage( GameModPack pack ) {
-        try {
-            String path = pack.getPackLogoFilepathRaw();
-            if ( path != null ) {
-                File f = new File( path );
-                if ( f.exists() ) return new Image( f.toURI().toString(), true );
-            }
-        }
-        catch ( Exception ignored ) { /* fall through */ }
-        try {
-            return new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL, true );
-        }
-        catch ( Exception ignored ) {
-            return null;
-        }
+        return ModpackImageResolver.resolveLogoOrDefault( pack );
     }
 
     private static String safeMinecraftVersion( GameModPack pack ) {

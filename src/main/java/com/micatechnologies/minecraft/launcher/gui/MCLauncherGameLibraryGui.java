@@ -2184,11 +2184,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     {
         try {
             if ( entry.kind == LibraryEntry.Kind.MODPACK_INSTALLED && entry.pack != null ) {
-                String path = entry.pack.getPackLogoFilepath();
-                if ( path != null ) {
-                    File f = new File( path );
-                    if ( f.exists() ) return new Image( f.toURI().toString(), true );
-                }
+                Image disk = ModpackImageResolver.resolveLogoFromDisk( entry.pack );
+                if ( disk != null ) return disk;
             }
             if ( entry.kind == LibraryEntry.Kind.MODPACK_AVAILABLE && entry.pack != null ) {
                 String url = entry.pack.getPackLogoURL();
