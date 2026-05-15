@@ -172,8 +172,17 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  fits on one page without paging. */
     private static final int DEFAULT_PAGE_SIZE = 48;
 
-    private int pageSize    = DEFAULT_PAGE_SIZE;
-    private int currentPage = 1;  // 1-based
+    /** Filter / sort / search / pagination state. Same VM type the home screen
+     *  uses (see {@link MCLauncherMainGui#vm}); this controller's listeners
+     *  drive {@code "type"} / {@code "status"} dimensions in addition to the
+     *  shared search / sort / page state. */
+    private final LibraryViewModel vm = new LibraryViewModel( DEFAULT_PAGE_SIZE, 120 );
+
+    /** Filter-key strings used by the listeners + the rebuildCards reads.
+     *  Local to this controller because the dimension set differs per screen
+     *  (Browse adds {@code "status"} on top of the home screen's filters). */
+    private static final String FILTER_TYPE   = "type";
+    private static final String FILTER_STATUS = "status";
 
     /** Pool of constructed-but-not-currently-displayed {@link LibraryCard}
      *  instances. {@link #rebuildCards()} pulls from here on each rebuild and
@@ -186,11 +195,6 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  <p>ArrayDeque is fine here: rebuildCards always runs on the FX thread,
      *  so no synchronization is needed.</p> */
     private final CardPool< LibraryCard > cardPool = new CardPool<>();
-
-    /** Coalesces a burst of keystrokes in the search box into a single rebuild after
-     *  the user pauses typing — see the listener in {@link #setup()} for rationale. */
-    private javafx.animation.PauseTransition searchDebounce;
-    private static final int SEARCH_DEBOUNCE_MS = 120;
 
     public MCLauncherGameLibraryGui( Stage stage ) throws IOException {
         super( stage );
@@ -242,12 +246,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 TYPE_VANILLA_BETA, TYPE_VANILLA_ALPHA,
                 TYPE_FORGE_VERSIONS, TYPE_NEOFORGE_VERSIONS, TYPE_FABRIC_VERSIONS ) );
         typeFilter.selectItem( TYPE_ALL );
-        typeFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
+        vm.setFilter( FILTER_TYPE, TYPE_ALL );
+        typeFilter.setOnAction( e -> vm.setFilter( FILTER_TYPE, typeFilter.getValue() ) );
 
         statusFilter.setItems( FXCollections.observableArrayList(
                 STATUS_ALL, STATUS_INSTALLED, STATUS_AVAILABLE ) );
         statusFilter.selectItem( STATUS_INSTALLED );
-        statusFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
+        vm.setFilter( FILTER_STATUS, STATUS_INSTALLED );
+        statusFilter.setOnAction( e -> vm.setFilter( FILTER_STATUS, statusFilter.getValue() ) );
 
         // Sort filter — labels mirror the main menu's so users learn one
         // vocabulary across screens. Last/Most-Played and Recently-Updated
@@ -258,20 +264,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 SORT_DEFAULT, SORT_NAME_AZ, SORT_NAME_ZA, SORT_RELEASE_DATE,
                 SORT_LAST_PLAYED, SORT_MOST_PLAYED, SORT_RECENT_UPDATE ) );
         sortFilter.selectItem( SORT_DEFAULT );
-        sortFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
+        vm.setSortKey( SORT_DEFAULT );
+        sortFilter.setOnAction( e -> vm.setSortKey( sortFilter.getValue() ) );
 
-        // Search — debounce keystrokes so a rapid burst coalesces into one rebuild.
-        // Without this, FlowPane.getChildren().clear() + re-instantiate fires per
-        // keystroke, which makes the field feel laggy once the library has grown
-        // past a few dozen entries (and the Library screen also folds vanilla
-        // versions into the entry list, easily 100+ rows).
-        searchDebounce = new javafx.animation.PauseTransition(
-                javafx.util.Duration.millis( SEARCH_DEBOUNCE_MS ) );
-        searchDebounce.setOnFinished( e -> rebuildCards() );
-        searchField.textProperty().addListener( ( obs, oldVal, newVal ) -> {
-            currentPage = 1;
-            searchDebounce.playFromStart();
-        } );
+        // Search — VM debounces internally so a rapid burst of keystrokes
+        // coalesces into one rebuild rather than firing per character.
+        searchField.textProperty().addListener( ( obs, oldVal, newVal ) -> vm.setSearchQuery( newVal ) );
 
         // These two fields use promptText only — they have no floatingText label,
         // so we disable MaterialFX's floating-text feature entirely. Without this,
@@ -297,22 +295,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         pageSizeFilter.selectItem( DEFAULT_PAGE_SIZE );
         pageSizeFilter.setOnAction( e -> {
             Integer selected = pageSizeFilter.getValue();
-            if ( selected != null ) {
-                pageSize = selected;
-                currentPage = 1;
-                rebuildCards();
-            }
+            if ( selected != null ) vm.setPageSize( selected );
         } );
-        prevPageBtn.setOnAction( e -> {
-            if ( currentPage > 1 ) {
-                currentPage--;
-                rebuildCards();
-            }
-        } );
-        nextPageBtn.setOnAction( e -> {
-            currentPage++;  // rebuildCards clamps + redraws
-            rebuildCards();
-        } );
+        prevPageBtn.setOnAction( e -> vm.prevPage() );
+        nextPageBtn.setOnAction( e -> vm.nextPage() );
+
+        // Wire VM rebuild callback last so the initial setFilter / setSortKey
+        // calls above don't cause a rebuild before setup finishes — the
+        // explicit rebuildCards() done at the end of setup() does the first paint.
+        vm.setOnStateChanged( this::rebuildCards );
 
         // URL "Add" → classify the URL, then either install (Mica manifest) or
         // route to the platform-specific import preview dialog (Modrinth /
@@ -933,9 +924,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  uninstall actions complete. Must run on the FX thread. */
     private void rebuildCards()
     {
-        String type   = Objects.requireNonNullElse( typeFilter.getValue(),   TYPE_ALL );
-        String status = Objects.requireNonNullElse( statusFilter.getValue(), STATUS_INSTALLED );
-        String search = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase( Locale.ROOT );
+        String type   = vm.getStringFilter( FILTER_TYPE,   TYPE_ALL );
+        String status = vm.getStringFilter( FILTER_STATUS, STATUS_INSTALLED );
+        String search = vm.getSearchQuery().trim().toLowerCase( Locale.ROOT );
 
         List< LibraryEntry > entries = collectEntries( type, status );
         if ( !search.isEmpty() ) {
@@ -956,21 +947,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             } );
         }
 
-        String sortSel = sortFilter == null ? SORT_DEFAULT
-                : Objects.requireNonNullElse( sortFilter.getValue(), SORT_DEFAULT );
+        String sortSel = vm.getSortKey().isEmpty() ? SORT_DEFAULT : vm.getSortKey();
         sortEntries( entries, sortSel );
 
-        // Pagination math. Clamp currentPage to [1, totalPages] so out-of-range states from
-        // prev/next clicks or filter changes that shrink the list quietly snap back.
-        int totalItems = entries.size();
-        int totalPages = Math.max( 1, ( totalItems + pageSize - 1 ) / pageSize );
-        if ( currentPage < 1 ) currentPage = 1;
-        if ( currentPage > totalPages ) currentPage = totalPages;
-        int startIdx = ( currentPage - 1 ) * pageSize;
-        int endIdx   = Math.min( totalItems, startIdx + pageSize );
+        // Pagination math is owned by the VM — clamps currentPage in-range and
+        // returns the list-slice indices.
+        LibraryViewModel.PageBounds bounds = vm.clampAndSlice( entries.size() );
 
         // Update pagination UI labels + enable state
-        updatePaginationControls( totalItems, totalPages, startIdx, endIdx );
+        updatePaginationControls( bounds );
 
         // Recycle currently-displayed cards back to the pool before clearing
         // the FlowPane, so the next pass can pull them out and rebind to the
@@ -992,7 +977,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
             return;
         }
-        for ( int i = startIdx; i < endIdx; i++ ) {
+        for ( int i = bounds.startIdx(); i < bounds.endIdx(); i++ ) {
             LibraryCard card = cardPool.acquireOrNull();
             if ( card == null ) {
                 card = new LibraryCard( entries.get( i ) );
@@ -1157,20 +1142,21 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     /** Updates the pagination bar's text labels and button enable state for the current page
      *  state. Called from {@link #rebuildCards} after the visible slice is computed. */
-    private void updatePaginationControls( int totalItems, int totalPages, int startIdx, int endIdx )
+    private void updatePaginationControls( LibraryViewModel.PageBounds bounds )
     {
-        if ( totalItems == 0 ) {
+        int currentPage = vm.getCurrentPage();
+        if ( bounds.totalItems() == 0 ) {
             paginationRangeLabel.setText( LocalizationManager.get( "browse.pagination.empty" ) );
             paginationPageLabel.setText( LocalizationManager.format( "main.pagination.pageOfPages", 1, 1 ) );
         }
         else {
             paginationRangeLabel.setText( LocalizationManager.format(
-                    "main.pagination.range", startIdx + 1, endIdx, totalItems ) );
+                    "main.pagination.range", bounds.startIdx() + 1, bounds.endIdx(), bounds.totalItems() ) );
             paginationPageLabel.setText( LocalizationManager.format(
-                    "main.pagination.pageOfPages", currentPage, totalPages ) );
+                    "main.pagination.pageOfPages", currentPage, bounds.totalPages() ) );
         }
         prevPageBtn.setDisable( currentPage <= 1 );
-        nextPageBtn.setDisable( currentPage >= totalPages );
+        nextPageBtn.setDisable( currentPage >= bounds.totalPages() );
     }
 
     /** Collects entries from the GameModPackManager + VanillaVersionManager according to the

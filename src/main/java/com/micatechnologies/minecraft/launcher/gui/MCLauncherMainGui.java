@@ -161,8 +161,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  so the typical 30–50-pack library fits on one page without paging. */
     private static final int DEFAULT_PAGE_SIZE = 48;
 
-    private int pageSize    = DEFAULT_PAGE_SIZE;
-    private int currentPage = 1;
+    /** Filter / sort / search / pagination state for this screen. The VM owns
+     *  pageSize, currentPage, the search-text debounce, and the named filter
+     *  dimensions ({@code "type"} / {@code "updatesOnly"}); listeners below
+     *  drive it from the FXML inputs and {@link #rebuildCards} reads from it.
+     *  Shared between this screen and {@link MCLauncherGameLibraryGui} so a
+     *  single bug fix lands in both. */
+    private final LibraryViewModel vm = new LibraryViewModel( DEFAULT_PAGE_SIZE, 120 );
 
     /** Pool of constructed-but-not-currently-displayed {@link ModpackHeroCard}
      *  instances. {@link #rebuildCards()} pulls from here on each rebuild and
@@ -176,18 +181,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  so no synchronization is needed.</p> */
     private final CardPool< ModpackHeroCard > cardPool = new CardPool<>();
 
-    /** When true, the rebuild pass keeps only packs with isUpdateAvailable() == true.
-     *  Mirror of {@link #recentlyUpdatedOnlyCheck}'s selected state, cached here so
-     *  the rebuild pipeline doesn't have to null-check the FXML field on every
-     *  invocation. */
-    private boolean updatesOnly = false;
-
-    /** Debounce timer for the search field. Started fresh on each keystroke; only
-     *  fires {@link #rebuildCards} after the user stops typing for {@link #SEARCH_DEBOUNCE_MS}.
-     *  Built lazily in {@link #setup()} because PauseTransition wants to be on the
-     *  FX thread by the time it's first scheduled. */
-    private PauseTransition searchDebounce;
-    private static final int SEARCH_DEBOUNCE_MS = 120;
+    /** Filter key used in the VM for the "recently updated only" boolean.
+     *  String constants for filter keys live with the controller that owns
+     *  the dimension — the VM is intentionally generic. */
+    private static final String FILTER_UPDATES_ONLY = "updatesOnly";
+    private static final String FILTER_TYPE         = "type";
 
     /** True once the main menu has been shown at least once in this session. The
      *  cold-start fade-in only runs on the first show — subsequent returns from
@@ -434,7 +432,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         typeFilter.setItems( FXCollections.observableArrayList(
                 TYPE_ALL, TYPE_MODPACKS, TYPE_VANILLA ) );
         typeFilter.selectItem( TYPE_ALL );
-        typeFilter.setOnAction( e -> { currentPage = 1; rebuildCards(); } );
+        vm.setFilter( FILTER_TYPE, TYPE_ALL );
+        typeFilter.setOnAction( e -> vm.setFilter( FILTER_TYPE, typeFilter.getValue() ) );
 
         // Sort filter — Last Played mirrors the pre-filter "float last-played to
         // top" behavior. Name A→Z / Z→A and Recently Updated round out the most
@@ -442,20 +441,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         sortFilter.setItems( FXCollections.observableArrayList(
                 SORT_LAST_PLAYED, SORT_MOST_PLAYED, SORT_NAME_AZ, SORT_NAME_ZA, SORT_RECENT_UPDATE ) );
         sortFilter.selectItem( SORT_LAST_PLAYED );
-        sortFilter.setOnAction( e -> rebuildCards() );
+        vm.setSortKey( SORT_LAST_PLAYED );
+        sortFilter.setOnAction( e -> vm.setSortKey( sortFilter.getValue() ) );
 
-        // Search — rebuild after a short pause rather than on every keystroke.
-        // A FlowPane rebuild clears every card node and re-instantiates the page
-        // worth of cards; on a sub-second typist that fires N times per word and
-        // makes the field feel laggy on a 30-pack library, never mind 100+. The
-        // PauseTransition coalesces a rapid burst of keystrokes into a single
-        // rebuild ~120 ms after the user stops typing.
-        searchDebounce = new PauseTransition( Duration.millis( SEARCH_DEBOUNCE_MS ) );
-        searchDebounce.setOnFinished( e -> rebuildCards() );
-        searchField.textProperty().addListener( ( obs, oldVal, newVal ) -> {
-            currentPage = 1;
-            searchDebounce.playFromStart();
-        } );
+        // Search — VM debounces internally so a rapid burst of keystrokes
+        // coalesces into one rebuild rather than firing per character.
+        searchField.textProperty().addListener( ( obs, oldVal, newVal ) -> vm.setSearchQuery( newVal ) );
         // Same float-mode kill switch the Library screen uses — no floating label
         // wanted, just promptText.
         searchField.setFloatMode( io.github.palexdev.materialfx.enums.FloatMode.DISABLED );
@@ -465,33 +456,23 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // the previous toggle button did (the button needed a styled `.selected`
         // class to indicate active state, which was easy to miss).
         recentlyUpdatedOnlyCheck.setSelected( false );
-        recentlyUpdatedOnlyCheck.selectedProperty().addListener( ( obs, oldVal, newVal ) -> {
-            updatesOnly = Boolean.TRUE.equals( newVal );
-            currentPage = 1;
-            rebuildCards();
-        } );
+        recentlyUpdatedOnlyCheck.selectedProperty().addListener(
+                ( obs, oldVal, newVal ) -> vm.setFilter( FILTER_UPDATES_ONLY, Boolean.TRUE.equals( newVal ) ) );
 
         // Pagination controls
         pageSizeFilter.setItems( FXCollections.observableArrayList( PAGE_SIZES ) );
         pageSizeFilter.selectItem( DEFAULT_PAGE_SIZE );
         pageSizeFilter.setOnAction( e -> {
             Integer selected = pageSizeFilter.getValue();
-            if ( selected != null ) {
-                pageSize = selected;
-                currentPage = 1;
-                rebuildCards();
-            }
+            if ( selected != null ) vm.setPageSize( selected );
         } );
-        prevPageBtn.setOnAction( e -> {
-            if ( currentPage > 1 ) {
-                currentPage--;
-                rebuildCards();
-            }
-        } );
-        nextPageBtn.setOnAction( e -> {
-            currentPage++;  // rebuildCards clamps + redraws
-            rebuildCards();
-        } );
+        prevPageBtn.setOnAction( e -> vm.prevPage() );
+        nextPageBtn.setOnAction( e -> vm.nextPage() );
+
+        // Wire VM rebuild callback last so the initial setFilter / setSortKey
+        // calls above don't cause a rebuild before setup finishes — the
+        // explicit rebuildCards() at the end of setup() does the first paint.
+        vm.setOnStateChanged( this::rebuildCards );
 
         // Tooltips so the controls are discoverable. Help text matches the
         // Library screen's hints where applicable so users get a consistent
@@ -692,9 +673,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             all.add( GameModPack.createVanillaModPack( versionId ) );
         }
 
-        // Step 2 — type filter
-        String typeSel = typeFilter == null ? TYPE_ALL :
-                Objects.requireNonNullElse( typeFilter.getValue(), TYPE_ALL );
+        // Step 2 — type filter (read from VM; UI listener keeps it in sync)
+        String typeSel = vm.getStringFilter( FILTER_TYPE, TYPE_ALL );
         if ( TYPE_MODPACKS.equals( typeSel ) ) {
             all.removeIf( GameModPack::isVanillaVersion );
         }
@@ -703,7 +683,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
 
         // Step 3 — Updates-Only
-        if ( updatesOnly ) {
+        if ( vm.getBooleanFilter( FILTER_UPDATES_ONLY, false ) ) {
             all.removeIf( p -> !p.isUpdateAvailable() );
         }
 
@@ -711,30 +691,22 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // tokens that must EACH appear somewhere in a per-pack haystack
         // (name + pack/MC/Forge versions). Lets "alto 1.12" or "1.12 alto"
         // (in either order) find Alto-1.12.2 even though neither matches
-        // the display name as a single substring. Empty / pure-whitespace
-        // query short-circuits the filter so we don't iterate the list for
-        // a no-op.
-        String search = ( searchField == null || searchField.getText() == null )
-                ? "" : searchField.getText().trim().toLowerCase( Locale.ROOT );
-        if ( !search.isEmpty() ) {
-            String[] tokens = search.split( "\\s+" );
+        // the display name as a single substring. VM.searchTokens()
+        // returns an empty array for blank queries so the loop body is
+        // skipped without a separate isEmpty() check.
+        String[] tokens = vm.searchTokens();
+        if ( tokens.length > 0 ) {
             all.removeIf( p -> !matchesAllTokens( p, tokens ) );
         }
 
         // Step 5 — sort
-        String sortSel = sortFilter == null ? SORT_LAST_PLAYED :
-                Objects.requireNonNullElse( sortFilter.getValue(), SORT_LAST_PLAYED );
+        String sortSel = vm.getSortKey().isEmpty() ? SORT_LAST_PLAYED : vm.getSortKey();
         sortPacks( all, sortSel );
 
         // Step 6 — paginate + render
-        int totalItems = all.size();
-        int totalPages = Math.max( 1, ( totalItems + pageSize - 1 ) / pageSize );
-        if ( currentPage < 1 ) currentPage = 1;
-        if ( currentPage > totalPages ) currentPage = totalPages;
-        int startIdx = ( currentPage - 1 ) * pageSize;
-        int endIdx   = Math.min( totalItems, startIdx + pageSize );
+        LibraryViewModel.PageBounds bounds = vm.clampAndSlice( all.size() );
 
-        updatePaginationControls( totalItems, totalPages, startIdx, endIdx );
+        updatePaginationControls( bounds );
 
         // Recycle currently-displayed cards back to the pool before clearing the
         // FlowPane, so the next pass can pull them out and rebind to the new
@@ -743,11 +715,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         cardPool.recycleAll( modpackCardList.getChildren(), ModpackHeroCard.class );
         modpackCardList.getChildren().clear();
 
-        if ( totalItems == 0 ) {
-            modpackCardList.getChildren().add( buildEmptyState( typeSel, search ) );
+        if ( bounds.totalItems() == 0 ) {
+            String searchForEmptyState = vm.getSearchQuery().trim().toLowerCase( Locale.ROOT );
+            modpackCardList.getChildren().add( buildEmptyState( typeSel, searchForEmptyState ) );
             return;
         }
-        for ( int i = startIdx; i < endIdx; i++ ) {
+        for ( int i = bounds.startIdx(); i < bounds.endIdx(); i++ ) {
             ModpackHeroCard card = cardPool.acquireOrNull();
             if ( card == null ) {
                 card = new ModpackHeroCard( all.get( i ) );
@@ -807,20 +780,21 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     }
 
     /** Updates the prev/next/page-label state to match the new pagination math. */
-    private void updatePaginationControls( int totalItems, int totalPages, int startIdx, int endIdx )
+    private void updatePaginationControls( LibraryViewModel.PageBounds bounds )
     {
-        if ( totalItems == 0 ) {
+        int currentPage = vm.getCurrentPage();
+        if ( bounds.totalItems() == 0 ) {
             paginationRangeLabel.setText( LocalizationManager.get( "main.pagination.empty" ) );
             paginationPageLabel.setText( LocalizationManager.format( "main.pagination.pageOfPages", 1, 1 ) );
         }
         else {
             paginationRangeLabel.setText( LocalizationManager.format(
-                    "main.pagination.range", startIdx + 1, endIdx, totalItems ) );
+                    "main.pagination.range", bounds.startIdx() + 1, bounds.endIdx(), bounds.totalItems() ) );
             paginationPageLabel.setText( LocalizationManager.format(
-                    "main.pagination.pageOfPages", currentPage, totalPages ) );
+                    "main.pagination.pageOfPages", currentPage, bounds.totalPages() ) );
         }
         prevPageBtn.setDisable( currentPage <= 1 );
-        nextPageBtn.setDisable( currentPage >= totalPages );
+        nextPageBtn.setDisable( currentPage >= bounds.totalPages() );
     }
 
     /**
@@ -899,7 +873,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         boolean hasAnyInstalled = !GameModPackManager.getInstalledModPacks().isEmpty()
                 || !com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager
                        .getInstalledVersionIds().isEmpty();
-        boolean filtersActive = updatesOnly
+        boolean filtersActive = vm.getBooleanFilter( FILTER_UPDATES_ONLY, false )
                 || ( typeSel != null && !TYPE_ALL.equals( typeSel ) )
                 || ( search != null && !search.isEmpty() );
 
@@ -942,11 +916,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             if ( typeFilter != null ) typeFilter.selectItem( TYPE_ALL );
             if ( recentlyUpdatedOnlyCheck != null && recentlyUpdatedOnlyCheck.isSelected() ) {
                 // Unticking the checkbox fires the listener which already calls
-                // rebuildCards(), so the explicit rebuild below is redundant in
-                // that branch but harmless.
+                // rebuildCards() (via vm.setFilter → onStateChanged), so the
+                // explicit rebuild below is redundant in that branch but harmless.
                 recentlyUpdatedOnlyCheck.setSelected( false );
             }
-            currentPage = 1;
+            // Programmatically reset the type filter in the VM since
+            // typeFilter.selectItem(...) above doesn't fire setOnAction.
+            vm.setFilter( FILTER_TYPE, TYPE_ALL );
             rebuildCards();
 
             String wanted = modPack.getFriendlyName();
