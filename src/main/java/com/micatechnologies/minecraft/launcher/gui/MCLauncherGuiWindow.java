@@ -492,6 +492,15 @@ public class MCLauncherGuiWindow extends Application
         return stage;
     }
 
+    /** Returns the GUI currently shown in this window's scene, or {@code null}
+     *  before the first {@link #setScene} call. Used by external callers (notably
+     *  {@code LauncherUriHandler}) that want to make screen-aware decisions —
+     *  e.g. only refresh Main when the user is actually on Main, so a deep-link
+     *  install doesn't yank them out of the Editor / Settings / Browse screen. */
+    public MCLauncherAbstractGui getCurrentGui() {
+        return gui;
+    }
+
     public void forceThemeChange() {
         // Also refresh the help window theme if it's open
         MCLauncherHelpWindow.refreshTheme();
