@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor;
 import javafx.application.Platform;
@@ -83,8 +84,10 @@ public class GUIUtilities
             // "Uninstall (Keep Files)", etc.), we still want the separate Cancel as
             // the escape hatch.
             ButtonType btn1 = new ButtonType( button1 );
+            String localizedCancel = LocalizationManager.get( "dialog.button.cancel" );
             boolean button2IsCancel = button2 != null
-                    && button2.trim().equalsIgnoreCase( "Cancel" );
+                    && ( button2.trim().equalsIgnoreCase( "Cancel" )
+                         || button2.trim().equalsIgnoreCase( localizedCancel ) );
             ButtonType btn2 = button2IsCancel
                     ? new ButtonType( button2, ButtonBar.ButtonData.CANCEL_CLOSE )
                     : new ButtonType( button2 );
@@ -93,7 +96,7 @@ public class GUIUtilities
                 questionAlert.getButtonTypes().setAll( btn1, btn2 );
             }
             else {
-                ButtonType btnC = new ButtonType( "Cancel", ButtonBar.ButtonData.CANCEL_CLOSE );
+                ButtonType btnC = new ButtonType( localizedCancel, ButtonBar.ButtonData.CANCEL_CLOSE );
                 questionAlert.getButtonTypes().setAll( btn1, btn2, btnC );
             }
 
@@ -167,8 +170,10 @@ public class GUIUtilities
             questionAlert.initOwner( owner );
 
             ButtonType btn1 = new ButtonType( button1 );
+            String localizedCancel = LocalizationManager.get( "dialog.button.cancel" );
             boolean button2IsCancel = button2 != null
-                    && button2.trim().equalsIgnoreCase( "Cancel" );
+                    && ( button2.trim().equalsIgnoreCase( "Cancel" )
+                         || button2.trim().equalsIgnoreCase( localizedCancel ) );
             ButtonType btn2 = button2IsCancel
                     ? new ButtonType( button2, ButtonBar.ButtonData.CANCEL_CLOSE )
                     : new ButtonType( button2 );
@@ -177,7 +182,7 @@ public class GUIUtilities
                 questionAlert.getButtonTypes().setAll( btn1, btn2 );
             }
             else {
-                ButtonType btnC = new ButtonType( "Cancel", ButtonBar.ButtonData.CANCEL_CLOSE );
+                ButtonType btnC = new ButtonType( localizedCancel, ButtonBar.ButtonData.CANCEL_CLOSE );
                 questionAlert.getButtonTypes().setAll( btn1, btn2, btnC );
             }
 

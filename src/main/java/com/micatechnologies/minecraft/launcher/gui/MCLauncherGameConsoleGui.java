@@ -142,11 +142,13 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         stage.setOnCloseRequest( windowEvent -> {
             windowEvent.consume();
             if ( processRunning ) {
-                int response = GUIUtilities.showQuestionMessage( "Game Running",
-                                                                  "The game is still running",
-                                                                  "How would you like to close?",
-                                                                  "Stop Game & Close",
-                                                                  "Close Launcher Only", stage );
+                int response = GUIUtilities.showQuestionMessage(
+                        LocalizationManager.get( "dialog.gameConsole.stillRunning.title" ),
+                        LocalizationManager.get( "dialog.gameConsole.stillRunning.header" ),
+                        LocalizationManager.get( "dialog.gameConsole.stillRunning.body" ),
+                        LocalizationManager.get( "dialog.gameConsole.stillRunning.button.stopAndClose" ),
+                        LocalizationManager.get( "dialog.gameConsole.stillRunning.button.closeOnly" ),
+                        stage );
                 if ( response == 1 ) {
                     killGame();
                     closeLogFileWriter();
