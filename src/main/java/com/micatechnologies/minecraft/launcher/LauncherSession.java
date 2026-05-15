@@ -169,6 +169,17 @@ class LauncherSession
             Logger.logThrowable( e );
         }
 
+        // Wire the background-task error listener so the available-modpacks fetch
+        // and installed-pack revalidate (both fire-and-forget below) surface their
+        // failures as a notification toast instead of vanishing into the log. The
+        // listener is set BEFORE kicking off the bg tasks so an early failure
+        // (DNS down at startup) still gets the toast — the registry's no-op-when-
+        // unset semantics handle the case where the user is in headless server
+        // mode without a NotificationManager-capable environment.
+        GameModPackManager.setBackgroundErrorListener( ( message, cause ) ->
+                com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
+                        "Background task failed", message ) );
+
         // Available-modpacks fetch — fire-and-forget. Main menu shows a "loading available
         // packs" indicator while this runs; Library screen waits on its completion.
         if ( online ) {
