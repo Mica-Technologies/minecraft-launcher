@@ -19,10 +19,14 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
+import com.micatechnologies.minecraft.launcher.game.modpack.import_.MmcjsonImporter;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler;
+import com.micatechnologies.minecraft.launcher.utilities.NotificationManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Menu;
@@ -97,9 +101,33 @@ public final class SystemMenuBarManager
                         }
                     } );
                 }
+                // OPEN_FILE handler — symmetric to OPEN_URI for double-click / drag-drop
+                // delivery of .mmcjson modpack manifests. macOS delivers these via
+                // Launch Services (registered through jpackage --file-associations);
+                // Win / Linux today route file-association double-clicks through argv,
+                // which the cold-start path will eventually consume separately.
+                if ( desktop.isSupported( Desktop.Action.APP_OPEN_FILE ) ) {
+                    desktop.setOpenFileHandler( event -> {
+                        if ( event == null || event.getFiles() == null ) return;
+                        for ( java.io.File file : event.getFiles() ) {
+                            if ( file == null || !isMmcjsonFile( file ) ) continue;
+                            // Same defer-vs-dispatch split as OPEN_URI: if the main GUI
+                            // isn't up yet, queue for LauncherSession to drain after
+                            // auth + modpack list are ready. If already running, kick
+                            // the import on a worker thread so we don't block the AWT
+                            // event-dispatch thread on disk I/O + network.
+                            if ( MCLauncherGuiController.getTopStageOrNull() == null ) {
+                                LauncherCore.addPendingMmcjsonFile( file );
+                            }
+                            else {
+                                SystemUtilities.spawnNewTask( () -> dispatchMmcjsonImport( file ) );
+                            }
+                        }
+                    } );
+                }
             }
             catch ( Exception | Error e ) {
-                Logger.logWarningSilent( "Unable to install OPEN_URI handler: " + e.getMessage() );
+                Logger.logWarningSilent( "Unable to install OPEN_URI / OPEN_FILE handler: " + e.getMessage() );
             }
         }
 
@@ -322,6 +350,57 @@ public final class SystemMenuBarManager
                 Logger.logThrowable( e );
             }
         } );
+    }
+
+    /** True when {@code file} ends with the canonical {@code .mmcjson} extension
+     *  (case-insensitive). The OPEN_FILE handler ignores anything else so a stray
+     *  drag of an unrelated file onto the dock icon doesn't trip the importer. */
+    private static boolean isMmcjsonFile( java.io.File file )
+    {
+        if ( file == null ) return false;
+        String name = file.getName();
+        return name != null
+                && name.toLowerCase( java.util.Locale.ROOT )
+                       .endsWith( ModPackConstants.MODPACK_FILE_EXTENSION );
+    }
+
+    /** Runs an {@link MmcjsonImporter#importMmcjsonFile(java.io.File)} and toasts
+     *  the result. Public-static so {@link com.micatechnologies.minecraft.launcher.LauncherSession}
+     *  can drain {@link LauncherCore#consumePendingMmcjsonFiles()} through the same
+     *  code path the immediate-dispatch branch uses. Always called from a worker
+     *  thread — the importer touches disk + network through the install pipeline
+     *  and would block the FX / AWT thread if invoked synchronously. */
+    public static void dispatchMmcjsonImport( java.io.File file )
+    {
+        try {
+            MmcjsonImporter.importMmcjsonFile( file );
+            NotificationManager.success(
+                    LocalizationManager.get( "notification.uri.modpackAdded.title" ),
+                    LocalizationManager.get( "notification.uri.modpackAdded.body" ) );
+            // Refresh the main GUI so the new pack appears in the hero-card grid
+            // immediately rather than after the user navigates away and back.
+            GUIUtilities.JFXPlatformRun( () -> {
+                try {
+                    MCLauncherGuiController.goToMainGui();
+                }
+                catch ( Exception ignored ) { /* user may not be on main; that's fine */ }
+            } );
+        }
+        catch ( MmcjsonImporter.ImportException ie ) {
+            Logger.logErrorSilent( "MMCJSON import failed for "
+                                           + ( file == null ? "<null>" : file.getName() )
+                                           + ": " + ie.getMessage() );
+            NotificationManager.error(
+                    LocalizationManager.get( "notification.uri.modpackAddFailed.title" ),
+                    ie.getMessage() );
+        }
+        catch ( Exception e ) {
+            Logger.logErrorSilent( "MMCJSON import unexpected failure: " + e.getMessage() );
+            Logger.logThrowable( e );
+            NotificationManager.error(
+                    LocalizationManager.get( "notification.uri.modpackAddFailed.title" ),
+                    LocalizationManager.get( "notification.uri.modpackAddFailed.body" ) );
+        }
     }
 
     private static void showAboutDialog()

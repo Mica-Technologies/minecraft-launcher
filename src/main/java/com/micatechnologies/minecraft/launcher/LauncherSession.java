@@ -200,6 +200,18 @@ class LauncherSession
             com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler.handle( pendingUri );
         }
 
+        // Deferred .mmcjson import. Symmetric to the URI dispatch above — when the macOS
+        // Desktop.setOpenFileHandler bridge fires before the main GUI is up (cold-start
+        // drag-drop / Finder double-click), files get queued via
+        // LauncherCore.addPendingMmcjsonFile and drained here. Each import runs on a
+        // worker thread so the session thread doesn't block on disk + install pipeline.
+        java.util.List< java.io.File > pendingFiles = LauncherCore.consumePendingMmcjsonFiles();
+        for ( java.io.File f : pendingFiles ) {
+            com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask(
+                    () -> com.micatechnologies.minecraft.launcher.gui.SystemMenuBarManager
+                                  .dispatchMmcjsonImport( f ) );
+        }
+
         // Wait for exit latch
         try {
             exitLatch.await();
