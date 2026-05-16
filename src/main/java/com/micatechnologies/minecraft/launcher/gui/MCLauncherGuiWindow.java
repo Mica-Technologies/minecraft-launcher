@@ -66,16 +66,21 @@ public class MCLauncherGuiWindow extends Application
     private double  lastNormalHeight = Double.NaN;
     private boolean normalBoundsSeen = false;
 
-    /** Debounces bounds-change listeners so we don't write the config file on every pixel of a drag/resize. */
-    private PauseTransition boundsSaveDebouncer = null;
+    /** Debounces bounds-change listeners so we don't write the config file on every pixel of a drag/resize.
+     *  {@code volatile} because {@code cleanup()} can null this from the launcher's shutdown thread while
+     *  the FX thread is still processing the final {@code stage.close()}-driven {@code notifyLocationChanged}
+     *  event — the listener reads this field defensively and the volatile guarantees it sees the post-cleanup
+     *  null instead of stale per-thread cache. */
+    private volatile PauseTransition boundsSaveDebouncer = null;
 
     /**
      * Last screen the stage's center was observed on. Used to detect cross-monitor moves so we can nudge the window
      * position and force Windows' per-monitor taskbar to re-evaluate icon placement. {@code null} until the first
      * post-show position settle.
      */
-    private Screen          lastKnownScreen          = null;
-    private PauseTransition monitorChangeDebouncer   = null;
+    private          Screen          lastKnownScreen          = null;
+    /** Same volatile-cleanup-vs-FX-close race as {@link #boundsSaveDebouncer}. */
+    private volatile PauseTransition monitorChangeDebouncer   = null;
 
     @Override
     public void start( Stage stage ) throws Exception {
@@ -195,6 +200,11 @@ public class MCLauncherGuiWindow extends Application
         boundsSaveDebouncer = new PauseTransition( Duration.millis( 500 ) );
         boundsSaveDebouncer.setOnFinished( e -> persistBoundsNow() );
 
+        // Null-guard inside the listener bodies so the late-fire that
+        // JavaFX emits during stage.close() — Window.notifyLocationChanged
+        // runs AFTER cleanup() has nulled the debouncer — doesn't NPE on
+        // the way out. The bounds were already persisted synchronously by
+        // cleanup() so a missed late update is fine to drop.
         ChangeListener< Number > onBoundsChanged = ( obs, oldVal, newVal ) -> {
             if ( !stage.isMaximized() && !stage.isIconified()
                     && stage.getWidth() > 0 && stage.getHeight() > 0 ) {
@@ -204,9 +214,13 @@ public class MCLauncherGuiWindow extends Application
                 lastNormalHeight = stage.getHeight();
                 normalBoundsSeen = true;
             }
-            boundsSaveDebouncer.playFromStart();
+            PauseTransition d = boundsSaveDebouncer;
+            if ( d != null ) d.playFromStart();
         };
-        ChangeListener< Boolean > onFlagChanged = ( obs, oldVal, newVal ) -> boundsSaveDebouncer.playFromStart();
+        ChangeListener< Boolean > onFlagChanged = ( obs, oldVal, newVal ) -> {
+            PauseTransition d = boundsSaveDebouncer;
+            if ( d != null ) d.playFromStart();
+        };
 
         stage.xProperty().addListener( onBoundsChanged );
         stage.yProperty().addListener( onBoundsChanged );
@@ -254,7 +268,11 @@ public class MCLauncherGuiWindow extends Application
 
         ChangeListener< Number > onPositionChanged = ( obs, oldVal, newVal ) -> {
             if ( stage.isShowing() && !stage.isIconified() ) {
-                monitorChangeDebouncer.playFromStart();
+                // Same null-guard as the bounds-persistence listener — JavaFX
+                // can fire one final notifyLocationChanged during stage.close()
+                // after cleanup() has nulled the debouncer field.
+                PauseTransition d = monitorChangeDebouncer;
+                if ( d != null ) d.playFromStart();
             }
         };
         stage.xProperty().addListener( onPositionChanged );
