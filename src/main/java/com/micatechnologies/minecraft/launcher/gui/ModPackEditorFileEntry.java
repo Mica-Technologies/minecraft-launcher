@@ -41,6 +41,18 @@ public class ModPackEditorFileEntry
     private final BooleanProperty serverReq = new SimpleBooleanProperty( true );
     private final StringProperty modrinthSlug = new SimpleStringProperty( "" );
 
+    /**
+     * Round-trip preservation for the OTHER hash types (i.e. the ones not currently
+     * shown in the Hash column). Editor reads can populate the entry from a JSON
+     * object that carries multiple hashes; the visible hash + hashType render the
+     * strongest one, but the rest survive the edit cycle so saving doesn't
+     * silently drop them. Keys are {@code "sha1"} / {@code "md5"} / {@code "sha256"};
+     * the slot matching the primary {@link #hashType} is intentionally NOT stored
+     * here (that one's in {@link #hash}). Empty / null when the source manifest
+     * only had the one hash.
+     */
+    private final java.util.Map< String, String > extraHashes = new java.util.HashMap<>();
+
     public ModPackEditorFileEntry()
     {
     }
@@ -90,6 +102,27 @@ public class ModPackEditorFileEntry
     public StringProperty modrinthSlugProperty() { return modrinthSlug; }
     public String getModrinthSlug() { return modrinthSlug.get(); }
     public void setModrinthSlug( String value ) { modrinthSlug.set( value != null ? value : "" ); }
+
+    /** Stores a non-primary hash for round-trip preservation. {@code algo} is
+     *  one of {@code "sha1"} / {@code "md5"} / {@code "sha256"}; passing
+     *  {@code null} or empty {@code value} clears that slot. */
+    public void putExtraHash( String algo, String value ) {
+        if ( algo == null ) return;
+        if ( value == null || value.isBlank() ) {
+            extraHashes.remove( algo.toLowerCase( java.util.Locale.ROOT ) );
+        }
+        else {
+            extraHashes.put( algo.toLowerCase( java.util.Locale.ROOT ), value );
+        }
+    }
+
+    /** Returns the stored extra hash for the given algorithm, or {@code null} when
+     *  none is stored. The primary hash is NOT returned here — query
+     *  {@link #getHash} / {@link #getHashType} for that. */
+    public String getExtraHash( String algo ) {
+        if ( algo == null ) return null;
+        return extraHashes.get( algo.toLowerCase( java.util.Locale.ROOT ) );
+    }
 
     // endregion
 }
