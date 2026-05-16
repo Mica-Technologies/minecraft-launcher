@@ -143,20 +143,7 @@ public class ManagedGameFile
      * @since 1.0
      */
     public ManagedGameFile( String remote, String local ) {
-        String localTemp;
-        try {
-            localTemp = local.replaceAll( "/", File.separator );
-        }
-        catch ( Exception e ) {
-            localTemp = local;
-        }
-
-        this.local = localTemp;
-        this.remote = remote;
-
-        this.sha1 = "-1";
-        this.md5 = "-1";
-        this.sha256 = "-1";
+        this( remote, local, null, null, null );
     }
 
     /**
@@ -171,6 +158,26 @@ public class ManagedGameFile
      * @since 1.0
      */
     public ManagedGameFile( String remote, String local, String hash, ManagedGameFileHashType hashType ) {
+        this( remote, local,
+              hashType == ManagedGameFileHashType.SHA1   ? hash : null,
+              hashType == ManagedGameFileHashType.MD5    ? hash : null,
+              hashType == ManagedGameFileHashType.SHA256 ? hash : null );
+    }
+
+    /**
+     * Multi-hash constructor — populates whichever of the three hash slots the caller
+     * has values for. Pass {@code null} (or any of the empty/blank/{@code "-1"} values
+     * {@link #hasUsableHash} treats as "no hash") for slots the upstream didn't
+     * publish. {@link #verifyLocalFile} dispatches strongest-first
+     * (SHA-256 → SHA-1 → MD5), so a file with both a SHA-256 and a SHA-1 verifies
+     * against SHA-256 — which closes the SHA-1-collision attack surface for any
+     * upstream that publishes both (Mojang piston-meta v2, Modrinth) without
+     * dropping verification for upstreams that publish only one
+     * (Forge installer SHA-1, legacy MC asset SHA-1).
+     *
+     * @since 2026.5
+     */
+    public ManagedGameFile( String remote, String local, String sha1, String md5, String sha256 ) {
         String localTemp;
         try {
             localTemp = local.replaceAll( "/", File.separator );
@@ -179,29 +186,11 @@ public class ManagedGameFile
             localTemp = local;
         }
 
-        this.local = localTemp;
-        this.remote = remote;
-
-        if ( hashType == ManagedGameFileHashType.SHA1 ) {
-            this.sha1 = hash;
-            this.md5 = "-1";
-            this.sha256 = "-1";
-        }
-        else if ( hashType == ManagedGameFileHashType.MD5 ) {
-            this.sha1 = "-1";
-            this.md5 = hash;
-            this.sha256 = "-1";
-        }
-        else if ( hashType == ManagedGameFileHashType.SHA256 ) {
-            this.sha1 = "-1";
-            this.md5 = "-1";
-            this.sha256 = hash;
-        }
-        else {
-            this.sha1 = "-1";
-            this.md5 = "-1";
-            this.sha256 = "-1";
-        }
+        this.local   = localTemp;
+        this.remote  = remote;
+        this.sha1    = ( sha1   == null || sha1.isBlank()   ) ? "-1" : sha1;
+        this.md5     = ( md5    == null || md5.isBlank()    ) ? "-1" : md5;
+        this.sha256  = ( sha256 == null || sha256.isBlank() ) ? "-1" : sha256;
     }
 
     /**
@@ -225,6 +214,19 @@ public class ManagedGameFile
     public void setDownloadTracker( DownloadTracker tracker ) {
         this.downloadTracker = tracker;
     }
+
+    /** Package-private accessors for unit tests — production callers go through
+     *  {@link #verifyLocalFile} which dispatches strongest-first. The fields are
+     *  {@code "-1"} for "no hash declared." */
+    String storedSha256() { return sha256; }
+    String storedSha1()   { return sha1; }
+    String storedMd5()    { return md5; }
+
+    /** Package-private hash-dispatch hook for unit tests. Production callers
+     *  reach this through {@link #updateLocalFile}; tests can call it
+     *  directly with a temp file to verify the strongest-first selection
+     *  without standing up a download pipeline. */
+    boolean verifyLocalFileForTest() { return verifyLocalFile(); }
 
     /**
      * Verify the integrity of the local copy of this remote file

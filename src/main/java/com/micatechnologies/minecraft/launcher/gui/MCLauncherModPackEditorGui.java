@@ -1844,33 +1844,51 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             String remote = obj.has( "remote" ) ? obj.get( "remote" ).getAsString() : "";
             String local = obj.has( "local" ) ? obj.get( "local" ).getAsString() : "";
 
-            // Determine hash and hash type from whichever hash field is populated
+            // Read every hash field the JSON has populated. The strongest
+            // (sha256 → sha1 → md5) becomes the entry's primary "hash" + "hashType"
+            // displayed in the editor's Hash column; the others are stashed in
+            // the entry's extraHashes map so they round-trip through the save
+            // pass without being silently dropped — so a manifest carrying both
+            // sha1 and sha256 keeps both after an edit cycle.
+            String sha1Val   = readHashValue( obj, "sha1" );
+            String md5Val    = readHashValue( obj, "md5" );
+            String sha256Val = readHashValue( obj, "sha256" );
+
             String hash = "";
             String hashType = "sha1";
-            if ( obj.has( "sha1" ) && !obj.get( "sha1" ).getAsString().equals( "-1" ) ) {
-                hash = obj.get( "sha1" ).getAsString();
-                hashType = "sha1";
-            }
-            else if ( obj.has( "md5" ) && !obj.get( "md5" ).getAsString().equals( "-1" ) ) {
-                hash = obj.get( "md5" ).getAsString();
-                hashType = "md5";
-            }
-            else if ( obj.has( "sha256" ) && !obj.get( "sha256" ).getAsString().equals( "-1" ) ) {
-                hash = obj.get( "sha256" ).getAsString();
-                hashType = "sha256";
-            }
+            if ( sha256Val != null )      { hash = sha256Val; hashType = "sha256"; }
+            else if ( sha1Val != null )   { hash = sha1Val;   hashType = "sha1"; }
+            else if ( md5Val != null )    { hash = md5Val;    hashType = "md5"; }
 
             boolean clientReq = !hasClientServerReq || !obj.has( "clientReq" ) || obj.get( "clientReq" ).getAsBoolean();
             boolean serverReq = !hasClientServerReq || !obj.has( "serverReq" ) || obj.get( "serverReq" ).getAsBoolean();
 
             ModPackEditorFileEntry entry = new ModPackEditorFileEntry( name, remote, local, hash, hashType,
                                                                        clientReq, serverReq );
+            // Stash non-primary hashes for round-trip preservation.
+            if ( !hashType.equals( "sha1" )   && sha1Val != null )   entry.putExtraHash( "sha1",   sha1Val );
+            if ( !hashType.equals( "md5" )    && md5Val != null )    entry.putExtraHash( "md5",    md5Val );
+            if ( !hashType.equals( "sha256" ) && sha256Val != null ) entry.putExtraHash( "sha256", sha256Val );
             // Read optional Modrinth slug (manifestFormat 2+)
             if ( obj.has( "modrinthSlug" ) ) {
                 entry.setModrinthSlug( obj.get( "modrinthSlug" ).getAsString() );
             }
             data.add( entry );
         }
+    }
+
+    /** Returns the value of {@code obj.get(key)} when it's a non-blank,
+     *  non-{@code "-1"} string; {@code null} otherwise. Mirrors
+     *  {@code ManagedGameFile.hasUsableHash}'s "is this a real hash"
+     *  semantics. */
+    private static String readHashValue( JsonObject obj, String key ) {
+        if ( !obj.has( key ) ) return null;
+        try {
+            String v = obj.get( key ).getAsString();
+            if ( v == null || v.isBlank() || v.equals( "-1" ) ) return null;
+            return v;
+        }
+        catch ( Exception e ) { return null; }
     }
 
     /**
@@ -1901,25 +1919,26 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             obj.addProperty( "remote", entry.getRemote() );
             obj.addProperty( "local", entry.getLocal() );
 
-            // Write hash in the correct field based on hashType
+            // Write all three hash slots — the primary one (matching hashType)
+            // gets the user-visible hash field, and the other two pull from
+            // extraHashes so a manifest with both sha1 and sha256 round-trips
+            // both through an edit cycle. Slots without a value get the "-1"
+            // sentinel that ManagedGameFile.hasUsableHash treats as "no hash"
+            // (consistent with the rest of the editor's output format).
             String ht = entry.getHashType();
             String hv = entry.getHash();
-            if ( "md5".equalsIgnoreCase( ht ) ) {
-                obj.addProperty( "sha1", "-1" );
-                obj.addProperty( "md5", hv.isEmpty() ? "-1" : hv );
-                obj.addProperty( "sha256", "-1" );
-            }
-            else if ( "sha256".equalsIgnoreCase( ht ) ) {
-                obj.addProperty( "sha1", "-1" );
-                obj.addProperty( "md5", "-1" );
-                obj.addProperty( "sha256", hv.isEmpty() ? "-1" : hv );
-            }
-            else {
-                // Default to sha1
-                obj.addProperty( "sha1", hv.isEmpty() ? "-1" : hv );
-                obj.addProperty( "md5", "-1" );
-                obj.addProperty( "sha256", "-1" );
-            }
+            String sha1Out   = "md5".equalsIgnoreCase( ht ) || "sha256".equalsIgnoreCase( ht )
+                               ? entry.getExtraHash( "sha1" )
+                               : ( hv.isEmpty() ? null : hv );
+            String md5Out    = "md5".equalsIgnoreCase( ht )
+                               ? ( hv.isEmpty() ? null : hv )
+                               : entry.getExtraHash( "md5" );
+            String sha256Out = "sha256".equalsIgnoreCase( ht )
+                               ? ( hv.isEmpty() ? null : hv )
+                               : entry.getExtraHash( "sha256" );
+            obj.addProperty( "sha1",   sha1Out   == null || sha1Out.isBlank()   ? "-1" : sha1Out );
+            obj.addProperty( "md5",    md5Out    == null || md5Out.isBlank()    ? "-1" : md5Out );
+            obj.addProperty( "sha256", sha256Out == null || sha256Out.isBlank() ? "-1" : sha256Out );
 
             if ( hasClientServerReq ) {
                 obj.addProperty( "clientReq", entry.isClientReq() );
