@@ -49,14 +49,22 @@ public record CrashDiagnosis(
         MOD_LOADING,
         /** Mixin transformation failure — a mod's mixin couldn't apply to its target class. */
         MIXIN_CONFLICT,
+        /** Two mods that are known to be mutually incompatible were both loaded (e.g.
+         *  OptiFine + Sodium). Distinct from MIXIN_CONFLICT because the failure is
+         *  structural, not transformation-time. */
+        LOADER_CONFLICT,
         /** GPU / OpenGL / display init failure (LWJGL, GLFW, pixel format). */
         GPU,
+        /** Audio subsystem init failure — OpenAL device open, ALSA / PulseAudio mismatch. */
+        AUDIO,
         /** Native library load failure ({@code UnsatisfiedLinkError}). */
         NATIVE_LIBRARY,
         /** Save data corruption — chunk / region / NBT read failure. */
         WORLD_CORRUPTION,
         /** Disk full / IO write failure. */
         DISK_IO,
+        /** File locked by another process — most often antivirus on Windows. */
+        FILE_LOCK,
         /** Authentication failure — bad session, expired token. */
         AUTH,
         /** Couldn't pattern-match the crash. Default fallback. */

@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.game.crash;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
+import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import oshi.SystemInfo;
@@ -27,6 +28,11 @@ import oshi.SystemInfo;
 import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -64,14 +70,32 @@ public final class CrashReportAnalyzer
             CrashReportAnalyzer::detectOutOfMemory,
             CrashReportAnalyzer::detectJavaVersion,
             CrashReportAnalyzer::detectDiskFull,
+            // File-lock runs right after disk-full so the two filesystem-class
+            // failures sit next to each other and the file-lock test sees the
+            // crash before the generic native-library catch.
+            CrashReportAnalyzer::detectFileLock,
             CrashReportAnalyzer::detectNativeLibrary,
+            // OptiFine + Sodium runs BEFORE both mixin and mod-loading because
+            // the structural "you have both" diagnosis is more actionable than
+            // the downstream mixin / load-failure noise either of them produces.
+            CrashReportAnalyzer::detectOptiFineSodiumConflict,
             CrashReportAnalyzer::detectMixinConflict,
+            // Mod-MC-version-mismatch runs before the generic Forge dependency
+            // matcher — both look at Forge load messages, but the MC-version one
+            // is a more specific subcase that should win when it fires.
+            CrashReportAnalyzer::detectModMinecraftVersionMismatch,
             // Forge-specific dependency string must run BEFORE the generic mod-loading
             // detector — it extracts mod IDs + versions from structured Forge messages,
             // and the generic catch-all would otherwise win on the same crash with a
             // less-specific diagnosis.
             CrashReportAnalyzer::detectForgeDependencyMismatch,
+            // JEI/REI recipe collisions surface at game-content init time and look
+            // like a generic mod-loading failure to the catch-all detector. Run
+            // before that so users get the targeted "you have JEI and REI both
+            // installed" diagnosis instead of a confused dependency message.
+            CrashReportAnalyzer::detectJeiReiRecipeConflict,
             CrashReportAnalyzer::detectModLoading,
+            CrashReportAnalyzer::detectAudioInit,
             CrashReportAnalyzer::detectGpuOpenGL,
             CrashReportAnalyzer::detectWorldCorruption,
             CrashReportAnalyzer::detectAuth
@@ -219,6 +243,15 @@ public final class CrashReportAnalyzer
         if ( !NATIVE_LIB_PATTERN.matcher( text ).find() ) {
             return null;
         }
+        List< Suggestion > suggestions = new ArrayList<>();
+        // Reinstall is the canonical fix for native-library failures, so it
+        // leads. Only attach when we have a manifest URL to install from
+        // (no manifest = nothing to reinstall against).
+        if ( pack != null && pack.getPackURL() != null && !pack.getPackURL().isBlank() ) {
+            suggestions.add( reinstallPackSuggestion( pack ) );
+        }
+        suggestions.addAll( openFolderSuggestions( pack ) );
+        suggestions.addAll( openCrashReportFolderSuggestion( pack ) );
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.NATIVE_LIBRARY,
                 CrashDiagnosis.Severity.CRITICAL,
@@ -227,7 +260,7 @@ public final class CrashReportAnalyzer
                         + "JNI binding). The usual causes are an antivirus quarantining the file, a "
                         + "corrupted install, or — on Linux — a missing system library. Reinstalling "
                         + "the modpack usually fixes it.",
-                openFolderSuggestions( pack ) );
+                suggestions );
     }
 
     private static final Pattern MIXIN_PATTERN = Pattern.compile(
@@ -251,12 +284,25 @@ public final class CrashReportAnalyzer
                 + ". This usually means two mods are trying to patch the same class, or one of them "
                 + "doesn't support this Minecraft version yet.";
 
+        List< Suggestion > suggestions = new ArrayList<>();
+        // If we identified the offending mod and a matching jar lives in mods/, surface a
+        // one-click disable as the primary CTA. Falls back to the generic open-folder list
+        // when the name didn't yield a file match.
+        if ( offendingMod != null ) {
+            Suggestion disable = maybeDisableModSuggestion( pack, offendingMod.toLowerCase( java.util.Locale.ROOT ) );
+            if ( disable != null ) {
+                suggestions.add( new Suggestion( disable.label(), disable.action(), true ) );
+            }
+        }
+        suggestions.addAll( openFolderSuggestions( pack ) );
+        suggestions.addAll( openCrashReportFolderSuggestion( pack ) );
+
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.MIXIN_CONFLICT,
                 CrashDiagnosis.Severity.CRITICAL,
                 "Mod mixin conflict",
                 summary,
-                openFolderSuggestions( pack ) );
+                suggestions );
     }
 
     /** Forge dependency-mismatch messages take a few shapes across Forge versions but always
@@ -400,6 +446,205 @@ public final class CrashReportAnalyzer
                 ) );
     }
 
+    // -----------------------------------------------------------------------------------------
+    //  Audio subsystem init failure — Linux PulseAudio / ALSA + Windows missing device
+    // -----------------------------------------------------------------------------------------
+
+    private static final Pattern AUDIO_PATTERN = Pattern.compile(
+            "Could not (?:open|create|initialize) (?:audio|sound|OpenAL)"
+                    + "|OpenAL [Ee]rror"
+                    + "|AL_INVALID_(?:DEVICE|OPERATION)"
+                    + "|com\\.mojang\\.blaze3d\\.audio\\.\\w+Exception"
+                    + "|paInternalError|ALSA lib"
+                    + "|No default audio device" );
+
+    private static CrashDiagnosis detectAudioInit( String text, GameModPack pack )
+    {
+        if ( !AUDIO_PATTERN.matcher( text ).find() ) {
+            return null;
+        }
+        String summary = "Minecraft couldn't initialize the audio subsystem. On Linux this is "
+                + "usually a PulseAudio ↔ ALSA mismatch (especially in containers or fresh installs); "
+                + "on Windows it's typically a disabled / disconnected output device. Music & Sounds "
+                + "can also be turned off in-game as a workaround.";
+        return new CrashDiagnosis(
+                CrashDiagnosis.Category.AUDIO,
+                CrashDiagnosis.Severity.WARNING,
+                "Audio initialization failed",
+                summary,
+                openCrashReportFolderSuggestion( pack ) );
+    }
+
+    // -----------------------------------------------------------------------------------------
+    //  File lock — Windows antivirus / handle-still-open
+    // -----------------------------------------------------------------------------------------
+
+    private static final Pattern FILE_LOCK_PATTERN = Pattern.compile(
+            "The process cannot access the file because it is being used by another process"
+                    + "|FileSystemException:.*Access is denied"
+                    + "|java\\.nio\\.file\\.AccessDeniedException"
+                    + "|Sharing violation" );
+
+    private static CrashDiagnosis detectFileLock( String text, GameModPack pack )
+    {
+        if ( !FILE_LOCK_PATTERN.matcher( text ).find() ) {
+            return null;
+        }
+        String summary = "A file the game tried to write was locked by another process. "
+                + "On Windows this is almost always an antivirus (or Windows Defender) scanning the "
+                + "downloaded mod or runtime — try whitelisting the launcher's install folder, then "
+                + "retry the launch. Closing OneDrive / sync clients pointed at the install folder "
+                + "is the other common fix.";
+        List< Suggestion > suggestions = new ArrayList<>();
+        suggestions.add( Suggestion.primary( "Open Install Folder", () -> openPackSubfolder( pack, "" ) ) );
+        suggestions.addAll( openCrashReportFolderSuggestion( pack ) );
+        return new CrashDiagnosis(
+                CrashDiagnosis.Category.FILE_LOCK,
+                CrashDiagnosis.Severity.CRITICAL,
+                "File locked by another process",
+                summary,
+                suggestions );
+    }
+
+    // -----------------------------------------------------------------------------------------
+    //  OptiFine + Sodium combo — known-incompatible pair
+    // -----------------------------------------------------------------------------------------
+
+    /** True when both OptiFine and Sodium are mentioned in the crash text — either as class
+     *  names, mod IDs, or filenames. Different from MIXIN_CONFLICT because the failure isn't
+     *  always a mixin throw; sometimes it's just a downstream LoaderException with two mods
+     *  fighting over the same Minecraft internals. */
+    private static final Pattern OPTIFINE_PATTERN = Pattern.compile(
+            "(?i)optifine|optifabric" );
+    private static final Pattern SODIUM_PATTERN = Pattern.compile(
+            "(?i)\\bsodium\\b|me\\.jellysquid\\.mods\\.sodium" );
+
+    private static CrashDiagnosis detectOptiFineSodiumConflict( String text, GameModPack pack )
+    {
+        if ( !OPTIFINE_PATTERN.matcher( text ).find()
+                || !SODIUM_PATTERN.matcher( text ).find() ) {
+            return null;
+        }
+        String summary = "Both OptiFine and Sodium are installed. They patch the same Minecraft "
+                + "rendering internals in incompatible ways and can't safely coexist — pick one. "
+                + "Sodium needs the Fabric loader; OptiFine works on Forge or with the OptiFabric "
+                + "bridge. The Disable buttons below rename one of the two jars to {name}.jar.disabled "
+                + "so the loader skips it on next launch.";
+
+        List< Suggestion > suggestions = new ArrayList<>();
+        Suggestion disableOptifine = maybeDisableModSuggestion( pack, "optifine" );
+        if ( disableOptifine != null ) suggestions.add( disableOptifine );
+        Suggestion disableSodium = maybeDisableModSuggestion( pack, "sodium" );
+        if ( disableSodium != null ) suggestions.add( disableSodium );
+        if ( suggestions.isEmpty() ) {
+            // Mods folder doesn't surface the jar names — fall back to a manual prompt.
+            suggestions.add( Suggestion.primary( "Open Mods Folder",
+                    () -> openPackSubfolder( pack, "mods" ) ) );
+        }
+        else {
+            // Tag the first auto-disable button as primary for visual emphasis.
+            Suggestion first = suggestions.get( 0 );
+            suggestions.set( 0, new Suggestion( first.label(), first.action(), true ) );
+            suggestions.add( Suggestion.of( "Open Mods Folder",
+                    () -> openPackSubfolder( pack, "mods" ) ) );
+        }
+        return new CrashDiagnosis(
+                CrashDiagnosis.Category.LOADER_CONFLICT,
+                CrashDiagnosis.Severity.CRITICAL,
+                "OptiFine and Sodium are incompatible",
+                summary,
+                suggestions );
+    }
+
+    // -----------------------------------------------------------------------------------------
+    //  Mod compiled for a different Minecraft version
+    // -----------------------------------------------------------------------------------------
+
+    /** Forge prints messages like
+     *  {@code Mod 'X' (xid) requires minecraft 1.20.1 but you have 1.20.4 loaded},
+     *  or the looser {@code The mod X was compiled for MC 1.20.1, but is being loaded
+     *  by MC 1.20.4}. Capture both shapes. Groups (in order across alternations):
+     *  required-MC, observed-MC. */
+    private static final Pattern MOD_MC_VERSION_PATTERN = Pattern.compile(
+            "(?:requires|requires loaded|compiled for|compiled against)\\s+(?:Minecraft\\s+)?(?:version\\s+)?"
+                    + "([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)"
+                    + "\\s+(?:but(?: you have| we have| this version is)?|but is being loaded by)\\s+"
+                    + "(?:Minecraft\\s+)?(?:version\\s+)?([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)" );
+
+    private static CrashDiagnosis detectModMinecraftVersionMismatch( String text, GameModPack pack )
+    {
+        Matcher m = MOD_MC_VERSION_PATTERN.matcher( text );
+        if ( !m.find() ) {
+            return null;
+        }
+        String requiredMc = m.group( 1 );
+        String currentMc  = m.group( 2 );
+        String summary = "A mod in this pack was built for Minecraft " + requiredMc
+                + " but the pack is launching Minecraft " + currentMc + ". Either downgrade the pack's "
+                + "Minecraft version, swap the mod for one built for " + currentMc + ", or remove it.";
+        return new CrashDiagnosis(
+                CrashDiagnosis.Category.MOD_LOADING,
+                CrashDiagnosis.Severity.CRITICAL,
+                "Mod built for Minecraft " + requiredMc + ", pack runs " + currentMc,
+                summary,
+                openFolderSuggestions( pack ) );
+    }
+
+    // -----------------------------------------------------------------------------------------
+    //  JEI / REI recipe collision
+    // -----------------------------------------------------------------------------------------
+
+    /** Most JEI/REI conflicts surface as "Duplicate recipe id" errors from either mod's
+     *  recipe registry, or as both projects being present in a NoClassDefFoundError tail
+     *  (the rare case where the user installed both and the bridge mod is missing).
+     *  We require either an explicit duplicate-recipe message OR the dual-presence pattern. */
+    private static final Pattern JEI_REI_DUP_PATTERN = Pattern.compile(
+            "Duplicate recipe(?: id| identifier)"
+                    + "|mezz\\.jei.*RecipeRegistry"
+                    + "|me\\.shedaniel\\.rei.*Recipe(?:Display|Registry)Exception" );
+    private static final Pattern JEI_AND_REI_DUAL_PATTERN = Pattern.compile(
+            "(?:mezz\\.jei|jei-\\d|just enough items).*?(?:me\\.shedaniel\\.rei|roughly enough items|rei-\\d)"
+                    + "|(?:me\\.shedaniel\\.rei|roughly enough items|rei-\\d).*?(?:mezz\\.jei|jei-\\d|just enough items)",
+            Pattern.DOTALL | Pattern.CASE_INSENSITIVE );
+
+    private static CrashDiagnosis detectJeiReiRecipeConflict( String text, GameModPack pack )
+    {
+        boolean dup = JEI_REI_DUP_PATTERN.matcher( text ).find();
+        boolean dual = JEI_AND_REI_DUAL_PATTERN.matcher( text ).find();
+        if ( !dup && !dual ) {
+            return null;
+        }
+
+        String summary;
+        List< Suggestion > suggestions = new ArrayList<>();
+        if ( dual ) {
+            summary = "Both Just Enough Items (JEI) and Roughly Enough Items (REI) are installed. "
+                    + "They register the same recipe-viewer hooks and one of them will fail on every "
+                    + "launch. Pick one — most modern packs use REI on Fabric and JEI on Forge.";
+            Suggestion disableJei = maybeDisableModSuggestion( pack, "jei" );
+            if ( disableJei != null ) suggestions.add( disableJei );
+            Suggestion disableRei = maybeDisableModSuggestion( pack, "rei" );
+            if ( disableRei != null ) suggestions.add( disableRei );
+            if ( !suggestions.isEmpty() ) {
+                Suggestion first = suggestions.get( 0 );
+                suggestions.set( 0, new Suggestion( first.label(), first.action(), true ) );
+            }
+        }
+        else {
+            summary = "A recipe ID collided between two mods — typically when two mods register the "
+                    + "same recipe identifier, or when a recipe-management mod (JEI / REI / CraftTweaker) "
+                    + "is loading recipes faster than the underlying mods publish them. Removing one "
+                    + "of the recipe-management mods usually unblocks the launch.";
+        }
+        suggestions.add( Suggestion.of( "Open Mods Folder", () -> openPackSubfolder( pack, "mods" ) ) );
+        return new CrashDiagnosis(
+                CrashDiagnosis.Category.MOD_LOADING,
+                CrashDiagnosis.Severity.CRITICAL,
+                dual ? "JEI and REI conflict" : "Recipe ID collision",
+                summary,
+                suggestions );
+    }
+
     // =========================================================================================
     //  Helpers
     // =========================================================================================
@@ -443,6 +688,102 @@ public final class CrashReportAnalyzer
         out.add( Suggestion.primary( "Open Mods Folder", () -> openPackSubfolder( pack, "mods" ) ) );
         out.add( Suggestion.of( "Open Install Folder", () -> openPackSubfolder( pack, "" ) ) );
         return out;
+    }
+
+    /** Single-entry suggestion list for "open the pack's crash-reports/ folder."
+     *  Returned as a list so callers can {@code addAll} it without a null check. */
+    private static List< Suggestion > openCrashReportFolderSuggestion( GameModPack pack )
+    {
+        if ( pack == null ) {
+            return List.of();
+        }
+        return List.of( Suggestion.of( "Open Crash Reports",
+                () -> openPackSubfolder( pack, "crash-reports" ) ) );
+    }
+
+    /** Builds a "Reinstall Modpack" primary call-to-action that wipes the install + re-runs
+     *  the install-by-URL pipeline. Used by NATIVE_LIBRARY where reinstall is the canonical
+     *  fix. Caller is expected to gate on {@code pack.getPackURL() != null} before invoking. */
+    private static Suggestion reinstallPackSuggestion( GameModPack pack )
+    {
+        return Suggestion.primary( "Reinstall Modpack", () -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                String url = pack.getPackURL();
+                Logger.logStd( "Crash-diagnosis: reinstall requested for " + pack.getPackName()
+                                       + " via " + url );
+                GameModPackManager.uninstallModPack( pack );
+                GameModPackManager.installModPackByURL( url );
+            }
+            catch ( Exception | Error e ) {
+                Logger.logWarningSilent( "Reinstall from crash diagnosis failed: " + e.getMessage() );
+            }
+        } ) );
+    }
+
+    /** Walks the pack's {@code mods/} directory and returns a "Disable {name}" suggestion for
+     *  the first jar whose lowercased filename contains {@code substring}. Returns
+     *  {@code null} when the mods folder doesn't exist, can't be listed, or no jar matches —
+     *  callers (OptiFine/Sodium detector, JEI/REI detector) gracefully degrade to a manual
+     *  "Open Mods Folder" prompt in that case.
+     *
+     *  <p>Renaming to {@code .jar.disabled} is the universal "skip this mod" convention
+     *  recognised by Forge, NeoForge, and Fabric loaders. The file is renamed not deleted
+     *  so the user can re-enable it later by stripping the suffix.</p> */
+    private static Suggestion maybeDisableModSuggestion( GameModPack pack, String substring )
+    {
+        if ( pack == null || pack.getPackRootFolder() == null ) {
+            return null;
+        }
+        File modsDir = new File( pack.getPackRootFolder(), "mods" );
+        if ( !modsDir.isDirectory() ) {
+            return null;
+        }
+        File[] jars = modsDir.listFiles( ( dir, name ) ->
+                name.toLowerCase( java.util.Locale.ROOT ).endsWith( ".jar" )
+                        && name.toLowerCase( java.util.Locale.ROOT ).contains( substring ) );
+        if ( jars == null || jars.length == 0 ) {
+            return null;
+        }
+        // Pick the first match. There's rarely more than one optifine/sodium/jei/rei jar in
+        // a single pack — and if there is, disabling the first is still progress.
+        File target = jars[ 0 ];
+        return Suggestion.of( "Disable " + target.getName(), () -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                Path src = target.toPath();
+                Path dst = src.resolveSibling( target.getName() + ".disabled" );
+                Files.move( src, dst, StandardCopyOption.REPLACE_EXISTING );
+                Logger.logStd( "Crash-diagnosis: renamed " + src + " → " + dst );
+            }
+            catch ( Exception | Error e ) {
+                Logger.logWarningSilent( "Could not disable mod " + target.getName()
+                                                 + ": " + e.getMessage() );
+            }
+        } ) );
+    }
+
+    /** Opens a Google search pre-filled with the pack name + a short snippet from the crash
+     *  text. Useful as a last-resort hint on diagnoses where the launcher can't suggest a
+     *  concrete fix; surfaced from the GUI's fallback panel rather than wired into specific
+     *  detectors to keep the per-detector suggestion lists tight. */
+    static Suggestion searchDocumentationSuggestion( GameModPack pack, String crashPhrase )
+    {
+        if ( crashPhrase == null || crashPhrase.isBlank() ) {
+            return null;
+        }
+        String query = ( pack != null && pack.getPackName() != null ? pack.getPackName() + " " : "" )
+                + crashPhrase;
+        String encoded = URLEncoder.encode( query, StandardCharsets.UTF_8 );
+        String url = "https://www.google.com/search?q=" + encoded;
+        return Suggestion.of( "Search the web", () -> SystemUtilities.spawnNewTask( () -> {
+            try {
+                if ( Desktop.isDesktopSupported() ) {
+                    Desktop.getDesktop().browse( new java.net.URI( url ) );
+                }
+            }
+            catch ( Exception | Error e ) {
+                Logger.logWarningSilent( "Could not open documentation search: " + e.getMessage() );
+            }
+        } ) );
     }
 
     /** Opens the given subfolder of the pack's install dir in the OS file manager. Creates the
