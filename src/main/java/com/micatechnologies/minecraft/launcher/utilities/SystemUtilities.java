@@ -18,7 +18,10 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Locale;
@@ -184,9 +187,22 @@ public class SystemUtilities
 
             // Stream content with a per-entry counter so we catch zip bombs even if
             // JarEntry.getSize() lies (uncompressed size is attacker-controlled metadata).
+            //
+            // Write to a sibling temp file + fsync + atomic-move, never directly to
+            // the final path. The natives extraction overwrites lwjgl64.dll (and
+            // friends) every launch; a partial write from an interrupted launch,
+            // AV-scan interference, or a concurrent re-extract leaves a truncated
+            // DLL on disk, and Windows LoadLibrary on a partial DLL returns
+            // "A dynamic link library (DLL) initialization routine failed" with
+            // process exit code 0xC0000005 (access violation). Atomic-move means
+            // the destination either has the previous-good DLL or the new-complete
+            // DLL — never an in-between state.
             long entryBytes = 0L;
+            Path targetPath = extractedJarFileFile.toPath();
+            Path tempPath = targetPath.resolveSibling(
+                    targetPath.getFileName() + ".tmp-" + UUID.randomUUID() );
             try ( InputStream inputStream = source.getInputStream( jarFileFile );
-                  FileOutputStream fileOutputStream = new FileOutputStream( extractedJarFileFile ) ) {
+                  FileOutputStream fileOutputStream = new FileOutputStream( tempPath.toFile() ) ) {
                 byte[] buffer = new byte[ 8192 ];
                 int bytesRead;
                 while ( ( bytesRead = inputStream.read( buffer ) ) != -1 ) {
@@ -204,9 +220,46 @@ public class SystemUtilities
                     }
                     fileOutputStream.write( buffer, 0, bytesRead );
                 }
+                // Flush to disk before the atomic move so a power-loss / kernel
+                // panic between the move and the next launch can't reveal an
+                // empty file. FileChannel.force(true) syncs both content and
+                // metadata.
+                fileOutputStream.getFD().sync();
             }
             catch ( IOException e ) {
+                // Best-effort cleanup of the temp file so we don't litter the
+                // natives folder with .tmp-<uuid> files after a failed extract.
+                try { Files.deleteIfExists( tempPath ); }
+                catch ( IOException ignored ) { /* surface the original cause */ }
                 throw new ModpackException( "Unable to read file from jar during extraction.", e );
+            }
+
+            // Atomic publish. On Windows, ATOMIC_MOVE + REPLACE_EXISTING works
+            // within the same volume (which this always is — temp is a sibling
+            // of the target). On filesystems that genuinely don't support
+            // atomic moves we fall back to plain replace; the resulting window
+            // is no worse than the previous direct-write behavior.
+            try {
+                Files.move( tempPath, targetPath,
+                            StandardCopyOption.ATOMIC_MOVE,
+                            StandardCopyOption.REPLACE_EXISTING );
+            }
+            catch ( AtomicMoveNotSupportedException atomicEx ) {
+                try {
+                    Files.move( tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING );
+                }
+                catch ( IOException moveEx ) {
+                    try { Files.deleteIfExists( tempPath ); }
+                    catch ( IOException ignored ) { /* surface the original cause */ }
+                    throw new ModpackException(
+                            "Unable to publish extracted JAR entry: " + entryName, moveEx );
+                }
+            }
+            catch ( IOException moveEx ) {
+                try { Files.deleteIfExists( tempPath ); }
+                catch ( IOException ignored ) { /* surface the original cause */ }
+                throw new ModpackException(
+                        "Unable to publish extracted JAR entry: " + entryName, moveEx );
             }
         }
     }
