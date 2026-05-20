@@ -417,19 +417,19 @@
                                      copy of it into Contents/Resources/ doesn't collide with the
                                      identically-named app-icon copy (same source, same destination
                                      basename when the FA icon reuses the app icon). -->
-                                <copy file="${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns"
+                                <copy file="${project.basedir}/deploy/mac/Mica Minecraft Modpack.icns"
                                       tofile="${project.build.directory}/jpackage-file-assoc/mmcjson-document.icns"/>
                                 <copy file="${project.basedir}/deploy/mac/file-associations.properties"
                                       tofile="${project.build.directory}/jpackage-file-assoc/mac.properties"/>
                                 <replace file="${project.build.directory}/jpackage-file-assoc/mac.properties"
-                                         token="icon=Mica Minecraft Launcher.icns"
+                                         token="icon=Mica Minecraft Modpack.icns"
                                          value="icon=${project.build.directory}/jpackage-file-assoc/mmcjson-document.icns"/>
-                                <copy file="${project.basedir}/deploy/linux/Mica Minecraft Launcher.png"
+                                <copy file="${project.basedir}/deploy/linux/Mica Minecraft Modpack.png"
                                       tofile="${project.build.directory}/jpackage-file-assoc/mmcjson-document.png"/>
                                 <copy file="${project.basedir}/deploy/linux/file-associations.properties"
                                       tofile="${project.build.directory}/jpackage-file-assoc/linux.properties"/>
                                 <replace file="${project.build.directory}/jpackage-file-assoc/linux.properties"
-                                         token="icon=Mica Minecraft Launcher.png"
+                                         token="icon=Mica Minecraft Modpack.png"
                                          value="icon=${project.build.directory}/jpackage-file-assoc/mmcjson-document.png"/>
 
                                 <!-- Stage a clean macOS resource-dir containing only Info.plist.
