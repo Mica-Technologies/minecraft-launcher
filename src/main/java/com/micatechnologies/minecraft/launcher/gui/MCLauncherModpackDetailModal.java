@@ -803,7 +803,13 @@ public class MCLauncherModpackDetailModal extends StackPane
                         "detailModal.exportPack.starting", displayName ),
                 dest.getAbsolutePath() );
 
-        com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.run(
+        // Build the ZIP step as a continuation we can chain after a
+        // pack verify. A never-launched pack has empty mods/configs/
+        // resourcepacks/ directories on disk, which would produce a
+        // sparse ZIP — verifying first force-downloads everything.
+        // Vanilla packs skip verify (no manifest-driven content to
+        // re-verify) and go straight to the file walk.
+        Runnable doZip = () -> com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.run(
                 () -> com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.exportToZip(
                         pack, dest, includeWorlds, null ),
                 () -> NotificationManager.success(
@@ -816,6 +822,17 @@ public class MCLauncherModpackDetailModal extends StackPane
                                 "detailModal.exportPack.failed" ),
                         com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
                                 "detailModal.exportPack.failedBody", err.getMessage() ) ) );
+        if ( pack.isVanillaVersion() ) {
+            doZip.run();
+        }
+        else {
+            NotificationManager.info(
+                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get(
+                            "detailModal.exportPack.verifying" ),
+                    displayName );
+            com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
+                    java.util.List.of( pack ), doZip );
+        }
     }
 
     private Node buildStatsSection( GameModPack pack )

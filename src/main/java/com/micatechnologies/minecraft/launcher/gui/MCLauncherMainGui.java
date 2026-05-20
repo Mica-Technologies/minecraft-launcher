@@ -2339,7 +2339,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                             LocalizationManager.get( "dialog.fileChooser.zipArchive.filter" ), "*.zip" ) );
             File dest = chooser.showSaveDialog( owner );
             if ( dest == null ) return;
-            com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.run(
+            // Verify the pack first so a never-launched pack (mods/configs
+            // not yet downloaded) doesn't produce a sparse ZIP. Vanilla
+            // packs skip the verify (nothing to ship in the ZIP anyway —
+            // ModpackExporter handles that as a no-op).
+            Runnable doZip = () -> com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.run(
                     () -> com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter
                             .exportToZip( pack, dest ),
                     () -> NotificationManager.success(
@@ -2349,6 +2353,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     err -> NotificationManager.error(
                             LocalizationManager.get( "detailModal.exportPack.failed" ),
                             err.getMessage() ) );
+            if ( pack.isVanillaVersion() ) {
+                doZip.run();
+            }
+            else {
+                NotificationManager.info(
+                        LocalizationManager.get( "detailModal.exportPack.verifying" ),
+                        pack.getPackName() == null ? "" : pack.getPackName() );
+                com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
+                        java.util.List.of( pack ), doZip );
+            }
         } );
         // Disable Export when there's no install folder (e.g. failed-load placeholder packs).
         if ( pack.getPackRootFolder() == null ) {
@@ -2514,74 +2528,115 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 autoInstallLoader = ( installAnswer == 1 );
             }
 
-            // Optional: run the loader installer before the regular
-            // export so the version directory exists by the time the
-            // Mojang profile points at it.
-            if ( autoInstallLoader ) {
-                NotificationManager.info(
-                        LocalizationManager.format( "officialExport.installLoader.inProgress",
-                                                    loaderName ),
-                        packName );
-                com.micatechnologies.minecraft.launcher.game.modpack
-                        .LoaderInstallerRunner.Result installResult =
-                        com.micatechnologies.minecraft.launcher.game.modpack
-                                .LoaderInstallerRunner.install( pack,
-                                        com.micatechnologies.minecraft.launcher.game.modpack
-                                                .OfficialLauncherExporter.resolveDotMinecraft() );
-                if ( installResult.success() ) {
-                    NotificationManager.success(
-                            LocalizationManager.get( "officialExport.installLoader.success.title" ),
-                            LocalizationManager.format(
-                                    "officialExport.installLoader.success.body",
-                                    installResult.message() ) );
-                }
-                else {
-                    // Don't bail out — fall through to the regular export
-                    // so the user at least gets the profile entry. The
-                    // success notification at the end will flip to the
-                    // "loader missing" warning variant since the version
-                    // dir still doesn't exist.
-                    NotificationManager.warn(
-                            LocalizationManager.get( "officialExport.installLoader.failed.title" ),
-                            LocalizationManager.format(
-                                    "officialExport.installLoader.failed.body",
-                                    installResult.message(), loaderName ) );
-                    if ( installResult.installerStderr() != null
-                            && !installResult.installerStderr().isBlank() ) {
-                        Logger.logStd( "[loader-installer stderr]\n" + installResult.installerStderr() );
-                    }
-                }
-            }
+            // Wrap the loader install + export in a continuation so we
+            // can gate them on a successful pack verify. Vanilla packs
+            // skip the verify step — there are no manifest-driven content
+            // files to revalidate (the Mojang launcher pulls vanilla
+            // assets on its own).
+            final boolean finalAutoInstallLoader = autoInstallLoader;
+            final String finalLoaderName = loaderName;
+            Runnable doExport = () -> runOfficialExportAfterVerify(
+                    pack, packName, finalLoaderName, finalAutoInstallLoader );
 
-            // Run the actual export. Status notification fires immediately
-            // so the user sees progress even on slow filesystems (big
-            // modpacks copy a few hundred MB).
-            NotificationManager.info(
-                    LocalizationManager.get( "officialExport.inProgress" ),
-                    packName );
-            com.micatechnologies.minecraft.launcher.game.modpack.OfficialLauncherExporter.Result result
-                    = com.micatechnologies.minecraft.launcher.game.modpack
-                            .OfficialLauncherExporter.exportPack( pack );
-            if ( !result.success() ) {
-                NotificationManager.error(
-                        LocalizationManager.get( "officialExport.failed.title" ),
-                        LocalizationManager.format( "officialExport.failed.body",
-                                                    result.errorMessage() ) );
-                return;
+            if ( pack.isVanillaVersion() ) {
+                doExport.run();
             }
-            if ( !result.loaderInstalled() && !pack.isVanillaVersion() ) {
-                NotificationManager.warn(
-                        LocalizationManager.get( "officialExport.successButLoaderMissing.title" ),
-                        LocalizationManager.format(
-                                "officialExport.successButLoaderMissing.body",
-                                result.versionId() ) );
-                return;
+            else {
+                // Force-FULL verify of pack files so a never-launched pack
+                // (mods/ + configs/ + resourcepacks/ not yet downloaded)
+                // gets fully populated before the file copy runs against
+                // an empty install folder. The verify GUI is the same
+                // launch-progress surface used by the "Verify this pack
+                // now" button, so the user gets familiar visual feedback.
+                NotificationManager.info(
+                        LocalizationManager.get( "officialExport.verifying" ),
+                        packName );
+                com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
+                        java.util.List.of( pack ), doExport );
             }
-            NotificationManager.success(
-                    LocalizationManager.get( "officialExport.success.title" ),
-                    LocalizationManager.format( "officialExport.success.body",
-                                                result.profileName() ) );
         } );
+    }
+
+    /**
+     * Loader-install + Mojang-profile-write phase of the official-launcher
+     * export, factored out so the verify-then-export chain in
+     * {@link #handleAddToOfficialLauncher} can hand it off as a continuation
+     * to {@link com.micatechnologies.minecraft.launcher.utilities.VerifyAction}.
+     * Vanilla packs call this directly (no verify step); modded packs only
+     * reach it when the pre-export verify completed cleanly.
+     */
+    private static void runOfficialExportAfterVerify( GameModPack pack,
+                                                       String packName,
+                                                       String loaderName,
+                                                       boolean autoInstallLoader )
+    {
+        // Optional: run the loader installer before the regular export so
+        // the version directory exists by the time the Mojang profile
+        // points at it.
+        if ( autoInstallLoader ) {
+            NotificationManager.info(
+                    LocalizationManager.format( "officialExport.installLoader.inProgress",
+                                                loaderName ),
+                    packName );
+            com.micatechnologies.minecraft.launcher.game.modpack
+                    .LoaderInstallerRunner.Result installResult =
+                    com.micatechnologies.minecraft.launcher.game.modpack
+                            .LoaderInstallerRunner.install( pack,
+                                    com.micatechnologies.minecraft.launcher.game.modpack
+                                            .OfficialLauncherExporter.resolveDotMinecraft() );
+            if ( installResult.success() ) {
+                NotificationManager.success(
+                        LocalizationManager.get( "officialExport.installLoader.success.title" ),
+                        LocalizationManager.format(
+                                "officialExport.installLoader.success.body",
+                                installResult.message() ) );
+            }
+            else {
+                // Don't bail out — fall through to the regular export so
+                // the user at least gets the profile entry. The success
+                // notification at the end will flip to the "loader
+                // missing" warning variant since the version dir still
+                // doesn't exist.
+                NotificationManager.warn(
+                        LocalizationManager.get( "officialExport.installLoader.failed.title" ),
+                        LocalizationManager.format(
+                                "officialExport.installLoader.failed.body",
+                                installResult.message(), loaderName ) );
+                if ( installResult.installerStderr() != null
+                        && !installResult.installerStderr().isBlank() ) {
+                    Logger.logStd( "[loader-installer stderr]\n" + installResult.installerStderr() );
+                }
+            }
+        }
+
+        // Run the actual export. Status notification fires immediately so
+        // the user sees progress even on slow filesystems (big modpacks
+        // copy a few hundred MB).
+        NotificationManager.info(
+                LocalizationManager.get( "officialExport.inProgress" ),
+                packName );
+        com.micatechnologies.minecraft.launcher.game.modpack.OfficialLauncherExporter.Result result
+                = com.micatechnologies.minecraft.launcher.game.modpack
+                        .OfficialLauncherExporter.exportPack( pack );
+        if ( !result.success() ) {
+            NotificationManager.error(
+                    LocalizationManager.get( "officialExport.failed.title" ),
+                    LocalizationManager.format( "officialExport.failed.body",
+                                                result.errorMessage() ) );
+            return;
+        }
+        if ( !result.loaderInstalled() && !pack.isVanillaVersion() ) {
+            NotificationManager.warn(
+                    LocalizationManager.get( "officialExport.successButLoaderMissing.title" ),
+                    LocalizationManager.format(
+                            "officialExport.successButLoaderMissing.body",
+                            result.versionId() ) );
+            return;
+        }
+        NotificationManager.success(
+                LocalizationManager.get( "officialExport.success.title" ),
+                LocalizationManager.format( "officialExport.success.body",
+                                            result.profileName() ) );
     }
 
     /** Phase 5: removes a previously-exported Mica profile from the
