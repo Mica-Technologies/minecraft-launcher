@@ -714,10 +714,22 @@ public final class OfficialLauncherExporter
 
     /** Walks {@code <launcher-data>/runtime/<component>/} for a subdirectory
      *  containing a {@code bin/} folder with the OS's Java executable.
-     *  Returns the absolute path to that subdirectory (the value the
-     *  Mojang launcher wants in {@code javaDir}), or {@code null} when
-     *  no matching install is found. Read-only; never triggers a
-     *  download or verification. */
+     *  Returns the absolute path to the executable itself — that's what
+     *  the modern (Microsoft Store) Minecraft Launcher reads from a
+     *  profile's {@code javaDir} field, despite the name suggesting a
+     *  directory. The legacy Mojang Launcher accepted a directory, but
+     *  the current launcher takes the last path segment as the filename
+     *  to verify (we saw it emit "Filename on disk: jre8u392" when the
+     *  field pointed at the JRE base dir, then refuse to launch because
+     *  no file named {@code jre8u392} existed). Pointing at the
+     *  executable directly avoids that mis-detection on both launcher
+     *  generations: the modern launcher uses the path as-is, the legacy
+     *  one looks for {@code <javaDir>/bin/<exe>} but our path also
+     *  resolves correctly through that lookup since it's already the
+     *  executable.
+     *
+     *  <p>Returns {@code null} when no matching install is found.
+     *  Read-only; never triggers a download or verification.</p> */
     private static String findInstalledRuntimeBaseDir( String component )
     {
         if ( component == null || component.isBlank() ) return null;
@@ -734,7 +746,8 @@ public final class OfficialLauncherExporter
             try ( java.util.stream.Stream< Path > children = Files.list( componentRoot ) ) {
                 java.util.Optional< Path > match = children
                         .filter( Files::isDirectory )
-                        .filter( p -> Files.isRegularFile( p.resolve( "bin" ).resolve( javaExeName ) ) )
+                        .map( p -> p.resolve( "bin" ).resolve( javaExeName ) )
+                        .filter( Files::isRegularFile )
                         .findFirst();
                 if ( match.isPresent() ) {
                     return match.get().toAbsolutePath().toString();
