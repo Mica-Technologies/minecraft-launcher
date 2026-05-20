@@ -262,6 +262,75 @@ class OfficialLauncherExporterTest
     }
 
     // =========================================================================================
+    //  Runtime-component mapping (used to pick a javaDir for the Mojang profile)
+    // =========================================================================================
+
+    @Test
+    void pickRuntimeComponentMapsLegacyMc()
+    {
+        // Anything up through 1.16.x uses Mojang's jre-legacy component
+        // (Java 8 family). 1.12.2 is the user's Alto_TEST case — the
+        // bundled jre-legacy was too old (1.8.0_51 < 1.8.0_121) for
+        // PipeBlocker's ObjectInputFilter usage, which is why we want
+        // Mica's newer Liberica install instead.
+        assertEquals( "jre-legacy", OfficialLauncherExporter.pickRuntimeComponent( "1.7.10" ) );
+        assertEquals( "jre-legacy", OfficialLauncherExporter.pickRuntimeComponent( "1.12.2" ) );
+        assertEquals( "jre-legacy", OfficialLauncherExporter.pickRuntimeComponent( "1.16.5" ) );
+    }
+
+    @Test
+    void pickRuntimeComponentMapsMc17()
+    {
+        // MC 1.17 introduced Java 16 as the minimum — first MC version to need
+        // a non-jre-legacy component.
+        assertEquals( "java-runtime-alpha",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.17" ) );
+        assertEquals( "java-runtime-alpha",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.17.1" ) );
+    }
+
+    @Test
+    void pickRuntimeComponentMapsMc18EarlyVsLate()
+    {
+        // MC 1.18 and 1.18.1 still use the Java 16 beta runtime.
+        assertEquals( "java-runtime-beta",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.18" ) );
+        assertEquals( "java-runtime-beta",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.18.1" ) );
+        // MC 1.18.2 jumps to Java 17 (gamma).
+        assertEquals( "java-runtime-gamma",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.18.2" ) );
+    }
+
+    @Test
+    void pickRuntimeComponentMapsMc20Transition()
+    {
+        // 1.19, 1.20.0-4 → java-runtime-gamma (Java 17)
+        assertEquals( "java-runtime-gamma",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.19.4" ) );
+        assertEquals( "java-runtime-gamma",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.20.4" ) );
+        // 1.20.5 → java-runtime-delta (Java 21)
+        assertEquals( "java-runtime-delta",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.20.5" ) );
+        assertEquals( "java-runtime-delta",
+                OfficialLauncherExporter.pickRuntimeComponent( "1.21.4" ) );
+    }
+
+    @Test
+    void pickRuntimeComponentFallbacksOnGarbage()
+    {
+        // Defensive — unparseable / null / blank → jre-legacy (safest "old MC"
+        // answer). A non-1.x major (which Mojang has never shipped) lands on
+        // the newest known component.
+        assertEquals( "jre-legacy", OfficialLauncherExporter.pickRuntimeComponent( null ) );
+        assertEquals( "jre-legacy", OfficialLauncherExporter.pickRuntimeComponent( "" ) );
+        assertEquals( "jre-legacy", OfficialLauncherExporter.pickRuntimeComponent( "garbage" ) );
+        assertEquals( "java-runtime-delta",
+                OfficialLauncherExporter.pickRuntimeComponent( "2.0.0" ) );
+    }
+
+    // =========================================================================================
     //  Test helpers
     // =========================================================================================
 
