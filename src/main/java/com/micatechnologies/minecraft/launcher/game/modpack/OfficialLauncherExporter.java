@@ -580,7 +580,7 @@ public final class OfficialLauncherExporter
      *  method is responsible for the per-field merge: preserves
      *  user-customised values where appropriate (lastUsed) and
      *  overwrites where Mica is authoritative (gameDir, lastVersionId,
-     *  javaArgs, icon). */
+     *  javaArgs, javaDir, icon). */
     private static void populateProfileEntry( JsonObject profile, GameModPack pack, Path gameDir,
                                                 String versionId, String profileName )
     {
@@ -590,6 +590,30 @@ public final class OfficialLauncherExporter
         profile.addProperty( "type", "custom" );
         profile.addProperty( "lastVersionId", versionId );
         profile.addProperty( "gameDir", gameDir.toAbsolutePath().toString() );
+
+        // Override the Mojang launcher's default Java with Mica's installed
+        // runtime when one is available for this pack's MC version. The
+        // Mojang launcher's bundled jre-legacy is Java 1.8.0_51 — older
+        // than 1.8.0_121, so it lacks sun.misc.ObjectInputFilter, which
+        // mods like PipeBlocker (Forge 1.12.2 security mod) need on
+        // class load. Mica downloads Bellsoft Liberica 8u392 for the
+        // same component, so handing the Mojang profile a javaDir
+        // pointing at Mica's install lets the same mods that work in
+        // Mica work in the Mojang launcher. Falls through when no Mica
+        // runtime is installed — the Mojang launcher uses its own
+        // default and the user sees the same compatibility issues
+        // they'd see launching a hand-built profile.
+        String micaJavaDir = resolveMicaJavaDir( pack );
+        if ( micaJavaDir != null ) {
+            profile.addProperty( "javaDir", micaJavaDir );
+        }
+        else {
+            // Clear any stale javaDir from a previous export with a
+            // different MC version so the Mojang launcher falls back to
+            // its own default rather than pointing at a removed Mica
+            // runtime.
+            profile.remove( "javaDir" );
+        }
 
         // Created timestamp is set only if missing — re-exports preserve
         // the original creation date.
@@ -626,6 +650,102 @@ public final class OfficialLauncherExporter
         SimpleDateFormat sdf = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT );
         sdf.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
         return sdf.format( new Date() );
+    }
+
+    /**
+     * Resolves the absolute path to Mica's installed Java runtime for the
+     * pack's MC version, in the directory shape the Mojang launcher's
+     * {@code javaDir} profile field expects (i.e. the JRE installation
+     * dir whose {@code bin/} subfolder contains {@code java}/{@code javaw}).
+     * Returns {@code null} when no matching runtime is installed.
+     *
+     * <p>Read-only — does not trigger {@link com.micatechnologies.minecraft.launcher.files.RuntimeManager#getJavaPath}'s
+     * download/verify path. We walk the runtime root on disk directly so
+     * an export action never blocks on a network fetch.</p>
+     */
+    static String resolveMicaJavaDir( GameModPack pack )
+    {
+        if ( pack == null ) return null;
+        String mcVersion;
+        try {
+            mcVersion = pack.getMinecraftVersion();
+        }
+        catch ( Exception e ) {
+            return null;
+        }
+        String component = pickRuntimeComponent( mcVersion );
+        return findInstalledRuntimeBaseDir( component );
+    }
+
+    /** Maps an MC version string to the Mojang runtime component name
+     *  the launcher would normally pick. Mirrors the well-known mapping
+     *  from piston-meta's per-version manifests — we don't read those
+     *  manifests directly here because the export path may run before
+     *  the pack has ever been launched, when the version manifest isn't
+     *  in Mica's cache yet. Falls back to {@code jre-legacy} on parse
+     *  failure since that's the safest "old MC" answer. */
+    static String pickRuntimeComponent( String mcVersion )
+    {
+        if ( mcVersion == null || mcVersion.isBlank() ) {
+            return "jre-legacy";
+        }
+        String[] parts = mcVersion.trim().split( "[.\\-_]" );
+        try {
+            int major = Integer.parseInt( parts[ 0 ] );
+            int minor = parts.length > 1 ? Integer.parseInt( parts[ 1 ] ) : 0;
+            int patch = parts.length > 2 ? Integer.parseInt( parts[ 2 ] ) : 0;
+            if ( major != 1 ) {
+                // Defensive — Minecraft has only ever been 1.x. Treat
+                // anything else as "newer than our mapping knows about"
+                // and pick the most recent runtime component.
+                return "java-runtime-delta";
+            }
+            if ( minor <= 16 )                 return "jre-legacy";
+            if ( minor == 17 )                 return "java-runtime-alpha";
+            if ( minor == 18 && patch < 2 )    return "java-runtime-beta";
+            if ( minor < 20 )                  return "java-runtime-gamma";   // 1.18.2 - 1.19.x
+            if ( minor == 20 && patch < 5 )    return "java-runtime-gamma";   // 1.20.0 - 1.20.4
+            return "java-runtime-delta";                                       // 1.20.5+
+        }
+        catch ( NumberFormatException e ) {
+            return "jre-legacy";
+        }
+    }
+
+    /** Walks {@code <launcher-data>/runtime/<component>/} for a subdirectory
+     *  containing a {@code bin/} folder with the OS's Java executable.
+     *  Returns the absolute path to that subdirectory (the value the
+     *  Mojang launcher wants in {@code javaDir}), or {@code null} when
+     *  no matching install is found. Read-only; never triggers a
+     *  download or verification. */
+    private static String findInstalledRuntimeBaseDir( String component )
+    {
+        if ( component == null || component.isBlank() ) return null;
+        try {
+            Path componentRoot = Paths.get(
+                    com.micatechnologies.minecraft.launcher.files.LocalPathManager
+                            .getLauncherRuntimeFolderPath(),
+                    component );
+            if ( !Files.isDirectory( componentRoot ) ) {
+                return null;
+            }
+            String javaExeName = org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS
+                    ? "javaw.exe" : "java";
+            try ( java.util.stream.Stream< Path > children = Files.list( componentRoot ) ) {
+                java.util.Optional< Path > match = children
+                        .filter( Files::isDirectory )
+                        .filter( p -> Files.isRegularFile( p.resolve( "bin" ).resolve( javaExeName ) ) )
+                        .findFirst();
+                if ( match.isPresent() ) {
+                    return match.get().toAbsolutePath().toString();
+                }
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Couldn't resolve Mica runtime base dir for component "
+                                             + component + ": " + e.getMessage() );
+        }
+        return null;
     }
 
     private static String encodePackLogoAsIcon( GameModPack pack )
