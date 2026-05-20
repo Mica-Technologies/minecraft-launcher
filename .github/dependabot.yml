@@ -2,12 +2,24 @@
 #
 # Tracks two ecosystems:
 #   - github-actions: keeps the SHA-pinned third-party actions in our workflows
-#     fresh. Pinned to a commit SHA means Dependabot
-#     opens a PR with the new SHA every time the upstream tags a new release,
-#     instead of silently following a moving tag.
+#     fresh. Pinned to a commit SHA means Dependabot opens a PR with the new
+#     SHA every time the upstream tags a new release, instead of silently
+#     following a moving tag.
 #   - maven: bumps Java dependencies (commons-compress, jna, gson, javafx, etc.)
-#     against published CVE advisories and routine updates. Grouped weekly to
-#     avoid PR storms; review individually before merging.
+#     for major version-updates and CVE-driven security advisories.
+#
+# NOISE BUDGET: routine patch and minor version-updates are ignored across the
+# board. These are usually drive-by churn (a typo fix in slf4j, a logging
+# tweak in asm) that produce constant rebase/CI cycles on the open PR set
+# every time main moves. We only want routine PRs for major bumps, which are
+# rare and almost always merit a manual review (the oshi-core 6 -> 7 break
+# below is a textbook example).
+#
+# Security advisories are NOT affected by `ignore` rules with
+# `update-types: version-update:*` filters — Dependabot's security-update
+# pipeline runs independently of the schedule and the version-update
+# ignore list, so CVE fixes still open a PR the moment the advisory
+# publishes regardless of whether it's a patch, minor, or major bump.
 #
 # Reviewers / labels can be added once a CODEOWNERS or label policy exists.
 
@@ -16,15 +28,27 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-patch"
+          - "version-update:semver-minor"
 
   - package-ecosystem: maven
     directory: /
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
     ignore:
+      # Drop routine patch/minor churn for every Java dependency. Majors
+      # still come through (they're the ones we actually want to look at),
+      # and security advisories bypass this filter — see the file header.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-patch"
+          - "version-update:semver-minor"
       # oshi 7.x removed the deprecated static `SystemInfo.getCurrentPlatform()`
       # that jSystemThemeDetector 3.8 calls from `OsInfo.<clinit>`. Until the
       # theme detector ships an oshi-7-compatible release, pin oshi to the 6.x
