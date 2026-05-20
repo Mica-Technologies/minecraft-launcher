@@ -453,9 +453,23 @@ public final class OfficialLauncherExporter
         return cleaned.isEmpty() ? "modpack" : cleaned;
     }
 
-    /** Copies the pack's {@code mods/} + {@code config/} into the
-     *  export gameDir. Replaces existing content (re-export semantics
-     *  per plan: refresh in place). */
+    /** Copies the pack's content directories into the export gameDir.
+     *  Replaces existing content (re-export semantics per plan: refresh
+     *  in place).
+     *
+     *  <p>Includes everything Mica's manifest can populate
+     *  ({@code packMods}, {@code packConfigs}, {@code packResourcePacks},
+     *  {@code packShaderPacks}) so a launcher launched against the
+     *  exported gameDir gets the full pack experience. Explicitly skips
+     *  user-data folders (saves, screenshots, logs, crash-reports, the
+     *  runtime / natives extracts) — those belong to the Mica install,
+     *  not the pack template, and shipping them would clobber any
+     *  worlds the user has built up in the Mojang side.</p>
+     *
+     *  <p>Also copies a small whitelist of top-level files commonly
+     *  customised by users / shipped by packs (options.txt,
+     *  optionsof.txt, servers.dat) so binds + sounds + OptiFine
+     *  preferences carry over.</p> */
     private static void copyPackContentsToExport( GameModPack pack, Path gameDir ) throws IOException
     {
         String packRoot = pack.getPackRootFolder();
@@ -463,8 +477,34 @@ public final class OfficialLauncherExporter
             throw new IOException( "Pack has no install folder; install it before exporting." );
         }
         Path packPath = Paths.get( packRoot );
+
+        // Manifest-populated content folders. Each is wipe-and-replace
+        // on re-export so removed entries (mods, resource packs, etc.)
+        // don't leak as ghosts on the Mojang side.
         copySubfolderIfPresent( packPath, gameDir, "mods" );
         copySubfolderIfPresent( packPath, gameDir, "config" );
+        copySubfolderIfPresent( packPath, gameDir, "resourcepacks" );
+        copySubfolderIfPresent( packPath, gameDir, "shaderpacks" );
+
+        // Top-level user preferences — copy file-by-file so we don't
+        // accidentally pull in giant adjacent folders. Missing files
+        // are silently skipped.
+        copyFileIfPresent( packPath, gameDir, "options.txt" );
+        copyFileIfPresent( packPath, gameDir, "optionsof.txt" );
+        copyFileIfPresent( packPath, gameDir, "optionsshaders.txt" );
+        copyFileIfPresent( packPath, gameDir, "servers.dat" );
+    }
+
+    /** File-level analog of {@link #copySubfolderIfPresent}. Skips when
+     *  the source doesn't exist; replaces the target when it does. */
+    private static void copyFileIfPresent( Path packRoot, Path gameDir, String relName ) throws IOException
+    {
+        Path src = packRoot.resolve( relName );
+        if ( !Files.isRegularFile( src ) ) return;
+        Path dst = gameDir.resolve( relName );
+        Path parent = dst.getParent();
+        if ( parent != null ) Files.createDirectories( parent );
+        Files.copy( src, dst, StandardCopyOption.REPLACE_EXISTING );
     }
 
     /** Recursively copies a subfolder, replacing the target if it exists.
