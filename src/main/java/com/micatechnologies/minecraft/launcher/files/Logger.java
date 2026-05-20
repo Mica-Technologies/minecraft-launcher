@@ -326,6 +326,35 @@ public class Logger
         System.out.println( logStdPrefix + log );
     }
 
+    /** Whether {@link #logDebug} is allowed to consult {@link ConfigManager}
+     *  for the debug-logging toggle. Defaults to {@code false} so the
+     *  earliest bootstrap-phase debug logs (e.g. from
+     *  {@link com.micatechnologies.minecraft.launcher.utilities.SingleInstanceLock#tryAcquire})
+     *  don't trigger a {@code ConfigStore.loadFromDisk} BEFORE
+     *  {@code GameModeManager} has been initialized — which used to
+     *  resolve the config path to the current working directory (server-
+     *  mode fallback) and load a stale empty state into the in-memory
+     *  JSON. Subsequent writes would land in the correct
+     *  {@code ~/.MicaMinecraftLauncherDEV} folder while reads continued
+     *  to use the stale cwd-loaded JSON — losing every config change
+     *  the user made the previous session. The launcher flips this to
+     *  true via {@link #enableConfigBackedDebugLogging} after
+     *  {@code parseLauncherArgs} has run. In dev mode debug is also
+     *  unconditionally enabled (matching {@code getDebugLogging}'s dev
+     *  short-circuit), so visibility doesn't depend on the flag flip.
+     */
+    private static volatile boolean configBackedDebugReady = false;
+
+    /**
+     * Marks the launcher as past the game-mode bootstrap so {@link #logDebug}
+     * is safe to consult {@link ConfigManager#getDebugLogging()}. Must be
+     * called after {@code GameModeManager.setCurrentGameMode} so the
+     * config-path resolver uses the right per-mode folder.
+     */
+    public static void enableConfigBackedDebugLogging() {
+        configBackedDebugReady = true;
+    }
+
     /**
      * Log a debug message with its prefix
      *
@@ -334,6 +363,18 @@ public class Logger
      * @since 1.0
      */
     public static void logDebug( String debugLog ) {
+        // Dev mode: always print debug (matches the long-standing
+        // contract — the dev launcher is verbose by default). Production
+        // mode: gate on the user-configured flag, but only after the
+        // bootstrap has progressed far enough that consulting
+        // ConfigManager is safe — see configBackedDebugReady doc above.
+        if ( LauncherConstants.LAUNCHER_IS_DEV ) {
+            System.out.println( logDebugPrefix + debugLog );
+            return;
+        }
+        if ( !configBackedDebugReady ) {
+            return;
+        }
         if ( ConfigManager.getDebugLogging() ) {
             System.out.println( logDebugPrefix + debugLog );
         }

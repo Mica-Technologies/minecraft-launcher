@@ -58,6 +58,16 @@ class LauncherSession
         // Parse launcher args and set game mode
         String initialModPackSelection = LauncherCore.parseLauncherArgs( args );
 
+        // Game mode is now set, so it's safe for Logger.logDebug to consult
+        // ConfigManager (which transitively reads the config file at a
+        // game-mode-dependent path). Before this flip, any logDebug call
+        // would have triggered an early ConfigStore.loadFromDisk against the
+        // server-mode fallback path (= the current working directory)
+        // because GameModeManager.isClient() returned false, locking the
+        // in-memory JSON to a stale empty state that no amount of subsequent
+        // user activity could persist correctly. See the Logger doc.
+        Logger.enableConfigBackedDebugLogging();
+
         // Bring up the RGB-integration subsystem if the user has it enabled
         // in Settings. Must be called AFTER parseLauncherArgs because the
         // bootstrap reads ConfigManager, which in turn picks the
