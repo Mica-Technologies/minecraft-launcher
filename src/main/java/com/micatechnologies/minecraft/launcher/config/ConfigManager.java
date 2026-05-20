@@ -368,6 +368,30 @@ public class ConfigManager
 
         Logger.logStd( "Migrating config from version " + storedVersion + " to " + ConfigConstants.CONFIG_VERSION );
 
+        // -----------------------------------------------------------------
+        // Version-bracketed corrections — apply BEFORE the touch-every-key
+        // pass below, so a corrected value lands in the JSON before its
+        // getter would (a) read the stale on-disk value or (b) hit the
+        // missing-key branch and write the default.
+        // -----------------------------------------------------------------
+
+        if ( storedVersion < 5 ) {
+            // v4 → v5: RESIZE_WINDOWS_ENABLE_DEFAULT flipped from false to true
+            // in commit d4c65e7 (2026-05-13). Existing installs were preserved
+            // at their persisted value at the time, but the intent was always
+            // "resize on by default everywhere" — the old default was a
+            // historical accident from a long-since-fixed JavaFX layout bug.
+            // Flip any lingering explicit `false` to `true` so the launcher
+            // matches the stated default everywhere; users who deliberately
+            // want it off can re-disable in Settings (one click).
+            if ( configObject.has( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY )
+                    && !configObject.get( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY ).getAsBoolean() ) {
+                configObject.addProperty( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY, true );
+                Logger.logStd( "Config migration v4→v5: flipped resizableWindows to true "
+                                       + "(it was persisted as false from a pre-2026-05-13 install)." );
+            }
+        }
+
         // Touch every key so the default-write path fires for anything
         // a config from an older launcher version is missing.
         getMinRam();

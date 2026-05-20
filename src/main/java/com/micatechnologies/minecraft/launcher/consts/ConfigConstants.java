@@ -58,7 +58,7 @@ public class ConfigConstants
      *
      * @since 3.0
      */
-    public static final int CONFIG_VERSION = 4;
+    public static final int CONFIG_VERSION = 5;
 
     /**
      * The default value for minimum RAM.

@@ -120,21 +120,48 @@ public final class ConfigStore
     /** Read the on-disk config into memory. Bootstraps a fresh default
      *  document when the file is missing or unreadable, then delegates
      *  to {@link ConfigManager#migrateConfigIfNeeded()} for any
-     *  schema upgrades. */
+     *  schema upgrades.
+     *
+     *  <p>Detects three corrupt-input shapes and treats them uniformly:
+     *  (1) parse exception (truncated JSON), (2) parse returns null
+     *  (zero-byte file — Gson's "no JSON to read" sentinel), (3) parse
+     *  returns a non-object (file replaced with array / primitive).
+     *  In each case the bad file is moved aside to
+     *  {@code configuration.json.corrupt-&lt;timestamp&gt;} so the user
+     *  can recover settings post-hoc, then the launcher boots fresh.</p> */
     private static synchronized void loadFromDisk() {
         String path = LocalPathManager.getLauncherConfigFolderPath()
                 + ConfigConstants.CONFIG_FILE_NAME;
         File configFile = SynchronizedFileManager.getSynchronizedFile( path );
 
         boolean read = configFile.isFile();
+        Throwable parseError = null;
         if ( read ) {
             try {
                 json = FileUtilities.readAsJsonObject( configFile );
+                // Gson.fromJson("", JsonObject.class) returns null rather than
+                // throwing — a non-empty file that doesn't deserialise into a
+                // JsonObject (replaced with an array, primitive, or zero bytes
+                // by a half-finished write) lands here. Treat the same as a
+                // parse exception so the corrupt-recovery path fires.
+                if ( json == null ) {
+                    read = false;
+                }
             }
             catch ( Exception e ) {
-                Logger.logError( LocalizationManager.CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT );
-                Logger.logThrowable( e );
+                parseError = e;
                 read = false;
+            }
+        }
+
+        if ( !read && configFile.isFile() ) {
+            // Save the bad file aside before we overwrite it with defaults so
+            // the user (or support) can dig through the broken JSON to recover
+            // settings or diagnose the corruption.
+            preserveCorruptConfigFile( configFile );
+            Logger.logError( LocalizationManager.CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT );
+            if ( parseError != null ) {
+                Logger.logThrowable( parseError );
             }
         }
 
@@ -150,6 +177,28 @@ public final class ConfigStore
             Logger.logStd( LocalizationManager.CONFIG_RESET_SUCCESS_TEXT );
         }
         ConfigManager.migrateConfigIfNeeded();
+    }
+
+    /** Renames a corrupt config file aside with a timestamp suffix so the
+     *  user can recover settings later. Silently best-effort — if the rename
+     *  fails (file locked, permission denied), the launcher still resets and
+     *  the bad bytes get overwritten on the next write. */
+    private static void preserveCorruptConfigFile( File configFile )
+    {
+        try {
+            java.nio.file.Path src = configFile.toPath();
+            String timestamp = new java.text.SimpleDateFormat( "yyyyMMdd-HHmmss" )
+                    .format( new java.util.Date() );
+            java.nio.file.Path dst = src.resolveSibling(
+                    configFile.getName() + ".corrupt-" + timestamp );
+            java.nio.file.Files.move( src, dst,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING );
+            Logger.logStd( "Preserved corrupt config at " + dst
+                                   + " — settings can be manually recovered from it." );
+        }
+        catch ( Exception | Error e ) {
+            Logger.logWarningSilent( "Could not preserve corrupt config file: " + e.getMessage() );
+        }
     }
 
     /**
@@ -181,7 +230,19 @@ public final class ConfigStore
 
     /** Actual disk-write implementation — runs on the scheduled-writer
      *  thread under normal operation, or on the shutdown-hook /
-     *  flushNow callers' threads when they bypass the schedule. */
+     *  flushNow callers' threads when they bypass the schedule.
+     *
+     *  <p><b>Atomic write contract.</b> Writes go to a sibling temp file
+     *  ({@code configuration.json.tmp}) first, get fsync-ed to durable
+     *  storage, and then atomic-renamed over the target. The sequence
+     *  guarantees that any abrupt process exit — JVM crash, taskkill /f,
+     *  power loss — leaves either the previous content or the new
+     *  content on disk, never a half-written truncation. The non-atomic
+     *  {@code FileUtils.writeStringToFile} this replaced was the root
+     *  cause of "launcher randomly forgot my modpack list" reports: any
+     *  kill during the open-truncate-write-close window left a 0-byte
+     *  or partial JSON file that {@link #loadFromDisk} couldn't parse
+     *  on the next launch, triggering the corrupt-recovery reset.</p> */
     private static synchronized void writeNow() {
         if ( json == null ) {
             Logger.logError( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
@@ -190,12 +251,69 @@ public final class ConfigStore
         String path = LocalPathManager.getLauncherConfigFolderPath()
                 + ConfigConstants.CONFIG_FILE_NAME;
         File configFile = SynchronizedFileManager.getSynchronizedFile( path );
+        java.nio.file.Path target = configFile.toPath();
+        java.nio.file.Path tmp = target.resolveSibling( target.getFileName() + ".tmp" );
         try {
-            FileUtilities.writeFromJson( json, configFile );
+            // Serialize the in-memory JSON.
+            String payload = com.micatechnologies.minecraft.launcher.utilities.JSONUtilities
+                    .objectToString( json );
+            byte[] bytes = payload.getBytes( java.nio.charset.StandardCharsets.UTF_8 );
+
+            // Ensure the parent directory exists — the launcher creates it
+            // at startup but a stale clean / fresh user-home wipe could
+            // have removed it between then and now.
+            java.nio.file.Path parent = target.getParent();
+            if ( parent != null ) {
+                java.nio.file.Files.createDirectories( parent );
+            }
+
+            // Write + fsync the temp file. fsync is what guarantees the
+            // bytes are durable before the rename; without it Windows /
+            // Linux are allowed to cache the write indefinitely and the
+            // atomic rename could publish a still-empty inode if a crash
+            // hits between write() and fsync().
+            try ( java.nio.channels.FileChannel ch = java.nio.channels.FileChannel.open(
+                    tmp,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
+                    java.nio.file.StandardOpenOption.WRITE ) ) {
+                java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap( bytes );
+                while ( buf.hasRemaining() ) {
+                    ch.write( buf );
+                }
+                ch.force( true );  // fsync data + metadata
+            }
+
+            // Atomic rename. ATOMIC_MOVE on Windows works as long as
+            // source + destination are on the same volume, which they
+            // always are here (both inside the launcher config folder).
+            // REPLACE_EXISTING is required because the target almost
+            // always exists.
+            try {
+                java.nio.file.Files.move( tmp, target,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING );
+            }
+            catch ( java.nio.file.AtomicMoveNotSupportedException atomicEx ) {
+                // Some Windows filesystems (older SMB shares, FAT32 USB
+                // sticks) refuse atomic moves. Fall back to a plain
+                // replace + a follow-up fsync attempt. The window of
+                // partial-file exposure is small but not zero — log so
+                // operators can investigate the underlying FS if it
+                // recurs.
+                Logger.logWarningSilent( "Atomic config move not supported on this filesystem — "
+                                                 + "falling back to non-atomic replace." );
+                java.nio.file.Files.move( tmp, target,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING );
+            }
         }
         catch ( Exception e ) {
             Logger.logError( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
             Logger.logThrowable( e );
+            // Best-effort cleanup of the temp file so a failed write
+            // doesn't leave .tmp debris that confuses the next launch.
+            try { java.nio.file.Files.deleteIfExists( tmp ); }
+            catch ( Exception ignored ) { /* nothing else to do */ }
         }
     }
 }
