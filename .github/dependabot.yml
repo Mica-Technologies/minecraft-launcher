@@ -24,3 +24,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # oshi 7.x removed the deprecated static `SystemInfo.getCurrentPlatform()`
+      # that jSystemThemeDetector 3.8 calls from `OsInfo.<clinit>`. Until the
+      # theme detector ships an oshi-7-compatible release, pin oshi to the 6.x
+      # line (see pom.xml for the matching comment).
+      - dependency-name: "com.github.oshi:oshi-core"
+        update-types: ["version-update:semver-major"]
