@@ -147,6 +147,24 @@ public final class ConfigStore
                 if ( json == null ) {
                     read = false;
                 }
+                else {
+                    // Diagnostic on load — mirrors the writeNow logging so
+                    // we can correlate "what got written" with "what got
+                    // read on next launch." Critical for triaging "modpacks
+                    // are gone" reports.
+                    int packCount = -1;
+                    try {
+                        if ( json.has( ConfigConstants.MOD_PACKS_INSTALLED_KEY )
+                                && json.get( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).isJsonArray() ) {
+                            packCount = json.getAsJsonArray(
+                                    ConfigConstants.MOD_PACKS_INSTALLED_KEY ).size();
+                        }
+                    }
+                    catch ( Exception ignored ) { /* defensive — diagnostic only */ }
+                    long size = configFile.length();
+                    Logger.logDebug( "ConfigStore.loadFromDisk: read " + size + " bytes "
+                                             + "(modpacks=" + packCount + ") from " + path );
+                }
             }
             catch ( Exception e ) {
                 parseError = e;
@@ -258,6 +276,21 @@ public final class ConfigStore
             String payload = com.micatechnologies.minecraft.launcher.utilities.JSONUtilities
                     .objectToString( json );
             byte[] bytes = payload.getBytes( java.nio.charset.StandardCharsets.UTF_8 );
+
+            // Diagnostic: log the byte count and pack list being written. Helps
+            // diagnose "modpacks list mysteriously empty" reports by making
+            // every write visible in the launcher log. Trimmed to keep the log
+            // line readable — the full payload is on disk seconds later.
+            int packCount = -1;
+            try {
+                if ( json.has( ConfigConstants.MOD_PACKS_INSTALLED_KEY )
+                        && json.get( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).isJsonArray() ) {
+                    packCount = json.getAsJsonArray( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).size();
+                }
+            }
+            catch ( Exception ignored ) { /* defensive — diagnostic only */ }
+            Logger.logDebug( "ConfigStore.writeNow: writing " + bytes.length
+                                     + " bytes (modpacks=" + packCount + ") to " + target );
 
             // Ensure the parent directory exists — the launcher creates it
             // at startup but a stale clean / fresh user-home wipe could

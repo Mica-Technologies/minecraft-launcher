@@ -975,6 +975,15 @@ public class LauncherCore
             // last-second I/O actually lands. Bounded wait — daemon-thread semantics
             // clean up whatever is still running past the timeout.
             SystemUtilities.shutdownBackgroundExecutor( 2_000 );
+            // Explicit config flush BEFORE logger shutdown. The ConfigStore
+            // shutdown hook is the original safety net, but on Windows the
+            // sequence "System.exit → daemon-thread death races with the
+            // shutdown-hook flush" has been observed to lose the user's
+            // last-50ms config changes (added modpacks, wizard completion).
+            // Calling here guarantees the pending debounced write lands
+            // while logging is still alive and we have full control over
+            // the timing.
+            com.micatechnologies.minecraft.launcher.config.ConfigManager.flushPendingWrite();
             Logger.shutdownLogSys();
         }
         catch ( Exception ignored ) {
