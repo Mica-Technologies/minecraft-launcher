@@ -2327,18 +2327,24 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } ) );
         exportPack.setOnAction( e -> {
             javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
-            chooser.setTitle( "Export Modpack" );
+            chooser.setTitle( LocalizationManager.get( "dialog.fileChooser.exportModpack.title" ) );
             String safeName = pack.getPackName() == null ? "modpack" : pack.getPackName();
             chooser.setInitialFileName( safeName + "-" + System.currentTimeMillis() + ".zip" );
             chooser.getExtensionFilters().add(
-                    new javafx.stage.FileChooser.ExtensionFilter( "ZIP archive", "*.zip" ) );
+                    new javafx.stage.FileChooser.ExtensionFilter(
+                            LocalizationManager.get( "dialog.fileChooser.zipArchive.filter" ), "*.zip" ) );
             File dest = chooser.showSaveDialog( owner );
             if ( dest == null ) return;
             com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.run(
                     () -> com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter
                             .exportToZip( pack, dest ),
-                    () -> NotificationManager.success( "Exported", "Saved to " + dest.getAbsolutePath() ),
-                    err -> NotificationManager.error( "Export failed", err.getMessage() ) );
+                    () -> NotificationManager.success(
+                            LocalizationManager.get( "detailModal.export.success.title" ),
+                            LocalizationManager.format( "detailModal.export.success.body",
+                                                        dest.getAbsolutePath() ) ),
+                    err -> NotificationManager.error(
+                            LocalizationManager.get( "detailModal.exportPack.failed" ),
+                            err.getMessage() ) );
         } );
         // Disable Export when there's no install folder (e.g. failed-load placeholder packs).
         if ( pack.getPackRootFolder() == null ) {
@@ -2379,8 +2385,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         String invite = com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility
                 .buildInviteLinkFromPack( pack );
         if ( invite == null ) {
-            NotificationManager.warn( "No invite link",
-                                      "This pack doesn't have anything to invite friends to (no manifest URL or vanilla version)." );
+            NotificationManager.warn(
+                    LocalizationManager.get( "detailModal.invite.unavailable.title" ),
+                    LocalizationManager.get( "detailModal.invite.unavailable.body" ) );
             return;
         }
         GUIUtilities.JFXPlatformRun( () -> {
@@ -2402,9 +2409,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     GUIUtilities.JFXPlatformRun( () -> {
                         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                                 javafx.scene.control.Alert.AlertType.INFORMATION );
-                        alert.setTitle( "Shortcut Created" );
+                        alert.setTitle( LocalizationManager.get( "dialog.shortcut.created.title" ) );
                         alert.setHeaderText( null );
-                        alert.setContentText( "Desktop shortcut created for " + pack.getPackName() + "." );
+                        alert.setContentText(
+                                LocalizationManager.format( "dialog.shortcut.created.body",
+                                                            pack.getPackName() ) );
                         alert.initOwner( ownerStage );
                         alert.initStyle( javafx.stage.StageStyle.UTILITY );
                         alert.showAndWait();
@@ -2416,7 +2425,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 Logger.logThrowable( ex );
                 Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
                 if ( ownerStage != null ) {
-                    GUIUtilities.showErrorMessage( "Unable to create desktop shortcut: " + ex.getMessage(), ownerStage );
+                    GUIUtilities.showErrorMessage(
+                            LocalizationManager.format( "dialog.shortcut.failed.body", ex.getMessage() ),
+                            ownerStage );
                 }
             }
         } );

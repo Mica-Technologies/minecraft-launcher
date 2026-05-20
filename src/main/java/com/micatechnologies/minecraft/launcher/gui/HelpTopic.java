@@ -39,6 +39,7 @@ public enum HelpTopic
     KEYBOARD_SHORTCUTS( "Keyboard Shortcuts", "help/keyboard-shortcuts.html" ),
     JVM_PRESETS( "JVM Presets", "help/jvm-presets.html" ),
     ACTION_REFERENCE( "Action Reference", "help/action-reference.html" ),
+    LANGUAGE( "Language & Localization", "help/language.html" ),
     TROUBLESHOOTING( "Troubleshooting", "help/troubleshooting.html" );
 
     private final String displayName;

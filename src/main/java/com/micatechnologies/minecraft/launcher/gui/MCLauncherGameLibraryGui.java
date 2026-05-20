@@ -379,9 +379,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         importZipBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
         importZipBtn.setOnAction( e -> {
             javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
-            fc.setTitle( "Import Modpack ZIP" );
+            fc.setTitle( LocalizationManager.get( "dialog.fileChooser.importModpackZip.title" ) );
             fc.getExtensionFilters().add(
-                    new javafx.stage.FileChooser.ExtensionFilter( "Mica Modpack ZIP", "*.zip" ) );
+                    new javafx.stage.FileChooser.ExtensionFilter(
+                            LocalizationManager.get( "dialog.fileChooser.micaModpackZip.filter" ),
+                            "*.zip" ) );
             java.io.File zip = fc.showOpenDialog( stage );
             if ( zip == null ) return;
             final String zipPath = zip.getAbsolutePath();
@@ -407,15 +409,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     GUIUtilities.JFXPlatformRun( () -> {
                         if ( isTechnicServer ) {
                             NotificationManager.success(
-                                    "Technic server pack imported",
-                                    "Open the pack in the Modpack Editor to set the loader "
-                                            + "installer URL (and verify the auto-detected "
-                                            + "Minecraft version + mod loader) before launching." );
+                                    LocalizationManager.get( "notification.import.technicServer.title" ),
+                                    LocalizationManager.get( "notification.import.technicServer.body" ) );
                         }
                         else {
                             NotificationManager.success(
-                                    "Import complete",
-                                    "The pack is now in your library." );
+                                    LocalizationManager.get( "notification.import.complete.title" ),
+                                    LocalizationManager.get( "notification.import.complete.body" ) );
                         }
                     } );
                 }
@@ -430,9 +430,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     Logger.logErrorSilent( "ZIP import unexpected failure: " + t.getMessage() );
                     Logger.logThrowable( t );
                     NotificationManager.error(
-                            "Import failed",
-                            "An unexpected error occurred while importing the ZIP. "
-                                    + "Check the launcher log for details." );
+                            LocalizationManager.get( "notification.import.unexpected.title" ),
+                            LocalizationManager.get( "notification.import.unexpected.body" ) );
                 }
                 finally {
                     endImport();
@@ -447,10 +446,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // Hosting manifest export — same flow as the old Edit Packs screen
         hostingManifestBtn.setOnAction( e -> {
             javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
-            fc.setTitle( "Save Hosting Manifest" );
+            fc.setTitle( LocalizationManager.get( "dialog.fileChooser.saveHostingManifest.title" ) );
             fc.setInitialFileName( "installable.json" );
             fc.getExtensionFilters().add(
-                    new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+                    new javafx.stage.FileChooser.ExtensionFilter(
+                            LocalizationManager.get( "dialog.fileChooser.json.filter" ), "*.json" ) );
             File file = fc.showSaveDialog( stage );
             if ( file == null ) {
                 return;
@@ -563,10 +563,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
             if ( summary == null ) {
                 NotificationManager.error(
-                        "Couldn't reach Modrinth",
-                        "The launcher recognized your URL as a Modrinth modpack but "
-                                + "couldn't load details for it. Check your connection and try again, "
-                                + "or paste a Mica manifest URL instead." );
+                        LocalizationManager.get( "notification.import.modrinth.failed.title" ),
+                        LocalizationManager.get( "notification.import.modrinth.failed.body" ) );
                 return;
             }
 
@@ -584,7 +582,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             // the user sees activity happening even before the second
             // confirmation dialog comes up. Status is updated as the flow
             // moves through download → translate → install.
-            String packTitle = summary.title() != null ? summary.title() : "Modrinth modpack";
+            String packTitle = summary.title() != null
+                    ? summary.title()
+                    : LocalizationManager.get( "dialog.importConfirm.fallbackName" );
             Logger.logStd( "Modrinth import: user confirmed preview for slug=" + slug
                                    + " title=\"" + packTitle + "\"" );
             beginImport( packTitle );
@@ -619,10 +619,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         var version = summary.latestVersion();
         if ( version == null || version.files() == null || version.files().isEmpty() ) {
             NotificationManager.error(
-                    "Pack download URL unavailable",
-                    "Modrinth didn't return a file URL for the pack's latest version. "
-                            + "Try again, or check the pack on modrinth.com — it may have been "
-                            + "unpublished or the version may have no published files yet." );
+                    LocalizationManager.get( "notification.import.modrinth.fileUnavailable.title" ),
+                    LocalizationManager.get( "notification.import.modrinth.fileUnavailable.body" ) );
             return;
         }
         // Pick the primary file (the .mrpack); skip non-primary entries
@@ -640,9 +638,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         }
         if ( mrpackUrl == null || !mrpackUrl.toLowerCase( java.util.Locale.ROOT ).endsWith( ".mrpack" ) ) {
             NotificationManager.error(
-                    "Pack archive missing",
-                    "Modrinth's primary download URL for this pack doesn't look like a .mrpack file. "
-                            + "This launcher can only import .mrpack-formatted modpacks." );
+                    LocalizationManager.get( "notification.import.modrinth.archiveMissing.title" ),
+                    LocalizationManager.get( "notification.import.modrinth.archiveMissing.body" ) );
             return;
         }
 
@@ -650,9 +647,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // is usually 1–20 MB but the Forge installer fetch + SHA happen in the
         // same call so the user sees one "Preparing import…" until both finish.
         NotificationManager.info(
-                "Preparing import",
-                "Downloading the pack archive and translating it. This usually takes a few seconds." );
-        updateImportStatus( "Downloading pack archive + Forge installer…" );
+                LocalizationManager.get( "notification.import.preparing.title" ),
+                LocalizationManager.get( "notification.import.preparing.body" ) );
+        updateImportStatus( LocalizationManager.get( "library.import.modrinth.downloading" ) );
 
         final String finalMrpackUrl = mrpackUrl;
         com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter.Result result;
@@ -835,21 +832,30 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient.ProjectSummary s )
     {
         StringBuilder sb = new StringBuilder();
-        sb.append( s.title() != null ? s.title() : "(unnamed project)" ).append( '\n' );
+        sb.append( s.title() != null
+                ? s.title()
+                : LocalizationManager.get( "preview.modrinth.unnamedProject" ) ).append( '\n' );
         if ( s.description() != null && !s.description().isBlank() ) {
             sb.append( '\n' ).append( s.description().trim() ).append( '\n' );
         }
-        sb.append( "\nSource: Modrinth" );
+        sb.append( '\n' ).append( LocalizationManager.get( "preview.modrinth.sourceLabel" ) );
         if ( s.slug() != null ) sb.append( " (" ).append( s.slug() ).append( ")" );
         sb.append( '\n' );
         if ( s.latestVersion() != null ) {
             var v = s.latestVersion();
-            if ( v.versionNumber() != null ) sb.append( "Version: " ).append( v.versionNumber() ).append( '\n' );
+            if ( v.versionNumber() != null ) {
+                sb.append( LocalizationManager.format( "preview.modrinth.versionLabel",
+                                                       v.versionNumber() ) ).append( '\n' );
+            }
             if ( v.minecraftVersions() != null && !v.minecraftVersions().isEmpty() ) {
-                sb.append( "Minecraft: " ).append( String.join( ", ", v.minecraftVersions() ) ).append( '\n' );
+                sb.append( LocalizationManager.format( "preview.modrinth.minecraftLabel",
+                                                       String.join( ", ", v.minecraftVersions() ) ) )
+                  .append( '\n' );
             }
             if ( v.loaders() != null && !v.loaders().isEmpty() ) {
-                sb.append( "Mod loader: " ).append( String.join( ", ", v.loaders() ) ).append( '\n' );
+                sb.append( LocalizationManager.format( "preview.modrinth.loaderLabel",
+                                                       String.join( ", ", v.loaders() ) ) )
+                  .append( '\n' );
             }
             // Deliberately don't surface v.files().size() here: a Modrinth version's
             // "files" array typically has ONE primary entry (the .mrpack archive),
@@ -859,7 +865,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             // "this pack contains 1 mod", which is wrong — better to leave the
             // mod count off the preview entirely than to mislead.
         }
-        sb.append( '\n' ).append( "URL: " ).append( originalUrl );
+        sb.append( '\n' ).append( LocalizationManager.format( "preview.urlLabel", originalUrl ) );
         return sb.toString();
     }
 
@@ -869,21 +875,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private String buildCurseForgePreview( String originalUrl, String slug, String fileId )
     {
         StringBuilder sb = new StringBuilder();
-        sb.append( "Detected a CurseForge modpack URL." ).append( '\n' );
+        sb.append( LocalizationManager.get( "preview.curseforge.detected" ) ).append( '\n' );
         sb.append( '\n' );
-        sb.append( "Source: CurseForge" );
+        sb.append( LocalizationManager.get( "preview.curseforge.sourceLabel" ) );
         if ( slug != null ) sb.append( " (" ).append( slug ).append( ")" );
         sb.append( '\n' );
         if ( fileId != null && !fileId.isBlank() ) {
-            sb.append( "File ID: " ).append( fileId ).append( '\n' );
+            sb.append( LocalizationManager.format( "preview.curseforge.fileIdLabel", fileId ) )
+              .append( '\n' );
         }
         sb.append( '\n' );
-        sb.append( "CurseForge requires an API key for programmatic downloads, so the "
-                          + "launcher can't import their packs directly yet. For now, you can "
-                          + "open the project page below, download the modpack ZIP from "
-                          + "CurseForge, and either repackage it as a Mica manifest or wait for "
-                          + "the next launcher update that adds CurseForge import support." );
-        sb.append( '\n' ).append( '\n' ).append( "URL: " ).append( originalUrl );
+        sb.append( LocalizationManager.get( "preview.curseforge.note" ) );
+        sb.append( '\n' ).append( '\n' )
+          .append( LocalizationManager.format( "preview.urlLabel", originalUrl ) );
         return sb.toString();
     }
 
@@ -895,23 +899,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private String buildTechnicPreview( String originalUrl, String slug )
     {
         StringBuilder sb = new StringBuilder();
-        sb.append( "Detected a Technic modpack URL." ).append( '\n' );
+        sb.append( LocalizationManager.get( "preview.technic.detected" ) ).append( '\n' );
         sb.append( '\n' );
-        sb.append( "Source: Technic" );
+        sb.append( LocalizationManager.get( "preview.technic.sourceLabel" ) );
         if ( slug != null ) sb.append( " (" ).append( slug ).append( ")" );
         sb.append( '\n' );
         sb.append( '\n' );
-        sb.append( "Technic's API requires an authenticated client for programmatic "
-                          + "access, so this launcher can't import packs directly from "
-                          + "the Technic Platform yet. The workaround:" );
+        sb.append( LocalizationManager.get( "preview.technic.note" ) );
         sb.append( '\n' ).append( '\n' );
-        sb.append( "1. Open the project page below.\n" );
-        sb.append( "2. Look for the \"Server Download\" link on the pack's page and "
-                          + "download the server ZIP.\n" );
-        sb.append( "3. Back in this launcher, click \"Import ZIP\" on the browse screen "
-                          + "and pick the downloaded ZIP. The launcher will recognize "
-                          + "the Technic server-pack format and set it up for you." );
-        sb.append( '\n' ).append( '\n' ).append( "URL: " ).append( originalUrl );
+        sb.append( LocalizationManager.get( "preview.technic.step1" ) ).append( '\n' );
+        sb.append( LocalizationManager.get( "preview.technic.step2" ) ).append( '\n' );
+        sb.append( LocalizationManager.get( "preview.technic.step3" ) );
+        sb.append( '\n' ).append( '\n' )
+          .append( LocalizationManager.format( "preview.urlLabel", originalUrl ) );
         return sb.toString();
     }
 
@@ -1975,7 +1975,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         if ( response == 0 ) return;
         boolean deleteFiles = ( response == 1 );
 
-        if ( showProgress != null ) showProgress.accept( "Removing " + displayName + "…" );
+        if ( showProgress != null ) showProgress.accept(
+                LocalizationManager.format( "library.status.removing", displayName ) );
         SystemUtilities.spawnNewTask( () -> {
             try {
                 if ( deleteFiles ) {
@@ -2006,7 +2007,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         final String friendly = entry.pack.getFriendlyName();
         if ( friendly == null || friendly.isBlank() ) return;
         final String displayName = entry.displayName;
-        showBackgroundStatus( "Installing " + displayName + "…" );
+        showBackgroundStatus( LocalizationManager.format( "library.status.installing", displayName ) );
         com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.runWithFinally( () -> {
             GameModPackManager.installModPackByFriendlyName( friendly );
             GUIUtilities.JFXPlatformRun( this::rebuildCards );
@@ -2029,7 +2030,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 stage );
         if ( response == 0 ) return;
 
-        showBackgroundStatus( "Removing Minecraft " + id + "…" );
+        showBackgroundStatus( LocalizationManager.format( "library.status.removingMc", id ) );
         com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.runWithFinally( () -> {
             if ( response == 1 ) {
                 GameModPack vanilla = GameModPack.createVanillaModPack( id );

@@ -122,9 +122,9 @@ public class GUIUtilities
             // Show error for unable to wait for error acknowledge
             JFXPlatformRun( () -> {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
-                errorAlert.setTitle( "Something's Wrong" );
-                errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText( "A question message latch was interrupted before handling completed." );
+                errorAlert.setTitle( LocalizationManager.get( "dialog.alert.appError.title" ) );
+                errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.appError.header" ) );
+                errorAlert.setContentText( LocalizationManager.get( "dialog.alert.appError.question.body" ) );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initOwner( owner );
@@ -233,8 +233,8 @@ public class GUIUtilities
         CountDownLatch waitForError = new CountDownLatch( 1 );
         JFXPlatformRun( () -> {
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
-            errorAlert.setTitle( "Oops" );
-            errorAlert.setHeaderText( "Error" );
+            errorAlert.setTitle( LocalizationManager.get( "dialog.alert.error.title" ) );
+            errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.error.header" ) );
             errorAlert.setContentText( sanitizeDialogText( contentText ) );
             errorAlert.initModality( Modality.WINDOW_MODAL );
             errorAlert.initStyle( StageStyle.UTILITY );
@@ -256,9 +256,9 @@ public class GUIUtilities
             // Show error for unable to wait for error acknowledge
             JFXPlatformRun( () -> {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
-                errorAlert.setTitle( "Something's Wrong" );
-                errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText( "An error message latch was interrupted before handling completed." );
+                errorAlert.setTitle( LocalizationManager.get( "dialog.alert.appError.title" ) );
+                errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.appError.header" ) );
+                errorAlert.setContentText( LocalizationManager.get( "dialog.alert.appError.error.body" ) );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initOwner( owner );
@@ -290,8 +290,8 @@ public class GUIUtilities
         CountDownLatch waitForError = new CountDownLatch( 1 );
         JFXPlatformRun( () -> {
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
-            errorAlert.setTitle( "Oops" );
-            errorAlert.setHeaderText( "Error" );
+            errorAlert.setTitle( LocalizationManager.get( "dialog.alert.error.title" ) );
+            errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.error.header" ) );
             errorAlert.setContentText( sanitizeDialogTextMultiline( contentText ) );
             errorAlert.initModality( Modality.WINDOW_MODAL );
             errorAlert.initStyle( StageStyle.UTILITY );
@@ -406,8 +406,8 @@ public class GUIUtilities
         AtomicBoolean retry = new AtomicBoolean( false );
         JFXPlatformRun( () -> {
             Alert errorAlert = new Alert( Alert.AlertType.ERROR );
-            errorAlert.setTitle( "Oops" );
-            errorAlert.setHeaderText( "Error" );
+            errorAlert.setTitle( LocalizationManager.get( "dialog.alert.error.title" ) );
+            errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.error.header" ) );
             errorAlert.setContentText( sanitizeDialogText( contentText ) );
             // Use application-modal if the owner stage isn't visible to avoid force-showing hidden stages
             if ( owner != null && owner.isShowing() ) {
@@ -420,7 +420,8 @@ public class GUIUtilities
             errorAlert.initStyle( StageStyle.UTILITY );
 
             ButtonType btn1 = new ButtonType( retryText, ButtonBar.ButtonData.BACK_PREVIOUS );
-            ButtonType btnC = new ButtonType( "Cancel", ButtonBar.ButtonData.CANCEL_CLOSE );
+            ButtonType btnC = new ButtonType( LocalizationManager.get( "dialog.button.cancel" ),
+                                              ButtonBar.ButtonData.CANCEL_CLOSE );
 
             errorAlert.getButtonTypes().setAll( btn1, btnC );
 
@@ -443,9 +444,9 @@ public class GUIUtilities
             // Show error for unable to wait for error acknowledge
             JFXPlatformRun( () -> {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
-                errorAlert.setTitle( "Something's Wrong" );
-                errorAlert.setHeaderText( "Application Error" );
-                errorAlert.setContentText( "An error message latch was interrupted before handling completed." );
+                errorAlert.setTitle( LocalizationManager.get( "dialog.alert.appError.title" ) );
+                errorAlert.setHeaderText( LocalizationManager.get( "dialog.alert.appError.header" ) );
+                errorAlert.setContentText( LocalizationManager.get( "dialog.alert.appError.error.body" ) );
                 errorAlert.initModality( Modality.WINDOW_MODAL );
                 errorAlert.initStyle( StageStyle.UTILITY );
                 errorAlert.initOwner( owner );
@@ -470,8 +471,8 @@ public class GUIUtilities
         CountDownLatch waitForWarning = new CountDownLatch( 1 );
         JFXPlatformRun( () -> {
             Alert warningAlert = new Alert( Alert.AlertType.WARNING );
-            warningAlert.setTitle( "Warning" );
-            warningAlert.setHeaderText( "Warning" );
+            warningAlert.setTitle( LocalizationManager.get( "dialog.alert.warning.title" ) );
+            warningAlert.setHeaderText( LocalizationManager.get( "dialog.alert.warning.header" ) );
             warningAlert.setContentText( sanitizeDialogText( contentText ) );
             warningAlert.initModality( Modality.WINDOW_MODAL );
             warningAlert.initStyle( StageStyle.UTILITY );
@@ -493,9 +494,9 @@ public class GUIUtilities
             // Show error for unable to wait for error acknowledge
             JFXPlatformRun( () -> {
                 Alert warningAlert = new Alert( Alert.AlertType.ERROR );
-                warningAlert.setTitle( "Something's Wrong" );
-                warningAlert.setHeaderText( "Application Error" );
-                warningAlert.setContentText( "A warning message latch was interrupted before handling completed." );
+                warningAlert.setTitle( LocalizationManager.get( "dialog.alert.appError.title" ) );
+                warningAlert.setHeaderText( LocalizationManager.get( "dialog.alert.appError.header" ) );
+                warningAlert.setContentText( LocalizationManager.get( "dialog.alert.appError.warning.body" ) );
                 warningAlert.initModality( Modality.WINDOW_MODAL );
                 warningAlert.initStyle( StageStyle.UTILITY );
                 warningAlert.initOwner( owner );

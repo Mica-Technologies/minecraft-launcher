@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXToggleButton;
@@ -151,7 +152,7 @@ public final class MCLauncherQuickStartWizard
     private void buildStage( Stage owner )
     {
         stage = new Stage();
-        stage.setTitle( "Welcome to Mica Minecraft Launcher" );
+        stage.setTitle( LocalizationManager.get( "window.welcome.title" ) );
         stage.initStyle( StageStyle.UNIFIED );
         stage.initModality( Modality.WINDOW_MODAL );
         if ( owner != null ) {
