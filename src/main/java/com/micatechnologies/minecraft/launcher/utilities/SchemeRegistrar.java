@@ -147,7 +147,52 @@ public final class SchemeRegistrar
         Advapi32Util.registrySetStringValue( root, progIdKey, "", ModPackConstants.MODPACK_FILE_DESCRIPTION );
         ensureCommandSubkey( root, progIdKey, command );
 
+        // DefaultIcon points at the bundled .mmcjson icon so Explorer
+        // distinguishes modpack files from generic launcher-association
+        // entries. The .ico is extracted from JAR resources to a stable
+        // path under the launcher config folder; the registry entry uses
+        // the {@code <path>,0} form (icon index 0 = the first / largest
+        // image in the .ico's directory).
+        String iconPath = extractMmcjsonIconForWindows();
+        if ( iconPath != null ) {
+            ensureKey( root, progIdKey, "DefaultIcon" );
+            Advapi32Util.registrySetStringValue( root, progIdKey + "\\DefaultIcon", "",
+                                                  "\"" + iconPath + "\",0" );
+        }
+
         Logger.logDebug( "Windows scheme + file-association registered for " + exePath );
+    }
+
+    /** Extracts the bundled {@code mmcjson-file.ico} from JAR resources to a
+     *  stable path under the launcher's config folder. Returns the absolute
+     *  path on success, or {@code null} when the resource can't be found /
+     *  extracted (e.g. running from a stripped JAR). Idempotent — re-running
+     *  overwrites the existing file so launcher updates that ship a refreshed
+     *  icon land automatically on next startup. */
+    private static String extractMmcjsonIconForWindows()
+    {
+        try {
+            Path destDir = Paths.get(
+                    com.micatechnologies.minecraft.launcher.files.LocalPathManager
+                            .getLauncherConfigFolderPath(),
+                    "icons" );
+            Files.createDirectories( destDir );
+            Path dest = destDir.resolve( "mmcjson-file.ico" );
+
+            try ( java.io.InputStream in = SchemeRegistrar.class
+                    .getResourceAsStream( "/mmcjson-file.ico" ) ) {
+                if ( in == null ) {
+                    Logger.logWarningSilent( "Bundled mmcjson-file.ico not found in JAR resources." );
+                    return null;
+                }
+                Files.copy( in, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING );
+            }
+            return dest.toAbsolutePath().toString();
+        }
+        catch ( Exception | Error e ) {
+            Logger.logWarningSilent( "Could not stage .mmcjson Explorer icon: " + e.getMessage() );
+            return null;
+        }
     }
 
     /** Creates {@code parent\name} if it doesn't already exist. Wraps the per-call boolean
