@@ -853,6 +853,15 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      */
     private void pickForgeVersion()
     {
+        // Read the prefilter on the FX thread before spawning the background
+        // task — packMinecraftVersionField is FX-thread-affined. A blank
+        // value (no MC version detected / set) opens the picker on the full
+        // promotions list; otherwise we narrow to just that MC version's
+        // recommended + latest pair so a Technic-imported pack with
+        // auto-detected MC version doesn't make the user scroll past every
+        // version Forge has ever released.
+        final String mcPrefilter = packMinecraftVersionField == null
+                ? "" : packMinecraftVersionField.getText();
         SystemUtilities.spawnNewTask( () -> {
             try {
                 updateStatus( "Fetching Forge versions..." );
@@ -885,6 +894,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 List< String > mcVersions = new ArrayList<>( latest.keySet() );
                 mcVersions.sort( ( a, b ) -> com.micatechnologies.minecraft.launcher.utilities.VersionUtilities
                         .compareVersionNumbers( b, a ) );
+
+                // Narrow the list when the editor has a non-blank Minecraft
+                // version AND the promotions feed actually has that version.
+                // If the version doesn't appear in the feed (e.g. Forge stopped
+                // tracking it, or the user typed a typo), fall back to the
+                // unfiltered list so they can still pick something workable.
+                String trimmed = mcPrefilter == null ? "" : mcPrefilter.trim();
+                if ( !trimmed.isEmpty() && mcVersions.contains( trimmed ) ) {
+                    mcVersions = List.of( trimmed );
+                }
 
                 for ( String mcVer : mcVersions ) {
                     if ( recommended.containsKey( mcVer ) ) {
