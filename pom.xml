@@ -1338,10 +1338,17 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- Pinned to the 6.x line: oshi 7.0 removed the deprecated static
+             `SystemInfo.getCurrentPlatform()` method, which jSystemThemeDetector
+             3.8 still calls from `OsInfo.<clinit>`. Bumping to 7.x makes the
+             theme detector throw NoSuchMethodError before the JavaFX window
+             ever shows. Dependabot is configured to ignore major bumps on
+             this artifact (see .github/dependabot.yml); unpin once
+             jSystemThemeDetector publishes an oshi-7-compatible release. -->
         <dependency>
             <groupId>com.github.oshi</groupId>
             <artifactId>oshi-core</artifactId>
-            <version>7.1.0</version>
+            <version>6.6.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
