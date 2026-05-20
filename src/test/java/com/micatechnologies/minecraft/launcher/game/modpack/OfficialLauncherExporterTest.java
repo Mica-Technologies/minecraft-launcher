@@ -203,27 +203,50 @@ class OfficialLauncherExporterTest
     //  Phase 4 — version-ID computation
     // =========================================================================================
 
+    // For Forge / NeoForge: getLoaderVersion() returns the full version.json
+    // `id` field — which IS the version directory name the installer creates.
+    // The version ID we compute must equal it directly; an earlier bug
+    // double-prefixed it ("1.12.2-forge-" + "1.12.2-forge-14.23.5.2860") and
+    // produced an unresolvable lastVersionId in launcher_profiles.json,
+    // surfacing as "failed to find assets" when the user clicked Play in
+    // Mojang's launcher.
+
     @Test
-    void versionIdForForgeUsesMcForgeFormat() throws Exception
+    void versionIdForLegacyForgeUsesLoaderVersionDirectly() throws Exception
     {
+        // Legacy Forge (1.12.2-) version.json id format includes mc-forge-loader.
         FakePack pack = new FakePack( "Alto", "https://example/alto.json", false,
-                "1.12.2", "forge", "14.23.5.2855" );
-        assertEquals( "1.12.2-forge-14.23.5.2855",
+                "1.12.2", "forge", "1.12.2-forge-14.23.5.2860" );
+        assertEquals( "1.12.2-forge-14.23.5.2860",
                 OfficialLauncherExporter.computeVersionId( pack ) );
     }
 
     @Test
-    void versionIdForNeoForgeUsesPrefix() throws Exception
+    void versionIdForModernForgeUsesLoaderVersionDirectly() throws Exception
     {
+        // Modern Forge (1.13+) installer also stamps a fully-qualified id.
+        FakePack pack = new FakePack( "Modern", "https://example/m.json", false,
+                "1.20.1", "forge", "1.20.1-forge-47.3.0" );
+        assertEquals( "1.20.1-forge-47.3.0",
+                OfficialLauncherExporter.computeVersionId( pack ) );
+    }
+
+    @Test
+    void versionIdForNeoForgeUsesLoaderVersionDirectly() throws Exception
+    {
+        // NeoForge's installer version.json id is "neoforge-<ver>".
         FakePack pack = new FakePack( "TestPack", "https://example/p.json", false,
-                "1.21.1", "neoforge", "21.1.95" );
+                "1.21.1", "neoforge", "neoforge-21.1.95" );
         assertEquals( "neoforge-21.1.95",
                 OfficialLauncherExporter.computeVersionId( pack ) );
     }
 
     @Test
-    void versionIdForFabricUsesLoaderMcFormat() throws Exception
+    void versionIdForFabricReconstructsFromLoaderAndMc() throws Exception
     {
+        // Fabric's getLoaderVersion() parses out just the loader number
+        // ("0.16.10") from the profile JSON's id; reconstruct the full
+        // "fabric-loader-<ver>-<mc>" form here.
         FakePack pack = new FakePack( "FabricPack", "https://example/fp.json", false,
                 "1.21.5", "fabric", "0.16.10" );
         assertEquals( "fabric-loader-0.16.10-1.21.5",

@@ -365,11 +365,24 @@ public final class OfficialLauncherExporter
             // to the raw MC version.
             return mcVersion;
         }
+        // Forge / NeoForge: getLoaderVersion() already returns the full
+        // version.json `id` field — for legacy Forge that's something
+        // like "1.12.2-forge-14.23.5.2860" and for NeoForge it's
+        // "neoforge-21.1.95". The version directory the installer
+        // creates uses that exact id, so use it verbatim. Earlier code
+        // double-prefixed ("1.12.2-forge-" + loaderVersion) and produced
+        // "1.12.2-forge-1.12.2-forge-14.23.5.2860" which the Mojang
+        // launcher couldn't resolve, surfacing as "failed to find
+        // assets" on first launch.
+        //
+        // Fabric is the odd one out: its loader version is just the
+        // loader number ("0.16.10"), parsed out of the profile JSON's
+        // id ("fabric-loader-0.16.10-1.21.5"). Reconstruct the full id
+        // here from loaderVersion + mcVersion.
         return switch ( loaderType ) {
-            case ModPackConstants.MOD_LOADER_FORGE ->
-                    mcVersion + "-forge-" + loaderVersion;
-            case ModPackConstants.MOD_LOADER_NEOFORGE ->
-                    "neoforge-" + loaderVersion;
+            case ModPackConstants.MOD_LOADER_FORGE,
+                 ModPackConstants.MOD_LOADER_NEOFORGE ->
+                    loaderVersion;
             case ModPackConstants.MOD_LOADER_FABRIC ->
                     "fabric-loader-" + loaderVersion + "-" + mcVersion;
             default ->
