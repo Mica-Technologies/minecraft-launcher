@@ -2308,6 +2308,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         MenuItem copyInviteLink   = new MenuItem( "Copy Discord Invite Link" );
         MenuItem editPack         = new MenuItem( "Edit Pack…" );
         MenuItem exportPack       = new MenuItem( "Export as ZIP…" );
+        MenuItem addToOfficial    = new MenuItem(
+                LocalizationManager.get( "officialExport.menuItem" ) );
         MenuItem uninstall        = new MenuItem( "Uninstall…" );
 
         openFolder.setOnAction(       e -> openPackSubfolder( pack, "" ) );
@@ -2349,7 +2351,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Disable Export when there's no install folder (e.g. failed-load placeholder packs).
         if ( pack.getPackRootFolder() == null ) {
             exportPack.setDisable( true );
+            addToOfficial.setDisable( true );
         }
+        addToOfficial.setOnAction( e -> handleAddToOfficialLauncher( pack, owner ) );
         uninstall.setOnAction( e -> MCLauncherGameLibraryGui.confirmAndUninstallModpack(
                 pack, pack.getFriendlyName(), owner,
                 showProgress, hideProgress, afterUninstall ) );
@@ -2371,7 +2375,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                 openScreenshots, openResourcePks, openShaderPacks,
                                 new SeparatorMenuItem(), openMods, openConfig,
                                 new SeparatorMenuItem(), createShortcut, copyInviteLink,
-                                new SeparatorMenuItem(), editPack, exportPack,
+                                new SeparatorMenuItem(), editPack, exportPack, addToOfficial,
                                 new SeparatorMenuItem(), uninstall );
         return menu;
     }
@@ -2397,6 +2401,113 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             NotificationManager.success(
                     LocalizationManager.get( "notification.invite.copied.title" ),
                     LocalizationManager.get( "notification.invite.copied.body" ) );
+        } );
+    }
+
+    /** Shared confirmation + export flow for "Add to Minecraft Launcher."
+     *  Surfaced from both the main-menu context menu and (later) the
+     *  modpack detail modal's Advanced section. Runs the export on a
+     *  background thread; routes results to NotificationManager toasts.
+     *
+     *  <p>Vanilla packs skip the loader-installer warning since the
+     *  Mojang launcher handles every vanilla version natively. Modded
+     *  packs check whether the matching version directory exists under
+     *  the Mojang launcher's {@code versions/} folder and surface the
+     *  warning when it doesn't.</p> */
+    static void handleAddToOfficialLauncher( GameModPack pack, Stage owner )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            if ( !com.micatechnologies.minecraft.launcher.game.modpack.OfficialLauncherExporter
+                    .isOfficialLauncherAvailable() ) {
+                NotificationManager.error(
+                        LocalizationManager.get( "officialExport.notInstalled.title" ),
+                        LocalizationManager.format( "officialExport.notInstalled.body",
+                                com.micatechnologies.minecraft.launcher.game.modpack
+                                        .OfficialLauncherExporter.resolveDotMinecraft().toString() ) );
+                return;
+            }
+            // Derive the version ID + loader-install state up front so the
+            // confirmation dialog can show both. Wrapping in try/catch
+            // here keeps a manifest-parse failure from blocking the dialog
+            // — the user can still hit Cancel; we just won't have the
+            // pre-flight info to show them.
+            String versionId;
+            boolean loaderInstalled;
+            try {
+                versionId = com.micatechnologies.minecraft.launcher.game.modpack
+                        .OfficialLauncherExporter.computeVersionId( pack );
+                loaderInstalled = com.micatechnologies.minecraft.launcher.game.modpack
+                        .OfficialLauncherExporter.isVersionInstalled(
+                                com.micatechnologies.minecraft.launcher.game.modpack
+                                        .OfficialLauncherExporter.resolveDotMinecraft(),
+                                versionId );
+            }
+            catch ( Exception e ) {
+                Logger.logThrowable( e );
+                NotificationManager.error(
+                        LocalizationManager.get( "officialExport.failed.title" ),
+                        LocalizationManager.format( "officialExport.failed.body", e.getMessage() ) );
+                return;
+            }
+            String packName = pack.getPackName();
+            String loaderName;
+            try {
+                loaderName = pack.isVanillaVersion() ? "Minecraft" : pack.getLoaderName();
+            }
+            catch ( Exception e ) {
+                loaderName = "the modloader";
+            }
+            String middleBlurb;
+            if ( pack.isVanillaVersion() ) {
+                middleBlurb = LocalizationManager.format(
+                        "officialExport.confirm.body.vanilla", packName, versionId );
+            }
+            else if ( loaderInstalled ) {
+                middleBlurb = LocalizationManager.get(
+                        "officialExport.confirm.body.modded.loaderInstalled" );
+            }
+            else {
+                middleBlurb = LocalizationManager.format(
+                        "officialExport.confirm.body.modded.loaderMissing", loaderName, versionId );
+            }
+            int answer = GUIUtilities.showQuestionMessageMultiline(
+                    LocalizationManager.get( "officialExport.confirm.title" ),
+                    LocalizationManager.format( "officialExport.confirm.header", packName ),
+                    LocalizationManager.format( "officialExport.confirm.body",
+                                                packName, versionId, middleBlurb ),
+                    LocalizationManager.get( "officialExport.confirm.button.export" ),
+                    LocalizationManager.get( "dialog.button.cancel" ),
+                    owner );
+            if ( answer != 1 ) return;
+
+            // Run the actual export. Status notification fires immediately
+            // so the user sees progress even on slow filesystems (big
+            // modpacks copy a few hundred MB).
+            NotificationManager.info(
+                    LocalizationManager.get( "officialExport.inProgress" ),
+                    packName );
+            com.micatechnologies.minecraft.launcher.game.modpack.OfficialLauncherExporter.Result result
+                    = com.micatechnologies.minecraft.launcher.game.modpack
+                            .OfficialLauncherExporter.exportPack( pack );
+            if ( !result.success() ) {
+                NotificationManager.error(
+                        LocalizationManager.get( "officialExport.failed.title" ),
+                        LocalizationManager.format( "officialExport.failed.body",
+                                                    result.errorMessage() ) );
+                return;
+            }
+            if ( !result.loaderInstalled() && !pack.isVanillaVersion() ) {
+                NotificationManager.warn(
+                        LocalizationManager.get( "officialExport.successButLoaderMissing.title" ),
+                        LocalizationManager.format(
+                                "officialExport.successButLoaderMissing.body",
+                                result.versionId() ) );
+                return;
+            }
+            NotificationManager.success(
+                    LocalizationManager.get( "officialExport.success.title" ),
+                    LocalizationManager.format( "officialExport.success.body",
+                                                result.profileName() ) );
         } );
     }
 
