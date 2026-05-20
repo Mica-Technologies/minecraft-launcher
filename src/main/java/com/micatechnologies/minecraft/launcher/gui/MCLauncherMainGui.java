@@ -2310,6 +2310,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         MenuItem exportPack       = new MenuItem( "Export as ZIP…" );
         MenuItem addToOfficial    = new MenuItem(
                 LocalizationManager.get( "officialExport.menuItem" ) );
+        MenuItem removeOfficial   = new MenuItem(
+                LocalizationManager.get( "officialExport.remove.menuItem" ) );
         MenuItem uninstall        = new MenuItem( "Uninstall…" );
 
         openFolder.setOnAction(       e -> openPackSubfolder( pack, "" ) );
@@ -2354,6 +2356,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             addToOfficial.setDisable( true );
         }
         addToOfficial.setOnAction( e -> handleAddToOfficialLauncher( pack, owner ) );
+        removeOfficial.setOnAction( e -> handleRemoveFromOfficialLauncher( pack, owner ) );
+        // Remove appears only when a Mica-owned profile actually exists.
+        // hasExportedProfile reads launcher_profiles.json on disk — a few
+        // ms, fine to do inline during menu construction. Falls back to
+        // false on any error so a permissions / IO hiccup hides the
+        // option instead of surfacing a broken action.
+        boolean exportedProfileExists = com.micatechnologies.minecraft.launcher.game.modpack
+                .OfficialLauncherExporter.hasExportedProfile( pack );
         uninstall.setOnAction( e -> MCLauncherGameLibraryGui.confirmAndUninstallModpack(
                 pack, pack.getFriendlyName(), owner,
                 showProgress, hideProgress, afterUninstall ) );
@@ -2375,8 +2385,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                 openScreenshots, openResourcePks, openShaderPacks,
                                 new SeparatorMenuItem(), openMods, openConfig,
                                 new SeparatorMenuItem(), createShortcut, copyInviteLink,
-                                new SeparatorMenuItem(), editPack, exportPack, addToOfficial,
-                                new SeparatorMenuItem(), uninstall );
+                                new SeparatorMenuItem(), editPack, exportPack, addToOfficial );
+        if ( exportedProfileExists ) {
+            menu.getItems().add( removeOfficial );
+        }
+        menu.getItems().addAll( new SeparatorMenuItem(), uninstall );
         return menu;
     }
 
@@ -2480,6 +2493,66 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                     owner );
             if ( answer != 1 ) return;
 
+            // Phase 4 — if a modded pack's loader version isn't already
+            // installed in .minecraft/versions/, offer to run the
+            // installer for the user. They can decline and add the
+            // profile anyway (it'll show "Version not found" in Mojang's
+            // UI until they install the loader manually) or accept and
+            // we'll spawn the installer headlessly.
+            boolean autoInstallLoader = false;
+            if ( !loaderInstalled && !pack.isVanillaVersion() ) {
+                int installAnswer = GUIUtilities.showQuestionMessageMultiline(
+                        LocalizationManager.get( "officialExport.installLoader.title" ),
+                        LocalizationManager.format( "officialExport.installLoader.header",
+                                                    loaderName ),
+                        LocalizationManager.format( "officialExport.installLoader.body",
+                                                    loaderName, versionId ),
+                        LocalizationManager.get( "officialExport.installLoader.button.installAndAdd" ),
+                        LocalizationManager.get( "officialExport.installLoader.button.addOnly" ),
+                        owner );
+                if ( installAnswer == 0 ) return;  // user hit Cancel — bail out entirely
+                autoInstallLoader = ( installAnswer == 1 );
+            }
+
+            // Optional: run the loader installer before the regular
+            // export so the version directory exists by the time the
+            // Mojang profile points at it.
+            if ( autoInstallLoader ) {
+                NotificationManager.info(
+                        LocalizationManager.format( "officialExport.installLoader.inProgress",
+                                                    loaderName ),
+                        packName );
+                com.micatechnologies.minecraft.launcher.game.modpack
+                        .LoaderInstallerRunner.Result installResult =
+                        com.micatechnologies.minecraft.launcher.game.modpack
+                                .LoaderInstallerRunner.install( pack,
+                                        com.micatechnologies.minecraft.launcher.game.modpack
+                                                .OfficialLauncherExporter.resolveDotMinecraft() );
+                if ( installResult.success() ) {
+                    NotificationManager.success(
+                            LocalizationManager.get( "officialExport.installLoader.success.title" ),
+                            LocalizationManager.format(
+                                    "officialExport.installLoader.success.body",
+                                    installResult.message() ) );
+                }
+                else {
+                    // Don't bail out — fall through to the regular export
+                    // so the user at least gets the profile entry. The
+                    // success notification at the end will flip to the
+                    // "loader missing" warning variant since the version
+                    // dir still doesn't exist.
+                    NotificationManager.warn(
+                            LocalizationManager.get( "officialExport.installLoader.failed.title" ),
+                            LocalizationManager.format(
+                                    "officialExport.installLoader.failed.body",
+                                    installResult.message(), loaderName ) );
+                    if ( installResult.installerStderr() != null
+                            && !installResult.installerStderr().isBlank() ) {
+                        Logger.logStd( "[loader-installer stderr]\n" + installResult.installerStderr() );
+                    }
+                }
+            }
+
             // Run the actual export. Status notification fires immediately
             // so the user sees progress even on slow filesystems (big
             // modpacks copy a few hundred MB).
@@ -2507,6 +2580,44 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             NotificationManager.success(
                     LocalizationManager.get( "officialExport.success.title" ),
                     LocalizationManager.format( "officialExport.success.body",
+                                                result.profileName() ) );
+        } );
+    }
+
+    /** Phase 5: removes a previously-exported Mica profile from the
+     *  Mojang launcher's launcher_profiles.json and deletes the export
+     *  gameDir. Surfaced from the right-click menu / detail modal only
+     *  when {@code OfficialLauncherExporter.hasExportedProfile()} is
+     *  true. */
+    static void handleRemoveFromOfficialLauncher( GameModPack pack, Stage owner )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            String packName = pack.getPackName();
+            String gameDir = com.micatechnologies.minecraft.launcher.game.modpack
+                    .OfficialLauncherExporter.computeExportGameDir( pack ).toString();
+            int answer = GUIUtilities.showQuestionMessageMultiline(
+                    LocalizationManager.get( "officialExport.remove.confirm.title" ),
+                    LocalizationManager.format( "officialExport.remove.confirm.header", packName ),
+                    LocalizationManager.format( "officialExport.remove.confirm.body",
+                                                packName, gameDir ),
+                    LocalizationManager.get( "officialExport.remove.confirm.button.remove" ),
+                    LocalizationManager.get( "dialog.button.cancel" ),
+                    owner );
+            if ( answer != 1 ) return;
+
+            com.micatechnologies.minecraft.launcher.game.modpack.OfficialLauncherExporter.Result result
+                    = com.micatechnologies.minecraft.launcher.game.modpack
+                            .OfficialLauncherExporter.removeExport( pack );
+            if ( !result.success() ) {
+                NotificationManager.error(
+                        LocalizationManager.get( "officialExport.remove.failed.title" ),
+                        LocalizationManager.format( "officialExport.remove.failed.body",
+                                                    result.errorMessage() ) );
+                return;
+            }
+            NotificationManager.success(
+                    LocalizationManager.get( "officialExport.remove.success.title" ),
+                    LocalizationManager.format( "officialExport.remove.success.body",
                                                 result.profileName() ) );
         } );
     }

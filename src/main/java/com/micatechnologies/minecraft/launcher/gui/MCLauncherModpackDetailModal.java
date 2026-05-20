@@ -1012,28 +1012,61 @@ public class MCLauncherModpackDetailModal extends StackPane
         // users can play from Minecraft's own UI. Detail-modal placement
         // pairs with the main-GUI right-click menu item — both flows call
         // through to the same handleAddToOfficialLauncher helper.
+        //
+        // Phase 5 partner: when a Mica-owned profile already exists for
+        // this pack, swap the Add button for a Remove button + helper text
+        // so the user can back out cleanly. We pick exactly one of the two
+        // to surface so the section doesn't grow visually busy.
         if ( pack.getPackRootFolder() != null ) {
-            MFXButton addToOfficialBtn = new MFXButton(
-                    LocalizationManager.get( "officialExport.menuItem" ) );
-            addToOfficialBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
-            addToOfficialBtn.setMinHeight( 32 );
-            addToOfficialBtn.setPrefHeight( 32 );
-            addToOfficialBtn.setOnAction( e -> {
-                Stage owner = MCLauncherGuiController.getTopStageOrNull();
-                hide();
-                MCLauncherMainGui.handleAddToOfficialLauncher( pack, owner );
-            } );
-            Label addToOfficialHint = new Label(
-                    "Creates a profile in your official Minecraft Launcher that points at this pack's "
-                            + "mods and configs (vanilla versions get a profile-only entry — no copy needed). "
-                            + "Modded packs need the matching modloader installer to be run separately." );
-            addToOfficialHint.setWrapText( true );
-            addToOfficialHint.getStyleClass().add( "subtle" );
-            addToOfficialHint.setStyle( "-fx-font-size: 11px;" );
-            HBox addToOfficialRow = new HBox( 8, addToOfficialBtn );
-            addToOfficialRow.setAlignment( Pos.CENTER_LEFT );
-            section.getChildren().add( addToOfficialRow );
-            section.getChildren().add( addToOfficialHint );
+            boolean exported = com.micatechnologies.minecraft.launcher.game.modpack
+                    .OfficialLauncherExporter.hasExportedProfile( pack );
+
+            if ( exported ) {
+                MFXButton removeBtn = new MFXButton(
+                        LocalizationManager.get( "officialExport.remove.menuItem" ) );
+                removeBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
+                removeBtn.setMinHeight( 32 );
+                removeBtn.setPrefHeight( 32 );
+                removeBtn.setOnAction( e -> {
+                    Stage owner = MCLauncherGuiController.getTopStageOrNull();
+                    hide();
+                    MCLauncherMainGui.handleRemoveFromOfficialLauncher( pack, owner );
+                } );
+                Label removeHint = new Label(
+                        "This pack is already exported to the official Minecraft Launcher. "
+                                + "Removing here deletes the profile + the exported game directory; "
+                                + "your Mica install is unaffected." );
+                removeHint.setWrapText( true );
+                removeHint.getStyleClass().add( "subtle" );
+                removeHint.setStyle( "-fx-font-size: 11px;" );
+                HBox removeRow = new HBox( 8, removeBtn );
+                removeRow.setAlignment( Pos.CENTER_LEFT );
+                section.getChildren().add( removeRow );
+                section.getChildren().add( removeHint );
+            }
+            else {
+                MFXButton addToOfficialBtn = new MFXButton(
+                        LocalizationManager.get( "officialExport.menuItem" ) );
+                addToOfficialBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
+                addToOfficialBtn.setMinHeight( 32 );
+                addToOfficialBtn.setPrefHeight( 32 );
+                addToOfficialBtn.setOnAction( e -> {
+                    Stage owner = MCLauncherGuiController.getTopStageOrNull();
+                    hide();
+                    MCLauncherMainGui.handleAddToOfficialLauncher( pack, owner );
+                } );
+                Label addToOfficialHint = new Label(
+                        "Creates a profile in your official Minecraft Launcher that points at this pack's "
+                                + "mods and configs (vanilla versions get a profile-only entry — no copy needed). "
+                                + "Modded packs can auto-install the matching modloader during export." );
+                addToOfficialHint.setWrapText( true );
+                addToOfficialHint.getStyleClass().add( "subtle" );
+                addToOfficialHint.setStyle( "-fx-font-size: 11px;" );
+                HBox addToOfficialRow = new HBox( 8, addToOfficialBtn );
+                addToOfficialRow.setAlignment( Pos.CENTER_LEFT );
+                section.getChildren().add( addToOfficialRow );
+                section.getChildren().add( addToOfficialHint );
+            }
         }
 
         return section;

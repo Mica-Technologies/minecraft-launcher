@@ -240,6 +240,102 @@ public final class OfficialLauncherExporter
         }
     }
 
+    /**
+     * Reverse of {@link #exportPack} — removes the Mica-owned profile
+     * from {@code launcher_profiles.json} and deletes the export gameDir.
+     * Idempotent: missing profile / missing gameDir count as success
+     * (the desired end-state is "no Mica profile exists for this pack",
+     * which is true either way).
+     *
+     * <p>Phase 5 completion of the lifecycle that Phase 1-3 started:
+     * lets users back out of an export cleanly instead of having to
+     * hand-edit launcher_profiles.json. Surfaced from the right-click
+     * menu + detail modal only when a Mica profile for the pack exists,
+     * so users don't see a no-op button on un-exported packs.</p>
+     */
+    public static Result removeExport( GameModPack pack )
+    {
+        if ( pack == null ) {
+            return Result.failure( "No pack supplied." );
+        }
+        Path dotMc = resolveDotMinecraft();
+        Path profilesFile = dotMc.resolve( "launcher_profiles.json" );
+        if ( !Files.isRegularFile( profilesFile ) ) {
+            // Mojang launcher isn't around — there's nothing to remove,
+            // but we still try to clean up the gameDir below.
+            Logger.logStd( "OfficialLauncherExporter.removeExport: launcher_profiles.json missing — "
+                                   + "skipping profile removal." );
+        }
+        else {
+            try {
+                JsonObject profilesJson = readProfilesJson( profilesFile );
+                if ( profilesJson.has( "profiles" )
+                        && profilesJson.get( "profiles" ).isJsonObject() ) {
+                    JsonObject profiles = profilesJson.getAsJsonObject( "profiles" );
+                    String key = stableProfileKey( pack );
+                    if ( profiles.has( key ) ) {
+                        profiles.remove( key );
+                        atomicWriteProfilesJson( profilesFile, profilesJson );
+                        Logger.logStd( "OfficialLauncherExporter.removeExport: removed profile "
+                                               + key );
+                    }
+                    else {
+                        Logger.logDebug( "OfficialLauncherExporter.removeExport: no profile "
+                                                 + "with key " + key + " — already removed." );
+                    }
+                }
+            }
+            catch ( Exception e ) {
+                Logger.logThrowable( e );
+                return Result.failure( "Couldn't update launcher_profiles.json: " + e.getMessage() );
+            }
+        }
+
+        // Delete the export gameDir last so a failure to update the
+        // profile doesn't orphan the data. Best-effort: failure to
+        // delete files (e.g. a Mojang launcher mid-launch holding a
+        // lock on a mod) is logged but not treated as a removal failure
+        // because the profile-side cleanup already succeeded.
+        try {
+            Path gameDir = computeExportGameDir( pack );
+            if ( Files.isDirectory( gameDir ) ) {
+                deleteRecursively( gameDir );
+                Logger.logStd( "OfficialLauncherExporter.removeExport: deleted " + gameDir );
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Couldn't fully delete export gameDir: " + e.getMessage() );
+        }
+        return Result.success(
+                profileDisplayName( pack ),
+                computeExportGameDir( pack ).toString(),
+                null, true, null );
+    }
+
+    /** Returns {@code true} when a Mica-owned profile for this pack
+     *  exists in launcher_profiles.json. Used by the UI to decide
+     *  whether to surface the Remove action. */
+    public static boolean hasExportedProfile( GameModPack pack )
+    {
+        if ( pack == null ) return false;
+        Path profilesFile = resolveDotMinecraft().resolve( "launcher_profiles.json" );
+        if ( !Files.isRegularFile( profilesFile ) ) return false;
+        try {
+            JsonObject profilesJson = readProfilesJson( profilesFile );
+            if ( !profilesJson.has( "profiles" )
+                    || !profilesJson.get( "profiles" ).isJsonObject() ) {
+                return false;
+            }
+            return profilesJson.getAsJsonObject( "profiles" )
+                    .has( stableProfileKey( pack ) );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Couldn't read launcher_profiles.json to check for export: "
+                                             + e.getMessage() );
+            return false;
+        }
+    }
+
     // ====================================================================
     // Version-ID derivation
     // ====================================================================
@@ -312,7 +408,10 @@ public final class OfficialLauncherExporter
     // gameDir / file copy
     // ====================================================================
 
-    static Path computeExportGameDir( GameModPack pack )
+    /** Where the per-pack export gameDir lives. Public so the
+     *  Phase 5 remove flow can surface the path in its confirmation
+     *  dialog (so users know exactly what gets deleted). */
+    public static Path computeExportGameDir( GameModPack pack )
     {
         String launcherLocal = LocalPathManager.getLauncherLocalPath();
         Path base = Paths.get( launcherLocal, "official-launcher-exports" );
