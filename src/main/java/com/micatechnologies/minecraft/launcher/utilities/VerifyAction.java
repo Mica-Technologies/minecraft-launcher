@@ -70,11 +70,47 @@ public final class VerifyAction
      */
     public static void runForPacks( List< GameModPack > packs )
     {
-        if ( packs == null || packs.isEmpty() ) return;
-        SystemUtilities.spawnNewTask( () -> runForPacksOnWorker( packs ) );
+        runForPacks( packs, null );
     }
 
-    private static void runForPacksOnWorker( List< GameModPack > packs )
+    /**
+     * Variant of {@link #runForPacks(List)} that chains a continuation onto
+     * a successful verify. The continuation runs on the verify worker
+     * thread <em>after</em> the launcher has navigated back to the main GUI
+     * but instead of (not in addition to) the default
+     * "Verify complete" notification — typical use is the Export-to-official-
+     * launcher / Export-to-ZIP flows, where the user-facing success message
+     * should be the export outcome, not the intermediate verify completion.
+     *
+     * <p>If any pack fails verify, the continuation does <strong>not</strong>
+     * run and the standard "completed with errors" notification fires
+     * instead. This keeps the contract simple — callers only run their
+     * follow-up work when every pack is known-good.</p>
+     *
+     * @param packs            the packs to verify
+     * @param onAllSucceeded   continuation invoked when every pack in
+     *                         {@code packs} verifies cleanly. May be
+     *                         {@code null}, in which case behavior matches
+     *                         {@link #runForPacks(List)}.
+     */
+    public static void runForPacks( List< GameModPack > packs, Runnable onAllSucceeded )
+    {
+        if ( packs == null || packs.isEmpty() ) {
+            if ( onAllSucceeded != null ) {
+                SystemUtilities.spawnNewTask( () -> {
+                    try { onAllSucceeded.run(); }
+                    catch ( Throwable t ) {
+                        Logger.logError( "Verify continuation threw: " + t.getClass().getSimpleName() );
+                        Logger.logThrowable( t );
+                    }
+                } );
+            }
+            return;
+        }
+        SystemUtilities.spawnNewTask( () -> runForPacksOnWorker( packs, onAllSucceeded ) );
+    }
+
+    private static void runForPacksOnWorker( List< GameModPack > packs, Runnable onAllSucceeded )
     {
         MCLauncherLaunchProgressGui progressGui;
         try {
@@ -143,6 +179,32 @@ public final class VerifyAction
 
         final int finalSuccess = successCount;
         final int finalFailure = failureCount;
+
+        // Continuation path: clean verify + caller wants to chain its own
+        // follow-up work. Navigate back to main first so the continuation
+        // produces toasts over a stable backdrop, then hand off on this
+        // same worker thread. We deliberately suppress the default
+        // "Verify complete" notification — the continuation produces its
+        // own, more specific success message (e.g. "Export complete").
+        if ( finalFailure == 0 && onAllSucceeded != null ) {
+            GUIUtilities.JFXPlatformRun( () -> {
+                try {
+                    MCLauncherGuiController.goToMainGui();
+                }
+                catch ( IOException e ) {
+                    Logger.logErrorSilent( "Verify action: could not return to main GUI." );
+                }
+            } );
+            try {
+                onAllSucceeded.run();
+            }
+            catch ( Throwable t ) {
+                Logger.logError( "Verify continuation threw: " + t.getClass().getSimpleName() );
+                Logger.logThrowable( t );
+            }
+            return;
+        }
+
         GUIUtilities.JFXPlatformRun( () -> {
             if ( finalFailure == 0 ) {
                 String body = com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
