@@ -39,7 +39,7 @@ mvn test
 mvn clean
 ```
 
-Unit tests live under `src/test/java/` using JUnit 5 (Jupiter). They cover the launcher's pure-logic seams — RGB backend resolver / circuit breaker, the `jar:` URL containment gate, etc. — and intentionally avoid JavaFX runtime, vendor SDKs, and network I/O so they run in well under a second total. CI runs `mvn -B package` on all three platforms (Windows, macOS, Linux) via `.github/workflows/build-packages.yml`, which exercises the test phase as a side effect.
+Unit tests live under `src/test/java/` using JUnit Jupiter (6.x). They cover the launcher's pure-logic seams — RGB backend resolver / circuit breaker, the `jar:` URL containment gate, etc. — and intentionally avoid JavaFX runtime, vendor SDKs, and network I/O so they run in well under a second total. CI runs `mvn -B package` on all three platforms (Windows, macOS, Linux) via `.github/workflows/build-packages.yml`, which exercises the test phase as a side effect.
 
 When adding new tests, prefer extracting a package-private seam in the production class over reflection / Mockito. The current tests use plain JUnit assertions plus small hand-rolled stubs (e.g. `RgbBackendRegistryTest`'s `StubBackend`); we have not added a mocking framework and don't currently need one.
 
