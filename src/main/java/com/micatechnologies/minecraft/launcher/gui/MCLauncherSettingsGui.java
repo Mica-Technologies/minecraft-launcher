@@ -718,10 +718,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // Configure open launcher folder button
         exportSettingsBtn.setOnAction( event -> {
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
-            fileChooser.setTitle( "Export Settings" );
-            fileChooser.setInitialFileName( "launcher-settings.json" );
+            fileChooser.setTitle( LocalizationManager.get( "dialog.fileChooser.exportSettings.title" ) );
+            fileChooser.setInitialFileName(
+                    LocalizationManager.get( "dialog.settings.exportSettings.defaultFilename" ) );
             fileChooser.getExtensionFilters().add(
-                    new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+                    new javafx.stage.FileChooser.ExtensionFilter(
+                            LocalizationManager.get( "dialog.fileChooser.json.filter" ), "*.json" ) );
             java.io.File file = fileChooser.showSaveDialog( stage );
             if ( file != null ) {
                 SystemUtilities.spawnNewTask( () -> {
@@ -1238,9 +1240,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         logoutBtn.setOnAction( e -> {
             javafx.scene.control.Alert confirm = new javafx.scene.control.Alert(
                     javafx.scene.control.Alert.AlertType.CONFIRMATION );
-            confirm.setTitle( "Log Out" );
-            confirm.setHeaderText( "Are you sure you want to log out?" );
-            confirm.setContentText( "You will need to sign in with your Microsoft account again." );
+            confirm.setTitle( LocalizationManager.get( "dialog.settings.logout.title" ) );
+            confirm.setHeaderText( LocalizationManager.get( "dialog.settings.logout.header" ) );
+            confirm.setContentText( LocalizationManager.get( "dialog.settings.logout.body" ) );
             confirm.initOwner( stage );
             confirm.showAndWait().ifPresent( response -> {
                 if ( response == javafx.scene.control.ButtonType.OK ) {

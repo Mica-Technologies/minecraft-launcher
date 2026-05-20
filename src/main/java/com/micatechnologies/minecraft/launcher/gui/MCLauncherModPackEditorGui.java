@@ -453,14 +453,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         GUIUtilities.JFXPlatformRun( () -> {
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle( "Open Modpack" );
+            fileChooser.setTitle( LocalizationManager.get( "dialog.fileChooser.openModpack.title" ) );
             // Primary filter is the canonical .mmcjson extension; .json kept as a secondary
             // filter so users with existing manifests on disk can still open them. Order
             // matters — JavaFX shows the first as the default selection.
             fileChooser.getExtensionFilters().addAll(
                     new FileChooser.ExtensionFilter( ModPackConstants.MODPACK_FILE_DESCRIPTION,
                                                      ModPackConstants.MODPACK_FILE_GLOB ),
-                    new FileChooser.ExtensionFilter( "Legacy JSON Modpack", "*.json" ) );
+                    new FileChooser.ExtensionFilter(
+                            LocalizationManager.get( "dialog.fileChooser.legacyJsonModpack.filter" ),
+                            "*.json" ) );
             File file = fileChooser.showOpenDialog( stage );
             if ( file != null ) {
                 SystemUtilities.spawnNewTask( () -> {
@@ -502,9 +504,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             // Prompt via a JavaFX TextInputDialog
             GUIUtilities.JFXPlatformRun( () -> {
                 javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
-                dialog.setTitle( "Open from URL" );
-                dialog.setHeaderText( "Enter Modpack Manifest URL" );
-                dialog.setContentText( "URL:" );
+                dialog.setTitle( LocalizationManager.get( "dialog.editor.urlInput.title" ) );
+                dialog.setHeaderText( LocalizationManager.get( "dialog.editor.urlInput.header" ) );
+                dialog.setContentText( LocalizationManager.get( "dialog.editor.urlInput.contentLabel" ) );
                 dialog.showAndWait().ifPresent( url -> SystemUtilities.spawnNewTask( () -> {
                     try {
                         updateStatus( "Downloading..." );
@@ -536,14 +538,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         GUIUtilities.JFXPlatformRun( () -> {
             collectFieldsToDocument();
             FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle( "Save Modpack" );
+            fileChooser.setTitle( LocalizationManager.get( "dialog.fileChooser.saveModpack.title" ) );
             // Save defaults to the canonical .mmcjson extension so new files get the unique
             // identity that lets the OS associate them with the launcher. .json remains an
             // option for users who specifically want a generic-looking file.
             fileChooser.getExtensionFilters().addAll(
                     new FileChooser.ExtensionFilter( ModPackConstants.MODPACK_FILE_DESCRIPTION,
                                                      ModPackConstants.MODPACK_FILE_GLOB ),
-                    new FileChooser.ExtensionFilter( "Legacy JSON Modpack", "*.json" ) );
+                    new FileChooser.ExtensionFilter(
+                            LocalizationManager.get( "dialog.fileChooser.legacyJsonModpack.filter" ),
+                            "*.json" ) );
             if ( currentFile != null ) {
                 fileChooser.setInitialDirectory( currentFile.getParentFile() );
                 fileChooser.setInitialFileName( currentFile.getName() );
@@ -704,9 +708,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 GUIUtilities.JFXPlatformRun( () -> {
                     ChoiceDialog< String > dialog = new ChoiceDialog<>(
                             entries.isEmpty() ? null : entries.get( 0 ), entries );
-                    dialog.setTitle( "Pick NeoForge Version" );
-                    dialog.setHeaderText( "Select a NeoForge version" );
-                    dialog.setContentText( "NeoForge:" );
+                    dialog.setTitle( LocalizationManager.get( "dialog.editor.pickNeoForge.title" ) );
+                    dialog.setHeaderText( LocalizationManager.get( "dialog.editor.pickNeoForge.header" ) );
+                    dialog.setContentText( LocalizationManager.get( "dialog.editor.pickNeoForge.contentLabel" ) );
                     applyThemeToDialog( dialog );
                     dialog.showAndWait().ifPresent( selected -> {
                         String url = entryToUrl.get( selected );
@@ -794,10 +798,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 GUIUtilities.JFXPlatformRun( () -> {
                     ChoiceDialog< String > dialog = new ChoiceDialog<>(
                             entries.isEmpty() ? null : entries.get( 0 ), entries );
-                    dialog.setTitle( "Pick Fabric Version" );
-                    dialog.setHeaderText(
-                            "Select a Minecraft version (paired with latest stable Fabric loader)" );
-                    dialog.setContentText( "Fabric:" );
+                    dialog.setTitle( LocalizationManager.get( "dialog.editor.pickFabric.title" ) );
+                    dialog.setHeaderText( LocalizationManager.get( "dialog.editor.pickFabric.header" ) );
+                    dialog.setContentText( LocalizationManager.get( "dialog.editor.pickFabric.contentLabel" ) );
                     applyThemeToDialog( dialog );
                     dialog.showAndWait().ifPresent( selected -> {
                         String url = entryToUrl.get( selected );
@@ -910,9 +913,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 GUIUtilities.JFXPlatformRun( () -> {
                     ChoiceDialog< String > dialog = new ChoiceDialog<>( entries.isEmpty() ? null : entries.get( 0 ),
                                                                          entries );
-                    dialog.setTitle( "Pick Forge Version" );
-                    dialog.setHeaderText( "Select a Forge version" );
-                    dialog.setContentText( "Forge:" );
+                    dialog.setTitle( LocalizationManager.get( "dialog.editor.pickForge.title" ) );
+                    dialog.setHeaderText( LocalizationManager.get( "dialog.editor.pickForge.header" ) );
+                    dialog.setContentText( LocalizationManager.get( "dialog.editor.pickForge.contentLabel" ) );
                     applyThemeToDialog( dialog );
                     dialog.showAndWait().ifPresent( selected -> {
                         String url = entryToForgeUrl.get( selected );
@@ -942,25 +945,29 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         GUIUtilities.JFXPlatformRun( () -> {
             // Build a custom dialog with search field and results list
             Dialog< List< ModPackEditorFileEntry > > dialog = new Dialog<>();
-            dialog.setTitle( "Search Modrinth" );
-            dialog.setHeaderText( "Search for mods on Modrinth" );
+            dialog.setTitle( LocalizationManager.get( "dialog.editor.searchModrinth.title" ) );
+            dialog.setHeaderText( LocalizationManager.get( "dialog.editor.searchModrinth.header" ) );
 
-            ButtonType addButtonType = new ButtonType( "Add Selected", ButtonBar.ButtonData.OTHER );
+            ButtonType addButtonType = new ButtonType(
+                    LocalizationManager.get( "dialog.editor.searchModrinth.addSelected" ),
+                    ButtonBar.ButtonData.OTHER );
             dialog.getDialogPane().getButtonTypes().addAll( addButtonType, ButtonType.CANCEL );
 
             // Search field
             MFXTextField searchField = new MFXTextField();
-            searchField.setFloatingText( "Mod name..." );
+            searchField.setFloatingText(
+                    LocalizationManager.get( "dialog.editor.searchModrinth.modNamePlaceholder" ) );
             searchField.setPrefWidth( 400 );
             searchField.setMinHeight( 36 );
 
-            MFXButton searchBtn = new MFXButton( "Search" );
+            MFXButton searchBtn = new MFXButton(
+                    LocalizationManager.get( "dialog.editor.searchModrinth.searchBtn" ) );
             HBox searchBar = new HBox( 8, searchField, searchBtn );
             searchBar.setAlignment( Pos.CENTER_LEFT );
 
             // Game version filter
             javafx.scene.control.CheckBox versionFilterCheck = new javafx.scene.control.CheckBox(
-                    "Filter by game version:" );
+                    LocalizationManager.get( "dialog.editor.searchModrinth.versionFilter" ) );
             MFXTextField versionFilterField = new MFXTextField();
             versionFilterField.setPrefWidth( 100 );
             versionFilterField.setMinHeight( 32 );
@@ -990,7 +997,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             // until install time. Auto-default to the modpack's loader
             // type ("Any" only when there isn't one set yet).
             javafx.scene.control.CheckBox loaderFilterCheck = new javafx.scene.control.CheckBox(
-                    "Filter by modloader:" );
+                    LocalizationManager.get( "dialog.editor.searchModrinth.loaderFilter" ) );
             io.github.palexdev.materialfx.controls.MFXComboBox< String > loaderFilterCombo =
                     new io.github.palexdev.materialfx.controls.MFXComboBox<>();
             loaderFilterCombo.getItems().addAll( "forge", "neoforge", "fabric", "quilt" );
@@ -1343,9 +1350,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         if ( current.equals( original ) ) {
             GUIUtilities.JFXPlatformRun( () -> {
                 Alert alert = new Alert( Alert.AlertType.INFORMATION );
-                alert.setTitle( "Diff" );
-                alert.setHeaderText( "No Changes" );
-                alert.setContentText( "The document has not been modified since it was last saved or loaded." );
+                alert.setTitle( LocalizationManager.get( "dialog.editor.diff.title" ) );
+                alert.setHeaderText( LocalizationManager.get( "dialog.editor.diff.noChangesHeader" ) );
+                alert.setContentText( LocalizationManager.get( "dialog.editor.diff.noChangesBody" ) );
                 applyThemeToDialog( alert );
                 alert.showAndWait();
             } );
@@ -1374,8 +1381,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         String diffText = diff.toString();
         GUIUtilities.JFXPlatformRun( () -> {
             Alert alert = new Alert( Alert.AlertType.INFORMATION );
-            alert.setTitle( "Diff" );
-            alert.setHeaderText( "Changes since last save/load" );
+            alert.setTitle( LocalizationManager.get( "dialog.editor.diff.title" ) );
+            alert.setHeaderText( LocalizationManager.get( "dialog.editor.diff.changesHeader" ) );
 
             TextArea textArea = new TextArea( diffText );
             textArea.setEditable( false );
@@ -1431,14 +1438,18 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 issues.append( "- Round-trip deserialization failed: " ).append( e.getMessage() ).append( "\n" );
             }
 
-            String result = issues.length() == 0 ? "Validation passed! No issues found." :
-                            "Validation issues:\n" + issues;
+            String result = issues.length() == 0
+                    ? LocalizationManager.get( "dialog.editor.validate.bodyValid" )
+                    : LocalizationManager.get( "dialog.editor.validate.bodyIssuesPrefix" )
+                            + "\n" + issues;
             GUIUtilities.JFXPlatformRun( () -> {
                 javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                         issues.length() == 0 ? javafx.scene.control.Alert.AlertType.INFORMATION :
                         javafx.scene.control.Alert.AlertType.WARNING );
-                alert.setTitle( "Validation Results" );
-                alert.setHeaderText( issues.length() == 0 ? "Valid" : "Issues Found" );
+                alert.setTitle( LocalizationManager.get( "dialog.editor.validate.title" ) );
+                alert.setHeaderText( issues.length() == 0
+                        ? LocalizationManager.get( "dialog.editor.validate.headerValid" )
+                        : LocalizationManager.get( "dialog.editor.validate.headerIssues" ) );
                 alert.setContentText( result );
                 applyThemeToDialog( alert );
                 alert.showAndWait();

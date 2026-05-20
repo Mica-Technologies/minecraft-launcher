@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Worker;
@@ -187,7 +188,7 @@ public class MCLauncherHelpWindow
     private static void buildStage()
     {
         helpStage = new Stage();
-        helpStage.setTitle( "Mica Minecraft Launcher Help" );
+        helpStage.setTitle( LocalizationManager.get( "window.help.title" ) );
         // StageStyle.UNIFIED is required for Mica to composite through the JavaFX scene
         // on Windows. Same reason the main stage uses it — DECORATED keeps an opaque
         // redirection bitmap so DwmSetWindowAttribute(SYSTEMBACKDROP_TYPE) is silently

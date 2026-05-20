@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthIndex;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.geometry.Insets;
@@ -65,10 +66,12 @@ public final class MCLauncherImportConfirmDialog
         Stage stage = new Stage( StageStyle.UTILITY );
         stage.initModality( Modality.WINDOW_MODAL );
         if ( owner != null ) stage.initOwner( owner );
-        stage.setTitle( "Confirm modpack import" );
+        stage.setTitle( LocalizationManager.get( "dialog.importConfirm.title" ) );
 
         // ----- Header: pack name + summary line + totals -----
-        Label title = new Label( ( packName != null && !packName.isBlank() ) ? packName : "Modrinth modpack" );
+        Label title = new Label( ( packName != null && !packName.isBlank() )
+                ? packName
+                : LocalizationManager.get( "dialog.importConfirm.fallbackName" ) );
         title.getStyleClass().add( "heading-h2" );
 
         StringBuilder subBuilder = new StringBuilder();

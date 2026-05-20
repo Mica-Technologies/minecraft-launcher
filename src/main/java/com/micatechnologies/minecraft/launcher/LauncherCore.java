@@ -310,7 +310,8 @@ public class LauncherCore
                     new com.micatechnologies.minecraft.launcher.game.modpack.LaunchTrackerProgressBridge( tracker );
 
             if ( playProgressWindow != null ) {
-                playProgressWindow.setTitle( "Launching: " + gameModPack.getPackName() );
+                playProgressWindow.setTitle( LocalizationManager.format( "window.launchProgress.title",
+                                                                          gameModPack.getPackName() ) );
                 playProgressWindow.attachToTracker( tracker );
 
                 // Wire the Cancel button to this launch's session. Clicking it interrupts

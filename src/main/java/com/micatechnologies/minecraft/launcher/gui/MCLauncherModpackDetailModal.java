@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog;
@@ -509,8 +510,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         playedLabel.getStyleClass().add( "modpackDetailSubtitle" );
         if ( pack.isNeverPlayed() ) {
             playedLabel.setText(
-                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
-                            .get( "main.card.neverPlayed" ) );
+                    LocalizationManager.get("main.card.neverPlayed" ) );
         }
         else {
             playedLabel.setText(
@@ -726,29 +726,35 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         String body = com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.loadManifestText( pack );
         if ( body == null || body.isBlank() ) {
-            NotificationManager.error( "Couldn't read manifest",
-                                        "The pack's manifest body isn't available locally. Try refreshing the pack first." );
+            NotificationManager.error(
+                    LocalizationManager.get("detailModal.manifest.couldNotRead.title" ),
+                    LocalizationManager.get("detailModal.manifest.couldNotRead.body" ) );
             return;
         }
         javafx.stage.FileChooser chooser = new javafx.stage.FileChooser();
-        chooser.setTitle( "Save Manifest" );
+        chooser.setTitle( LocalizationManager.get("dialog.fileChooser.saveManifest.title" ) );
         String defaultName = ( pack.getPackName() == null ? "modpack" : pack.getPackName() )
                 + "-manifest.json";
         chooser.setInitialFileName( defaultName );
         chooser.getExtensionFilters().add(
-                new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+                new javafx.stage.FileChooser.ExtensionFilter(
+                        LocalizationManager.get( "dialog.fileChooser.json.filter" ),
+                        "*.json" ) );
         javafx.stage.Stage owner = MCLauncherGuiController.getTopStageOrNull();
         java.io.File dest = chooser.showSaveDialog( owner );
         if ( dest == null ) return;
         try {
             java.nio.file.Files.writeString( dest.toPath(), body,
                                               java.nio.charset.StandardCharsets.UTF_8 );
-            NotificationManager.success( "Manifest saved",
-                                          dest.getAbsolutePath() );
+            NotificationManager.success(
+                    LocalizationManager.get("detailModal.manifest.saved.title" ),
+                    dest.getAbsolutePath() );
         }
         catch ( java.io.IOException ex ) {
             Logger.logErrorSilent( "Failed to save manifest JSON: " + ex.getMessage() );
-            NotificationManager.error( "Couldn't save manifest", ex.getMessage() );
+            NotificationManager.error(
+                    LocalizationManager.get("detailModal.manifest.couldNotSave.title" ),
+                    ex.getMessage() );
         }
     }
 
@@ -1406,9 +1412,11 @@ public class MCLauncherModpackDetailModal extends StackPane
                     GUIUtilities.JFXPlatformRun( () -> {
                         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                                 javafx.scene.control.Alert.AlertType.INFORMATION );
-                        alert.setTitle( "Shortcut Created" );
+                        alert.setTitle( LocalizationManager.get( "dialog.shortcut.created.title" ) );
                         alert.setHeaderText( null );
-                        alert.setContentText( "Desktop shortcut created for " + pack.getPackName() + "." );
+                        alert.setContentText(
+                                LocalizationManager.format( "dialog.shortcut.created.body",
+                                                            pack.getPackName() ) );
                         alert.initOwner( ownerStage );
                         alert.initStyle( javafx.stage.StageStyle.UTILITY );
                         GUIUtilities.themeAlertChrome( alert );
@@ -1421,8 +1429,9 @@ public class MCLauncherModpackDetailModal extends StackPane
                 Logger.logThrowable( ex );
                 Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
                 if ( ownerStage != null ) {
-                    GUIUtilities.showErrorMessage( "Unable to create desktop shortcut: "
-                                                           + ex.getMessage(), ownerStage );
+                    GUIUtilities.showErrorMessage(
+                            LocalizationManager.format( "dialog.shortcut.failed.body", ex.getMessage() ),
+                            ownerStage );
                 }
             }
         } );

@@ -407,11 +407,11 @@ public final class SystemMenuBarManager
     {
         GUIUtilities.JFXPlatformRun( () -> {
             Alert about = new Alert( Alert.AlertType.INFORMATION );
-            about.setTitle( "About " + LauncherConstants.LAUNCHER_APPLICATION_NAME );
+            about.setTitle( LocalizationManager.format( "dialog.about.title",
+                                                        LauncherConstants.LAUNCHER_APPLICATION_NAME ) );
             about.setHeaderText( LauncherConstants.LAUNCHER_APPLICATION_NAME );
-            about.setContentText( "Version " + LauncherConstants.LAUNCHER_APPLICATION_VERSION + "\n" +
-                                  "© 2021–2026 Mica Technologies\n" +
-                                  "https://micatechnologies.com" );
+            about.setContentText( LocalizationManager.format( "dialog.about.body",
+                                                              LauncherConstants.LAUNCHER_APPLICATION_VERSION ) );
             // Initialize the dialog as a child of the launcher's top stage so it inherits theming
             // and stays modal to the right window.
             javafx.stage.Stage top = MCLauncherGuiController.getTopStageOrNull();
