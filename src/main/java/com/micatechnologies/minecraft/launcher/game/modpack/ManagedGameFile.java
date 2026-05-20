@@ -75,6 +75,61 @@ public class ManagedGameFile
         currentVerifyMode = ( mode != null ) ? mode : LaunchVerifyMode.FULL;
     }
 
+    /** Cross-instance hash-verify cache shared across every {@link ManagedGameFile}.
+     *  Pack-list reloads (and the per-pack carousel rebuild on the home screen)
+     *  construct fresh loader-instance objects every time, so each one's
+     *  {@link #sessionVerified} flag is naked false on construction. Without
+     *  this cache, every refresh re-hashes the multi-MB Forge / NeoForge
+     *  installer JARs — which dominates the cost of a Library refresh on packs
+     *  with chunky installers.
+     *
+     *  <p>The key carries the file path plus the on-disk fingerprint
+     *  (mtime + size) plus the expected hash + algorithm. Any mismatch
+     *  invalidates the cached result implicitly because the key changes.
+     *  An entry whose mtime drifted invalidates because the lookup key uses
+     *  the fresh mtime — the stale entry is silently overwritten on the next
+     *  verify pass, no eviction needed. {@link java.util.concurrent.ConcurrentHashMap}
+     *  is sufficient since reads and writes are independent of one another;
+     *  the worst-case race is two threads doing the same SHA computation
+     *  concurrently and racing to {@code put}, which is benign.</p>
+     *
+     *  <p>The cache is bounded only by the number of distinct
+     *  (path, mtime, size, hash) tuples the launcher actually sees in a
+     *  session. In practice that's "every modpack file × however many
+     *  manifests" — small enough not to need explicit eviction even for
+     *  hoarder installs.</p>
+     */
+    private static final java.util.concurrent.ConcurrentHashMap< VerifyCacheKey, Boolean > verifyCache
+            = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Composite key for {@link #verifyCache}. Includes the on-disk
+     *  fingerprint (mtime + size) so a touched-or-rewritten file
+     *  invalidates the entry automatically, plus the expected hash +
+     *  algorithm so a manifest update that changes the expected value
+     *  invalidates too. */
+    private record VerifyCacheKey( String absPath, long mtimeMs, long sizeBytes,
+                                    String expectedHash, String algo ) {}
+
+    /** Reads the verify cache for {@code localFile} against {@code expectedHash},
+     *  computing + caching the hash check on a miss. Returns the verification
+     *  result, just like the underlying {@code HashUtilities.verifyX}. Internal
+     *  helper for {@link #verifyLocalFile}. */
+    private static boolean verifyWithCache( File localFile, String expectedHash, String algo,
+                                              java.util.function.BiFunction< File, String, Boolean > verifier )
+    {
+        long mtime = localFile.lastModified();
+        long size = localFile.length();
+        VerifyCacheKey key = new VerifyCacheKey( localFile.getAbsolutePath(),
+                                                  mtime, size, expectedHash, algo );
+        Boolean cached = verifyCache.get( key );
+        if ( cached != null ) {
+            return cached;
+        }
+        boolean result = verifier.apply( localFile, expectedHash );
+        verifyCache.put( key, result );
+        return result;
+    }
+
     /**
      * The URL of the remote file
      *
@@ -266,14 +321,19 @@ public class ManagedGameFile
         // and MD5 is broken for both collision and preimage. Until upstream
         // manifests publish SHA-256 widely, the launcher consumes whatever
         // the manifest provides.
+        //
+        // Each branch routes through verifyWithCache so subsequent constructions
+        // of this same file (pack-list reloads, repeat carousel rebuilds) hit
+        // the static cache on (path, mtime, size, hash, algo) instead of
+        // re-hashing the multi-MB installer JARs from scratch.
         if ( hasUsableHash( this.sha256 ) ) {
-            return HashUtilities.verifySHA256( localFile, sha256 );
+            return verifyWithCache( localFile, sha256, "sha256", HashUtilities::verifySHA256 );
         }
         if ( hasUsableHash( this.sha1 ) ) {
-            return HashUtilities.verifySHA1( localFile, sha1 );
+            return verifyWithCache( localFile, sha1, "sha1", HashUtilities::verifySHA1 );
         }
         if ( hasUsableHash( this.md5 ) ) {
-            return HashUtilities.verifyMD5( localFile, md5 );
+            return verifyWithCache( localFile, md5, "md5", HashUtilities::verifyMD5 );
         }
         // No hash declared — accept existence only.
         return localFile.exists() && localFile.isFile();

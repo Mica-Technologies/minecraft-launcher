@@ -292,9 +292,8 @@ public class GameLibraryManifest extends ManagedGameFile
                     // still verify intact (manual cleanup, OS reset, FAST_PATH skipping
                     // re-download): the extracted .dll/.so/.dylib files would never come
                     // back, and LWJGL would crash with UnsatisfiedLinkError on launch.
-                    try {
-                        SystemUtilities.extractJarFile( new JarFile( library.getFullLocalFilePath() ),
-                                                        localNativePath );
+                    try ( JarFile nativeJar = new JarFile( library.getFullLocalFilePath() ) ) {
+                        SystemUtilities.extractJarFile( nativeJar, localNativePath );
                     }
                     catch ( IOException e ) {
                         throw new ModpackException( "Unable to extract native library.", e );

@@ -230,8 +230,14 @@ public class Lwjgl2ArmPatcher
                 progressProvider.submitProgress( "Extracting ARM64 natives...", 0 );
             }
             Logger.logStd( "LWJGL2 ARM64 patching: extracting natives to " + nativesFolderPath );
-            SystemUtilities.extractJarFile( new JarFile( lwjglCacheFile.getAbsolutePath() ), nativesFolderPath );
-            SystemUtilities.extractJarFile( new JarFile( jinputCacheFile.getAbsolutePath() ), nativesFolderPath );
+            // try-with-resources so the file handle releases even if the extract
+            // throws — extractJarFile doesn't close the source itself.
+            try ( JarFile lwjglNativesJar = new JarFile( lwjglCacheFile.getAbsolutePath() ) ) {
+                SystemUtilities.extractJarFile( lwjglNativesJar, nativesFolderPath );
+            }
+            try ( JarFile jinputNativesJar = new JarFile( jinputCacheFile.getAbsolutePath() ) ) {
+                SystemUtilities.extractJarFile( jinputNativesJar, nativesFolderPath );
+            }
 
             // Set executable permissions on extracted native files
             File nativesDir = new File( nativesFolderPath );
