@@ -200,6 +200,45 @@ class OfficialLauncherExporterTest
     }
 
     // =========================================================================================
+    //  Phase 4 — version-ID computation
+    // =========================================================================================
+
+    @Test
+    void versionIdForForgeUsesMcForgeFormat() throws Exception
+    {
+        FakePack pack = new FakePack( "Alto", "https://example/alto.json", false,
+                "1.12.2", "forge", "14.23.5.2855" );
+        assertEquals( "1.12.2-forge-14.23.5.2855",
+                OfficialLauncherExporter.computeVersionId( pack ) );
+    }
+
+    @Test
+    void versionIdForNeoForgeUsesPrefix() throws Exception
+    {
+        FakePack pack = new FakePack( "TestPack", "https://example/p.json", false,
+                "1.21.1", "neoforge", "21.1.95" );
+        assertEquals( "neoforge-21.1.95",
+                OfficialLauncherExporter.computeVersionId( pack ) );
+    }
+
+    @Test
+    void versionIdForFabricUsesLoaderMcFormat() throws Exception
+    {
+        FakePack pack = new FakePack( "FabricPack", "https://example/fp.json", false,
+                "1.21.5", "fabric", "0.16.10" );
+        assertEquals( "fabric-loader-0.16.10-1.21.5",
+                OfficialLauncherExporter.computeVersionId( pack ) );
+    }
+
+    @Test
+    void versionIdForVanillaIsRawMcVersion() throws Exception
+    {
+        FakePack pack = new FakePack( "1.21.4", null, true, "1.21.4", null, null );
+        assertEquals( "1.21.4",
+                OfficialLauncherExporter.computeVersionId( pack ) );
+    }
+
+    // =========================================================================================
     //  Test helpers
     // =========================================================================================
 
