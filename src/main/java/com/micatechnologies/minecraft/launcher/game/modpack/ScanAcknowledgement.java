@@ -42,35 +42,51 @@ import com.micatechnologies.minecraft.launcher.security.SupplementalScanner;
  * <pre>
  * "packScanAcknowledgements": [
  *   {
- *     "fileSha256": "ab12cd34ef5678901234567890abcdef1234567890abcdef1234567890abcdef",
- *     "kind":       "LAUNCHER_CREDENTIAL_FILE_REF",
- *     "locator":    "optifine/Installer.updateLauncherJson",
- *     "reason":     "OptiFine's installer adds itself to launcher_profiles.json for the standalone Mojang launcher; dead code in third-party launchers."
+ *     "innerSha256": "ab12cd34ef5678901234567890abcdef1234567890abcdef1234567890abcdef",
+ *     "kind":        "LAUNCHER_CREDENTIAL_FILE_REF",
+ *     "locator":     "optifine/Installer.updateLauncherJson",
+ *     "reason":      "OptiFine's installer adds itself to launcher_profiles.json for the standalone Mojang launcher; dead code in third-party launchers."
  *   }
  * ]
  * </pre>
  *
  * <h3>Matching</h3>
  *
- * <p>An acknowledgement applies to a finding when all three identity fields
- * match exactly (case-insensitive, after trimming):</p>
+ * <p>An acknowledgement applies to a finding when {@code kind} matches and
+ * <em>at least one</em> of the hash fields matches. The supported hash
+ * fields are:</p>
  *
  * <ul>
- *   <li>{@code fileSha256} — hex SHA-256 of the JAR. Required. A mod update
- *       that changes the JAR's bytes (new version, repackaged) produces a
- *       different hash and the ack stops applying — the new content gets
- *       re-reviewed rather than silently inheriting trust.</li>
- *   <li>{@code kind} — stable rule identifier from
- *       {@link SupplementalScanner.Kind}. Required. Renaming the user-facing
- *       wording of a finding message has no effect on matching because the
- *       kind name is part of the scanner's stable API.</li>
- *   <li>{@code locator} — inner identifier ({@code <class>.<method>} for
- *       content findings, the inner JAR entry path for filename-based
- *       findings). Optional. An empty/missing locator means "any locator
- *       within this file with this kind", which is the right shape for
- *       packs that want to silence every instance of a rule firing inside
- *       a specific JAR.</li>
+ *   <li>{@code innerSha256} — hex SHA-256 of the inner element the finding
+ *       points at (the JAR entry's bytes for filename-based findings, the
+ *       {@code .class} bytecode for class-content findings). <strong>This is
+ *       the recommended form</strong> because it survives outer-mod updates:
+ *       repackaging City Super Mod with a new bundled patch leaves
+ *       {@code marytts/machinelearning/GMMTrainer.exe} byte-identical, so an
+ *       ack keyed on the GMMTrainer.exe inner hash stays valid across every
+ *       City Super Mod release. The new content does get re-reviewed because
+ *       any byte change to the offending element invalidates the ack —
+ *       same trust property as {@link #fileSha256} but at the right scope.</li>
+ *   <li>{@code fileSha256} — hex SHA-256 of the JAR file as a whole. Kept
+ *       for backwards-compat with the original ack shape and for cases where
+ *       a maintainer specifically wants the ack to invalidate on any outer-
+ *       JAR change. The drawback: a repackage of the outer mod invalidates
+ *       the ack even when the inner element is byte-identical, leading to
+ *       the "re-ack the same finding every release" trap.</li>
  * </ul>
+ *
+ * <p>Setting both hashes is supported and operates as <strong>defense-in-
+ * depth</strong>: both must match, so the ack stops applying as soon as
+ * either the outer JAR or the inner element changes. Useful when a
+ * maintainer wants to lock the ack to a specific outer-JAR build but doesn't
+ * want a future build with the same outer hash but a tampered inner entry
+ * to silently inherit trust.</p>
+ *
+ * <p>{@code kind} is required and matched case-insensitively against the
+ * stable {@link SupplementalScanner.Kind} name. {@code locator} is optional
+ * — when set, must match (case-insensitive). When blank, the ack applies to
+ * every finding of the given {@code kind} that satisfies the hash match
+ * inside the file.</p>
  *
  * <p>The {@code reason} field is documentation, not used for matching. It
  * surfaces in the launcher log when the acknowledgement fires so a user or
@@ -80,10 +96,21 @@ import com.micatechnologies.minecraft.launcher.security.SupplementalScanner;
  */
 public final class ScanAcknowledgement
 {
-    /** Hex SHA-256 of the JAR file this acknowledgement applies to.
-     *  Case-insensitive on match. Required: a null/blank value never
-     *  matches anything. */
+    /** Hex SHA-256 of the JAR file this acknowledgement applies to. Optional
+     *  on new manifests, but at least one of {@code fileSha256} /
+     *  {@link #innerSha256} must be set or the ack never matches. Kept for
+     *  back-compat and for maintainers who specifically want any outer-JAR
+     *  change to invalidate the ack. Case-insensitive. */
     public String fileSha256;
+
+    /** Hex SHA-256 of the inner element the finding points at — the JAR
+     *  entry's bytes for filename-based findings, the {@code .class}
+     *  bytecode for class-content findings. <strong>Recommended over
+     *  {@link #fileSha256}</strong> because it survives outer-mod updates as
+     *  long as the embedded artifact / class itself didn't change.
+     *  Case-insensitive. May be left blank when the maintainer wants the
+     *  strict outer-only behavior. */
+    public String innerSha256;
 
     /** Stable rule identifier matching one of {@link SupplementalScanner.Kind}
      *  names. Case-insensitive. Required: a null/blank value never matches. */
@@ -91,8 +118,8 @@ public final class ScanAcknowledgement
 
     /** Optional inner locator — {@code <class>.<method>} for content
      *  findings, inner JAR entry path for filename-based ones. When blank,
-     *  the ack applies to every finding of {@code kind} in the JAR with
-     *  {@code fileSha256}. */
+     *  the ack applies to every finding of {@code kind} in the JAR that
+     *  satisfies the hash match. */
     public String locator;
 
     /** Free-form note from the pack maintainer explaining why this finding
@@ -107,22 +134,42 @@ public final class ScanAcknowledgement
     public boolean matches( SupplementalScanner.Finding finding )
     {
         if ( finding == null ) return false;
-        if ( fileSha256 == null || fileSha256.isBlank() ) return false;
+
+        // Kind is required — drives the "is this the same rule firing?" question.
         if ( kind == null || kind.isBlank() ) return false;
-
-        String findingSha = finding.fileSha256();
-        if ( findingSha == null || findingSha.isBlank() ) return false;
-        if ( !fileSha256.trim().equalsIgnoreCase( findingSha.trim() ) ) return false;
-
         SupplementalScanner.Kind findingKind = finding.kind();
         if ( findingKind == null ) return false;
         if ( !kind.trim().equalsIgnoreCase( findingKind.name() ) ) return false;
 
+        // At least one hash field must be set on the ack. If both are present
+        // (defense-in-depth), both must match — see class-level doc.
+        boolean hasFileHash  = fileSha256  != null && !fileSha256.isBlank();
+        boolean hasInnerHash = innerSha256 != null && !innerSha256.isBlank();
+        if ( !hasFileHash && !hasInnerHash ) return false;
+
+        if ( hasFileHash && !equalsIgnoreCaseTrim( fileSha256, finding.fileSha256() ) ) {
+            return false;
+        }
+        if ( hasInnerHash && !equalsIgnoreCaseTrim( innerSha256, finding.innerSha256() ) ) {
+            return false;
+        }
+
+        // Locator is optional. When set, it must match the finding's locator.
         if ( locator != null && !locator.isBlank() ) {
             String findingLoc = finding.locator();
             if ( findingLoc == null ) return false;
             return locator.trim().equalsIgnoreCase( findingLoc.trim() );
         }
         return true;
+    }
+
+    /** Helper for nullsafe trim+case-insensitive hash comparison. Returns
+     *  {@code false} when {@code findingValue} is null/blank (the finding
+     *  couldn't compute that hash) so a blanket-null finding can never
+     *  satisfy an ack with a concrete hash on the corresponding field. */
+    private static boolean equalsIgnoreCaseTrim( String ackValue, String findingValue )
+    {
+        if ( findingValue == null || findingValue.isBlank() ) return false;
+        return ackValue.trim().equalsIgnoreCase( findingValue.trim() );
     }
 }

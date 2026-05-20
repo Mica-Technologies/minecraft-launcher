@@ -373,40 +373,63 @@ public class GameModPack extends GameModPackMetadata
      * <pre>
      * To silence this finding, append to the manifest's packScanAcknowledgements:
      *   {
-     *     "fileSha256": "ab12cd34...",
-     *     "kind":       "LAUNCHER_CREDENTIAL_FILE_REF",
-     *     "locator":    "optifine/Installer.updateLauncherJson",
-     *     "reason":     ""
+     *     // Recommended: keyed to the inner element's bytes so the ack
+     *     // survives outer-mod repackages. Pick this one unless you have
+     *     // a specific reason to want strict outer-JAR pinning.
+     *     "innerSha256": "ab12cd34...",
+     *     "kind":        "LAUNCHER_CREDENTIAL_FILE_REF",
+     *     "locator":     "optifine/Installer.updateLauncherJson",
+     *     "reason":      ""
+     *
+     *     // Alternative: keyed to the outer JAR's bytes — invalidates on
+     *     // any mod update, even when the offending inner element is
+     *     // unchanged. Useful for defense-in-depth when paired with
+     *     // innerSha256 (both must match).
+     *     // "fileSha256": "ff00ee11..."
      *   }
      * </pre>
      *
-     * <p>The three identity fields come straight from the structured Finding,
-     * so they're stable across launcher versions (renaming the user-facing
-     * message wording doesn't shift them) and tight enough that a different
-     * finding can't accidentally match. Bound to the JAR's SHA-256 so a mod
-     * update invalidates the ack cleanly — the new content gets reviewed
-     * fresh rather than silently inheriting the old trust.</p>
+     * <p>The identity fields come straight from the structured Finding so
+     * they're stable across launcher versions — renaming the user-facing
+     * message wording doesn't shift them, and the (kind, locator) pair is
+     * tight enough that a different finding can't accidentally match.</p>
      */
     private static void emitAcknowledgementHint( SupplementalScanner.Finding f )
     {
         if ( f == null ) return;
-        String sha = f.fileSha256();
-        if ( sha == null || sha.isBlank() ) {
-            // Without a hash we can't produce a stable signature. Tell the user
+        String fileSha  = f.fileSha256();
+        String innerSha = f.innerSha256();
+        if ( ( fileSha == null || fileSha.isBlank() )
+                && ( innerSha == null || innerSha.isBlank() ) ) {
+            // Without any hash we can't produce a stable signature. Tell the user
             // why no hint appears rather than emit an unmatchable snippet.
             Logger.logStd( "No acknowledgement signature available for this finding — "
-                                   + "JAR hash could not be computed. The finding will continue "
-                                   + "to block launches until the file is removed or repaired." );
+                                   + "neither inner-element nor outer-JAR hash could be computed. "
+                                   + "The finding will continue to block launches until the file is "
+                                   + "removed or repaired." );
             return;
         }
         String kindName = f.kind() == null ? "" : f.kind().name();
         String locator = f.locator() == null ? "" : f.locator();
         Logger.logStd( "To silence this finding, append to the manifest's packScanAcknowledgements:" );
         Logger.logStd( "  {" );
-        Logger.logStd( "    \"fileSha256\": \"" + jsonEscape( sha ) + "\"," );
-        Logger.logStd( "    \"kind\":       \"" + jsonEscape( kindName ) + "\"," );
-        Logger.logStd( "    \"locator\":    \"" + jsonEscape( locator ) + "\"," );
-        Logger.logStd( "    \"reason\":     \"\"" );
+        // Lead with innerSha256 — survives outer-mod updates as long as the
+        // bundled artifact / class itself doesn't change. Falls back to a
+        // commented placeholder line when the inner hash couldn't be computed.
+        if ( innerSha != null && !innerSha.isBlank() ) {
+            Logger.logStd( "    // Recommended — survives outer-mod updates." );
+            Logger.logStd( "    \"innerSha256\": \"" + jsonEscape( innerSha ) + "\"," );
+        }
+        else {
+            Logger.logStd( "    // Inner-element hash unavailable for this finding." );
+        }
+        if ( fileSha != null && !fileSha.isBlank() ) {
+            Logger.logStd( "    // Alternative — strict outer-JAR pinning, breaks on mod updates." );
+            Logger.logStd( "    // \"fileSha256\": \"" + jsonEscape( fileSha ) + "\"," );
+        }
+        Logger.logStd( "    \"kind\":        \"" + jsonEscape( kindName ) + "\"," );
+        Logger.logStd( "    \"locator\":     \"" + jsonEscape( locator ) + "\"," );
+        Logger.logStd( "    \"reason\":      \"\"" );
         Logger.logStd( "  }" );
     }
 
