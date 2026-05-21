@@ -567,21 +567,7 @@ public class NetworkUtilities
                     continue;
                 }
             }
-            // Content-Type sanity check: the bounded variant exists specifically for
-            // JSON consumption, so refuse responses whose declared type isn't JSON.
-            // A compromised host that returns text/html with a JSON-shaped body would
-            // otherwise still get parsed by Gson. Servers sometimes omit the header
-            // entirely (legitimate) — allow that case, but reject explicit mismatches.
-            String contentType = connection.getContentType();
-            if ( contentType != null && !contentType.isBlank() ) {
-                String lower = contentType.toLowerCase( java.util.Locale.ROOT );
-                if ( !lower.startsWith( "application/json" )
-                        && !lower.startsWith( "text/json" )
-                        && !lower.startsWith( "application/javascript" ) ) {
-                    throw new IOException( "Unexpected Content-Type for bounded JSON fetch from "
-                                                   + current + ": " + contentType );
-                }
-            }
+            assertAcceptableJsonContentType( connection.getContentType(), current );
             try ( InputStream is = connection.getInputStream();
                   ByteArrayOutputStream out = new ByteArrayOutputStream() ) {
                 byte[] buffer = new byte[8192];
@@ -702,17 +688,7 @@ public class NetworkUtilities
                     continue;
                 }
             }
-            // Content-Type gate — same rule as the non-conditional variant.
-            String contentType = connection.getContentType();
-            if ( contentType != null && !contentType.isBlank() ) {
-                String lower = contentType.toLowerCase( java.util.Locale.ROOT );
-                if ( !lower.startsWith( "application/json" )
-                        && !lower.startsWith( "text/json" )
-                        && !lower.startsWith( "application/javascript" ) ) {
-                    throw new IOException( "Unexpected Content-Type for bounded JSON fetch from "
-                                                   + current + ": " + contentType );
-                }
-            }
+            assertAcceptableJsonContentType( connection.getContentType(), current );
             String etag = connection.getHeaderField( "ETag" );
             String lastMod = connection.getHeaderField( "Last-Modified" );
             try ( InputStream is = connection.getInputStream();
@@ -733,5 +709,46 @@ public class NetworkUtilities
             }
         }
         throw new IOException( "Too many redirects following " + source );
+    }
+
+    /**
+     * Shared Content-Type gate for the bounded JSON fetch variants. The bounded
+     * fetcher exists specifically for JSON consumption; reject responses whose
+     * declared type contradicts that so a compromised host serving text/html
+     * with a JSON-shaped body can't slip past Gson.
+     *
+     * <p>Accepted, in order of specificity:
+     * <ul>
+     *   <li>{@code application/json}, {@code text/json},
+     *       {@code application/javascript} — explicit JSON declarations</li>
+     *   <li>{@code text/plain}, {@code application/octet-stream} — what static
+     *       blob hosts (Azure Blob, S3 with default config, GitHub raw, etc.)
+     *       serve for unknown / custom extensions like {@code .mmcjson} when
+     *       the host has no MIME mapping for it. The body IS JSON; the host
+     *       just doesn't know to advertise it. Downstream Gson parse fails
+     *       noisily if the body actually turns out to be non-JSON, and any
+     *       files referenced from the manifest are SHA-256 verified before
+     *       they're trusted, so accepting these two doesn't materially weaken
+     *       the security posture — it just stops false positives on naive
+     *       hosts.</li>
+     * </ul>
+     *
+     * <p>Missing / blank Content-Type is allowed (some legitimate servers omit
+     * it). Everything else throws.
+     */
+    private static void assertAcceptableJsonContentType( String contentType, URL from )
+            throws IOException
+    {
+        if ( contentType == null || contentType.isBlank() ) return;
+        String lower = contentType.toLowerCase( java.util.Locale.ROOT );
+        if ( lower.startsWith( "application/json" )
+                || lower.startsWith( "text/json" )
+                || lower.startsWith( "application/javascript" )
+                || lower.startsWith( "text/plain" )
+                || lower.startsWith( "application/octet-stream" ) ) {
+            return;
+        }
+        throw new IOException( "Unexpected Content-Type for bounded JSON fetch from "
+                                       + from + ": " + contentType );
     }
 }
