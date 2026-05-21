@@ -650,34 +650,12 @@ public class LauncherCore
                     Process proc = finalGameModPack.getLastLaunchedProcess();
                     if ( proc != null ) {
                         try {
-                            // Pipe server output to launcher console (stdout/stderr)
-                            Thread stdoutPipe = new Thread( () -> {
-                                try ( var is = proc.getInputStream();
-                                      var reader = new java.io.BufferedReader(
-                                              new java.io.InputStreamReader( is ) ) ) {
-                                    String line;
-                                    while ( ( line = reader.readLine() ) != null ) {
-                                        System.out.println( "[SERVER] " + line );
-                                    }
-                                }
-                                catch ( IOException ignored ) {}
-                            }, "server-stdout-pipe" );
-                            Thread stderrPipe = new Thread( () -> {
-                                try ( var is = proc.getErrorStream();
-                                      var reader = new java.io.BufferedReader(
-                                              new java.io.InputStreamReader( is ) ) ) {
-                                    String line;
-                                    while ( ( line = reader.readLine() ) != null ) {
-                                        System.err.println( "[SERVER/ERR] " + line );
-                                    }
-                                }
-                                catch ( IOException ignored ) {}
-                            }, "server-stderr-pipe" );
-                            stdoutPipe.setDaemon( true );
-                            stderrPipe.setDaemon( true );
-                            stdoutPipe.start();
-                            stderrPipe.start();
-
+                            // No userspace stream draining needed here — GameModPackLauncher
+                            // picks ChildIoMode.INHERIT in server mode, which hands the child
+                            // JVM the launcher's own stdout/stderr file descriptors directly.
+                            // The Minecraft server log lands on the operator's SSH terminal
+                            // with kernel-managed ordering; we just block on waitFor() and
+                            // surface the exit code + restart decision.
                             int exitCode = proc.waitFor();
                             Logger.logStd( "Server exited with code " + exitCode );
 

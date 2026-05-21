@@ -109,39 +109,72 @@ public class ProcessUtilities
     /**
      * Convenience overload that leaves the child process's stdout/stderr as
      * default ({@link ProcessBuilder.Redirect#PIPE}) — the caller is responsible
-     * for draining them. Equivalent to {@link #launchCommand(String, String, boolean)
-     * launchCommand(command, workingDirectory, false)}.
+     * for draining them. Equivalent to {@link #launchCommand(String, String, ChildIoMode)
+     * launchCommand(command, workingDirectory, ChildIoMode.PIPE)}.
      *
      * @since 3.0
      */
     public static Process launchCommand( String command, String workingDirectory ) throws IOException
     {
-        return launchCommand( command, workingDirectory, false );
+        return launchCommand( command, workingDirectory, ChildIoMode.PIPE );
+    }
+
+    /**
+     * How the spawned child's stdout / stderr should be wired before the
+     * process starts. The three modes correspond to the three observable
+     * behaviors the launcher needs across its different game-mode paths;
+     * picking the wrong one for the context either silently drops the
+     * output or stalls the child JVM on a full pipe buffer.
+     *
+     * @since 2026.05
+     */
+    public enum ChildIoMode
+    {
+        /**
+         * Default. The child's stdout / stderr are wired to
+         * {@link ProcessBuilder.Redirect#PIPE} and the caller MUST drain
+         * {@link Process#getInputStream()} / {@link Process#getErrorStream()}
+         * (typically by attaching the in-game console GUI) or the child
+         * blocks on its next {@code println} once the kernel pipe buffer
+         * fills — usually within a few hundred ms of Forge logging.
+         */
+        PIPE,
+
+        /**
+         * Wire the child's stdout / stderr to
+         * {@link ProcessBuilder.Redirect#DISCARD}. The kernel sinks the
+         * bytes itself; no userspace reader is required, and the child
+         * never stalls on a full pipe buffer. Use when nothing on the
+         * launcher side will consume the output — e.g. client mode with
+         * the in-game console disabled and no crash-log tail attached.
+         * Without this, the symptom is "JVM is in Task Manager but the
+         * Minecraft window never appears."
+         */
+        DISCARD,
+
+        /**
+         * Wire the child's stdout / stderr to
+         * {@link ProcessBuilder.Redirect#INHERIT} — the child JVM is
+         * handed the launcher's own stdout / stderr file descriptors and
+         * writes directly to whatever the operator's launcher is attached
+         * to (typically an SSH terminal). Zero userspace copying, zero
+         * Java reader threads, kernel-managed line ordering. Used in
+         * server mode where the launcher itself has nothing useful to do
+         * with the game's log stream beyond surfacing it to the operator.
+         */
+        INHERIT
     }
 
     /**
      * Launches a command as a new process without blocking.
      *
-     * <p>When {@code discardOutput} is {@code true}, the child's stdout and
-     * stderr are wired to {@link ProcessBuilder.Redirect#DISCARD} <em>before</em>
-     * the process starts — the kernel sinks the bytes itself and the JVM can't
-     * stall waiting for someone to read its pipes. Use this when nothing on the
-     * launcher side will consume the output (in-game console disabled, no
-     * crash-log tail, etc.). Without it, the OS pipe buffer fills within a few
-     * hundred ms of Forge logging and the child JVM blocks on its next
-     * {@code System.out.println} — visible as "JVM is in Task Manager but the
-     * Minecraft window never appears."</p>
-     *
-     * <p>When {@code discardOutput} is {@code false}, the child uses the
-     * default {@code PIPE} redirect; the caller MUST drain
-     * {@link Process#getInputStream()} and {@link Process#getErrorStream()}
-     * (typically by attaching the in-game console GUI) or the child will
-     * block as described above.</p>
+     * <p>The {@link ChildIoMode} parameter picks how the child's stdout /
+     * stderr are wired before the process starts. See each enum constant's
+     * Javadoc for the trade-off behind each mode.</p>
      *
      * @param command          the full command string
      * @param workingDirectory the working directory
-     * @param discardOutput    true → kernel-level DISCARD on stdout/stderr;
-     *                         false → default PIPE for caller-side draining
+     * @param ioMode           how to wire the child's stdout / stderr
      *
      * @return the started Process
      *
@@ -149,15 +182,24 @@ public class ProcessUtilities
      *
      * @since 2026.3
      */
-    public static Process launchCommand( String command, String workingDirectory, boolean discardOutput )
+    public static Process launchCommand( String command, String workingDirectory, ChildIoMode ioMode )
             throws IOException
     {
         ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) )
                 .redirectErrorStream( false )
                 .directory( SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
-        if ( discardOutput ) {
-            processBuilder.redirectOutput( ProcessBuilder.Redirect.DISCARD );
-            processBuilder.redirectError( ProcessBuilder.Redirect.DISCARD );
+        switch ( ioMode ) {
+            case DISCARD -> {
+                processBuilder.redirectOutput( ProcessBuilder.Redirect.DISCARD );
+                processBuilder.redirectError( ProcessBuilder.Redirect.DISCARD );
+            }
+            case INHERIT -> {
+                processBuilder.redirectOutput( ProcessBuilder.Redirect.INHERIT );
+                processBuilder.redirectError( ProcessBuilder.Redirect.INHERIT );
+            }
+            case PIPE -> {
+                /* default ProcessBuilder behavior; nothing to set */
+            }
         }
         // Filter the inherited environment before handing it to Minecraft / Forge / mods
         // before spawning the game. Mods are unsandboxed JVM code; if the user happened to

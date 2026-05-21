@@ -1160,21 +1160,32 @@ class GameModPackLauncher
         }
 
         // Start game (always non-blocking -- LauncherCore.play() handles the process lifecycle).
-        // When the in-game console is disabled the launcher won't be attaching to the JVM's
-        // stdout/stderr at all, so let the kernel discard those streams instead of leaving
-        // them as PIPE — otherwise the OS pipe buffer fills within a few hundred ms of Forge
-        // logging and the child JVM stalls on its next println (visible as "JVM in Task
-        // Manager, no Minecraft window"). When console is enabled, keep PIPE so the console
-        // GUI's readStream threads can ingest the output for display.
+        // Pick the child's stdout/stderr wiring based on what's going to consume it:
         //
-        // Server mode is a third case: there's no in-game-console GUI to attach (headless)
-        // and the in-game-console toggle is therefore typically off, but LauncherCore's
-        // server-mode loop spawns its own [SERVER] / [SERVER/ERR] tag threads off of
-        // getInputStream() / getErrorStream() so the operator sees the Minecraft server
-        // log on their SSH terminal. Discarding at the kernel here would leave those reader
-        // threads on an empty stream and the operator stares at silence. Keep PIPE in
-        // server mode regardless of the in-game-console toggle.
-        boolean discardOutput = !ConfigManager.getInGameConsoleEnable() && !GameModeManager.isServer();
+        //   * Server mode: INHERIT. The launcher's own stdout/stderr fds are handed directly
+        //     to the child JVM (Java's ProcessBuilder.Redirect.INHERIT = dup2), so the
+        //     Minecraft server log lands on the operator's SSH terminal with zero userspace
+        //     copying, zero Java reader threads, and kernel-managed line ordering. We don't
+        //     have a GUI console to feed and the launcher itself has nothing to do with the
+        //     log stream beyond surfacing it.
+        //
+        //   * Client + in-game console ON: PIPE. The in-game console GUI's readStream threads
+        //     drain getInputStream() / getErrorStream() for display.
+        //
+        //   * Client + in-game console OFF: DISCARD. Nothing is going to read the streams,
+        //     so let the kernel sink them — otherwise the pipe buffer fills within a few
+        //     hundred ms of Forge logging and the child JVM stalls on its next println
+        //     (visible as "JVM in Task Manager, no Minecraft window").
+        ProcessUtilities.ChildIoMode ioMode;
+        if ( GameModeManager.isServer() ) {
+            ioMode = ProcessUtilities.ChildIoMode.INHERIT;
+        }
+        else if ( ConfigManager.getInGameConsoleEnable() ) {
+            ioMode = ProcessUtilities.ChildIoMode.PIPE;
+        }
+        else {
+            ioMode = ProcessUtilities.ChildIoMode.DISCARD;
+        }
         try {
             // Redact --accessToken / --clientToken / legacy "token:<token>:<uuid>" before
             // logging — the launcher command line carries the live MS access token, and
@@ -1184,7 +1195,7 @@ class GameModPackLauncher
                                      + com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
                                                 .redact( fullArgs ) );
             lastLaunchedProcess = ProcessUtilities.launchCommand( fullArgs, pack.getPackRootFolder(),
-                                                                   discardOutput );
+                                                                   ioMode );
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to execute mod pack game.", e );
