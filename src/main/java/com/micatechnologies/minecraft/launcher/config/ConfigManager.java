@@ -17,7 +17,10 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
@@ -389,6 +392,69 @@ public class ConfigManager
                 configObject.addProperty( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY, true );
                 Logger.logStd( "Config migration v4→v5: flipped resizableWindows to true "
                                        + "(it was persisted as false from a pre-2026-05-13 install)." );
+            }
+        }
+
+        if ( storedVersion < 6 ) {
+            // v5 → v6: Mica-hosted modpack manifests moved from /manifest.json
+            // to /manifest.mmcjson on 2026-05-21 to match the launcher's
+            // mmcjson file association. Existing configs still carry pre-rename
+            // URLs in the installed-packs list (and lastModPack when the user's
+            // last-played pack is Mica-hosted); without rewriting them here
+            // they 404 against the CDN once the old blobs are retired and the
+            // pack renders as a failed-load card on every cold start.
+            //
+            // Host gate: only URLs under the official Mica blob are touched.
+            // Third-party manifest.json URLs (custom hosts, file: imports) are
+            // left alone — only we know our blob layout renamed, and rewriting
+            // a foreign URL to a non-existent .mmcjson would itself break the
+            // pack.
+            //
+            // Per-manifest cache files under modpacks/manifest_cache/ are keyed
+            // by sha256(url) so the rename strands them as orphans; that's
+            // intentional — they self-heal on the next online launch when the
+            // .mmcjson URL misses the cache and a fresh fetch repopulates
+            // everything. Costs one extra GET per migrated pack on first
+            // post-upgrade launch, which is cheap. No reason to migrate
+            // cache filenames in lockstep.
+            final String hostPrefix = "https://micauseaststorage.blob.core.windows.net/mc-launcher-api/";
+            final String oldSuffix = ".json";
+            final String newSuffix = ".mmcjson";
+            int migrated = 0;
+
+            if ( configObject.has( ConfigConstants.MOD_PACKS_INSTALLED_KEY )
+                    && configObject.get( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).isJsonArray() ) {
+                JsonArray oldArr = configObject.getAsJsonArray( ConfigConstants.MOD_PACKS_INSTALLED_KEY );
+                JsonArray newArr = new JsonArray( oldArr.size() );
+                for ( JsonElement el : oldArr ) {
+                    if ( el != null && el.isJsonPrimitive() && el.getAsJsonPrimitive().isString() ) {
+                        String url = el.getAsString();
+                        if ( url.startsWith( hostPrefix ) && url.endsWith( oldSuffix ) ) {
+                            newArr.add( new JsonPrimitive(
+                                    url.substring( 0, url.length() - oldSuffix.length() ) + newSuffix ) );
+                            migrated++;
+                            continue;
+                        }
+                    }
+                    newArr.add( el );
+                }
+                configObject.add( ConfigConstants.MOD_PACKS_INSTALLED_KEY, newArr );
+            }
+
+            if ( configObject.has( ConfigConstants.LAST_MP_KEY )
+                    && configObject.get( ConfigConstants.LAST_MP_KEY ).isJsonPrimitive() ) {
+                String last = configObject.get( ConfigConstants.LAST_MP_KEY ).getAsString();
+                if ( last.startsWith( hostPrefix ) && last.endsWith( oldSuffix ) ) {
+                    String rewritten = last.substring( 0, last.length() - oldSuffix.length() ) + newSuffix;
+                    configObject.addProperty( ConfigConstants.LAST_MP_KEY, rewritten );
+                    migrated++;
+                }
+            }
+
+            if ( migrated > 0 ) {
+                Logger.logStd( "Config migration v5→v6: rewrote " + migrated
+                                       + " Mica-hosted modpack URL(s) from .json to .mmcjson "
+                                       + "(manifests moved to the new .mmcjson extension)." );
             }
         }
 
