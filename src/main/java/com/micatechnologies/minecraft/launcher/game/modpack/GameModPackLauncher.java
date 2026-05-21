@@ -1166,7 +1166,15 @@ class GameModPackLauncher
         // logging and the child JVM stalls on its next println (visible as "JVM in Task
         // Manager, no Minecraft window"). When console is enabled, keep PIPE so the console
         // GUI's readStream threads can ingest the output for display.
-        boolean discardOutput = !ConfigManager.getInGameConsoleEnable();
+        //
+        // Server mode is a third case: there's no in-game-console GUI to attach (headless)
+        // and the in-game-console toggle is therefore typically off, but LauncherCore's
+        // server-mode loop spawns its own [SERVER] / [SERVER/ERR] tag threads off of
+        // getInputStream() / getErrorStream() so the operator sees the Minecraft server
+        // log on their SSH terminal. Discarding at the kernel here would leave those reader
+        // threads on an empty stream and the operator stares at silence. Keep PIPE in
+        // server mode regardless of the in-game-console toggle.
+        boolean discardOutput = !ConfigManager.getInGameConsoleEnable() && !GameModeManager.isServer();
         try {
             // Redact --accessToken / --clientToken / legacy "token:<token>:<uuid>" before
             // logging — the launcher command line carries the live MS access token, and
