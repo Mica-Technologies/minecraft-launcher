@@ -23,6 +23,7 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
+import com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 
@@ -55,6 +56,8 @@ class LauncherSession
      */
     void run()
     {
+        ColdStartProfiler.mark( "session_start" );
+
         // Parse launcher args and set game mode
         String initialModPackSelection = LauncherCore.parseLauncherArgs( args );
 
@@ -87,12 +90,14 @@ class LauncherSession
         // load here. See LocaleBootstrap class docs for the rationale.
         com.micatechnologies.minecraft.launcher.consts.localization.LocaleBootstrap.apply(
                 com.micatechnologies.minecraft.launcher.config.ConfigManager.getLocaleOverride() );
+        ColdStartProfiler.mark( "locale_ready" );
 
         // Apply system properties
         LauncherCore.applySystemProperties();
 
         // Configure logging
         LauncherCore.configureLogger();
+        ColdStartProfiler.mark( "logger_ready" );
 
         // Log startup
         Logger.logDebug( "Logging configured. Application arguments parsed: " );
@@ -115,6 +120,7 @@ class LauncherSession
         else {
             Logger.logDebug( LocalizationManager.LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT );
         }
+        ColdStartProfiler.mark( "auth_done" );
 
         // Show a progress window while loading startup data
         MCLauncherProgressGui startupProgressWindow = null;
@@ -178,6 +184,7 @@ class LauncherSession
             Logger.logError( "Startup network task failed." );
             Logger.logThrowable( e );
         }
+        ColdStartProfiler.mark( "packs_loaded" );
 
         // Wire the background-task error listener so the available-modpacks fetch
         // and installed-pack revalidate (both fire-and-forget below) surface their
