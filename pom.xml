@@ -1515,5 +1515,24 @@
             <version>6.1.0</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- TestFX: JavaFX UI test harness. Drives the scene graph by
+             firing real keyboard / mouse events, lookups by selector,
+             and assertions on node state. JDK 26 + JavaFX 26 is newer
+             than TestFX 4.0.18 was published against; the tests run
+             fine in practice but are intentionally kept to a small
+             smoke surface for now. -->
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>testfx-core</artifactId>
+            <version>4.0.18</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testfx</groupId>
+            <artifactId>testfx-junit5</artifactId>
+            <version>4.0.18</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
