@@ -96,21 +96,26 @@ class LauncherSession
         LauncherCore.configureLogger();
         ColdStartProfiler.mark( "logger_ready" );
 
-        // Kick off JavaFX platform startup on a background daemon thread so its
-        // ~600 ms bootstrap (Prism + Glass + font loading) overlaps with the
-        // auth fast-path + cache-first pack load below. Without this, the first
-        // call into MCLauncherGuiController.goToMainGui has to pay the startup
-        // cost serially on the critical path. Idempotent: Platform.startup is
-        // a one-shot, and subsequent JFXPlatformRun calls just see a ready
-        // toolkit and dispatch via Platform.runLater. Server mode skips this —
-        // headless launches don't touch the JavaFX scene graph at all.
+        // Kick off JavaFX platform startup + the GUI-window construction on a
+        // background daemon thread so their combined ~1.0 s of bootstrap work
+        // (Prism + Glass + font loading + MCLauncherGuiWindow.start +
+        // placeholder Scene setup + DWM chrome / Mica backdrop wiring)
+        // overlaps with the auth fast-path + cache-first pack load on the
+        // session thread. By the time the session thread reaches
+        // doModpackSelection -> goToMainGui -> startGui, both Platform and
+        // guiWindow are usually ready, so startGui's synchronized check sees
+        // a non-null guiWindow and returns immediately.
+        //
+        // Idempotent: Platform.startup is a one-shot, MCLauncherGuiController.startGui
+        // is synchronized + null-checked, and subsequent JFXPlatformRun calls
+        // just see a ready toolkit. Server mode skips both — headless launches
+        // don't touch the JavaFX scene graph at all.
         if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
             Thread fxPrestart = new Thread( () -> {
                 try {
                     javafx.application.Platform.startup( () -> {
-                        // No-op initializer; we just want the toolkit up. The
-                        // first scene swap happens later from the session
-                        // thread via the normal goToMainGui path.
+                        // No-op initializer; the first real scene swap happens
+                        // later from the session thread via goToMainGui.
                     } );
                 }
                 catch ( IllegalStateException already ) {
@@ -118,7 +123,16 @@ class LauncherSession
                     // Safe to swallow; the launcher will use the existing one.
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "JavaFX pre-start failed: "
+                    Logger.logWarningSilent( "JavaFX pre-start (toolkit) failed: "
+                                                     + t.getClass().getSimpleName() + " — "
+                                                     + "falling back to lazy init in goToMainGui." );
+                    return; // Don't try to pre-start the window if the toolkit didn't come up.
+                }
+                try {
+                    com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController.prestartGui();
+                }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( "JavaFX pre-start (gui window) failed: "
                                                      + t.getClass().getSimpleName() + " — "
                                                      + "falling back to lazy init in goToMainGui." );
                 }
