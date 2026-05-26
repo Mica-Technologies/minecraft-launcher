@@ -115,13 +115,22 @@
                  the running JVM has no use for them.
                no-man-pages — drops the man pages. Same rationale: not
                  referenced at runtime by anything the launcher does.
+               generate-cds-archive — emit the default class-data-sharing
+                 archive (classes.jsa) at jlink time. HotSpot memory-maps
+                 it at JVM start instead of parsing the JDK classes from
+                 individual modules, shaving wall time on cold start. The
+                 archive lands at runtime/bin/server/classes.jsa inside
+                 the bundled image. Also unlocks downstream AppCDS layering
+                 (-XX:ArchiveClassesAtExit / -XX:SharedArchiveFile) since
+                 HotSpot refuses to dump or load an application archive
+                 when the base archive is missing.
 
              Deliberately NOT included: strip-debug. Stripping debug info
              from JDK class files removes line numbers from stack frames
              that dip into JDK / JavaFX code, which makes user-reported
              crash reports harder to triage. The bytes saved aren't worth
              losing that diagnostic signal. -->
-        <jlink.options>--compress=zip-9 --no-header-files --no-man-pages</jlink.options>
+        <jlink.options>--compress=zip-9 --no-header-files --no-man-pages --generate-cds-archive</jlink.options>
     </properties>
 
     <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
