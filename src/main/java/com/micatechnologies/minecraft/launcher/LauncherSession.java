@@ -112,21 +112,26 @@ class LauncherSession
         // don't touch the JavaFX scene graph at all.
         if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
             Thread fxPrestart = new Thread( () -> {
+                // Platform.startup was already kicked off from LauncherCore.main on a
+                // separate daemon thread before this LauncherSession even existed —
+                // wait for it here (or skip if it never fired, e.g. server mode wrongly
+                // promoted to client). The await is bounded so a wedged toolkit init
+                // can't pin this thread.
+                LauncherCore.awaitFxToolkitReady();
+                // Defensive: confirm toolkit is up. JFXPlatformRun's lazy
+                // fallback handles the "still not ready" case but logs nothing,
+                // so surface it here so the perf-investigation logs catch it.
                 try {
-                    javafx.application.Platform.startup( () -> {
-                        // No-op initializer; the first real scene swap happens
-                        // later from the session thread via goToMainGui.
-                    } );
+                    javafx.application.Platform.runLater( () -> { /* probe */ } );
                 }
-                catch ( IllegalStateException already ) {
-                    // Toolkit was already started (test harness, re-init).
-                    // Safe to swallow; the launcher will use the existing one.
+                catch ( IllegalStateException notReady ) {
+                    Logger.logWarningSilent( "FX toolkit still not ready after main()'s prestart "
+                                                     + "completed — JFXPlatformRun will lazy-init it." );
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "JavaFX pre-start (toolkit) failed: "
-                                                     + t.getClass().getSimpleName() + " — "
-                                                     + "falling back to lazy init in goToMainGui." );
-                    return; // Don't try to pre-start the window if the toolkit didn't come up.
+                    Logger.logWarningSilent( "FX toolkit probe failed: "
+                                                     + t.getClass().getSimpleName() );
+                    return;
                 }
                 try {
                     com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController.prestartGui();
