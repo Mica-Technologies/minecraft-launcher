@@ -138,6 +138,8 @@ public class LauncherCore
      * @since 1.0
      */
     public static void main( String[] args ) {
+        ColdStartProfiler.mark( "main_entry" );
+
         // Opt the process into Per-Monitor DPI Awareness V2 before anything else.
         // JavaFX's Glass backend internally sets only V1, which scales the JavaFX
         // client area per-monitor but leaves the OS-managed title bar sized at the

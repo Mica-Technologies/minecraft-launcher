@@ -490,6 +490,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
+        // Defer two event-loop ticks past the stage's onShown so the first full
+        // layout + paint pass has actually flushed before the profiler stamps its
+        // final mark. Idempotent — only the first call writes anything (a session-
+        // wide flag in the profiler) so subsequent main-menu re-shows are silent.
+        Platform.runLater( () -> Platform.runLater( () -> {
+            ColdStartProfiler.mark( "main_menu_painted" );
+            ColdStartProfiler.writeAndMaybeExit();
+        } ) );
+
         TooltipManager.install( settingsBtn, "Open launcher settings (RAM, theme, JVM flags, proxy)." );
         TooltipManager.install( libraryBtn, "Browse, install, and manage modpacks + vanilla Minecraft versions." );
         // Tooltip text intentionally still uses "Browse, install, manage" — matches
