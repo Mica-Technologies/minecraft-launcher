@@ -119,18 +119,20 @@ public class MCLauncherGuiWindow extends Application
         // appears at its final position rather than flashing at the center first.
         boolean restored = restoreSavedBounds();
 
-        // Install a minimal dark-fill placeholder scene before show() so the very first
-        // paint isn't the OS-default white stage background. We deliberately AVOID
-        // loading any FXML controller here — earlier this code installed the
-        // MCLauncherProgressGui, which (FXML load + setup() + the "Just a Moment"
-        // afterShow text + voxel bounce animation) showed up as a half-second
-        // "progress screen flash" to the user on cold start because the session
-        // thread couldn't swap to the real main GUI until its own FXML + setup
-        // pipeline ran. A bare Pane + theme-colored Scene fill avoids the flash
-        // without paying for an extra FXML scene the user never reads. The real
-        // scene + theme + DWM chrome wiring lands when the session thread later
-        // calls setScene(mainGui) + show().
-        javafx.scene.layout.Pane placeholder = new javafx.scene.layout.Pane();
+        // Install a minimal placeholder scene before show() so the very first
+        // paint isn't the OS-default white stage background. We deliberately
+        // AVOID loading the full MCLauncherProgressGui controller here —
+        // its FXML load + setup() + "Just a Moment" label text + cancel
+        // button etc. was visual noise the user saw flash past during cold
+        // start. Just the three bouncing voxel cubes (built inline so this
+        // codepath has no FXML dependency) over a theme-colored Scene fill
+        // — same "something's happening" affordance as the progress screen
+        // without the full content slab. The real scene + theme + DWM
+        // chrome wiring lands when the session thread later calls
+        // setScene(mainGui) + show().
+        javafx.scene.layout.StackPane placeholder = new javafx.scene.layout.StackPane();
+        placeholder.setStyle( "-fx-background-color: #0C1017;" );
+        placeholder.getChildren().add( buildPlaceholderVoxelCluster() );
         javafx.scene.Scene initialScene = new javafx.scene.Scene( placeholder, PREF_WIDTH, PREF_HEIGHT );
         initialScene.setFill( javafx.scene.paint.Color.web( "#0C1017" ) );
         stage.setScene( initialScene );
@@ -141,6 +143,8 @@ public class MCLauncherGuiWindow extends Application
 
         // Begin tracking bounds changes so we can persist them across launches.
         installBoundsPersistence();
+        // Animations bound to the placeholder scene are stopped on the first
+        // real setScene call below (cleanupPlaceholderAnimations).
 
         // Windows-only: nudge the window position when it crosses to a new monitor so the per-monitor
         // taskbar updates the icon's location. No-op on macOS / Linux.
@@ -151,6 +155,75 @@ public class MCLauncherGuiWindow extends Application
         // Win / Linux (Taskbar.Feature.MENU is macOS-only in practice).
         com.micatechnologies.minecraft.launcher.utilities.MacOsDockManager.installDockMenu(
                 com.micatechnologies.minecraft.launcher.utilities.LauncherActions.buildSharedMenu() );
+    }
+
+    /**
+     * Animations driving the cold-start placeholder voxel bounce. Stopped by
+     * {@link #cleanupPlaceholderAnimations()} the first time a real scene
+     * swaps in, so the timelines don't keep ticking on a hidden / disposed
+     * node tree.
+     */
+    private final java.util.List< javafx.animation.TranslateTransition > placeholderAnimations =
+            new java.util.ArrayList<>();
+
+    /**
+     * Builds the three-cube bouncing voxel cluster shown on the cold-start
+     * placeholder scene. Mirrors the visual + animation of
+     * MCLauncherProgressGui's voxel row, but constructed inline so the
+     * placeholder pays no FXML-load cost.
+     */
+    private javafx.scene.Node buildPlaceholderVoxelCluster() {
+        javafx.scene.layout.HBox row = new javafx.scene.layout.HBox( 10 );
+        row.setAlignment( javafx.geometry.Pos.CENTER );
+        javafx.scene.Group cube1 = buildVoxelCube( "#8B6A3F", "#5C4322", "#3F2E14" );
+        javafx.scene.Group cube2 = buildVoxelCube( "#6FCF3D", "#3C8527", "#2A6B1E" );
+        javafx.scene.Group cube3 = buildVoxelCube( "#A8AEB8", "#6B7280", "#4B5563" );
+        row.getChildren().addAll( cube1, cube2, cube3 );
+        startBounce( cube1,   0 );
+        startBounce( cube2, 150 );
+        startBounce( cube3, 300 );
+        return row;
+    }
+
+    /** One 36×36 isometric voxel cube (top + left + right faces) drawn as SVG paths. */
+    private static javafx.scene.Group buildVoxelCube( String topHex, String leftHex, String rightHex ) {
+        javafx.scene.Group cube = new javafx.scene.Group();
+        javafx.scene.shape.SVGPath top = new javafx.scene.shape.SVGPath();
+        top.setContent( "M 18 0 L 36 9 L 18 18 L 0 9 Z" );
+        top.setFill( javafx.scene.paint.Color.web( topHex ) );
+        javafx.scene.shape.SVGPath left = new javafx.scene.shape.SVGPath();
+        left.setContent( "M 0 9 L 18 18 L 18 36 L 0 27 Z" );
+        left.setFill( javafx.scene.paint.Color.web( leftHex ) );
+        javafx.scene.shape.SVGPath right = new javafx.scene.shape.SVGPath();
+        right.setContent( "M 36 9 L 18 18 L 18 36 L 36 27 Z" );
+        right.setFill( javafx.scene.paint.Color.web( rightHex ) );
+        cube.getChildren().addAll( top, left, right );
+        return cube;
+    }
+
+    /** Indefinite-cycle bounce on the given cube node with a staggered start. */
+    private void startBounce( javafx.scene.Group cube, int delayMs ) {
+        javafx.animation.TranslateTransition tt = new javafx.animation.TranslateTransition(
+                Duration.millis( 500 ), cube );
+        tt.setFromY( 0 );
+        tt.setToY( -8 );
+        tt.setAutoReverse( true );
+        tt.setCycleCount( javafx.animation.Animation.INDEFINITE );
+        tt.setInterpolator( javafx.animation.Interpolator.EASE_BOTH );
+        tt.setDelay( Duration.millis( delayMs ) );
+        tt.play();
+        placeholderAnimations.add( tt );
+    }
+
+    /** Stops every placeholder bounce. Called from setScene the first time a
+     *  real scene is swapped in so the timelines don't keep ticking on a
+     *  hidden / disposed node tree. */
+    private void cleanupPlaceholderAnimations() {
+        for ( javafx.animation.TranslateTransition tt : placeholderAnimations ) {
+            try { tt.stop(); }
+            catch ( Exception | Error ignored ) { /* best-effort */ }
+        }
+        placeholderAnimations.clear();
     }
 
     /**
@@ -352,6 +425,11 @@ public class MCLauncherGuiWindow extends Application
         if ( this.gui != null ) {
             this.gui.cleanup();
         }
+
+        // First real-scene swap: stop the cold-start placeholder's bounce
+        // animations so the timelines don't keep ticking on a now-orphaned
+        // node tree. No-op on every subsequent setScene call.
+        cleanupPlaceholderAnimations();
 
         // Store new GUI and set it up
         this.gui = gui;
