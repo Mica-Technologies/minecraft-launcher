@@ -188,28 +188,17 @@ class LauncherSession
 
         // Wire the background-task error listener so the available-modpacks fetch
         // and installed-pack revalidate (both fire-and-forget below) surface their
-        // failures as a notification toast instead of vanishing into the log. The
-        // listener is set BEFORE kicking off the bg tasks so an early failure
-        // (DNS down at startup) still gets the toast — the registry's no-op-when-
-        // unset semantics handle the case where the user is in headless server
-        // mode without a NotificationManager-capable environment.
+        // failures as a notification toast instead of vanishing into the log.
         GameModPackManager.setBackgroundErrorListener( ( message, cause ) ->
                 com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
                         "Background task failed", message ) );
+        ColdStartProfiler.mark( "bg_listener_set" );
 
-        // Available-modpacks fetch — fire-and-forget. Main menu shows a "loading available
-        // packs" indicator while this runs; Library screen waits on its completion. The
-        // async-connectivity-check path means we don't have a sync `online` boolean to
-        // gate on anymore, but the fetch internally handles offline failure (returns
-        // empty list, surfaces the error via the background-error listener wired above),
-        // so unconditionally kicking it off is safe.
         GameModPackManager.startAvailableModPacksFetchAsync();
+        ColdStartProfiler.mark( "available_fetch_kicked" );
 
-        // Kick off background prefetch of dominant-color gradients for every available modpack.
-        // Async — the launcher doesn't wait for it before continuing to the main GUI. By the
-        // time the user opens the Game Library, the cache is warm and gradients render
-        // instantly instead of stalling the FX thread on per-card histogram work.
         com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui.prefetchAvailableModpackBackgrounds();
+        ColdStartProfiler.mark( "prefetch_kicked" );
 
         // Show main (mod pack selection) window
         LauncherCore.doModpackSelection( initialModPackSelection, previousRestartError );
