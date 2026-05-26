@@ -118,6 +118,70 @@ public class MCLauncherGuiController
         return startGui();
     }
 
+    /**
+     * Pre-constructed {@link MCLauncherMainGui} instance, populated by
+     * {@link #prebuildMainGui()} from the FX-prestart thread. Picked up
+     * (and cleared) by {@link #goToMainGui()} on the session thread's
+     * first navigation to the main menu — avoids paying the FXML-load
+     * cost on the critical path.
+     *
+     * <p>Volatile so the session-thread read sees the prestart-thread
+     * write without an explicit memory barrier. {@link AtomicBoolean}
+     * tracks whether construction is in progress (to keep concurrent
+     * pre-builds from racing each other).</p>
+     */
+    private static volatile MCLauncherMainGui prebuiltMainGui = null;
+    private static final java.util.concurrent.atomic.AtomicBoolean prebuildInProgress =
+            new java.util.concurrent.atomic.AtomicBoolean( false );
+
+    /**
+     * Pre-constructs the {@link MCLauncherMainGui} instance (FXML load + node
+     * graph) so the session thread's first goToMainGui call can skip the
+     * ~250 ms FXML parse. Idempotent + non-blocking on contention: a second
+     * caller sees prebuildInProgress already set and returns immediately.
+     *
+     * <p>Pre-condition: {@link #startGui()} has been called and succeeded so
+     * {@link #guiWindow} is non-null. The FX prestart thread chains this
+     * after {@link #prestartGui()} returns.</p>
+     */
+    public static void prebuildMainGui() {
+        if ( !startSuccess.get() || guiWindow == null ) return;
+        if ( prebuiltMainGui != null ) return;
+        if ( !prebuildInProgress.compareAndSet( false, true ) ) return;
+        try {
+            // Constructor loads the FXML on the FX thread via JFXPlatformRun;
+            // the session thread can be doing anything during this. The
+            // controller's setup() is NOT called here — that runs later, on
+            // the FX thread, from MCLauncherGuiWindow.setScene, by which
+            // point MCLauncherAuthManager.getLoggedInUser() (which setup()
+            // dereferences for the player chip) has been populated by the
+            // session-thread auth fast-path.
+            MCLauncherMainGui instance = new MCLauncherMainGui( guiWindow.getStage() );
+            prebuiltMainGui = instance;
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "Main GUI pre-build failed: "
+                                             + t.getClass().getSimpleName() + " — "
+                                             + "falling back to lazy construct in goToMainGui." );
+        }
+        finally {
+            prebuildInProgress.set( false );
+        }
+    }
+
+    /**
+     * Returns + clears the pre-built {@link MCLauncherMainGui} instance, or
+     * {@code null} when no pre-build is available. Single-use: a subsequent
+     * call returns null until {@link #prebuildMainGui()} runs again.
+     */
+    private static MCLauncherMainGui consumePrebuiltMainGui() {
+        MCLauncherMainGui pre = prebuiltMainGui;
+        if ( pre != null ) {
+            prebuiltMainGui = null;
+        }
+        return pre;
+    }
+
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherMainGui goToMainGui() throws IOException {
         com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_construct_start" );
@@ -125,7 +189,15 @@ public class MCLauncherGuiController
         boolean guiStarted = startGui();
         com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_fx_started" );
         if ( guiStarted ) {
-            newMainGui = new MCLauncherMainGui( guiWindow.getStage() );
+            // Pick up the pre-built instance if the FX-prestart thread had
+            // time to construct one in parallel with the session thread's
+            // auth + pack-load work. Falls back to constructing on the spot
+            // when prestart hasn't completed (slow disk, late goToMainGui
+            // re-entry after a navigation away + back, etc.).
+            newMainGui = consumePrebuiltMainGui();
+            if ( newMainGui == null ) {
+                newMainGui = new MCLauncherMainGui( guiWindow.getStage() );
+            }
             com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_instance_built" );
             guiWindow.setScene( newMainGui );
             com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_scene_set" );
