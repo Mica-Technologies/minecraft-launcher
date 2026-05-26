@@ -83,6 +83,21 @@ class GameModPackFileSync
      */
     void fetchLatestMods() throws ModpackException
     {
+        // Imported packs (Prism / MultiMC instance imports) carry their
+        // own user-curated mods/ folder that was never authored as a
+        // Mica manifest. The packMods list is empty, so the regular
+        // clearFloatingMods sweep would wipe everything the user just
+        // imported. Skip both the cleanup and the download loop — there's
+        // nothing to download. The user manages this pack's mods through
+        // the detail-modal Mods section (toggle / Modrinth update check)
+        // and any direct filesystem edits.
+        if ( metadata.isImportedSkipSync() ) {
+            if ( progressProvider != null ) {
+                progressProvider.submitProgress( "Imported pack — skipping mod sync", 100 );
+            }
+            return;
+        }
+
         // Cleanup mods that don't belong
         clearFloatingMods();
         if ( progressProvider != null ) {

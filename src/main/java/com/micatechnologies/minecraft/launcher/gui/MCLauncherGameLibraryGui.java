@@ -116,6 +116,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML MFXTextField urlAddField;
     @SuppressWarnings( "unused" ) @FXML MFXButton urlAddBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton importZipBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton importPrismBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton editorBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton hostingManifestBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton returnBtn;
@@ -438,6 +439,53 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     GUIUtilities.JFXPlatformRun( () -> {
                         importZipBtn.setText( defaultText );
                         importZipBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
+                    } );
+                }
+            } );
+        } );
+
+        // Import a MultiMC / Prism Launcher instance folder. Generates a
+        // Mica manifest with packImportedSkipSync=true and copies the
+        // instance's .minecraft/ contents into the new pack folder.
+        importPrismBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
+        importPrismBtn.setOnAction( e -> {
+            javafx.stage.DirectoryChooser dc = new javafx.stage.DirectoryChooser();
+            dc.setTitle( LocalizationManager.get( "dialog.dirChooser.importPrism.title" ) );
+            File instanceDir = dc.showDialog( stage );
+            if ( instanceDir == null ) return;
+            final String dirPath = instanceDir.getAbsolutePath();
+            importPrismBtn.setDisable( true );
+            String prismDefaultText = importPrismBtn.getText();
+            importPrismBtn.setText( LocalizationManager.get( "browse.urlAdd.checking" ) );
+            beginImport( instanceDir.getName() );
+            SystemUtilities.spawnNewTask( () -> {
+                try {
+                    com.micatechnologies.minecraft.launcher.game.modpack.import_
+                            .PrismInstanceImporter.importInstance( new File( dirPath ) );
+                    NotificationManager.success(
+                            LocalizationManager.get( "notification.import.prism.success.title" ),
+                            LocalizationManager.format(
+                                    "notification.import.prism.success.body",
+                                    instanceDir.getName() ) );
+                }
+                catch ( com.micatechnologies.minecraft.launcher.game.modpack.import_
+                        .PrismInstanceImporter.ImportException ie ) {
+                    NotificationManager.warn(
+                            LocalizationManager.get( "notification.import.prism.failed.title" ),
+                            ie.getMessage() );
+                }
+                catch ( Throwable t ) {
+                    Logger.logErrorSilent( "Unexpected error during Prism import: "
+                                                   + t.getClass().getSimpleName() + " — " + t.getMessage() );
+                    NotificationManager.warn(
+                            LocalizationManager.get( "notification.import.prism.failed.title" ),
+                            LocalizationManager.get( "notification.import.unexpected.body" ) );
+                }
+                finally {
+                    endImport();
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        importPrismBtn.setText( prismDefaultText );
+                        importPrismBtn.setDisable( AnnouncementManager.getDisableModpacksEdit() );
                     } );
                 }
             } );
