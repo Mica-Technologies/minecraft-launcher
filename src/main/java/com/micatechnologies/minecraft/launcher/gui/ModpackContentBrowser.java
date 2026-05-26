@@ -106,16 +106,18 @@ public final class ModpackContentBrowser
     public static Node buildWorldsSection( GameModPack pack, SectionBuilder sectionBox, Stage owner )
     {
         VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.worlds" ) );
-        File savesDir = subDir( pack, "saves" );
-        File[] worlds = savesDir == null ? null : savesDir.listFiles( File::isDirectory );
-        if ( worlds == null || worlds.length == 0 ) {
-            section.getChildren().add( emptyLabel() );
-            return section;
-        }
-        Arrays.sort( worlds, Comparator.comparingLong( File::lastModified ).reversed() );
-        for ( File world : worlds ) {
-            section.getChildren().add( buildFileRow( world, true, true, owner, section ) );
-        }
+        populateAsync( section,
+                       () -> scanSortedFiles( pack, "saves", File::isDirectory,
+                                              Comparator.comparingLong( File::lastModified ).reversed() ),
+                       ( sec, worlds ) -> {
+                           if ( worlds == null || worlds.length == 0 ) {
+                               sec.getChildren().add( emptyLabel() );
+                               return;
+                           }
+                           for ( File world : worlds ) {
+                               sec.getChildren().add( buildFileRow( world, true, true, owner, sec ) );
+                           }
+                       } );
         return section;
     }
 
@@ -126,21 +128,27 @@ public final class ModpackContentBrowser
                                                   StackPane overlayHost )
     {
         VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.screenshots" ) );
-        File shotsDir = subDir( pack, "screenshots" );
-        File[] shots = shotsDir == null ? null : shotsDir.listFiles( ( dir, name ) -> {
-            String lower = name.toLowerCase();
-            return lower.endsWith( ".png" ) || lower.endsWith( ".jpg" ) || lower.endsWith( ".jpeg" );
-        } );
-        if ( shots == null || shots.length == 0 ) {
-            section.getChildren().add( emptyLabel() );
-            return section;
-        }
-        Arrays.sort( shots, Comparator.comparingLong( File::lastModified ).reversed() );
-        FlowPane grid = new FlowPane( THUMB_GAP, THUMB_GAP );
-        for ( File shot : shots ) {
-            grid.getChildren().add( buildScreenshotTile( shot, overlayHost ) );
-        }
-        section.getChildren().add( grid );
+        populateAsync( section,
+                       () -> scanSortedFiles( pack, "screenshots",
+                                              f -> {
+                                                  if ( !f.isFile() ) return false;
+                                                  String n = f.getName().toLowerCase();
+                                                  return n.endsWith( ".png" )
+                                                          || n.endsWith( ".jpg" )
+                                                          || n.endsWith( ".jpeg" );
+                                              },
+                                              Comparator.comparingLong( File::lastModified ).reversed() ),
+                       ( sec, shots ) -> {
+                           if ( shots == null || shots.length == 0 ) {
+                               sec.getChildren().add( emptyLabel() );
+                               return;
+                           }
+                           FlowPane grid = new FlowPane( THUMB_GAP, THUMB_GAP );
+                           for ( File shot : shots ) {
+                               grid.getChildren().add( buildScreenshotTile( shot, overlayHost ) );
+                           }
+                           sec.getChildren().add( grid );
+                       } );
         return section;
     }
 
@@ -154,22 +162,30 @@ public final class ModpackContentBrowser
     public static Node buildModsSection( GameModPack pack, SectionBuilder sectionBox, VBox bodyToRebuild )
     {
         VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.mods" ) );
-        File modsDir = subDir( pack, "mods" );
-        File[] mods = modsDir == null ? null : modsDir.listFiles( f -> {
-            if ( !f.isFile() ) return false;
-            String name = f.getName().toLowerCase();
-            return name.endsWith( ".jar" ) || name.endsWith( ".jar.disabled" );
-        } );
-        if ( mods == null || mods.length == 0 ) {
-            section.getChildren().add( emptyLabel() );
-            return section;
-        }
-        // Sort by filename (case-insensitive). Group enabled + disabled
-        // together so the user sees pairs near each other; a strict by-name
-        // sort already achieves that since the disabled suffix sorts after
-        // the bare .jar.
-        Arrays.sort( mods, Comparator.comparing( ( File f ) -> f.getName().toLowerCase() ) );
+        populateAsync( section,
+                       () -> scanSortedFiles( pack, "mods",
+                                              f -> {
+                                                  if ( !f.isFile() ) return false;
+                                                  String n = f.getName().toLowerCase();
+                                                  return n.endsWith( ".jar" ) || n.endsWith( ".jar.disabled" );
+                                              },
+                                              // Group enabled + disabled together by sorting by
+                                              // case-insensitive filename — the .disabled suffix
+                                              // naturally sorts after the bare .jar.
+                                              Comparator.comparing( ( File f ) -> f.getName().toLowerCase() ) ),
+                       ( sec, mods ) -> {
+                           if ( mods == null || mods.length == 0 ) {
+                               sec.getChildren().add( emptyLabel() );
+                               return;
+                           }
+                           File modsDirRef = subDir( pack, "mods" );
+                           renderModsSection( sec, modsDirRef, mods, bodyToRebuild );
+                       } );
+        return section;
+    }
 
+    private static void renderModsSection( VBox section, File modsDir, File[] mods, VBox bodyToRebuild )
+    {
         // "Check for updates" affordance — runs a background scan that
         // hashes each enabled jar + queries Modrinth's /version_file
         // endpoint. Result is one ModUpdate per jar; the row's meta label
@@ -255,7 +271,6 @@ public final class ModpackContentBrowser
             }
             section.getChildren().add( row );
         }
-        return section;
     }
 
     /** One row for a mod jar — enabled or disabled. The toggle button
@@ -383,29 +398,27 @@ public final class ModpackContentBrowser
      * <p>Section is empty-stated when no favorites exist; the Add row
      * is still present so the user can add their first one.</p>
      */
+    /** Snapshot of {@code server-favorites.json} for one pack, read
+     *  off the FX thread. Bundles the favorites list with the
+     *  disableDefaultServer flag so a single bg trip covers both. */
+    private record ServerStoreSnapshot( java.util.List< ServerFavorite > favorites,
+                                        boolean defaultServerDisabled ) {}
+
     public static Node buildServersSection( GameModPack pack, SectionBuilder sectionBox )
     {
         VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.servers" ) );
 
-        // Manifest-declared "pack default" row. Renders only when the
-        // pack's manifest sets packDefaultServerHost; shows a labeled
-        // address + an auto-join toggle. The toggle writes to the
-        // server-favorites.json sidecar (disableDefaultServer flag),
-        // which GameModPack.consumeQuickJoinServer honors at launch time.
+        // Manifest-declared default server is read from the pack's in-
+        // memory metadata (no I/O), but the auto-join-disabled flag
+        // lives in the sidecar — so the row needs FS data before it
+        // can render its checkbox correctly. Slot in async.
         ServerFavorite manifestDefault = pack.getDefaultServer();
-        if ( manifestDefault != null ) {
-            section.getChildren().add( buildDefaultServerRow( pack, manifestDefault ) );
-        }
 
-        // Mutable backing list — we re-render the section's row VBox in
-        // place after each Add / Remove rather than rebuilding the modal.
-        // ArrayList suffices: list is single-digit length in practice.
-        final java.util.List< ServerFavorite > favorites =
-                new java.util.ArrayList<>( ServerFavoritesStore.load( pack ) );
-
-        // Add row: Name + Address fields with an Add button. Both fields
-        // clear on success and stay populated on validation failure so
-        // the user can fix their input without re-typing.
+        // Add row stays synchronous — text fields are cheap, and the
+        // user can start typing a new server while the favorites list
+        // loads. The handler closes over a mutable favorites list that
+        // we'll populate from the background read.
+        final java.util.List< ServerFavorite > favorites = new java.util.ArrayList<>();
         HBox addRow = new HBox( 8 );
         addRow.setAlignment( Pos.CENTER_LEFT );
         MFXTextField nameField = new MFXTextField();
@@ -418,16 +431,9 @@ public final class ModpackContentBrowser
         addBtn.getStyleClass().add( "heroCardPrimaryBtn" );
         addBtn.setPrefHeight( 28 );
         addRow.getChildren().addAll( nameField, addressField, addBtn );
-        section.getChildren().add( addRow );
 
-        // Holder VBox for the rendered favorite rows — rebuilt in place
-        // after Add / Remove so we never have to remove + re-add nodes
-        // from the parent section.
         VBox rowsBox = new VBox( 4 );
-        section.getChildren().add( rowsBox );
-
         Runnable rerender = () -> renderServerRows( pack, favorites, rowsBox );
-        rerender.run();
 
         addBtn.setOnAction( e -> {
             ServerFavorite parsed = ServerFavorite.parse( nameField.getText(), addressField.getText() );
@@ -453,6 +459,23 @@ public final class ModpackContentBrowser
             addressField.clear();
             rerender.run();
         } );
+
+        populateAsync( section,
+                       () -> new ServerStoreSnapshot( ServerFavoritesStore.load( pack ),
+                                                     ServerFavoritesStore.isDefaultServerDisabled( pack ) ),
+                       ( sec, snapshot ) -> {
+                           if ( manifestDefault != null ) {
+                               sec.getChildren().add( buildDefaultServerRow( pack, manifestDefault,
+                                                                              snapshot != null
+                                                                                      && snapshot.defaultServerDisabled() ) );
+                           }
+                           sec.getChildren().add( addRow );
+                           sec.getChildren().add( rowsBox );
+                           if ( snapshot != null && snapshot.favorites() != null ) {
+                               favorites.addAll( snapshot.favorites() );
+                           }
+                           rerender.run();
+                       } );
         return section;
     }
 
@@ -530,7 +553,7 @@ public final class ModpackContentBrowser
         return row;
     }
 
-    private static HBox buildDefaultServerRow( GameModPack pack, ServerFavorite manifestDefault )
+    private static HBox buildDefaultServerRow( GameModPack pack, ServerFavorite manifestDefault, boolean disabled )
     {
         HBox row = new HBox( 10 );
         row.setAlignment( Pos.CENTER_LEFT );
@@ -547,8 +570,6 @@ public final class ModpackContentBrowser
 
         Label addr = new Label( manifestDefault.displayAddress() );
         addr.getStyleClass().add( "muted" );
-
-        boolean disabled = ServerFavoritesStore.isDefaultServerDisabled( pack );
 
         javafx.scene.control.CheckBox autoJoin = new javafx.scene.control.CheckBox(
                 LocalizationManager.get( "detailModal.servers.autoJoinToggle" ) );
@@ -604,17 +625,19 @@ public final class ModpackContentBrowser
                                                    StackPane overlayHost )
     {
         VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.crashHistory" ) );
-        File crashDir = subDir( pack, "crash-reports" );
-        File[] reports = crashDir == null ? null
-                : crashDir.listFiles( ( dir, name ) -> name.endsWith( ".txt" ) );
-        if ( reports == null || reports.length == 0 ) {
-            section.getChildren().add( emptyLabel() );
-            return section;
-        }
-        Arrays.sort( reports, Comparator.comparingLong( File::lastModified ).reversed() );
-        for ( File r : reports ) {
-            section.getChildren().add( buildCrashRow( r, overlayHost ) );
-        }
+        populateAsync( section,
+                       () -> scanSortedFiles( pack, "crash-reports",
+                                              f -> f.isFile() && f.getName().endsWith( ".txt" ),
+                                              Comparator.comparingLong( File::lastModified ).reversed() ),
+                       ( sec, reports ) -> {
+                           if ( reports == null || reports.length == 0 ) {
+                               sec.getChildren().add( emptyLabel() );
+                               return;
+                           }
+                           for ( File r : reports ) {
+                               sec.getChildren().add( buildCrashRow( r, overlayHost ) );
+                           }
+                       } );
         return section;
     }
 
@@ -722,22 +745,111 @@ public final class ModpackContentBrowser
     // Section helpers
     // ====================================================================
 
+    /** Single-row placeholder shown while a section populates
+     *  asynchronously. Small indeterminate spinner + "Loading…" label,
+     *  styled muted so it doesn't draw attention away from the rest of
+     *  the modal. Reused by {@link #populateAsync}. */
+    private static HBox buildLoadingPlaceholder()
+    {
+        HBox row = new HBox( 8 );
+        row.setAlignment( Pos.CENTER_LEFT );
+        row.setPadding( new Insets( 4, 0, 4, 0 ) );
+        javafx.scene.control.ProgressIndicator spinner = new javafx.scene.control.ProgressIndicator();
+        spinner.setPrefSize( 16, 16 );
+        spinner.setMaxSize( 16, 16 );
+        Label label = new Label( LocalizationManager.get( "detailModal.section.loading" ) );
+        label.getStyleClass().add( "muted" );
+        row.getChildren().addAll( spinner, label );
+        return row;
+    }
+
+    /**
+     * Lazy-populate a section. Drops a {@link #buildLoadingPlaceholder
+     * loading spinner} into the section immediately so the modal can
+     * fade in with the section header visible, then runs {@code bgWork}
+     * on a worker thread. When that returns, the result is handed to
+     * {@code fxRender} on the FX thread, which clears the placeholder
+     * and appends the real rows.
+     *
+     * <p>Centralising this pattern keeps every section builder a single
+     * synchronous call (returns a Node immediately) while pushing the
+     * filesystem scan + heavy-traffic node construction off the FX
+     * thread. The user sees the modal open in ~milliseconds with
+     * spinners that fill in as data arrives, rather than waiting 1-2 s
+     * for everything to load before the modal even appears.</p>
+     *
+     * @param <T>      result type the bg work produces
+     * @param section  section VBox the placeholder + rows go into
+     * @param bgWork   off-thread scan / parse / compute work; result
+     *                 is handed to {@code fxRender}; may return null
+     * @param fxRender on-FX-thread render step that receives the
+     *                 section + the bg result; the placeholder is
+     *                 already removed by the time this fires
+     */
+    private static < T > void populateAsync( VBox section,
+                                              java.util.function.Supplier< T > bgWork,
+                                              java.util.function.BiConsumer< VBox, T > fxRender )
+    {
+        HBox placeholder = buildLoadingPlaceholder();
+        section.getChildren().add( placeholder );
+        SystemUtilities.spawnNewTask( () -> {
+            T result;
+            try {
+                result = bgWork.get();
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Detail-modal section bg work failed: "
+                                                 + t.getClass().getSimpleName() + " — "
+                                                 + t.getMessage() );
+                result = null;
+            }
+            final T finalResult = result;
+            javafx.application.Platform.runLater( () -> {
+                section.getChildren().remove( placeholder );
+                try {
+                    fxRender.accept( section, finalResult );
+                }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( "Detail-modal section fx render failed: "
+                                                     + t.getClass().getSimpleName() );
+                    section.getChildren().add( emptyLabel() );
+                }
+            } );
+        } );
+    }
+
     private static Node buildSimplePackList( GameModPack pack, String folderName,
                                               String headingKey, SectionBuilder sectionBox )
     {
         VBox section = sectionBox.build( LocalizationManager.get( headingKey ) );
-        File dir = subDir( pack, folderName );
-        File[] entries = dir == null ? null : dir.listFiles( f ->
-                !f.getName().startsWith( "." ) && ( f.isFile() || f.isDirectory() ) );
-        if ( entries == null || entries.length == 0 ) {
-            section.getChildren().add( emptyLabel() );
-            return section;
-        }
-        Arrays.sort( entries, Comparator.comparing( ( File f ) -> f.getName().toLowerCase() ) );
-        for ( File entry : entries ) {
-            section.getChildren().add( buildFileRow( entry, false, false, null, section ) );
-        }
+        populateAsync( section,
+                       () -> scanSortedFiles( pack, folderName, f -> !f.getName().startsWith( "." )
+                               && ( f.isFile() || f.isDirectory() ),
+                                              Comparator.comparing( ( File f ) -> f.getName().toLowerCase() ) ),
+                       ( sec, entries ) -> {
+                           if ( entries == null || entries.length == 0 ) {
+                               sec.getChildren().add( emptyLabel() );
+                               return;
+                           }
+                           for ( File entry : entries ) {
+                               sec.getChildren().add( buildFileRow( entry, false, false, null, sec ) );
+                           }
+                       } );
         return section;
+    }
+
+    /** Off-thread directory listing + sort. Returns null when the
+     *  directory doesn't exist or no entries match the filter. */
+    private static File[] scanSortedFiles( GameModPack pack, String folderName,
+                                            java.io.FileFilter filter,
+                                            java.util.Comparator< File > sorter )
+    {
+        File dir = subDir( pack, folderName );
+        if ( dir == null ) return null;
+        File[] entries = dir.listFiles( filter );
+        if ( entries == null || entries.length == 0 ) return null;
+        if ( sorter != null ) Arrays.sort( entries, sorter );
+        return entries;
     }
 
     /** Returns the named subfolder of the pack's install dir if it
