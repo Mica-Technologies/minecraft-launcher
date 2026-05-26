@@ -199,11 +199,11 @@ public final class MCLauncherQuickStartWizard
         progressIndicator = new Label();
         progressIndicator.getStyleClass().add( "wizardProgress" );
 
-        backBtn = new MFXButton( "Back" );
+        backBtn = new MFXButton( LocalizationManager.get( "quickStart.backBtn" ) );
         backBtn.setOnAction( e -> goToStep( currentStep - 1 ) );
         backBtn.setPrefWidth( 90 );
 
-        nextBtn = new MFXButton( "Next" );
+        nextBtn = new MFXButton( LocalizationManager.get( "quickStart.nextBtn.next" ) );
         nextBtn.getStyleClass().add( "primary" );
         nextBtn.setPrefWidth( 140 );
         nextBtn.setOnAction( e -> {
@@ -215,7 +215,7 @@ public final class MCLauncherQuickStartWizard
             }
         } );
 
-        MFXButton skipBtn = new MFXButton( "Skip" );
+        MFXButton skipBtn = new MFXButton( LocalizationManager.get( "quickStart.skipBtn" ) );
         skipBtn.getStyleClass().add( "wizardSkipBtn" );
         skipBtn.setOnAction( e -> finish() );
 
@@ -299,20 +299,15 @@ public final class MCLauncherQuickStartWizard
     {
         VBox step = baseStep();
 
-        Label title = new Label( "Welcome to Mica Minecraft Launcher" );
+        Label title = new Label( LocalizationManager.get( "quickStart.welcome.heading" ) );
         title.getStyleClass().add( "wizardHeading" );
         title.setWrapText( true );
 
-        Label subtitle = new Label(
-                "A quick setup so the launcher feels right from the first session. "
-                        + "Pick a theme, tune your memory allocation, and toggle a couple of preferences — "
-                        + "all of which you can change later in Settings." );
+        Label subtitle = new Label( LocalizationManager.get( "quickStart.welcome.subtitle" ) );
         subtitle.getStyleClass().add( "wizardSubtitle" );
         subtitle.setWrapText( true );
 
-        Label hint = new Label(
-                "Click Next to begin. You can also Skip — the launcher will start "
-                        + "with sensible defaults and you can configure things from Settings whenever you'd like." );
+        Label hint = new Label( LocalizationManager.get( "quickStart.welcome.hint" ) );
         hint.getStyleClass().add( "wizardBody" );
         hint.setWrapText( true );
 
@@ -324,12 +319,10 @@ public final class MCLauncherQuickStartWizard
     {
         VBox step = baseStep();
 
-        Label title = new Label( "Choose a theme" );
+        Label title = new Label( LocalizationManager.get( "quickStart.theme.heading" ) );
         title.getStyleClass().add( "wizardHeading" );
 
-        Label subtitle = new Label(
-                "Themes change the launcher's color palette and surface treatment. "
-                        + "Click any option to apply it live — pick whichever feels right." );
+        Label subtitle = new Label( LocalizationManager.get( "quickStart.theme.subtitle" ) );
         subtitle.getStyleClass().add( "wizardSubtitle" );
         subtitle.setWrapText( true );
 
@@ -383,7 +376,7 @@ public final class MCLauncherQuickStartWizard
     {
         VBox step = baseStep();
 
-        Label title = new Label( "Memory allocation" );
+        Label title = new Label( LocalizationManager.get( "quickStart.ram.heading" ) );
         title.getStyleClass().add( "wizardHeading" );
 
         long systemRamGb = detectSystemRamGb();
@@ -394,16 +387,13 @@ public final class MCLauncherQuickStartWizard
         int initialGb = ( currentRamMb == ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT )
                 ? recommendedGb : currentGb;
 
-        Label subtitle = new Label(
-                "How much RAM should Minecraft be allowed to use? Most modpacks need 4–8 GB; "
-                        + "heavy modpacks (300+ mods) can want 12+ GB." );
+        Label subtitle = new Label( LocalizationManager.get( "quickStart.ram.subtitle" ) );
         subtitle.getStyleClass().add( "wizardSubtitle" );
         subtitle.setWrapText( true );
 
-        Label recommendation = new Label(
-                "Detected system memory: " + systemRamGb + " GB. "
-                        + "Recommended allocation: " + recommendedGb + " GB "
-                        + "(50% of system RAM, capped at " + RAM_RECOMMENDATION_MAX_GB + " GB)." );
+        Label recommendation = new Label( LocalizationManager.format(
+                "quickStart.ram.recommendation",
+                systemRamGb, recommendedGb, RAM_RECOMMENDATION_MAX_GB ) );
         recommendation.getStyleClass().add( "wizardBody" );
         recommendation.setWrapText( true );
 
@@ -421,7 +411,7 @@ public final class MCLauncherQuickStartWizard
 
         Runnable updateLabel = () -> {
             int gb = ( int ) Math.round( slider.getValue() );
-            currentValue.setText( gb + " GB allocated" );
+            currentValue.setText( LocalizationManager.format( "quickStart.ram.value", gb ) );
             ConfigManager.setMaxRam( gb * 1024L );
         };
         slider.valueProperty().addListener( ( obs, oldV, newV ) -> updateLabel.run() );
@@ -436,29 +426,28 @@ public final class MCLauncherQuickStartWizard
     {
         VBox step = baseStep();
 
-        Label title = new Label( "Preferences" );
+        Label title = new Label( LocalizationManager.get( "quickStart.preferences.heading" ) );
         title.getStyleClass().add( "wizardHeading" );
 
-        Label subtitle = new Label(
-                "Toggle these on or off. You can change any of them from Settings later." );
+        Label subtitle = new Label( LocalizationManager.get( "quickStart.preferences.subtitle" ) );
         subtitle.getStyleClass().add( "wizardSubtitle" );
         subtitle.setWrapText( true );
 
-        MFXToggleButton discord = new MFXToggleButton( "Discord rich presence" );
+        MFXToggleButton discord = new MFXToggleButton(
+                LocalizationManager.get( "quickStart.preferences.discord" ) );
         discord.setSelected( ConfigManager.getDiscordRpcEnable() );
         discord.selectedProperty().addListener( ( obs, oldV, newV ) ->
                 ConfigManager.setDiscordRpcEnable( newV ) );
-        Label discordHint = new Label(
-                "Shows which modpack you're playing in your Discord activity status." );
+        Label discordHint = new Label( LocalizationManager.get( "quickStart.preferences.discordHint" ) );
         discordHint.getStyleClass().add( "wizardHint" );
         discordHint.setWrapText( true );
 
-        MFXToggleButton updates = new MFXToggleButton( "Check for launcher updates" );
+        MFXToggleButton updates = new MFXToggleButton(
+                LocalizationManager.get( "quickStart.preferences.updates" ) );
         updates.setSelected( ConfigManager.getLauncherUpdateCheckEnabled() );
         updates.selectedProperty().addListener( ( obs, oldV, newV ) ->
                 ConfigManager.setLauncherUpdateCheckEnabled( newV ) );
-        Label updatesHint = new Label(
-                "Periodically checks GitHub for a newer launcher release and shows an icon in the navbar when one is available." );
+        Label updatesHint = new Label( LocalizationManager.get( "quickStart.preferences.updatesHint" ) );
         updatesHint.getStyleClass().add( "wizardHint" );
         updatesHint.setWrapText( true );
 
@@ -473,18 +462,14 @@ public final class MCLauncherQuickStartWizard
     {
         VBox step = baseStep();
 
-        Label title = new Label( "You're all set" );
+        Label title = new Label( LocalizationManager.get( "quickStart.done.heading" ) );
         title.getStyleClass().add( "wizardHeading" );
 
-        Label subtitle = new Label(
-                "The launcher is ready to use. Add a modpack from the Browse screen, or "
-                        + "install a vanilla Minecraft version to get started." );
+        Label subtitle = new Label( LocalizationManager.get( "quickStart.done.subtitle" ) );
         subtitle.getStyleClass().add( "wizardSubtitle" );
         subtitle.setWrapText( true );
 
-        Label recap = new Label(
-                "Anything you set here can be changed from Settings at any time. "
-                        + "Click \"Get Started\" to close this wizard and head to the main menu." );
+        Label recap = new Label( LocalizationManager.get( "quickStart.done.recap" ) );
         recap.getStyleClass().add( "wizardBody" );
         recap.setWrapText( true );
 
