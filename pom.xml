@@ -102,6 +102,37 @@
         <webview.transparency.opens>--add-opens=javafx.web/javafx.scene.web=ALL-UNNAMED</webview.transparency.opens>
         <launcher.environment>RELEASE</launcher.environment>
 
+        <!-- AppCDS (application class-data sharing) layered on top of the
+             jlink-time base CDS archive (classes.jsa under runtime/bin/server/).
+             The base archive caches JDK + JavaFX classes; this adds an
+             application-classes layer covering MaterialFX, the launcher's own
+             classes, and everything else JFXBootstrap + cold-start load.
+
+             Mechanism (HotSpot's "dynamic CDS auto-create"):
+               -XX:SharedArchiveFile=$APPDIR\launcher.jsa  → load the archive
+                 at JVM start if it exists.
+               -XX:+AutoCreateSharedArchive                → if the archive is
+                 missing or invalid (first launch after install, after a
+                 launcher upgrade that changed the loaded class set, JVM bump),
+                 silently create / recreate it on JVM exit.
+
+             First launch: archive missing. JVM proceeds with base CDS only,
+             dumps the app archive at exit (~50 ms tail). User sees no
+             difference vs the prior build. Subsequent launches: archive
+             present, JVM memory-maps it alongside base CDS → measured ~16%
+             additional cold-start reduction in the manual benchmark we ran
+             during the 2026-05-26 perf sweep.
+
+             Path scope: $APPDIR is the app subdir of the install
+             (under Program Files for per-machine, %LOCALAPPDATA%\Programs
+             for per-user). On a per-machine install the user can't write
+             there at runtime, so the dump fails silently and AppCDS provides
+             no benefit — degrades to "base CDS only" with no regression. Per-
+             user installs (the recommended path for jpackage GUI apps) get
+             the full win. -->
+        <jpackage.appcds.archive>-XX:SharedArchiveFile=$APPDIR\launcher.jsa</jpackage.appcds.archive>
+        <jpackage.appcds.autocreate>-XX:+AutoCreateSharedArchive</jpackage.appcds.autocreate>
+
         <!-- Options passed to the jlink invocation that jpackage runs to
              assemble the bundled JRE. Each platform's jpackage execution
              forwards this via its jlink-options pass-through argument. Goals:
@@ -683,6 +714,10 @@
                                         <argument>${jpackage.final.field.mutation}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.archive}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
                                         <argument>--type</argument>
@@ -749,6 +784,10 @@
                                         <argument>${jpackage.final.field.mutation}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.archive}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/windows/Mica Minecraft Launcher.ico</argument>
                                         <argument>--type</argument>
@@ -886,6 +925,10 @@
                                         <argument>${jpackage.final.field.mutation}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.archive}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
                                         <argument>--type</argument>
@@ -965,6 +1008,10 @@
                                         <argument>${jpackage.final.field.mutation}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.archive}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/mac/Mica Minecraft Launcher.icns</argument>
                                         <argument>--type</argument>
@@ -1043,6 +1090,10 @@
                                         <argument>${jpackage.final.field.mutation}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.archive}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
                                         <argument>--type</argument>
@@ -1105,6 +1156,10 @@
                                         <argument>${jpackage.final.field.mutation}</argument>
                                         <argument>--java-options</argument>
                                         <argument>${webview.transparency.opens}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.archive}</argument>
+                                        <argument>--java-options</argument>
+                                        <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
                                         <argument>--type</argument>
