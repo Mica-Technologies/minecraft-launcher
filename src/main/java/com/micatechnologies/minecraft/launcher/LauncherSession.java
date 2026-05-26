@@ -225,13 +225,10 @@ class LauncherSession
         GameModPackManager.setBackgroundErrorListener( ( message, cause ) ->
                 com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
                         "Background task failed", message ) );
-        ColdStartProfiler.mark( "bg_listener_set" );
 
         GameModPackManager.startAvailableModPacksFetchAsync();
-        ColdStartProfiler.mark( "available_fetch_kicked" );
 
         com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui.prefetchAvailableModpackBackgrounds();
-        ColdStartProfiler.mark( "prefetch_kicked" );
 
         // Show main (mod pack selection) window
         LauncherCore.doModpackSelection( initialModPackSelection, previousRestartError );
