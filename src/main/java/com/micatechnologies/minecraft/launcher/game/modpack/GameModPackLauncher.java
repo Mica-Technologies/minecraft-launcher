@@ -939,13 +939,21 @@ class GameModPackLauncher
             progressProvider.setCurrText( "Preparing launch command..." );
         }
 
-        // Build JVM arguments string
-        StringBuilder jvmArgs = new StringBuilder();
+        // Build the argv list, one element per actual JVM/game argument.
+        // Each element crosses to the child process as one literal arg —
+        // no shell interpretation, no `"`-toggle escaping, no risk of a
+        // pack-name or manifest field with embedded quotes injecting
+        // extra args. ProcessBuilder + the new launchCommand(List, …)
+        // overload feed this straight into the OS spawn primitives.
+        java.util.List< String > argv = new java.util.ArrayList<>();
 
-        // Add custom user JVM args first
+        // Add custom user JVM args first. ConfigManager exposes these as a
+        // space-separated user-edited string; splitCommandLine tokenises it
+        // (quote-aware) so a user-set "-Xss1m -Dfoo=bar baz" becomes three
+        // separate argv entries.
         String customJvmArgs = ConfigManager.getCustomJvmArgs();
         if ( customJvmArgs != null && !customJvmArgs.isBlank() ) {
-            jvmArgs.append( customJvmArgs ).append( " " );
+            argv.addAll( ProcessUtilities.splitCommandLine( customJvmArgs ) );
         }
 
         // Add min and max RAM
@@ -965,14 +973,14 @@ class GameModPackLauncher
                 }
             }
         }
-        jvmArgs.append( "-Xms" ).append( minRAMMB ).append( "m " );
-        jvmArgs.append( "-Xmx" ).append( maxRAMMB ).append( "m " );
+        argv.add( "-Xms" + minRAMMB + "m" );
+        argv.add( "-Xmx" + maxRAMMB + "m" );
 
         // Handle logging configuration using Mojang's security-patched log4j configs
         // (CVE-2021-44228 / Log4Shell mitigation). These also use PatternLayout instead of XMLLayout
         // for the console appender, preventing XML clutter in stdout.
         // See: https://www.minecraft.net/en-us/article/important-message--security-vulnerability-java-edition
-        applyLog4jSecurityConfig( jvmArgs, pack.getMinecraftVersion() );
+        applyLog4jSecurityConfig( argv, pack.getMinecraftVersion() );
 
         // Add natives path
         String nativesFolder = pack.getPackRootFolder() +
@@ -998,17 +1006,20 @@ class GameModPackLauncher
         // Also disable the narrator (text2speech) which depends on JNA 4.4 that lacks ARM64 natives,
         // and force JNA to use the system-installed library if available.
         if ( Lwjgl2ArmPatcher.isNeeded( pack.getMinecraftVersion() ) ) {
-            jvmArgs.append( "-Dorg.lwjgl.librarypath=" ).append( nativesFolder ).append( " " );
-            jvmArgs.append( "-Dnet.java.games.input.librarypath=" ).append( nativesFolder ).append( " " );
-            jvmArgs.append( "-Djna.nosys=false " );
-            jvmArgs.append( "-Djna.boot.library.path= " );
-            jvmArgs.append( "-Dmojang.text2speech.enabled=false " );
+            argv.add( "-Dorg.lwjgl.librarypath=" + nativesFolder );
+            argv.add( "-Dnet.java.games.input.librarypath=" + nativesFolder );
+            argv.add( "-Djna.nosys=false" );
+            argv.add( "-Djna.boot.library.path=" );
+            argv.add( "-Dmojang.text2speech.enabled=false" );
         }
 
-        // Add manifest JVM arguments (from modern arguments.jvm if available)
+        // Add manifest JVM arguments (from modern arguments.jvm if available).
+        // The manifest joins them with spaces; tokenise via splitCommandLine so
+        // arg with embedded ${} placeholders stays a single argv element
+        // (placeholders get replaced per-element below).
         String manifestJvmArgs = libraryManifest.getJvmArguments();
         if ( !manifestJvmArgs.isEmpty() ) {
-            jvmArgs.append( manifestJvmArgs ).append( " " );
+            argv.addAll( ProcessUtilities.splitCommandLine( manifestJvmArgs ) );
         }
 
         // Add loader-specific JVM arguments (e.g. module system flags
@@ -1016,143 +1027,118 @@ class GameModPackLauncher
         if ( !pack.isVanillaVersion() && GameModeManager.isClient() ) {
             String loaderJvmArgs = pack.getModLoader().getJvmArguments();
             if ( !loaderJvmArgs.isEmpty() ) {
-                jvmArgs.append( loaderJvmArgs ).append( " " );
+                argv.addAll( ProcessUtilities.splitCommandLine( loaderJvmArgs ) );
             }
         }
 
         if ( manifestJvmArgs.isEmpty() ) {
-            // Legacy versions don't specify JVM args in the manifest; add essential ones manually
-            if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-                jvmArgs.append( "-Djava.library.path=\"" ).append( nativesFolder ).append( "\" " );
-                jvmArgs.append( "-cp \"" ).append( cp ).append( "\" " );
-            }
-            else {
-                jvmArgs.append( "-Djava.library.path=" ).append( nativesFolder ).append( " " );
-                jvmArgs.append( "-cp " ).append( cp ).append( " " );
-            }
+            // Legacy versions don't specify JVM args in the manifest; add
+            // essential ones manually. No need to OS-quote the paths now —
+            // each is its own argv element and ProcessBuilder handles the
+            // platform's quoting natively.
+            argv.add( "-Djava.library.path=" + nativesFolder );
+            argv.add( "-cp" );
+            argv.add( cp );
         }
 
         // Add main class
-        jvmArgs.append( minecraftMainClass ).append( " " );
+        argv.add( minecraftMainClass );
 
-        // Add game arguments
-        jvmArgs.append( minecraftArgs );
-
-        String fullArgs = jvmArgs.toString();
-
-        // Replace JVM placeholders (from modern arguments.jvm)
-        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-            fullArgs = fullArgs.replace( "${natives_directory}", "\"" + nativesFolder + "\"" );
-            fullArgs = fullArgs.replace( "${classpath}", "\"" + cp + "\"" );
+        // Add game arguments — same per-element tokenisation as the JVM args.
+        if ( minecraftArgs != null && !minecraftArgs.isEmpty() ) {
+            argv.addAll( ProcessUtilities.splitCommandLine( minecraftArgs ) );
         }
-        else {
-            fullArgs = fullArgs.replace( "${natives_directory}", nativesFolder );
-            fullArgs = fullArgs.replace( "${classpath}", cp );
-        }
-        fullArgs = fullArgs.replace( "${launcher_name}", "MicaMinecraftLauncher" );
-        fullArgs = fullArgs.replace( "${launcher_version}", "2025.1" );
-        fullArgs = fullArgs.replace( "${version_type}", "release" );
-        fullArgs = fullArgs.replace( "${classpath_separator}", File.pathSeparator );
-        fullArgs = fullArgs.replace( "${library_directory}", pack.getPackRootFolder() + File.separator +
-                ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
 
-        // Replace game argument placeholders
-        if ( GameModeManager.isClient() ) {
-            fullArgs = fullArgs.replace( "${auth_player_name}",
-                                          MCLauncherAuthManager.getLoggedInUser().name() );
-            // ${version_name} is the launcher's identifier for the
-            // running profile — Forge: "1.16.5-forge-36.1.31",
-            // Fabric: "0.16.10", NeoForge: "21.1.95". Reads come from
-            // the polymorphic loader so Fabric / NeoForge land here
-            // with a non-null value instead of tripping over Forge's
-            // null-for-non-Forge alias.
-            fullArgs = fullArgs.replace( "${version_name}",
-                                          pack.isVanillaVersion() ? pack.getMinecraftVersion() :
-                                          pack.getLoaderVersion() );
-            // Modern MC reads assets through the shared launcher-wide tree by hash, so the
-            // ${assets_root} placeholder points at the deduplicated location instead of a
-            // per-pack copy. Legacy MC uses ${game_assets} which is handled below.
-            String sharedAssetsRoot = GameAssetManifest.getSharedAssetsRoot();
-            if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-                fullArgs = fullArgs.replace( "${game_directory}", "\"" + pack.getPackRootFolder() + "\"" );
-                fullArgs = fullArgs.replace( "${assets_root}", "\"" + sharedAssetsRoot + "\"" );
+        // Replace placeholders per-element. With argv-as-List there's no need
+        // for OS-specific quoting around paths — each element crosses to the
+        // child as one literal arg.
+        String sharedAssetsRoot = GameAssetManifest.getSharedAssetsRoot();
+        String authPlayerName  = GameModeManager.isClient() ? MCLauncherAuthManager.getLoggedInUser().name() : "";
+        String authUuid        = GameModeManager.isClient() ? MCLauncherAuthManager.getLoggedInUser().uuid() : "";
+        String authAccessToken = GameModeManager.isClient() ? MCLauncherAuthManager.getLoggedInUser().accessToken() : "";
+        String authSession     = GameModeManager.isClient()
+                ? "token:" + authAccessToken + ":" + authUuid
+                : "";
+        String versionName = pack.isVanillaVersion() ? pack.getMinecraftVersion() : pack.getLoaderVersion();
+        String gameAssetsPath;
+        try {
+            GameAssetManifest assetManifest = libraryManifest.getAssetManifest();
+            if ( assetManifest.isVirtual() ) {
+                gameAssetsPath = assetManifest.getVirtualAssetsPath();
+            }
+            else if ( assetManifest.mapsToResources() ) {
+                gameAssetsPath = assetManifest.getResourcesPath();
             }
             else {
-                fullArgs = fullArgs.replace( "${game_directory}", pack.getPackRootFolder() );
-                fullArgs = fullArgs.replace( "${assets_root}", sharedAssetsRoot );
-            }
-
-            fullArgs = fullArgs.replace( "${assets_index_name}", libraryManifest.getAssetIndexVersion() );
-            fullArgs = fullArgs.replace( "${auth_uuid}", MCLauncherAuthManager.getLoggedInUser().uuid() );
-            fullArgs = fullArgs.replace( "${auth_access_token}",
-                                          MCLauncherAuthManager.getLoggedInUser().accessToken() );
-            fullArgs = fullArgs.replace( "${user_type}", "mojang" );
-            fullArgs = fullArgs.replace( "${clientid}", "" );
-            fullArgs = fullArgs.replace( "${auth_xuid}", "" );
-            fullArgs = fullArgs.replace( "${user_properties}", "{}" );
-
-            // Legacy minecraftArguments (pre-1.6) placeholders. ${auth_session} carries the
-            // session token in Mojang's old "token:<accessToken>:<uuid>" form; ${game_assets}
-            // is the path the game treats as the legacy flat-assets directory. Without these
-            // replacements, launchwrapper sees the literal "${...}" strings and the launch
-            // either fails to auth (vanilla 1.0-1.5) or fails to find assets.
-            String authSession = "token:" + MCLauncherAuthManager.getLoggedInUser().accessToken()
-                    + ":" + MCLauncherAuthManager.getLoggedInUser().uuid();
-            fullArgs = fullArgs.replace( "${auth_session}", authSession );
-
-            // ${game_assets} needs to point to the directory layout the game version expects:
-            //   - virtual: true (pre-1.6) → assets/virtual/<id>/ per-pack (flat tree, built
-            //     by GameAssetManifest.materializeVirtualTree at download time)
-            //   - map_to_resources: true (1.6.x) → <gameDir>/resources/ per-pack
-            //   - everything else → shared assets root (modern hash-keyed layout)
-            // Modern packs share a single tree; legacy needs the flat layout under gameDir.
-            String gameAssetsPath;
-            try {
-                GameAssetManifest assetManifest = libraryManifest.getAssetManifest();
-                if ( assetManifest.isVirtual() ) {
-                    gameAssetsPath = assetManifest.getVirtualAssetsPath();
-                }
-                else if ( assetManifest.mapsToResources() ) {
-                    gameAssetsPath = assetManifest.getResourcesPath();
-                }
-                else {
-                    gameAssetsPath = sharedAssetsRoot;
-                }
-            }
-            catch ( ModpackException e ) {
                 gameAssetsPath = sharedAssetsRoot;
             }
-            if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-                fullArgs = fullArgs.replace( "${game_assets}", "\"" + gameAssetsPath + "\"" );
-            }
-            else {
-                fullArgs = fullArgs.replace( "${game_assets}", gameAssetsPath );
-            }
+        }
+        catch ( ModpackException e ) {
+            gameAssetsPath = sharedAssetsRoot;
+        }
 
-            // Add title and icon to arguments. The pack name is server-supplied
-            // JSON, and ProcessUtilities.splitCommandLine has naive `"`-toggle
-            // semantics with no escape character — so a manifest with a packName
-            // containing an embedded `"` would close the quote early and inject
-            // additional client args (e.g. `--gameDir` to redirect MC's writes,
-            // or `--accessToken X` to swap the live token). The pack logo filepath
-            // is launcher-constructed under getPackRootFolder() (the folder name
-            // is the alphanum-only getPackSanitizedName) so it can't carry a `"`;
-            // leave its backslashes untouched so Windows paths still resolve.
+        java.util.Map< String, String > placeholders = new java.util.HashMap<>();
+        placeholders.put( "${natives_directory}", nativesFolder );
+        placeholders.put( "${classpath}", cp );
+        placeholders.put( "${launcher_name}", "MicaMinecraftLauncher" );
+        placeholders.put( "${launcher_version}", "2025.1" );
+        placeholders.put( "${version_type}", "release" );
+        placeholders.put( "${classpath_separator}", File.pathSeparator );
+        placeholders.put( "${library_directory}", pack.getPackRootFolder() + File.separator +
+                ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
+        if ( GameModeManager.isClient() ) {
+            placeholders.put( "${auth_player_name}", authPlayerName );
+            placeholders.put( "${version_name}", versionName != null ? versionName : "" );
+            placeholders.put( "${game_directory}", pack.getPackRootFolder() );
+            placeholders.put( "${assets_root}", sharedAssetsRoot );
+            placeholders.put( "${assets_index_name}", libraryManifest.getAssetIndexVersion() );
+            placeholders.put( "${auth_uuid}", authUuid );
+            placeholders.put( "${auth_access_token}", authAccessToken );
+            placeholders.put( "${user_type}", "mojang" );
+            placeholders.put( "${clientid}", "" );
+            placeholders.put( "${auth_xuid}", "" );
+            placeholders.put( "${user_properties}", "{}" );
+            // Legacy minecraftArguments (pre-1.6) placeholders. ${auth_session}
+            // carries the session token in Mojang's old "token:<accessToken>:<uuid>"
+            // form; ${game_assets} is the legacy flat-assets directory.
+            placeholders.put( "${auth_session}", authSession );
+            placeholders.put( "${game_assets}", gameAssetsPath );
+        }
+        for ( int i = 0; i < argv.size(); i++ ) {
+            String arg = argv.get( i );
+            if ( arg.indexOf( '$' ) < 0 ) continue; // micro-opt: skip args with no placeholder
+            for ( java.util.Map.Entry< String, String > entry : placeholders.entrySet() ) {
+                arg = arg.replace( entry.getKey(), entry.getValue() );
+            }
+            argv.set( i, arg );
+        }
+
+        // Add title + icon as separate argv elements. With List<String> argv
+        // the pack name is passed as a single literal arg; no `"`-injection
+        // path is reachable any more (the old StringBuilder path needed the
+        // sanitizeForCommandLine guard against an attacker-controlled
+        // packName breaking out of a quoted segment — see commit 32f58ca).
+        // Keep the sanitiser call as defense in depth (strips control
+        // characters that would render badly in the window title) but it's
+        // no longer load-bearing.
+        if ( GameModeManager.isClient() ) {
             String safeTitle = sanitizeForCommandLine( pack.getPackName() );
-            fullArgs += " --title \"" + safeTitle + "\"";
-            fullArgs += " --icon \"" + pack.getPackLogoFilepath() + "\"";
+            argv.add( "--title" );
+            argv.add( safeTitle );
+            argv.add( "--icon" );
+            argv.add( pack.getPackLogoFilepath() );
 
             // Set dock name and icon for macOS
             if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
-                fullArgs += " -Xdock:icon=\"" + pack.getPackLogoFilepath() + "\"";
-                fullArgs += " -Xdock:name=\"" + safeTitle + "\" ";
-                fullArgs += "-Dapple.laf.useScreenMenuBar=true ";
-                fullArgs += "-Djdk.lang.Process.launchMechanism=vfork ";
+                argv.add( "-Xdock:icon=" + pack.getPackLogoFilepath() );
+                argv.add( "-Xdock:name=" + safeTitle );
+                argv.add( "-Dapple.laf.useScreenMenuBar=true" );
+                argv.add( "-Djdk.lang.Process.launchMechanism=vfork" );
             }
         }
 
-        // Add java executable path to front of args
-        fullArgs = RuntimeManager.getJavaPath( runtimeComponent ) + " " + fullArgs;
+        // Java executable goes at argv[0].
+        argv.add( 0, RuntimeManager.getJavaPath( runtimeComponent ) );
 
         // Signal completion to trigger the progress window hide
         if ( progressProvider != null ) {
@@ -1193,9 +1179,8 @@ class GameModPackLauncher
             // window. Without redaction, a forum-pasted log = account takeover.
             Logger.logDebug( "Launching game with command: "
                                      + com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
-                                                .redact( fullArgs ) );
-            lastLaunchedProcess = ProcessUtilities.launchCommand( fullArgs, pack.getPackRootFolder(),
-                                                                   ioMode );
+                                                .redact( String.join( " ", argv ) ) );
+            lastLaunchedProcess = ProcessUtilities.launchCommand( argv, pack.getPackRootFolder(), ioMode );
         }
         catch ( IOException e ) {
             throw new ModpackException( "Unable to execute mod pack game.", e );
@@ -1245,7 +1230,7 @@ class GameModPackLauncher
      *
      * @since 3.0
      */
-    private void applyLog4jSecurityConfig( StringBuilder jvmArgs, String mcVersion )
+    private void applyLog4jSecurityConfig( List< String > argv, String mcVersion )
     {
         // Parse the major and minor version numbers from the MC version string (e.g. "1.12.2" -> major=1, minor=12)
         int minor = 0;
@@ -1260,7 +1245,7 @@ class GameModPackLauncher
         }
 
         // Always add the safety flag as a baseline (no-op if the config file is also applied)
-        jvmArgs.append( "-Dlog4j2.formatMsgNoLookups=true " );
+        argv.add( "-Dlog4j2.formatMsgNoLookups=true" );
 
         if ( minor >= 17 ) {
             // MC 1.17+: The JVM flag above is sufficient, no config file needed
@@ -1269,12 +1254,12 @@ class GameModPackLauncher
         }
         else if ( minor >= 12 ) {
             // MC 1.12 - 1.16.5: Download and apply the security-patched config
-            applyLog4jConfigFile( jvmArgs, LOG4J_CONFIG_112_116_URL, LOG4J_CONFIG_112_116_SHA1,
+            applyLog4jConfigFile( argv, LOG4J_CONFIG_112_116_URL, LOG4J_CONFIG_112_116_SHA1,
                                   LOG4J_CONFIG_112_116_NAME );
         }
         else if ( minor >= 7 ) {
             // MC 1.7 - 1.11.2: Download and apply the older security-patched config
-            applyLog4jConfigFile( jvmArgs, LOG4J_CONFIG_17_111_URL, LOG4J_CONFIG_17_111_SHA1,
+            applyLog4jConfigFile( argv, LOG4J_CONFIG_17_111_URL, LOG4J_CONFIG_17_111_SHA1,
                                   LOG4J_CONFIG_17_111_NAME );
         }
         // MC < 1.7: Not affected by Log4Shell
@@ -1300,7 +1285,7 @@ class GameModPackLauncher
      *
      * @since 3.0
      */
-    private void applyLog4jConfigFile( StringBuilder jvmArgs, String url, String sha1, String fileName )
+    private void applyLog4jConfigFile( List< String > argv, String url, String sha1, String fileName )
     {
         String cacheDir = com.micatechnologies.minecraft.launcher.files.LocalPathManager
                 .getLauncherMetadataFolderPath() + File.separator + "log4j-configs";
@@ -1311,7 +1296,7 @@ class GameModPackLauncher
             ManagedGameFile logConfigFile = new ManagedGameFile( url, logConfigPath, sha1,
                                                                  ManagedGameFile.ManagedGameFileHashType.SHA1 );
             logConfigFile.updateLocalFile();
-            jvmArgs.append( "-Dlog4j.configurationFile=" ).append( logConfigPath ).append( " " );
+            argv.add( "-Dlog4j.configurationFile=" + logConfigPath );
             Logger.logDebug( "Applied Mojang security log4j config: " + fileName );
         }
         catch ( Exception e ) {
