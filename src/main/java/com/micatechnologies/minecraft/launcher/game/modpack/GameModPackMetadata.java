@@ -180,6 +180,41 @@ public abstract class GameModPackMetadata
     protected String packModLoaderHash;
 
     /**
+     * Optional default server host for the pack. When set (non-null,
+     * non-blank), the launcher treats this as a "this pack was built
+     * for this server" hint and routes through the quick-join argv
+     * (Minecraft {@code --server}) on every launch, unless the user
+     * has explicitly disabled the auto-join via the per-pack toggle
+     * in the modpack detail modal's Servers section. Read by
+     * {@link GameModPack#getDefaultServer()} which packages
+     * host/port/name into a {@link ServerFavorite}.
+     *
+     * @since 2026.5
+     */
+    @SuppressWarnings( "unused" )
+    protected String packDefaultServerHost;
+
+    /**
+     * Optional default server port. Defaults to Minecraft's well-known
+     * 25565 when omitted. Ignored when {@link #packDefaultServerHost}
+     * is unset.
+     *
+     * @since 2026.5
+     */
+    @SuppressWarnings( "unused" )
+    protected Integer packDefaultServerPort;
+
+    /**
+     * Optional human-readable name for the default server (shown in
+     * the modal's "Pack default" row). Defaults to the host when
+     * omitted.
+     *
+     * @since 2026.5
+     */
+    @SuppressWarnings( "unused" )
+    protected String packDefaultServerName;
+
+    /**
      * Mod pack scan exclusions (file or folder names, relative to mod pack root). Value read from manifest JSON.
      *
      * @since 1.3
@@ -388,6 +423,29 @@ public abstract class GameModPackMetadata
     public String getPackRootFolder()
     {
         return LocalPathManager.getLauncherModpackFolderPath() + File.separator + getPackSanitizedName();
+    }
+
+    /**
+     * Returns the pack's manifest-declared default server as a
+     * {@link ServerFavorite}, or {@code null} when no default server is
+     * configured. The returned favorite is suitable for
+     * {@link GameModPack#setQuickJoinServer(ServerFavorite)} — packing
+     * the host, the default-or-declared port, and the friendly name
+     * (falling back to the host when unset).
+     *
+     * @since 2026.5
+     */
+    public ServerFavorite getDefaultServer()
+    {
+        if ( packDefaultServerHost == null || packDefaultServerHost.isBlank() ) return null;
+        int port = ( packDefaultServerPort == null
+                || packDefaultServerPort < 1 || packDefaultServerPort > 65535 )
+                ? ServerFavorite.DEFAULT_PORT
+                : packDefaultServerPort;
+        String name = ( packDefaultServerName == null || packDefaultServerName.isBlank() )
+                ? packDefaultServerHost
+                : packDefaultServerName;
+        return new ServerFavorite( name, packDefaultServerHost.trim(), port );
     }
 
     /**
