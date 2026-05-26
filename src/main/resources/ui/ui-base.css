@@ -704,6 +704,14 @@
     -fx-padding: 0 0 4 0;
 }
 
+.modpackDetailSectionChevron {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 11px;
+    -fx-padding: 0 0 4 0;
+    -fx-min-width: 14;
+    -fx-alignment: CENTER;
+}
+
 .modpackDetailStatKey {
     -fx-text-fill: -color-text-muted;
     -fx-font-size: 12px;

@@ -31,6 +31,7 @@ import com.micatechnologies.minecraft.launcher.utilities.NotificationManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -305,11 +306,26 @@ public class MCLauncherModpackDetailModal extends StackPane
         // having to click through some focus-traversable child first.
         Platform.runLater( modalCard::requestFocus );
 
-        // Defer body content to the next FX pulse. By the time this
-        // runLater fires, the modal card has had its first layout +
-        // CSS pass + first frame painted, so the user sees the modal
-        // open immediately and the sections fill in as they arrive.
-        Platform.runLater( () -> populateBodyContent( pack ) );
+        // Defer body content past the next render pulse. A plain
+        // Platform.runLater isn't enough — the FX event loop drains
+        // its runLater queue before each render, so a queued
+        // populateBodyContent runs BEFORE the renderer ever paints
+        // the empty skeleton. The user then sees the modal "pop in"
+        // with content already loaded (no spinner ever visible),
+        // because the layout + CSS + paint of the populated card is
+        // what's actually on screen by frame 1.
+        //
+        // A 32 ms PauseTransition (~2 frames at 60 Hz) guarantees the
+        // renderer has had a chance to paint the empty skeleton first.
+        // The fade-in animation is 140 ms, so 32 ms still leaves plenty
+        // of fade time for the section placeholders to populate
+        // visibly. If a section's bg scan takes longer than ~100 ms
+        // the spinner shows; if it's faster, the rows fade in along
+        // with the modal — either way the modal itself appears in
+        // ~150 ms instead of waiting for every section to render.
+        PauseTransition bodyDelay = new PauseTransition( Duration.millis( 32 ) );
+        bodyDelay.setOnFinished( e -> populateBodyContent( pack ) );
+        bodyDelay.play();
     }
 
     /** Fades the modal out and returns it to its hidden, unmanaged state so no input
@@ -1012,7 +1028,10 @@ public class MCLauncherModpackDetailModal extends StackPane
      */
     private Node buildAdvancedSection( GameModPack pack )
     {
-        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.advanced" ) );
+        // Advanced is a power-user surface — most users never touch
+        // it. Pre-collapse so it doesn't bloat the modal scroll for
+        // everyone else.
+        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.advanced" ), false );
 
         Label hint = new Label( "Per-pack power-user controls. Defaults are fine for most users." );
         hint.setWrapText( true );
@@ -1351,11 +1370,83 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     private VBox buildSectionBox( String heading )
     {
+        return buildSectionBox( heading, true );
+    }
+
+    /**
+     * Section VBox with a click-to-toggle header. The returned VBox is
+     * an outer container whose first child is the {@code header} HBox
+     * (chevron + title); subsequent children added by section builders
+     * are the "content" rows.
+     *
+     * <p>When the section is collapsed, its content children have
+     * {@code visible=false, managed=false} so they take zero layout
+     * space — the section shrinks to just the header row. A
+     * {@link javafx.collections.ListChangeListener} on the section's
+     * child list keeps this state consistent for children added
+     * AFTER the user has toggled: the modal's content-browser
+     * sections populate themselves asynchronously, so the rows
+     * arrive minutes (or seconds) after construction; the listener
+     * makes sure they respect the current expand state.</p>
+     *
+     * @param heading         section title shown in the header
+     * @param defaultExpanded {@code true} to start expanded;
+     *                        {@code false} to start collapsed so the
+     *                        user has to click to load. Sections
+     *                        likely to contain a lot of rows (mods,
+     *                        screenshots, crash history) default to
+     *                        collapsed to keep the modal scroll
+     *                        manageable for large packs.
+     */
+    private VBox buildSectionBox( String heading, boolean defaultExpanded )
+    {
         VBox section = new VBox( 8 );
         section.getStyleClass().add( "modpackDetailSection" );
+
+        final boolean[] expanded = { defaultExpanded };
+
+        Label chevron = new Label( defaultExpanded ? "▾" : "▸" );
+        chevron.getStyleClass().add( "modpackDetailSectionChevron" );
         Label title = new Label( heading );
         title.getStyleClass().add( "modpackDetailSectionHeading" );
-        section.getChildren().add( title );
+        HBox header = new HBox( 8, chevron, title );
+        header.setAlignment( Pos.CENTER_LEFT );
+        header.setCursor( javafx.scene.Cursor.HAND );
+
+        Runnable applyState = () -> {
+            chevron.setText( expanded[ 0 ] ? "▾" : "▸" );
+            // Skip index 0 (the header itself).
+            for ( int i = 1; i < section.getChildren().size(); i++ ) {
+                javafx.scene.Node child = section.getChildren().get( i );
+                child.setVisible( expanded[ 0 ] );
+                child.setManaged( expanded[ 0 ] );
+            }
+        };
+        header.setOnMouseClicked( e -> {
+            expanded[ 0 ] = !expanded[ 0 ];
+            applyState.run();
+        } );
+        section.getChildren().add( header );
+
+        // Auto-hide newly-appended children while collapsed — the
+        // content-browser sections populate themselves via async
+        // background scans + Platform.runLater, so rows arrive AFTER
+        // construction. Without this listener a collapsed Mods
+        // section would show its rows the moment the scan finished
+        // because the original setVisible(false) only applied to
+        // children present at toggle time.
+        section.getChildren().addListener( ( javafx.collections.ListChangeListener< javafx.scene.Node > ) c -> {
+            while ( c.next() ) {
+                if ( c.wasAdded() && !expanded[ 0 ] ) {
+                    for ( javafx.scene.Node n : c.getAddedSubList() ) {
+                        if ( n != header ) {
+                            n.setVisible( false );
+                            n.setManaged( false );
+                        }
+                    }
+                }
+            }
+        } );
         return section;
     }
 
