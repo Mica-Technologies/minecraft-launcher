@@ -349,6 +349,30 @@ public class ConfigConstants
      */
     public static final boolean INGAME_CONSOLE_ENABLE_DEFAULT = false;
 
+    /**
+     * Maximum number of log lines retained in the in-game console's
+     * visible TextArea. When the running log exceeds this count the
+     * oldest lines are dropped from the view and a "showing last N
+     * lines" notice appears with a link to the full log file. The
+     * on-disk log file is never truncated regardless of this value.
+     * 0 means unlimited (the launcher won't drop any lines from
+     * memory — use with caution on long sessions; large log buffers
+     * push JavaFX's TextArea past its happy path).
+     *
+     * @since 2026.5
+     */
+    public static final String CONSOLE_LOG_MAX_LINES_KEY = "consoleLogMaxLines";
+
+    /** Default cap on console TextArea lines. Matches the historical
+     *  hard-coded MAX_DISPLAY_LINES value so existing users see the
+     *  same behavior. */
+    public static final int CONSOLE_LOG_MAX_LINES_DEFAULT = 10_000;
+
+    /** Preset values offered in Settings → Game Console → Log buffer
+     *  size. Zero is the "Unlimited" sentinel — the dropdown label
+     *  shows "Unlimited" and the console never trims. */
+    public static final int[] CONSOLE_LOG_MAX_LINES_PRESETS = { 1_000, 5_000, 10_000, 25_000, 50_000, 0 };
+
     // region RGB Integration
 
     /** Master enable for the RGB-integration subsystem. When false, the

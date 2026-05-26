@@ -101,6 +101,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
+    MFXComboBox< String > consoleLogMaxLinesSelection;
+
+    @SuppressWarnings( "unused" )
+    @FXML
     MFXToggleButton batteryThrottleCheckBox;
 
     @SuppressWarnings( "unused" )
@@ -566,6 +570,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
             ConfigManager.setInGameConsoleEnable( inGameConsoleCheckBox.isSelected() );
 
+            // Console log buffer-size: map selected label back to its
+            // preset value via index. Falls through silently when
+            // selection is null (initial empty state).
+            if ( consoleLogMaxLinesSelection != null
+                    && consoleLogMaxLinesSelection.getSelectedItem() != null ) {
+                int idx = consoleLogMaxLinesSelection.getSelectedIndex();
+                if ( idx >= 0 && idx < ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS.length ) {
+                    ConfigManager.setConsoleLogMaxLines(
+                            ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS[ idx ] );
+                }
+            }
+
             // Store battery throttle preference
             ConfigManager.setBatteryThrottleEnable( batteryThrottleCheckBox.isSelected() );
 
@@ -982,6 +998,30 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Set and configure in-game console check box
         inGameConsoleCheckBox.setSelected( ConfigManager.getInGameConsoleEnable() );
+
+        // Console log buffer-size dropdown. Presets live in ConfigConstants;
+        // 0 maps to "Unlimited". Selection saved through the existing Save
+        // button so it follows the rest of the settings flow.
+        if ( consoleLogMaxLinesSelection != null ) {
+            java.util.List< String > labels = new java.util.ArrayList<>();
+            for ( int p : ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS ) {
+                labels.add( p <= 0
+                        ? LocalizationManager.get( "settings.consoleLogMaxLines.unlimited" )
+                        : LocalizationManager.format( "settings.consoleLogMaxLines.lines",
+                                                        java.text.NumberFormat.getInstance().format( p ) ) );
+            }
+            consoleLogMaxLinesSelection.setItems(
+                    javafx.collections.FXCollections.observableArrayList( labels ) );
+            int current = ConfigManager.getConsoleLogMaxLines();
+            int matchedIdx = 0;
+            for ( int i = 0; i < ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS.length; i++ ) {
+                if ( ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS[ i ] == current ) {
+                    matchedIdx = i;
+                    break;
+                }
+            }
+            consoleLogMaxLinesSelection.selectItem( labels.get( matchedIdx ) );
+        }
 
         // Set and configure battery throttle check box
         batteryThrottleCheckBox.setSelected( ConfigManager.getBatteryThrottleEnable() );

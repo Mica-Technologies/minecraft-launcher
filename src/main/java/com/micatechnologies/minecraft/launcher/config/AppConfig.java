@@ -213,6 +213,23 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** Visible-log-line cap for the in-game console TextArea. 0 means
+     *  unlimited (no trimming). Read on each line-batch flush so the
+     *  user can change the setting mid-session without restarting. */
+    public static synchronized int getConsoleLogMaxLines() {
+        JsonObject json = ConfigStore.ensureLoaded();
+        if ( !json.has( ConfigConstants.CONSOLE_LOG_MAX_LINES_KEY ) ) {
+            return ConfigConstants.CONSOLE_LOG_MAX_LINES_DEFAULT;
+        }
+        return json.get( ConfigConstants.CONSOLE_LOG_MAX_LINES_KEY ).getAsInt();
+    }
+
+    public static synchronized void setConsoleLogMaxLines( int max ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.CONSOLE_LOG_MAX_LINES_KEY,
+                                                 Math.max( 0, max ) );
+        ConfigStore.scheduleWrite();
+    }
+
     // ====================================================================
     // App lifecycle
     // ====================================================================

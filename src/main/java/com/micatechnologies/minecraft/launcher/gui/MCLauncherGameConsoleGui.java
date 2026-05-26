@@ -10,6 +10,7 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
@@ -20,13 +21,19 @@ import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationM
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXTextField;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -48,7 +55,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
 {
-    private static final int MAX_DISPLAY_LINES = 10_000;
     private static final int FLUSH_INTERVAL_MS = 150;
 
     @SuppressWarnings( "unused" )
@@ -98,6 +104,13 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML HBox  diagnosisActionsBox;
 
     @SuppressWarnings( "unused" ) @FXML Label helpBtn;
+
+    // ===== Search / filter / auto-pin toolbar =====
+    @SuppressWarnings( "unused" ) @FXML MFXTextField searchField;
+    @SuppressWarnings( "unused" ) @FXML Label searchStatusLabel;
+    @SuppressWarnings( "unused" ) @FXML MFXButton searchPrevBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton searchNextBtn;
+    @SuppressWarnings( "unused" ) @FXML CheckBox autoPinCheckBox;
 
     private Process gameProcess;
     private long startTimeMs;
@@ -218,6 +231,128 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
             helpBtn.setCursor( javafx.scene.Cursor.HAND );
             TooltipManager.install( helpBtn, "Open the help window for this screen." );
         }
+
+        // Search bar — find-next on Enter or click, find-prev on the
+        // left button. Highlights the matched substring via selectRange
+        // and scrolls it into view. Empty query clears any highlight.
+        if ( searchField != null ) {
+            searchField.setOnAction( e -> findInLog( searchField.getText(), true ) );
+            searchField.textProperty().addListener( ( obs, oldV, newV ) -> {
+                if ( newV == null || newV.isEmpty() ) {
+                    searchStatusLabel.setText( "" );
+                    // Clear the highlight by collapsing the selection.
+                    logArea.deselect();
+                }
+                else {
+                    findInLog( newV, true );
+                }
+            } );
+        }
+        if ( searchPrevBtn != null ) {
+            searchPrevBtn.setOnAction( e -> findInLog( searchField.getText(), false ) );
+        }
+        if ( searchNextBtn != null ) {
+            searchNextBtn.setOnAction( e -> findInLog( searchField.getText(), true ) );
+        }
+
+        // Auto-pin: when ON (default), every appendToDisplay scrolls to
+        // the latest line. When OFF, the caret stays where the user
+        // last positioned it. Smart auto-disable: if the user scrolls
+        // up or selects text mid-stream the auto-pin checkbox clicks
+        // off so their reading flow isn't yanked back to the bottom.
+        if ( autoPinCheckBox != null ) {
+            logArea.addEventFilter( ScrollEvent.SCROLL, e -> {
+                if ( e.getDeltaY() > 0 && autoPinCheckBox.isSelected() ) {
+                    autoPinCheckBox.setSelected( false );
+                }
+            } );
+            logArea.addEventFilter( MouseEvent.MOUSE_PRESSED, e -> {
+                // Clicking inside the log area also implies "I'm
+                // reading, don't yank me back" — same heuristic the
+                // major terminal emulators use.
+                if ( autoPinCheckBox.isSelected() ) {
+                    autoPinCheckBox.setSelected( false );
+                }
+            } );
+        }
+
+        // Right-click → Copy Line context menu on the log area. The
+        // built-in TextArea menu has Copy / Paste / etc. but no
+        // line-grabber; users debugging crashes regularly want a
+        // single mod-id or path off one line without dragging-to-select.
+        ContextMenu logMenu = new ContextMenu();
+        MenuItem copyLineItem = new MenuItem( LocalizationManager.get( "console.contextMenu.copyLine" ) );
+        copyLineItem.setOnAction( e -> copyCurrentLineToClipboard() );
+        MenuItem copyAllItem = new MenuItem( LocalizationManager.get( "console.contextMenu.copyAll" ) );
+        copyAllItem.setOnAction( e -> copyAllToClipboard() );
+        logMenu.getItems().addAll( copyLineItem, copyAllItem );
+        logArea.setContextMenu( logMenu );
+    }
+
+    /** Searches the log TextArea for {@code needle} starting from the
+     *  current caret position (forward search) or scanning backwards
+     *  to find the previous occurrence (when {@code forward} is false).
+     *  Wraps around at the end / start so repeated Enter presses cycle
+     *  through all matches. */
+    private void findInLog( String needle, boolean forward )
+    {
+        if ( logArea == null || needle == null || needle.isEmpty() ) return;
+        String haystack = logArea.getText();
+        if ( haystack == null || haystack.isEmpty() ) {
+            searchStatusLabel.setText( LocalizationManager.get( "console.search.noMatch" ) );
+            return;
+        }
+        String lowerHay = haystack.toLowerCase();
+        String lowerNeedle = needle.toLowerCase();
+        int caret = logArea.getCaretPosition();
+        int idx;
+        if ( forward ) {
+            idx = lowerHay.indexOf( lowerNeedle, caret );
+            if ( idx < 0 ) idx = lowerHay.indexOf( lowerNeedle );  // wrap
+        }
+        else {
+            // Look BEFORE the current selection start so repeated
+            // back-presses walk backwards through matches.
+            int from = Math.max( 0, logArea.getSelection().getStart() - 1 );
+            idx = lowerHay.lastIndexOf( lowerNeedle, from );
+            if ( idx < 0 ) idx = lowerHay.lastIndexOf( lowerNeedle );  // wrap
+        }
+        if ( idx < 0 ) {
+            searchStatusLabel.setText( LocalizationManager.get( "console.search.noMatch" ) );
+            return;
+        }
+        logArea.selectRange( idx, idx + needle.length() );
+        searchStatusLabel.setText( "" );
+        // Disable auto-pin while the user is searching — being scrolled
+        // away mid-search is hostile.
+        if ( autoPinCheckBox != null && autoPinCheckBox.isSelected() ) {
+            autoPinCheckBox.setSelected( false );
+        }
+    }
+
+    /** Copies the line at the current caret position. Convenience
+     *  beyond the built-in TextArea copy which only handles selection. */
+    private void copyCurrentLineToClipboard()
+    {
+        String text = logArea.getText();
+        if ( text == null || text.isEmpty() ) return;
+        int caret = logArea.getCaretPosition();
+        int lineStart = text.lastIndexOf( '\n', Math.max( 0, caret - 1 ) ) + 1;
+        int lineEnd = text.indexOf( '\n', caret );
+        if ( lineEnd < 0 ) lineEnd = text.length();
+        String line = text.substring( lineStart, lineEnd );
+        ClipboardContent content = new ClipboardContent();
+        content.putString( line );
+        Clipboard.getSystemClipboard().setContent( content );
+    }
+
+    private void copyAllToClipboard()
+    {
+        String text = logArea.getText();
+        if ( text == null || text.isEmpty() ) return;
+        ClipboardContent content = new ClipboardContent();
+        content.putString( text );
+        Clipboard.getSystemClipboard().setContent( content );
     }
 
     @Override
@@ -582,24 +717,49 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Appends text to the log TextArea.
+     * Appends text to the log TextArea. Auto-pins to the bottom only
+     * when {@link #autoPinCheckBox} is selected (the default) — when
+     * the user has toggled it off (or scrolled up mid-stream),
+     * appendText still adds the line but the caret stays put.
+     * TextArea.appendText DOES move the caret natively so we restore
+     * the caret + scroll position from the snapshot taken before the
+     * append.
      */
     private void appendToDisplay( String text ) {
+        boolean autoPin = autoPinCheckBox == null || autoPinCheckBox.isSelected();
+        if ( autoPin ) {
+            logArea.appendText( text );
+            return;
+        }
+        int caret = logArea.getCaretPosition();
+        int anchor = logArea.getAnchor();
+        double scrollTop = logArea.getScrollTop();
         logArea.appendText( text );
+        // Restore — appendText would otherwise jump the caret to the
+        // end and the renderer would scroll to follow.
+        logArea.positionCaret( caret );
+        if ( anchor != caret ) {
+            logArea.selectRange( anchor, caret );
+        }
+        logArea.setScrollTop( scrollTop );
     }
 
     /**
-     * Trims the TextArea to the last {@link #MAX_DISPLAY_LINES} lines if it has grown too large,
-     * and shows the truncation notice with a link to the full log file.
+     * Trims the TextArea to the configured max-lines (Settings → Game
+     * Console → Log buffer size) if it has grown too large, and shows
+     * the truncation notice with a link to the full log file. 0 means
+     * unlimited — the buffer grows without bound (use sparingly on
+     * long sessions; JavaFX's TextArea is fine up to a few MB of text
+     * but degrades past that).
      */
     private void trimDisplayIfNeeded() {
-        if ( displayLineCount <= MAX_DISPLAY_LINES ) {
+        int maxLines = ConfigManager.getConsoleLogMaxLines();
+        if ( maxLines <= 0 || displayLineCount <= maxLines ) {
             return;
         }
 
         String current = logArea.getText();
-        // Find the start position that keeps only the last MAX_DISPLAY_LINES lines
-        int linesToDrop = displayLineCount - MAX_DISPLAY_LINES;
+        int linesToDrop = displayLineCount - maxLines;
         int idx = 0;
         for ( int i = 0; i < linesToDrop && idx < current.length(); i++ ) {
             int next = current.indexOf( '\n', idx );
@@ -611,13 +771,18 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
 
         if ( idx > 0 && idx < current.length() ) {
             logArea.setText( current.substring( idx ) );
-            displayLineCount = MAX_DISPLAY_LINES;
-            logArea.positionCaret( logArea.getText().length() );
+            displayLineCount = maxLines;
+            // Only re-pin to the bottom when auto-pin is on. Otherwise
+            // the user gets snapped down whenever a trim fires, which
+            // contradicts the auto-pin-off intent.
+            if ( autoPinCheckBox == null || autoPinCheckBox.isSelected() ) {
+                logArea.positionCaret( logArea.getText().length() );
+            }
         }
 
         if ( !truncated ) {
             truncated = true;
-            truncationLabel.setText( LocalizationManager.format( "console.truncationLabel", MAX_DISPLAY_LINES ) );
+            truncationLabel.setText( LocalizationManager.format( "console.truncationLabel", maxLines ) );
             truncationLabel.setVisible( true );
             truncationLabel.setManaged( true );
             if ( logFile != null ) {
@@ -634,11 +799,13 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     private String getDisplayLog() {
         synchronized ( fullLogContent ) {
             String full = fullLogContent.toString();
-            // If truncated, return only the last MAX_DISPLAY_LINES lines
-            if ( truncated ) {
+            // If truncated, return only the last configured-max-lines.
+            // 0 means unlimited — return the entire buffer.
+            int maxLines = ConfigManager.getConsoleLogMaxLines();
+            if ( truncated && maxLines > 0 ) {
                 int lineCount = 0;
                 int idx = full.length();
-                while ( idx > 0 && lineCount < MAX_DISPLAY_LINES ) {
+                while ( idx > 0 && lineCount < maxLines ) {
                     idx = full.lastIndexOf( '\n', idx - 1 );
                     if ( idx == -1 ) {
                         idx = 0;
