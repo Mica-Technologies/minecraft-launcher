@@ -127,4 +127,10 @@ fabric.properties
 # Agent progress plans (local only, contains sensitive info)
 docs/agent-progress-plans/
 
+# Cold-start measurement output — has machine-specific paths in
+# stdout dumps from training runs, and grows unboundedly with each
+# perf-investigation session. The scripts under tools/perf/ are
+# committed; only the measurement output is ignored.
+tools/perf/results/
+
 /.claude/settings.local.json
