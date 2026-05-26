@@ -125,61 +125,62 @@ public class MCLauncherGuiController
      * first navigation to the main menu — avoids paying the FXML-load
      * cost on the critical path.
      *
-     * <p>Volatile so the session-thread read sees the prestart-thread
-     * write without an explicit memory barrier. {@link AtomicBoolean}
-     * tracks whether construction is in progress (to keep concurrent
-     * pre-builds from racing each other).</p>
+     * <p>Accessed only under {@link #PREBUILD_LOCK} so a session thread
+     * arriving mid-prebuild blocks on the monitor instead of racing into
+     * its own redundant FXML load.</p>
      */
-    private static volatile MCLauncherMainGui prebuiltMainGui = null;
-    private static final java.util.concurrent.atomic.AtomicBoolean prebuildInProgress =
-            new java.util.concurrent.atomic.AtomicBoolean( false );
+    private static MCLauncherMainGui prebuiltMainGui = null;
+    private static final Object PREBUILD_LOCK = new Object();
 
     /**
      * Pre-constructs the {@link MCLauncherMainGui} instance (FXML load + node
      * graph) so the session thread's first goToMainGui call can skip the
-     * ~250 ms FXML parse. Idempotent + non-blocking on contention: a second
-     * caller sees prebuildInProgress already set and returns immediately.
+     * ~250 ms FXML parse.
      *
-     * <p>Pre-condition: {@link #startGui()} has been called and succeeded so
-     * {@link #guiWindow} is non-null. The FX prestart thread chains this
-     * after {@link #prestartGui()} returns.</p>
+     * <p>Holds {@link #PREBUILD_LOCK} for the duration of the construction
+     * so a racing {@link #consumePrebuiltMainGui()} caller (the session
+     * thread arriving mid-prebuild) blocks until the instance is ready
+     * rather than falling through and constructing a redundant copy on
+     * its own. Pre-condition: {@link #startGui()} has been called and
+     * succeeded so {@link #guiWindow} is non-null.</p>
      */
     public static void prebuildMainGui() {
-        if ( !startSuccess.get() || guiWindow == null ) return;
-        if ( prebuiltMainGui != null ) return;
-        if ( !prebuildInProgress.compareAndSet( false, true ) ) return;
-        try {
-            // Constructor loads the FXML on the FX thread via JFXPlatformRun;
-            // the session thread can be doing anything during this. The
-            // controller's setup() is NOT called here — that runs later, on
-            // the FX thread, from MCLauncherGuiWindow.setScene, by which
-            // point MCLauncherAuthManager.getLoggedInUser() (which setup()
-            // dereferences for the player chip) has been populated by the
-            // session-thread auth fast-path.
-            MCLauncherMainGui instance = new MCLauncherMainGui( guiWindow.getStage() );
-            prebuiltMainGui = instance;
-        }
-        catch ( Throwable t ) {
-            Logger.logWarningSilent( "Main GUI pre-build failed: "
-                                             + t.getClass().getSimpleName() + " — "
-                                             + "falling back to lazy construct in goToMainGui." );
-        }
-        finally {
-            prebuildInProgress.set( false );
+        synchronized ( PREBUILD_LOCK ) {
+            if ( prebuiltMainGui != null ) return;
+            if ( !startSuccess.get() || guiWindow == null ) return;
+            try {
+                // Constructor loads the FXML on the FX thread via JFXPlatformRun;
+                // the session thread can be doing anything during this. The
+                // controller's setup() is NOT called here — that runs later, on
+                // the FX thread, from MCLauncherGuiWindow.setScene, by which
+                // point MCLauncherAuthManager.getLoggedInUser() (which setup()
+                // dereferences for the player chip) has been populated by the
+                // session-thread auth fast-path.
+                prebuiltMainGui = new MCLauncherMainGui( guiWindow.getStage() );
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Main GUI pre-build failed: "
+                                                 + t.getClass().getSimpleName() + " — "
+                                                 + "falling back to lazy construct in goToMainGui." );
+            }
         }
     }
 
     /**
      * Returns + clears the pre-built {@link MCLauncherMainGui} instance, or
-     * {@code null} when no pre-build is available. Single-use: a subsequent
-     * call returns null until {@link #prebuildMainGui()} runs again.
+     * {@code null} when no pre-build has been started or one failed.
+     *
+     * <p>Synchronizes on {@link #PREBUILD_LOCK} so a session thread
+     * arriving mid-prebuild waits for the in-flight construction to
+     * finish instead of returning null + redundantly constructing on its
+     * own. Single-use: a subsequent call returns null.</p>
      */
     private static MCLauncherMainGui consumePrebuiltMainGui() {
-        MCLauncherMainGui pre = prebuiltMainGui;
-        if ( pre != null ) {
+        synchronized ( PREBUILD_LOCK ) {
+            MCLauncherMainGui pre = prebuiltMainGui;
             prebuiltMainGui = null;
+            return pre;
         }
-        return pre;
     }
 
     @SuppressWarnings( "UnusedReturnValue" )
