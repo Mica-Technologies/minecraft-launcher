@@ -134,8 +134,10 @@ public final class ModpackContentBrowser
     {
         // Screenshots can grow large — pre-collapse so a pack with
         // hundreds of screenshot files doesn't bloat the modal scroll.
+        // Population is gated on first-expand: a user who never opens
+        // this section never pays the FS scan + tile construction cost.
         VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.screenshots" ), false );
-        populateAsync( section,
+        MCLauncherModpackDetailModal.registerOnFirstExpand( section, () -> populateAsync( section,
                        () -> scanSortedFiles( pack, "screenshots",
                                               f -> {
                                                   if ( !f.isFile() ) return false;
@@ -155,7 +157,7 @@ public final class ModpackContentBrowser
                                grid.getChildren().add( buildScreenshotTile( shot, overlayHost ) );
                            }
                            sec.getChildren().add( grid );
-                       } );
+                       } ) );
         return section;
     }
 
@@ -169,11 +171,12 @@ public final class ModpackContentBrowser
     public static Node buildModsSection( GameModPack pack, SectionBuilder sectionBox, VBox bodyToRebuild )
     {
         // Mods is the biggest section by far — a typical Forge pack
-        // carries 100+ jars. Pre-collapse so the modal stays scannable
-        // for large packs; the user clicks to expand when they need
-        // it (the "Check for updates" affordance is inside).
+        // carries 100+ jars. Pre-collapse + lazy-populate: 100+ HBoxes
+        // (each with label + toggle button) constructed at modal open
+        // would dominate the FX-thread render storm right when the
+        // user wants to see the modal. Gated on first-expand instead.
         VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.mods" ), false );
-        populateAsync( section,
+        MCLauncherModpackDetailModal.registerOnFirstExpand( section, () -> populateAsync( section,
                        () -> scanSortedFiles( pack, "mods",
                                               f -> {
                                                   if ( !f.isFile() ) return false;
@@ -191,7 +194,7 @@ public final class ModpackContentBrowser
                            }
                            File modsDirRef = subDir( pack, "mods" );
                            renderModsSection( sec, modsDirRef, mods, bodyToRebuild );
-                       } );
+                       } ) );
         return section;
     }
 
@@ -638,9 +641,11 @@ public final class ModpackContentBrowser
     {
         // Crash history is the kind of thing a user looks at AFTER
         // something went wrong, not on every modal open — pre-collapse
-        // so a pack with a long crash log doesn't dominate the scroll.
+        // + lazy-populate so a pack with a long crash log doesn't pay
+        // the FS scan + row construction cost until the user asks for
+        // it.
         VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.crashHistory" ), false );
-        populateAsync( section,
+        MCLauncherModpackDetailModal.registerOnFirstExpand( section, () -> populateAsync( section,
                        () -> scanSortedFiles( pack, "crash-reports",
                                               f -> f.isFile() && f.getName().endsWith( ".txt" ),
                                               Comparator.comparingLong( File::lastModified ).reversed() ),
@@ -652,7 +657,7 @@ public final class ModpackContentBrowser
                            for ( File r : reports ) {
                                sec.getChildren().add( buildCrashRow( r, overlayHost ) );
                            }
-                       } );
+                       } ) );
         return section;
     }
 
