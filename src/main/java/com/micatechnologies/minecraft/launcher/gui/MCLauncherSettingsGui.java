@@ -201,6 +201,23 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     javafx.scene.control.Label generateJvmArgsHint;
 
+    // Pack-backup policy controls (Advanced tab).
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXToggleButton autoBackupToggle;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXToggleButton backupIncludeSavesToggle;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.control.Spinner< Integer > backupMaxCountSpinner;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.control.Spinner< Integer > backupMaxAgeDaysSpinner;
+
     /**
      * Announcement banner.
      *
@@ -971,6 +988,37 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Set and configure LWJGL ARM64 patching check box
         lwjglArmPatchCheckBox.setSelected( ConfigManager.getLwjglArmPatchEnable() );
+
+        // Pack-backup policy. Live listeners persist on change so the
+        // settings panel doesn't need an explicit "save" — same pattern as
+        // the other Advanced toggles above. Spinners are clamped at the
+        // setter level (negative values floor to 0 which means "no cap").
+        if ( autoBackupToggle != null ) {
+            autoBackupToggle.setSelected( ConfigManager.getAutoBackupBeforeUpdate() );
+            autoBackupToggle.selectedProperty().addListener( ( obs, oldV, newV ) ->
+                    ConfigManager.setAutoBackupBeforeUpdate( Boolean.TRUE.equals( newV ) ) );
+        }
+        if ( backupIncludeSavesToggle != null ) {
+            backupIncludeSavesToggle.setSelected( ConfigManager.getBackupIncludeSaves() );
+            backupIncludeSavesToggle.selectedProperty().addListener( ( obs, oldV, newV ) ->
+                    ConfigManager.setBackupIncludeSaves( Boolean.TRUE.equals( newV ) ) );
+        }
+        if ( backupMaxCountSpinner != null ) {
+            backupMaxCountSpinner.setValueFactory( new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                    0, 100, ConfigManager.getMaxBackupsPerPack() ) );
+            backupMaxCountSpinner.setEditable( true );
+            backupMaxCountSpinner.valueProperty().addListener( ( obs, oldV, newV ) -> {
+                if ( newV != null ) ConfigManager.setMaxBackupsPerPack( newV );
+            } );
+        }
+        if ( backupMaxAgeDaysSpinner != null ) {
+            backupMaxAgeDaysSpinner.setValueFactory( new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                    0, 365, ConfigManager.getMaxBackupAgeDays() ) );
+            backupMaxAgeDaysSpinner.setEditable( true );
+            backupMaxAgeDaysSpinner.valueProperty().addListener( ( obs, oldV, newV ) -> {
+                if ( newV != null ) ConfigManager.setMaxBackupAgeDays( newV );
+            } );
+        }
 
         // Populate proxy settings
         proxyEnableCheckBox.setSelected( ConfigManager.getProxyEnable() );

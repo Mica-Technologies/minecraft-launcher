@@ -349,6 +349,39 @@
                         <padding>
                             <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
                         </padding>
+                        <Label text="%settings.fxml.backupHeader">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="%settings.fxml.backupBlurb" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="autoBackupToggle" text="%settings.fxml.autoBackupBeforeUpdate" />
+                        <MFXToggleButton fx:id="backupIncludeSavesToggle" text="%settings.fxml.backupIncludeSaves" />
+                        <Label text="%settings.fxml.backupIncludeSavesHint" wrapText="true" styleClass="muted">
+                            <font>
+                                <Font size="10.0" />
+                            </font>
+                        </Label>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <Label text="%settings.fxml.backupMaxCount" />
+                            <Spinner fx:id="backupMaxCountSpinner" editable="true" prefWidth="80.0" />
+                            <Label text="%settings.fxml.backupMaxAgeDays" />
+                            <Spinner fx:id="backupMaxAgeDaysSpinner" editable="true" prefWidth="80.0" />
+                        </HBox>
+                        <Label text="%settings.fxml.backupCountAgeHint" wrapText="true" styleClass="muted">
+                            <font>
+                                <Font size="10.0" />
+                            </font>
+                        </Label>
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
                         <Label text="%settings.fxml.gameFileIntegrity">
                             <font>
                                 <Font name="System Bold" size="13.0" />
