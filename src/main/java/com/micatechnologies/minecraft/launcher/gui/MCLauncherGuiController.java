@@ -63,7 +63,20 @@ public class MCLauncherGuiController
     }
 
 
-    private static boolean startGui() {
+    /**
+     * Idempotently constructs the launcher's single {@link MCLauncherGuiWindow}
+     * + its host {@link Stage}, on the JavaFX thread. Returns true on success
+     * (or when the window had already been started by a previous call), false
+     * if construction failed.
+     *
+     * <p>Synchronized so the cold-start path can race two callers: the
+     * background "FX prestart" thread (which overlaps Platform.startup +
+     * window construction with the session thread's auth + pack-load work)
+     * and the session thread's own startGui call from goToMainGui. Whichever
+     * thread enters first does the construction; the second gets a fast
+     * {@code guiWindow != null} return.</p>
+     */
+    static synchronized boolean startGui() {
         if ( guiWindow == null ) {
             GUIUtilities.JFXPlatformRun( () -> {
                 try {
@@ -91,6 +104,18 @@ public class MCLauncherGuiController
             } );
         }
         return startSuccess.get();
+    }
+
+    /**
+     * Triggers the GUI window construction in advance of the session thread
+     * needing it. Same effect as {@link #startGui()}, but exposed publicly
+     * so {@link com.micatechnologies.minecraft.launcher.LauncherSession}'s
+     * FX-prestart thread can overlap the window-init work with its own
+     * auth + pack-load critical path. Safe to call multiple times — the
+     * underlying startGui is synchronized + idempotent.
+     */
+    public static boolean prestartGui() {
+        return startGui();
     }
 
     @SuppressWarnings( "UnusedReturnValue" )
