@@ -216,6 +216,7 @@ class LauncherSession
         // synchronously here because we need installedGameModPacks populated
         // before the main GUI's setup reads it — the cache-only path is fast
         // enough that the extra thread hop wasn't earning anything.
+        ColdStartProfiler.mark( "packs_load_start" );
         GameModPackManager.fetchInstalledModPacks( null );
         ColdStartProfiler.mark( "packs_loaded" );
 
@@ -231,6 +232,7 @@ class LauncherSession
         com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui.prefetchAvailableModpackBackgrounds();
 
         // Show main (mod pack selection) window
+        ColdStartProfiler.mark( "modpack_selection_start" );
         LauncherCore.doModpackSelection( initialModPackSelection, previousRestartError );
 
         // Deferred mmcl:// dispatch. If the launcher was cold-started via the scheme handler

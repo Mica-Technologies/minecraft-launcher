@@ -291,13 +291,22 @@ public class GameModPackManager
         // identity in the FlowPane but pick up real mod lists / forge config.
         // Any URL whose per-manifest cache is missing falls through to the
         // synchronous network path below.
-        final List< String > needsNetwork = new java.util.ArrayList<>();
-        for ( String manifestUrl : needsFullLoad ) {
+        //
+        // Parallel disk reads: each per-manifest cache file is independent,
+        // and on a user with 20+ installed packs this loop was the largest
+        // single sync block in the cold-start path (one file open + GSON
+        // parse per pack). parallelStream uses the common ForkJoinPool;
+        // installedGameModPacks is a CopyOnWriteArrayList so concurrent
+        // replaceOrAppendByUrl + needsNetwork (Collections.synchronizedList)
+        // mutations are safe.
+        final List< String > needsNetwork = java.util.Collections.synchronizedList(
+                new java.util.ArrayList<>() );
+        needsFullLoad.parallelStream().forEach( manifestUrl -> {
             GameModPack cached = GameModPackFetcher.getFromCache( manifestUrl, true );
             if ( cached != null ) {
                 replaceOrAppendByUrl( installedGameModPacks, manifestUrl, cached );
             }
-            else if ( !installedGameModPacks.stream().anyMatch( p ->
+            else if ( installedGameModPacks.stream().noneMatch( p ->
                     manifestUrl.equals( p.getManifestUrl() ) ) ) {
                 // No stub AND no cached body — must hit network.
                 needsNetwork.add( manifestUrl );
@@ -308,7 +317,7 @@ public class GameModPackManager
                 // gets promoted to a real pack rather than staying half-loaded.
                 needsNetwork.add( manifestUrl );
             }
-        }
+        } );
 
         // Phase 1b — synchronous network for any pack we couldn't load from cache.
         // Same parallelStream as before; the loop only fires when the cache misses,
