@@ -50,6 +50,43 @@ public class GameModPack extends GameModPackMetadata
     private transient GameModPackLauncher         launcher          = null;
 
     /**
+     * Optional quick-join server target for the next {@link #startGame()}
+     * call. When non-null, the launcher appends {@code --server <host>}
+     * (plus {@code --port <port>} when not the default 25565) to the
+     * Minecraft game argv, so the user lands directly on that server's
+     * loading screen instead of the main menu. Cleared by the launcher
+     * after consumption — set it again per launch.
+     *
+     * @since 2026.5
+     */
+    private transient ServerFavorite quickJoinServer = null;
+
+    public void setQuickJoinServer( ServerFavorite quickJoinServer )
+    {
+        this.quickJoinServer = quickJoinServer;
+    }
+
+    /**
+     * Returns and clears the explicit quick-join server set by a "Connect"
+     * action; when no explicit target is set, falls back to the pack's
+     * manifest-declared default server (when present and not disabled by
+     * the user via the per-pack toggle stored in
+     * {@link ServerFavoritesStore}). This is the single place that
+     * resolves "what server, if any, should the next launch auto-join?" —
+     * both the Play button and the Connect button funnel through here.
+     */
+    public ServerFavorite consumeQuickJoinServer()
+    {
+        ServerFavorite v = this.quickJoinServer;
+        this.quickJoinServer = null;
+        if ( v != null ) return v;
+        ServerFavorite dflt = getDefaultServer();
+        if ( dflt == null ) return null;
+        if ( ServerFavoritesStore.isDefaultServerDisabled( this ) ) return null;
+        return dflt;
+    }
+
+    /**
      * Returns the lazily-initialized environment handler for this modpack.
      */
     private GameModPackEnvironment getEnvironment()

@@ -17,13 +17,18 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
+import com.micatechnologies.minecraft.launcher.game.modpack.ServerFavorite;
+import com.micatechnologies.minecraft.launcher.game.modpack.ServerFavoritesStore;
+import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask;
 import com.micatechnologies.minecraft.launcher.utilities.NotificationManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import io.github.palexdev.materialfx.controls.MFXTextField;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
@@ -364,6 +369,230 @@ public final class ModpackContentBrowser
     public static Node buildResourcePacksSection( GameModPack pack, SectionBuilder sectionBox )
     {
         return buildSimplePackList( pack, "resourcepacks", "detailModal.section.resourcePacks", sectionBox );
+    }
+
+    /**
+     * Per-pack server-favorites list, persisted to
+     * {@code <packRoot>/server-favorites.json}. Renders the existing
+     * favorites with Connect / Copy IP / Remove actions and an Add row
+     * with Name + Address fields at the top. The Connect button sets
+     * the pack's transient quick-join target and routes through the
+     * same launch flow as the modal's Play button, so the user lands on
+     * the server's loading screen instead of the main menu.
+     *
+     * <p>Section is empty-stated when no favorites exist; the Add row
+     * is still present so the user can add their first one.</p>
+     */
+    public static Node buildServersSection( GameModPack pack, SectionBuilder sectionBox )
+    {
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.servers" ) );
+
+        // Manifest-declared "pack default" row. Renders only when the
+        // pack's manifest sets packDefaultServerHost; shows a labeled
+        // address + an auto-join toggle. The toggle writes to the
+        // server-favorites.json sidecar (disableDefaultServer flag),
+        // which GameModPack.consumeQuickJoinServer honors at launch time.
+        ServerFavorite manifestDefault = pack.getDefaultServer();
+        if ( manifestDefault != null ) {
+            section.getChildren().add( buildDefaultServerRow( pack, manifestDefault ) );
+        }
+
+        // Mutable backing list — we re-render the section's row VBox in
+        // place after each Add / Remove rather than rebuilding the modal.
+        // ArrayList suffices: list is single-digit length in practice.
+        final java.util.List< ServerFavorite > favorites =
+                new java.util.ArrayList<>( ServerFavoritesStore.load( pack ) );
+
+        // Add row: Name + Address fields with an Add button. Both fields
+        // clear on success and stay populated on validation failure so
+        // the user can fix their input without re-typing.
+        HBox addRow = new HBox( 8 );
+        addRow.setAlignment( Pos.CENTER_LEFT );
+        MFXTextField nameField = new MFXTextField();
+        nameField.setPromptText( LocalizationManager.get( "detailModal.servers.namePlaceholder" ) );
+        nameField.setPrefWidth( 160 );
+        MFXTextField addressField = new MFXTextField();
+        addressField.setPromptText( LocalizationManager.get( "detailModal.servers.addressPlaceholder" ) );
+        HBox.setHgrow( addressField, Priority.ALWAYS );
+        MFXButton addBtn = new MFXButton( LocalizationManager.get( "detailModal.servers.addBtn" ) );
+        addBtn.getStyleClass().add( "heroCardPrimaryBtn" );
+        addBtn.setPrefHeight( 28 );
+        addRow.getChildren().addAll( nameField, addressField, addBtn );
+        section.getChildren().add( addRow );
+
+        // Holder VBox for the rendered favorite rows — rebuilt in place
+        // after Add / Remove so we never have to remove + re-add nodes
+        // from the parent section.
+        VBox rowsBox = new VBox( 4 );
+        section.getChildren().add( rowsBox );
+
+        Runnable rerender = () -> renderServerRows( pack, favorites, rowsBox );
+        rerender.run();
+
+        addBtn.setOnAction( e -> {
+            ServerFavorite parsed = ServerFavorite.parse( nameField.getText(), addressField.getText() );
+            if ( parsed == null ) {
+                NotificationManager.warn(
+                        LocalizationManager.get( "detailModal.servers.invalidTitle" ),
+                        LocalizationManager.get( "detailModal.servers.invalidBody" ) );
+                return;
+            }
+            favorites.add( parsed );
+            try {
+                ServerFavoritesStore.save( pack, favorites );
+            }
+            catch ( Exception ex ) {
+                Logger.logWarningSilent( "Couldn't save server favorites: " + ex.getMessage() );
+                NotificationManager.warn(
+                        LocalizationManager.get( "detailModal.servers.saveFailedTitle" ),
+                        LocalizationManager.get( "detailModal.servers.saveFailedBody" ) );
+                favorites.remove( favorites.size() - 1 );
+                return;
+            }
+            nameField.clear();
+            addressField.clear();
+            rerender.run();
+        } );
+        return section;
+    }
+
+    private static void renderServerRows( GameModPack pack,
+                                          java.util.List< ServerFavorite > favorites,
+                                          VBox rowsBox )
+    {
+        rowsBox.getChildren().clear();
+        if ( favorites.isEmpty() ) {
+            rowsBox.getChildren().add( emptyLabel() );
+            return;
+        }
+        for ( int i = 0; i < favorites.size(); i++ ) {
+            rowsBox.getChildren().add( buildServerRow( pack, favorites, i, rowsBox ) );
+        }
+    }
+
+    private static HBox buildServerRow( GameModPack pack,
+                                        java.util.List< ServerFavorite > favorites,
+                                        int index,
+                                        VBox rowsBox )
+    {
+        ServerFavorite fav = favorites.get( index );
+
+        HBox row = new HBox( 10 );
+        row.setAlignment( Pos.CENTER_LEFT );
+        row.getStyleClass().add( "modpackDetailContentRow" );
+        row.setPadding( new Insets( 4, 0, 4, 0 ) );
+
+        Label name = new Label( fav.name() );
+        name.getStyleClass().add( "modpackDetailContentName" );
+        HBox.setHgrow( name, Priority.ALWAYS );
+        name.setMaxWidth( Double.MAX_VALUE );
+
+        Label addr = new Label( fav.displayAddress() );
+        addr.getStyleClass().add( "muted" );
+
+        MFXButton connectBtn = new MFXButton( LocalizationManager.get( "detailModal.servers.connectBtn" ) );
+        connectBtn.getStyleClass().add( "heroCardPrimaryBtn" );
+        connectBtn.setPrefHeight( 28 );
+        connectBtn.setOnAction( e -> connectToServer( pack, fav ) );
+
+        MFXButton copyBtn = new MFXButton( LocalizationManager.get( "detailModal.servers.copyBtn" ) );
+        copyBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+        copyBtn.setPrefHeight( 28 );
+        copyBtn.setOnAction( e -> {
+            ClipboardContent content = new ClipboardContent();
+            content.putString( fav.displayAddress() );
+            Clipboard.getSystemClipboard().setContent( content );
+            NotificationManager.success(
+                    LocalizationManager.get( "detailModal.servers.copiedTitle" ),
+                    fav.displayAddress() );
+        } );
+
+        MFXButton removeBtn = new MFXButton( LocalizationManager.get( "detailModal.servers.removeBtn" ) );
+        removeBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+        removeBtn.setPrefHeight( 28 );
+        removeBtn.setOnAction( e -> {
+            favorites.remove( index );
+            try {
+                ServerFavoritesStore.save( pack, favorites );
+            }
+            catch ( Exception ex ) {
+                Logger.logWarningSilent( "Couldn't save server favorites: " + ex.getMessage() );
+                NotificationManager.warn(
+                        LocalizationManager.get( "detailModal.servers.saveFailedTitle" ),
+                        LocalizationManager.get( "detailModal.servers.saveFailedBody" ) );
+                favorites.add( index, fav );
+                return;
+            }
+            renderServerRows( pack, favorites, rowsBox );
+        } );
+
+        row.getChildren().addAll( name, addr, connectBtn, copyBtn, removeBtn );
+        return row;
+    }
+
+    private static HBox buildDefaultServerRow( GameModPack pack, ServerFavorite manifestDefault )
+    {
+        HBox row = new HBox( 10 );
+        row.setAlignment( Pos.CENTER_LEFT );
+        row.getStyleClass().add( "modpackDetailContentRow" );
+        row.setPadding( new Insets( 4, 0, 4, 0 ) );
+
+        Label tag = new Label( LocalizationManager.get( "detailModal.servers.packDefaultLabel" ) );
+        tag.getStyleClass().add( "modpackDetailContentName" );
+
+        Label nameLabel = new Label( manifestDefault.name() );
+        nameLabel.getStyleClass().add( "modpackDetailContentName" );
+        HBox.setHgrow( nameLabel, Priority.ALWAYS );
+        nameLabel.setMaxWidth( Double.MAX_VALUE );
+
+        Label addr = new Label( manifestDefault.displayAddress() );
+        addr.getStyleClass().add( "muted" );
+
+        boolean disabled = ServerFavoritesStore.isDefaultServerDisabled( pack );
+
+        javafx.scene.control.CheckBox autoJoin = new javafx.scene.control.CheckBox(
+                LocalizationManager.get( "detailModal.servers.autoJoinToggle" ) );
+        autoJoin.setSelected( !disabled );
+        autoJoin.selectedProperty().addListener( ( obs, was, isNow ) -> {
+            try {
+                ServerFavoritesStore.setDefaultServerDisabled( pack, !isNow );
+            }
+            catch ( Exception ex ) {
+                Logger.logWarningSilent( "Couldn't save default-server toggle: " + ex.getMessage() );
+                NotificationManager.warn(
+                        LocalizationManager.get( "detailModal.servers.saveFailedTitle" ),
+                        LocalizationManager.get( "detailModal.servers.saveFailedBody" ) );
+                // Revert the visual checkbox state to match what's on disk.
+                autoJoin.setSelected( was );
+            }
+        } );
+
+        row.getChildren().addAll( tag, nameLabel, addr, autoJoin );
+        return row;
+    }
+
+    /** Sets the pack's quick-join transient field and routes through
+     *  the standard launch pipeline. Mirrors the modal's startPlay
+     *  pattern (spawn task, set Discord presence, call LauncherCore.play
+     *  with the back-to-main-GUI callback). */
+    private static void connectToServer( GameModPack pack, ServerFavorite fav )
+    {
+        pack.setQuickJoinServer( fav );
+        SystemUtilities.spawnNewTask( () -> {
+            javafx.application.Platform.setImplicitExit( false );
+            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( pack ) );
+            LauncherCore.play( pack, () -> javafx.application.Platform.runLater( () -> {
+                try {
+                    var top = MCLauncherGuiController.getTopStageOrNull();
+                    if ( top != null ) top.show();
+                    MCLauncherGuiController.goToMainGui();
+                    MCLauncherGuiController.requestFocus();
+                }
+                catch ( Exception e ) {
+                    Logger.logErrorSilent( "Quick-join return to main GUI failed: " + e.getMessage() );
+                }
+            } ) );
+        } );
     }
 
     /** Lists {@code <packRoot>/crash-reports/*.txt} sorted newest-first

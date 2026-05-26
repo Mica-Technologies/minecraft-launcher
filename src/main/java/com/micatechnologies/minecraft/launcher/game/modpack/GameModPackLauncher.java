@@ -1113,6 +1113,24 @@ class GameModPackLauncher
             argv.set( i, arg );
         }
 
+        // Quick-join server target. If the user clicked Connect on a server
+        // favorite, the LauncherCore.play overload set a transient field on
+        // the pack — consume it here and append --server / --port to argv so
+        // Minecraft auto-joins on launch. Consumed (cleared) on read so a
+        // later "Play" click without a server selection lands at the main
+        // menu as expected. --port is only added when non-default; Minecraft
+        // assumes 25565 otherwise, and emitting --port=25565 explicitly is
+        // harmless but noisy in the redacted launch-command log.
+        ServerFavorite quickJoin = pack.consumeQuickJoinServer();
+        if ( quickJoin != null && GameModeManager.isClient() ) {
+            argv.add( "--server" );
+            argv.add( quickJoin.host() );
+            if ( quickJoin.port() != ServerFavorite.DEFAULT_PORT ) {
+                argv.add( "--port" );
+                argv.add( Integer.toString( quickJoin.port() ) );
+            }
+        }
+
         // Add title + icon as separate argv elements. With List<String> argv
         // the pack name is passed as a single literal arg; no `"`-injection
         // path is reachable any more (the old StringBuilder path needed the
