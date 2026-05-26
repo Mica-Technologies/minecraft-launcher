@@ -96,6 +96,37 @@ class LauncherSession
         LauncherCore.configureLogger();
         ColdStartProfiler.mark( "logger_ready" );
 
+        // Kick off JavaFX platform startup on a background daemon thread so its
+        // ~600 ms bootstrap (Prism + Glass + font loading) overlaps with the
+        // auth fast-path + cache-first pack load below. Without this, the first
+        // call into MCLauncherGuiController.goToMainGui has to pay the startup
+        // cost serially on the critical path. Idempotent: Platform.startup is
+        // a one-shot, and subsequent JFXPlatformRun calls just see a ready
+        // toolkit and dispatch via Platform.runLater. Server mode skips this —
+        // headless launches don't touch the JavaFX scene graph at all.
+        if ( GameModeManager.getCurrentGameMode() == GameMode.CLIENT ) {
+            Thread fxPrestart = new Thread( () -> {
+                try {
+                    javafx.application.Platform.startup( () -> {
+                        // No-op initializer; we just want the toolkit up. The
+                        // first scene swap happens later from the session
+                        // thread via the normal goToMainGui path.
+                    } );
+                }
+                catch ( IllegalStateException already ) {
+                    // Toolkit was already started (test harness, re-init).
+                    // Safe to swallow; the launcher will use the existing one.
+                }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( "JavaFX pre-start failed: "
+                                                     + t.getClass().getSimpleName() + " — "
+                                                     + "falling back to lazy init in goToMainGui." );
+                }
+            }, "mmcl-fx-prestart" );
+            fxPrestart.setDaemon( true );
+            fxPrestart.start();
+        }
+
         // Log startup
         Logger.logDebug( "Logging configured. Application arguments parsed: " );
         for ( String arg : args ) {
