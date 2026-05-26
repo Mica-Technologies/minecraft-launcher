@@ -226,6 +226,15 @@ public class MCLauncherModpackDetailModal extends StackPane
         setPickOnBounds( true );
         setVisible( false );
         setManaged( false );
+
+        // Start at opacity 0 so the first show()'s setVisible(true) +
+        // fade-in plays cleanly. Without this, the modal's default
+        // opacity is 1.0 — JavaFX paints one frame at full opacity
+        // BEFORE the FadeTransition's first pulse snaps opacity to 0,
+        // producing a visible "appear → flash gone → fade back in"
+        // glitch on the first open after app start. (Subsequent shows
+        // don't glitch because hide()'s fade-out leaves opacity at 0.)
+        setOpacity( 0.0 );
     }
 
     /**
