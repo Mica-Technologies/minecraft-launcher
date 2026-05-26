@@ -1,209 +1,220 @@
 # Mica Minecraft Launcher
-A simple-to-use launcher for Minecraft Forge, built on the Java and JavaFX platforms. Compatible with Windows, macOS and Linux.
 
-## General Information
+A cross-platform modpack launcher for Minecraft. Modpacks are defined as JSON files hosted on the internet; the launcher fetches the manifest, downloads the required modloader + mods + configs + assets, verifies them by SHA-1, and launches the game. Runs on Windows, macOS, and Linux as a client (GUI) or in headless server mode.
 
-The Mica Minecraft Launcher is a cross-platform, easy-to-use modpack launcher that uses modpacks defined in JSON files that are hosted on the internet.
+Supports **Forge**, **NeoForge**, **Fabric**, and vanilla Mojang versions. Imports Modrinth `.mrpack` files, MultiMC / Prism Launcher instance folders, and Mica-format ZIP exports.
 
-All versions (macOS, Windows, Linux) support client mode and server mode. Client mode is the default mode, unless a graphic interface is not supported.
-- Client mode is the mode for those looking to play a Minecraft game (Minecraft Client). 
-- Server mode is the mode for those looking to host a Minecraft server (Minecraft Server).
+## Installing & Running
 
-### Opening the Launcher (Switches)
+Native installers (EXE/MSI on Windows, DMG/PKG on macOS, DEB/RPM on Linux) are produced by `mvn -B package` and live in `packaging/`. Installed builds open as a normal desktop app and default to client (GUI) mode.
 
-If you're using the native Windows or macOS application (exe, dmg, app), only client mode is supported, and these switches will not work.
+You can also run the fat JAR from `target/*-jar-with-dependencies.jar` directly:
 
-__To force server mode__: `launcher-file-name.jar -s`
+| Command | Effect |
+|---|---|
+| `java -jar launcher.jar` | Client mode (default; falls back to server in headless environments) |
+| `java -jar launcher.jar -c` | Force client (GUI) mode |
+| `java -jar launcher.jar -s` | Force server (headless) mode |
+| `java -jar launcher.jar <modpack name>` | Open with the named installed modpack pre-selected |
+| `java -jar launcher.jar -s <modpack name>` | Run the named modpack as a server |
 
-__To force client mode__: `launcher-file-name.jar -c`
+Native app builds (DMG/EXE/etc.) only support client mode — the mode switches are ignored.
 
-__To specify mod pack__: `launcher-file-name.jar [modpack name]` where [modpack name] is the name of the installed modpack.  For example, `launcher-file-name.jar Alto` would run the launcher with the Alto mod pack selected. 
+### `mmcl://` URL handler
 
-__To force server mode with specified mod pack__: `launcher-file-name.jar -s [modpack name]`
+The launcher registers an OS-level scheme so web pages can hand work back to the desktop app. Recognised actions:
 
-__To force client mode with specified mod pack__: `launcher-file-name.jar -c [modpack name]`
+- `mmcl://add?url=<manifest-url>` — register the pack URL (doesn't install)
+- `mmcl://join?url=<manifest-url>` — install (if needed) and launch
+- `mmcl://join?vanilla=<version-id>` — install the Mojang vanilla version and launch
+- `mmcl://play?name=<pack-name>` — launch an already-installed pack
+- `mmcl://open?name=<pack-name>` — focus / open the launcher on the pack's detail screen
 
-## Adding a Mod pack to the Launcher
+Disabled per-launcher in Settings if you don't want the scheme handler active.
 
-Adding a modpack to the Mica Minecraft Launcher is simple and easy! All you have to do is:
+## Adding a Modpack
 
-1. Open the launcher settings window
-    1. If not already done, login to the launcher with your Minecraft/Mojang account
-    2. On the modpack selection screen, click the "_Edit Mod Packs_" (Pencil Icon) button
-    
-2. Enter the URL of a mod pack, or choose one from the list of available mod packs
+The Library screen's bottom bar has three add paths:
 
-3. Click the "_Save_" button, and then "_Return_"
+- **URL** — paste a Mica `manifest.json` / `manifest.mmcjson` URL (or a Modrinth, CurseForge, or TechnicPack project URL — the launcher detects the source and routes through the matching importer)
+- **Import ZIP** — pick a `.mrpack` (Modrinth), Technic server pack, or Mica-format export `.zip`
+- **Import MultiMC / Prism** — pick a Prism Launcher / MultiMC instance folder. The launcher reads `instance.cfg` + `mmc-pack.json`, generates a Mica manifest, and copies the `.minecraft/` contents (mods, configs, worlds, resourcepacks, shaderpacks) into the new pack folder. Quilt instances are imported as Fabric (largely compatible at runtime).
 
-## Creating a Mod pack for the Launcher
+## Creating a Modpack
 
-Just like adding a modpack, creating one yourself is just as easy! All you have to do is:
+A modpack is a single JSON file hosted at a stable URL. Pack manifests can target Forge, NeoForge, Fabric, or vanilla Mojang versions; the launcher picks the right loader pipeline from the `packModLoader` field.
 
-1. Create a new JSON modpack definition, or download the example one [HERE](https://github.com/Mica-Technologies/minecraft-launcher/blob/main/full_modpack_json_example.json)
-
-2. Edit the required fields in the modpack definition to fit your modpack
-
-3. Add mods you'd like in your modpack to the packMods field
-
-4. Add optional fields such as packConfigs, packResourcePacks, packShaderPacks and packInitialFiles
-
-5. Upload the completed JSON modpack definition to an internet location, and get the download URL
-
-6. Share the download URL with anyone who would like to use the modpack
-
-__Basic Example__:
+### Basic Forge example
 
 ```json
 {
-    "packName": "Example Modpack",
-    "packVersion": "1.3.5",
-    "packURL": "www.example.com",
-    "packLogoURL": "https://image.shutterstock.com/image-vector/example-signlabel-features-speech-bubble-260nw-1223219848.jpg",
+    "packName": "Example Forge Pack",
+    "packVersion": "1.0.0",
+    "packURL": "https://example.com/",
+    "packLogoURL": "https://example.com/logo.png",
     "packMinRAMGB": "4",
-    "packForgeURL": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.12.2-14.23.5.2847/forge-1.12.2-14.23.5.2847-installer.jar",
-    "packForgeHash": "c15dbf708064a9db9a9d66dd84688b9f31b6006e",
-    "packMods": [{
-            "name": "Journey Map",
-            "remote": "https://media.forgecdn.net/files/2755/458/journeymap-1.12.2-5.5.5.jar",
-            "local": "journey-map.jar",
-            "sha1": "29875c4d6c543562066f44b727eb020d4fd062c3",
-            "clientReq": true,
-            "serverReq": true
-        },
+    "packModLoader": "forge",
+    "packModLoaderURL": "https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.2.0/forge-1.20.1-47.2.0-installer.jar",
+    "packModLoaderHash": "<sha-1 of the installer jar>",
+    "packMods": [
         {
-            "name": "Foam Fix",
-            "remote": "https://media.forgecdn.net/files/2809/906/foamfix-0.10.8-1.12.2.jar",
-            "local": "foam-fix.jar",
-            "sha1": "1ee4134a48f84d8a0122bc4efc18a49620b588ab",
+            "name": "Journey Map",
+            "remote": "https://example.com/journeymap.jar",
+            "local": "journeymap.jar",
+            "sha1": "<sha-1>",
             "clientReq": true,
-            "serverReq": true
+            "serverReq": false
         }
     ]
 }
-
 ```
 
-__Full Example__:
+### Fabric / NeoForge
+
+Swap `packModLoader` and point `packModLoaderURL` at the loader's installer / profile artifact:
+
+- **Forge**: `"packModLoader": "forge"`, `packModLoaderURL` → Forge installer JAR (Maven Central `net.minecraftforge:forge:<mc>-<ver>:installer`)
+- **NeoForge**: `"packModLoader": "neoforge"`, `packModLoaderURL` → NeoForge installer JAR (Maven `net.neoforged:neoforge:<ver>:installer`)
+- **Fabric**: `"packModLoader": "fabric"`, `packModLoaderURL` → Fabric profile JSON (e.g. `https://meta.fabricmc.net/v2/versions/loader/<mc>/<loader>/profile/json`). `packModLoaderHash` may be left blank for Fabric — the profile JSON is content-versioned by Fabric.
+
+Legacy Forge-only packs that still use `packForgeURL` + `packForgeHash` keep working — the launcher falls back to those when `packModLoader*` is absent.
+
+### Adding an auto-join default server
+
+If the pack is built for a specific multiplayer server, set the default-server fields and the launcher will append `--server` + `--port` to Minecraft's argv on every launch, so the user lands directly on the server's loading screen:
 
 ```json
 {
-    "packName": "Example Modpack",
-    "packVersion": "1.3.5",
-    "packURL": "www.example.com",
-    "packLogoURL": "https://image.shutterstock.com/image-vector/example-signlabel-features-speech-bubble-260nw-1223219848.jpg",
-    "packBackgroundURL": "https://wallpaperstock.net/minecraft-wallpapers_27410_1600x1200.jpg",
-    "packMinRAMGB": "4",
-    "packForgeURL": "https://files.minecraftforge.net/maven/net/minecraftforge/forge/1.12.2-14.23.5.2847/forge-1.12.2-14.23.5.2847-installer.jar",
-    "packForgeHash": "c15dbf708064a9db9a9d66dd84688b9f31b6006e",
-    "packScanExclusions": ["config", "dynmap"],
-    "packMods": [{
-            "name": "Journey Map",
-            "remote": "https://media.forgecdn.net/files/2755/458/journeymap-1.12.2-5.5.5.jar",
-            "local": "journey-map.jar",
-            "sha1": "29875c4d6c543562066f44b727eb020d4fd062c3",
-            "clientReq": true,
-            "serverReq": true
-        },
-        {
-            "name": "Foam Fix",
-            "remote": "https://media.forgecdn.net/files/2809/906/foamfix-0.10.8-1.12.2.jar",
-            "local": "foam-fix.jar",
-            "sha1": "1ee4134a48f84d8a0122bc4efc18a49620b588ab",
-            "clientReq": true,
-            "serverReq": true
-        }
-    ],
-    "packConfigs": [{
-        "remote": "https://file-examples.com/wp-content/uploads/2017/02/file_example_CSV_5000.csv",
-        "local": "example.csv",
-        "sha1": "314ccdfe54b570ab4f3cf09bedb5ae5f0ee01cd8",
-        "clientReq": true,
-        "serverReq": true
-    }],
-    "packResourcePacks": [{
-        "remote": "https://file-examples.com/wp-content/uploads/2017/02/zip_10MB.zip",
-        "local": "example-respack.zip",
-        "sha1": "0a81e8ce46a60629114ae9a55d6427b2150d14bf"
-    }],
-    "packShaderPacks": [{
-        "remote": "https://file-examples.com/wp-content/uploads/2017/02/zip_10MB.zip",
-        "local": "example-shaders.zip",
-        "sha1": "0a81e8ce46a60629114ae9a55d6427b2150d14bf"
-    }],
-    "packInitialFiles": [{
-        "remote": "https://www.example.com/initial-file.txt",
-        "local": "initial-file.txt",
-        "sha1": "-1",
-        "clientReq": true,
-        "serverReq": false
-    }]
+    "packName": "MyServer Pack",
+    "packVersion": "1.0.0",
+    "packDefaultServerHost": "play.example.com",
+    "packDefaultServerPort": 25565,
+    "packDefaultServerName": "Example SMP"
 }
 ```
 
-### Modpack Definition Fields
+(Add the three `packDefaultServer*` fields alongside your other top-level keys — they're optional and independent of the modloader / mods sections.)
 
-| NAME                 | EXAMPLE                                                                                                                                                                                              | EXPLANATION                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | REQUIRED |
-|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
-| packName             | "Example Modpack"                                                                                                                                                                                    | Name of mod pack                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | YES      |
-| packVersion          | "1.0.0"                                                                                                                                                                                              | Version of mod pack                                                                                                                                                                                                                                                                                                                                                                                                                                                               | YES      |
-| packURL              | "www.example.com"                                                                                                                                                                                    | URL of mod pack (can be blank)                                                                                                                                                                                                                                                                                                                                                                                                                                                    | YES      |
-| packUnstable         | false                                                                                                                                                                                                | True/false indicating if the pack is unstable (i.e. beta, pre-release, etc.)                                                                                                                                                                                                                                                                                                                                                                                                      | NO       |
-| packCustomDiscordRpc | false                                                                                                                                                                                                | True/false indicating if the pack implements its own custom Discord RPC patterns which should overrride the launcher's values.                                                                                                                                                                                                                                                                                                                                                    |          |
-| packLogoURL          | "www.example.com/image.png"                                                                                                                                                                          | URL of mod pack logo (.png only, include https if required)                                                                                                                                                                                                                                                                                                                                                                                                                       | YES      |
-| packBackgroundURL    | "www.example.com/otherimage.png"                                                                                                                                                                     | URL of mod pack background image (.png only, include https if required)                                                                                                                                                                                                                                                                                                                                                                                                           | NO       |
-| packMinRAMGB         | "4"                                                                                                                                                                                                  | Minimum RAM (in GB)                                                                                                                                                                                                                                                                                                                                                                                                                                                               | YES      |
-| packForgeURL         | "www.forge.com/download.jar"                                                                                                                                                                         | URL of Forge Jar (installer)                                                                                                                                                                                                                                                                                                                                                                                                                                                      | YES      |
-| packForgeHash        | "c91838b9f7ea97d9ace713"                                                                                                                                                                             | SHA-1 SUM of Forge Jar at packForgeURL                                                                                                                                                                                                                                                                                                                                                                                                                                            | YES      |
-| packScanExclusions   | ["config", "dynmap"]                                                                                                                                                                                 | List of files/folders to exclude from modpack Nekodetector scanning                                                                                                                                                                                                                                                                                                                                                                                                               | NO       |
-| packMods             | [{<br>    "name": "Mod Name",<br>    "remote": "www.mod.com/url",<br>    "local": "local-filename.jar",<br>    "sha1": "71c9a720418eb9a9c",<br>    "clientReq": true,<br>    "serverReq": true<br>}] | List of mods in mod pack (no limit)<br><br>name: Mod name<br>remote: Mod download URL<br>local: Mod local filename<br>sha1: Mod file sha-1 sum<br>clientReq: required for client<br>serverReq: required for server                                                                                                                                                                                                                                                                | YES      |
-| packConfigs          | [{<br>    "remote": "www.config.com/url",<br>    "local": "local-filename.cfg",<br>    "sha1": "9c7274d7a7bc752013f",<br>    "clientReq": true,<br>    "serverReq": false<br>}]                      | List of controlled mod configs (no limit)<br><br>remote: Config download URL<br>local: Config local filename<br>sha1: Config file sha-1 sum<br>clientReq: required for client<br>serverReq: required for server                                                                                                                                                                                                                                                                   | NO       |
-| packResourcePacks    | [{<br>    "remote": "www.res-pack.com/url",<br>    "local": "resource-pack.zip",<br>    "sha1": "c381fea7137c6296a3"<br>}]                                                                           | List of resource packs (no limit)<br><br>remote: Resource pack (.zip) download URL<br>local: Resource pack local filename<br>sha1: Resource pack file sha-1 sum                                                                                                                                                                                                                                                                                                                   | NO       |
-| packShaderPacks      | [{<br>    "remote": "www.shader-pack.com/url",<br>    "local": "shader-pack.zip",<br>    "sha1": "9a71cb24ef4c9ba2e1"<br>}]                                                                          | List of shader packs (no limit)<br><br>remote: Shader pack (.zip) download URL<br>local: Shader pack local filename<br>sha1: Shader pack file sha-1 sum                                                                                                                                                                                                                                                                                                                           | NO       |
-| packInitialFiles     | [{<br>    "remote": "www.example.com/file.txt",<br>    "local": "initial-file.txt",<br>    "sha1": "-1",<br>    "clientReq": true,<br>    "serverReq": false<br>}]                                   | List of initial files (no limit)<br><br>Initial files are files that do not fit <br>the existing categories. Initial files<br>are handled like other mod pack files, <br>and will be re-downloaded each time the <br>local file fails sha-1 verification, if<br>sha-1 verification is enabled.<br><br>remote: Initial file download URL<br>local: Initial file local filename<br>sha1: Initial file sha-1 sum<br>clientReq: required for client<br>serverReq: required for server | NO       |
+| Field | Required | Notes |
+|---|---|---|
+| `packDefaultServerHost` | Yes (to enable) | Hostname or IP. Omit / leave blank to disable. |
+| `packDefaultServerPort` | No | Defaults to `25565`. |
+| `packDefaultServerName` | No | Display label shown in the pack's Server Favorites section. Defaults to the host. |
+
+The launcher surfaces a "Pack default" row with an **Auto-join on play** checkbox in the modpack detail modal's Server Favorites section. Users can untick it to play singleplayer or join a different server without removing the field from your manifest — their choice persists in the pack's `server-favorites.json` sidecar.
+
+### Manifest field reference
+
+| Field | Required | Notes |
+|---|---|---|
+| `packName` | yes | Display name. |
+| `packVersion` | yes | Pack version (compared against `installed.version` to surface updates). |
+| `packURL` | yes | Website / Discord / GitHub URL — used by the "Pack Website" action. May be blank. |
+| `packLogoURL` | yes | URL to a square logo PNG. |
+| `packLogoSha1` | no | SHA-1 of the logo file. Logo is cached locally; hash mismatch triggers a re-download. |
+| `packBackgroundURL` | no | Optional background image shown in the hero card / detail modal. |
+| `packBackgroundSha1` | no | SHA-1 of the background. |
+| `packMinRAMGB` | yes | Minimum RAM (GB). Launcher refuses to start the pack when max-RAM setting is below this. |
+| `packUnstable` | no | `true` flags the pack as beta / pre-release. Surfaced as a "Beta" chip in the UI. |
+| `packCustomDiscordRpc` | no | `true` suppresses the launcher's Discord rich-presence so the pack can drive its own. |
+| `packModLoader` | yes¹ | One of `"forge"`, `"neoforge"`, `"fabric"`. Defaults to `forge` for back-compat with pre-multi-loader manifests. |
+| `packModLoaderURL` | yes¹ | Loader installer / profile URL — see modloader notes above. Falls back to `packForgeURL` if absent. |
+| `packModLoaderHash` | yes¹ | SHA-1 of the loader installer. Falls back to `packForgeHash`. May be blank for Fabric. |
+| `packForgeURL` | legacy | Pre-multi-loader Forge installer URL. Still honoured as a fallback. |
+| `packForgeHash` | legacy | Pre-multi-loader Forge installer SHA-1. Still honoured as a fallback. |
+| `packDefaultServerHost` | no | Auto-join target for the pack — see the "Adding an auto-join default server" section. |
+| `packDefaultServerPort` | no | Defaults to `25565`. |
+| `packDefaultServerName` | no | Defaults to the host. |
+| `packMods` | yes¹ | Mod list (see Mod / Config / File entries below). |
+| `packConfigs` | no | Config-file list (managed by the launcher; deleted from pack folder if absent from manifest). |
+| `packResourcePacks` | no | Resource pack list. |
+| `packShaderPacks` | no | Shader pack list. |
+| `packInitialFiles` | no | "Anything else" file list — placed at the pack root, useful for `options.txt`, custom JVM args files, etc. |
+| `packScanExclusions` | no | List of file / folder names (relative to pack root) excluded from the security scan. |
+| `packScanAcknowledgements` | no | Per-finding "I know about this, it's fine" silencers — see `ScanAcknowledgement.java` for the schema. |
+
+¹ The launcher accepts vanilla / loaderless packs registered through `mmcl://join?vanilla=<id>`, in which case `packModLoader*` and `packMods` aren't applicable.
+
+### Mod / Config / File entry shape
+
+```json
+{
+    "name": "Mod Display Name",
+    "remote": "https://example.com/the-mod.jar",
+    "local": "mod-filename.jar",
+    "sha1": "<sha-1 of the file>",
+    "clientReq": true,
+    "serverReq": true
+}
+```
+
+| Field | Notes |
+|---|---|
+| `name` | Display label (mods only). |
+| `remote` | Download URL. Must be HTTPS or `jar:` (jar: is supported for embedded artifacts). |
+| `local` | Filename relative to the corresponding folder (`mods/`, `config/`, etc.). |
+| `sha1` | SHA-1 hash. Set to `-1` to skip verification (use sparingly — defeats the integrity check). |
+| `clientReq` | `true` to download in client mode. Mods / configs / initial-files only; resourcepacks + shaderpacks are always client-only. |
+| `serverReq` | `true` to download in server mode. |
 
 ## Development
 
 ### Requirements
 
-- **JDK 25** with JavaFX (e.g. Azul Zulu `jdk+fx` or AWS Corretto)
-- **Maven** (bundled with IntelliJ IDEA, or install separately)
+- **JDK 26** with JavaFX (e.g. Azul Zulu `jdk+fx` or AWS Corretto). Maven downloads its own JDK for the packaging step via `mvn-jlink-wrapper`, so the build doesn't strictly require JavaFX on your dev JDK if you're only running `mvn compile`.
+- **Maven** (bundled with IntelliJ IDEA, or install separately).
+- **Node.js** (only needed to re-run the i18n translation script under `tools/i18n/`).
 
 ### Building
 
 ```bash
-# Compile only (no packaging)
+# Compile only
 mvn compile
 
-# Build fat JAR + native installer (EXE/MSI, DMG/PKG, DEB/RPM)
+# Run unit tests
+mvn test
+
+# Build fat JAR + native installer (EXE/MSI, DMG/PKG, DEB/RPM for the host OS)
 mvn -B package
 
-# Build a DEV version (separate install, won't conflict with production)
+# DEV build (separate install dir + app name; runs side-by-side with prod)
 mvn -Pdev package
 
-# Clean build artifacts
+# Clean target/ + packaging/
 mvn clean
 ```
 
-The `-Pdev` profile creates an installable build with a different app name (`Mica Minecraft Launcher DEV`), separate install directory, and separate data folder so it can run side-by-side with a production install. Dev builds also use a distinct single-instance lock port so both can run simultaneously.
-
 Build outputs:
-- `target/*-jar-with-dependencies.jar` -- runnable fat JAR
-- `packaging/` -- native installers
 
-### IntelliJ Run Configurations
+- `target/*-jar-with-dependencies.jar` — runnable fat JAR
+- `packaging/` — native installers (one per host OS)
+
+### IntelliJ run configurations
 
 | Configuration | Description |
 |---|---|
-| Core (Client) | Run the launcher in client (GUI) mode from IDE |
-| Core (Server) | Run the launcher in server (headless) mode |
+| Core (Client) | Run the launcher in client (GUI) mode from the IDE |
+| Core (Server) | Run the launcher in headless server mode |
 | Core (Automatic) | Run with automatic mode detection |
 | Package App | Build production fat JAR + native installer |
 | Package App (DEV) | Build DEV fat JAR + native installer (side-by-side safe) |
 
-### Contributing
-There are many ways to contribute to this project. If you have an issue or feature suggestion, please feel free to bring it to the development team's attention by adding a GitHub Issue to the project on the Issues tab of this repo. To contribute to the source code or functionality of the application, please download [IntelliJ IDEA](https://www.jetbrains.com/idea/download/#section=windows) and checkout this repository as a Maven project.
-   
-### Branches
-The `main` branch is a protected branch, and pushing to it is not permitted. Development must be completed on a secondary branch, and then merged to the main project using a pull request. At least one person must review all pull requests before they may be merged, and all pull requests are automatically build tested. If the pull request is not reviewed, or the code fails to build, the pull request cannot be merged.
-   
+### Localization
 
+User-visible strings live in `src/main/resources/lang/DisplayStrings.properties` (English, source of truth). Per-locale files (`DisplayStrings_<bcp47>.properties`) are auto-generated by `tools/i18n/translate-locales.js`. After adding new keys to the English file:
+
+```bash
+cd tools/i18n
+npm install        # first time only
+npm run translate  # incremental — only translates new / changed keys
+```
+
+See `CLAUDE.md` for the full key-naming convention and `LocalizationManager` usage patterns.
+
+### Contributing
+
+Open a GitHub Issue for bugs / feature requests, or a pull request against `main` for code changes.
+
+### Branch policy
+
+`main` is protected. All work happens on a feature branch and merges through a pull request with at least one review. CI builds on Windows, macOS, and Linux for every PR — if any platform fails to build, the PR can't merge.
