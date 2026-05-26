@@ -84,9 +84,6 @@ public class MCLauncherGuiWindow extends Application
 
     @Override
     public void start( Stage stage ) throws Exception {
-        // Initialize default scene/GUI
-        MCLauncherProgressGui progressGui = new MCLauncherProgressGui( stage, PREF_WIDTH, PREF_HEIGHT );
-
         // Save stage
         this.stage = stage;
 
@@ -122,10 +119,21 @@ public class MCLauncherGuiWindow extends Application
         // appears at its final position rather than flashing at the center first.
         boolean restored = restoreSavedBounds();
 
-        // IMPORTANT: install the scene BEFORE showing the stage. Otherwise stage.show() paints the
-        // OS-default (white) stage background for one frame before the scene is attached, creating a
-        // jarring white flash on top of every theme.
-        setScene( progressGui );
+        // Install a minimal dark-fill placeholder scene before show() so the very first
+        // paint isn't the OS-default white stage background. We deliberately AVOID
+        // loading any FXML controller here — earlier this code installed the
+        // MCLauncherProgressGui, which (FXML load + setup() + the "Just a Moment"
+        // afterShow text + voxel bounce animation) showed up as a half-second
+        // "progress screen flash" to the user on cold start because the session
+        // thread couldn't swap to the real main GUI until its own FXML + setup
+        // pipeline ran. A bare Pane + theme-colored Scene fill avoids the flash
+        // without paying for an extra FXML scene the user never reads. The real
+        // scene + theme + DWM chrome wiring lands when the session thread later
+        // calls setScene(mainGui) + show().
+        javafx.scene.layout.Pane placeholder = new javafx.scene.layout.Pane();
+        javafx.scene.Scene initialScene = new javafx.scene.Scene( placeholder, PREF_WIDTH, PREF_HEIGHT );
+        initialScene.setFill( javafx.scene.paint.Color.web( "#0C1017" ) );
+        stage.setScene( initialScene );
         show();
         if ( !restored ) {
             stage.centerOnScreen();
@@ -670,6 +678,13 @@ public class MCLauncherGuiWindow extends Application
      */
     private void applyTheme( String legacySheet, String tokenSheet ) {
         GUIUtilities.JFXPlatformRun( () -> {
+            // Cold-start window: the initial placeholder scene installed in start()
+            // has no controller, so this.gui is null until the session thread's
+            // first real setScene call swaps in MainGui / LoginGui. Theme-change
+            // events that fire during that window (OS theme toggle racing the
+            // launcher's startup) have nothing to apply against; the next real
+            // setScene will install the right stylesheets via forceThemeChange.
+            if ( gui == null || gui.rootPane == null ) return;
             java.util.List< String > stylesheets = gui.rootPane.getStylesheets();
 
             // Drop every legacy theme sheet. Whichever is "current" gets re-added below.
