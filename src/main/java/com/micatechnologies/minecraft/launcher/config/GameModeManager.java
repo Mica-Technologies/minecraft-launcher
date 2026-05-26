@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
-import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 
@@ -51,7 +50,12 @@ public class GameModeManager
         else {
             currentGameMode = GameMode.CLIENT;
         }
-        Logger.logStd( LocalizationManager.GAME_MODE_INFERRED_SET_TO_TEXT + " " + currentGameMode.getStringName() );
+        // Hardcoded English diagnostic. Localizing this would require
+        // LocalizationManager.* references here, which would class-load
+        // the bundle BEFORE LocaleBootstrap.apply runs (see Logger.java
+        // for the full explanation). Game-mode log lines are
+        // developer-facing diagnostics — translation has no value.
+        Logger.logStd( "Game mode inferred and set to: " + currentGameMode.getStringName() );
     }
 
     /**
@@ -74,8 +78,8 @@ public class GameModeManager
      */
     public synchronized static void setCurrentGameMode( GameMode gameMode ) {
         currentGameMode = gameMode;
-        Logger.logDebug(
-                LocalizationManager.GAME_MODE_BEING_SET_TO_TEXT + " " + currentGameMode.getStringName() + "." );
+        // Hardcoded — see comment on inferGameMode above.
+        Logger.logDebug( "Game mode being set to: " + currentGameMode.getStringName() + "." );
     }
 
     /**

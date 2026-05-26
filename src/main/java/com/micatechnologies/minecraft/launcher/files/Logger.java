@@ -39,49 +39,29 @@ import java.util.concurrent.TimeUnit;
  */
 public class Logger
 {
-    /**
-     * Prefix for error logs
-     *
-     * @since 1.0
-     */
-    private static final String logErrorPrefix = "[" +
-            LauncherConstants.LAUNCHER_APPLICATION_NAME +
-            "/" +
-            LocalizationManager.LOG_ERROR_PREFIX +
-            "] ";
+    // Log-line prefixes are intentionally HARDCODED ASCII rather than
+    // sourced from LocalizationManager.LOG_*_PREFIX. Logger is one of the
+    // earliest classes to class-load during startup (RGB integration,
+    // game-mode inference, FX prestart all log) and referencing
+    // LocalizationManager.* fields in this class's static initializer
+    // would trigger LocalizationManager class load BEFORE
+    // LocaleBootstrap.apply runs — locking the resource bundle to the OS
+    // default locale and ignoring the user's settings-override on the
+    // next launcher restart. Diagnostic log prefixes are developer-facing
+    // and don't need translation; the matching LOG_*_PREFIX keys in
+    // DisplayStrings remain as legacy unused fields on LocalizationManager
+    // (back-compat for the 89 static-final field surface).
+    private static final String logErrorPrefix =
+            "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/ERROR] ";
 
-    /**
-     * Prefix for warning logs
-     *
-     * @since 1.1
-     */
-    private static final String logWarnPrefix = "[" +
-            LauncherConstants.LAUNCHER_APPLICATION_NAME +
-            "/" +
-            LocalizationManager.LOG_WARNING_PREFIX +
-            "] ";
+    private static final String logWarnPrefix =
+            "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/WARN] ";
 
-    /**
-     * Prefix for standard logs
-     *
-     * @since 1.0
-     */
-    private static final String logStdPrefix = "[" +
-            LauncherConstants.LAUNCHER_APPLICATION_NAME +
-            "/" +
-            LocalizationManager.LOG_STANDARD_PREFIX +
-            "] ";
+    private static final String logStdPrefix =
+            "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/STD] ";
 
-    /**
-     * Prefix for debug logs
-     *
-     * @since 1.0
-     */
-    private static final String logDebugPrefix = "[" +
-            LauncherConstants.LAUNCHER_APPLICATION_NAME +
-            "/" +
-            LocalizationManager.LOG_DEBUG_PREFIX +
-            "] ";
+    private static final String logDebugPrefix =
+            "[" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "/DEBUG] ";
 
     /**
      * Buffered output stream used for writing to the log file.
