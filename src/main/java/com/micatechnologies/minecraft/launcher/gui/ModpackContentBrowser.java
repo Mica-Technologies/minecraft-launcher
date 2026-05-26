@@ -164,8 +164,91 @@ public final class ModpackContentBrowser
         // sort already achieves that since the disabled suffix sorts after
         // the bare .jar.
         Arrays.sort( mods, Comparator.comparing( ( File f ) -> f.getName().toLowerCase() ) );
+
+        // "Check for updates" affordance — runs a background scan that
+        // hashes each enabled jar + queries Modrinth's /version_file
+        // endpoint. Result is one ModUpdate per jar; the row's meta label
+        // is updated in place with "Update available v X → vY" or "Up to
+        // date" or "Not on Modrinth" when the scan finishes. Per-row
+        // labels are captured in the modUpdateLabels map below so the
+        // background task can write back to them on the FX thread.
+        java.util.Map< String, Label > modUpdateLabels = new java.util.HashMap<>();
+        HBox header = new HBox( 10 );
+        header.setAlignment( Pos.CENTER_LEFT );
+        MFXButton checkUpdatesBtn = new MFXButton( LocalizationManager.get( "detailModal.mods.checkUpdates" ) );
+        checkUpdatesBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+        checkUpdatesBtn.setPrefHeight( 28 );
+        Label checkUpdatesStatus = new Label();
+        checkUpdatesStatus.getStyleClass().add( "muted" );
+        checkUpdatesBtn.setOnAction( e -> {
+            checkUpdatesBtn.setDisable( true );
+            checkUpdatesStatus.setText( LocalizationManager.get( "detailModal.mods.checking" ) );
+            final File modsDirRef = modsDir;
+            FxAsyncTask.run( () -> {
+                try {
+                    java.util.Map< String,
+                            com.micatechnologies.minecraft.launcher.game.modpack
+                                    .ModrinthModUpdateChecker.ModUpdate > results =
+                            com.micatechnologies.minecraft.launcher.game.modpack
+                                    .ModrinthModUpdateChecker.scan( modsDirRef );
+                    int onModrinth = 0;
+                    int updateAvailable = 0;
+                    for ( var entry : results.entrySet() ) {
+                        if ( entry.getValue().status()
+                                != com.micatechnologies.minecraft.launcher.game.modpack
+                                .ModrinthModUpdateChecker.Status.NOT_ON_MODRINTH ) onModrinth++;
+                        if ( entry.getValue().status()
+                                == com.micatechnologies.minecraft.launcher.game.modpack
+                                .ModrinthModUpdateChecker.Status.UPDATE_AVAILABLE ) updateAvailable++;
+                    }
+                    final int onModrinthFinal = onModrinth;
+                    final int updateAvailableFinal = updateAvailable;
+                    javafx.application.Platform.runLater( () -> {
+                        for ( var entry : results.entrySet() ) {
+                            Label lbl = modUpdateLabels.get( entry.getKey() );
+                            if ( lbl == null ) continue;
+                            var v = entry.getValue();
+                            switch ( v.status() ) {
+                                case UPDATE_AVAILABLE -> lbl.setText( LocalizationManager.format(
+                                        "detailModal.mods.updateAvailable",
+                                        v.currentVersion() == null ? "?" : v.currentVersion(),
+                                        v.latestVersion() == null ? "?" : v.latestVersion() ) );
+                                case UP_TO_DATE -> lbl.setText( LocalizationManager.get(
+                                        "detailModal.mods.upToDate" ) );
+                                case NOT_ON_MODRINTH -> lbl.setText( LocalizationManager.get(
+                                        "detailModal.mods.notOnModrinth" ) );
+                            }
+                        }
+                        checkUpdatesStatus.setText( LocalizationManager.format(
+                                "detailModal.mods.checkSummary",
+                                onModrinthFinal, results.size(), updateAvailableFinal ) );
+                        checkUpdatesBtn.setDisable( false );
+                    } );
+                }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( "Mod update scan threw: " + t.getClass().getSimpleName() );
+                    javafx.application.Platform.runLater( () -> {
+                        checkUpdatesStatus.setText( LocalizationManager.get( "detailModal.mods.checkFailed" ) );
+                        checkUpdatesBtn.setDisable( false );
+                    } );
+                }
+            } );
+        } );
+        header.getChildren().addAll( checkUpdatesBtn, checkUpdatesStatus );
+        section.getChildren().add( header );
+
         for ( File mod : mods ) {
-            section.getChildren().add( buildModRow( mod, bodyToRebuild ) );
+            HBox row = buildModRow( mod, bodyToRebuild );
+            // Track the row's update-label so the background scan can
+            // populate it. Only attach for enabled .jar entries — disabled
+            // mods aren't on the loader path so update status doesn't apply.
+            if ( !mod.getName().toLowerCase().endsWith( ".jar.disabled" ) ) {
+                Label updateLabel = new Label();
+                updateLabel.getStyleClass().add( "muted" );
+                row.getChildren().add( row.getChildren().size() - 1, updateLabel );
+                modUpdateLabels.put( mod.getName(), updateLabel );
+            }
+            section.getChildren().add( row );
         }
         return section;
     }
