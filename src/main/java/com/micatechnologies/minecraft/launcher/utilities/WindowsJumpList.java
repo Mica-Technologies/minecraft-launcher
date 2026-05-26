@@ -222,7 +222,7 @@ final class WindowsJumpList
             Memory minSlots = new Memory( 4 );
             minSlots.setInt( 0, 0 );
             PointerByReference removedRef = new PointerByReference();
-            int hrBegin = invokeHr( cdl, ICDL_BEGIN_LIST, minSlots, asPointer( IID_IOBJECT_ARRAY ), removedRef );
+            int hrBegin = invokeHr( cdl, ICDL_BEGIN_LIST, minSlots, asIidRef( IID_IOBJECT_ARRAY ), removedRef );
             removed = removedRef.getValue();
             if ( failed( hrBegin, "BeginList" ) ) return;
 
@@ -361,13 +361,21 @@ final class WindowsJumpList
         try {
             // PROPERTYKEY = GUID (16 bytes) + DWORD (4 bytes) = 20 bytes,
             // typically with 4 bytes padding to 24 for alignment.
+            //
+            // Lay out the GUID field-by-field rather than via toByteArray() —
+            // JNA's Structure layout puts Data1/2/3 in native (little-endian)
+            // byte order while toByteArray serialises into a buffer whose
+            // byte-order setting can subtly differ depending on the JNA
+            // version. Writing the four fields with setInt/setShort uses
+            // native byte order on x64 Windows (LE), matching what COM
+            // expects.
             keyMem = new Memory( 24 );
             keyMem.clear();
-            // GUID fmtid
-            byte[] guidBytes = PKEY_TITLE_FMTID.toByteArray();
-            keyMem.write( 0, guidBytes, 0, 16 );
-            // DWORD pid at offset 16
-            keyMem.setInt( 16, PKEY_TITLE_PID );
+            keyMem.setInt(   0, PKEY_TITLE_FMTID.Data1 );
+            keyMem.setShort( 4, PKEY_TITLE_FMTID.Data2 );
+            keyMem.setShort( 6, PKEY_TITLE_FMTID.Data3 );
+            keyMem.write(    8, PKEY_TITLE_FMTID.Data4, 0, 8 );
+            keyMem.setInt(  16, PKEY_TITLE_PID );
 
             // PROPVARIANT(VT_LPWSTR, "title")
             pvMem = new Memory( 24 );
@@ -420,7 +428,7 @@ final class WindowsJumpList
     {
         if ( iface == null ) return null;
         PointerByReference ppv = new PointerByReference();
-        int hr = invokeHr( iface, IUNKNOWN_QUERY_INTERFACE, asPointer( iid ), ppv );
+        int hr = invokeHr( iface, IUNKNOWN_QUERY_INTERFACE, asIidRef( iid ), ppv );
         if ( hr != 0 ) {
             Logger.logWarningSilent( "QueryInterface failed for " + iid.toGuidString()
                                              + " HRESULT=0x" + Integer.toHexString( hr ) );
@@ -429,14 +437,25 @@ final class WindowsJumpList
         return ppv.getValue();
     }
 
-    /** Serialize a {@link Guid.GUID} into native memory + return the pointer.
-     *  COM APIs expect a GUID by reference (REFIID = const GUID *). */
-    private static Pointer asPointer( Guid.GUID guid )
+    /** Serialize an {@link Guid.IID} into a JNA-managed native struct + return
+     *  it as a {@code ByReference}. JNA passes a Structure.ByReference as a
+     *  pointer to its native memory, which is exactly what COM expects for
+     *  a {@code REFIID} ({@code const GUID *}).
+     *
+     *  <p>We earlier tried hand-rolling this via Memory + {@code toByteArray}
+     *  but that hit {@code E_NOINTERFACE} on {@code BeginList} — the field-
+     *  layout produced by toByteArray didn't quite match what COM's QI
+     *  expects in some edge of the alignment. Mirroring the existing
+     *  {@code WinRt.asIidRef} pattern is the safe path.</p> */
+    private static Guid.IID.ByReference asIidRef( Guid.IID iid )
     {
-        Memory m = new Memory( 16 );
-        byte[] b = guid.toByteArray();
-        m.write( 0, b, 0, 16 );
-        return m;
+        Guid.IID.ByReference ref = new Guid.IID.ByReference();
+        ref.Data1 = iid.Data1;
+        ref.Data2 = iid.Data2;
+        ref.Data3 = iid.Data3;
+        ref.Data4 = iid.Data4.clone();
+        ref.write();
+        return ref;
     }
 
     /** {@code IUnknown::Release}. Decrements the ref count; the object frees
