@@ -68,13 +68,31 @@ public class UpdateCheckManager
             return;
         }
 
+        // Skip the update check for unstamped local builds. The dev-style version
+        // strings ("0.0.0-no-git-tag", "0.0.0-dev") compare as older than any
+        // tagged release, so the version-comparison branch below would
+        // unconditionally light up the navbar icon + the red taskbar overlay
+        // even when the developer is actually running a tip-of-tree build that's
+        // ahead of every public release. Real releases stamp a meaningful
+        // version via Maven's -Drevision (resolved from git describe in CI), so
+        // a release build never hits this guard.
+        String version = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
+        if ( version == null
+                || version.startsWith( "0.0.0" )
+                || version.contains( "no-git-tag" )
+                || version.contains( "-dev" ) ) {
+            Logger.logDebug( "UpdateCheckManager: skipping update check on unstamped build (version=" +
+                                     version + ")" );
+            return;
+        }
+
+        final String installedVersion = version;
         SystemUtilities.spawnNewTask( () -> {
             try {
-                String version = LauncherConstants.LAUNCHER_APPLICATION_VERSION;
                 String latestVersionURL = UpdateCheckUtilities.getLatestReleaseURL();
                 String latestVersion = UpdateCheckUtilities.getLatestReleaseVersion();
 
-                if ( VersionUtilities.compareVersionNumbers( version, latestVersion ) == -1 ) {
+                if ( VersionUtilities.compareVersionNumbers( installedVersion, latestVersion ) == -1 ) {
                     TaskbarProgressManager.attach( stage );
 
                     GUIUtilities.JFXPlatformRun( () -> {
