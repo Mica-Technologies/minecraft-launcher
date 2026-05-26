@@ -185,7 +185,32 @@ public class ProcessUtilities
     public static Process launchCommand( String command, String workingDirectory, ChildIoMode ioMode )
             throws IOException
     {
-        ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) )
+        return launchCommand( splitCommandLine( command ), workingDirectory, ioMode );
+    }
+
+    /**
+     * Launches a child process from a pre-split argv list, bypassing the
+     * hand-rolled {@link #splitCommandLine(String)} parser entirely. Preferred
+     * over the string-based overload for callers that already know each
+     * argument's boundaries — gives back the OS-level guarantee that an arg
+     * containing a quote / space / control char crosses to the child as one
+     * literal arg with no shell interpretation, and removes the brittle
+     * {@code "}-toggle escaping the launcher used to need in the game-launch
+     * command (pack-name injection used to live there; see commit {@code 32f58ca}).
+     *
+     * @param argv             the full argv, including the executable as element 0
+     * @param workingDirectory directory the child runs in
+     * @param ioMode           how to wire the child's stdout / stderr — see {@link ChildIoMode}
+     * @return the spawned process (non-blocking; the caller owns lifecycle)
+     *
+     * @throws IOException if the child failed to start
+     *
+     * @since 2026.5
+     */
+    public static Process launchCommand( List< String > argv, String workingDirectory, ChildIoMode ioMode )
+            throws IOException
+    {
+        ProcessBuilder processBuilder = new ProcessBuilder( argv )
                 .redirectErrorStream( false )
                 .directory( SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
         switch ( ioMode ) {
@@ -210,7 +235,8 @@ public class ProcessUtilities
         // risk without the compatibility tail.
         stripSensitiveEnv( processBuilder.environment() );
         // Redact auth tokens before logging — see SensitiveDataRedactor for the patterns.
-        Logger.logStd( "Launching command: " + SensitiveDataRedactor.redact( command ) );
+        // Joined back with spaces for the log line only; the actual spawn uses the List.
+        Logger.logStd( "Launching command: " + SensitiveDataRedactor.redact( String.join( " ", argv ) ) );
         return processBuilder.start();
     }
 
