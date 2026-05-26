@@ -20,14 +20,11 @@ package com.micatechnologies.minecraft.launcher;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
-import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
-import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 
-import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -122,72 +119,40 @@ class LauncherSession
         }
         ColdStartProfiler.mark( "auth_done" );
 
-        // Show a progress window while loading startup data
-        MCLauncherProgressGui startupProgressWindow = null;
-        try {
-            if ( MCLauncherGuiController.shouldCreateGui() ) {
-                startupProgressWindow = MCLauncherGuiController.goToProgressGui();
-            }
-        }
-        catch ( IOException e ) {
-            Logger.logError( "Unable to load progress GUI for startup." );
-            Logger.logThrowable( e );
-        }
-
-        // Connectivity is now resolved lazily — the old synchronous probe was a
-        // 5-second TCP connect to launchermeta.mojang.com:443 sitting on the
-        // critical path, which stalled cold start on flaky networks for almost
-        // no payoff (the boolean only gated two pieces of fire-and-forget work
-        // below, both of which already handle their own network failures). The
-        // OfflineIndicator label updates reactively when downstream operations
-        // hit the network, so the user still sees an offline chip when it
-        // matters. Kick the probe off async so NetworkUtilities.offlineMode is
-        // populated before anything that actually needs it reads.
+        // No cold-start progress GUI: the heavy lifting that used to sit
+        // between auth and the main menu (sync OAuth refresh, 5s network
+        // probe, per-manifest network fetches) is all either deferred to
+        // the background or running off the critical path now, so the
+        // progress screen would flash past in well under a second with
+        // text the user can't read — pure visual noise. Going straight
+        // to the main GUI also avoids paying the cost of loading two
+        // FXML scenes back to back during cold start (the progress GUI's
+        // first paint was the bulk of the gap between auth_done and
+        // packs_loaded — JavaFX's first-scene init in a JVM is expensive).
+        //
+        // Connectivity is resolved lazily — the old synchronous probe was
+        // a 5-second TCP connect to launchermeta.mojang.com:443 sitting on
+        // the critical path. Kick it off async so NetworkUtilities.offlineMode
+        // is populated for anything that actually needs to read it; the
+        // OfflineIndicator label updates reactively when downstream
+        // operations hit the network.
         java.util.concurrent.CompletableFuture.runAsync(
                 () -> com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.checkNetworkAvailability() );
-        boolean online = true;
 
-        // Installed-modpack load on the critical path — fetchInstalledModPacks now
-        // does a cache-first sync load and kicks off its own background revalidate,
-        // so this completes in microseconds when the manifest cache is warm. First-
-        // ever launch (no cache) still does the original synchronous network fetch
-        // inside this call.
-        //
-        // Announcements: kicked off pure fire-and-forget. The main menu attaches a
-        // whenComplete hook on AnnouncementManager.getCheckFuture() that pops the
-        // banner the moment the JSON arrives — no reason to block first paint
-        // waiting for it, since it's purely informational decoration. Login /
-        // Settings / Library screens read whatever value is in the cache at the
-        // point they render; on a slow network the value may be empty for the
-        // first few seconds, which is the right trade vs. blocking the splash.
-        if ( startupProgressWindow != null ) {
-            startupProgressWindow.setSectionText( online ? "Loading mod packs..."
-                                                          : "Loading cached mod pack data" );
-            startupProgressWindow.setDetailText( "" );
-            startupProgressWindow.setProgress( 30 );
-        }
+        // Announcements + opportunistic preemptive token renewal: both
+        // fire-and-forget, both already handle their own network failures.
+        // Don't gate on a connectivity boolean we don't have anymore.
+        AnnouncementManager.startCheckAsync();
+        com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager
+                .tryPreemptiveBackgroundRenewal();
 
-        if ( online ) {
-            AnnouncementManager.startCheckAsync();
-            // Opportunistic background token renewal — only fires if the cached
-            // token is in the soft-refresh window (3-4h old). Lets us avoid the
-            // synchronous server contact on the next cold start by piggybacking
-            // the renewal on the current launch's idle pack-fetch window. No-op
-            // for fresh tokens and (deliberately) for already-expired ones.
-            com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager
-                    .tryPreemptiveBackgroundRenewal();
-        }
-        java.util.concurrent.CompletableFuture< Void > installedFuture =
-                java.util.concurrent.CompletableFuture.runAsync(
-                        () -> GameModPackManager.fetchInstalledModPacks( null ) );
-
-        try {
-            installedFuture.get();
-        }
-        catch ( Exception e ) {
-            Logger.logError( "Startup network task failed." );
-            Logger.logThrowable( e );
-        }
+        // Installed-modpack load. Cache-first under the hood (one index file +
+        // per-manifest cache files); the in-method background revalidate hooks
+        // pick up any out-of-date entries within seconds of cold start. Runs
+        // synchronously here because we need installedGameModPacks populated
+        // before the main GUI's setup reads it — the cache-only path is fast
+        // enough that the extra thread hop wasn't earning anything.
+        GameModPackManager.fetchInstalledModPacks( null );
         ColdStartProfiler.mark( "packs_loaded" );
 
         // Wire the background-task error listener so the available-modpacks fetch
@@ -202,22 +167,18 @@ class LauncherSession
                         "Background task failed", message ) );
 
         // Available-modpacks fetch — fire-and-forget. Main menu shows a "loading available
-        // packs" indicator while this runs; Library screen waits on its completion.
-        if ( online ) {
-            GameModPackManager.startAvailableModPacksFetchAsync();
-        }
+        // packs" indicator while this runs; Library screen waits on its completion. The
+        // async-connectivity-check path means we don't have a sync `online` boolean to
+        // gate on anymore, but the fetch internally handles offline failure (returns
+        // empty list, surfaces the error via the background-error listener wired above),
+        // so unconditionally kicking it off is safe.
+        GameModPackManager.startAvailableModPacksFetchAsync();
 
         // Kick off background prefetch of dominant-color gradients for every available modpack.
         // Async — the launcher doesn't wait for it before continuing to the main GUI. By the
         // time the user opens the Game Library, the cache is warm and gradients render
         // instantly instead of stalling the FX thread on per-card histogram work.
         com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui.prefetchAvailableModpackBackgrounds();
-
-        if ( startupProgressWindow != null ) {
-            startupProgressWindow.setSectionText( "Ready!" );
-            startupProgressWindow.setDetailText( "" );
-            startupProgressWindow.setProgress( 100 );
-        }
 
         // Show main (mod pack selection) window
         LauncherCore.doModpackSelection( initialModPackSelection, previousRestartError );
