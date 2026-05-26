@@ -512,6 +512,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     @Override
     void afterShow() {
+        ColdStartProfiler.mark( "main_gui_onShown" );
+
         // Defer two event-loop ticks past the stage's onShown so the first full
         // layout + paint pass has actually flushed before the profiler stamps its
         // final mark. Idempotent — only the first call writes anything (a session-
