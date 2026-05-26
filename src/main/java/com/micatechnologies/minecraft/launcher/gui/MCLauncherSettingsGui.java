@@ -193,6 +193,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     MFXComboBox< String > jvmPresetSelection;
 
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXButton generateJvmArgsBtn;
+
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.control.Label generateJvmArgsHint;
+
     /**
      * Announcement banner.
      *
@@ -912,6 +920,44 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( !matched ) {
             // Custom args that don't match any preset — show Performance as closest
             jvmPresetSelection.selectItem( ConfigConstants.JVM_PRESET_PERFORMANCE );
+        }
+
+        // "Generate recommended args" — produces a JVM args string tuned to
+        // the host's CPU + total-RAM + the launcher's max-heap setting via
+        // HardwareTunedJvmArgs. The static PRESET dropdown stays as a quick-
+        // pick alternative; this button is for users who want something
+        // tuned to their box rather than the one-size-fits-most Aikar's
+        // flags. The summary hint below the button shows the detected
+        // inputs so the user can sanity-check.
+        if ( generateJvmArgsBtn != null ) {
+            Runnable updateHint = () -> {
+                int maxRam = (int) Math.max( 1L, Math.round( maxRamGb.getValue() ) );
+                if ( generateJvmArgsHint != null ) {
+                    generateJvmArgsHint.setText( com.micatechnologies.minecraft.launcher.utilities
+                            .HardwareTunedJvmArgs.summary( maxRam ) );
+                }
+            };
+            updateHint.run();
+            // Keep the hint synced when the user changes the max-RAM
+            // spinner — the recommendation depends on it.
+            maxRamGb.valueProperty().addListener( ( obs, oldV, newV ) -> updateHint.run() );
+            TooltipManager.install( generateJvmArgsBtn,
+                    "Builds a JVM-args string tuned to your CPU + RAM + max-heap setting." );
+            generateJvmArgsBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
+                int maxRam = (int) Math.max( 1L, Math.round( maxRamGb.getValue() ) );
+                String generated = com.micatechnologies.minecraft.launcher.utilities
+                        .HardwareTunedJvmArgs.generate( maxRam );
+                // Persist as customJvmArgs. The combo box's current
+                // selection is left alone; the "matched" detection on
+                // next Settings load will show "Performance" since the
+                // generated string differs from every static preset.
+                ConfigManager.setCustomJvmArgs( generated );
+                com.micatechnologies.minecraft.launcher.utilities.NotificationManager.success(
+                        "JVM args generated",
+                        "Recommended args for your machine have been applied. "
+                                + "They take effect on the next game launch." );
+                Logger.logStd( "Generated tuned JVM args: " + generated );
+            } ) );
         }
 
         // Set and configure enhanced logging check box
