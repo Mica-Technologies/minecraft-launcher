@@ -321,6 +321,10 @@
                         <MFXToggleButton fx:id="windowResizeCheckBox" text="%settings.fxml.windowResizing" />
                         <MFXToggleButton fx:id="enhancedLoggingCheckBox" text="%settings.fxml.enhancedLogging" />
                         <MFXToggleButton fx:id="inGameConsoleCheckBox" text="%settings.fxml.inGameConsole" />
+                        <HBox alignment="CENTER_LEFT" spacing="8.0">
+                            <Label text="%settings.fxml.consoleLogMaxLines" />
+                            <MFXComboBox fx:id="consoleLogMaxLinesSelection" prefWidth="140.0" />
+                        </HBox>
                         <MFXToggleButton fx:id="batteryThrottleCheckBox" text="%settings.fxml.throttleDownloadsOn" />
                         <MFXToggleButton fx:id="lwjglArmPatchCheckBox" text="%settings.fxml.lwjglArm64Patching" />
                         <Label styleClass="muted" text="%settings.fxml.replacesX86_64Lwjgl2" wrapText="true">

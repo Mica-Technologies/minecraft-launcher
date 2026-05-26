@@ -334,6 +334,8 @@ public class ConfigManager
     public synchronized static void    setResizableWindows( boolean v ) { AppConfig.setResizableWindows( v ); }
     public synchronized static boolean getInGameConsoleEnable()         { return AppConfig.getInGameConsoleEnable(); }
     public synchronized static void    setInGameConsoleEnable( boolean v ) { AppConfig.setInGameConsoleEnable( v ); }
+    public synchronized static int     getConsoleLogMaxLines()          { return AppConfig.getConsoleLogMaxLines(); }
+    public synchronized static void    setConsoleLogMaxLines( int v )   { AppConfig.setConsoleLogMaxLines( v ); }
 
     public synchronized static boolean getLauncherUpdateCheckEnabled()  { return AppConfig.getLauncherUpdateCheckEnabled(); }
     public synchronized static void    setLauncherUpdateCheckEnabled( boolean v ) { AppConfig.setLauncherUpdateCheckEnabled( v ); }

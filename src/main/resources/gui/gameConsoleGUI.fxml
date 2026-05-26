@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import io.github.palexdev.materialfx.controls.MFXButton?>
+<?import io.github.palexdev.materialfx.controls.MFXTextField?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextArea?>
@@ -9,6 +11,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.Priority?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
@@ -72,6 +75,23 @@
             <Label fx:id="diagnosisSummaryLabel" wrapText="true" styleClass="crashDiagnosisSummary"/>
             <HBox fx:id="diagnosisActionsBox" spacing="6.0" alignment="CENTER_LEFT"/>
         </VBox>
+
+        <!-- Search / filter / auto-pin toolbar -->
+        <HBox spacing="8.0" alignment="CENTER_LEFT">
+            <MFXTextField fx:id="searchField" promptText="%console.search.placeholder"
+                          prefHeight="26.0" prefWidth="260.0" floatMode="DISABLED"
+                          styleClass="no-floating-label"/>
+            <Label fx:id="searchStatusLabel" text="" styleClass="muted"
+                   style="-fx-font-size: 11px;"/>
+            <MFXButton fx:id="searchPrevBtn" text="%console.search.prev"
+                       prefHeight="26.0" prefWidth="46.0"
+                       styleClass="heroCardSecondaryBtn"/>
+            <MFXButton fx:id="searchNextBtn" text="%console.search.next"
+                       prefHeight="26.0" prefWidth="46.0"
+                       styleClass="heroCardSecondaryBtn"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <CheckBox fx:id="autoPinCheckBox" text="%console.autoPin.label" selected="true"/>
+        </HBox>
 
         <!-- Live game log / crash report text -->
         <TextArea fx:id="logArea" editable="false" wrapText="true" styleClass="text-mono"
