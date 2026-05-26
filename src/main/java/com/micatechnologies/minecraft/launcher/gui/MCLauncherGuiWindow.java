@@ -119,24 +119,24 @@ public class MCLauncherGuiWindow extends Application
         // appears at its final position rather than flashing at the center first.
         boolean restored = restoreSavedBounds();
 
-        // Install a minimal placeholder scene before show() so the very first
-        // paint isn't the OS-default white stage background. We deliberately
-        // AVOID loading the full MCLauncherProgressGui controller here —
-        // its FXML load + setup() + "Just a Moment" label text + cancel
-        // button etc. was visual noise the user saw flash past during cold
-        // start. Just the three bouncing voxel cubes (built inline so this
-        // codepath has no FXML dependency) over a theme-colored Scene fill
-        // — same "something's happening" affordance as the progress screen
-        // without the full content slab. The real scene + theme + DWM
-        // chrome wiring lands when the session thread later calls
-        // setScene(mainGui) + show().
+        // Install a minimal dark-fill placeholder scene before show() so the
+        // very first paint isn't the OS-default white stage background. The
+        // scene is intentionally empty — no nodes, no animations — because
+        // FX's first scene paint also pays for any node classes referenced
+        // in the tree. Even ~12 nodes (HBox + 3 Groups + 9 SVGPaths) for a
+        // voxel cluster added ~400 ms of first-paint cost in measurement,
+        // delaying the session-thread work that the prestart is supposed
+        // to overlap with. The voxel animation is reintroduced LATER —
+        // see attachPlaceholderVoxelsAsync() — so it lands on a JavaFX
+        // toolkit that's already warm and doesn't sit on the cold path.
         javafx.scene.layout.StackPane placeholder = new javafx.scene.layout.StackPane();
         placeholder.setStyle( "-fx-background-color: #0C1017;" );
-        placeholder.getChildren().add( buildPlaceholderVoxelCluster() );
+        this.placeholderRoot = placeholder;
         javafx.scene.Scene initialScene = new javafx.scene.Scene( placeholder, PREF_WIDTH, PREF_HEIGHT );
         initialScene.setFill( javafx.scene.paint.Color.web( "#0C1017" ) );
         stage.setScene( initialScene );
         show();
+        attachPlaceholderVoxelsAsync();
         if ( !restored ) {
             stage.centerOnScreen();
         }
@@ -158,6 +158,15 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /**
+     * Root pane of the cold-start placeholder scene. Held so
+     * {@link #attachPlaceholderVoxelsAsync()} can lazy-add the voxel
+     * cluster after the first paint without forcing the cluster's
+     * node-class costs into the cold path. Cleared at first real
+     * setScene by {@link #cleanupPlaceholderAnimations()}.
+     */
+    private javafx.scene.layout.StackPane placeholderRoot = null;
+
+    /**
      * Animations driving the cold-start placeholder voxel bounce. Stopped by
      * {@link #cleanupPlaceholderAnimations()} the first time a real scene
      * swaps in, so the timelines don't keep ticking on a hidden / disposed
@@ -167,22 +176,39 @@ public class MCLauncherGuiWindow extends Application
             new java.util.ArrayList<>();
 
     /**
-     * Builds the three-cube bouncing voxel cluster shown on the cold-start
-     * placeholder scene. Mirrors the visual + animation of
-     * MCLauncherProgressGui's voxel row, but constructed inline so the
-     * placeholder pays no FXML-load cost.
+     * Defers attaching the bouncing voxel cluster to the placeholder scene
+     * until the FX thread has been idle once after the first show — that
+     * way the very first scene paint (which the prestart pays for during
+     * cold start) doesn't include the cost of laying out + rasterizing
+     * the 12 voxel nodes, but the user still sees the bounce animation
+     * within a frame of the window appearing.
+     *
+     * <p>The Platform.runLater is chained off a single pulse so it fires
+     * after the FX thread has processed Stage.show()'s paint event. The
+     * voxel layout + render then happens on the same frame the user is
+     * already looking at, masking the cost.</p>
      */
-    private javafx.scene.Node buildPlaceholderVoxelCluster() {
-        javafx.scene.layout.HBox row = new javafx.scene.layout.HBox( 10 );
-        row.setAlignment( javafx.geometry.Pos.CENTER );
-        javafx.scene.Group cube1 = buildVoxelCube( "#8B6A3F", "#5C4322", "#3F2E14" );
-        javafx.scene.Group cube2 = buildVoxelCube( "#6FCF3D", "#3C8527", "#2A6B1E" );
-        javafx.scene.Group cube3 = buildVoxelCube( "#A8AEB8", "#6B7280", "#4B5563" );
-        row.getChildren().addAll( cube1, cube2, cube3 );
-        startBounce( cube1,   0 );
-        startBounce( cube2, 150 );
-        startBounce( cube3, 300 );
-        return row;
+    private void attachPlaceholderVoxelsAsync() {
+        if ( placeholderRoot == null ) return;
+        Platform.runLater( () -> {
+            // Re-check the root — if a real scene already swapped in (very
+            // fast cold start), there's no placeholder left to decorate.
+            if ( placeholderRoot == null ) return;
+            if ( placeholderRoot.getScene() == null
+                    || placeholderRoot.getScene().getWindow() != stage ) {
+                return;
+            }
+            javafx.scene.layout.HBox row = new javafx.scene.layout.HBox( 10 );
+            row.setAlignment( javafx.geometry.Pos.CENTER );
+            javafx.scene.Group cube1 = buildVoxelCube( "#8B6A3F", "#5C4322", "#3F2E14" );
+            javafx.scene.Group cube2 = buildVoxelCube( "#6FCF3D", "#3C8527", "#2A6B1E" );
+            javafx.scene.Group cube3 = buildVoxelCube( "#A8AEB8", "#6B7280", "#4B5563" );
+            row.getChildren().addAll( cube1, cube2, cube3 );
+            placeholderRoot.getChildren().add( row );
+            startBounce( cube1,   0 );
+            startBounce( cube2, 150 );
+            startBounce( cube3, 300 );
+        } );
     }
 
     /** One 36×36 isometric voxel cube (top + left + right faces) drawn as SVG paths. */
@@ -224,6 +250,9 @@ public class MCLauncherGuiWindow extends Application
             catch ( Exception | Error ignored ) { /* best-effort */ }
         }
         placeholderAnimations.clear();
+        // Release the placeholder root reference so attachPlaceholderVoxelsAsync's
+        // deferred runLater no-ops if it fires after we've already swapped scenes.
+        placeholderRoot = null;
     }
 
     /**
@@ -426,14 +455,16 @@ public class MCLauncherGuiWindow extends Application
             this.gui.cleanup();
         }
 
-        // First real-scene swap: stop the cold-start placeholder's bounce
-        // animations so the timelines don't keep ticking on a now-orphaned
-        // node tree. No-op on every subsequent setScene call.
-        cleanupPlaceholderAnimations();
-
         // Store new GUI and set it up
         this.gui = gui;
         GUIUtilities.JFXPlatformRun( () -> {
+            // First real-scene swap: stop the cold-start placeholder's
+            // bounce animations so the timelines don't keep ticking on a
+            // now-orphaned node tree. Must run on the FX thread because
+            // Animation.stop() touches the JavaFX timeline state. No-op on
+            // every subsequent setScene call (the list is empty / the root
+            // is null).
+            cleanupPlaceholderAnimations();
             // Prepare scene environment
             gui.setup();
 
