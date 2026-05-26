@@ -100,6 +100,29 @@ public final class SchemeRegistrar
         }
     }
 
+    /**
+     * Re-runs the platform-specific registration step, which on Linux also
+     * rewrites the {@code Actions=} block in the {@code .desktop} file with
+     * the current recently-played modpack list. Called from
+     * {@link com.micatechnologies.minecraft.launcher.LauncherCore#play} after
+     * a successful launch so the next time the user right-clicks the launcher
+     * icon in the application menu, the just-played pack is at the top of
+     * the recents.
+     *
+     * <p>Cheap on Linux (one file write + an optional desktop-database
+     * refresh). On Windows + macOS this currently just rewrites the URL
+     * scheme registry / .plist entries — same as a no-op call to
+     * {@link #registerIfNeeded()}; the Windows jump-list refresh is wired
+     * separately through {@link JumpListManager}.</p>
+     */
+    public static void refreshRecentPacks()
+    {
+        // Same path as the startup registration — the only state that
+        // changed between calls is the list of recent packs, which the
+        // Linux registration path re-reads via RecentPacks.getRecent.
+        registerIfNeeded();
+    }
+
     /** Resolves the absolute path of the user-facing launcher executable. jpackage sets
      *  {@code jpackage.app-path} as a system property pointing at the wrapper exe — without
      *  that, we're running from a raw JAR / IDE classpath and there's no stable exe to
@@ -232,22 +255,122 @@ public final class SchemeRegistrar
         // %u expands to the URI / file path the OS hands us. Quote the exec so launcher paths
         // containing spaces work. NoDisplay=false because users want the launcher in their
         // app menu too — it's both a registered handler and a regular app.
-        String content = "[Desktop Entry]\n" +
-                "Type=Application\n" +
-                "Name=" + LauncherConstants.LAUNCHER_APPLICATION_NAME + "\n" +
-                "Exec=\"" + exePath + "\" %u\n" +
-                "Terminal=false\n" +
-                "Icon=mica-minecraft-launcher\n" +
-                "MimeType=x-scheme-handler/mmcl;application/x-mmcjson;\n" +
-                "Categories=Game;\n" +
-                "NoDisplay=false\n";
-        Files.writeString( desktopFile, content, StandardCharsets.UTF_8 );
+        StringBuilder content = new StringBuilder( 512 );
+        content.append( "[Desktop Entry]\n" );
+        content.append( "Type=Application\n" );
+        content.append( "Name=" ).append( LauncherConstants.LAUNCHER_APPLICATION_NAME ).append( "\n" );
+        content.append( "Exec=\"" ).append( exePath ).append( "\" %u\n" );
+        content.append( "Terminal=false\n" );
+        content.append( "Icon=mica-minecraft-launcher\n" );
+        content.append( "MimeType=x-scheme-handler/mmcl;application/x-mmcjson;\n" );
+        content.append( "Categories=Game;\n" );
+        content.append( "NoDisplay=false\n" );
+        appendRecentPacksActions( content, exePath );
+        Files.writeString( desktopFile, content.toString(), StandardCharsets.UTF_8 );
 
         // Best-effort cache refresh. Both commands are no-ops if not installed — we don't
         // want missing helpers to fail the whole registration.
         runQuietly( "update-desktop-database", desktopDir.toString() );
 
         Logger.logDebug( "Linux scheme + file-association registered via " + desktopFile );
+    }
+
+    /** Number of recently-played modpacks surfaced in the {@code .desktop}
+     *  {@code Actions=} field. The Desktop Entry Spec doesn't impose a hard
+     *  cap, but most file managers / panel launchers truncate after 5-6
+     *  entries in their right-click menus, so stay inside that window. */
+    private static final int RECENT_PACKS_IN_DESKTOP_FILE = 5;
+
+    /**
+     * Appends an {@code Actions=} field + per-pack {@code [Desktop Action ...]}
+     * sections to the in-progress {@code .desktop} file content, one entry per
+     * recently-played modpack. Each entry shells the launcher exe with a
+     * {@code mmcl://play?name=...} URL — the single-instance lock forwards
+     * that to the already-running launcher (or cold-starts it) which then
+     * dispatches the action via {@code LauncherUriHandler}.
+     *
+     * <p>No-op when the user has never played a pack yet; the resulting
+     * {@code .desktop} file just doesn't carry an {@code Actions=} line.</p>
+     */
+    private static void appendRecentPacksActions( StringBuilder content, String exePath )
+    {
+        java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.GameModPack > recent;
+        try {
+            recent = RecentPacks.getRecent( RECENT_PACKS_IN_DESKTOP_FILE );
+        }
+        catch ( Throwable t ) {
+            // The recent-packs lookup touches per-pack metadata files; a
+            // mid-uninstall race could surface as an IOException etc.
+            // Skip the Actions= block entirely rather than failing the
+            // whole .desktop registration.
+            Logger.logWarningSilent( "RecentPacks lookup failed during .desktop refresh: "
+                                             + t.getClass().getSimpleName() );
+            return;
+        }
+        if ( recent.isEmpty() ) return;
+
+        StringBuilder actionsList = new StringBuilder();
+        StringBuilder actionsSections = new StringBuilder();
+        int idx = 0;
+        for ( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack p : recent ) {
+            String packName = p.getPackName();
+            if ( packName == null || packName.isBlank() ) continue;
+            // Desktop Entry Spec: action identifiers must be [A-Za-z0-9-] only.
+            // Use a stable but spec-conformant ID derived from the loop index
+            // so repeated refreshes overwrite the same entries.
+            String actionId = "play-pack-" + idx;
+            String display = p.getFriendlyName();
+            if ( display == null || display.isBlank() ) display = packName;
+            actionsList.append( actionId ).append( ';' );
+            actionsSections.append( "\n[Desktop Action " ).append( actionId ).append( "]\n" );
+            actionsSections.append( "Name=" ).append( desktopEntryEscape( display ) ).append( '\n' );
+            actionsSections.append( "Exec=\"" ).append( exePath ).append( "\" \"mmcl://play?name=" )
+                           .append( urlEncodeForDesktopExec( packName ) ).append( "\"\n" );
+            idx++;
+        }
+        if ( idx == 0 ) return;
+        content.append( "Actions=" ).append( actionsList ).append( '\n' );
+        content.append( actionsSections );
+    }
+
+    /** Escapes a string for safe inclusion in a Desktop Entry value. The spec
+     *  treats CR/LF as separators and a handful of characters as field-quote
+     *  triggers; strip those defensively. */
+    private static String desktopEntryEscape( String value )
+    {
+        StringBuilder sb = new StringBuilder( value.length() );
+        for ( int i = 0; i < value.length(); i++ ) {
+            char c = value.charAt( i );
+            if ( c == '\n' || c == '\r' ) continue;     // line terminators
+            if ( c < 0x20 ) continue;                   // control chars
+            sb.append( c );
+        }
+        return sb.toString();
+    }
+
+    /** Percent-encodes a string for safe inclusion in the {@code mmcl://play?name=...}
+     *  query string. Spec-correct URL encoding via {@code URLEncoder} would emit
+     *  {@code +} for spaces, which we don't want (URI parsers handle %20 better);
+     *  do the small subset ourselves. */
+    private static String urlEncodeForDesktopExec( String value )
+    {
+        StringBuilder sb = new StringBuilder( value.length() );
+        for ( int i = 0; i < value.length(); i++ ) {
+            char c = value.charAt( i );
+            if ( ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' )
+                    || ( c >= '0' && c <= '9' )
+                    || c == '-' || c == '_' || c == '.' || c == '~' ) {
+                sb.append( c );
+            }
+            else {
+                byte[] bytes = String.valueOf( c ).getBytes( StandardCharsets.UTF_8 );
+                for ( byte b : bytes ) {
+                    sb.append( '%' );
+                    sb.append( String.format( "%02X", b & 0xFF ) );
+                }
+            }
+        }
+        return sb.toString();
     }
 
     /** Fire-and-forget invocation of an external command with a 2-second timeout. Used for

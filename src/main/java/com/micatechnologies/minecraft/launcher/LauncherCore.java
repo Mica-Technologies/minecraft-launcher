@@ -557,6 +557,16 @@ public class LauncherCore
                 gameModPack.recordLaunchStart();
                 final long launchStartMs = System.currentTimeMillis();
 
+                // Refresh the OS-shell recent-modpacks surface (Windows jump
+                // list; Linux .desktop Actions=) so this pack rises to the
+                // top of the right-click recents next time. Fire-and-forget
+                // off a worker thread: the I/O is cheap on Linux (rewriting
+                // one .desktop file) but the path is short of the game-
+                // process spawn, and any failure is contained inside
+                // JumpListManager.refresh.
+                com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask(
+                        com.micatechnologies.minecraft.launcher.utilities.JumpListManager::refresh );
+
                 Process gameProcess = gameModPack.getLastLaunchedProcess();
                 if ( gameProcess != null ) {
                     // RGB: now that the JVM is spawned and we know which pack is
