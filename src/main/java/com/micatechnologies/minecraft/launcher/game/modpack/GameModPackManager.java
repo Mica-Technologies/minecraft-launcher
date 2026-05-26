@@ -951,6 +951,18 @@ public class GameModPackManager
         // Add mod pack
         GameModPack modPack = GameModPackFetcher.get( url,true );
         if ( modPack.getFriendlyName() != null ) {
+            // If this URL is already installed (we're updating rather than
+            // installing fresh), snapshot the pack's user-editable state to
+            // a backup zip before the new manifest's content gets written
+            // over the live install. ModpackBackupManager handles the
+            // "auto-backup enabled" config check + the per-pack count/age
+            // pruning policy internally; returns null when no backup was
+            // created (fresh install with no prior state, or user disabled
+            // backups).
+            GameModPack existing = getInstalledModPackByURL( url );
+            if ( existing != null ) {
+                ModpackBackupManager.backupBeforeUpdate( existing );
+            }
             installModPack( modPack );
         }
     }

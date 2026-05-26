@@ -97,6 +97,40 @@ public class ConfigManager
         return RuntimeConfig.getCustomJvmArgs();
     }
 
+    // -- Backup-before-update policy (delegates to ModPackConfig) ----------
+
+    public synchronized static boolean getAutoBackupBeforeUpdate() {
+        return ModPackConfig.getAutoBackupBeforeUpdate();
+    }
+
+    public synchronized static void setAutoBackupBeforeUpdate( boolean enable ) {
+        ModPackConfig.setAutoBackupBeforeUpdate( enable );
+    }
+
+    public synchronized static int getMaxBackupsPerPack() {
+        return ModPackConfig.getMaxBackupsPerPack();
+    }
+
+    public synchronized static void setMaxBackupsPerPack( int max ) {
+        ModPackConfig.setMaxBackupsPerPack( max );
+    }
+
+    public synchronized static int getMaxBackupAgeDays() {
+        return ModPackConfig.getMaxBackupAgeDays();
+    }
+
+    public synchronized static void setMaxBackupAgeDays( int days ) {
+        ModPackConfig.setMaxBackupAgeDays( days );
+    }
+
+    public synchronized static boolean getBackupIncludeSaves() {
+        return ModPackConfig.getBackupIncludeSaves();
+    }
+
+    public synchronized static void setBackupIncludeSaves( boolean include ) {
+        ModPackConfig.setBackupIncludeSaves( include );
+    }
+
     /**
      * Validates the custom JVM arguments string against argument-injection
      * patterns before persisting. Embedded newlines, NULs, control chars,
