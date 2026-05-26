@@ -237,6 +237,14 @@
                         </padding>
                         <Label text="%settings.fxml.jvmPreset" />
                         <MFXComboBox fx:id="jvmPresetSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="250.0" />
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <MFXButton fx:id="generateJvmArgsBtn" text="%settings.fxml.generateJvmArgs" prefHeight="32.0" />
+                            <Label fx:id="generateJvmArgsHint" text="" styleClass="muted" wrapText="true">
+                                <font>
+                                    <Font size="11.0" />
+                                </font>
+                            </Label>
+                        </HBox>
                     </VBox>
                 </VBox>
             </ScrollPane>
