@@ -319,6 +319,77 @@ public class LauncherCore
     }
 
     /**
+     * Surfaces a pre-launch confirmation dialog when {@link ModConflictDetector}
+     * found one or more known-bad mod combinations in the pack's {@code mods/}
+     * folder. Returns {@code true} if the user wants to continue the launch
+     * (either after disabling a mod or by choosing "Launch anyway"),
+     * {@code false} if they cancelled.
+     *
+     * <p>Choices presented:</p>
+     * <ul>
+     *   <li><b>Disable {first mod}</b> — atomically renames the offending jar
+     *       to {@code .jar.disabled} and continues the launch. The other
+     *       half of the conflict stays enabled.</li>
+     *   <li><b>Launch anyway</b> — proceeds with both mods enabled. The user
+     *       may have a reason (testing a fork, etc.) or is fine with the
+     *       game crashing.</li>
+     *   <li><b>Cancel</b> — bails out; the launch never starts. The user
+     *       can resolve the conflict from the modpack detail modal's mod
+     *       toggles.</li>
+     * </ul>
+     */
+    private static boolean promptForConflicts(
+            GameModPack pack,
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.ModConflictDetector.Conflict >
+                    conflicts )
+    {
+        // Multi-conflict packs are rare; if more than one rule fires we
+        // just stack their summaries in the dialog body so the user sees
+        // all the issues. The button row only offers to resolve the
+        // FIRST conflict to keep the dialog simple — if there are more,
+        // the user will see them again on the next launch attempt.
+        var first = conflicts.get( 0 );
+        StringBuilder body = new StringBuilder();
+        for ( int i = 0; i < conflicts.size(); i++ ) {
+            if ( i > 0 ) body.append( "\n\n" );
+            body.append( "• " ).append( conflicts.get( i ).title() );
+            body.append( "\n  " ).append( conflicts.get( i ).description() );
+        }
+        int response = GUIUtilities.showQuestionMessage(
+                "Mod conflict detected",
+                "These mods don't get along",
+                body.toString(),
+                "Disable " + first.firstJarName(),
+                "Launch anyway",
+                MCLauncherGuiController.getTopStageOrNull() );
+        // showQuestionMessage returns 1 for button1 (Disable), 2 for
+        // button2 (Launch anyway), 0 for Cancel (the default escape).
+        if ( response == 1 ) {
+            boolean ok = com.micatechnologies.minecraft.launcher.game.modpack.ModConflictDetector
+                    .disableJar( pack, first.firstJarName() );
+            if ( ok ) {
+                Logger.logStd( "Pre-launch: disabled " + first.firstJarName()
+                                       + " to resolve conflict with " + first.secondJarName() );
+                return true;
+            }
+            // Rename failed — most likely the file is locked or already
+            // disabled. Surface that and bail to the main menu so the
+            // user can resolve manually.
+            com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
+                    "Couldn't disable " + first.firstJarName(),
+                    "The mod jar is locked or already disabled. Open the pack's "
+                            + "mods folder and resolve the conflict manually." );
+            return false;
+        }
+        if ( response == 2 ) {
+            Logger.logStd( "Pre-launch: user chose to launch anyway with conflict "
+                                   + first.firstJarName() + " + " + first.secondJarName() );
+            return true;
+        }
+        return false; // Cancel
+    }
+
+    /**
      * Blocks the caller until the cold-start-deferred auth token refresh has
      * settled. No-op when no refresh is pending or the refresh has already
      * completed.
@@ -395,6 +466,27 @@ public class LauncherCore
         // have ended up using on a server-contact failure, and the worst case
         // (server rejects launch) just routes the user back through login.
         awaitPendingAuthRefresh();
+
+        // Pre-launch mod-conflict scan. Returns the first known-bad combo
+        // we recognise (OptiFine+Sodium, JEI+REI); the prompt lets the user
+        // disable one of the offending jars in-place and continue, or
+        // cancel the launch entirely. Skipped for server mode (no GUI to
+        // prompt with) and for packs with no mods/ folder (vanilla, fresh
+        // installs, etc.) — ModConflictDetector.scan handles those as
+        // empty results.
+        if ( GameModeManager.isClient() && MCLauncherGuiController.shouldCreateGui() ) {
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.ModConflictDetector.Conflict >
+                    conflicts =
+                    com.micatechnologies.minecraft.launcher.game.modpack.ModConflictDetector.scan( gameModPack );
+            if ( !conflicts.isEmpty() ) {
+                if ( !promptForConflicts( gameModPack, conflicts ) ) {
+                    // User cancelled the launch (or chose "Open Mods Folder"
+                    // and is going to manage it manually). Just return —
+                    // currentLaunch wasn't set yet, no cleanup to do.
+                    return;
+                }
+            }
+        }
 
         // Register this launch as the cancellable one. Captures the calling thread so
         // cancel() can interrupt blocking downloads. The session is cleared in the
