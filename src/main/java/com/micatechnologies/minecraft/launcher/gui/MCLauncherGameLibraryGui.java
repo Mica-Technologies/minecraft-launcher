@@ -306,6 +306,21 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // explicit rebuildCards() done at the end of setup() does the first paint.
         vm.setOnStateChanged( this::rebuildCards );
 
+        // Pre-warm the mod-filename cache on a worker so the first
+        // "search-by-mod" keystroke doesn't hit cold packModsMatch
+        // for every installed pack on the FX thread. Each cold lookup
+        // is a listFiles + lowercase loop — fast individually but
+        // adds up across 20+ packs into a perceptible hitch on first
+        // type. Backgrounded here so setup() returns immediately.
+        SystemUtilities.spawnNewTask( () -> {
+            for ( GameModPack p : GameModPackManager.getInstalledModPacks() ) {
+                if ( p == null ) continue;
+                String root = p.getPackRootFolder();
+                if ( root == null ) continue;
+                prewarmModFilenameCache( root );
+            }
+        } );
+
         // URL "Add" → classify the URL, then either install (Mica manifest) or
         // route to the platform-specific import preview dialog (Modrinth /
         // CurseForge). Flips the button into an "Adding…" / "Checking…" state
@@ -1389,14 +1404,16 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     private static final java.util.Map< String, java.util.List< String > > MOD_FILENAME_CACHE =
             new java.util.concurrent.ConcurrentHashMap<>();
 
-    /** True iff the pack's {@code mods/} folder contains any file
-     *  whose lowercased name contains the lowercased search needle. */
-    private static boolean packModsMatch( GameModPack pack, String lowerNeedle )
+    /** Populates {@link #MOD_FILENAME_CACHE} for the given pack root —
+     *  the same {@code listFiles + lowercase} work {@link #packModsMatch}
+     *  does on first lookup. Extracted so it can run on a worker thread
+     *  during library setup, ahead of the first search keystroke; the
+     *  FX-thread search-filter path becomes a cache hit and avoids the
+     *  hitch a 100+ jar listFiles + iteration causes inline. */
+    private static void prewarmModFilenameCache( String root )
     {
-        if ( pack == null ) return false;
-        String root = pack.getPackRootFolder();
-        if ( root == null ) return false;
-        java.util.List< String > names = MOD_FILENAME_CACHE.computeIfAbsent( root, key -> {
+        if ( root == null ) return;
+        MOD_FILENAME_CACHE.computeIfAbsent( root, key -> {
             File mods = new File( key, "mods" );
             if ( !mods.isDirectory() ) return java.util.List.of();
             File[] children = mods.listFiles( ( dir, name ) -> name.endsWith( ".jar" )
@@ -1406,6 +1423,18 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             for ( File c : children ) out.add( c.getName().toLowerCase( Locale.ROOT ) );
             return out;
         } );
+    }
+
+    /** True iff the pack's {@code mods/} folder contains any file
+     *  whose lowercased name contains the lowercased search needle. */
+    private static boolean packModsMatch( GameModPack pack, String lowerNeedle )
+    {
+        if ( pack == null ) return false;
+        String root = pack.getPackRootFolder();
+        if ( root == null ) return false;
+        prewarmModFilenameCache( root );
+        java.util.List< String > names = MOD_FILENAME_CACHE.get( root );
+        if ( names == null ) return false;
         for ( String n : names ) {
             if ( n.contains( lowerNeedle ) ) return true;
         }

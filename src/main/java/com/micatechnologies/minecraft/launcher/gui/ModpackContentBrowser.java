@@ -655,13 +655,13 @@ public final class ModpackContentBrowser
                                return;
                            }
                            for ( File r : reports ) {
-                               sec.getChildren().add( buildCrashRow( r, overlayHost ) );
+                               sec.getChildren().add( buildCrashRow( r, overlayHost, pack ) );
                            }
                        } ) );
         return section;
     }
 
-    private static HBox buildCrashRow( File report, StackPane overlayHost )
+    private static HBox buildCrashRow( File report, StackPane overlayHost, GameModPack pack )
     {
         HBox row = new HBox( 10 );
         row.setAlignment( Pos.CENTER_LEFT );
@@ -680,7 +680,7 @@ public final class ModpackContentBrowser
         MFXButton viewBtn = new MFXButton( LocalizationManager.get( "detailModal.crash.viewBtn" ) );
         viewBtn.getStyleClass().add( "heroCardSecondaryBtn" );
         viewBtn.setPrefHeight( 28 );
-        viewBtn.setOnAction( e -> showCrashViewer( report, overlayHost ) );
+        viewBtn.setOnAction( e -> showCrashViewer( report, overlayHost, pack ) );
 
         MFXButton openBtn = new MFXButton( LocalizationManager.get( "detailModal.content.openFolder" ) );
         openBtn.getStyleClass().add( "heroCardSecondaryBtn" );
@@ -692,9 +692,13 @@ public final class ModpackContentBrowser
     }
 
     /** Opens a centered scrollable overlay with the crash report's
-     *  raw text + Copy / Close actions. Mirrors the image viewer
-     *  overlay pattern from buildScreenshotsSection. */
-    private static void showCrashViewer( File report, StackPane host )
+     *  raw text + Copy / Close actions, plus a diagnosis card at the
+     *  top that runs the {@link com.micatechnologies.minecraft.launcher.game.crash.CrashReportAnalyzer}
+     *  against the report and surfaces the matched detector's title +
+     *  summary + suggested actions. Analyzer runs on a worker so the
+     *  overlay opens immediately; the diagnosis card fills in once
+     *  the analysis returns. */
+    private static void showCrashViewer( File report, StackPane host, GameModPack pack )
     {
         if ( host == null || report == null || !report.isFile() ) return;
         String text;
@@ -711,7 +715,7 @@ public final class ModpackContentBrowser
         overlay.setPickOnBounds( true );
 
         VBox card = new VBox( 12 );
-        card.setAlignment( Pos.CENTER );
+        card.setAlignment( Pos.TOP_LEFT );
         card.setPadding( new Insets( 16 ) );
         card.setStyle( "-fx-background-color: -color-surface; -fx-background-radius: 12;" );
         card.setMaxWidth( host.getWidth() * 0.85 );
@@ -720,13 +724,25 @@ public final class ModpackContentBrowser
         Label title = new Label( report.getName() );
         title.getStyleClass().add( "heading-h3" );
 
+        // Diagnosis card placeholder — filled in once the analyzer
+        // returns on the FX thread. Starts blank so the overlay
+        // renders immediately; the analyzer runs on a worker.
+        VBox diagnosisBox = new VBox( 6 );
+        diagnosisBox.getStyleClass().add( "modpackDetailContentRow" );
+        diagnosisBox.setPadding( new Insets( 10, 12, 10, 12 ) );
+        diagnosisBox.setStyle( "-fx-background-color: -color-bg-soft; -fx-background-radius: 8;" );
+        Label diagnosisLoading = new Label(
+                LocalizationManager.get( "detailModal.crash.viewer.analyzing" ) );
+        diagnosisLoading.getStyleClass().add( "muted" );
+        diagnosisBox.getChildren().add( diagnosisLoading );
+
         javafx.scene.control.TextArea area = new javafx.scene.control.TextArea( crashText );
         area.setEditable( false );
         area.setWrapText( false );
         area.getStyleClass().add( "text-mono" );
         area.setStyle( "-fx-font-size: 12px;" );
         area.setPrefWidth( host.getWidth() * 0.8 );
-        area.setPrefHeight( host.getHeight() * 0.7 );
+        area.setPrefHeight( host.getHeight() * 0.55 );
         VBox.setVgrow( area, Priority.ALWAYS );
 
         HBox actions = new HBox( 8 );
@@ -747,18 +763,90 @@ public final class ModpackContentBrowser
             } );
         } );
 
+        MFXButton openFolderBtn = new MFXButton(
+                LocalizationManager.get( "detailModal.crash.viewer.openFolder" ) );
+        openFolderBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+        openFolderBtn.setPrefHeight( 32 );
+        openFolderBtn.setOnAction( e -> openInFileBrowser( report ) );
+
         MFXButton closeBtn = new MFXButton( LocalizationManager.get( "detailModal.crash.viewer.close" ) );
         closeBtn.getStyleClass().add( "heroCardSecondaryBtn" );
         closeBtn.setPrefHeight( 32 );
         closeBtn.setOnAction( e -> host.getChildren().remove( overlay ) );
 
-        actions.getChildren().addAll( copyBtn, closeBtn );
-        card.getChildren().addAll( title, area, actions );
+        actions.getChildren().addAll( copyBtn, openFolderBtn, closeBtn );
+        card.getChildren().addAll( title, diagnosisBox, area, actions );
         overlay.getChildren().add( card );
         overlay.setOnMouseClicked( e -> {
             if ( e.getTarget() == overlay ) host.getChildren().remove( overlay );
         } );
         host.getChildren().add( overlay );
+
+        // Run the diagnosis on a worker — the analyzer's pattern matching
+        // is fast but pessimistically off-thread keeps the overlay open
+        // immediately even if a future detector grows expensive. Result
+        // lands on the FX thread to swap the placeholder for the real
+        // diagnosis card.
+        SystemUtilities.spawnNewTask( () -> {
+            com.micatechnologies.minecraft.launcher.game.crash.CrashDiagnosis diagnosis;
+            try {
+                diagnosis = com.micatechnologies.minecraft.launcher.game.crash
+                        .CrashReportAnalyzer.analyze( crashText, pack, 0 );
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Crash analyzer threw: " + t.getClass().getSimpleName() );
+                diagnosis = null;
+            }
+            final com.micatechnologies.minecraft.launcher.game.crash.CrashDiagnosis finalDiag = diagnosis;
+            javafx.application.Platform.runLater( () -> {
+                diagnosisBox.getChildren().clear();
+                if ( finalDiag == null ) {
+                    Label none = new Label( LocalizationManager.get( "detailModal.crash.viewer.analyzeFailed" ) );
+                    none.getStyleClass().add( "muted" );
+                    diagnosisBox.getChildren().add( none );
+                    return;
+                }
+                Label diagTitle = new Label( finalDiag.title() );
+                diagTitle.getStyleClass().add( "modpackDetailContentName" );
+                diagTitle.setStyle( "-fx-font-weight: 700;" );
+
+                Label diagSummary = new Label( finalDiag.summary() );
+                diagSummary.setWrapText( true );
+
+                diagnosisBox.getChildren().addAll( diagTitle, diagSummary );
+
+                if ( finalDiag.suggestions() != null && !finalDiag.suggestions().isEmpty() ) {
+                    HBox suggestionRow = new HBox( 8 );
+                    suggestionRow.setAlignment( Pos.CENTER_LEFT );
+                    suggestionRow.setPadding( new Insets( 4, 0, 0, 0 ) );
+                    for ( com.micatechnologies.minecraft.launcher.game.crash.Suggestion s : finalDiag.suggestions() ) {
+                        if ( s == null ) continue;
+                        if ( s.action() == null ) {
+                            Label hint = new Label( "• " + s.label() );
+                            hint.getStyleClass().add( "muted" );
+                            hint.setWrapText( true );
+                            diagnosisBox.getChildren().add( hint );
+                        }
+                        else {
+                            MFXButton suggBtn = new MFXButton( s.label() );
+                            suggBtn.getStyleClass().add( s.primary() ? "primary" : "heroCardSecondaryBtn" );
+                            suggBtn.setPrefHeight( 28 );
+                            suggBtn.setOnAction( e -> {
+                                try { s.action().run(); }
+                                catch ( Throwable t ) {
+                                    Logger.logWarningSilent( "Crash suggestion action failed: "
+                                                                     + t.getMessage() );
+                                }
+                            } );
+                            suggestionRow.getChildren().add( suggBtn );
+                        }
+                    }
+                    if ( !suggestionRow.getChildren().isEmpty() ) {
+                        diagnosisBox.getChildren().add( suggestionRow );
+                    }
+                }
+            } );
+        } );
     }
 
     // ====================================================================
