@@ -134,14 +134,18 @@ class LauncherSession
             Logger.logThrowable( e );
         }
 
-        // Check network connectivity
-        if ( startupProgressWindow != null ) {
-            startupProgressWindow.setUpperLabelText( "Loading" );
-            startupProgressWindow.setSectionText( "Checking network connectivity..." );
-            startupProgressWindow.setDetailText( "" );
-            startupProgressWindow.setProgress( 15 );
-        }
-        boolean online = com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.checkNetworkAvailability();
+        // Connectivity is now resolved lazily — the old synchronous probe was a
+        // 5-second TCP connect to launchermeta.mojang.com:443 sitting on the
+        // critical path, which stalled cold start on flaky networks for almost
+        // no payoff (the boolean only gated two pieces of fire-and-forget work
+        // below, both of which already handle their own network failures). The
+        // OfflineIndicator label updates reactively when downstream operations
+        // hit the network, so the user still sees an offline chip when it
+        // matters. Kick the probe off async so NetworkUtilities.offlineMode is
+        // populated before anything that actually needs it reads.
+        java.util.concurrent.CompletableFuture.runAsync(
+                () -> com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.checkNetworkAvailability() );
+        boolean online = true;
 
         // Installed-modpack load on the critical path — fetchInstalledModPacks now
         // does a cache-first sync load and kicks off its own background revalidate,
