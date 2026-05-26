@@ -246,6 +246,53 @@ public class LauncherCore
     }
 
     /**
+     * Blocks the caller until the cold-start-deferred auth token refresh has
+     * settled. No-op when no refresh is pending or the refresh has already
+     * completed.
+     *
+     * <p>Capped at 60 s so a hung MS auth server can't pin the calling thread
+     * forever — the underlying renewal already has its own timeout, but this
+     * defense-in-depth wrapper keeps Play responsive even if the refresh
+     * executor itself wedges.</p>
+     *
+     * <p>Failure of the refresh is logged but not propagated: the launch
+     * proceeds with whatever access token is in memory (the cached one
+     * loaded by {@link MCLauncherAuthManager#loadCachedUserNow()}). If that
+     * token is stale enough to be rejected by Mojang's session servers, the
+     * launch will fail downstream with the same user-facing error the
+     * legacy sync-renewal path would have produced.</p>
+     */
+    private static void awaitPendingAuthRefresh()
+    {
+        java.util.concurrent.CompletableFuture< MCLauncherAuthResult > pending =
+                MCLauncherAuthManager.getPendingRefreshFuture();
+        if ( pending == null || pending.isDone() ) {
+            return;
+        }
+        try {
+            Logger.logStd( "Awaiting deferred auth refresh before launch..." );
+            long startNs = System.nanoTime();
+            MCLauncherAuthResult result = pending.get( 60, java.util.concurrent.TimeUnit.SECONDS );
+            long waitMs = ( System.nanoTime() - startNs ) / 1_000_000L;
+            if ( AuthUtilities.checkAuthResponse( result ) ) {
+                Logger.logStd( "Auth refresh settled (" + waitMs + " ms wait); proceeding with launch." );
+            }
+            else {
+                Logger.logWarningSilent(
+                        "Deferred auth refresh returned non-success after " + waitMs +
+                                " ms; launching with cached token." );
+            }
+        }
+        catch ( java.util.concurrent.TimeoutException e ) {
+            Logger.logWarningSilent( "Deferred auth refresh timed out at 60 s; launching with cached token." );
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "Deferred auth refresh await failed (" + t.getClass().getSimpleName()
+                                             + "); launching with cached token." );
+        }
+    }
+
+    /**
      * Launches the specified mod pack for gameplay.
      *
      * @param gameModPack mod pack to launch/play
@@ -264,6 +311,18 @@ public class LauncherCore
      * @since 2.0
      */
     public static void play( GameModPack gameModPack, Runnable after ) {
+        // Cold-start deferred the auth refresh; if the user clicked Play before
+        // it landed, await it here. We're on a background thread (callers spawn
+        // play() off the FX thread via SystemUtilities.spawnNewTask) so the
+        // block doesn't freeze the UI — the launch-progress window stays
+        // responsive, just sits on the first step a few hundred ms longer than
+        // it otherwise would. If the refresh fails or times out, the launch
+        // still proceeds with whatever access token is in memory: it may be
+        // stale but it's the same token the legacy sync-renewal path would
+        // have ended up using on a server-contact failure, and the worst case
+        // (server rejects launch) just routes the user back through login.
+        awaitPendingAuthRefresh();
+
         // Register this launch as the cancellable one. Captures the calling thread so
         // cancel() can interrupt blocking downloads. The session is cleared in the
         // finally below — even if play() throws, currentLaunch never leaks past the
@@ -727,9 +786,34 @@ public class LauncherCore
      * @since 2.0
      */
     public static void performClientLogin( String initialErrorMessage ) {
-        // If a saved account exists, try to renew it first
+        // Fast cold-start path: if a saved account exists AND we can read the
+        // cached user info synchronously, populate the in-memory state from
+        // disk + kick off a background token refresh. The main GUI paints
+        // with the cached user immediately while the network round-trip to
+        // the auth servers runs in parallel; the Play-click handler awaits
+        // the pending refresh future (with a brief progress modal) before
+        // launching the game.
+        //
+        // Why this works: the cached_user.json file holds uuid + display
+        // name (everything the main GUI's player chip needs) plus an access
+        // token. The token may be stale (>4h since last server contact) but
+        // the user doesn't care until Play. The async refresh either lands
+        // the new token in time (common case) or surfaces a session-expired
+        // error at Play-time (rare).
         if ( MCLauncherAuthManager.hasExistingLogin() ) {
-            // Show a progress indicator while contacting auth servers
+            net.hycrafthd.minecraft_authenticator.login.User cached =
+                    MCLauncherAuthManager.loadCachedUserNow();
+            if ( cached != null ) {
+                Logger.logStd( "[" + cached.name() + "] cached session loaded; refreshing token in background." );
+                MCLauncherAuthManager.renewExistingLoginAsync();
+                return;
+            }
+            // Cache unreadable or missing fields → fall through to the legacy
+            // sync renewal path. This is the cold-uninstalled, fresh-install,
+            // or corrupt-cache case; rare in steady state but the existing
+            // progress-GUI flow handles it cleanly.
+            Logger.logStd( "Saved account present but cached user info unreadable; falling back to sync renewal." );
+
             MCLauncherProgressGui authProgressWindow = null;
             try {
                 if ( MCLauncherGuiController.shouldCreateGui() ) {
@@ -746,7 +830,6 @@ public class LauncherCore
                 authProgressWindow.setDetailText( "" );
             }
 
-            // Wire up progress callback so auth status updates appear in the progress GUI
             MCLauncherProgressGui finalAuthProgressWindow = authProgressWindow;
             MCLauncherAuthManager.setStatusCallback( ( section, detail ) -> {
                 if ( finalAuthProgressWindow != null ) {
@@ -767,7 +850,6 @@ public class LauncherCore
                 return;
             }
             else {
-                // Auth renewal failed -- clear saved account and fall through to login screen
                 Logger.logStd( "Saved account could not be renewed. Showing login screen." );
                 MCLauncherAuthManager.logout();
                 if ( initialErrorMessage == null || initialErrorMessage.isEmpty() ) {

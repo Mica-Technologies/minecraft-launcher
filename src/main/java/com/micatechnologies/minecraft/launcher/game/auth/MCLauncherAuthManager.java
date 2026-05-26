@@ -428,6 +428,116 @@ public class MCLauncherAuthManager
         return loggedIn;
     }
 
+    /**
+     * Holds the currently in-flight async refresh, if any. Set by
+     * {@link #renewExistingLoginAsync()}, cleared when the future completes.
+     * Read by the main GUI to surface a "Signing in…" status indicator and
+     * by the Play-click handler to await completion before launching.
+     *
+     * <p>Volatile so the FX thread sees the latest value without a
+     * synchronized block on every read.</p>
+     */
+    private static volatile CompletableFuture< MCLauncherAuthResult > pendingRefresh = null;
+
+    /** Background executor for the async refresh. Single-thread, daemon — we
+     *  only ever want one auth refresh in flight at a time, and we don't want
+     *  to keep the JVM alive if the user quits before it completes. */
+    private static final ExecutorService REFRESH_EXECUTOR = Executors.newSingleThreadExecutor( r -> {
+        Thread t = new Thread( r, "mmcl-auth-refresh" );
+        t.setDaemon( true );
+        return t;
+    } );
+
+    /**
+     * Returns the currently in-flight async refresh, or {@code null} when no
+     * refresh is pending. Used by UI surfaces that want to wait for the
+     * refresh to settle (e.g. the Play-click handler) or display its progress
+     * (the main GUI's bottom-bar background-status label).
+     */
+    public static CompletableFuture< MCLauncherAuthResult > getPendingRefreshFuture() {
+        return pendingRefresh;
+    }
+
+    /**
+     * Reads the cached user data off disk synchronously and populates
+     * {@link #loggedIn}, WITHOUT touching the network. Use this on the
+     * cold-start path so the main GUI can paint immediately with whatever
+     * the cache holds; pair with {@link #renewExistingLoginAsync()} to
+     * refresh the token in the background.
+     *
+     * <p>Returns the cached {@link User} on success, or {@code null} when
+     * the cached file is missing, corrupt, or lacks the minimum fields
+     * (uuid + name) that the main GUI needs to render the player chip.</p>
+     *
+     * <p>If this returns null, callers should fall through to the
+     * synchronous {@link #renewExistingLogin()} path (which will then
+     * either contact the auth servers or show the login screen).</p>
+     *
+     * @since 3.6
+     */
+    public static User loadCachedUserNow() {
+        User cached = loadCachedUser();
+        if ( cached == null ) {
+            return null;
+        }
+        if ( cached.name() == null || cached.name().isBlank()
+                || cached.uuid() == null || cached.uuid().isBlank() ) {
+            return null;
+        }
+        loggedIn = cached;
+        // Bump the timestamp read so shouldRenewToken doesn't double-load it on
+        // the next call; it's cheap if already loaded.
+        if ( lastSuccessfulRenewalMs == 0 ) {
+            shouldRenewToken();
+        }
+        return cached;
+    }
+
+    /**
+     * Kicks off a background token renewal — same code path as
+     * {@link #renewExistingLogin()} — and returns a future the caller can
+     * await on. If a refresh is already in flight, returns the existing
+     * future instead of starting a second one (the renewal is idempotent
+     * and only one in-flight refresh makes sense at a time).
+     *
+     * <p>The future completes with an {@link MCLauncherAuthResult}. On the
+     * fast-path (token still fresh), it completes almost immediately
+     * because {@link #renewExistingLogin()} short-circuits without
+     * contacting the network.</p>
+     *
+     * <p>Used by the cold-start path so the main GUI paints with the
+     * cached user info (from {@link #loadCachedUserNow()}) while this
+     * future settles in the background.</p>
+     *
+     * @since 3.6
+     */
+    public static CompletableFuture< MCLauncherAuthResult > renewExistingLoginAsync() {
+        CompletableFuture< MCLauncherAuthResult > existing = pendingRefresh;
+        if ( existing != null && !existing.isDone() ) {
+            return existing;
+        }
+        CompletableFuture< MCLauncherAuthResult > fresh = new CompletableFuture<>();
+        pendingRefresh = fresh;
+        REFRESH_EXECUTOR.submit( () -> {
+            try {
+                fresh.complete( renewExistingLogin() );
+            }
+            catch ( Throwable t ) {
+                fresh.completeExceptionally( t );
+            }
+            finally {
+                // Clear the slot once we're done so the next session-state
+                // change can fire a fresh refresh. Reference-compare so a
+                // racing second call that already stashed its own future
+                // doesn't get cleared out from under it.
+                if ( pendingRefresh == fresh ) {
+                    pendingRefresh = null;
+                }
+            }
+        } );
+        return fresh;
+    }
+
     public static void logout() {
         // Clear local logged in file copy
         loggedIn = null;

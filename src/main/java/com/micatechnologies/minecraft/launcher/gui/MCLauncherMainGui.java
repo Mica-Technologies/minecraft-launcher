@@ -326,6 +326,28 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         OfflineIndicator.applyTo( offlineLabel );
 
+        // Auth refresh indicator. The cold-start path now paints this screen with
+        // cached user info while the token renewal runs in the background; surface
+        // that pending work on the bottom bar so the user sees a "Signing in…" hint
+        // (same Label, same pattern as the pack-refresh indicator below). Cleared
+        // when the future completes; the Play-click path awaits the same future
+        // before launching the game, so a user who fires Play before refresh
+        // settles will just see a brief progress modal there.
+        java.util.concurrent.CompletableFuture< com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult >
+                pendingAuthRefresh = MCLauncherAuthManager.getPendingRefreshFuture();
+        if ( pendingAuthRefresh != null && !pendingAuthRefresh.isDone() ) {
+            backgroundFetchLabel.setText( LocalizationManager.get( "main.fetchLabel.signingIn" ) );
+            backgroundFetchLabel.setVisible( true );
+            backgroundFetchLabel.setManaged( true );
+            pendingAuthRefresh.whenComplete( ( r, t ) -> GUIUtilities.JFXPlatformRun( () -> {
+                backgroundFetchLabel.setVisible( false );
+                backgroundFetchLabel.setManaged( false );
+                // Restore the default text so any subsequent showBackgroundStatus
+                // callers (pack-list refresh, etc.) don't inherit "Signing in…".
+                backgroundFetchLabel.setText( LocalizationManager.get( "main.fetchLabel.loading" ) );
+            } ) );
+        }
+
         // "Loading available packs…" indicator. Show only while the background available-
         // modpacks fetch (kicked off at startup, see
         // GameModPackManager.startAvailableModPacksFetchAsync) is still running; hide as
