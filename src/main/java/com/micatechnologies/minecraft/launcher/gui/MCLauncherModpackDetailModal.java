@@ -358,6 +358,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         if ( pack != null && pack.getPackRootFolder() != null ) {
             Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
             body.getChildren().add( ModpackContentBrowser.buildWorldsSection( pack, this::buildSectionBox, ownerStage ) );
+            body.getChildren().add( ModpackContentBrowser.buildModsSection( pack, this::buildSectionBox, body ) );
             body.getChildren().add( ModpackContentBrowser.buildScreenshotsSection( pack, this::buildSectionBox, this ) );
             body.getChildren().add( ModpackContentBrowser.buildShaderPacksSection( pack, this::buildSectionBox ) );
             body.getChildren().add( ModpackContentBrowser.buildResourcePacksSection( pack, this::buildSectionBox ) );

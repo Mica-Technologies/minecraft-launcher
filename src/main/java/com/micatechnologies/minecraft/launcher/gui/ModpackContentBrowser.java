@@ -139,6 +139,136 @@ public final class ModpackContentBrowser
         return section;
     }
 
+    /** Lists each {@code <packRoot>/mods/*.jar} + {@code *.jar.disabled}
+     *  entry with a Disable / Enable toggle. The toggle renames the file
+     *  between {@code foo.jar} and {@code foo.jar.disabled} — Minecraft
+     *  + Forge / Fabric only load {@code .jar} files from the mods
+     *  folder, so the disabled state is honored on the next launch.
+     *  Useful for "is this mod the one crashing?" diagnosis without
+     *  leaving the launcher. */
+    public static Node buildModsSection( GameModPack pack, SectionBuilder sectionBox, VBox bodyToRebuild )
+    {
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.mods" ) );
+        File modsDir = subDir( pack, "mods" );
+        File[] mods = modsDir == null ? null : modsDir.listFiles( f -> {
+            if ( !f.isFile() ) return false;
+            String name = f.getName().toLowerCase();
+            return name.endsWith( ".jar" ) || name.endsWith( ".jar.disabled" );
+        } );
+        if ( mods == null || mods.length == 0 ) {
+            section.getChildren().add( emptyLabel() );
+            return section;
+        }
+        // Sort by filename (case-insensitive). Group enabled + disabled
+        // together so the user sees pairs near each other; a strict by-name
+        // sort already achieves that since the disabled suffix sorts after
+        // the bare .jar.
+        Arrays.sort( mods, Comparator.comparing( ( File f ) -> f.getName().toLowerCase() ) );
+        for ( File mod : mods ) {
+            section.getChildren().add( buildModRow( mod, bodyToRebuild ) );
+        }
+        return section;
+    }
+
+    /** One row for a mod jar — enabled or disabled. The toggle button
+     *  renames the file between {@code foo.jar} and {@code foo.jar.disabled};
+     *  after the rename, the row's controls (label / button / meta) are
+     *  updated in place so the user sees the new state without a modal
+     *  re-render. */
+    private static HBox buildModRow( File initialFile, VBox unused )
+    {
+        HBox row = new HBox( 10 );
+        row.setAlignment( Pos.CENTER_LEFT );
+        row.getStyleClass().add( "modpackDetailContentRow" );
+        row.setPadding( new Insets( 4, 0, 4, 0 ) );
+
+        // Mutable holders so the toggle handler can swap the row's
+        // backing file + UI controls in place without rebuilding the row.
+        final File[] currentFile = { initialFile };
+
+        Label name = new Label();
+        name.getStyleClass().add( "modpackDetailContentName" );
+        HBox.setHgrow( name, Priority.ALWAYS );
+        name.setMaxWidth( Double.MAX_VALUE );
+
+        Label meta = new Label();
+        meta.getStyleClass().add( "muted" );
+
+        MFXButton toggleBtn = new MFXButton();
+        toggleBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+        toggleBtn.setPrefHeight( 28 );
+
+        // Render once for the initial state, then again after each rename.
+        Runnable renderRowState = () -> {
+            File f = currentFile[ 0 ];
+            boolean disabled = f.getName().toLowerCase().endsWith( ".jar.disabled" );
+            String displayName = disabled
+                    ? f.getName().substring( 0, f.getName().length() - ".disabled".length() )
+                    : f.getName();
+            name.setText( displayName );
+            // Dim disabled mods so the user can tell at a glance which
+            // jars are active. The CSS class "muted" already lives in
+            // ui-base.css.
+            name.getStyleClass().remove( "muted" );
+            if ( disabled ) name.getStyleClass().add( "muted" );
+
+            meta.setText( disabled
+                    ? LocalizationManager.get( "detailModal.mods.disabled" )
+                    : humanSize( f.length() ) );
+
+            toggleBtn.setText( disabled
+                    ? LocalizationManager.get( "detailModal.mods.enable" )
+                    : LocalizationManager.get( "detailModal.mods.disable" ) );
+        };
+        renderRowState.run();
+
+        toggleBtn.setOnAction( e -> toggleModEnabled( currentFile, renderRowState, toggleBtn ) );
+
+        row.getChildren().addAll( name, meta, toggleBtn );
+        return row;
+    }
+
+    /** Atomic rename between {@code foo.jar} and {@code foo.jar.disabled}.
+     *  Updates the {@code currentFile} reference + re-renders the row on
+     *  success. Failure (locked file, permission denied) surfaces as a
+     *  warning toast — non-fatal, the user just tries again after closing
+     *  the game. */
+    private static void toggleModEnabled( File[] currentFile, Runnable rerender, MFXButton btn )
+    {
+        // Disable the button during the rename so a frantic double-click
+        // doesn't fire two toggles in a row.
+        btn.setDisable( true );
+        FxAsyncTask.run( () -> {
+            File mod = currentFile[ 0 ];
+            try {
+                boolean disabled = mod.getName().toLowerCase().endsWith( ".jar.disabled" );
+                File renamed = disabled
+                        ? new File( mod.getParentFile(),
+                                    mod.getName().substring( 0, mod.getName().length() - ".disabled".length() ) )
+                        : new File( mod.getParentFile(), mod.getName() + ".disabled" );
+                if ( renamed.exists() ) {
+                    NotificationManager.warn( "Couldn't toggle mod",
+                                              "A file named " + renamed.getName()
+                                                      + " already exists. Resolve the name conflict manually." );
+                    return;
+                }
+                java.nio.file.Files.move( mod.toPath(), renamed.toPath(),
+                                          java.nio.file.StandardCopyOption.ATOMIC_MOVE );
+                currentFile[ 0 ] = renamed;
+                javafx.application.Platform.runLater( rerender );
+            }
+            catch ( Exception ex ) {
+                Logger.logWarningSilent( "Mod toggle failed for " + mod.getName() + ": " + ex.getMessage() );
+                NotificationManager.warn( "Couldn't toggle mod",
+                                          "Rename failed — the mod may be locked by another process. "
+                                                  + "Try again after closing the game." );
+            }
+            finally {
+                javafx.application.Platform.runLater( () -> btn.setDisable( false ) );
+            }
+        } );
+    }
+
     /** Lists each {@code <packRoot>/shaderpacks/*} entry (zip or
      *  directory) with size + Open Folder action. */
     public static Node buildShaderPacksSection( GameModPack pack, SectionBuilder sectionBox )
