@@ -185,10 +185,8 @@ public class MCLauncherGuiController
 
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherMainGui goToMainGui() throws IOException {
-        com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_construct_start" );
         MCLauncherMainGui newMainGui = null;
         boolean guiStarted = startGui();
-        com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_fx_started" );
         if ( guiStarted ) {
             // Pick up the pre-built instance if the FX-prestart thread had
             // time to construct one in parallel with the session thread's
@@ -199,11 +197,8 @@ public class MCLauncherGuiController
             if ( newMainGui == null ) {
                 newMainGui = new MCLauncherMainGui( guiWindow.getStage() );
             }
-            com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_instance_built" );
             guiWindow.setScene( newMainGui );
-            com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_scene_set" );
             guiWindow.show();
-            com.micatechnologies.minecraft.launcher.utilities.ColdStartProfiler.mark( "main_gui_show_called" );
         }
         else {
             Logger.logError( "The application main GUI could not be displayed due to the application GUI not being " +

@@ -719,24 +719,19 @@ public class LauncherCore
      * @since 1.0
      */
     public static void doModpackSelection( String modPackName, String initialErrorMessage ) {
-        ColdStartProfiler.mark( "doModpackSelection_entry" );
-
         // Create variable to store final resulting mod pack name
         GameModPack finalGameModPack = GameModPackManager.getInstalledModPackByName( modPackName );
-        ColdStartProfiler.mark( "getInstalledModPackByName_done" );
 
         // Check if requested mod pack is installed
         if ( modPackName.length() > 0 && finalGameModPack == null ) {
             Logger.logError( modPackName + " " + LocalizationManager.PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT );
         }
-        ColdStartProfiler.mark( "before_isClient_check" );
 
         // Show gui or start start
         if ( GameModeManager.isClient() ) {
             if ( initialErrorMessage != null && initialErrorMessage.length() > 0 ) {
                 Logger.logError( initialErrorMessage );
             }
-            ColdStartProfiler.mark( "before_goToMainGui_call" );
 
             // CLI auto-launch path: when a valid modpack name was passed on the command
             // line (typical desktop-shortcut flow), skip the main menu and kick off the
