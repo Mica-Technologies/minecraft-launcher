@@ -71,6 +71,72 @@ public final class ModPackConfig
         ConfigStore.scheduleWrite();
     }
 
+    // ====================================================================
+    // Backup-before-update policy
+    // ====================================================================
+
+    /** Whether the launcher auto-snapshots a pack's config (and optionally
+     *  saves) before applying an update. Default on. */
+    public static synchronized boolean getAutoBackupBeforeUpdate() {
+        JsonObject json = ConfigStore.ensureLoaded();
+        if ( !json.has( ConfigConstants.BACKUP_AUTO_KEY ) ) {
+            return ConfigConstants.BACKUP_AUTO_DEFAULT;
+        }
+        return json.get( ConfigConstants.BACKUP_AUTO_KEY ).getAsBoolean();
+    }
+
+    public static synchronized void setAutoBackupBeforeUpdate( boolean enable ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.BACKUP_AUTO_KEY, enable );
+        ConfigStore.scheduleWrite();
+    }
+
+    /** Maximum number of backup zips retained per pack. 0 disables the
+     *  count cap (age cap still applies). */
+    public static synchronized int getMaxBackupsPerPack() {
+        JsonObject json = ConfigStore.ensureLoaded();
+        if ( !json.has( ConfigConstants.BACKUP_MAX_COUNT_KEY ) ) {
+            return ConfigConstants.BACKUP_MAX_COUNT_DEFAULT;
+        }
+        return json.get( ConfigConstants.BACKUP_MAX_COUNT_KEY ).getAsInt();
+    }
+
+    public static synchronized void setMaxBackupsPerPack( int max ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.BACKUP_MAX_COUNT_KEY,
+                                                  Math.max( 0, max ) );
+        ConfigStore.scheduleWrite();
+    }
+
+    /** Maximum age in days for retained backup zips. 0 disables the age
+     *  cap (count cap still applies). */
+    public static synchronized int getMaxBackupAgeDays() {
+        JsonObject json = ConfigStore.ensureLoaded();
+        if ( !json.has( ConfigConstants.BACKUP_MAX_AGE_DAYS_KEY ) ) {
+            return ConfigConstants.BACKUP_MAX_AGE_DAYS_DEFAULT;
+        }
+        return json.get( ConfigConstants.BACKUP_MAX_AGE_DAYS_KEY ).getAsInt();
+    }
+
+    public static synchronized void setMaxBackupAgeDays( int days ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.BACKUP_MAX_AGE_DAYS_KEY,
+                                                  Math.max( 0, days ) );
+        ConfigStore.scheduleWrite();
+    }
+
+    /** Whether saves/ is included in the backup zip. Off by default
+     *  because save folders can be several GB. */
+    public static synchronized boolean getBackupIncludeSaves() {
+        JsonObject json = ConfigStore.ensureLoaded();
+        if ( !json.has( ConfigConstants.BACKUP_INCLUDE_SAVES_KEY ) ) {
+            return ConfigConstants.BACKUP_INCLUDE_SAVES_DEFAULT;
+        }
+        return json.get( ConfigConstants.BACKUP_INCLUDE_SAVES_KEY ).getAsBoolean();
+    }
+
+    public static synchronized void setBackupIncludeSaves( boolean include ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.BACKUP_INCLUDE_SAVES_KEY, include );
+        ConfigStore.scheduleWrite();
+    }
+
     /** The user's installed Mojang vanilla version IDs (e.g.
      *  {@code "1.20.4"}, {@code "1.12.2"}). Same semantics as
      *  {@link #getInstalledModPacks} but for the vanilla cards on the

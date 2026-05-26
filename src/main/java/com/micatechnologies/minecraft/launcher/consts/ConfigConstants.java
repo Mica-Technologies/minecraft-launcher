@@ -546,6 +546,35 @@ public class ConfigConstants
     {
     }.getType();
 
+    // -- Backup-before-update policy ----------------------------------------
+
+    /** Key for the auto-backup-before-update toggle. */
+    public static final String BACKUP_AUTO_KEY = "backupAutoBeforeUpdate";
+    /** Default for the auto-backup toggle — on, so users get a safety net by default. */
+    public static final boolean BACKUP_AUTO_DEFAULT = true;
+
+    /** Key for the per-pack backup-retention count. */
+    public static final String BACKUP_MAX_COUNT_KEY = "backupMaxCountPerPack";
+    /** Default backup count — three keeps disk usage bounded (~1-2 GB
+     *  per pack worst-case) while preserving enough history to roll back
+     *  across a few updates. Set 0 to keep no count limit. */
+    public static final int BACKUP_MAX_COUNT_DEFAULT = 3;
+
+    /** Key for the backup-age cap in days. */
+    public static final String BACKUP_MAX_AGE_DAYS_KEY = "backupMaxAgeDays";
+    /** Default backup age cap in days — two weeks balances "I'm still
+     *  using this old save" against "this is years-stale clutter." Set 0
+     *  to disable the age cap. */
+    public static final int BACKUP_MAX_AGE_DAYS_DEFAULT = 14;
+
+    /** Key for whether saves/ should be included in the backup zip. */
+    public static final String BACKUP_INCLUDE_SAVES_KEY = "backupIncludeSaves";
+    /** Default for include-saves — opt-in (false) because save folders can
+     *  be huge (several GB on heavily-explored worlds) and the user should
+     *  consciously choose to spend disk on save snapshots. config/ alone
+     *  covers most "the update broke my mod settings" recovery cases. */
+    public static final boolean BACKUP_INCLUDE_SAVES_DEFAULT = false;
+
     /**
      * Key for accessing the persisted launcher window X coordinate.
      *
