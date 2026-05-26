@@ -85,11 +85,15 @@ public final class ModpackContentBrowser
 
     /** Functional interface so the caller (the detail modal) can hand
      *  us its private {@code buildSectionBox} implementation without
-     *  this class needing visibility into the modal's internals. */
+     *  this class needing visibility into the modal's internals.
+     *  The {@code defaultExpanded} parameter lets each section pick
+     *  its initial state — sections that typically carry lots of rows
+     *  (mods, screenshots, crash history) default to collapsed to
+     *  keep the modal's scroll manageable for large packs. */
     @FunctionalInterface
     public interface SectionBuilder
     {
-        VBox build( String heading );
+        VBox build( String heading, boolean defaultExpanded );
     }
 
     private static final double THUMB_SIZE = 100;
@@ -105,7 +109,8 @@ public final class ModpackContentBrowser
      *  actions. */
     public static Node buildWorldsSection( GameModPack pack, SectionBuilder sectionBox, Stage owner )
     {
-        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.worlds" ) );
+        // Worlds list is typically 0-5 entries — expanded by default.
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.worlds" ), true );
         populateAsync( section,
                        () -> scanSortedFiles( pack, "saves", File::isDirectory,
                                               Comparator.comparingLong( File::lastModified ).reversed() ),
@@ -127,7 +132,9 @@ public final class ModpackContentBrowser
     public static Node buildScreenshotsSection( GameModPack pack, SectionBuilder sectionBox,
                                                   StackPane overlayHost )
     {
-        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.screenshots" ) );
+        // Screenshots can grow large — pre-collapse so a pack with
+        // hundreds of screenshot files doesn't bloat the modal scroll.
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.screenshots" ), false );
         populateAsync( section,
                        () -> scanSortedFiles( pack, "screenshots",
                                               f -> {
@@ -161,7 +168,11 @@ public final class ModpackContentBrowser
      *  leaving the launcher. */
     public static Node buildModsSection( GameModPack pack, SectionBuilder sectionBox, VBox bodyToRebuild )
     {
-        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.mods" ) );
+        // Mods is the biggest section by far — a typical Forge pack
+        // carries 100+ jars. Pre-collapse so the modal stays scannable
+        // for large packs; the user clicks to expand when they need
+        // it (the "Check for updates" affordance is inside).
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.mods" ), false );
         populateAsync( section,
                        () -> scanSortedFiles( pack, "mods",
                                               f -> {
@@ -406,7 +417,8 @@ public final class ModpackContentBrowser
 
     public static Node buildServersSection( GameModPack pack, SectionBuilder sectionBox )
     {
-        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.servers" ) );
+        // Servers list is typically tiny — expanded by default.
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.servers" ), true );
 
         // Manifest-declared default server is read from the pack's in-
         // memory metadata (no I/O), but the auto-join-disabled flag
@@ -624,7 +636,10 @@ public final class ModpackContentBrowser
     public static Node buildCrashHistorySection( GameModPack pack, SectionBuilder sectionBox,
                                                    StackPane overlayHost )
     {
-        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.crashHistory" ) );
+        // Crash history is the kind of thing a user looks at AFTER
+        // something went wrong, not on every modal open — pre-collapse
+        // so a pack with a long crash log doesn't dominate the scroll.
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.crashHistory" ), false );
         populateAsync( section,
                        () -> scanSortedFiles( pack, "crash-reports",
                                               f -> f.isFile() && f.getName().endsWith( ".txt" ),
@@ -821,7 +836,9 @@ public final class ModpackContentBrowser
     private static Node buildSimplePackList( GameModPack pack, String folderName,
                                               String headingKey, SectionBuilder sectionBox )
     {
-        VBox section = sectionBox.build( LocalizationManager.get( headingKey ) );
+        // Shaderpacks / resourcepacks typically have 0-3 entries each
+        // — expanded by default.
+        VBox section = sectionBox.build( LocalizationManager.get( headingKey ), true );
         populateAsync( section,
                        () -> scanSortedFiles( pack, folderName, f -> !f.getName().startsWith( "." )
                                && ( f.isFile() || f.isDirectory() ),
