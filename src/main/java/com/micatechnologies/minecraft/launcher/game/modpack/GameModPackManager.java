@@ -59,7 +59,18 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    private static List< GameModPack > installedGameModPacks = null;
+    /**
+     * Volatile so the read-only getters below (getInstalledModPackByName,
+     * getInstalledModPackByURL, etc.) can pick up the latest reference
+     * without locking the class monitor — that monitor is held during
+     * fetchInstalledModPacks / fetchAvailableModPacks, so a synchronized
+     * getter racing a background available-fetch used to stall on it for
+     * the entire fetch duration (~500ms in measurements). The underlying
+     * CopyOnWriteArrayList is itself safe for concurrent iteration +
+     * modification, so the only thing the lock was protecting is the
+     * field assignment itself; volatile gives us that for free.
+     */
+    private static volatile List< GameModPack > installedGameModPacks = null;
 
     /**
      * Listener for non-fatal errors from background tasks (cache warming,
@@ -703,20 +714,25 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    public synchronized static GameModPack getInstalledModPackByName( String packName ) {
-        // Populate lists if not already done
-        if ( installedGameModPacks == null ) {
+    public static GameModPack getInstalledModPackByName( String packName ) {
+        // Read the (volatile) list reference into a local. Lock-free against
+        // racing writers because the field is volatile and the underlying
+        // CopyOnWriteArrayList is concurrent-iteration-safe.
+        List< GameModPack > snapshot = installedGameModPacks;
+        if ( snapshot == null ) {
+            // First-ever access before any fetch has run — populate via the
+            // existing synchronized init path so any concurrent first-readers
+            // also see the populated list.
             fetchModPackInfo();
+            snapshot = installedGameModPacks;
+            if ( snapshot == null ) return null;
         }
-
-        // Find matching mod pack and return
-        GameModPack foundGameModPack = null;
-        for ( GameModPack gameModPack : installedGameModPacks ) {
+        for ( GameModPack gameModPack : snapshot ) {
             if ( gameModPack.getPackName() != null && gameModPack.getPackName().equalsIgnoreCase( packName ) ) {
-                foundGameModPack = gameModPack;
+                return gameModPack;
             }
         }
-        return foundGameModPack;
+        return null;
     }
 
     /**
@@ -728,20 +744,20 @@ public class GameModPackManager
      *
      * @since 1.0
      */
-    public synchronized static GameModPack getInstalledModPackByURL( String packUrl ) {
-        // Populate lists if not already done
-        if ( installedGameModPacks == null ) {
+    public static GameModPack getInstalledModPackByURL( String packUrl ) {
+        // See getInstalledModPackByName above for the same lock-free rationale.
+        List< GameModPack > snapshot = installedGameModPacks;
+        if ( snapshot == null ) {
             fetchModPackInfo();
+            snapshot = installedGameModPacks;
+            if ( snapshot == null ) return null;
         }
-
-        // Find matching mod pack and return
-        GameModPack foundGameModPack = null;
-        for ( GameModPack gameModPack : installedGameModPacks ) {
+        for ( GameModPack gameModPack : snapshot ) {
             if ( gameModPack.getManifestUrl() != null && gameModPack.getManifestUrl().equalsIgnoreCase( packUrl ) ) {
-                foundGameModPack = gameModPack;
+                return gameModPack;
             }
         }
-        return foundGameModPack;
+        return null;
     }
 
     /**
@@ -956,12 +972,22 @@ public class GameModPackManager
      *
      * @since 1.1
      */
-    public synchronized static List< GameModPack > getInstalledModPacks() {
-        // Populate lists if not already done
-        if ( installedGameModPacks == null ) {
+    public static List< GameModPack > getInstalledModPacks() {
+        // Lock-free hot path: the field is volatile, the underlying
+        // CopyOnWriteArrayList is concurrent-iteration-safe, and the only
+        // case that needs the class monitor is the once-per-process
+        // "list never populated" first read — fetchModPackInfo is itself
+        // synchronized so any concurrent first-readers serialize cleanly
+        // there. Removing the public-getter sync stops MCLauncherMainGui's
+        // rebuildCards (called inline during the FX-thread setup pass) from
+        // stalling on the in-flight background available-modpacks fetch
+        // that holds the class monitor while it does a multi-second
+        // network round-trip.
+        List< GameModPack > snapshot = installedGameModPacks;
+        if ( snapshot == null ) {
             fetchModPackInfo();
+            snapshot = installedGameModPacks;
         }
-
-        return installedGameModPacks;
+        return snapshot;
     }
 }
