@@ -111,11 +111,30 @@ public final class ModConflictDetector
         File[] jars = modsDir.listFiles( f -> f.isFile()
                 && f.getName().toLowerCase( Locale.ROOT ).endsWith( ".jar" ) );
         if ( jars == null || jars.length == 0 ) return List.of();
+        List< String > names = new ArrayList<>( jars.length );
+        for ( File j : jars ) names.add( j.getName() );
+        return detectFromNames( names );
+    }
 
+    /**
+     * Pattern-matching core, separated from filesystem I/O so the
+     * conflict-detection logic can be unit-tested with synthetic name
+     * lists. Returns the same conflicts {@link #scan} produces for a
+     * pack whose {@code mods/} folder contained exactly those jar
+     * filenames. Package-private.
+     *
+     * @param jarFileNames non-null list of jar filenames (no path prefix);
+     *                     filenames ending in {@code .jar.disabled} should
+     *                     not be included by the caller — the scan loop
+     *                     already filters them out.
+     */
+    static List< Conflict > detectFromNames( List< String > jarFileNames )
+    {
+        if ( jarFileNames == null || jarFileNames.isEmpty() ) return List.of();
         List< Conflict > hits = new ArrayList<>();
         for ( Rule rule : RULES ) {
-            String first = firstMatch( jars, rule.firstPattern );
-            String second = firstMatch( jars, rule.secondPattern );
+            String first = firstMatch( jarFileNames, rule.firstPattern );
+            String second = firstMatch( jarFileNames, rule.secondPattern );
             if ( first != null && second != null && !first.equals( second ) ) {
                 hits.add( new Conflict( rule.title, rule.description, first, second ) );
             }
@@ -124,11 +143,11 @@ public final class ModConflictDetector
     }
 
     /** Returns the first jar filename whose name matches the pattern, or {@code null}. */
-    private static String firstMatch( File[] jars, Pattern pattern )
+    private static String firstMatch( List< String > names, Pattern pattern )
     {
-        for ( File jar : jars ) {
-            if ( pattern.matcher( jar.getName() ).find() ) {
-                return jar.getName();
+        for ( String name : names ) {
+            if ( pattern.matcher( name ).find() ) {
+                return name;
             }
         }
         return null;
