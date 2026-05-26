@@ -259,18 +259,28 @@ public class MCLauncherModpackDetailModal extends StackPane
     public void show( GameModPack pack )
     {
         if ( pack == null ) return;
-        rebuildModalContent( pack );
+
+        // Build only the cheap modal chrome (hero + action row + an
+        // empty body scroll-pane) synchronously, so the modal card has
+        // enough structure to lay out + fade in on this same FX pulse.
+        // The body's section builders (12+ sections, each with its own
+        // FS scan) come in on the next pulse via populateBodyContent —
+        // letting the fade-in animation start immediately instead of
+        // blocking 1-2 s on layout + CSS while every section materialises.
+        rebuildModalSkeleton( pack );
 
         boolean alreadyShown = visibleState;
         visibleState = true;
         setVisible( true );
         setManaged( true );
 
-        // Switch the idle RGB effect to the modpack's sampled colors so
-        // the user's keyboard reflects the pack they're inspecting.
-        // Reverted to the theme accent in hide(). Safe to call when RGB
-        // is off — RgbIntegration short-circuits.
-        com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu( pack );
+        // RGB effect dispatch goes through SDK calls (Razer Chroma, OpenRGB,
+        // Windows-DL) that can be tens of ms per device — not catastrophic
+        // but enough to be visible on a frame budget. The effect is purely
+        // a side-effect (keyboard color), not load-bearing for the modal
+        // display, so kick it off-thread.
+        SystemUtilities.spawnNewTask(
+                () -> com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu( pack ) );
 
         // Install the ESC handler on the scene only after the overlay enters the scene
         // graph. We use addEventFilter (not setOnKeyPressed) so we don't clobber
@@ -294,6 +304,12 @@ public class MCLauncherModpackDetailModal extends StackPane
         // Push focus onto the modal card so ESC reaches the scene filter without
         // having to click through some focus-traversable child first.
         Platform.runLater( modalCard::requestFocus );
+
+        // Defer body content to the next FX pulse. By the time this
+        // runLater fires, the modal card has had its first layout +
+        // CSS pass + first frame painted, so the user sees the modal
+        // open immediately and the sections fill in as they arrive.
+        Platform.runLater( () -> populateBodyContent( pack ) );
     }
 
     /** Fades the modal out and returns it to its hidden, unmanaged state so no input
@@ -333,17 +349,61 @@ public class MCLauncherModpackDetailModal extends StackPane
     //  Content construction
     // =============================================================================
 
-    private void rebuildModalContent( GameModPack pack )
+    /** Body VBox currently mounted in the modal card. Kept as a field
+     *  so {@link #populateBodyContent} (which runs on the next FX pulse,
+     *  after the skeleton has rendered) can append section children
+     *  into it without rebuilding the scroll pane. */
+    private VBox currentBody;
+
+    /**
+     * Builds the cheap modal chrome — hero, an empty body scroll-pane,
+     * and the action row — so the modal card has enough structure to
+     * lay out and start fading in immediately. Heavy section builders
+     * (chips, quick actions, stats, content-browser sections, advanced)
+     * are deferred to {@link #populateBodyContent} via Platform.runLater.
+     */
+    private void rebuildModalSkeleton( GameModPack pack )
     {
         modalCard.getChildren().clear();
 
-        // ----- Hero image at the top of the modal (large pack background) -----
         Node hero = buildHeroSection( pack );
 
-        // ----- Body content (scrollable) -----
         VBox body = new VBox( 16 );
         body.setPadding( new Insets( 20, 24, 20, 24 ) );
         body.getStyleClass().add( "modpackDetailBody" );
+        currentBody = body;
+
+        ScrollPane bodyScroll = new ScrollPane( body );
+        bodyScroll.setFitToWidth( true );
+        bodyScroll.setHbarPolicy( ScrollPane.ScrollBarPolicy.NEVER );
+        bodyScroll.setVbarPolicy( ScrollPane.ScrollBarPolicy.AS_NEEDED );
+        bodyScroll.getStyleClass().add( "modpackDetailScroll" );
+        SmoothScroll.install( bodyScroll );
+        VBox.setVgrow( bodyScroll, Priority.ALWAYS );
+
+        HBox actions = buildActionRow( pack );
+
+        modalCard.getChildren().addAll( hero, bodyScroll, actions );
+    }
+
+    /**
+     * Appends body sections into the modal's already-rendered scroll
+     * area. Called via Platform.runLater from {@link #show} so the
+     * fade-in animation gets to start on this pulse and the heavy
+     * section construction lands on the next. Each content-browser
+     * section returns a placeholder + populates itself off the FX
+     * thread, so this call returns quickly even when there's a lot
+     * of data to scan.
+     *
+     * <p>If the modal was closed (or re-shown for a different pack)
+     * between {@link #show} scheduling this call and it actually
+     * running, bail — {@code currentBody} would point at a different
+     * pack's body or be null.</p>
+     */
+    private void populateBodyContent( GameModPack pack )
+    {
+        VBox body = currentBody;
+        if ( body == null || !visibleState ) return;
 
         body.getChildren().add( buildChipsRow( pack ) );
         body.getChildren().add( buildQuickActionsSection( pack ) );
@@ -355,7 +415,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         // corresponding folder is missing or empty. Skipped entirely for
         // failed-load placeholder packs since there's no real install
         // folder to browse.
-        if ( pack != null && pack.getPackRootFolder() != null ) {
+        if ( pack.getPackRootFolder() != null ) {
             Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
             body.getChildren().add( ModpackContentBrowser.buildWorldsSection( pack, this::buildSectionBox, ownerStage ) );
             body.getChildren().add( ModpackContentBrowser.buildServersSection( pack, this::buildSectionBox ) );
@@ -368,26 +428,10 @@ public class MCLauncherModpackDetailModal extends StackPane
         // Advanced section: per-pack verify toggle + "Verify this pack now" button.
         // Skipped for failed-load placeholder packs since there's no real manifest
         // to verify against.
-        if ( pack != null && pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
+        if ( pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
             body.getChildren().add( buildAdvancedSection( pack ) );
         }
         body.getChildren().add( buildComingSoonSection() );
-
-        ScrollPane bodyScroll = new ScrollPane( body );
-        bodyScroll.setFitToWidth( true );
-        bodyScroll.setHbarPolicy( ScrollPane.ScrollBarPolicy.NEVER );
-        bodyScroll.setVbarPolicy( ScrollPane.ScrollBarPolicy.AS_NEEDED );
-        bodyScroll.getStyleClass().add( "modpackDetailScroll" );
-        // Eased wheel-scroll so the modal body scrolls with the same feel as the
-        // main menu's card grid. SmoothScroll.install handles its own no-op case
-        // when the body fits without scrolling.
-        SmoothScroll.install( bodyScroll );
-        VBox.setVgrow( bodyScroll, Priority.ALWAYS );
-
-        // ----- Action row at the bottom (sticky, primary actions) -----
-        HBox actions = buildActionRow( pack );
-
-        modalCard.getChildren().addAll( hero, bodyScroll, actions );
     }
 
     private Node buildHeroSection( GameModPack pack )
