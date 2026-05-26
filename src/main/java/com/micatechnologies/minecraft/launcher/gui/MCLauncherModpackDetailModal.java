@@ -1029,10 +1029,23 @@ public class MCLauncherModpackDetailModal extends StackPane
     private Node buildAdvancedSection( GameModPack pack )
     {
         // Advanced is a power-user surface — most users never touch
-        // it. Pre-collapse so it doesn't bloat the modal scroll for
-        // everyone else.
+        // it. Pre-collapse + lazy-populate: the MFXComboBox /
+        // MFXToggleButton / MFXButton instances + ConfigManager reads
+        // are non-trivial to construct, and we don't want them
+        // contributing to the modal-open render storm when the user
+        // isn't going to look at them anyway.
         VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.advanced" ), false );
 
+        registerOnFirstExpand( section, () -> buildAdvancedSectionBody( section, pack ) );
+        return section;
+    }
+
+    /** Body of the Advanced section. Extracted so it can be deferred
+     *  via {@link #registerOnFirstExpand} — the section header alone
+     *  is what renders at modal open, content only loads if the user
+     *  clicks to expand. */
+    private void buildAdvancedSectionBody( VBox section, GameModPack pack )
+    {
         Label hint = new Label( "Per-pack power-user controls. Defaults are fine for most users." );
         hint.setWrapText( true );
         hint.getStyleClass().add( "muted" );
@@ -1200,8 +1213,6 @@ public class MCLauncherModpackDetailModal extends StackPane
                 section.getChildren().add( addToOfficialHint );
             }
         }
-
-        return section;
     }
 
     /**
@@ -1398,6 +1409,37 @@ public class MCLauncherModpackDetailModal extends StackPane
      *                        collapsed to keep the modal scroll
      *                        manageable for large packs.
      */
+    /** Section property key holding a {@code List<Runnable>} of
+     *  callbacks fired the FIRST time the user expands a collapsed
+     *  section. Pre-collapsed sections (Mods, Screenshots, Crash
+     *  History, Advanced) skip their expensive populate work at
+     *  construction time and stash it here instead, so the user only
+     *  pays the cost of sections they actually open. Single-fire:
+     *  collapsing + re-expanding doesn't run the callbacks again
+     *  (the property is removed after fire). */
+    public static final String LAZY_POPULATE_KEY = "mmcl.firstExpandRunnables";
+
+    /** Registers {@code action} to fire the first time the user
+     *  expands {@code section}. If the section is already expanded
+     *  (or it's not a section built by {@link #buildSectionBox(String, boolean)}),
+     *  fires immediately. Multiple registrations stack — all
+     *  registered runnables fire in registration order on the same
+     *  expand. */
+    public static void registerOnFirstExpand( VBox section, Runnable action )
+    {
+        if ( section == null || action == null ) return;
+        @SuppressWarnings( "unchecked" )
+        java.util.List< Runnable > list =
+                ( java.util.List< Runnable > ) section.getProperties().get( LAZY_POPULATE_KEY );
+        if ( list == null ) {
+            // Section is already expanded (or pre-expanded sections
+            // don't get a stash list — see buildSectionBox). Fire now.
+            action.run();
+            return;
+        }
+        list.add( action );
+    }
+
     private VBox buildSectionBox( String heading, boolean defaultExpanded )
     {
         VBox section = new VBox( 8 );
@@ -1413,6 +1455,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         header.setAlignment( Pos.CENTER_LEFT );
         header.setCursor( javafx.scene.Cursor.HAND );
 
+        // Pre-collapsed sections get an empty lazy-populate stash so
+        // registerOnFirstExpand has somewhere to queue runnables. The
+        // pre-expanded path leaves the property absent so
+        // registerOnFirstExpand fires immediately (matches its docs).
+        if ( !defaultExpanded ) {
+            section.getProperties().put( LAZY_POPULATE_KEY, new java.util.ArrayList< Runnable >() );
+        }
+
         Runnable applyState = () -> {
             chevron.setText( expanded[ 0 ] ? "▾" : "▸" );
             // Skip index 0 (the header itself).
@@ -1424,6 +1474,24 @@ public class MCLauncherModpackDetailModal extends StackPane
         };
         header.setOnMouseClicked( e -> {
             expanded[ 0 ] = !expanded[ 0 ];
+            // First-expand fire: drain any registered populate hooks.
+            // Removed atomically so a re-expand later doesn't re-fire
+            // them (and so registerOnFirstExpand called after this
+            // point falls into the "already expanded → fire now" path).
+            if ( expanded[ 0 ] ) {
+                @SuppressWarnings( "unchecked" )
+                java.util.List< Runnable > pending =
+                        ( java.util.List< Runnable > ) section.getProperties().remove( LAZY_POPULATE_KEY );
+                if ( pending != null ) {
+                    for ( Runnable r : pending ) {
+                        try { r.run(); }
+                        catch ( Throwable t ) {
+                            Logger.logWarningSilent( "Lazy section populate failed: "
+                                                             + t.getClass().getSimpleName() );
+                        }
+                    }
+                }
+            }
             applyState.run();
         } );
         section.getChildren().add( header );
