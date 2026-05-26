@@ -381,9 +381,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             revalidateFuture.whenComplete( ( v, t ) -> GUIUtilities.JFXPlatformRun( this::rebuildCards ) );
         }
 
+        // Background-load the avatar so the FX thread doesn't sit on a network
+        // round-trip to minotar.net during first paint. With backgroundLoading=true
+        // the ImageView shows nothing until the bytes land, then JavaFX updates the
+        // node from its own image-loader thread. On a slow link this used to add
+        // hundreds of ms to main-menu-painted because new Image(String) defaults
+        // to synchronous loading.
         userImage.setImage( new Image(
                 GUIConstants.URL_MINECRAFT_USER_ICONS.replace( GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
-                                                               MCLauncherAuthManager.getLoggedInUser().uuid() ) ) );
+                                                               MCLauncherAuthManager.getLoggedInUser().uuid() ),
+                true ) );
 
         // Keyboard shortcuts: ENTER plays the last-played pack; F5 refreshes pack metadata.
         scene.setOnKeyPressed( keyEvent -> {
