@@ -61,6 +61,34 @@ public class LauncherCore
 {
 
     /**
+     * Counted down once the early FX toolkit prestart (initiated from
+     * {@link #main(String[])}) has finished {@link javafx.application.Platform#startup}.
+     * {@link LauncherSession}'s FX-prestart thread awaits this before kicking
+     * off prestartGui / prebuildMainGui so the two threads don't race for the
+     * toolkit init.
+     *
+     * <p>Initialized to count=0 (already released) in server mode so the
+     * await is a no-op there. Otherwise initialized in {@link #main} when
+     * the early prestart is fired.</p>
+     */
+    private static java.util.concurrent.CountDownLatch fxToolkitReadyLatch =
+            new java.util.concurrent.CountDownLatch( 0 );
+
+    /** Await the toolkit-ready latch (see {@link #fxToolkitReadyLatch}). Caps
+     *  the wait at 10 s so a wedged Platform.startup can't pin the session
+     *  thread forever; downstream code's existing IllegalStateException
+     *  catch in JFXPlatformRun handles the "still not ready" case the same
+     *  as it always did. */
+    public static void awaitFxToolkitReady() {
+        try {
+            fxToolkitReadyLatch.await( 10, java.util.concurrent.TimeUnit.SECONDS );
+        }
+        catch ( InterruptedException ignored ) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
      * Launcher application restart flag. This flag must be true for the application to start. If this flag is set when
      * the launcher closes, it will restart.
      */
@@ -178,6 +206,51 @@ public class LauncherCore
         // That used to create a stale empty config and load defaults into the
         // ConfigManager singleton before the real config was read. The RGB
         // bootstrap moved to LauncherSession.run() after parseLauncherArgs.
+
+        // Kick off Platform.startup on a daemon thread BEFORE the session
+        // begins so the ~270 ms JavaFX toolkit bootstrap overlaps with
+        // parseLauncherArgs + RGB + locale + auth + pack-load on the
+        // session thread. The remaining prestart steps (window + main-GUI
+        // FXML prebuild) still run from LauncherSession.run because they
+        // need GameModeManager + the resolved locale to have settled
+        // first — both unsafe to touch from here. This split move alone
+        // gives the prestart chain ~150 ms more head start.
+        //
+        // Determined client-likely by argv: explicit --client flag, or no
+        // server-mode flag at all (the default). The single false positive
+        // (a launch that turns out to be server mode after parseLauncherArgs
+        // resolves it) just leaves an unused toolkit running, which is
+        // harmless — Platform.startup is a one-shot.
+        boolean likelyClient = true;
+        for ( String arg : args ) {
+            if ( "-s".equals( arg ) || "--server".equals( arg ) ) {
+                likelyClient = false;
+                break;
+            }
+        }
+        if ( likelyClient ) {
+            fxToolkitReadyLatch = new java.util.concurrent.CountDownLatch( 1 );
+            Thread fxToolkitPrestart = new Thread( () -> {
+                try {
+                    javafx.application.Platform.startup( () -> { /* no-op init */ } );
+                }
+                catch ( IllegalStateException already ) {
+                    // Toolkit already up — fine.
+                }
+                catch ( Throwable t ) {
+                    // Logger isn't configured yet (configureLogger runs in
+                    // LauncherSession.run); use stderr so the message still
+                    // surfaces for debugging.
+                    System.err.println( "[mmcl] Early FX toolkit start failed: " + t );
+                }
+                finally {
+                    fxToolkitReadyLatch.countDown();
+                }
+            }, "mmcl-fx-toolkit-prestart" );
+            fxToolkitPrestart.setDaemon( true );
+            fxToolkitPrestart.start();
+        }
+
         while ( restartFlag ) {
             // Reset restart flag and create a new session for this lifecycle iteration
             String previousRestartError = restartError;
