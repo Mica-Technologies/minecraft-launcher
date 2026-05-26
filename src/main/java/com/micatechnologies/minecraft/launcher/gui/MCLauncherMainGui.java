@@ -1253,12 +1253,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // JavaFX fires click-count=1 immediately and click-count=2 after the
             // platform's double-click interval. Without a delay, a real double-click
             // would briefly flash the modal open between the two events. The
-            // PauseTransition defers the single-click action by ~220ms — long enough
-            // for the second click to arrive and cancel the timer, short enough that
-            // a single click still feels responsive. Buttons inside the card
+            // PauseTransition defers the single-click action by 130 ms — long
+            // enough for a typical platform double-click (~90 ms between clicks
+            // on Windows in practice; 500 ms is the system upper bound but real
+            // users land in the 80-150 ms range), short enough that the modal
+            // feels responsive on a single click. Buttons inside the card
             // (Play / Website) consume their own events, so the card-level handler
             // never fires for those.
-            singleClickTimer = new PauseTransition( Duration.millis( 220 ) );
+            singleClickTimer = new PauseTransition( Duration.millis( 130 ) );
             singleClickTimer.setOnFinished( ev -> openDetailModal( this.pack ) );
             setOnMouseClicked( ev -> {
                 if ( ev.getButton() != MouseButton.PRIMARY ) return;
