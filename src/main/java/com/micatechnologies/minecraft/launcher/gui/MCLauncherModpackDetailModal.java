@@ -842,37 +842,61 @@ public class MCLauncherModpackDetailModal extends StackPane
         VBox section = buildSectionBox(
                 com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.stats" ) );
 
-        VBox rows = new VBox( 4 );
-        rows.getChildren().add( buildStatRow(
-                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.lastPlayed" ),
-                pack.getLastPlayedFormatted() ) );
-        rows.getChildren().add( buildStatRow(
-                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.totalPlayTime" ),
-                pack.getTotalPlayTimeFormatted() ) );
-        rows.getChildren().add( buildStatRow(
-                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.launches" ),
-                String.valueOf( pack.getLaunchCount() ) ) );
+        // Stats reads pack.getLastPlayedFormatted (ensureHistoryLoaded
+        // reads play-history from disk), getInstalledVersion (file
+        // read), isUpdateAvailable (manifest comparison). Defer the
+        // whole bundle off the FX thread, render rows once the data
+        // lands.
+        HBox placeholder = new HBox( 8 );
+        placeholder.setAlignment( Pos.CENTER_LEFT );
+        placeholder.setPadding( new Insets( 4, 0, 4, 0 ) );
+        javafx.scene.control.ProgressIndicator spinner = new javafx.scene.control.ProgressIndicator();
+        spinner.setPrefSize( 16, 16 );
+        spinner.setMaxSize( 16, 16 );
+        Label loadingLabel = new Label(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.loading" ) );
+        loadingLabel.getStyleClass().add( "muted" );
+        placeholder.getChildren().addAll( spinner, loadingLabel );
+        section.getChildren().add( placeholder );
 
-        String installed = pack.getInstalledVersion();
-        if ( installed != null && !installed.isBlank() ) {
+        SystemUtilities.spawnNewTask( () -> {
+            String lastPlayed = pack.getLastPlayedFormatted();
+            String totalPlayTime = pack.getTotalPlayTimeFormatted();
+            long launchCount = pack.getLaunchCount();
+            String installed = pack.getInstalledVersion();
             String remote = pack.getPackVersion();
-            String installedDisplay = pack.isUpdateAvailable() && remote != null && !remote.equals( installed )
-                    ? com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
-                            "detailModal.stats.installedDisplay.withUpdate", installed, remote )
-                    : installed;
-            rows.getChildren().add( buildStatRow(
-                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.installedVersion" ),
-                    installedDisplay ) );
-        }
+            boolean updateAvailable = pack.isUpdateAvailable();
+            String manifestUrl = pack.getManifestUrl();
 
-        String manifestUrl = pack.getManifestUrl();
-        if ( manifestUrl != null && !manifestUrl.isBlank() ) {
-            rows.getChildren().add( buildStatRow(
-                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.manifest" ),
-                    manifestUrl ) );
-        }
-
-        section.getChildren().add( rows );
+            javafx.application.Platform.runLater( () -> {
+                section.getChildren().remove( placeholder );
+                VBox rows = new VBox( 4 );
+                rows.getChildren().add( buildStatRow(
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.lastPlayed" ),
+                        lastPlayed ) );
+                rows.getChildren().add( buildStatRow(
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.totalPlayTime" ),
+                        totalPlayTime ) );
+                rows.getChildren().add( buildStatRow(
+                        com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.launches" ),
+                        String.valueOf( launchCount ) ) );
+                if ( installed != null && !installed.isBlank() ) {
+                    String installedDisplay = updateAvailable && remote != null && !remote.equals( installed )
+                            ? com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                                    "detailModal.stats.installedDisplay.withUpdate", installed, remote )
+                            : installed;
+                    rows.getChildren().add( buildStatRow(
+                            com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.installedVersion" ),
+                            installedDisplay ) );
+                }
+                if ( manifestUrl != null && !manifestUrl.isBlank() ) {
+                    rows.getChildren().add( buildStatRow(
+                            com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.stats.manifest" ),
+                            manifestUrl ) );
+                }
+                section.getChildren().add( rows );
+            } );
+        } );
         return section;
     }
 
@@ -880,33 +904,59 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.updateLog" ) );
 
-        List< ModPackUpdateLog.Entry > entries = ModPackUpdateLog.readEntries( pack );
-        if ( entries.isEmpty() ) {
-            Label empty = new Label(
-                    pack.isVanillaVersion()
-                            ? "Vanilla versions don't track manifest updates."
-                            : "No manifest updates have been observed for this pack yet. "
-                                    + "When the upstream pack version changes, the change will be recorded here." );
-            empty.setWrapText( true );
-            empty.getStyleClass().add( "muted" );
-            section.getChildren().add( empty );
-            return section;
-        }
+        // ModPackUpdateLog.readEntries does file I/O (reads the per-pack
+        // update-log file). Defer it off the FX thread the same way the
+        // content-browser sections do — keeps the modal opening time
+        // bounded by the cheap header construction, not the filesystem.
+        HBox placeholder = new HBox( 8 );
+        placeholder.setAlignment( Pos.CENTER_LEFT );
+        placeholder.setPadding( new Insets( 4, 0, 4, 0 ) );
+        javafx.scene.control.ProgressIndicator spinner = new javafx.scene.control.ProgressIndicator();
+        spinner.setPrefSize( 16, 16 );
+        spinner.setMaxSize( 16, 16 );
+        Label loadingLabel = new Label(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.loading" ) );
+        loadingLabel.getStyleClass().add( "muted" );
+        placeholder.getChildren().addAll( spinner, loadingLabel );
+        section.getChildren().add( placeholder );
 
-        VBox list = new VBox( 4 );
-        int shown = Math.min( entries.size(), MAX_LOG_ENTRIES_SHOWN );
-        for ( int i = 0; i < shown; i++ ) {
-            ModPackUpdateLog.Entry e = entries.get( i );
-            list.getChildren().add( buildUpdateLogRow( e ) );
-        }
-        if ( entries.size() > MAX_LOG_ENTRIES_SHOWN ) {
-            Label more = new Label( "+ " + ( entries.size() - MAX_LOG_ENTRIES_SHOWN )
-                                            + " older entries" );
-            more.getStyleClass().add( "muted" );
-            list.getChildren().add( more );
-        }
-
-        section.getChildren().add( list );
+        SystemUtilities.spawnNewTask( () -> {
+            List< ModPackUpdateLog.Entry > entries;
+            try {
+                entries = ModPackUpdateLog.readEntries( pack );
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Update log read failed: " + t.getClass().getSimpleName() );
+                entries = java.util.Collections.emptyList();
+            }
+            final List< ModPackUpdateLog.Entry > finalEntries = entries;
+            javafx.application.Platform.runLater( () -> {
+                section.getChildren().remove( placeholder );
+                if ( finalEntries.isEmpty() ) {
+                    Label empty = new Label(
+                            pack.isVanillaVersion()
+                                    ? "Vanilla versions don't track manifest updates."
+                                    : "No manifest updates have been observed for this pack yet. "
+                                            + "When the upstream pack version changes, the change will be recorded here." );
+                    empty.setWrapText( true );
+                    empty.getStyleClass().add( "muted" );
+                    section.getChildren().add( empty );
+                    return;
+                }
+                VBox list = new VBox( 4 );
+                int shown = Math.min( finalEntries.size(), MAX_LOG_ENTRIES_SHOWN );
+                for ( int i = 0; i < shown; i++ ) {
+                    list.getChildren().add( buildUpdateLogRow( finalEntries.get( i ) ) );
+                }
+                if ( finalEntries.size() > MAX_LOG_ENTRIES_SHOWN ) {
+                    Label more = new Label( "+ " + ( finalEntries.size() - MAX_LOG_ENTRIES_SHOWN )
+                                                    + " older entries" );
+                    more.getStyleClass().add( "muted" );
+                    list.getChildren().add( more );
+                }
+                section.getChildren().add( list );
+            } );
+        } );
         return section;
     }
 
