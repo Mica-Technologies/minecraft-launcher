@@ -135,6 +135,20 @@ class LauncherSession
                     Logger.logWarningSilent( "JavaFX pre-start (gui window) failed: "
                                                      + t.getClass().getSimpleName() + " — "
                                                      + "falling back to lazy init in goToMainGui." );
+                    return;
+                }
+                try {
+                    // Once the window exists, pre-construct the main GUI controller
+                    // (FXML parse + node graph build) so the session thread's first
+                    // goToMainGui can skip that ~250 ms cost too. The controller's
+                    // setup() still runs at setScene time on the FX thread, so this
+                    // is purely the cheap "load the FXML resource" part.
+                    com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController.prebuildMainGui();
+                }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( "Main GUI pre-build failed: "
+                                                     + t.getClass().getSimpleName() + " — "
+                                                     + "falling back to lazy construct in goToMainGui." );
                 }
             }, "mmcl-fx-prestart" );
             fxPrestart.setDaemon( true );
