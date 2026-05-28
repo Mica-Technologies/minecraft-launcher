@@ -58,6 +58,24 @@ public final class PowerStateManager
      *  re-querying oshi. */
     private static final AtomicBoolean throttledThisSession = new AtomicBoolean( false );
 
+    /** Don't bother sleeping for a deficit smaller than this — short sleeps are dominated by OS
+     *  timer granularity and wakeup latency (worst on battery, where the powersave governor and
+     *  timer coalescing inflate every {@code Thread.sleep}). Below the floor we let the deficit
+     *  accumulate into a later chunk so each sleep we *do* issue is long enough to be accurate. */
+    private static final long MIN_SLEEP_NANOS = 12L * 1_000_000L;
+
+    /** If a stream hasn't called in for longer than this, treat its accounting window as stale
+     *  (paused mid-download, or throttling was disengaged and re-engaged) and start fresh rather
+     *  than trying to "catch up" on a gap that wasn't real download time. */
+    private static final long STALE_WINDOW_NANOS = 2L * 1_000_000_000L;
+
+    /** Per-stream throttle accounting, indexed by the calling download thread. Each entry is
+     *  {@code [windowStartNanos, bytesInWindow]}: a sliding ~1-second window used to compute how
+     *  far ahead of the target rate this stream is running. Per-thread because the throttle is
+     *  per-stream and threads each drive their own download. */
+    private static final ThreadLocal< long[] > THROTTLE_STATE =
+            ThreadLocal.withInitial( () -> new long[]{ 0L, 0L } );
+
     private PowerStateManager() { /* static-only */ }
 
     /**
@@ -143,19 +161,74 @@ public final class PowerStateManager
         if ( bps <= 0 ) {
             return;
         }
-        long sleepNanos = ( ( long ) chunkBytes * 1_000_000_000L ) / bps;
-        if ( sleepNanos <= 0 ) {
-            return;
+
+        long now       = System.nanoTime();
+        long sleepNanos = nextThrottleSleepNanos( THROTTLE_STATE.get(), now, chunkBytes, bps );
+        if ( sleepNanos > 0 ) {
+            try {
+                Thread.sleep( sleepNanos / 1_000_000L, ( int ) ( sleepNanos % 1_000_000L ) );
+            }
+            catch ( InterruptedException ie ) {
+                // Restore interrupt; let the caller's own loop notice and abort cleanly.
+                Thread.currentThread().interrupt();
+            }
         }
-        try {
-            long ms = sleepNanos / 1_000_000L;
-            int rem = ( int ) ( sleepNanos % 1_000_000L );
-            Thread.sleep( ms, rem );
+    }
+
+    /**
+     * Pure decision core of the deadline (closed-loop) throttle, split out from
+     * {@link #maybeThrottle(int)} so it can be unit-tested with a synthetic clock — it issues no
+     * {@link System#nanoTime()} or {@link Thread#sleep} calls of its own.
+     *
+     * <p>Given a per-stream accounting window {@code st} (a two-element array
+     * {@code [windowStartNanos, bytesInWindow]}), the current clock reading, the chunk just
+     * written, and the per-stream byte/sec cap, it updates the window in place and returns how
+     * long the caller should sleep to hold the stream at or below {@code bps} (0 = don't sleep).</p>
+     *
+     * <p>We compare the <em>target</em> elapsed time for the bytes pushed so far against the
+     * <em>actual</em> elapsed time and sleep only the real deficit. This self-corrects: when a
+     * prior {@code Thread.sleep} overshoots — which it routinely does on battery, where timer
+     * coalescing and the powersave governor inflate every sleep — the actual clock is already
+     * ahead, so the next deficits shrink or vanish and the average converges back to the cap. A
+     * blind {@code sleep(chunkBytes / bps)} per chunk can't do this: it pays the full overshoot on
+     * every one of the ~64 chunks/sec and collapses the stream to a crawl.</p>
+     *
+     * <p>Sub-{@link #MIN_SLEEP_NANOS} deficits return 0 and roll into a later chunk, so every sleep
+     * we actually issue is coarse enough to ride out OS timer granularity. The window is reset on
+     * first use, after a {@link #STALE_WINDOW_NANOS} gap (paused / re-engaged), and every ~1 second
+     * of data — the last bound keeps the byte counter from overflowing on multi-GB downloads and
+     * sheds accumulated rounding so a mid-download rate change re-converges within a second.</p>
+     *
+     * @param st         per-stream window {@code [windowStartNanos, bytesInWindow]}, mutated in place
+     * @param nowNanos   current monotonic clock reading (e.g. {@link System#nanoTime()})
+     * @param chunkBytes bytes just written by the caller
+     * @param bps        per-stream cap in bytes/second
+     *
+     * @return nanoseconds the caller should sleep, or 0 to proceed without sleeping
+     */
+    static long nextThrottleSleepNanos( long[] st, long nowNanos, int chunkBytes, long bps )
+    {
+        if ( bps <= 0 || chunkBytes <= 0 ) {
+            return 0L;
         }
-        catch ( InterruptedException ie ) {
-            // Restore interrupt; let the caller's own loop notice and abort cleanly.
-            Thread.currentThread().interrupt();
+        if ( st[ 0 ] == 0L || nowNanos - st[ 0 ] > STALE_WINDOW_NANOS ) {
+            // Fresh or stale window — start counting from here.
+            st[ 0 ] = nowNanos;
+            st[ 1 ] = 0L;
         }
+        st[ 1 ] += chunkBytes;
+
+        long targetElapsedNanos = ( st[ 1 ] * 1_000_000_000L ) / bps;
+        long deficitNanos       = targetElapsedNanos - ( nowNanos - st[ 0 ] );
+        long sleepNanos         = deficitNanos >= MIN_SLEEP_NANOS ? deficitNanos : 0L;
+
+        if ( st[ 1 ] >= bps ) {
+            // Project past the sleep we're about to advise so the next window's baseline lines up
+            // with when the caller actually resumes reading.
+            st[ 0 ] = nowNanos + sleepNanos;
+            st[ 1 ] = 0L;
+        }
+        return sleepNanos;
     }
 
     private static void refreshCacheIfStale()
