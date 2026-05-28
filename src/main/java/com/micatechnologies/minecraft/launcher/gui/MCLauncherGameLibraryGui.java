@@ -34,6 +34,7 @@ import io.github.palexdev.materialfx.controls.MFXButton;
 import io.github.palexdev.materialfx.controls.MFXComboBox;
 import io.github.palexdev.materialfx.controls.MFXTextField;
 import javafx.collections.FXCollections;
+import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -54,6 +55,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.io.IOException;
@@ -94,6 +96,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     // ===== FXML — pagination bar =====
     @SuppressWarnings( "unused" ) @FXML Label paginationRangeLabel;
     @SuppressWarnings( "unused" ) @FXML Label backgroundFetchLabel;
+    // Dedicated spinner + label shown while a card-grid rebuild is gathering data off the FX
+    // thread (notably a cold Mojang vanilla-manifest fetch). Kept separate from
+    // backgroundFetchLabel, which install / uninstall handlers own for their own status text —
+    // a filter change mid-install must not clear "Installing…".
+    @SuppressWarnings( "unused" ) @FXML HBox loadingIndicator;
+    @SuppressWarnings( "unused" ) @FXML ProgressIndicator loadingSpinner;
     @SuppressWarnings( "unused" ) @FXML Label paginationPageLabel;
     @SuppressWarnings( "unused" ) @FXML MFXButton prevPageBtn;
     @SuppressWarnings( "unused" ) @FXML MFXButton nextPageBtn;
@@ -196,6 +204,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  <p>ArrayDeque is fine here: rebuildCards always runs on the FX thread,
      *  so no synchronization is needed.</p> */
     private final CardPool< LibraryCard > cardPool = new CardPool<>();
+
+    /** Monotonic counter bumped on every {@link #rebuildCards} call (FX thread only). A worker's
+     *  result is rendered only if its captured generation still matches, so a burst of filter /
+     *  search changes renders just the latest and stale gathers are dropped. */
+    private int rebuildGeneration = 0;
+
+    /** Grace period before {@link #rebuildCards} reveals its loading spinner. Warm rebuilds finish
+     *  faster than this and never flash it; only genuinely slow gathers (cold manifest fetch) do. */
+    private static final long REBUILD_SPINNER_DELAY_MS = 150;
 
     public MCLauncherGameLibraryGui( Stage stage ) throws IOException {
         super( stage );
@@ -557,11 +574,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     @Override
     void afterShow()
     {
-        // Build the initial card list off the FX thread — vanilla-version fetch can take a
-        // moment if the Mojang manifest hasn't been cached yet.
-        SystemUtilities.spawnNewTask( () -> {
-            GUIUtilities.JFXPlatformRun( this::rebuildCards );
-        } );
+        // Build the initial card list. rebuildCards() now gathers its data on a worker thread and
+        // renders on the FX thread, surfacing the bottom-bar loading spinner if the gather is slow
+        // (e.g. a cold Mojang vanilla-manifest fetch). The Browse chrome therefore paints instantly
+        // instead of the FX thread freezing on that fetch and showing a blank gray screen.
+        rebuildCards();
 
         // Apply smooth-scroll behavior to the card grid. Matches the main menu's
         // feel so users get a consistent scroll experience across the two
@@ -985,34 +1002,80 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     /** Rebuilds the FlowPane's card list from current filter + search + pagination state.
      *  Called on filter changes, search-text changes, page changes, and after install /
      *  uninstall actions complete. Must run on the FX thread. */
+    /**
+     * Rebuilds the card grid for the current filter / search / sort selection.
+     *
+     * <p>Gathering entries can touch cold network manifests — most notably the Mojang vanilla
+     * version manifest via {@link VanillaVersionManager#getAllVersions()}, which downloads on
+     * first use. That used to run on the FX thread (this method was synchronous and the initial
+     * build marshalled it straight onto the FX thread), freezing rendering for ~1 s and showing
+     * a blank gray screen on the first Browse navigation. Now the data-gathering phase
+     * ({@link #collectEntries}, search filtering, sorting) runs on a worker thread and only the
+     * scene-graph mutation ({@link #renderEntries}) runs on the FX thread, so navigation paints
+     * the chrome instantly and the grid fills in once the data is ready.</p>
+     *
+     * <p>A {@link #rebuildGeneration} guard drops stale results, so a burst of filter / search
+     * changes only renders the latest. The {@link #loadingIndicator} spinner is revealed only if
+     * the gather runs longer than {@value #REBUILD_SPINNER_DELAY_MS} ms — warm rebuilds (every
+     * keystroke and filter flip once the manifests are cached) finish well under that and show
+     * nothing, so they stay flicker-free and feel instant.</p>
+     *
+     * <p>Safe to call from the FX thread (all current callers do); the worker hop and the
+     * FX-thread render are arranged internally.</p>
+     */
     private void rebuildCards()
     {
-        String type   = vm.getStringFilter( FILTER_TYPE,   TYPE_ALL );
-        String status = vm.getStringFilter( FILTER_STATUS, STATUS_INSTALLED );
-        String search = vm.getSearchQuery().trim().toLowerCase( Locale.ROOT );
+        final int gen = ++rebuildGeneration;
+        final String type    = vm.getStringFilter( FILTER_TYPE,   TYPE_ALL );
+        final String status  = vm.getStringFilter( FILTER_STATUS, STATUS_INSTALLED );
+        final String search  = vm.getSearchQuery().trim().toLowerCase( Locale.ROOT );
+        final String sortSel = vm.getSortKey().isEmpty() ? SORT_DEFAULT : vm.getSortKey();
 
-        List< LibraryEntry > entries = collectEntries( type, status );
-        if ( !search.isEmpty() ) {
-            // Match displayName OR any mod filename inside the pack's
-            // mods/ folder. Lets the user find "the pack with the Create
-            // mod" by typing "create" without remembering the pack's
-            // own name. The mod-filename cache is populated lazily per
-            // pack the first time a search matches; a session-long miss
-            // (search never touches the pack) means we never even read
-            // its mods folder.
-            final String needle = search;
-            entries.removeIf( e -> {
-                if ( e.displayName.toLowerCase( Locale.ROOT ).contains( needle ) ) return false;
-                if ( e.pack != null ) {
-                    return !packModsMatch( e.pack, needle );
+        // Only reveal the loading affordance if this rebuild is actually slow (e.g. a cold
+        // manifest fetch). The common warm rebuild completes before this fires and never flashes
+        // the spinner. Superseded rebuilds (newer gen) skip the reveal.
+        PauseTransition spinnerReveal = new PauseTransition( Duration.millis( REBUILD_SPINNER_DELAY_MS ) );
+        spinnerReveal.setOnFinished( ev -> {
+            if ( gen == rebuildGeneration ) {
+                setRebuildLoadingVisible( true );
+            }
+        } );
+        spinnerReveal.play();
+
+        SystemUtilities.spawnNewTask( () -> {
+            // ---- Worker thread: gather + filter + sort. No scene-graph access here. ----
+            List< LibraryEntry > entries = collectEntries( type, status );
+            if ( !search.isEmpty() ) {
+                // Match displayName OR any mod filename inside the pack's mods/ folder. Lets the
+                // user find "the pack with the Create mod" by typing "create". The mod-filename
+                // cache (a ConcurrentHashMap) is populated lazily per pack — safe to read here.
+                entries.removeIf( e -> {
+                    if ( e.displayName.toLowerCase( Locale.ROOT ).contains( search ) ) return false;
+                    if ( e.pack != null ) {
+                        return !packModsMatch( e.pack, search );
+                    }
+                    return true;
+                } );
+            }
+            sortEntries( entries, sortSel );
+
+            // ---- FX thread: render the slice. ----
+            GUIUtilities.JFXPlatformRun( () -> {
+                spinnerReveal.stop();
+                if ( gen != rebuildGeneration ) {
+                    return; // a newer rebuild superseded this result — drop it
                 }
-                return true;
+                renderEntries( entries, type, status, search );
+                setRebuildLoadingVisible( false );
             } );
-        }
+        } );
+    }
 
-        String sortSel = vm.getSortKey().isEmpty() ? SORT_DEFAULT : vm.getSortKey();
-        sortEntries( entries, sortSel );
-
+    /** FX-thread scene-graph mutation half of {@link #rebuildCards}: clamps pagination over the
+     *  already-gathered {@code entries}, recycles the visible cards, and rebuilds the FlowPane's
+     *  current page. Must run on the FX thread. */
+    private void renderEntries( List< LibraryEntry > entries, String type, String status, String search )
+    {
         // Pagination math is owned by the VM — clamps currentPage in-range and
         // returns the list-slice indices.
         LibraryViewModel.PageBounds bounds = vm.clampAndSlice( entries.size() );
@@ -1049,6 +1112,24 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 card.bind( entries.get( i ) );
             }
             cardList.getChildren().add( card );
+        }
+    }
+
+    /** Toggles the dedicated card-grid loading spinner + label in the bottom bar. Must run on the
+     *  FX thread. Independent of {@link #backgroundFetchLabel} so install / uninstall status text
+     *  isn't clobbered by a concurrent grid rebuild. */
+    private void setRebuildLoadingVisible( boolean visible )
+    {
+        if ( loadingIndicator == null ) {
+            return;
+        }
+        loadingIndicator.setVisible( visible );
+        loadingIndicator.setManaged( visible );
+        // Toggle the spinner itself too, not just its container: an indeterminate ProgressIndicator
+        // keeps its animation Timeline ticking while its own visibleProperty is true even if a
+        // parent is hidden, so flipping it here guarantees the skin pauses and burns no idle CPU.
+        if ( loadingSpinner != null ) {
+            loadingSpinner.setVisible( visible );
         }
     }
 
