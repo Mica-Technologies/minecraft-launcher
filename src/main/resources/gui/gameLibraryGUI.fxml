@@ -5,6 +5,7 @@
 <?import io.github.palexdev.materialfx.controls.MFXTextField?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -109,6 +110,16 @@
     <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="2">
         <padding><Insets left="20.0" right="20.0"/></padding>
         <Label fx:id="paginationRangeLabel" text="" styleClass="muted"/>
+        <!-- Card-grid loading affordance: spinner + "Loading library…" shown while rebuildCards
+             gathers its data off the FX thread (e.g. a cold Mojang vanilla-manifest fetch). Only
+             appears if the gather is slow enough to notice; warm rebuilds never flash it. Kept
+             separate from backgroundFetchLabel so an install's status text isn't clobbered. -->
+        <HBox fx:id="loadingIndicator" alignment="CENTER_LEFT" spacing="6.0"
+              visible="false" managed="false">
+            <ProgressIndicator fx:id="loadingSpinner" visible="false"
+                               prefWidth="16.0" prefHeight="16.0" maxWidth="16.0" maxHeight="16.0"/>
+            <Label text="%browse.loading" styleClass="muted"/>
+        </HBox>
         <!-- Shows "Loading available packs…" while the background available-modpacks fetch
              from startup is still in flight. Hidden once the future completes (the controller
              re-runs rebuildCards at that point so the new cards merge in without a manual
