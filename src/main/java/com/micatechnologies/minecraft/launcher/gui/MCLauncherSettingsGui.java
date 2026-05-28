@@ -468,6 +468,26 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     /**
+     * Current max-heap setting in whole gigabytes (floored to at least 1), read from the
+     * {@link #maxRamGb} spinner when it has a value, otherwise from persisted config.
+     *
+     * <p>The JVM-args hint and the "generate recommended args" action both need this value, and the
+     * hint's initial {@code updateHint.run()} fires partway through {@link #setup()} — <em>before</em>
+     * the max-RAM spinner's value factory is installed, at which point {@link Spinner#getValue()}
+     * returns {@code null}. Reading through this helper avoids the NPE that otherwise blocks the
+     * whole Settings screen from opening; once the spinner is initialized its value-change listener
+     * re-runs the hint with the live value.</p>
+     *
+     * @return max heap in GB, never less than 1
+     */
+    private int currentMaxRamGb()
+    {
+        Double value = ( maxRamGb != null ) ? maxRamGb.getValue() : null;
+        double gb = ( value != null ) ? value : ( ConfigManager.getMaxRam() / 1024.0 );
+        return ( int ) Math.max( 1L, Math.round( gb ) );
+    }
+
+    /**
      * Abstract method: This method must perform initialization and setup of the scene and @FXML components.
      */
     @Override
@@ -964,7 +984,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         // inputs so the user can sanity-check.
         if ( generateJvmArgsBtn != null ) {
             Runnable updateHint = () -> {
-                int maxRam = (int) Math.max( 1L, Math.round( maxRamGb.getValue() ) );
+                int maxRam = currentMaxRamGb();
                 if ( generateJvmArgsHint != null ) {
                     generateJvmArgsHint.setText( com.micatechnologies.minecraft.launcher.utilities
                             .HardwareTunedJvmArgs.summary( maxRam ) );
@@ -977,7 +997,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             TooltipManager.install( generateJvmArgsBtn,
                     "Builds a JVM-args string tuned to your CPU + RAM + max-heap setting." );
             generateJvmArgsBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
-                int maxRam = (int) Math.max( 1L, Math.round( maxRamGb.getValue() ) );
+                int maxRam = currentMaxRamGb();
                 String generated = com.micatechnologies.minecraft.launcher.utilities
                         .HardwareTunedJvmArgs.generate( maxRam );
                 // Persist as customJvmArgs. The combo box's current
