@@ -17,8 +17,10 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.rgb.RgbColor;
 import com.micatechnologies.minecraft.launcher.rgb.ThemeAccentColors;
 import com.pixelduke.window.WindowUtils;
@@ -76,13 +78,17 @@ public final class MacOsToolbarManager
     private static final long NS_WINDOW_TOOLBAR_STYLE_UNIFIED = 3L;
 
     private static final String ID_FLEX     = "NSToolbarFlexibleSpaceItem";
+    private static final String ID_SPACE    = "NSToolbarSpaceItem";
     private static final String ID_BROWSE   = "MicaBrowse";
     private static final String ID_SETTINGS = "MicaSettings";
     private static final String ID_HELP     = "MicaHelp";
+    private static final String ID_ACCOUNT  = "MicaAccount";
 
     private static volatile boolean installed   = false;
     private static volatile boolean classBuilt  = false;
     private static volatile ID      delegateRef  = null;
+    /** The live account item, kept so the async avatar load can swap its image in. */
+    private static volatile ID      accountItemRef = null;
 
     // Retained for the JVM lifetime — if these Callback instances are GC'd, the native method
     // trampolines they back are freed and the next delegate call crashes the process.
@@ -144,6 +150,10 @@ public final class MacOsToolbarManager
             Foundation.invoke( toolbar, "setDelegate:", delegateRef );
             Foundation.invoke( toolbar, "setAllowsUserCustomization:", false );
             Foundation.invoke( toolbar, "setShowsBaselineSeparator:", false );
+            // Small size mode shrinks the items a touch so the icon+label pair centers with more
+            // breathing room above and below — keeps the labels off the title-bar/content seam.
+            // (NSToolbarSizeModeSmall = 2; the toolbar exposes no finer per-item vertical offset.)
+            Foundation.invoke( toolbar, "setSizeMode:", 2L );
 
             Foundation.invoke( nsWindow, "setToolbar:", toolbar );
             Foundation.invoke( nsWindow, "setToolbarStyle:", NS_WINDOW_TOOLBAR_STYLE_UNIFIED );
@@ -223,6 +233,8 @@ public final class MacOsToolbarManager
                 Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_BROWSE ) );
                 Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_SETTINGS ) );
                 Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_HELP ) );
+                Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_SPACE ) );
+                Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_ACCOUNT ) );
                 return arr.toPointer();
             }
             catch ( Throwable t ) {
@@ -245,14 +257,14 @@ public final class MacOsToolbarManager
                     return ID.NIL.toPointer();
                 }
                 String symbol;
-                String labelKey;
+                String label;
                 switch ( id ) {
-                    case ID_BROWSE   -> { symbol = "square.grid.2x2"; labelKey = "main.navbar.browse"; }
-                    case ID_SETTINGS -> { symbol = "gearshape";       labelKey = "main.navbar.settings"; }
-                    case ID_HELP     -> { symbol = "questionmark.circle"; labelKey = "menu.help.title"; }
+                    case ID_BROWSE   -> { symbol = "square.grid.2x2";    label = LocalizationManager.get( "main.navbar.browse" ); }
+                    case ID_SETTINGS -> { symbol = "gearshape";          label = LocalizationManager.get( "main.navbar.settings" ); }
+                    case ID_HELP     -> { symbol = "questionmark.circle"; label = LocalizationManager.get( "menu.help.title" ); }
+                    case ID_ACCOUNT  -> { symbol = "person.crop.circle"; label = currentUserName(); }
                     default          -> { return ID.NIL.toPointer(); }
                 }
-                String label = LocalizationManager.get( labelKey );
 
                 ID item = Foundation.invoke( Foundation.invoke( "NSToolbarItem", "alloc" ),
                                              "initWithItemIdentifier:", identifierId );
@@ -266,6 +278,13 @@ public final class MacOsToolbarManager
                 Foundation.invoke( item, "setTarget:", delegateRef );
                 Foundation.invoke( item, "setAction:", Foundation.createSelector( "onMicaToolbarItem:" ) );
                 Foundation.invoke( item, "autorelease" );
+
+                if ( ID_ACCOUNT.equals( id ) ) {
+                    // Hold the item so the async avatar load can swap the real player head in for
+                    // the person glyph; if the load fails the glyph just stays.
+                    accountItemRef = item;
+                    loadAccountAvatarAsync();
+                }
                 return item.toPointer();
             }
             catch ( Throwable t ) {
@@ -291,6 +310,10 @@ public final class MacOsToolbarManager
                 }
                 else if ( ID_HELP.equals( id ) ) {
                     LauncherActions.openHelp();
+                }
+                else if ( ID_ACCOUNT.equals( id ) ) {
+                    // Matches the in-window avatar's click: open account settings.
+                    LauncherActions.openSettings();
                 }
             }
             catch ( Throwable t ) {
@@ -324,6 +347,84 @@ public final class MacOsToolbarManager
         }
         catch ( Throwable ignored ) { /* fall through to the plain adaptive symbol */ }
         return image;
+    }
+
+    /** The logged-in player's name for the account item label, or the generic "Player" string. */
+    private static String currentUserName()
+    {
+        try {
+            var user = MCLauncherAuthManager.getLoggedInUser();
+            if ( user != null ) {
+                String name = user.name();
+                if ( name != null && !name.isBlank() ) {
+                    return name;
+                }
+            }
+        }
+        catch ( Throwable ignored ) { /* fall through to the generic label */ }
+        return LocalizationManager.get( "main.navbar.player" );
+    }
+
+    /**
+     * Loads the player-head avatar off the FX/main thread and swaps it into the account item once
+     * ready. The item already shows a person glyph, so this is a best-effort upgrade — any failure
+     * (offline, no user, bad image) just leaves the glyph. The {@code NSImage} is retained across
+     * the thread hop and released after it's been handed to the item.
+     */
+    private static void loadAccountAvatarAsync()
+    {
+        final String url;
+        try {
+            var user = MCLauncherAuthManager.getLoggedInUser();
+            if ( user == null || user.uuid() == null ) {
+                return;
+            }
+            url = GUIConstants.URL_MINECRAFT_USER_ICONS.replace(
+                    GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY, user.uuid() );
+        }
+        catch ( Throwable t ) {
+            return;
+        }
+
+        SystemUtilities.spawnNewTask( () -> {
+            ID retained = null;
+            // Off-main NSImage creation needs its own autorelease pool for the temporaries.
+            Foundation.NSAutoreleasePool pool = new Foundation.NSAutoreleasePool();
+            try {
+                ID nsUrl = Foundation.invoke( "NSURL", "URLWithString:", Foundation.nsString( url ) );
+                if ( !Foundation.isNil( nsUrl ) ) {
+                    ID img = Foundation.invoke( Foundation.invoke( "NSImage", "alloc" ),
+                                                "initWithContentsOfURL:", nsUrl );
+                    if ( !Foundation.isNil( img ) ) {
+                        Foundation.invoke( img, "retain" );  // survive pool drain + thread hop
+                        retained = img;
+                    }
+                }
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "MacOsToolbar: account avatar load failed — " + t.getMessage() );
+            }
+            finally {
+                pool.drain();
+            }
+            if ( retained == null ) {
+                return;
+            }
+            final ID avatar = retained;
+            Platform.runLater( () -> {
+                try {
+                    ID item = accountItemRef;
+                    if ( item != null && !Foundation.isNil( item ) ) {
+                        Foundation.invoke( item, "setImage:", avatar );
+                    }
+                }
+                catch ( Throwable ignored ) { /* keep the glyph */ }
+                finally {
+                    try { Foundation.invoke( avatar, "release" ); }
+                    catch ( Throwable ignored ) { }
+                }
+            } );
+        } );
     }
 
     /** Current theme accent as an {@code NSColor}, or null on failure. */
