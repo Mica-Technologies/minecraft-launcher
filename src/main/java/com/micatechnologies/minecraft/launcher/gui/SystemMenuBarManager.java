@@ -28,11 +28,17 @@ import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
 import com.micatechnologies.minecraft.launcher.utilities.LauncherUriHandler;
 import com.micatechnologies.minecraft.launcher.utilities.NotificationManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import javafx.scene.control.Alert;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -43,6 +49,8 @@ import java.awt.Desktop;
 import java.awt.desktop.QuitStrategy;
 import java.io.IOException;
 import java.net.URI;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * macOS-only system menu bar wiring. On macOS this installs a {@link MenuBar} with
@@ -64,6 +72,18 @@ public final class SystemMenuBarManager
 {
     private static MenuBar instance      = null;
     private static Pane    currentParent = null;
+
+    /** Max packs shown in the Play Recent submenu. */
+    private static final int RECENT_MAX = 8;
+
+    // Dynamic menu nodes — held so refreshDynamicMenus() can re-sync them with current
+    // state (recent-pack list, selected theme, toggle states) on each navigation, since
+    // the native macOS menu bar doesn't fire JavaFX's Menu onShowing reliably.
+    private static Menu                       recentMenu      = null;
+    private static Map< String, RadioMenuItem > themeItems    = null;
+    private static CheckMenuItem              discordItem     = null;
+    private static CheckMenuItem              consoleItem     = null;
+    private static CheckMenuItem              backgroundsItem = null;
 
     private SystemMenuBarManager() { /* static-only */ }
 
@@ -218,6 +238,10 @@ public final class SystemMenuBarManager
         }
         root.getChildren().add( instance );
         currentParent = root;
+
+        // The native macOS bar doesn't fire JavaFX's Menu onShowing reliably, so re-sync the
+        // dynamic content (recent packs + quick-settings state) on each navigation instead.
+        refreshDynamicMenus();
     }
 
     // =========================================================================================
@@ -227,56 +251,188 @@ public final class SystemMenuBarManager
     private static MenuBar buildMenuBar()
     {
         MenuBar bar = new MenuBar();
-        bar.getMenus().addAll( buildModpacksMenu(), buildGameMenu(), buildHelpMenu() );
+        bar.getMenus().addAll( buildModpacksMenu(), buildGameMenu(), buildViewMenu(),
+                               buildWindowMenu(), buildHelpMenu() );
         return bar;
     }
 
     private static Menu buildModpacksMenu()
     {
-        Menu menu = new Menu( "Browse" );
+        Menu menu = new Menu( LocalizationManager.get( "menu.modpacks.title" ) );
+
+        MenuItem home = new MenuItem( LocalizationManager.get( "menu.modpacks.home" ) );
+        home.setAccelerator( new KeyCodeCombination( KeyCode.H, KeyCombination.SHORTCUT_DOWN,
+                                                     KeyCombination.SHIFT_DOWN ) );
+        home.setOnAction( e -> goHome() );
 
         // "Open Browse" routes to the install + manage screen — formerly "Library",
         // renamed so the main menu's wordmark area can use "Library" as the screen
         // name for the home/installed-packs surface.
-        MenuItem library = new MenuItem( "Open Browse…" );
+        MenuItem library = new MenuItem( LocalizationManager.get( "menu.modpacks.browse" ) );
         library.setAccelerator( new KeyCodeCombination( KeyCode.L, KeyCombination.SHORTCUT_DOWN ) );
         library.setOnAction( e -> openLibrary() );
 
-        MenuItem refresh = new MenuItem( "Refresh Pack List" );
+        MenuItem refresh = new MenuItem( LocalizationManager.get( "menu.modpacks.refresh" ) );
         refresh.setAccelerator( new KeyCodeCombination( KeyCode.R, KeyCombination.SHORTCUT_DOWN ) );
         refresh.setOnAction( e -> refreshMain() );
 
-        menu.getItems().addAll( library, new SeparatorMenuItem(), refresh );
+        // Populated now and re-populated on each navigation via refreshDynamicMenus().
+        recentMenu = new Menu( LocalizationManager.get( "menu.modpacks.playRecent" ) );
+        applyRecents( gatherRecents() );
+
+        menu.getItems().addAll( home, library, refresh, new SeparatorMenuItem(), recentMenu );
         return menu;
     }
 
     private static Menu buildGameMenu()
     {
-        Menu menu = new Menu( "Game" );
+        Menu menu = new Menu( LocalizationManager.get( "menu.game.title" ) );
 
-        MenuItem runtimes = new MenuItem( "Runtime Management…" );
+        MenuItem runtimes = new MenuItem( LocalizationManager.get( "menu.game.runtimes" ) );
         runtimes.setOnAction( e -> openRuntime() );
 
-        menu.getItems().add( runtimes );
+        MenuItem editor = new MenuItem( LocalizationManager.get( "menu.game.editor" ) );
+        editor.setOnAction( e -> openEditor() );
+
+        menu.getItems().addAll( runtimes, editor );
+        return menu;
+    }
+
+    private static Menu buildViewMenu()
+    {
+        Menu menu = new Menu( LocalizationManager.get( "menu.view.title" ) );
+
+        // Theme submenu — radio items mirroring the Settings screen's theme combo. Both use
+        // the raw ALLOWED_THEMES display names (the Settings combo doesn't localize them
+        // either), so a value flows straight through to ConfigManager.setTheme.
+        Menu themeMenu = new Menu( LocalizationManager.get( "menu.view.theme" ) );
+        ToggleGroup themeGroup = new ToggleGroup();
+        themeItems = new LinkedHashMap<>();
+        String currentTheme = ConfigManager.getTheme();
+        for ( String theme : ConfigConstants.ALLOWED_THEMES ) {
+            RadioMenuItem item = new RadioMenuItem( theme );
+            item.setToggleGroup( themeGroup );
+            item.setSelected( theme.equals( currentTheme ) );
+            item.setOnAction( e -> applyTheme( theme ) );
+            themeItems.put( theme, item );
+            themeMenu.getItems().add( item );
+        }
+
+        discordItem = new CheckMenuItem( LocalizationManager.get( "menu.view.discordRpc" ) );
+        discordItem.setSelected( ConfigManager.getDiscordRpcEnable() );
+        discordItem.setOnAction( e -> toggleDiscordRpc( discordItem.isSelected() ) );
+
+        consoleItem = new CheckMenuItem( LocalizationManager.get( "menu.view.inGameConsole" ) );
+        consoleItem.setSelected( ConfigManager.getInGameConsoleEnable() );
+        consoleItem.setOnAction( e -> ConfigManager.setInGameConsoleEnable( consoleItem.isSelected() ) );
+
+        backgroundsItem = new CheckMenuItem( LocalizationManager.get( "menu.view.packBackgrounds" ) );
+        backgroundsItem.setSelected( ConfigManager.getShowPackBackgrounds() );
+        backgroundsItem.setOnAction( e -> ConfigManager.setShowPackBackgrounds( backgroundsItem.isSelected() ) );
+
+        menu.getItems().addAll( themeMenu, new SeparatorMenuItem(),
+                                discordItem, consoleItem, backgroundsItem );
+        return menu;
+    }
+
+    private static Menu buildWindowMenu()
+    {
+        Menu menu = new Menu( LocalizationManager.get( "menu.window.title" ) );
+
+        MenuItem minimize = new MenuItem( LocalizationManager.get( "menu.window.minimize" ) );
+        minimize.setAccelerator( new KeyCodeCombination( KeyCode.M, KeyCombination.SHORTCUT_DOWN ) );
+        minimize.setOnAction( e -> withTopStage( stage -> stage.setIconified( true ) ) );
+
+        MenuItem zoom = new MenuItem( LocalizationManager.get( "menu.window.zoom" ) );
+        zoom.setOnAction( e -> withTopStage( stage -> stage.setMaximized( !stage.isMaximized() ) ) );
+
+        menu.getItems().addAll( minimize, zoom );
         return menu;
     }
 
     private static Menu buildHelpMenu()
     {
-        Menu menu = new Menu( "Help" );
+        Menu menu = new Menu( LocalizationManager.get( "menu.help.title" ) );
 
-        MenuItem help = new MenuItem( "Mica Minecraft Help" );
+        MenuItem help = new MenuItem( LocalizationManager.get( "menu.help.help" ) );
         // Cmd+? is the macOS convention for app help. SLASH + SHIFT_DOWN produces "?".
         help.setAccelerator( new KeyCodeCombination( KeyCode.SLASH,
                                                      KeyCombination.SHORTCUT_DOWN,
                                                      KeyCombination.SHIFT_DOWN ) );
         help.setOnAction( e -> MCLauncherHelpWindow.show( HelpTopic.GETTING_STARTED ) );
 
-        MenuItem website = new MenuItem( "Visit Mica Technologies" );
+        MenuItem website = new MenuItem( LocalizationManager.get( "menu.help.website" ) );
         website.setOnAction( e -> openUrl( "https://micatechnologies.com" ) );
 
         menu.getItems().addAll( help, website );
         return menu;
+    }
+
+    // =========================================================================================
+    //  Dynamic menu refresh — recent packs + quick-settings state, re-synced on each
+    //  navigation (the native macOS bar doesn't fire JavaFX's Menu onShowing reliably).
+    //  Runs on the FX thread, called from attachTo.
+    // =========================================================================================
+
+    private static void refreshDynamicMenus()
+    {
+        if ( !SystemUtils.IS_OS_MAC || instance == null ) {
+            return;
+        }
+        if ( themeItems != null ) {
+            String current = ConfigManager.getTheme();
+            themeItems.forEach( ( theme, item ) -> item.setSelected( theme.equals( current ) ) );
+        }
+        if ( discordItem != null ) {
+            discordItem.setSelected( ConfigManager.getDiscordRpcEnable() );
+        }
+        if ( consoleItem != null ) {
+            consoleItem.setSelected( ConfigManager.getInGameConsoleEnable() );
+        }
+        if ( backgroundsItem != null ) {
+            backgroundsItem.setSelected( ConfigManager.getShowPackBackgrounds() );
+        }
+        applyRecents( gatherRecents() );
+    }
+
+    /** Installed packs that have been played at least once, newest first, capped at
+     *  {@link #RECENT_MAX}. getLastPlayedMs caches its .launch_history read after the first
+     *  call, and the main screen's last-played sort has usually warmed it already, so this
+     *  is cheap enough to run on the FX thread. */
+    private static java.util.List< GameModPack > gatherRecents()
+    {
+        return GameModPackManager.getInstalledModPacks().stream()
+                .filter( p -> p != null && !p.isNeverPlayed() )
+                .sorted( java.util.Comparator.comparingLong( GameModPack::getLastPlayedMs ).reversed() )
+                .limit( RECENT_MAX )
+                .collect( java.util.stream.Collectors.toList() );
+    }
+
+    /** Rebuilds the Play Recent submenu. ⌘1–⌘9 quick-launch the first nine entries; an
+     *  empty history shows a single disabled placeholder. */
+    private static void applyRecents( java.util.List< GameModPack > recents )
+    {
+        if ( recentMenu == null ) {
+            return;
+        }
+        recentMenu.getItems().clear();
+        if ( recents.isEmpty() ) {
+            MenuItem none = new MenuItem( LocalizationManager.get( "menu.modpacks.playRecent.empty" ) );
+            none.setDisable( true );
+            recentMenu.getItems().add( none );
+            return;
+        }
+        int index = 0;
+        for ( GameModPack pack : recents ) {
+            MenuItem item = new MenuItem( pack.getFriendlyName() );
+            if ( index < 9 ) {
+                item.setAccelerator( new KeyCodeCombination( KeyCode.valueOf( "DIGIT" + ( index + 1 ) ),
+                                                             KeyCombination.SHORTCUT_DOWN ) );
+            }
+            item.setOnAction( e -> playPack( pack ) );
+            recentMenu.getItems().add( item );
+            index++;
+        }
     }
 
     // =========================================================================================
@@ -335,6 +491,78 @@ public final class SystemMenuBarManager
                 Logger.logThrowable( e );
             }
         } );
+    }
+
+    private static void goHome()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                MCLauncherGuiController.goToMainGui();
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Unable to open Home from system menu." );
+                Logger.logThrowable( e );
+            }
+        } );
+    }
+
+    private static void openEditor()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                MCLauncherGuiController.goToModPackEditorGui();
+            }
+            catch ( IOException e ) {
+                Logger.logError( "Unable to open Modpack Editor from system menu." );
+                Logger.logThrowable( e );
+            }
+        } );
+    }
+
+    /** Launches {@code pack} off the FX thread — {@link LauncherCore#play} blocks on the
+     *  auth refresh + launch pipeline and drives its own launch-progress window. Mirrors the
+     *  in-window hero/library card Play handler. */
+    private static void playPack( GameModPack pack )
+    {
+        if ( pack == null ) {
+            return;
+        }
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                LauncherCore.play( pack );
+            }
+            catch ( Throwable t ) {
+                Logger.logError( "Unable to launch \"" + pack.getPackName() + "\" from system menu." );
+                Logger.logThrowable( t );
+            }
+        } );
+    }
+
+    /** Persists the theme and repaints immediately, same as the Settings screen's combo. */
+    private static void applyTheme( String theme )
+    {
+        ConfigManager.setTheme( theme );
+        MCLauncherGuiController.forceThemeRefresh();
+    }
+
+    /** Mirrors the Settings screen's Discord toggle: persist, and tear down the live
+     *  presence when disabling. Re-enabling resumes on the next screen-presence update. */
+    private static void toggleDiscordRpc( boolean enabled )
+    {
+        ConfigManager.setDiscordRpcEnable( enabled );
+        if ( !enabled ) {
+            com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility.exit();
+        }
+    }
+
+    /** Runs {@code action} against the launcher's top stage on the FX thread, if it exists. */
+    private static void withTopStage( java.util.function.Consumer< javafx.stage.Stage > action )
+    {
+        javafx.stage.Stage top = MCLauncherGuiController.getTopStageOrNull();
+        if ( top == null ) {
+            return;
+        }
+        GUIUtilities.JFXPlatformRun( () -> action.accept( top ) );
     }
 
     private static void openUrl( String url )
