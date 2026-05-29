@@ -1006,9 +1006,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 // generated string differs from every static preset.
                 ConfigManager.setCustomJvmArgs( generated );
                 com.micatechnologies.minecraft.launcher.utilities.NotificationManager.success(
-                        "JVM args generated",
-                        "Recommended args for your machine have been applied. "
-                                + "They take effect on the next game launch." );
+                        LocalizationManager.get( "notification.settings.jvmArgsGenerated.title" ),
+                        LocalizationManager.get( "notification.settings.jvmArgsGenerated.body" ) );
                 Logger.logStd( "Generated tuned JVM args: " + generated );
             } ) );
         }
@@ -1251,9 +1250,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 curseForgeApiKeyField.clear();
                 refreshCurseForgeApiKeyStatus();
                 com.micatechnologies.minecraft.launcher.utilities.NotificationManager.success(
-                        "CurseForge key saved",
-                        "Stored encrypted on this machine. CurseForge URL imports will now "
-                                + "fetch project metadata for the confirmation preview." );
+                        LocalizationManager.get( "notification.settings.curseforgeKeySaved.title" ),
+                        LocalizationManager.get( "notification.settings.curseforgeKeySaved.body" ) );
             } );
             curseForgeApiKeyClearBtn.setOnAction( e -> {
                 com.micatechnologies.minecraft.launcher.config.ConfigManager
@@ -1274,8 +1272,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                                 .getInstalledModPacks();
                 if ( installed == null || installed.isEmpty() ) {
                     com.micatechnologies.minecraft.launcher.utilities.NotificationManager.info(
-                            "Nothing to verify",
-                            "No modpacks are installed." );
+                            LocalizationManager.get( "notification.settings.nothingToVerify.title" ),
+                            LocalizationManager.get( "notification.settings.nothingToVerify.body" ) );
                     return;
                 }
                 com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
@@ -1853,8 +1851,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 // settings since, the restart task may still be in flight.
                 if ( !ConfigManager.getRgbEnable() ) {
                     com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
-                            "RGB disabled",
-                            "Turn on \"Enable RGB lighting\" first, then try the test again." );
+                            LocalizationManager.get( "notification.settings.rgbDisabled.title" ),
+                            LocalizationManager.get( "notification.settings.rgbDisabled.body" ) );
                     return;
                 }
                 com.micatechnologies.minecraft.launcher.rgb.RgbEffect prior = controller.activeEffect();

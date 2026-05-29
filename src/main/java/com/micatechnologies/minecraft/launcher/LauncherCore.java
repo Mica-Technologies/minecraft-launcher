@@ -376,9 +376,9 @@ public class LauncherCore
             // disabled. Surface that and bail to the main menu so the
             // user can resolve manually.
             com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
-                    "Couldn't disable " + first.firstJarName(),
-                    "The mod jar is locked or already disabled. Open the pack's "
-                            + "mods folder and resolve the conflict manually." );
+                    LocalizationManager.format( "notification.launch.disableModFailed.title",
+                                                first.firstJarName() ),
+                    LocalizationManager.get( "notification.launch.disableModFailed.body" ) );
             return false;
         }
         if ( response == 2 ) {
@@ -585,13 +585,18 @@ public class LauncherCore
                     if ( !readyToastFired.compareAndSet( false, true ) ) return;
 
                     TaskbarProgressManager.stop();
+                    // Toast that the pack is ready when it was a long prep (>10s) OR when the
+                    // launcher isn't focused — a user who tabbed away during the install/launch
+                    // gets pulled back even on a quick prep, while someone watching the progress
+                    // window on a fast prep isn't toasted redundantly.
                     long elapsedMs = System.currentTimeMillis() - progressStartMs;
-                    if ( elapsedMs > 10_000L ) {
+                    if ( elapsedMs > 10_000L || !MCLauncherGuiController.isLauncherFocused() ) {
                         NotificationManager.success(
-                                "Ready to play",
+                                LocalizationManager.get( "notification.launch.ready.title" ),
                                 gameModPack.getFriendlyName() != null
-                                        ? gameModPack.getFriendlyName() + " is starting."
-                                        : "Your modpack is ready and starting." );
+                                        ? LocalizationManager.format( "notification.launch.ready.bodyNamed",
+                                                                      gameModPack.getFriendlyName() )
+                                        : LocalizationManager.get( "notification.launch.ready.body" ) );
                     }
                     if ( !ConfigManager.getInGameConsoleEnable() && finalPlayProgressWindow != null ) {
                         SystemUtilities.spawnNewTask( () -> {
@@ -692,11 +697,12 @@ public class LauncherCore
                                     // user who tabbed away mid-session notices.
                                     if ( exitCode != 0 ) {
                                         NotificationManager.error(
-                                                "Game crashed",
-                                                ( gameModPack.getFriendlyName() != null
-                                                        ? gameModPack.getFriendlyName()
-                                                        : "Minecraft" )
-                                                        + " exited with code " + exitCode + "." );
+                                                LocalizationManager.get( "notification.launch.gameCrashed.title" ),
+                                                LocalizationManager.format( "notification.launch.gameCrashed.body",
+                                                        gameModPack.getFriendlyName() != null
+                                                                ? gameModPack.getFriendlyName()
+                                                                : "Minecraft",
+                                                        exitCode ) );
                                         String crashReport = gameModPack.getLatestCrashReport();
                                         if ( crashReport != null ) {
                                             // Pack-aware overload so CrashReportAnalyzer can build
@@ -726,11 +732,12 @@ public class LauncherCore
                             if ( exitCode != 0 ) {
                                 Logger.logError( "Game crashed with exit code " + exitCode );
                                 NotificationManager.error(
-                                        "Game crashed",
-                                        ( gameModPack.getFriendlyName() != null
-                                                ? gameModPack.getFriendlyName()
-                                                : "Minecraft" )
-                                                + " exited with code " + exitCode + "." );
+                                        LocalizationManager.get( "notification.launch.gameCrashed.title" ),
+                                        LocalizationManager.format( "notification.launch.gameCrashed.body",
+                                                gameModPack.getFriendlyName() != null
+                                                        ? gameModPack.getFriendlyName()
+                                                        : "Minecraft",
+                                                exitCode ) );
                                 // Show crash console even when console setting is off
                                 String crashReport = gameModPack.getLatestCrashReport();
                                 try {

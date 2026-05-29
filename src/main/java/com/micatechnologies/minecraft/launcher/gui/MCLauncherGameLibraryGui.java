@@ -790,8 +790,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         Logger.logStd( "Modrinth import: user confirmed mod list — installing "
                                + finalResult.localManifestUrl() );
         NotificationManager.info(
-                "Import starting",
-                "Adding the pack to your library and queueing the mod downloads." );
+                LocalizationManager.get( "notification.browse.importStarting.title" ),
+                LocalizationManager.get( "notification.browse.importStarting.body" ) );
         updateImportStatus( "Adding to your library…" );
         try {
             com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager
@@ -803,17 +803,16 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 // in-progress placeholder and the freshly-installed pack
                 // appears in its sorted slot.
                 NotificationManager.success(
-                        "Import complete",
-                        "The pack is now in your library. Open it from the main menu to launch." );
+                        LocalizationManager.get( "notification.browse.importComplete.title" ),
+                        LocalizationManager.get( "notification.browse.importComplete.body" ) );
             } );
         }
         catch ( Throwable t ) {
             Logger.logErrorSilent( "Modrinth import install step failed: " + t.getMessage() );
             Logger.logThrowable( t );
             NotificationManager.error(
-                    "Install failed",
-                    "The pack was translated successfully but installing it into your library "
-                            + "didn't complete. Check the launcher log for details." );
+                    LocalizationManager.get( "notification.browse.installFailed.title" ),
+                    LocalizationManager.get( "notification.browse.installFailed.body" ) );
         }
     }
 

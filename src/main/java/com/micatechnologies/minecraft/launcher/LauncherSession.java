@@ -225,7 +225,7 @@ class LauncherSession
         // failures as a notification toast instead of vanishing into the log.
         GameModPackManager.setBackgroundErrorListener( ( message, cause ) ->
                 com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
-                        "Background task failed", message ) );
+                        LocalizationManager.get( "notification.session.backgroundTaskFailed.title" ), message ) );
 
         GameModPackManager.startAvailableModPacksFetchAsync();
 

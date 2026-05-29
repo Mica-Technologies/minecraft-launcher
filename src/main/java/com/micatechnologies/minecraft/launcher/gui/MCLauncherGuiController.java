@@ -34,6 +34,16 @@ public class MCLauncherGuiController
         return startSuccess.get() ? guiWindow.getStage() : null;
     }
 
+    /** Best-effort check for whether the launcher window currently has OS focus — i.e. the user
+     *  is actively looking at it. Used to gate native toasts for events the user may have tabbed
+     *  away from (e.g. an install finishing). The reads are plain boolean property gets, safe
+     *  enough off the FX thread for a notification decision; returns false when the GUI isn't up
+     *  or the window is hidden / minimized. */
+    public static boolean isLauncherFocused() {
+        Stage topStage = getTopStageOrNull();
+        return topStage != null && topStage.isShowing() && !topStage.isIconified() && topStage.isFocused();
+    }
+
     /** Returns the launcher's currently-shown GUI controller (Main, Library, Settings,
      *  Editor, etc.) or {@code null} if the GUI hasn't started yet. Lets external
      *  callers make screen-aware decisions without reaching into {@link MCLauncherGuiWindow}
