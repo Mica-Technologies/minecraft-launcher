@@ -294,11 +294,6 @@ public final class MacOsVibrancyManager
      *  here. Falls back to dark on any failure — matches the launcher's default. */
     private static boolean isOsDark()
     {
-        try {
-            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
-        }
-        catch ( Throwable t ) {
-            return true;
-        }
+        return OsThemeUtilities.isOsDark();
     }
 }

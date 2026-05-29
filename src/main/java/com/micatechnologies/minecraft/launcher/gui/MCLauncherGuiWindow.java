@@ -643,7 +643,7 @@ public class MCLauncherGuiWindow extends Application
         switch ( ConfigManager.getTheme() ) {
             case ConfigConstants.THEME_AUTOMATIC:
                 if ( detector != null ) {
-                    if ( detector.isDark() ) {
+                    if ( com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark() ) {
                         // The OS switched to a dark theme
                         switchToDarkTheme();
                     }
@@ -739,7 +739,7 @@ public class MCLauncherGuiWindow extends Application
      *  there to the opaque Dark/Light tokens instead.</p>
      */
     private void switchToNativeTheme() {
-        boolean osDark = detector == null || detector.isDark();
+        boolean osDark = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
 
         if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
             // Native tokens first so the scene fill is transparent and the 5–10% white
@@ -960,10 +960,7 @@ public class MCLauncherGuiWindow extends Application
         boolean osDark = true;
         if ( ConfigConstants.THEME_AUTOMATIC.equals( theme )
                 || ConfigConstants.THEME_NATIVE.equals( theme ) ) {
-            try {
-                osDark = OsThemeDetector.getDetector().isDark();
-            }
-            catch ( Throwable ignored ) { /* fall through with dark default */ }
+            osDark = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
         }
 
         final String legacy;

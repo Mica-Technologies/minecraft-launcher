@@ -94,17 +94,12 @@ public final class ThemeAccentColors
         };
     }
 
-    /** OS dark-mode probe via {@code jthemedetecor}. Defaults to dark
-     *  when the detector isn't usable on this platform — matches the
-     *  rest of the launcher's "when in doubt, assume dark" default. */
+    /** OS dark-mode probe. Delegates to the shared NULL-safe helper, which
+     *  defaults to dark when the detector isn't usable on this platform —
+     *  matching the launcher's "when in doubt, assume dark" default. */
     private static boolean osIsDark()
     {
-        try {
-            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
-        }
-        catch ( Throwable t ) {
-            return true;
-        }
+        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
     }
 
     /**

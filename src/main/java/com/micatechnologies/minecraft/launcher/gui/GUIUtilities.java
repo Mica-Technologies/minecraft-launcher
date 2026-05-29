@@ -620,11 +620,6 @@ public class GUIUtilities
      *  showing. */
     private static boolean isOsDarkSafe()
     {
-        try {
-            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
-        }
-        catch ( Throwable ignored ) {
-            return true;
-        }
+        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
     }
 }

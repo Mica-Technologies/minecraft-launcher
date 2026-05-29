@@ -465,12 +465,7 @@ public class MCLauncherHelpWindow
      *  shouldn't blow up if the detector can't init on a weird platform. */
     private static boolean isOsDark()
     {
-        try {
-            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
-        }
-        catch ( Throwable ignored ) {
-            return true;
-        }
+        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
     }
 
     /** Returns the ui-tokens-*.css resource path for the active launcher theme.
@@ -479,11 +474,7 @@ public class MCLauncherHelpWindow
     {
         String theme = ConfigManager.getTheme();
         if ( ConfigConstants.THEME_NATIVE.equals( theme ) ) {
-            boolean osDark = true;
-            try {
-                osDark = com.jthemedetecor.OsThemeDetector.getDetector().isDark();
-            }
-            catch ( Throwable ignored ) { /* fall through with dark default */ }
+            boolean osDark = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
             return osDark ? "ui/ui-tokens-native.css" : "ui/ui-tokens-native-light.css";
         }
         return switch ( theme ) {
@@ -529,11 +520,7 @@ public class MCLauncherHelpWindow
         if ( ConfigConstants.THEME_NATIVE.equals( theme ) ) {
             // Native follows OS dark/light: pair the matching legacy sheet so list-cell /
             // scroll-bar / etc. baseline rules carry the right palette.
-            boolean osDark = true;
-            try {
-                osDark = com.jthemedetecor.OsThemeDetector.getDetector().isDark();
-            }
-            catch ( Throwable ignored ) { /* fall through with dark default */ }
+            boolean osDark = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
             cssName = osDark ? "guiStyle-dark.css" : "guiStyle-light.css";
         }
         else {
