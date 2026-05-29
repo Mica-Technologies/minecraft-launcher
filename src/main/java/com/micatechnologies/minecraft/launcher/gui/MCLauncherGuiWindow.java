@@ -519,6 +519,12 @@ public class MCLauncherGuiWindow extends Application
             // top navbar a window drag region in JavaFX instead. No-op off macOS.
             com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
                     .installWindowDrag( gui.scene.getRoot(), stage );
+            // macOS native toolbar: once it's installed (centering the lights + hosting Browse /
+            // Settings / Help natively), hide the now-redundant JavaFX navbar controls so they
+            // don't sit dead under the toolbar band. No-op until/unless the toolbar installs —
+            // the elegant fallback leaves the JavaFX navbar fully intact and clickable.
+            com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
+                    .hideReplacedControls( gui.scene.getRoot() );
 
             gui.afterShow();
         } );
@@ -576,6 +582,11 @@ public class MCLauncherGuiWindow extends Application
             if ( firstShow ) {
                 com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
                         .applyHiddenInset( stage );
+                // Attach the native title-bar toolbar: re-centers the traffic lights + title and
+                // hosts Browse / Settings / Help as native items. Self-guarded; on failure it
+                // no-ops and the JavaFX navbar stays in charge.
+                com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
+                        .install( stage );
             }
             // Re-apply DWM chrome attributes only on the *first* show. applyTheme() runs
             // before the HWND exists, so the very first paint needs a post-show retry —
