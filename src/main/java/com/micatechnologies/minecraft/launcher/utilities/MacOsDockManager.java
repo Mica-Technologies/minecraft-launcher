@@ -160,6 +160,32 @@ public final class MacOsDockManager
         }
     }
 
+    /**
+     * Sets a short text badge on the dock icon — the red pill macOS uses for unread counts.
+     * Drives the "update available" cue (a "1") alongside the dock bounce. Pass {@code null}
+     * or blank to clear. No-op where {@code ICON_BADGE_TEXT} isn't supported (Windows/Linux).
+     */
+    public static void setBadge( String text )
+    {
+        if ( disabled || !ensureInitialized() ) {
+            return;
+        }
+        try {
+            if ( taskbar.isSupported( Taskbar.Feature.ICON_BADGE_TEXT ) ) {
+                taskbar.setIconBadge( text );
+            }
+        }
+        catch ( Exception | Error e ) {
+            Logger.logWarningSilent( "Dock badge update failed: " + e.getMessage() );
+        }
+    }
+
+    /** Clears the dock icon badge. */
+    public static void clearBadge()
+    {
+        setBadge( null );
+    }
+
     /** Installs the right-click dock menu. macOS only (Linux's {@code Taskbar.Feature.MENU}
      *  isn't supported by any DE in practice). Pass {@code null} to clear. */
     public static void installDockMenu( PopupMenu menu )
@@ -184,6 +210,7 @@ public final class MacOsDockManager
             return;
         }
         stop();
+        clearBadge();
         installDockMenu( null );
         taskbar = null;
         initialized = false;

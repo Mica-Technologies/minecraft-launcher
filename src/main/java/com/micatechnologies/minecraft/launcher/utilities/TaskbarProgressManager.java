@@ -178,9 +178,13 @@ public final class TaskbarProgressManager
                 }
             }
         } );
-        // macOS / Linux: red-tinted progress + bounce the dock icon to draw attention.
+        // macOS / Linux: red-tinted progress + bounce the dock icon to draw attention, and a
+        // "1" badge so the update-available cue persists after the bounce settles. The badge
+        // stays until the next launcher session, which is correct — the update remains
+        // available until the user relaunches on the new version.
         MacOsDockManager.setError();
         MacOsDockManager.requestAttention( false );
+        MacOsDockManager.setBadge( "1" );
     }
 
     /**

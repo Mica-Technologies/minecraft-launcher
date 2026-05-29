@@ -150,11 +150,12 @@ public class MCLauncherGuiWindow extends Application
         // taskbar updates the icon's location. No-op on macOS / Linux.
         installMonitorChangeNudge();
 
-        // macOS dock: install the same right-click action menu the system tray uses so dock users
-        // can reach Play Last / Open Mods / Quit without focusing the window first. No-op on
-        // Win / Linux (Taskbar.Feature.MENU is macOS-only in practice).
+        // macOS dock: install the richer dock menu (Play Recent submenu + Browse / Settings /
+        // Open Mods / Quit) so dock users can reach common actions without focusing the window.
+        // Rebuilt after each launch via JumpListManager.refresh so the recents stay current.
+        // No-op on Win / Linux (Taskbar.Feature.MENU is macOS-only in practice).
         com.micatechnologies.minecraft.launcher.utilities.MacOsDockManager.installDockMenu(
-                com.micatechnologies.minecraft.launcher.utilities.LauncherActions.buildSharedMenu() );
+                com.micatechnologies.minecraft.launcher.utilities.LauncherActions.buildDockMenu() );
     }
 
     /**
