@@ -509,6 +509,16 @@ public class MCLauncherGuiWindow extends Application
             // Set scene
             stage.setScene( gui.scene );
 
+            // macOS hidden-inset title bar: the traffic lights float over the top-left of
+            // the content, so drop this scene's redundant in-window brand lockup (the OS
+            // title bar already shows the screen name). No-op off macOS.
+            com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
+                    .hideRedundantBranding( gui.scene.getRoot() );
+            // The full-size content view swallows the native title-bar drag, so make the
+            // top navbar a window drag region in JavaFX instead. No-op off macOS.
+            com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
+                    .installWindowDrag( gui.scene.getRoot(), stage );
+
             gui.afterShow();
         } );
 
@@ -558,6 +568,14 @@ public class MCLauncherGuiWindow extends Application
         GUIUtilities.JFXPlatformRun( () -> {
             boolean firstShow = !stage.isShowing();
             stage.show();
+
+            // macOS only: adopt the hidden-inset title bar (transparent chrome + full-size
+            // content view) so the traffic lights float over the content. Idempotent and
+            // gated on IS_OS_MAC; applied post-show when the NSWindow peer is realized.
+            if ( firstShow ) {
+                com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
+                        .applyHiddenInset( stage );
+            }
             // Re-apply DWM chrome attributes only on the *first* show. applyTheme() runs
             // before the HWND exists, so the very first paint needs a post-show retry —
             // but subsequent show() calls (each screen navigation re-calls show()) hit
