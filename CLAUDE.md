@@ -112,6 +112,7 @@ See `docs/` for detailed technical documentation on major subsystems:
 - `docs/RUNTIME_MANAGEMENT.md` -- Multi-version Java runtime: Mojang/Liberica sources, platform detection, download flow
 - `docs/AUTHENTICATION_SYSTEM.md` -- Microsoft OAuth, AES-256-GCM token cache, machine key derivation
 - `docs/GUI_SYSTEM.md` -- JavaFX architecture, screen navigation, theming, game console
+- `docs/PLATFORM_INTEGRATION.md` -- Native OS integration (macOS title-bar toolbar / hidden-inset / dock / menu bar / vibrancy, Windows DWM Mica / taskbar / jump list, Linux), shared shell menus + notifications, and the platform-gated fallback pattern
 
 Agent progress/tracking docs are in `docs/agent-progress-plans/`.
 
