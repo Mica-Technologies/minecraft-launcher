@@ -37,16 +37,21 @@
         <ColumnConstraints hgrow="ALWAYS"/>
     </columnConstraints>
     <rowConstraints>
-        <!-- Row 0: top navbar (title + search + filters), ~80 px -->
-        <RowConstraints minHeight="80.0" prefHeight="80.0" maxHeight="80.0"/>
-        <!-- Row 1: announcement banner (conditional 0/40/60 px) — below the navbar
+        <!-- Row 0: top navbar (title + help), 52 px — matches mainGUI / settings -->
+        <RowConstraints minHeight="52.0" prefHeight="52.0" maxHeight="52.0"/>
+        <!-- Row 1: announcement banner (conditional 0/40 px) — below the navbar
              so the chrome stays anchored at the top. -->
         <RowConstraints fx:id="announcementRow" maxHeight="-Infinity" minHeight="0.0"/>
-        <!-- Row 2: pagination bar (prev / page X of Y / next + per-page selector), ~40 px -->
+        <!-- Row 2: filter / search row (search + type + status + sort), 48 px. Split
+             out of the navbar so the controls no longer reach the horizontal centre,
+             where the macOS hidden-inset window title floats. Mirrors the mainGUI
+             top-bar pattern. -->
+        <RowConstraints minHeight="48.0" prefHeight="48.0" maxHeight="48.0"/>
+        <!-- Row 3: pagination bar (prev / page X of Y / next + per-page selector), ~40 px -->
         <RowConstraints minHeight="40.0" prefHeight="40.0" maxHeight="40.0"/>
-        <!-- Row 3: card grid (fills available space) -->
+        <!-- Row 4: card grid (fills available space) -->
         <RowConstraints vgrow="ALWAYS"/>
-        <!-- Row 4: bottom action bar (add-from-URL + editor + return), ~52 px -->
+        <!-- Row 5: bottom action bar (add-from-URL + editor + return), ~52 px -->
         <RowConstraints minHeight="52.0" prefHeight="52.0" maxHeight="52.0"/>
     </rowConstraints>
 
@@ -55,10 +60,9 @@
            maxWidth="1.7976931348623157E308" minHeight="0.0" styleClass="banner-announcement"
            text="--" textAlignment="CENTER" wrapText="true" GridPane.rowIndex="1"/>
 
-    <!-- Row 0: Top navbar — title + filter controls. Label prefixes instead of MFX's
-         floatingText property: floatingText renders the label inside the control's vertical
-         envelope and clips when the control isn't tall enough; external labels are cleaner
-         and don't fight the navbar's compact height. -->
+    <!-- Row 0: Top navbar — brand + help only. The search/type/status/sort filters
+         moved to their own row (Row 2) so they no longer reach the horizontal centre,
+         where the macOS hidden-inset window title floats. Mirrors the mainGUI navbar. -->
     <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar">
         <padding><Insets left="14.0" right="14.0"/></padding>
 
@@ -75,6 +79,25 @@
         <Label text="%browse.navbar.title" styleClass="navBrand"/>
 
         <Pane HBox.hgrow="ALWAYS" minWidth="20.0"/>
+
+        <!-- "Offline" chip — visible only when NetworkUtilities.isOffline() returns
+             true. OfflineIndicator.applyTo() in the controller toggles it. Sits
+             next to the help button so it's consistent across every screen. -->
+        <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false"
+               styleClass="chip-offline"/>
+
+        <!-- Navbar-anchored help button, same pattern as mainGUI / settings / editor /
+             runtime / console so MCLauncherGuiWindow.injectHelpButton's corner-overlay
+             fallback doesn't drop it on top of the navbar at runtime. -->
+        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+    </HBox>
+
+    <!-- Row 2: Filter / search row. Label prefixes instead of MFX's floatingText
+         property: floatingText renders the label inside the control's vertical envelope
+         and clips when the control isn't tall enough; external labels are cleaner and
+         keep the row compact at 48 px. Mirrors the mainGUI filter row. -->
+    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="navBar" GridPane.rowIndex="2">
+        <padding><Insets left="14.0" right="14.0"/></padding>
 
         <Label text="%main.filter.searchLabel" styleClass="muted"/>
         <MFXTextField fx:id="searchField" promptText="Name…" minWidth="180.0" prefWidth="200.0"
@@ -93,21 +116,12 @@
         <MFXComboBox fx:id="sortFilter" minWidth="150.0" prefWidth="160.0"
                      minHeight="32.0" prefHeight="32.0" maxHeight="32.0"/>
 
-        <!-- "Offline" chip — visible only when NetworkUtilities.isOffline() returns
-             true. OfflineIndicator.applyTo() in the controller toggles it. Sits
-             next to the help button so it's consistent across every screen. -->
-        <Label fx:id="offlineLabel" text="%main.fetchLabel.offline" managed="false" visible="false"
-               styleClass="chip-offline"/>
-
-        <!-- Navbar-anchored help button, same pattern as mainGUI / settings / editor /
-             runtime / console so MCLauncherGuiWindow.injectHelpButton's corner-overlay
-             fallback doesn't drop it on top of the navbar at runtime. -->
-        <Label fx:id="helpBtn" text="?" styleClass="helpButton"/>
+        <Pane HBox.hgrow="ALWAYS" minWidth="10.0"/>
     </HBox>
 
-    <!-- Row 2: Pagination bar. Sits between the filters and the cards so the user can see
+    <!-- Row 3: Pagination bar. Sits between the filters and the cards so the user can see
          where they are without scrolling to the bottom. Per-page selector lives on the right. -->
-    <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="2">
+    <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="bottomBar" GridPane.rowIndex="3">
         <padding><Insets left="20.0" right="20.0"/></padding>
         <Label fx:id="paginationRangeLabel" text="" styleClass="muted"/>
         <!-- Card-grid loading affordance: spinner + "Loading library…" shown while rebuildCards
@@ -136,8 +150,8 @@
                      minHeight="28.0" prefHeight="28.0" maxHeight="28.0"/>
     </HBox>
 
-    <!-- Row 3: Card grid scroll pane. The controller fills cardList programmatically. -->
-    <ScrollPane fx:id="libraryScrollPane" GridPane.rowIndex="3"
+    <!-- Row 4: Card grid scroll pane. The controller fills cardList programmatically. -->
+    <ScrollPane fx:id="libraryScrollPane" GridPane.rowIndex="4"
                 fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
                 styleClass="modpackScroll">
         <javafx.scene.layout.FlowPane fx:id="cardList" styleClass="modpackCardList"
@@ -147,8 +161,8 @@
         </javafx.scene.layout.FlowPane>
     </ScrollPane>
 
-    <!-- Row 4: Bottom action bar -->
-    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="4">
+    <!-- Row 5: Bottom action bar -->
+    <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="bottomBar" GridPane.rowIndex="5">
         <padding><Insets left="12.0" right="12.0"/></padding>
 
         <Label text="%browse.bottomBar.urlLabel" styleClass="muted"/>
