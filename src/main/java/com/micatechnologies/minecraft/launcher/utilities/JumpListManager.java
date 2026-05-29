@@ -66,7 +66,12 @@ public final class JumpListManager
                 // there to keep a single writer.
                 SchemeRegistrar.refreshRecentPacks();
             }
-            // macOS: no-op. dock menu lives in LauncherActions.
+            else if ( SystemUtils.IS_OS_MAC ) {
+                // macOS has no persistent OS-shell registration — the dock menu lives in the
+                // running launcher. Rebuild + reinstall it so its "Play Recent" submenu picks
+                // up the new play history (AWT PopupMenu has no on-show hook to refresh lazily).
+                MacOsDockManager.installDockMenu( LauncherActions.buildDockMenu() );
+            }
         }
         catch ( Throwable t ) {
             Logger.logWarningSilent( "Jump list refresh failed: "

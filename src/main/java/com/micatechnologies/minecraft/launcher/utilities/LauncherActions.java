@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
@@ -28,10 +29,14 @@ import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import javafx.application.Platform;
 
 import java.awt.Desktop;
+import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
 import java.io.File;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Shared action surface for the cross-platform menus the launcher hangs off the OS shell —
@@ -45,6 +50,9 @@ import java.util.Objects;
  */
 public final class LauncherActions
 {
+    /** Max packs listed in the dock "Play Recent" submenu. */
+    private static final int RECENT_MAX = 8;
+
     private LauncherActions() { /* static-only */ }
 
     // =========================================================================================
@@ -61,22 +69,79 @@ public final class LauncherActions
     {
         PopupMenu menu = new PopupMenu();
 
-        MenuItem show = new MenuItem( "Show " + LauncherConstants.LAUNCHER_APPLICATION_NAME );
+        MenuItem show = new MenuItem( LocalizationManager.format(
+                "menu.dock.show", LauncherConstants.LAUNCHER_APPLICATION_NAME ) );
         show.addActionListener( e -> showLauncher() );
 
-        MenuItem playLast = new MenuItem( "Play Last Modpack" );
+        MenuItem playLast = new MenuItem( LocalizationManager.get( "menu.dock.playLast" ) );
         playLast.addActionListener( e -> playLastModpack() );
 
-        MenuItem openMods = new MenuItem( "Open Last Pack's Mods Folder" );
+        MenuItem openMods = new MenuItem( LocalizationManager.get( "menu.dock.openMods" ) );
         openMods.addActionListener( e -> openLastModsFolder() );
 
-        MenuItem quit = new MenuItem( "Quit " + LauncherConstants.LAUNCHER_APPLICATION_NAME );
+        MenuItem quit = new MenuItem( LocalizationManager.format(
+                "menu.dock.quit", LauncherConstants.LAUNCHER_APPLICATION_NAME ) );
         quit.addActionListener( e -> LauncherCore.closeApp() );
 
         menu.add( show );
         menu.addSeparator();
         menu.add( playLast );
         menu.add( openMods );
+        menu.addSeparator();
+        menu.add( quit );
+        return menu;
+    }
+
+    /**
+     * Builds the macOS dock right-click menu — a superset of {@link #buildSharedMenu()} that
+     * swaps the single "Play Last" entry for a "Play Recent" submenu of the user's recent packs
+     * (newest first, capped at {@value #RECENT_MAX}) and adds quick navigation to Browse and
+     * Settings. {@link JumpListManager#refresh()} rebuilds + reinstalls this on each launch so
+     * the recents stay current — AWT's {@link PopupMenu} has no on-show hook to refresh lazily.
+     */
+    public static PopupMenu buildDockMenu()
+    {
+        PopupMenu menu = new PopupMenu();
+
+        MenuItem show = new MenuItem( LocalizationManager.format(
+                "menu.dock.show", LauncherConstants.LAUNCHER_APPLICATION_NAME ) );
+        show.addActionListener( e -> showLauncher() );
+
+        Menu recent = new Menu( LocalizationManager.get( "menu.modpacks.playRecent" ) );
+        List< GameModPack > recents = recentModpacks();
+        if ( recents.isEmpty() ) {
+            MenuItem none = new MenuItem( LocalizationManager.get( "menu.modpacks.playRecent.empty" ) );
+            none.setEnabled( false );
+            recent.add( none );
+        }
+        else {
+            for ( GameModPack pack : recents ) {
+                MenuItem item = new MenuItem( pack.getFriendlyName() );
+                item.addActionListener( e -> playModpack( pack ) );
+                recent.add( item );
+            }
+        }
+
+        MenuItem openMods = new MenuItem( LocalizationManager.get( "menu.dock.openMods" ) );
+        openMods.addActionListener( e -> openLastModsFolder() );
+
+        MenuItem browse = new MenuItem( LocalizationManager.get( "menu.modpacks.browse" ) );
+        browse.addActionListener( e -> openBrowse() );
+
+        MenuItem settings = new MenuItem( LocalizationManager.get( "main.navbar.settings" ) );
+        settings.addActionListener( e -> openSettings() );
+
+        MenuItem quit = new MenuItem( LocalizationManager.format(
+                "menu.dock.quit", LauncherConstants.LAUNCHER_APPLICATION_NAME ) );
+        quit.addActionListener( e -> LauncherCore.closeApp() );
+
+        menu.add( show );
+        menu.addSeparator();
+        menu.add( recent );
+        menu.add( openMods );
+        menu.addSeparator();
+        menu.add( browse );
+        menu.add( settings );
         menu.addSeparator();
         menu.add( quit );
         return menu;
@@ -103,22 +168,60 @@ public final class LauncherActions
                                       "Open the launcher and play a modpack at least once to enable Play Last." );
             return;
         }
+        playModpack( pack );
+    }
+
+    /** Launches a specific modpack with the same flow as {@link #playLastModpack()} — used by
+     *  the dock "Play Recent" submenu. Records it as the last-selected pack, sets Discord
+     *  presence, and returns focus to the main GUI when the launch hands off. No-op for null. */
+    public static void playModpack( GameModPack pack )
+    {
+        if ( pack == null ) {
+            return;
+        }
         ConfigManager.setLastModPackSelected( pack.getPackName() );
-        final GameModPack finalPack = pack;
         SystemUtilities.spawnNewTask( () -> {
             Platform.setImplicitExit( false );
-            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( finalPack ) );
-            LauncherCore.play( finalPack, () -> GUIUtilities.JFXPlatformRun( () -> {
+            SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setGamePresence( pack ) );
+            LauncherCore.play( pack, () -> GUIUtilities.JFXPlatformRun( () -> {
                 try {
                     Objects.requireNonNull( MCLauncherGuiController.getTopStageOrNull() ).show();
                     MCLauncherGuiController.goToMainGui();
                     MCLauncherGuiController.requestFocus();
                 }
                 catch ( Exception ex ) {
-                    Logger.logError( "Unable to return to main GUI after shell-menu Play Last." );
+                    Logger.logError( "Unable to return to main GUI after shell-menu Play." );
                     Logger.logThrowable( ex );
                 }
             } ) );
+        } );
+    }
+
+    /** Opens the Browse (install / manage) screen. Used by the dock menu. */
+    public static void openBrowse()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                MCLauncherGuiController.goToGameLibraryGui();
+            }
+            catch ( Exception ex ) {
+                Logger.logError( "Unable to open Browse from shell menu." );
+                Logger.logThrowable( ex );
+            }
+        } );
+    }
+
+    /** Opens the Settings screen. Used by the dock menu. */
+    public static void openSettings()
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                MCLauncherGuiController.goToSettingsGui();
+            }
+            catch ( Exception ex ) {
+                Logger.logError( "Unable to open Settings from shell menu." );
+                Logger.logThrowable( ex );
+            }
         } );
     }
 
@@ -154,6 +257,18 @@ public final class LauncherActions
     /** Resolves the {@link GameModPack} for {@link ConfigManager#getLastModPackSelected()} —
      *  tries pack name first, then friendly name. Returns {@code null} if the user hasn't
      *  played anything yet or the saved pack is no longer installed. */
+    /** Installed packs that have been played at least once, newest first, capped at
+     *  {@link #RECENT_MAX} — the dock "Play Recent" submenu source. getLastPlayedMs caches
+     *  its history read, so this is cheap on the worker thread JumpListManager runs it on. */
+    private static List< GameModPack > recentModpacks()
+    {
+        return GameModPackManager.getInstalledModPacks().stream()
+                .filter( p -> p != null && !p.isNeverPlayed() )
+                .sorted( Comparator.comparingLong( GameModPack::getLastPlayedMs ).reversed() )
+                .limit( RECENT_MAX )
+                .collect( Collectors.toList() );
+    }
+
     private static GameModPack lastPlayedModpack()
     {
         String lastName = ConfigManager.getLastModPackSelected();
