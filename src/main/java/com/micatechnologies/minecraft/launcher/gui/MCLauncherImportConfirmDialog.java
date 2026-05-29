@@ -216,12 +216,7 @@ public final class MCLauncherImportConfirmDialog
      *  detector failure on an unusual platform never blocks the dialog. */
     private static boolean isOsDarkSafe()
     {
-        try {
-            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
-        }
-        catch ( Throwable ignored ) {
-            return true;
-        }
+        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
     }
 
     // ===== helpers =====

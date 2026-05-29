@@ -259,12 +259,7 @@ public final class MCLauncherQuickStartWizard
      *  query has a single failure mode regardless of detector availability. */
     private static boolean isOsDark()
     {
-        try {
-            return com.jthemedetecor.OsThemeDetector.getDetector().isDark();
-        }
-        catch ( Throwable ignored ) {
-            return true;
-        }
+        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
     }
 
     private void goToStep( int idx )
