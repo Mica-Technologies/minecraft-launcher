@@ -225,6 +225,20 @@ public final class LauncherActions
         } );
     }
 
+    /** Opens the help window at the getting-started topic. Used by the macOS native toolbar. */
+    public static void openHelp()
+    {
+        GUIUtilities.JFXPlatformRun( () -> {
+            try {
+                com.micatechnologies.minecraft.launcher.gui.MCLauncherHelpWindow.show(
+                        com.micatechnologies.minecraft.launcher.gui.HelpTopic.GETTING_STARTED );
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Unable to open Help from shell menu: " + t.getMessage() );
+            }
+        } );
+    }
+
     /** Open the last-played modpack's mods folder in the OS file manager. Creates the
      *  folder if it doesn't exist (consistent with the in-window context-menu equivalent).
      *  Warns via toast if no last-played pack is known. */
