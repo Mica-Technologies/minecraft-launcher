@@ -364,9 +364,8 @@ public final class ModpackContentBrowser
                                     mod.getName().substring( 0, mod.getName().length() - ".disabled".length() ) )
                         : new File( mod.getParentFile(), mod.getName() + ".disabled" );
                 if ( renamed.exists() ) {
-                    NotificationManager.warn( "Couldn't toggle mod",
-                                              "A file named " + renamed.getName()
-                                                      + " already exists. Resolve the name conflict manually." );
+                    NotificationManager.warn( LocalizationManager.get( "notification.content.toggleModConflict.title" ),
+                                              LocalizationManager.format( "notification.content.toggleModConflict.body", renamed.getName() ) );
                     return;
                 }
                 java.nio.file.Files.move( mod.toPath(), renamed.toPath(),
@@ -376,9 +375,8 @@ public final class ModpackContentBrowser
             }
             catch ( Exception ex ) {
                 Logger.logWarningSilent( "Mod toggle failed for " + mod.getName() + ": " + ex.getMessage() );
-                NotificationManager.warn( "Couldn't toggle mod",
-                                          "Rename failed — the mod may be locked by another process. "
-                                                  + "Try again after closing the game." );
+                NotificationManager.warn( LocalizationManager.get( "notification.content.toggleModFailed.title" ),
+                                          LocalizationManager.get( "notification.content.toggleModFailed.body" ) );
             }
             finally {
                 javafx.application.Platform.runLater( () -> btn.setDisable( false ) );
@@ -1227,7 +1225,7 @@ public final class ModpackContentBrowser
                 else {
                     java.nio.file.Files.deleteIfExists( f.toPath() );
                 }
-                NotificationManager.success( f.getName(), "Deleted." );
+                NotificationManager.success( f.getName(), LocalizationManager.get( "notification.content.fileDeleted.body" ) );
                 // Rebuild the section's rows: easiest is to remove the
                 // row whose name matches. Doing a full section rebuild
                 // would need a callback into the detail modal which

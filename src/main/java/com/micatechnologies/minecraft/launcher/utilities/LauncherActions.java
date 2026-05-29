@@ -164,8 +164,8 @@ public final class LauncherActions
     {
         GameModPack pack = lastPlayedModpack();
         if ( pack == null ) {
-            NotificationManager.warn( "No recent modpack",
-                                      "Open the launcher and play a modpack at least once to enable Play Last." );
+            NotificationManager.warn( LocalizationManager.get( "notification.shell.noRecentModpackPlay.title" ),
+                                      LocalizationManager.get( "notification.shell.noRecentModpackPlay.body" ) );
             return;
         }
         playModpack( pack );
@@ -232,8 +232,8 @@ public final class LauncherActions
     {
         GameModPack pack = lastPlayedModpack();
         if ( pack == null ) {
-            NotificationManager.warn( "No recent modpack",
-                                      "Play a modpack at least once before opening its mods folder." );
+            NotificationManager.warn( LocalizationManager.get( "notification.shell.noRecentModpackMods.title" ),
+                                      LocalizationManager.get( "notification.shell.noRecentModpackMods.body" ) );
             return;
         }
         SystemUtilities.spawnNewTask( () -> {

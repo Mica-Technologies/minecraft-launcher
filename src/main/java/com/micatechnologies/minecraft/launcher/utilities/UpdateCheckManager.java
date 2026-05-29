@@ -143,8 +143,8 @@ public class UpdateCheckManager
                         if ( !updateNotificationShown ) {
                             updateNotificationShown = true;
                             NotificationManager.info(
-                                    "Update available",
-                                    "Mica Launcher " + latestVersion + " is ready. Click the update icon in the navbar to download." );
+                                    LocalizationManager.get( "notification.update.available.title" ),
+                                    LocalizationManager.format( "notification.update.available.body", latestVersion ) );
                         }
                     } );
                 }

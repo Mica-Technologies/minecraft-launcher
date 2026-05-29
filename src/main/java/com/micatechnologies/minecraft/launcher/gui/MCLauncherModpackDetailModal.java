@@ -778,15 +778,15 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         String url = pack.getManifestUrl();
         if ( url == null || url.isBlank() ) {
-            NotificationManager.error( "Couldn't share URL",
-                                        "This pack has no manifest URL on record." );
+            NotificationManager.error( LocalizationManager.get( "notification.detail.shareUrlFailed.title" ),
+                                        LocalizationManager.get( "notification.detail.shareUrlFailed.body" ) );
             return;
         }
         javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
         content.putString( url );
         javafx.scene.input.Clipboard.getSystemClipboard().setContent( content );
-        NotificationManager.success( "Copied manifest URL",
-                                      url );
+        NotificationManager.success( LocalizationManager.get( "notification.detail.urlCopied.title" ),
+                                      LocalizationManager.format( "notification.detail.urlCopied.body", url ) );
     }
 
     /** Saves the pack's manifest JSON body to a user-chosen file via a
@@ -1784,9 +1784,8 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         String invite = DiscordRpcUtility.buildInviteLinkFromPack( pack );
         if ( invite == null ) {
-            NotificationManager.warn( "No invite link",
-                                      "This pack doesn't have anything to invite friends to "
-                                              + "(no manifest URL or vanilla version)." );
+            NotificationManager.warn( LocalizationManager.get( "notification.detail.noInviteLink.title" ),
+                                      LocalizationManager.get( "notification.detail.noInviteLink.body" ) );
             return;
         }
         GUIUtilities.JFXPlatformRun( () -> {
