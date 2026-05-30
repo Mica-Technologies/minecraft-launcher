@@ -55,6 +55,28 @@ public class LocalPathManager
     }
 
     /**
+     * Gets the client-mode launcher configuration folder path, independent of the
+     * currently-active game mode.
+     *
+     * <p>Unlike {@link #getLauncherConfigFolderPath()}, this never resolves to the
+     * server-mode (current-working-directory) path. It is needed by code that runs
+     * before {@link GameModeManager} has been initialized — most importantly the
+     * single-instance IPC token, which {@code SingleInstanceLock.writeIpcToken()}
+     * persists from {@code LauncherCore.main()} (where {@code isClient()} is still
+     * {@code false} because {@code parseLauncherArgs} hasn't set the game mode yet).
+     * A second forwarding process spawned by the OS scheme handler has a different
+     * working directory than the running launcher, so a CWD-relative token path
+     * would never match between them and URI forwarding would silently fail.</p>
+     *
+     * @return client-mode launcher configuration folder path
+     *
+     * @since 3.5
+     */
+    public static String getClientConfigFolderPath() {
+        return LocalPathConstants.CLIENT_MODE_LAUNCHER_FOLDER_PATH + LocalPathConstants.CONFIG_FOLDER;
+    }
+
+    /**
      * Gets the local path for storing launcher metadata information.
      *
      * @return launcher metadata folder path

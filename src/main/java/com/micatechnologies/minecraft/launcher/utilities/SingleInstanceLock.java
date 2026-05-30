@@ -159,10 +159,19 @@ public class SingleInstanceLock
     }
 
     /** Path to the per-launch IPC token file. Dev and release builds use distinct ports
-     *  (see {@link #ipcPort}) so colocating their token files is safe. */
+     *  (see {@link #ipcPort}) so colocating their token files is safe.
+     *
+     *  <p>Deliberately uses the game-mode-independent client config path. This runs from
+     *  {@code LauncherCore.main()} — before {@code parseLauncherArgs} sets the game mode —
+     *  so the general {@link LocalPathManager#getLauncherConfigFolderPath()} would resolve
+     *  to the server-mode (current-working-directory) path. The running launcher and the
+     *  short-lived forwarding process spawned by the OS scheme handler have different
+     *  working directories, so a CWD-relative token would never match between them and
+     *  forwarding to an already-open launcher would silently fail. Anchoring to the fixed
+     *  {@code ~/.MicaMinecraftLauncher[DEV]/config} path makes both processes agree. */
     private static Path ipcTokenPath()
     {
-        return Path.of( LocalPathManager.getLauncherConfigFolderPath(), IPC_TOKEN_FILENAME );
+        return Path.of( LocalPathManager.getClientConfigFolderPath(), IPC_TOKEN_FILENAME );
     }
 
     /** Delegates to the shared {@link FilePermissions} helper. */
