@@ -60,12 +60,19 @@ import java.util.Set;
  *         dispatch once the main GUI is up.</li>
  *     <li><b>Already running.</b> macOS routes URIs through
  *         {@code Desktop.setOpenURIHandler}, registered alongside the other system-app
- *         handlers in {@code SystemMenuBarManager}. Windows and Linux currently launch a
- *         fresh process per URI; cross-instance forwarding (IPC through the
- *         {@code SingleInstanceLock} channel) is the remaining piece to make
- *         already-running delivery work on those platforms — see
- *         {@code OS_INTEGRATION_POLISH.md}.</li>
+ *         handlers in {@code SystemMenuBarManager}. On Windows and Linux the OS launches a
+ *         fresh process per URI; that process fails to acquire the single-instance lock and
+ *         forwards the URI to the running launcher over the {@code SingleInstanceLock} IPC
+ *         channel, which dispatches it here. (The token both processes authenticate with is
+ *         anchored to the game-mode-independent client config path so the two — with
+ *         different working directories — agree on its location.)</li>
  * </ol>
+ *
+ * <p>In both delivery paths, the launch actions ({@code play} / {@code join}) refuse to start
+ * a second game while one is already launching or running ({@link LauncherCore#isGameRunning()})
+ * and, before swapping the scene out for the launch-progress screen, give the current screen a
+ * chance to confirm — so an in-progress Settings edit isn't silently discarded (see
+ * {@code MCLauncherAbstractGui.confirmNavigateAwayForDeepLink}).</p>
  *
  * <p>Install-time scheme registration is also still TODO. jpackage's per-platform install
  * scripts will need to declare {@code mmcl://} as a handled scheme:</p>
@@ -238,6 +245,9 @@ public final class LauncherUriHandler
                         LocalizationManager.format( "notification.uri.modpackNotInstalled.body", name ) );
                 return;
             }
+            if ( !readyToLaunchViaDeepLink() ) {
+                return;
+            }
             LauncherCore.play( pack );
         } );
     }
@@ -262,6 +272,13 @@ public final class LauncherUriHandler
             return;
         }
         SystemUtilities.spawnNewTask( () -> {
+            // Gate the whole join up front: refuse if a game is already running, and confirm
+            // leaving any screen with unsaved work (Settings). Done before the install too —
+            // "join" means "play", so if we can't play there's no point installing in the
+            // background; the user is told to close the running game first.
+            if ( !readyToLaunchViaDeepLink() ) {
+                return;
+            }
             // If the pack is already installed at this URL, skip straight to play. Otherwise
             // install first, then play. installModPackByURL is itself idempotent — calling it
             // on an already-installed URL is a no-op.
@@ -305,6 +322,9 @@ public final class LauncherUriHandler
     private static void handleJoinVanilla( String versionId )
     {
         SystemUtilities.spawnNewTask( () -> {
+            if ( !readyToLaunchViaDeepLink() ) {
+                return;
+            }
             try {
                 if ( !com.micatechnologies.minecraft.launcher.game.modpack.VanillaVersionManager
                         .isInstalled( versionId ) ) {
@@ -338,6 +358,46 @@ public final class LauncherUriHandler
     // =========================================================================================
     //  Helpers
     // =========================================================================================
+
+    /**
+     * Pre-launch gate shared by the {@code play} / {@code join} deep-link actions. Returns
+     * {@code true} only when a deep-link launch may proceed:
+     * <ul>
+     *     <li><b>Refuses</b> (with a toast + window surface) when a game is already launching
+     *         or running — the launcher drives a single game session at a time, and silently
+     *         stacking a second launch would clobber the progress GUI and risk two JVMs
+     *         contending over the same install directory. This is the "at least when it's not
+     *         running a game already" guard.</li>
+     *     <li><b>Confirms navigating away</b> from the current screen, so an in-progress
+     *         Settings edit isn't silently discarded when the launch swaps the scene out for
+     *         the launch-progress screen. Screens with no unsaved work allow it instantly.</li>
+     * </ul>
+     *
+     * <p>Must be called from a worker thread — the unsaved-changes prompt blocks until the
+     * user answers. All deep-link launch handlers already run inside
+     * {@link SystemUtilities#spawnNewTask}, satisfying this.</p>
+     *
+     * @return {@code true} to proceed with the launch, {@code false} to abort it
+     */
+    private static boolean readyToLaunchViaDeepLink()
+    {
+        if ( LauncherCore.isGameRunning() ) {
+            Logger.logStd( "Refusing mmcl:// launch — a game is already launching or running." );
+            NotificationManager.warn(
+                    LocalizationManager.get( "notification.uri.gameRunning.title" ),
+                    LocalizationManager.get( "notification.uri.gameRunning.body" ) );
+            // Surface the launcher so the user sees the in-progress game / progress window and
+            // understands why the deep-link didn't kick off a second launch.
+            GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus );
+            return false;
+        }
+        MCLauncherAbstractGui current = MCLauncherGuiController.getCurrentGuiOrNull();
+        if ( current != null && !current.confirmNavigateAwayForDeepLink() ) {
+            Logger.logStd( "mmcl:// launch cancelled by user (unsaved changes on current screen)." );
+            return false;
+        }
+        return true;
+    }
 
     /**
      * Validates an install URL coming in over the {@code mmcl://} channel and (if the

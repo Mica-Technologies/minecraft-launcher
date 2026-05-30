@@ -319,6 +319,57 @@ public class LauncherCore
     }
 
     /**
+     * Game JVMs spawned by {@link #play(GameModPack, Runnable)} that may still be alive.
+     * Tracked separately from {@link #currentLaunch} because the in-game-console path
+     * clears {@code currentLaunch} as soon as it hands the freshly-spawned process off to
+     * the console window — the JVM keeps running well past that point. The console-disabled
+     * path, by contrast, blocks on {@code waitFor()} so {@code currentLaunch} alone already
+     * covers it. Pruned lazily on each {@link #isGameRunning()} query. A {@link java.util.Set}
+     * keyed on identity is fine — a handful of entries at most.
+     *
+     * @since 3.5
+     */
+    private static final java.util.Set< Process > liveGameProcesses =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * Registers a freshly-spawned game process so {@link #isGameRunning()} continues to
+     * report {@code true} for the lifetime of the JVM even after {@code currentLaunch} is
+     * cleared (in-game-console path). No-op for a null / already-dead process.
+     *
+     * @param process the spawned game process
+     *
+     * @since 3.5
+     */
+    private static void trackGameProcess( Process process )
+    {
+        if ( process != null && process.isAlive() ) {
+            liveGameProcesses.add( process );
+        }
+    }
+
+    /**
+     * Indicates whether a game is currently launching or running. True when a launch
+     * pipeline is in flight ({@link #currentLaunch} non-null) OR a previously-spawned
+     * game JVM is still alive. Used by the {@code mmcl://} deep-link handler to refuse a
+     * second launch while one is already going — the launcher only drives a single game
+     * session at a time and silently stacking a second launch on top would clobber the
+     * progress GUI and risk two JVMs fighting over the same install directory.
+     *
+     * @return {@code true} if a launch is in progress or a game JVM is alive
+     *
+     * @since 3.5
+     */
+    public static boolean isGameRunning()
+    {
+        if ( currentLaunch != null ) {
+            return true;
+        }
+        liveGameProcesses.removeIf( p -> !p.isAlive() );
+        return !liveGameProcesses.isEmpty();
+    }
+
+    /**
      * Surfaces a pre-launch confirmation dialog when {@link ModConflictDetector}
      * found one or more known-bad mod combinations in the pack's {@code mods/}
      * folder. Returns {@code true} if the user wants to continue the launch
@@ -666,6 +717,10 @@ public class LauncherCore
 
                 Process gameProcess = gameModPack.getLastLaunchedProcess();
                 if ( gameProcess != null ) {
+                    // Track the live JVM so isGameRunning() stays accurate even after the
+                    // in-game-console path clears currentLaunch (it hands the process off to
+                    // the console and returns, but the game is still up).
+                    trackGameProcess( gameProcess );
                     // RGB: now that the JVM is spawned and we know which pack is
                     // running, swap the keyboard to the in-game effect (pack-color
                     // gradient + Minecraft-key highlights). Safe to call

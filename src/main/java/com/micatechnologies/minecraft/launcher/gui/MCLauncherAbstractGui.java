@@ -168,6 +168,27 @@ public abstract class MCLauncherAbstractGui
     abstract void cleanup();
 
     /**
+     * Asks this screen whether it is OK to navigate away because of an external action —
+     * today, a {@code mmcl://} deep-link that launches a game and replaces the current
+     * scene with the launch-progress screen. The default implementation allows it.
+     *
+     * <p>Screens holding unsaved work (e.g. {@link MCLauncherSettingsGui}) override this to
+     * prompt the user before their edits are discarded. Called from a background worker
+     * thread, so an overriding implementation that shows a dialog should use the blocking
+     * {@link GUIUtilities#showQuestionMessage} (which dispatches to the FX thread
+     * internally) rather than touching the scene graph directly.</p>
+     *
+     * @return {@code true} to allow navigation, {@code false} to keep the user on this
+     *         screen and abort the external action
+     *
+     * @since 3.5
+     */
+    public boolean confirmNavigateAwayForDeepLink()
+    {
+        return true;
+    }
+
+    /**
      * Returns the help topic associated with this screen. The default implementation returns
      * {@link HelpTopic#GETTING_STARTED}. Subclasses should override to return a screen-specific topic.
      *
