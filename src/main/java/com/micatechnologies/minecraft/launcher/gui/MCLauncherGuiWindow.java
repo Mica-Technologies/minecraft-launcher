@@ -526,6 +526,15 @@ public class MCLauncherGuiWindow extends Application
             com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
                     .hideReplacedControls( gui.scene.getRoot() );
 
+            // Windows experimental frameless chrome: paint the min/max/close controls in this
+            // screen's top-right corner and shift the navbar so its trailing items clear them.
+            // Both no-op unless WindowsCustomChromeManager.isActive() (the native subclass
+            // installed), so a failed install leaves every screen untouched.
+            com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls
+                    .addControls( gui.scene.getRoot(), stage );
+            com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls
+                    .shiftNavbarForControls( gui.scene.getRoot(), stage );
+
             gui.afterShow();
         } );
 
@@ -588,6 +597,14 @@ public class MCLauncherGuiWindow extends Application
                 applyMacTitleBar();
                 stage.addEventHandler( javafx.stage.WindowEvent.WINDOW_SHOWN,
                                        e -> Platform.runLater( this::applyMacTitleBar ) );
+                // Windows experimental frameless chrome: re-add the native frame + subclass the
+                // window proc so the title bar is removed and content fills to the top. Self-
+                // guarded (Windows + flag + UNDECORATED + 64-bit) and fully fallback-safe — on
+                // any failure isActive() stays false and the standard UNIFIED + Mica window below
+                // applies unchanged. The current scene's caption-button overlay is added by the
+                // next setScene() (the real first screen), which sees isActive()==true.
+                com.micatechnologies.minecraft.launcher.utilities.WindowsCustomChromeManager
+                        .install( stage );
             }
             // Re-apply DWM chrome attributes only on the *first* show. applyTheme() runs
             // before the HWND exists, so the very first paint needs a post-show retry —
@@ -612,17 +629,22 @@ public class MCLauncherGuiWindow extends Application
                           : com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.BACKDROP_NONE );
                 // Color-match chrome on first show too. applyTheme() ran before show() so
                 // its caption-color call hit a not-yet-realized HWND; repeat here so the
-                // very first paint already has the seamless title bar.
-                javafx.scene.paint.Color chrome = javafx.scene.paint.Color.web( themeBgHex( tokenSheet ) );
-                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
-                        .applyCaptionColor( stage, chrome );
-                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
-                        .applyBorderColor( stage, chrome );
+                // very first paint already has the seamless title bar. Skipped when the
+                // experimental custom chrome is active — there's no native caption to color,
+                // and forcing a frame recalc here would just re-fire our WM_NCCALCSIZE.
+                if ( !com.micatechnologies.minecraft.launcher.utilities.WindowsCustomChromeManager
+                        .isActive() ) {
+                    javafx.scene.paint.Color chrome = javafx.scene.paint.Color.web( themeBgHex( tokenSheet ) );
+                    com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                            .applyCaptionColor( stage, chrome );
+                    com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                            .applyBorderColor( stage, chrome );
 
-                // Force a non-client frame recalc so DWM repaints the title bar with
-                // the chrome attributes we just set.
-                com.micatechnologies.minecraft.launcher.utilities.WindowsShellRefresh
-                        .forceFrameRefresh( stage );
+                    // Force a non-client frame recalc so DWM repaints the title bar with
+                    // the chrome attributes we just set.
+                    com.micatechnologies.minecraft.launcher.utilities.WindowsShellRefresh
+                            .forceFrameRefresh( stage );
+                }
                 // SWP_FRAMECHANGED only touches the non-client area. The CLIENT area
                 // (where the JavaFX scene paints) won't be invalidated by it, so on
                 // Native theme the very first paint — which happened before Mica was
@@ -1121,7 +1143,14 @@ public class MCLauncherGuiWindow extends Application
             gridPane.add( helpBtn, col, 0 );
             GridPane.setHalignment( helpBtn, HPos.RIGHT );
             GridPane.setValignment( helpBtn, VPos.TOP );
-            GridPane.setMargin( helpBtn, new Insets( 8, 8, 0, 0 ) );
+            // When the experimental Windows custom chrome is active, the min/max/close controls
+            // occupy this same top-right corner — push the help button left of them.
+            double rightInset = 8;
+            if ( com.micatechnologies.minecraft.launcher.utilities.WindowsCustomChromeManager.isActive() ) {
+                rightInset += com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls
+                        .reservedWidthLogical();
+            }
+            GridPane.setMargin( helpBtn, new Insets( 8, rightInset, 0, 0 ) );
         }
     }
 

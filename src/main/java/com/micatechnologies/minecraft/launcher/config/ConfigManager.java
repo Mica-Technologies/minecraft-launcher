@@ -349,6 +349,9 @@ public class ConfigManager
     public synchronized static boolean getLwjglArmPatchEnable()         { return AppConfig.getLwjglArmPatchEnable(); }
     public synchronized static void    setLwjglArmPatchEnable( boolean v ) { AppConfig.setLwjglArmPatchEnable( v ); }
 
+    public synchronized static boolean getWindowsCustomChromeEnabled()  { return AppConfig.getWindowsCustomChromeEnabled(); }
+    public synchronized static void    setWindowsCustomChromeEnabled( boolean v ) { AppConfig.setWindowsCustomChromeEnabled( v ); }
+
     public synchronized static double  getWindowX()                     { return AppConfig.getWindowX(); }
     public synchronized static double  getWindowY()                     { return AppConfig.getWindowY(); }
     public synchronized static double  getWindowWidth()                 { return AppConfig.getWindowWidth(); }
@@ -513,6 +516,7 @@ public class ConfigManager
         getProxyType();
         getInstalledVanillaVersions();
         getLwjglArmPatchEnable();
+        getWindowsCustomChromeEnabled();
         getDiscordInvitesEnable();
 
         // Stamp the current version and persist

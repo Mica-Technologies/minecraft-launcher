@@ -262,8 +262,12 @@ public final class WindowChromeManager
      * Translates a {@link Stage} to its native {@code HWND} via the Glass {@code Window}
      * registry. Title-match first (same approach {@link WindowsShellRefresh} uses), then
      * fall through to "the single Glass window in this process" when there's only one.
+     *
+     * <p>Package-private so sibling Windows-chrome managers (e.g.
+     * {@link WindowsCustomChromeManager}) can reuse the one HWND-resolution path rather
+     * than duplicating it.</p>
      */
-    private static HWND resolveHwnd( Stage stage )
+    static HWND resolveHwnd( Stage stage )
     {
         try {
             List< Window > windows = Window.getWindows();
