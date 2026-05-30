@@ -1027,38 +1027,47 @@
 }
 
 /* =====================================================================
- * 4a-win. Experimental Windows custom title-bar caption buttons.
- * Drawn in JavaFX (WindowsTitleBarControls) but hit-tested natively, so the
- * :hover pseudo-class is driven from the WndProc hover bridge, not real FX
- * hover events. Sizes mirror WindowsCustomChromeManager.BASE_* metrics.
+ * 4a-win. Windows title-bar inset help button. Styled flat + square to sit
+ * beside the native OS min/max/close (WindowsTitleBarControls places it just
+ * left of them); blue hover mirrors the system close button's red hover.
+ * Windows-only — these classes are never applied on macOS / Linux.
  * ===================================================================== */
-
-.winTitleBarControls {
-    -fx-background-color: transparent;
-}
 
 .winCaptionBtn {
     -fx-background-color: transparent;
     -fx-background-radius: 0;
+    -fx-border-width: 0;
     -fx-padding: 0;
+    -fx-alignment: CENTER;
+    -fx-font-weight: 600;
+    -fx-font-size: 14px;
+    /* Match the resting shade of the native OS caption glyphs (slightly muted), brightening
+       on hover the way the system buttons do. */
+    -fx-text-fill: -color-text-muted;
+    -mfx-text-fill: -color-text-muted;
+    -fx-cursor: hand;
+}
+
+.winCaptionBtn .text {
+    -fx-fill: -color-text-muted;
 }
 
 .winCaptionBtn:hover {
     -fx-background-color: -color-surface-hover;
+    -fx-text-fill: -color-text;
 }
 
-.winCaptionBtn .glyph {
-    -fx-fill: transparent;
-    -fx-stroke: -color-text;
-    -fx-stroke-width: 1;
+.winCaptionBtn:hover .text {
+    -fx-fill: -color-text;
 }
 
-.winCaptionBtn-close:hover {
-    -fx-background-color: #C42B1C;   /* Windows 11 close-button red */
+.winCaptionBtn-help:hover {
+    -fx-background-color: #0067C0;   /* Windows accent blue */
+    -fx-text-fill: white;
 }
 
-.winCaptionBtn-close:hover .glyph {
-    -fx-stroke: white;
+.winCaptionBtn-help:hover .text {
+    -fx-fill: white;
 }
 
 

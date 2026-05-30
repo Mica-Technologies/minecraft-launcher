@@ -323,23 +323,6 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
-    /** Whether the experimental Windows custom title bar (frameless Window Controls Overlay)
-     *  is enabled. Windows-only, OFF by default, applied at window creation so a change needs
-     *  a restart. */
-    public static synchronized boolean getWindowsCustomChromeEnabled() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.WINDOWS_CUSTOM_CHROME_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.WINDOWS_CUSTOM_CHROME_ENABLE_KEY,
-                              ConfigConstants.WINDOWS_CUSTOM_CHROME_ENABLE_DEFAULT );
-        }
-        return json.get( ConfigConstants.WINDOWS_CUSTOM_CHROME_ENABLE_KEY ).getAsBoolean();
-    }
-
-    public static synchronized void setWindowsCustomChromeEnabled( boolean enable ) {
-        ConfigStore.ensureLoaded().addProperty( ConfigConstants.WINDOWS_CUSTOM_CHROME_ENABLE_KEY, enable );
-        ConfigStore.scheduleWrite();
-    }
-
     // ====================================================================
     // Window bounds
     //

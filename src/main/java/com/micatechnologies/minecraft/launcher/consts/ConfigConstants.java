@@ -718,28 +718,6 @@ public class ConfigConstants
 
     // endregion
 
-    // region Experimental Windows custom title bar (frameless Window Controls Overlay)
-
-    /**
-     * Key for the experimental Windows custom-chrome (frameless title bar) flag. When enabled
-     * on Windows, the launcher creates an undecorated window and draws its own title bar with
-     * content extending to the top edge, keeping native-feeling min/max/close controls top-right.
-     *
-     * @since 3.5
-     */
-    public static final String WINDOWS_CUSTOM_CHROME_ENABLE_KEY = "windowsCustomChrome";
-
-    /**
-     * Default value for the experimental Windows custom title bar. OFF by default — it is an
-     * experimental, Windows-only feature that requires a restart and degrades to the standard
-     * title bar if the native subclass can't be installed.
-     *
-     * @since 3.5
-     */
-    public static final boolean WINDOWS_CUSTOM_CHROME_ENABLE_DEFAULT = false;
-
-    // endregion
-
     // region Verify-mode controls (3.3 fast-path skip on unchanged packs)
 
     /**

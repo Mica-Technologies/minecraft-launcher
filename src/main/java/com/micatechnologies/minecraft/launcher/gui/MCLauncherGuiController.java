@@ -101,24 +101,10 @@ public class MCLauncherGuiController
                     // to the theme bg via DWMWA_CAPTION_COLOR, the seam was already invisible
                     // on most themes, so adopting UNIFIED everywhere costs nothing.
                     //
-                    // Experimental Windows custom chrome: when the user opts in, create the
-                    // window UNDECORATED so WindowsCustomChromeManager (invoked post-show) can
-                    // re-add the native frame + subclass the window proc for a frameless title
-                    // bar. StageStyle is fixed at creation, hence the restart-to-apply note in
-                    // settings. The flag read is wrapped defensively → default UNIFIED on any
-                    // failure / non-Windows.
-                    boolean winCustomChrome = false;
-                    try {
-                        winCustomChrome = org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS
-                                && com.micatechnologies.minecraft.launcher.config.ConfigManager
-                                        .getWindowsCustomChromeEnabled();
-                    }
-                    catch ( Throwable t ) {
-                        Logger.logWarningSilent( "Could not read windowsCustomChrome flag; using standard chrome." );
-                    }
-                    stage.initStyle( winCustomChrome
-                                             ? javafx.stage.StageStyle.UNDECORATED
-                                             : javafx.stage.StageStyle.UNIFIED );
+                    // On Windows the decorated UNIFIED window is also the base for the title-bar
+                    // inset (WindowsCustomChromeManager, invoked post-show): it keeps the real OS
+                    // min/max/close buttons while extending content to the top edge.
+                    stage.initStyle( javafx.stage.StageStyle.UNIFIED );
                     guiWindow.start( stage );
                     guiWindow.show();
                     startSuccess.set( true );

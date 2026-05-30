@@ -17,178 +17,159 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
-import javafx.css.PseudoClass;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
+import javafx.scene.control.Button;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
-import javafx.scene.shape.SVGPath;
-import javafx.stage.Stage;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.RowConstraints;
 import org.apache.commons.lang3.SystemUtils;
 
 /**
- * JavaFX side of the experimental Windows frameless title bar. Paints the three caption buttons
- * (minimize, maximize/restore, close) in the top-right corner of each screen and shifts the main
- * navbar so its trailing controls clear them.
+ * Windows-only top-bar adjustments for the {@link WindowsCustomChromeManager} title-bar inset.
+ * The OS draws the real minimize / maximize / close at the far top-right; this:
+ * <ul>
+ *   <li>replaces each screen's in-window help "?" with a native-caption-styled one immediately
+ *       left of the OS buttons (blue hover), and</li>
+ *   <li>on the <b>main menu</b> — the only screen with other controls in the top-right — relocates
+ *       its refresh / browse / settings / update / account controls down into the bottom status
+ *       bar (which grows to a control-bar height), moving the smaller version label to just left
+ *       of the Exit button. This keeps the top-right clear of the native window controls.</li>
+ * </ul>
  *
- * <p>The buttons are <b>drawn</b> here but <b>hit-tested natively</b> by
- * {@link WindowsCustomChromeManager}'s window procedure (which returns {@code HTMINBUTTON} /
- * {@code HTMAXBUTTON} / {@code HTCLOSE} for these rects — that is what gives the Windows 11
- * snap-layouts flyout on the maximize button). Because the OS owns those rects, JavaFX never
- * receives mouse events over them, so: the click action is performed by the WndProc, and hover
- * visuals are driven by the WndProc feeding a hovered-index back here via
- * {@link WindowsCustomChromeManager#setHoverListener(java.util.function.IntConsumer)}.</p>
- *
- * <p>Everything no-ops unless {@link WindowsCustomChromeManager#isActive()} — so a failed native
- * install leaves screens untouched.</p>
+ * <p>All no-ops unless {@link WindowsCustomChromeManager#isActive()}, so nothing here touches the
+ * UI on macOS / Linux or when the native subclass didn't install. The help button is a real
+ * JavaFX control; {@code WindowsCustomChromeManager}'s WM_NCHITTEST returns {@code HTCLIENT} over
+ * interactive controls in the caption strip, so it stays clickable next to the native buttons.</p>
  *
  * @since 3.5
  */
 public final class WindowsTitleBarControls
 {
-    private static final PseudoClass HOVER = PseudoClass.getPseudoClass( "hover" );
-    private static final String CONTROLS_STYLE_CLASS = "winTitleBarControls";
-
-    /** 10×10 glyph view box, stroked (themed via {@code -fx-stroke} in CSS). */
-    private static final String GLYPH_MIN     = "M0,5 L10,5";
-    private static final String GLYPH_MAX     = "M0.5,0.5 L9.5,0.5 L9.5,9.5 L0.5,9.5 Z";
-    private static final String GLYPH_RESTORE = "M2.5,0.5 L9.5,0.5 L9.5,7.5 L7.5,7.5 M0.5,2.5 L7.5,2.5 L7.5,9.5 L0.5,9.5 Z";
-    private static final String GLYPH_CLOSE   = "M0,0 L10,10 M10,0 L0,10";
+    private static final String HELP_STYLE_CLASS = "winCaptionBtn-help";
+    /** Height the bottom status bar grows to once it hosts the relocated controls. */
+    private static final double BOTTOM_BAR_HEIGHT = 52.0;
 
     private WindowsTitleBarControls() { /* static-only */ }
 
     /**
-     * Adds the caption-button cluster to the top-right of {@code root}. No-op unless the native
-     * chrome installed and {@code root} is a {@link GridPane} (the launcher's screen roots are
-     * GridPanes — same assumption the in-window help-button injection makes). Idempotent per
-     * scene.
+     * Applies the Windows title-bar adjustments to a screen. No-op off Windows / when the chrome
+     * is inactive. Idempotent per scene.
      *
-     * @param root  the screen's inner root (so the buttons inherit its theme tokens)
-     * @param stage the stage whose window the buttons drive
+     * @param root       the screen's inner root (a GridPane for the launcher's screens)
+     * @param helpAction what the help button does (typically open the screen's help topic)
      */
-    public static void addControls( Parent root, Stage stage )
+    public static void apply( Parent root, Runnable helpAction )
     {
-        if ( !SystemUtils.IS_OS_WINDOWS || stage == null || root == null
+        if ( !SystemUtils.IS_OS_WINDOWS || root == null
                 || !WindowsCustomChromeManager.isActive() ) {
             return;
         }
-        if ( root.lookup( "." + CONTROLS_STYLE_CLASS ) != null ) {
+        // Hide any existing in-window help affordance (the navbar's "?" or an injected corner one)
+        // — the caption help button replaces it.
+        for ( Node n : root.lookupAll( ".helpButton" ) ) {
+            n.setVisible( false );
+            n.setManaged( false );
+        }
+
+        installHelpButton( root, helpAction );
+        relocateMainMenuControls( root );
+    }
+
+    /** Adds the caption-styled help button to the top-right, immediately left of the native
+     *  buttons. */
+    private static void installHelpButton( Parent root, Runnable helpAction )
+    {
+        if ( root.lookup( "." + HELP_STYLE_CLASS ) != null ) {
             return;   // already added to this scene
         }
         if ( !( root instanceof GridPane grid ) ) {
-            return;   // unsupported root layout — window is still draggable/resizable natively
+            return;
         }
-
-        HBox controls = buildControls( stage );
+        Button help = new Button( "?" );
+        help.getStyleClass().addAll( "winCaptionBtn", HELP_STYLE_CLASS );
+        help.setMinSize( WindowsCustomChromeManager.BUTTON_WIDTH, WindowsCustomChromeManager.CAPTION_HEIGHT );
+        help.setPrefSize( WindowsCustomChromeManager.BUTTON_WIDTH, WindowsCustomChromeManager.CAPTION_HEIGHT );
+        help.setMaxSize( WindowsCustomChromeManager.BUTTON_WIDTH, WindowsCustomChromeManager.CAPTION_HEIGHT );
+        help.setFocusTraversable( false );
+        if ( helpAction != null ) {
+            help.setOnAction( e -> helpAction.run() );
+        }
 
         int col = grid.getColumnConstraints().size() - 1;
         if ( col < 0 ) {
             col = 0;
         }
-        grid.add( controls, col, 0 );
-        GridPane.setHalignment( controls, HPos.RIGHT );
-        GridPane.setValignment( controls, VPos.TOP );
+        grid.add( help, col, 0 );
+        GridPane.setHalignment( help, HPos.RIGHT );
+        GridPane.setValignment( help, VPos.TOP );
+        // Sit immediately left of the native min/max/close.
+        GridPane.setMargin( help, new Insets( 0, WindowsCustomChromeManager.reservedButtonsWidthLogical(), 0, 0 ) );
     }
 
     /**
-     * On the main screen (which carries its own {@code .navBar} + account/help controls), pads the
-     * navbar's right edge by the reserved caption-button width so its trailing items don't slide
-     * under the buttons. No-op off Windows / when inactive / when there's no navbar.
+     * Main-menu only: moves the top navbar's refresh / browse / settings / update / divider /
+     * account controls into the left of the bottom status bar, grows that bar, and reseats the
+     * (smaller) version label just left of Exit. Identified by the presence of {@code #libraryBtn}
+     * + {@code #exitBtn}; other screens have neither, so this no-ops. Idempotent — once the browse
+     * button lives in the bottom bar it's left alone.
      */
-    public static void shiftNavbarForControls( Parent root, Stage stage )
+    private static void relocateMainMenuControls( Parent root )
     {
-        if ( !SystemUtils.IS_OS_WINDOWS || root == null || stage == null
-                || !WindowsCustomChromeManager.isActive() ) {
-            return;
+        Node exit = root.lookup( "#exitBtn" );
+        Node browse = root.lookup( "#libraryBtn" );
+        if ( exit == null || browse == null || !( exit.getParent() instanceof HBox bottomBar ) ) {
+            return;   // not the main menu
         }
-        Node navBar = root.lookup( ".navBar" );
-        if ( !( navBar instanceof Region bar ) ) {
-            return;
+        if ( browse.getParent() == bottomBar ) {
+            return;   // already relocated
         }
-        double reserve = WindowsCustomChromeManager.reservedWidthLogical();
-        Insets p = bar.getPadding();
-        if ( p.getRight() >= reserve ) {
-            return;   // already shifted (idempotent per scene)
-        }
-        bar.setPadding( new Insets( p.getTop(), p.getRight() + reserve, p.getBottom(), p.getLeft() ) );
-    }
 
-    /** Reserved top-right width (logical px) so callers (e.g. the injected help button on
-     *  navbar-less screens) can offset themselves clear of the caption buttons. */
-    public static double reservedWidthLogical()
-    {
-        return WindowsCustomChromeManager.reservedWidthLogical();
-    }
-
-    // -----------------------------------------------------------------------------------------
-
-    private static HBox buildControls( Stage stage )
-    {
-        StackPane min   = captionCell( GLYPH_MIN, false );
-        SVGPath  maxGlyph = glyph( stage.isMaximized() ? GLYPH_RESTORE : GLYPH_MAX );
-        StackPane max   = captionCell( maxGlyph, false );
-        StackPane close = captionCell( GLYPH_CLOSE, true );
-
-        // Swap the maximize/restore glyph as the window state changes (native snap / our toggle).
-        stage.maximizedProperty().addListener( ( obs, was, isMax ) ->
-            maxGlyph.setContent( isMax ? GLYPH_RESTORE : GLYPH_MAX ) );
-
-        HBox controls = new HBox( min, max, close );
-        controls.getStyleClass().add( CONTROLS_STYLE_CLASS );
-        controls.setSpacing( 0 );
-        controls.setAlignment( Pos.CENTER );
-        controls.setMouseTransparent( true );   // OS hit-tests these rects; FX never gets the events
-        controls.setPickOnBounds( false );
-        double w = (double) WindowsCustomChromeManager.BASE_BUTTON_WIDTH
-                * WindowsCustomChromeManager.BUTTON_COUNT;
-        double h = WindowsCustomChromeManager.BASE_CAPTION_HEIGHT;
-        controls.setMinSize( w, h );
-        controls.setPrefSize( w, h );
-        controls.setMaxSize( w, h );
-
-        // Drive themed hover visuals from the native WndProc's hover hit-testing.
-        StackPane[] cells = { min, max, close };
-        WindowsCustomChromeManager.setHoverListener( index -> {
-            for ( int i = 0; i < cells.length; i++ ) {
-                cells[ i ].pseudoClassStateChanged( HOVER, i == index );
+        // Move the top-right controls (in left-to-right order) to the start of the bottom bar.
+        Node[] toMove = {
+                root.lookup( "#refreshIcon" ),
+                root.lookup( "#libraryBtn" ),
+                root.lookup( "#settingsBtn" ),
+                root.lookup( "#updateImgView" ),
+                root.lookup( ".navDivider" ),
+                root.lookup( "#userImage" ),
+                root.lookup( "#playerLabel" ),
+        };
+        int insert = 0;
+        for ( Node n : toMove ) {
+            if ( n == null ) {
+                continue;
             }
-        } );
-
-        return controls;
-    }
-
-    private static StackPane captionCell( String glyphPath, boolean isClose )
-    {
-        return captionCell( glyph( glyphPath ), isClose );
-    }
-
-    private static StackPane captionCell( SVGPath glyph, boolean isClose )
-    {
-        StackPane cell = new StackPane( glyph );
-        cell.getStyleClass().add( "winCaptionBtn" );
-        if ( isClose ) {
-            cell.getStyleClass().add( "winCaptionBtn-close" );
+            if ( n.getParent() instanceof Pane src ) {
+                src.getChildren().remove( n );
+            }
+            bottomBar.getChildren().add( insert++, n );
         }
-        cell.setMinSize( WindowsCustomChromeManager.BASE_BUTTON_WIDTH,
-                         WindowsCustomChromeManager.BASE_CAPTION_HEIGHT );
-        cell.setPrefSize( WindowsCustomChromeManager.BASE_BUTTON_WIDTH,
-                          WindowsCustomChromeManager.BASE_CAPTION_HEIGHT );
-        cell.setMaxSize( WindowsCustomChromeManager.BASE_BUTTON_WIDTH,
-                         WindowsCustomChromeManager.BASE_CAPTION_HEIGHT );
-        return cell;
-    }
 
-    private static SVGPath glyph( String path )
-    {
-        SVGPath svg = new SVGPath();
-        svg.setContent( path );
-        svg.getStyleClass().add( "glyph" );
-        return svg;
+        // Version label: a touch smaller, reseated just left of the Exit button.
+        Node version = root.lookup( "#versionLabel" );
+        if ( version != null ) {
+            bottomBar.getChildren().remove( version );
+            int exitIdx = bottomBar.getChildren().indexOf( exit );
+            if ( exitIdx < 0 ) {
+                exitIdx = bottomBar.getChildren().size();
+            }
+            bottomBar.getChildren().add( exitIdx, version );
+            version.setStyle( "-fx-font-size: 11px;" );
+        }
+
+        // Grow the bottom bar so the relocated controls fit comfortably (matches the taller
+        // control bars on the other screens).
+        Integer rowIdx = GridPane.getRowIndex( bottomBar );
+        if ( root instanceof GridPane grid && rowIdx != null && rowIdx < grid.getRowConstraints().size() ) {
+            RowConstraints rc = grid.getRowConstraints().get( rowIdx );
+            rc.setMinHeight( BOTTOM_BAR_HEIGHT );
+            rc.setPrefHeight( BOTTOM_BAR_HEIGHT );
+            rc.setMaxHeight( BOTTOM_BAR_HEIGHT );
+        }
     }
 }

@@ -113,10 +113,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     @SuppressWarnings( "unused" )
     @FXML
-    MFXToggleButton windowsCustomChromeCheckBox;
-
-    @SuppressWarnings( "unused" )
-    @FXML
     MFXButton scanFolderBtn;
 
     @SuppressWarnings( "unused" )
@@ -612,11 +608,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             // Store LWJGL ARM64 patching to config
             ConfigManager.setLwjglArmPatchEnable( lwjglArmPatchCheckBox.isSelected() );
 
-            // Store experimental Windows custom title bar preference (applied at next launch).
-            if ( windowsCustomChromeCheckBox != null ) {
-                ConfigManager.setWindowsCustomChromeEnabled( windowsCustomChromeCheckBox.isSelected() );
-            }
-
             // Store theme selection
             if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
                 ConfigManager.setTheme( themeSelection.getSelectedItem() );
@@ -1056,13 +1047,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Set and configure LWJGL ARM64 patching check box
         lwjglArmPatchCheckBox.setSelected( ConfigManager.getLwjglArmPatchEnable() );
-
-        // Experimental Windows custom title bar — Windows-only, restart-gated. Disable the toggle
-        // off Windows so it reads as unavailable rather than a no-op.
-        if ( windowsCustomChromeCheckBox != null ) {
-            windowsCustomChromeCheckBox.setSelected( ConfigManager.getWindowsCustomChromeEnabled() );
-            windowsCustomChromeCheckBox.setDisable( !org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS );
-        }
 
         // Pack-backup policy. Live listeners persist on change so the
         // settings panel doesn't need an explicit "save" — same pattern as
@@ -2129,8 +2113,6 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( inGameConsoleCheckBox.isSelected() != ConfigManager.getInGameConsoleEnable() ) return true;
         if ( batteryThrottleCheckBox.isSelected() != ConfigManager.getBatteryThrottleEnable() ) return true;
         if ( lwjglArmPatchCheckBox.isSelected() != ConfigManager.getLwjglArmPatchEnable() ) return true;
-        if ( windowsCustomChromeCheckBox != null
-                && windowsCustomChromeCheckBox.isSelected() != ConfigManager.getWindowsCustomChromeEnabled() ) return true;
         String selectedTheme = themeSelection.getSelectedItem();
         if ( selectedTheme != null && !selectedTheme.equalsIgnoreCase( ConfigManager.getTheme() ) ) return true;
         return false;
