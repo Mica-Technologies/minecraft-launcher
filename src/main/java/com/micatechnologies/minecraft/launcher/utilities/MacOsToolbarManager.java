@@ -82,6 +82,7 @@ public final class MacOsToolbarManager
     private static final String ID_BROWSE   = "MicaBrowse";
     private static final String ID_SETTINGS = "MicaSettings";
     private static final String ID_HELP     = "MicaHelp";
+    private static final String ID_UPDATE   = "MicaUpdate";
     private static final String ID_ACCOUNT  = "MicaAccount";
 
     private static volatile boolean installed   = false;
@@ -89,6 +90,15 @@ public final class MacOsToolbarManager
     private static volatile ID      delegateRef  = null;
     /** The live account item, kept so the async avatar load can swap its image in. */
     private static volatile ID      accountItemRef = null;
+
+    // "Update available" state. The native update item is only vended (and only included in the
+    // toolbar's identifier list) while updateAvailable is true — the macOS counterpart of the
+    // JavaFX navbar's update glyph, set by UpdateCheckManager when a newer release is found. The
+    // state is stored statically so it survives toolbar re-installs (every WINDOW_SHOWN / game
+    // return rebuilds the toolbar and re-reads it).
+    private static volatile boolean updateAvailable = false;
+    private static volatile String  updateUrl       = null;
+    private static volatile Stage   toolbarStage    = null;
 
     // Retained for the JVM lifetime — if these Callback instances are GC'd, the native method
     // trampolines they back are freed and the next delegate call crashes the process.
@@ -102,6 +112,36 @@ public final class MacOsToolbarManager
     public static boolean isInstalled()
     {
         return installed;
+    }
+
+    /**
+     * Marks (or clears) the "update available" state. When set true while the toolbar is installed,
+     * a native download item appears in the title bar — the macOS counterpart of the JavaFX navbar's
+     * update glyph; clicking it opens the same download prompt. No-op off macOS / when the toolbar
+     * never installed (the caller then falls back to the JavaFX glyph).
+     *
+     * @param available     whether a newer launcher release is available
+     * @param latestUrl     the release download URL to open on click (may be null when clearing)
+     * @param stage         the owning stage (for the toolbar window + the click dialog)
+     *
+     * @since 2026.6
+     */
+    public static void setUpdateAvailable( boolean available, String latestUrl, Stage stage )
+    {
+        if ( !SystemUtils.IS_OS_MAC ) {
+            return;
+        }
+        updateAvailable = available;
+        updateUrl = latestUrl;
+        if ( stage != null ) {
+            toolbarStage = stage;
+        }
+        // Rebuild the toolbar so the item list picks up (or drops) the update item. install() is
+        // idempotent and re-reads updateAvailable when it vends identifiers.
+        if ( installed && toolbarStage != null ) {
+            final Stage s = toolbarStage;
+            Platform.runLater( () -> install( s ) );
+        }
     }
 
     /**
@@ -124,6 +164,8 @@ public final class MacOsToolbarManager
         if ( !SystemUtils.IS_OS_MAC || stage == null ) {
             return;
         }
+        // Remember the stage so setUpdateAvailable can rebuild the toolbar when update state flips.
+        toolbarStage = stage;
         if ( !stage.isShowing() ) {
             EventHandler< WindowEvent > onShown = new EventHandler< WindowEvent >()
             {
@@ -241,6 +283,11 @@ public final class MacOsToolbarManager
                 Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_BROWSE ) );
                 Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_SETTINGS ) );
                 Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_HELP ) );
+                // Update item only when a newer release is available (mirrors the JavaFX glyph,
+                // which is hidden until then). Sits just before the account, like the navbar.
+                if ( updateAvailable ) {
+                    Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_UPDATE ) );
+                }
                 Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_SPACE ) );
                 Foundation.invoke( arr, "addObject:", Foundation.nsString( ID_ACCOUNT ) );
                 return arr.toPointer();
@@ -270,6 +317,7 @@ public final class MacOsToolbarManager
                     case ID_BROWSE   -> { symbol = "square.grid.2x2";    label = LocalizationManager.get( "main.navbar.browse" ); }
                     case ID_SETTINGS -> { symbol = "gearshape";          label = LocalizationManager.get( "main.navbar.settings" ); }
                     case ID_HELP     -> { symbol = "questionmark.circle"; label = LocalizationManager.get( "menu.help.title" ); }
+                    case ID_UPDATE   -> { symbol = "arrow.down.circle";  label = LocalizationManager.get( "notification.update.available.title" ); }
                     case ID_ACCOUNT  -> { symbol = "person.crop.circle"; label = currentUserName(); }
                     default          -> { return ID.NIL.toPointer(); }
                 }
@@ -318,6 +366,11 @@ public final class MacOsToolbarManager
                 }
                 else if ( ID_HELP.equals( id ) ) {
                     LauncherActions.openHelp();
+                }
+                else if ( ID_UPDATE.equals( id ) ) {
+                    // Same prompt the JavaFX update glyph opens: confirm, then open the release URL.
+                    com.micatechnologies.minecraft.launcher.utilities.UpdateCheckManager
+                            .promptAndOpenUpdate( updateUrl, toolbarStage );
                 }
                 else if ( ID_ACCOUNT.equals( id ) ) {
                     // Matches the in-window avatar's click: open account settings.

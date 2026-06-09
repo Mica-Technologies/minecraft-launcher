@@ -96,47 +96,30 @@ public class UpdateCheckManager
                     TaskbarProgressManager.attach( stage );
 
                     GUIUtilities.JFXPlatformRun( () -> {
-                        updateImgView.setVisible( true );
-                        updateImgView.setManaged( true );
-                        // Tooltip surfaces the same info the toast carries — visible on
-                        // any later session (when the toast won't re-fire) so the icon
-                        // remains discoverable as "click here to update" rather than
-                        // an unlabelled glyph.
-                        com.micatechnologies.minecraft.launcher.gui.TooltipManager.install(
-                                updateImgView,
-                                "Mica Launcher " + latestVersion + " is available — click to download." );
-                        updateImgView.setOnMouseClicked( mouseEvent -> SystemUtilities.spawnNewTask( () -> {
-                            int response = GUIUtilities.showQuestionMessage(
-                                    LocalizationManager.get( "dialog.update.available.title" ),
-                                    LocalizationManager.get( "dialog.update.available.header" ),
-                                    LocalizationManager.get( "dialog.update.available.body" ),
-                                    LocalizationManager.get( "dialog.update.available.button.now" ),
-                                    LocalizationManager.get( "dialog.update.available.button.later" ),
-                                    stage );
-                            if ( response == 1 ) {
-                                // latestVersionURL is GitHub's `html_url` from the release JSON.
-                                // GitHub is trusted infrastructure, but defense-in-depth: refuse
-                                // anything other than http/https before handing to Desktop.browse,
-                                // matching the gate used for manifest-supplied URLs elsewhere.
-                                if ( latestVersionURL == null
-                                        || !( latestVersionURL.startsWith( "https://" )
-                                              || latestVersionURL.startsWith( "http://" ) ) ) {
-                                    Logger.logError( "Refusing to open non-http(s) launcher update URL: "
-                                                             + latestVersionURL );
-                                }
-                                else {
-                                    try {
-                                        Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
-                                    }
-                                    catch ( IOException e ) {
-                                        Logger.logError( "Unable to open your browser. Please visit " +
-                                                                 latestVersionURL +
-                                                                 " to download the latest launcher updates!" );
-                                        Logger.logThrowable( e );
-                                    }
-                                }
-                            }
-                        } ) );
+                        // On macOS, when the native title-bar toolbar is installed, surface the
+                        // update as a native toolbar item instead of the in-window navbar glyph —
+                        // the glyph lives in the navbar band the toolbar overlays, so it would
+                        // overlap the account item. The toolbar item opens the same prompt.
+                        // Everywhere else (and if the native toolbar didn't install), use the
+                        // JavaFX glyph as before.
+                        if ( com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
+                                .isInstalled() ) {
+                            com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
+                                    .setUpdateAvailable( true, latestVersionURL, stage );
+                        }
+                        else {
+                            updateImgView.setVisible( true );
+                            updateImgView.setManaged( true );
+                            // Tooltip surfaces the same info the toast carries — visible on
+                            // any later session (when the toast won't re-fire) so the icon
+                            // remains discoverable as "click here to update" rather than
+                            // an unlabelled glyph.
+                            com.micatechnologies.minecraft.launcher.gui.TooltipManager.install(
+                                    updateImgView,
+                                    "Mica Launcher " + latestVersion + " is available — click to download." );
+                            updateImgView.setOnMouseClicked(
+                                    mouseEvent -> promptAndOpenUpdate( latestVersionURL, stage ) );
+                        }
 
                         TaskbarProgressManager.showFullError();
 
@@ -152,6 +135,50 @@ public class UpdateCheckManager
             catch ( Exception e ) {
                 Logger.logError( "An error occurred while checking for an updated launcher version!" );
                 Logger.logThrowable( e );
+            }
+        } );
+    }
+
+    /**
+     * Prompts the user to download an available launcher update and, on confirmation, opens the
+     * release URL in the system browser. Shared by the JavaFX navbar update glyph and the macOS
+     * native title-bar update item so both behave identically. Runs the dialog + browse off the FX
+     * thread; the URL is gated to http(s) (defense-in-depth, matching manifest-URL handling).
+     *
+     * @param latestVersionURL the release page URL (GitHub {@code html_url}) to open
+     * @param stage            the owning stage for the confirmation dialog
+     *
+     * @since 2026.6
+     */
+    public static void promptAndOpenUpdate( String latestVersionURL, Stage stage )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            int response = GUIUtilities.showQuestionMessage(
+                    LocalizationManager.get( "dialog.update.available.title" ),
+                    LocalizationManager.get( "dialog.update.available.header" ),
+                    LocalizationManager.get( "dialog.update.available.body" ),
+                    LocalizationManager.get( "dialog.update.available.button.now" ),
+                    LocalizationManager.get( "dialog.update.available.button.later" ),
+                    stage );
+            if ( response == 1 ) {
+                // latestVersionURL is GitHub's `html_url` from the release JSON. GitHub is trusted
+                // infrastructure, but defense-in-depth: refuse anything other than http/https before
+                // handing to Desktop.browse, matching the gate used for manifest-supplied URLs.
+                if ( latestVersionURL == null
+                        || !( latestVersionURL.startsWith( "https://" )
+                              || latestVersionURL.startsWith( "http://" ) ) ) {
+                    Logger.logError( "Refusing to open non-http(s) launcher update URL: " + latestVersionURL );
+                }
+                else {
+                    try {
+                        Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
+                    }
+                    catch ( IOException e ) {
+                        Logger.logError( "Unable to open your browser. Please visit " + latestVersionURL +
+                                                 " to download the latest launcher updates!" );
+                        Logger.logThrowable( e );
+                    }
+                }
             }
         } );
     }

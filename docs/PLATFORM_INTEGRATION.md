@@ -89,6 +89,13 @@ clickable native items.
 - A small Obj-C **toolbar delegate class is built once at runtime** via JFA
   (`objc_allocateClassPair` + `class_addMethod`). It vends `NSToolbarItem`s for **Browse, Settings,
   Help, and the account** (right-aligned via a flexible space), actions routed to `LauncherActions`.
+- **Update item.** When `UpdateCheckManager` finds a newer release it calls
+  `MacOsToolbarManager.setUpdateAvailable(...)`, which adds a native download item (only included in
+  the identifier list while an update is pending) and rebuilds the toolbar. Clicking it opens the
+  same `UpdateCheckManager.promptAndOpenUpdate` dialog as the JavaFX glyph. On macOS the JavaFX
+  navbar glyph is **not** shown (it lives in the band the toolbar overlays and would collide with
+  the account item); the native item replaces it, and the cross-platform toast + taskbar cue still
+  fire. The pending state is stored statically so a toolbar re-install (game return) keeps the item.
 - **Theming:** item icons are SF Symbols tinted to the current theme accent, falling back to the
   plain appearance-adaptive symbol.
 - **Why native items, not the JavaFX navbar:** a toolbar's view spans the whole band and consumes
