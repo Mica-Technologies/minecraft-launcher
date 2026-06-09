@@ -28,18 +28,12 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
 
 /**
  * AES-256-GCM encryption + decryption tied to the local machine. Same
@@ -56,9 +50,13 @@ import java.util.List;
  *       passphrase and a fresh random 16-byte salt.</li>
  *   <li>Fingerprint sources, in order: OS username (env-resistant — reads
  *       {@code $USER} / {@code $USERNAME} before {@code System.getProperty}),
- *       OS name, oshi hardware UUID (motherboard / BIOS), first available
- *       MAC address.</li>
- *   <li>When hardware UUID or MAC lookup fails (cloud VMs, restricted
+ *       OS name, and the oshi hardware UUID (motherboard / BIOS). The UUID
+ *       binds the key to the physical machine and is stable across launches —
+ *       only a genuine hardware change rotates it. (A network MAC address was
+ *       previously mixed in too, but modern macOS randomizes every interface's
+ *       MAC, so it rotated the key intermittently and broke decryption — see
+ *       {@link #deriveMachineKey}.)</li>
+ *   <li>When the hardware UUID lookup fails (cloud VMs, restricted
  *       containers, sandboxed processes), a per-install random secret
  *       lazily generated at {@code <config>/machine-key.bin} substitutes.
  *       Same path the auth manager uses, so the two share a single secret
@@ -198,55 +196,38 @@ public final class MachineSecretCipher
         fingerprint.append( resolveOsUsername() ).append( '|' );
         fingerprint.append( System.getProperty( "os.name", "" ) ).append( '|' );
 
-        // Hardware UUID via oshi. Fallback: per-install random secret.
+        // Hardware UUID via oshi binds the key to this physical machine, so a
+        // copied config directory (stolen disk image, misconfigured cloud sync)
+        // can't be decrypted on another host. It is stable across launches —
+        // only a genuine hardware change rotates it, which is exactly when the
+        // cache *should* be invalidated. Fallback: per-install random secret
+        // (cloud VMs / sandboxes where the UUID query is unavailable or shared
+        // across instances).
         try {
-            fingerprint.append( new SystemInfo().getHardware().getComputerSystem().getHardwareUUID() );
+            String hwUuid = new SystemInfo().getHardware().getComputerSystem().getHardwareUUID();
+            if ( hwUuid == null || hwUuid.isBlank() ) {
+                fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
+            }
+            else {
+                fingerprint.append( hwUuid );
+            }
         }
         catch ( Exception e ) {
             fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
         }
-        fingerprint.append( '|' );
 
-        // Stable MAC address. macOS enumeration order is not deterministic —
-        // awdl0 (AirDrop), llw0 (low-latency WLAN), and similar interfaces
-        // carry randomized, locally-administered MACs that rotate over time,
-        // and any of them can come back first from getNetworkInterfaces(). If
-        // we picked one of those we'd derive a different key on the next
-        // launch and every cached file would fail with AEADBadTagException.
-        // Filter to universally-administered (real OUI) MACs, skip loopback /
-        // VPN tunnels, then sort so the choice is stable regardless of OS
-        // enumeration order. Same fallback if nothing usable is found.
-        boolean macFound = false;
-        try {
-            List< byte[] > rawMacs = new ArrayList<>();
-            Enumeration< NetworkInterface > nets = NetworkInterface.getNetworkInterfaces();
-            while ( nets.hasMoreElements() ) {
-                NetworkInterface ni = nets.nextElement();
-                try {
-                    if ( ni.isLoopback() || ni.isPointToPoint() ) {
-                        continue;
-                    }
-                }
-                catch ( SocketException ignored ) {
-                    continue;
-                }
-                byte[] mac = ni.getHardwareAddress();
-                if ( mac != null ) {
-                    rawMacs.add( mac );
-                }
-            }
-            List< String > stable = filterAndSortStableMacs( rawMacs );
-            if ( !stable.isEmpty() ) {
-                fingerprint.append( stable.get( 0 ) );
-                macFound = true;
-            }
-        }
-        catch ( Exception ignored ) {
-            // Fall through to install-secret fallback.
-        }
-        if ( !macFound ) {
-            fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
-        }
+        // NOTE: a network MAC address was previously mixed into the fingerprint
+        // here. It had to be removed. On modern macOS every interface — en0
+        // included — carries a randomized, locally-administered MAC (Private
+        // Wi-Fi Address / Apple-Silicon randomization), so the filter found no
+        // universally-administered MAC and fell back to the install secret.
+        // Whenever a real OUI MAC *did* appear transiently (Thunderbolt dock,
+        // USB-Ethernet, iPhone tethering) the fingerprint changed, and tokens
+        // encrypted in one interface state failed to decrypt in the other with
+        // AEADBadTagException — the macOS "token renewal failed / unknown login
+        // error" symptom (~90% of launches). Windows was unaffected because it
+        // exposes a stable real-OUI MAC on its primary NIC. The hardware UUID
+        // above already provides machine binding, so the volatile MAC is gone.
 
         KeySpec spec = new PBEKeySpec(
                 fingerprint.toString().toCharArray(), salt,
@@ -298,54 +279,6 @@ public final class MachineSecretCipher
                 return cachedInstallSecret;
             }
         }
-    }
-
-    /**
-     * Filters {@code rawMacs} down to addresses that look stable across
-     * reboots and over time, returning a sorted hex-encoded list. Used by
-     * {@link #deriveMachineKey} to anchor the fingerprint to a hardware
-     * address that won't rotate out from under us.
-     *
-     * <p>Rejected:</p>
-     * <ul>
-     *   <li>MACs shorter than 6 bytes (malformed, point-to-point pseudo-MACs).</li>
-     *   <li>Locally-administered MACs — IEEE 802 first-octet bit {@code 0x02}.
-     *       This is the bit that's set on Apple's awdl0 / llw0 randomized
-     *       interfaces, on most VM virtual NICs, on Android's privacy-randomized
-     *       Wi-Fi MAC, and on macOS's bridge / utun bridges. Filtering it out
-     *       is what makes the fingerprint stable across launches.</li>
-     *   <li>Multicast MACs — first-octet bit {@code 0x01}. Never valid as a
-     *       hardware address; would only show up as garbage if an interface
-     *       lied about its hwaddr.</li>
-     *   <li>All-zero MACs — the JDK returns these for some loopback / virtual
-     *       interfaces on certain platforms.</li>
-     * </ul>
-     *
-     * <p>Sorted output guarantees that {@code stable.get(0)} is the same MAC
-     * regardless of the order the OS happened to enumerate interfaces in.
-     * Package-private so the filter can be unit-tested in isolation without
-     * touching {@code NetworkInterface}.</p>
-     */
-    static List< String > filterAndSortStableMacs( List< byte[] > rawMacs ) {
-        List< String > out = new ArrayList<>();
-        if ( rawMacs == null ) {
-            return out;
-        }
-        for ( byte[] mac : rawMacs ) {
-            if ( mac == null || mac.length < 6 ) continue;
-            if ( ( mac[ 0 ] & 0x02 ) != 0 ) continue;
-            if ( ( mac[ 0 ] & 0x01 ) != 0 ) continue;
-            boolean allZero = true;
-            for ( byte b : mac ) {
-                if ( b != 0 ) { allZero = false; break; }
-            }
-            if ( allZero ) continue;
-            StringBuilder hex = new StringBuilder( mac.length * 2 );
-            for ( byte b : mac ) hex.append( String.format( "%02x", b ) );
-            out.add( hex.toString() );
-        }
-        Collections.sort( out );
-        return out;
     }
 
     /** OS username from env first, system property as fallback. {@code USER}

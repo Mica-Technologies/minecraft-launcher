@@ -76,10 +76,20 @@ specific machine. The fingerprint is composed of:
 
 1. Operating system username
 2. OS name
-3. Hardware UUID (platform-specific query)
-4. Primary network MAC address
+3. Hardware UUID (platform-specific query) — falls back to a per-install random
+   secret at `<config>/machine-key.bin` when the UUID query is unavailable
+   (cloud VMs, sandboxes) or returns a shared/blank value.
 
 This prevents cached tokens from being usable if the file is copied to another machine.
+
+> **Note:** A primary network MAC address was previously part of the fingerprint
+> but was removed. Modern macOS randomizes every interface's MAC (Private Wi-Fi
+> Address / Apple-Silicon randomization), so no stable real-OUI MAC exists; a
+> real MAC only appeared intermittently (docks, USB-Ethernet, tethering). That
+> rotated the derived key between launches and caused cached tokens to fail
+> decryption with `AEADBadTagException`, surfacing as "token renewal failed /
+> unknown login error" on ~90% of macOS launches. The hardware UUID already
+> provides machine binding. See `MachineSecretCipher.deriveMachineKey`.
 
 ### Cache TTL & Rate Limiting
 
