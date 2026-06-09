@@ -79,6 +79,7 @@ public final class TuiApp
     private View currentView = View.LIBRARY;
     private GameModPack logsTarget;  // pack whose logs the Logs view is showing
     private TextBox logsBox;         // the read-only log display in the Logs view
+    private int     lastLogSize = -1; // last-rendered log line count, so we only refresh on new output
 
     private TuiApp() { /* via run() */ }
 
@@ -112,11 +113,43 @@ public final class TuiApp
                                          new EmptySpace( TextColor.ANSI.BLACK ) );
             buildWindow();
             startRefresh();
-            gui.addWindowAndWait( window );
+            runEventLoop();
         }
         finally {
             stopRefresh();
             screen.stopScreen();
+        }
+    }
+
+    /** Drives the Lanterna event loop manually (instead of {@code addWindowAndWait}) so a stray
+     *  exception from one component's input handling is logged and swallowed rather than tearing
+     *  down the whole terminal UI. Runs until the main window closes or the terminal goes away. */
+    private void runEventLoop()
+    {
+        gui.addWindow( window );
+        com.googlecode.lanterna.gui2.TextGUIThread guiThread = gui.getGUIThread();
+        while ( gui.getWindows().contains( window ) ) {
+            try {
+                guiThread.processEventsAndUpdate();
+            }
+            catch ( java.io.EOFException terminalClosed ) {
+                break;
+            }
+            catch ( java.io.IOException io ) {
+                Logger.logWarningSilent( "TUI: terminal I/O error: " + io.getMessage() );
+                break;
+            }
+            catch ( Throwable t ) {
+                // A component blew up on some input/update — keep the UI alive.
+                Logger.logThrowable( t );
+            }
+            try {
+                Thread.sleep( 5 );
+            }
+            catch ( InterruptedException ie ) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
     }
 
@@ -161,6 +194,10 @@ public final class TuiApp
                     showLogs();
                     handled.set( true );
                 }
+                else if ( c == 'n' && currentView == View.LOGS ) {
+                    cycleLogsTarget();
+                    handled.set( true );
+                }
             }
         } );
 
@@ -187,6 +224,7 @@ public final class TuiApp
         content.addComponent( list.withBorder( Borders.singleLine( "Installed Packs" ) ),
                               BorderLayout.Location.CENTER );
         window.invalidate();
+        window.setFocusedInteractable( list );
     }
 
     /** Per-pack action menu (launch / view logs / stop). */
@@ -290,30 +328,45 @@ public final class TuiApp
             logsTarget = running.iterator().next().pack();
         }
 
-        Panel split = new Panel( new BorderLayout() );
+        // The log box is the focused, scrollable component — a read-only multi-line TextBox scrolls
+        // with the arrow keys ONLY while it holds focus, so we make it the sole interactable here
+        // (no left-hand picker stealing focus/arrows). Multiple running games are cycled with 'n'.
+        String title = "Game Log — " + truncate( logsTarget.getFriendlyName(), 32 )
+                + ( running.size() > 1 ? "   (n: next · " + running.size() + " running)" : "" )
+                + "   [↑↓←→] scroll · follows newest unless scrolled up";
+        logsBox = new LogBox( new TerminalSize( 100, 24 ) );
+        content.addComponent( logsBox.withBorder( Borders.singleLine( title ) ),
+                              BorderLayout.Location.CENTER );
 
-        // Left: pick which running game to tail.
-        ActionListBox picker = new ActionListBox( new TerminalSize( 26, 10 ) );
-        for ( RunningGame g : running ) {
-            GameModPack p = g.pack();
-            picker.addItem( ( TuiRuntime.isRunning( p ) ? "● " : "  " ) + truncate( p.getFriendlyName(), 22 ),
-                            () -> { logsTarget = p; refreshLogsBox(); } );
-        }
-        split.addComponent( picker.withBorder( Borders.singleLine( "Running" ) ),
-                            BorderLayout.Location.LEFT );
-
-        // Right: the tailed log.
-        logsBox = new TextBox( new TerminalSize( 80, 20 ), TextBox.Style.MULTI_LINE );
-        logsBox.setReadOnly( true );
-        split.addComponent( logsBox.withBorder( Borders.singleLine( "Game Log" ) ),
-                            BorderLayout.Location.CENTER );
-
-        content.addComponent( split, BorderLayout.Location.CENTER );
+        lastLogSize = -1;   // force a render of the freshly-built box
         refreshLogsBox();
         window.invalidate();
+        // Focus the log so the arrow keys scroll it immediately.
+        window.setFocusedInteractable( logsBox );
     }
 
-    /** Pushes the current logs target's buffered output into the log TextBox. */
+    /** Cycles the Logs view to the next running game (bound to 'n'). */
+    private void cycleLogsTarget()
+    {
+        List< RunningGame > running = new java.util.ArrayList<>( TuiRuntime.running() );
+        if ( running.size() < 2 ) {
+            return;
+        }
+        String currentUrl = logsTarget == null ? null : logsTarget.getManifestUrl();
+        int idx = 0;
+        for ( int i = 0; i < running.size(); i++ ) {
+            String url = running.get( i ).pack().getManifestUrl();
+            if ( url != null && url.equals( currentUrl ) ) {
+                idx = i;
+                break;
+            }
+        }
+        logsTarget = running.get( ( idx + 1 ) % running.size() ).pack();
+        showLogs();
+    }
+
+    /** Pushes the current logs target's buffered output into the log TextBox — but only when new
+     *  lines have arrived, so the per-second refresh doesn't fight the user's manual scrolling. */
     private void refreshLogsBox()
     {
         TextBox box = logsBox;
@@ -322,19 +375,74 @@ public final class TuiApp
             return;
         }
         RunningGame g = TuiRuntime.runningFor( target );
-        String text;
         if ( g == null ) {
-            text = "(game exited)";
+            if ( lastLogSize != -2 ) {
+                box.setText( "(game exited)" );
+                lastLogSize = -2;
+            }
+            return;
         }
-        else {
-            List< String > lines = g.logSnapshot();
-            // Keep the last ~500 lines to avoid an enormous TextBox.
-            int from = Math.max( 0, lines.size() - 500 );
-            text = String.join( "\n", lines.subList( from, lines.size() ) );
+        List< String > lines = g.logSnapshot();
+        if ( lines.size() == lastLogSize ) {
+            return;   // nothing new — leave the user's scroll position alone
         }
-        box.setText( text );
-        // Scroll to the bottom (newest output).
-        box.setCaretPosition( box.getLineCount(), 0 );
+        // Follow the newest output only when the caret is on the last line. If the user has scrolled
+        // up, freeze the view (don't reload) so they can read — and DON'T advance lastLogSize, so
+        // scrolling back to the bottom re-engages following and reloads the latest tail.
+        boolean atBottom = box.getCaretPosition().getRow() >= box.getLineCount() - 1;
+        if ( !atBottom ) {
+            return;
+        }
+        lastLogSize = lines.size();
+        // Keep the last ~500 lines to avoid an enormous TextBox.
+        int from = Math.max( 0, lines.size() - 500 );
+        box.setText( String.join( "\n", lines.subList( from, lines.size() ) ) );
+        // Auto-scroll to the newest line. The caret line must be a VALID index (lineCount-1) — using
+        // lineCount itself put the caret one line past the end, and arrowing into it threw an
+        // out-of-bounds that tore down the UI.
+        box.setCaretPosition( Math.max( 0, box.getLineCount() - 1 ), 0 );
+    }
+
+    /**
+     * The log display: a multi-line {@link TextBox} that reads like a pager — arrow / page keys move
+     * the caret (so it scrolls AND we can read the position to decide whether to follow new output),
+     * but every editing keystroke is swallowed and focus is never surrendered at the edges. Non-nav
+     * keys fall through to the window so {@code q}/{@code l}/{@code g}/{@code n} still work.
+     */
+    private static final class LogBox extends TextBox
+    {
+        LogBox( TerminalSize size )
+        {
+            super( size, Style.MULTI_LINE );
+        }
+
+        @Override
+        public synchronized com.googlecode.lanterna.gui2.Interactable.Result handleKeyStroke( KeyStroke ks )
+        {
+            switch ( ks.getKeyType() ) {
+                case ArrowUp:
+                case ArrowDown:
+                case ArrowLeft:
+                case ArrowRight:
+                case PageUp:
+                case PageDown:
+                case Home:
+                case End: {
+                    com.googlecode.lanterna.gui2.Interactable.Result r = super.handleKeyStroke( ks );
+                    // Stay put at the edges rather than handing focus to a neighbour.
+                    if ( r == com.googlecode.lanterna.gui2.Interactable.Result.MOVE_FOCUS_UP
+                            || r == com.googlecode.lanterna.gui2.Interactable.Result.MOVE_FOCUS_DOWN
+                            || r == com.googlecode.lanterna.gui2.Interactable.Result.MOVE_FOCUS_LEFT
+                            || r == com.googlecode.lanterna.gui2.Interactable.Result.MOVE_FOCUS_RIGHT ) {
+                        return com.googlecode.lanterna.gui2.Interactable.Result.HANDLED;
+                    }
+                    return r;
+                }
+                default:
+                    // Block editing; let q / l / g / n reach the window's unhandled-input handler.
+                    return com.googlecode.lanterna.gui2.Interactable.Result.UNHANDLED;
+            }
+        }
     }
 
     // ================================================================== shared
