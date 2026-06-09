@@ -19,9 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.pixelduke.window.WindowUtils;
-import com.sun.jna.Memory;
 import com.sun.jna.NativeLong;
-import com.sun.jna.Pointer;
 import de.jangassen.jfa.foundation.Foundation;
 import de.jangassen.jfa.foundation.ID;
 import javafx.application.Platform;
@@ -80,10 +78,6 @@ public final class MacOsTitleBarManager
      *  into the window's existing style mask so the content view spans the title bar. */
     private static final long NS_WINDOW_STYLE_MASK_FULL_SIZE_CONTENT_VIEW = 1L << 15;
 
-    /** {@code NSLayoutAttributeLeft} — places the title-bar accessory just right of the
-     *  traffic lights, over the (hidden) brand-logo gap rather than the navbar buttons. */
-    private static final long NS_LAYOUT_ATTRIBUTE_LEFT = 1L;
-
     private MacOsTitleBarManager() { /* static-only utility */ }
 
     /**
@@ -138,185 +132,6 @@ public final class MacOsTitleBarManager
         catch ( Throwable t ) {
             Logger.logWarningSilent( "MacOsTitleBar: applyHiddenInset failed — "
                                              + t.getClass().getSimpleName() + ": " + t.getMessage() );
-        }
-    }
-
-    /**
-     * Grows {@code stage}'s native title bar to {@code bandHeightPx} so the traffic-light
-     * close/minimize/zoom controls (and the window title) sit <em>vertically centered</em>
-     * within the launcher's top navbar band instead of hugging its top edge. No-op off
-     * macOS, on a null stage, or before the NSWindow peer is realized.
-     *
-     * <p><b>How.</b> Two steps. First, best-effort, attach a {@code bandHeightPx}-tall
-     * {@code NSTitlebarAccessoryViewController} so AppKit grows the bar and re-centers the lights
-     * itself — but JavaFX's Glass {@code NSWindow} has been observed not to honor titlebar
-     * accessories (the bar stays standard height), so we don't rely on it. Second, do the actual
-     * centering by repositioning the three standard window buttons: read each button's frame and
-     * its superview's frame via {@code NSInvocation} (a struct return the generic
-     * {@code Foundation.invoke} can't capture), then shift all three by one delta so their centers
-     * sit {@code bandHeightPx/2} below the window's top edge. If the bar <em>did</em> grow, the
-     * buttons are already centered and the delta is ~0.</p>
-     *
-     * <p><b>Why not an {@code NSToolbar}.</b> A unified toolbar grows the bar but lays its own
-     * view across the whole band and eats the clicks there, forcing the interactive controls to be
-     * native toolbar items — whose lazily built, autoreleased images did not survive a window
-     * hide/show (returning from a game), leaving blank buttons. Moving the buttons leaves the
-     * launcher's navbar controls as ordinary JavaFX nodes that can't go blank.</p>
-     *
-     * <p><b>Safety + idempotence.</b> The button move is skipped (and logged) when the buttons'
-     * superview is shorter than the band, since moving a button outside its superview clips it and
-     * kills its clicks. Any prior accessory is removed first, so re-applying on every
-     * {@code WINDOW_SHOWN} (Glass can rebuild the NSWindow peer across hide/show) never compounds
-     * anything; the button move re-reads live geometry each time, so it's self-correcting.</p>
-     *
-     * @param stage        the stage whose NSWindow traffic lights should be centered
-     * @param bandHeightPx the navbar band height in points to center the lights within
-     *
-     * @since 2026.6
-     */
-    public static void applyCenteredTrafficLights( Stage stage, double bandHeightPx )
-    {
-        if ( !SystemUtils.IS_OS_MAC || stage == null || !stage.isShowing() ) {
-            return;
-        }
-        try {
-            NativeLong handle = WindowUtils.getNativeHandleOfStageAsNativeLong( stage );
-            if ( handle == null || handle.longValue() == 0 ) {
-                return;
-            }
-            ID nsWindow = new ID( handle.longValue() );
-
-            // 1) Try the clean route: grow the title bar with an accessory view so AppKit
-            //    re-centers the lights itself. JavaFX's Glass NSWindow has been observed NOT to
-            //    honor this (the bar stays standard height), so it's best-effort — step 2 does
-            //    the actual centering and is a no-op when the bar already grew. Drop any prior
-            //    accessory first so re-applying on each show can't compound the height.
-            removeOurTitlebarAccessories( nsWindow );
-            ID view = Foundation.invoke( Foundation.invoke( "NSView", "alloc" ), "init" );
-            Foundation.invoke( view, "setFrameSize:", 1.0, bandHeightPx );
-            ID vc = Foundation.invoke(
-                    Foundation.invoke( "NSTitlebarAccessoryViewController", "alloc" ), "init" );
-            Foundation.invoke( vc, "setView:", view );
-            Foundation.invoke( view, "autorelease" );
-            Foundation.invoke( vc, "setLayoutAttribute:", NS_LAYOUT_ATTRIBUTE_LEFT );
-            Foundation.invoke( nsWindow, "addTitlebarAccessoryViewController:", vc );
-            Foundation.invoke( vc, "autorelease" );
-
-            // 2) Reposition the traffic lights directly to the band's vertical center. The
-            //    buttons live in a superview (the title-bar container); we read its frame +
-            //    each button's frame via NSInvocation (struct returns the generic invoke can't
-            //    capture), then shift all three by the same delta so their centers land
-            //    bandHeightPx/2 below the window top. Cocoa coords are bottom-left-origin, so
-            //    the window top edge is at y = superviewHeight and "down" means a smaller y.
-            centerTrafficLightButtons( nsWindow, bandHeightPx );
-        }
-        catch ( Throwable t ) {
-            Logger.logWarningSilent( "MacOsTitleBar: applyCenteredTrafficLights failed — "
-                                             + t.getClass().getSimpleName() + ": " + t.getMessage() );
-        }
-    }
-
-    /** Standard window button indices: close = 0, miniaturize = 1, zoom = 2. */
-    private static final long[] TRAFFIC_LIGHT_BUTTONS = { 0L, 1L, 2L };
-
-    /**
-     * Shifts the three traffic-light buttons so their vertical centers sit {@code bandHeightPx/2}
-     * below the window's top edge. Reads geometry via {@link #readRect}; skips (and logs) when the
-     * buttons' superview is shorter than the band — moving a button outside its superview's bounds
-     * would clip it and kill its clicks, which is worse than off-center lights.
-     */
-    private static void centerTrafficLightButtons( ID nsWindow, double bandHeightPx )
-    {
-        ID closeBtn = Foundation.invoke( nsWindow, "standardWindowButton:", TRAFFIC_LIGHT_BUTTONS[ 0 ] );
-        if ( Foundation.isNil( closeBtn ) ) {
-            Logger.logDebug( "MacOsTitleBar: no close button to center" );
-            return;
-        }
-        ID superview = Foundation.invoke( closeBtn, "superview" );
-        double[] svRect = readRect( superview, "frame" );
-        double[] cRect = readRect( closeBtn, "frame" );
-        if ( svRect == null || cRect == null ) {
-            Logger.logDebug( "MacOsTitleBar: could not read traffic-light geometry" );
-            return;
-        }
-        String svClass = Foundation.toStringViaUTF8( Foundation.invoke( superview, "className" ) );
-        double svHeight = svRect[ 3 ];
-        double btnHeight = cRect[ 3 ];
-        Logger.logDebug( "MacOsTitleBar: lights superview=" + svClass + " h=" + svHeight
-                                 + " closeBtn y=" + cRect[ 1 ] + " h=" + btnHeight );
-
-        if ( svHeight < bandHeightPx ) {
-            // Title-bar container is shorter than the band (the accessory didn't grow it). Moving
-            // the buttons down would push them past the container's bottom edge and clip them.
-            Logger.logDebug( "MacOsTitleBar: superview shorter than band (" + svHeight + " < "
-                                     + bandHeightPx + "); leaving lights at default position" );
-            return;
-        }
-
-        // Window top edge is at y = svHeight; target the band center bandHeightPx/2 below it.
-        double targetCloseY = svHeight - ( bandHeightPx / 2.0 ) - ( btnHeight / 2.0 );
-        double delta = targetCloseY - cRect[ 1 ];
-        for ( long index : TRAFFIC_LIGHT_BUTTONS ) {
-            ID btn = Foundation.invoke( nsWindow, "standardWindowButton:", index );
-            if ( Foundation.isNil( btn ) ) {
-                continue;
-            }
-            double[] r = readRect( btn, "frame" );
-            if ( r == null ) {
-                continue;
-            }
-            // setFrameOrigin: takes an NSPoint (two CGFloats) — same FP-register routing as
-            // setFrameSize:, so two doubles marshal correctly with no struct.
-            Foundation.invoke( btn, "setFrameOrigin:", r[ 0 ], r[ 1 ] + delta );
-        }
-        Logger.logDebug( "MacOsTitleBar: traffic lights re-centered (delta " + delta + "px)" );
-    }
-
-    /**
-     * Reads the {@code NSRect} returned by a no-arg {@code selector} on {@code target} into a
-     * {@code double[]{x, y, w, h}}. Uses {@code NSInvocation} so the struct return is captured
-     * correctly on every architecture — {@code Foundation.invoke} only hands back the integer
-     * return register, which can't hold an {@code NSRect}. Returns {@code null} on any failure.
-     */
-    private static double[] readRect( ID target, String selector )
-    {
-        try {
-            if ( target == null || Foundation.isNil( target ) ) {
-                return null;
-            }
-            Pointer sel = Foundation.createSelector( selector );
-            ID sig = Foundation.invoke( target, "methodSignatureForSelector:", sel );
-            if ( Foundation.isNil( sig ) ) {
-                return null;
-            }
-            ID inv = Foundation.invoke( "NSInvocation", "invocationWithMethodSignature:", sig );
-            if ( Foundation.isNil( inv ) ) {
-                return null;
-            }
-            Foundation.invoke( inv, "setSelector:", sel );
-            Foundation.invoke( inv, "setTarget:", target );
-            Foundation.invoke( inv, "invoke" );
-            Memory buf = new Memory( 32 ); // 4 × CGFloat (8 bytes each on 64-bit)
-            Foundation.invoke( inv, "getReturnValue:", buf );
-            return new double[] { buf.getDouble( 0 ), buf.getDouble( 8 ),
-                                  buf.getDouble( 16 ), buf.getDouble( 24 ) };
-        }
-        catch ( Throwable t ) {
-            return null;
-        }
-    }
-
-    /** Removes every title-bar accessory view controller on {@code nsWindow}. We only ever
-     *  add one (the height spacer), so clearing them all is safe and keeps re-apply idempotent. */
-    private static void removeOurTitlebarAccessories( ID nsWindow )
-    {
-        for ( int guard = 0; guard < 16; guard++ ) {
-            ID vcs = Foundation.invoke( nsWindow, "titlebarAccessoryViewControllers" );
-            long count = Foundation.isNil( vcs ) ? 0 : Foundation.invoke( vcs, "count" ).longValue();
-            if ( count <= 0 ) {
-                return;
-            }
-            Foundation.invoke( nsWindow, "removeTitlebarAccessoryViewControllerAtIndex:", count - 1 );
         }
     }
 
