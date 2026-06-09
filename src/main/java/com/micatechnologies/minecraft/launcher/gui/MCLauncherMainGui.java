@@ -316,9 +316,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 Logger.logThrowable( ex );
             }
         } );
-        userImage.setOnMouseClicked( openAccountSettings );
+        // Clicking the account lockup pops a quick account switcher (switch / add / manage) instead
+        // of jumping straight into Settings — the full account screen is still one click away via
+        // the menu's "Manage accounts" item (openAccountSettings).
+        EventHandler< MouseEvent > showAccountMenu =
+                e -> AccountSwitcherMenu.show( (Node) e.getSource(), () -> openAccountSettings.handle( e ) );
+        userImage.setOnMouseClicked( showAccountMenu );
         userImage.setCursor( Cursor.HAND );
-        playerLabel.setOnMouseClicked( openAccountSettings );
+        playerLabel.setOnMouseClicked( showAccountMenu );
         playerLabel.setCursor( Cursor.HAND );
 
         playerLabel.setText( MCLauncherAuthManager.getLoggedInUser().name() );
