@@ -105,6 +105,145 @@ public final class ModrinthClient
             boolean primary )
     {}
 
+    /** One result row from a {@code /v2/search} query — enough to render a pick-list. */
+    public record SearchHit(
+            String projectId,
+            String slug,
+            String title,
+            String description,
+            String iconUrl,
+            String author,
+            long downloads )
+    {}
+
+    // ===== search =====
+
+    /**
+     * Searches Modrinth for <b>mods</b> matching {@code query}, optionally constrained to a
+     * Minecraft version and mod loader so the results are actually installable into the pack.
+     *
+     * @param query     free-text search (mod name / keywords)
+     * @param mcVersion Minecraft version facet (e.g. {@code "1.20.1"}), or {@code null} for any
+     * @param loader    loader facet (e.g. {@code "forge"} / {@code "fabric"} / {@code "neoforge"}),
+     *                  or {@code null} for any
+     * @param limit     max results (Modrinth caps at 100)
+     * @return result rows (newest-relevance order), or an empty list on any failure
+     */
+    public static List< SearchHit > search( String query, String mcVersion, String loader, int limit )
+    {
+        List< SearchHit > out = new ArrayList<>();
+        if ( query == null || query.isBlank() ) return out;
+        try {
+            // facets is a JSON array-of-arrays; each inner array is OR'd, the outer AND'd.
+            List< String > facetGroups = new ArrayList<>();
+            facetGroups.add( "[\"project_type:mod\"]" );
+            if ( mcVersion != null && !mcVersion.isBlank() ) {
+                facetGroups.add( "[\"versions:" + mcVersion + "\"]" );
+            }
+            if ( loader != null && !loader.isBlank() ) {
+                facetGroups.add( "[\"categories:" + loader.toLowerCase() + "\"]" );
+            }
+            String facets = "[" + String.join( ",", facetGroups ) + "]";
+            String url = API_BASE + "/search?limit=" + Math.max( 1, Math.min( limit, 100 ) )
+                    + "&index=relevance"
+                    + "&query=" + enc( query )
+                    + "&facets=" + enc( facets );
+            JsonObject root = fetchJsonObject( url );
+            if ( root == null || !root.has( "hits" ) || !root.get( "hits" ).isJsonArray() ) return out;
+            for ( JsonElement he : root.getAsJsonArray( "hits" ) ) {
+                if ( !he.isJsonObject() ) continue;
+                JsonObject h = he.getAsJsonObject();
+                long downloads = h.has( "downloads" ) && h.get( "downloads" ).isJsonPrimitive()
+                        ? h.get( "downloads" ).getAsLong() : 0;
+                out.add( new SearchHit(
+                        optString( h, "project_id" ),
+                        optString( h, "slug" ),
+                        optString( h, "title" ),
+                        optString( h, "description" ),
+                        optString( h, "icon_url" ),
+                        optString( h, "author" ),
+                        downloads ) );
+            }
+            return out;
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "Modrinth search failed for \"" + query + "\": "
+                                             + t.getClass().getSimpleName() );
+            return out;
+        }
+    }
+
+    /**
+     * Resolves the latest version of a project compatible with the given Minecraft version + loader
+     * and returns its primary downloadable file (the jar to drop into a pack's {@code mods/}).
+     *
+     * @return the primary {@link FileRef}, or {@code null} if no compatible version / file exists
+     */
+    public static FileRef resolveLatestCompatibleFile( String projectId, String mcVersion, String loader )
+    {
+        if ( projectId == null || projectId.isBlank() ) return null;
+        try {
+            StringBuilder url = new StringBuilder( API_BASE )
+                    .append( "/project/" ).append( projectId ).append( "/version?" );
+            if ( loader != null && !loader.isBlank() ) {
+                url.append( "loaders=" ).append( enc( "[\"" + loader.toLowerCase() + "\"]" ) ).append( '&' );
+            }
+            if ( mcVersion != null && !mcVersion.isBlank() ) {
+                url.append( "game_versions=" ).append( enc( "[\"" + mcVersion + "\"]" ) );
+            }
+            String body = NetworkUtilities.downloadFileFromURLBounded( url.toString(), MAX_RESPONSE_BYTES );
+            if ( body == null || body.isBlank() ) return null;
+            JsonElement parsed = JSONUtilities.getGson().fromJson( body, JsonElement.class );
+            if ( parsed == null || !parsed.isJsonArray() ) return null;
+            JsonArray versions = parsed.getAsJsonArray();
+            // Modrinth returns this endpoint newest-first; take the first version's primary file.
+            for ( JsonElement ve : versions ) {
+                if ( !ve.isJsonObject() ) continue;
+                FileRef primary = primaryFile( ve.getAsJsonObject() );
+                if ( primary != null ) return primary;
+            }
+            return null;
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "Modrinth version resolve failed for " + projectId
+                                             + ": " + t.getClass().getSimpleName() );
+            return null;
+        }
+    }
+
+    /** Extracts the primary (or first) downloadable {@link FileRef} from a version JSON object. */
+    private static FileRef primaryFile( JsonObject version )
+    {
+        if ( version == null || !version.has( "files" ) || !version.get( "files" ).isJsonArray() ) {
+            return null;
+        }
+        FileRef fallback = null;
+        for ( JsonElement fe : version.getAsJsonArray( "files" ) ) {
+            if ( !fe.isJsonObject() ) continue;
+            JsonObject fo = fe.getAsJsonObject();
+            String url = optString( fo, "url" );
+            if ( url == null ) continue;
+            String filename = optString( fo, "filename" );
+            long size = fo.has( "size" ) && fo.get( "size" ).isJsonPrimitive() ? fo.get( "size" ).getAsLong() : 0;
+            String sha1 = null, sha512 = null;
+            if ( fo.has( "hashes" ) && fo.get( "hashes" ).isJsonObject() ) {
+                JsonObject hh = fo.getAsJsonObject( "hashes" );
+                sha1 = optString( hh, "sha1" );
+                sha512 = optString( hh, "sha512" );
+            }
+            boolean primary = fo.has( "primary" ) && fo.get( "primary" ).getAsBoolean();
+            FileRef ref = new FileRef( filename, url, sha1, sha512, size, primary );
+            if ( primary ) return ref;
+            if ( fallback == null ) fallback = ref;
+        }
+        return fallback;
+    }
+
+    private static String enc( String s )
+    {
+        return java.net.URLEncoder.encode( s, java.nio.charset.StandardCharsets.UTF_8 );
+    }
+
     // ===== fetchers =====
 
     /**

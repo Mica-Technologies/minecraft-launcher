@@ -25,6 +25,7 @@ import com.micatechnologies.minecraft.launcher.game.modpack.ServerFavorite;
 import com.micatechnologies.minecraft.launcher.game.modpack.ServerFavoritesStore;
 import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask;
+import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NotificationManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
@@ -168,7 +169,8 @@ public final class ModpackContentBrowser
      *  folder, so the disabled state is honored on the next launch.
      *  Useful for "is this mod the one crashing?" diagnosis without
      *  leaving the launcher. */
-    public static Node buildModsSection( GameModPack pack, SectionBuilder sectionBox, VBox bodyToRebuild )
+    public static Node buildModsSection( GameModPack pack, SectionBuilder sectionBox, VBox bodyToRebuild,
+                                         Stage owner )
     {
         // Mods is the biggest section by far — a typical Forge pack
         // carries 100+ jars. Pre-collapse + lazy-populate: 100+ HBoxes
@@ -193,12 +195,13 @@ public final class ModpackContentBrowser
                                return;
                            }
                            File modsDirRef = subDir( pack, "mods" );
-                           renderModsSection( sec, modsDirRef, mods, bodyToRebuild );
+                           renderModsSection( sec, modsDirRef, mods, bodyToRebuild, pack, owner );
                        } ) );
         return section;
     }
 
-    private static void renderModsSection( VBox section, File modsDir, File[] mods, VBox bodyToRebuild )
+    private static void renderModsSection( VBox section, File modsDir, File[] mods, VBox bodyToRebuild,
+                                           GameModPack pack, Stage owner )
     {
         // "Check for updates" affordance — runs a background scan that
         // hashes each enabled jar + queries Modrinth's /version_file
@@ -208,6 +211,9 @@ public final class ModpackContentBrowser
         // labels are captured in the modUpdateLabels map below so the
         // background task can write back to them on the FX thread.
         java.util.Map< String, Label > modUpdateLabels = new java.util.HashMap<>();
+        // Row per enabled jar so the scan can splice a one-click "Update" button into the ones with
+        // a newer Modrinth version available.
+        java.util.Map< String, HBox > modRows = new java.util.HashMap<>();
         HBox header = new HBox( 10 );
         header.setAlignment( Pos.CENTER_LEFT );
         MFXButton checkUpdatesBtn = new MFXButton( LocalizationManager.get( "detailModal.mods.checkUpdates" ) );
@@ -244,10 +250,19 @@ public final class ModpackContentBrowser
                             if ( lbl == null ) continue;
                             var v = entry.getValue();
                             switch ( v.status() ) {
-                                case UPDATE_AVAILABLE -> lbl.setText( LocalizationManager.format(
-                                        "detailModal.mods.updateAvailable",
-                                        v.currentVersion() == null ? "?" : v.currentVersion(),
-                                        v.latestVersion() == null ? "?" : v.latestVersion() ) );
+                                case UPDATE_AVAILABLE -> {
+                                    lbl.setText( LocalizationManager.format(
+                                            "detailModal.mods.updateAvailable",
+                                            v.currentVersion() == null ? "?" : v.currentVersion(),
+                                            v.latestVersion() == null ? "?" : v.latestVersion() ) );
+                                    // Splice in a one-click "Update" button for this row, wired to the
+                                    // latest version's primary download URL the scan resolved.
+                                    HBox row = modRows.get( entry.getKey() );
+                                    if ( row != null && v.latestDownloadUrl() != null ) {
+                                        addUpdateButton( row, modsDirRef, entry.getKey(),
+                                                         v.latestDownloadUrl(), v.latestVersion(), lbl );
+                                    }
+                                }
                                 case UP_TO_DATE -> lbl.setText( LocalizationManager.get(
                                         "detailModal.mods.upToDate" ) );
                                 case NOT_ON_MODRINTH -> lbl.setText( LocalizationManager.get(
@@ -270,6 +285,16 @@ public final class ModpackContentBrowser
             } );
         } );
         header.getChildren().addAll( checkUpdatesBtn, checkUpdatesStatus );
+        // "Add Mod" — opens the Modrinth search dialog (modded packs only; vanilla has no loader).
+        if ( pack != null && pack.getModLoaderType() != null ) {
+            Region headerSpacer = new Region();
+            HBox.setHgrow( headerSpacer, Priority.ALWAYS );
+            MFXButton addModBtn = new MFXButton( LocalizationManager.get( "detailModal.mods.addMod" ) );
+            addModBtn.getStyleClass().add( "heroCardSecondaryBtn" );
+            addModBtn.setPrefHeight( 28 );
+            addModBtn.setOnAction( e -> ModrinthAddModDialog.show( pack, modsDir, owner ) );
+            header.getChildren().addAll( headerSpacer, addModBtn );
+        }
         section.getChildren().add( header );
 
         for ( File mod : mods ) {
@@ -282,6 +307,7 @@ public final class ModpackContentBrowser
                 updateLabel.getStyleClass().add( "muted" );
                 row.getChildren().add( row.getChildren().size() - 1, updateLabel );
                 modUpdateLabels.put( mod.getName(), updateLabel );
+                modRows.put( mod.getName(), row );
             }
             section.getChildren().add( row );
         }
@@ -382,6 +408,80 @@ public final class ModpackContentBrowser
                 javafx.application.Platform.runLater( () -> btn.setDisable( false ) );
             }
         } );
+    }
+
+    /** Splices a one-click "Update" button into a mod row whose Modrinth scan found a newer
+     *  version. Inserted just before the enable/disable toggle (the row's last child). */
+    private static void addUpdateButton( HBox row, File modsDir, String oldJarName,
+                                         String downloadUrl, String newVersion, Label updateLabel )
+    {
+        // Idempotent — re-running the scan shouldn't stack multiple Update buttons on a row.
+        if ( row.lookup( ".modUpdateApplyBtn" ) != null ) {
+            return;
+        }
+        MFXButton updateBtn = new MFXButton( LocalizationManager.get( "detailModal.mods.update" ) );
+        updateBtn.getStyleClass().addAll( "heroCardSecondaryBtn", "modUpdateApplyBtn" );
+        updateBtn.setPrefHeight( 28 );
+        updateBtn.setOnAction( e -> {
+            updateBtn.setDisable( true );
+            updateLabel.setText( LocalizationManager.get( "detailModal.mods.updating" ) );
+            FxAsyncTask.run( () -> applyModUpdate( modsDir, oldJarName, downloadUrl, newVersion,
+                                                   row, updateBtn, updateLabel ) );
+        } );
+        // Toggle button is last; insert the Update button immediately before it.
+        int insertAt = Math.max( 0, row.getChildren().size() - 1 );
+        row.getChildren().add( insertAt, updateBtn );
+    }
+
+    /** Downloads the latest mod jar, replaces the old one, and finalizes the row's UI. Runs off the
+     *  FX thread (called from {@link FxAsyncTask}); all scene-graph writes are marshaled back. */
+    private static void applyModUpdate( File modsDir, String oldJarName, String downloadUrl,
+                                        String newVersion, HBox row, MFXButton updateBtn,
+                                        Label updateLabel )
+    {
+        try {
+            // Modrinth download URLs end in the filename — use it so a renamed jar lands correctly.
+            String newName = downloadUrl.substring( downloadUrl.lastIndexOf( '/' ) + 1 );
+            newName = java.net.URLDecoder.decode( newName, java.nio.charset.StandardCharsets.UTF_8 );
+            if ( newName.isBlank() || !newName.toLowerCase().endsWith( ".jar" ) ) {
+                newName = oldJarName;
+            }
+            File tempFile = new File( modsDir, "." + newName + ".update.tmp" );
+            NetworkUtilities.downloadFileFromURL( new java.net.URL( downloadUrl ), tempFile );
+
+            File newFile = new File( modsDir, newName );
+            java.nio.file.Files.move( tempFile.toPath(), newFile.toPath(),
+                                      java.nio.file.StandardCopyOption.REPLACE_EXISTING );
+            // Remove the superseded jar if the version bump renamed it.
+            File oldFile = new File( modsDir, oldJarName );
+            if ( !oldFile.getName().equals( newFile.getName() ) && oldFile.exists() ) {
+                //noinspection ResultOfMethodCallIgnored
+                oldFile.delete();
+            }
+
+            javafx.application.Platform.runLater( () -> {
+                updateLabel.setText( LocalizationManager.format( "detailModal.mods.updated",
+                                                                 newVersion == null ? "?" : newVersion ) );
+                row.getChildren().remove( updateBtn );
+                // The row's enable/disable toggle still references the old filename; disable it so a
+                // stale rename can't fail. Re-opening the modal re-scans against the new jar.
+                Node last = row.getChildren().isEmpty()
+                        ? null : row.getChildren().get( row.getChildren().size() - 1 );
+                if ( last instanceof MFXButton toggle ) {
+                    toggle.setDisable( true );
+                }
+            } );
+        }
+        catch ( Exception ex ) {
+            Logger.logWarningSilent( "Mod update failed for " + oldJarName + ": " + ex.getMessage() );
+            javafx.application.Platform.runLater( () -> {
+                updateLabel.setText( LocalizationManager.get( "detailModal.mods.updateFailed" ) );
+                updateBtn.setDisable( false );
+            } );
+            NotificationManager.warn(
+                    LocalizationManager.get( "notification.content.modUpdateFailed.title" ),
+                    LocalizationManager.format( "notification.content.modUpdateFailed.body", oldJarName ) );
+        }
     }
 
     /** Lists each {@code <packRoot>/shaderpacks/*} entry (zip or
