@@ -75,7 +75,7 @@ public final class TuiApp
     private Label statusBar;
     private ScheduledExecutorService refresher;
 
-    private enum View { LIBRARY, LOGS }
+    private enum View { LIBRARY, BROWSE, LOGS }
     private View currentView = View.LIBRARY;
     private GameModPack logsTarget;  // pack whose logs the Logs view is showing
     private TextBox logsBox;         // the read-only log display in the Logs view
@@ -162,7 +162,7 @@ public final class TuiApp
         Panel root = new Panel( new BorderLayout() );
 
         Label header = new Label(
-                "  Mica Minecraft Launcher      [L] Library   [G] Logs      [Enter] actions   [q] Quit" );
+                "  Mica Minecraft Launcher    [L] Library  [B] Browse  [G] Logs    [Enter] actions  [q] Quit" );
         header.addStyle( SGR.BOLD );
         root.addComponent( header, BorderLayout.Location.TOP );
 
@@ -188,6 +188,10 @@ public final class TuiApp
                 }
                 else if ( c == 'l' ) {
                     showLibrary();
+                    handled.set( true );
+                }
+                else if ( c == 'b' ) {
+                    showBrowse();
                     handled.set( true );
                 }
                 else if ( c == 'g' ) {
@@ -236,6 +240,7 @@ public final class TuiApp
                 .setDescription( running ? "This pack is running." : "Choose an action" );
         if ( !running ) {
             b.addAction( "Launch", () -> launch( pack ) );
+            b.addAction( "Uninstall", () -> confirmUninstall( pack ) );
         }
         else {
             b.addAction( "View logs", () -> { logsTarget = pack; showLogs(); } );
@@ -248,6 +253,19 @@ public final class TuiApp
         }
         b.addAction( "Close", () -> { } );
         b.build().showDialog( gui );
+    }
+
+    private void confirmUninstall( GameModPack pack )
+    {
+        MessageDialogButton r = MessageDialog.showMessageDialog( gui, "Uninstall",
+                "Uninstall " + pack.getFriendlyName() + "?\nThis removes its installed files.",
+                MessageDialogButton.Yes, MessageDialogButton.No );
+        if ( r != MessageDialogButton.Yes ) {
+            return;
+        }
+        runWithSpinner( "Uninstalling " + pack.getFriendlyName() + "…",
+                        () -> GameModPackManager.uninstallModPack( pack ),
+                        this::showLibrary );
     }
 
     private void launch( GameModPack pack )
@@ -305,6 +323,84 @@ public final class TuiApp
         }, "tui-launch-" + pack.getPackSanitizedName() );
         launcher.setDaemon( true );
         launcher.start();
+    }
+
+    // ================================================================== Browse
+
+    private void showBrowse()
+    {
+        currentView = View.BROWSE;
+        content.removeAllComponents();
+
+        ActionListBox list = new ActionListBox();
+        list.addItem( "＋  Install from URL…", this::installByUrl );
+
+        java.util.concurrent.CompletableFuture< Void > fetch = GameModPackManager.getAvailableFetchFuture();
+        boolean ready = fetch == null || fetch.isDone();
+        if ( !ready ) {
+            list.addItem( "(loading available modpacks…)", () -> { } );
+            // Rebuild Browse once the background fetch completes.
+            fetch.whenComplete( ( v, t ) -> gui.getGUIThread().invokeLater( () -> {
+                if ( currentView == View.BROWSE ) {
+                    showBrowse();
+                }
+            } ) );
+        }
+        else {
+            int shown = 0;
+            for ( GameModPack pack : GameModPackManager.getAvailableModPacksIfReady() ) {
+                String url = pack.getManifestUrl();
+                if ( url != null && GameModPackManager.getInstalledModPackByURL( url ) != null ) {
+                    continue;   // already installed — it lives in the Library
+                }
+                GameModPack p = pack;
+                list.addItem( formatAvailableRow( p ), () -> confirmInstall( p ) );
+                shown++;
+            }
+            if ( shown == 0 ) {
+                list.addItem( "(all available modpacks are already installed)", () -> { } );
+            }
+        }
+        content.addComponent( list.withBorder( Borders.singleLine( "Browse / Install" ) ),
+                              BorderLayout.Location.CENTER );
+        window.invalidate();
+        window.setFocusedInteractable( list );
+    }
+
+    private void confirmInstall( GameModPack pack )
+    {
+        MessageDialogButton r = MessageDialog.showMessageDialog( gui, "Install",
+                "Install " + pack.getFriendlyName() + "?",
+                MessageDialogButton.Yes, MessageDialogButton.No );
+        if ( r != MessageDialogButton.Yes ) {
+            return;
+        }
+        runWithSpinner( "Installing " + pack.getFriendlyName() + "…",
+                        () -> GameModPackManager.installModPack( pack ),
+                        this::showBrowse );
+    }
+
+    private void installByUrl()
+    {
+        String url = new com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder()
+                .setTitle( "Install from URL" )
+                .setDescription( "Enter a modpack manifest URL:" )
+                .build()
+                .showDialog( gui );
+        if ( url == null || url.isBlank() ) {
+            return;
+        }
+        String u = url.trim();
+        runWithSpinner( "Installing…",
+                        () -> GameModPackManager.installModPackByURL( u ),
+                        this::showBrowse );
+    }
+
+    private static String formatAvailableRow( GameModPack pack )
+    {
+        String name = safe( pack::getFriendlyName, pack.getPackName() );
+        String version = safe( pack::getPackVersion, "?" );
+        return String.format( "%-34s  v%s", truncate( name, 34 ), truncate( version, 14 ) );
     }
 
     // ==================================================================== Logs
@@ -450,13 +546,48 @@ public final class TuiApp
     /** Called when a game starts or exits: refresh the visible view + the status bar. */
     private void onGamesChanged()
     {
-        if ( currentView == View.LIBRARY ) {
-            showLibrary();
-        }
-        else {
-            showLogs();
+        switch ( currentView ) {
+            case LIBRARY -> showLibrary();
+            case BROWSE -> showBrowse();
+            case LOGS -> showLogs();
         }
         statusBar.setText( statusLine() );
+    }
+
+    /** Runs a blocking task off the GUI thread behind a centered "working" modal, then closes it and
+     *  either reports the error or runs {@code onDone} (on the GUI thread). Used for install /
+     *  uninstall, which don't expose a progress callback. */
+    private void runWithSpinner( String message, Runnable work, Runnable onDone )
+    {
+        BasicWindow modal = new BasicWindow();
+        modal.setHints( List.of( Window.Hint.CENTERED ) );
+        modal.setComponent( new Label( "  " + message + "  " ).withBorder( Borders.singleLine() ) );
+        gui.addWindow( modal );
+
+        Thread t = new Thread( () -> {
+            Throwable error = null;
+            try {
+                work.run();
+            }
+            catch ( Throwable ex ) {
+                error = ex;
+                Logger.logThrowable( ex );
+            }
+            final Throwable finalError = error;
+            gui.getGUIThread().invokeLater( () -> {
+                modal.close();
+                if ( finalError != null ) {
+                    MessageDialog.showMessageDialog( gui, "Failed", String.valueOf( finalError.getMessage() ),
+                                                     MessageDialogButton.OK );
+                }
+                else if ( onDone != null ) {
+                    onDone.run();
+                }
+                statusBar.setText( statusLine() );
+            } );
+        }, "tui-task" );
+        t.setDaemon( true );
+        t.start();
     }
 
     private void startRefresh()
