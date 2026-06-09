@@ -77,16 +77,18 @@ fills the full window height, with the traffic lights floating over the content.
   hands off to AppKit's `[NSWindow performWindowDragWithEvent:]` (native tracking loop — follows
   the cursor 1:1, no lag, with window snapping). Presses on buttons / text fields / clickable
   glyphs are excluded; double-click zooms.
-- `applyCenteredTrafficLights(stage, bandHeightPx)` — grows the title bar to the navbar row
-  height (52pt) so the traffic lights + title sit **vertically centered** in the navbar band
-  rather than hugging its top edge. AppKit sizes the title bar to fit its tallest
-  `NSTitlebarAccessoryViewController` (read from the accessory's **frame** height at attach time,
-  so it must be a real frame, not an as-yet-unresolved Auto Layout constraint), so we attach one
-  empty `NSView` with its frame set to `bandHeightPx` tall × `1pt` wide, left-aligned over the
-  (hidden) brand gap just right of the
-  traffic lights — it grows the bar without overlapping (or eating clicks from) the JavaFX navbar
-  buttons. Idempotent: existing accessories are removed first, so re-applying on every
-  `WINDOW_SHOWN` never compounds the height.
+- `applyCenteredTrafficLights(stage, bandHeightPx)` — puts the traffic-light controls
+  **vertically centered** in the 52pt navbar band instead of hugging its top edge, in two steps:
+  (1) best-effort, attach a `bandHeightPx`-tall `NSTitlebarAccessoryViewController` to grow the
+  bar (AppKit reads the accessory's **frame** height at attach time, so it's a real `setFrameSize:`,
+  not an Auto Layout constraint) — but JavaFX's Glass `NSWindow` has been observed **not** to honor
+  titlebar accessories, so this can't be relied on; (2) the actual centering: read each standard
+  window button's frame + its superview's frame via `NSInvocation` (a struct return the generic
+  `Foundation.invoke` can't capture) and shift all three by one delta so their centers sit
+  `bandHeightPx/2` below the window top. The move is **skipped** (and logged) when the buttons'
+  superview is shorter than the band — moving a button outside its superview clips it and kills its
+  clicks. Re-reads live geometry on every `WINDOW_SHOWN`, so it's self-correcting (and the prior
+  accessory is removed first, so nothing compounds).
 
 **The launcher's own JavaFX navbar buttons stay in the title-bar band** (Browse / Settings / Help /
 account) — they're ordinary nodes painting under the transparent title bar, clickable because no
@@ -96,8 +98,8 @@ native view overlays them.
 > items, but its view spans the whole band and consumes the clicks there — forcing the interactive
 > controls to be native `NSToolbarItem`s. Those items are vended lazily by a delegate and their SF
 > Symbol images are autoreleased; after a window hide/show (returning from a game, where the
-> re-show goes through the raw `Stage.show()` path) the items came back **blank**. The accessory
-> view grows the bar without the click-eating overlay, so the buttons can stay JavaFX and simply
+> re-show goes through the raw `Stage.show()` path) the items came back **blank**. Moving the
+> traffic lights instead of overlaying a native bar lets the buttons stay JavaFX and simply
 > can't go blank. `MCLauncherGuiWindow.show()` registers a persistent `WINDOW_SHOWN` handler that
 > re-applies the hidden-inset + centered-lights setup on **every** show, because a JavaFX
 > hide()/show() can rebuild the `NSWindow` peer and drop the native title-bar state.
