@@ -1184,6 +1184,12 @@ class GameModPackLauncher
         if ( GameModeManager.isServer() ) {
             ioMode = ProcessUtilities.ChildIoMode.INHERIT;
         }
+        else if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
+            // TUI mode: PIPE so the terminal UI's reader threads can drain the streams into its
+            // per-pack log view. (INHERIT would dump the game log onto the Lanterna screen; DISCARD
+            // would lose it.)
+            ioMode = ProcessUtilities.ChildIoMode.PIPE;
+        }
         else if ( ConfigManager.getInGameConsoleEnable() ) {
             ioMode = ProcessUtilities.ChildIoMode.PIPE;
         }
