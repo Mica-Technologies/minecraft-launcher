@@ -104,6 +104,7 @@ public final class WindowsCustomChromeManager
 
     private static final int WM_NCCALCSIZE   = 0x0083;
     private static final int WM_NCHITTEST    = 0x0084;
+    private static final int WM_NCACTIVATE   = 0x0086;
     private static final int WM_NCMOUSEMOVE  = 0x00A0;
     private static final int WM_NCMOUSELEAVE = 0x02A2;
     private static final int WM_MOUSEMOVE    = 0x0200;
@@ -290,6 +291,15 @@ public final class WindowsCustomChromeManager
                     break;
                 case WM_NCHITTEST:
                     return onNcHitTest( hwnd, lParam );
+                case WM_NCACTIVATE:
+                    // On focus change Windows repaints the non-client frame to reflect the
+                    // active/inactive state, which briefly flashes the default title bar through our
+                    // reclaimed caption when the launcher regains focus. Forwarding with lParam = -1
+                    // updates the activation state WITHOUT repainting the non-client area — the
+                    // standard custom-frame fix for that flash. (Return value is the default proc's,
+                    // so activation/deactivation still proceeds normally.)
+                    return User32Ex.INSTANCE.CallWindowProcW( originalProc, hwnd, uMsg, wParam,
+                                                              new LPARAM( -1 ) );
                 case WM_NCMOUSEMOVE:
                     // wParam is the hit-test code under the pointer; light our maximize button when
                     // it's over the HTMAXBUTTON slot. Falls through to the default proc so the OS
