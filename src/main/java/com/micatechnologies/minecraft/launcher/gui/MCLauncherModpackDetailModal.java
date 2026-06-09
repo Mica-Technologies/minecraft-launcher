@@ -998,9 +998,24 @@ public class MCLauncherModpackDetailModal extends StackPane
                 Logger.logWarningSilent( "Update log read failed: " + t.getClass().getSimpleName() );
                 entries = java.util.Collections.emptyList();
             }
+            // When an update is pending, diff the manifest's mods against what's installed so we can
+            // show an at-a-glance "what's new" summary. Best-effort; null when not applicable.
+            com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result diff = null;
+            try {
+                if ( pack.isUpdateAvailable() ) {
+                    diff = com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.compute( pack );
+                }
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Pending-update diff failed: " + t.getClass().getSimpleName() );
+            }
             final List< ModPackUpdateLog.Entry > finalEntries = entries;
+            final com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result finalDiff = diff;
             javafx.application.Platform.runLater( () -> {
                 section.getChildren().remove( placeholder );
+                if ( finalDiff != null && !finalDiff.isEmpty() ) {
+                    section.getChildren().add( buildPendingChangesNode( pack, finalDiff ) );
+                }
                 if ( finalEntries.isEmpty() ) {
                     Label empty = new Label(
                             pack.isVanillaVersion()
@@ -1027,6 +1042,74 @@ public class MCLauncherModpackDetailModal extends StackPane
             } );
         } );
         return section;
+    }
+
+    /** "What's new" summary card shown atop the update log when a manifest update is pending —
+     *  a one-line add/update/remove count derived from {@link com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff},
+     *  with a few example mod names per category. */
+    private Node buildPendingChangesNode(
+            GameModPack pack,
+            com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result diff )
+    {
+        VBox box = new VBox( 4 );
+        box.getStyleClass().add( "modpackDetailSection" );
+        box.setPadding( new Insets( 10 ) );
+
+        Label header = new Label(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
+                        "detailModal.whatsNew.header", pack.getPackVersion() == null ? "?" : pack.getPackVersion() ) );
+        header.getStyleClass().add( "modpackDetailContentName" );
+        box.getChildren().add( header );
+
+        java.util.List< String > parts = new java.util.ArrayList<>();
+        if ( diff.added() > 0 ) {
+            parts.add( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                               .format( "detailModal.whatsNew.added", diff.added() ) );
+        }
+        if ( diff.updated() > 0 ) {
+            parts.add( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                               .format( "detailModal.whatsNew.updated", diff.updated() ) );
+        }
+        if ( diff.removed() > 0 ) {
+            parts.add( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                               .format( "detailModal.whatsNew.removed", diff.removed() ) );
+        }
+        Label summary = new Label( String.join( "  ·  ", parts ) );
+        summary.setWrapText( true );
+        box.getChildren().add( summary );
+
+        addExampleNames( box, "detailModal.whatsNew.addedNames", diff.addedNames() );
+        addExampleNames( box, "detailModal.whatsNew.updatedNames", diff.updatedNames() );
+        addExampleNames( box, "detailModal.whatsNew.removedNames", diff.removedNames() );
+
+        Label note = new Label( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                                        .get( "detailModal.whatsNew.note" ) );
+        note.getStyleClass().add( "muted" );
+        note.setWrapText( true );
+        box.getChildren().add( note );
+        return box;
+    }
+
+    /** Appends a muted "Added: a, b, c (+N more)" line for one diff category, capped to keep the
+     *  card compact. No-op for an empty list. */
+    private void addExampleNames( VBox box, String labelKey, java.util.List< String > names )
+    {
+        if ( names == null || names.isEmpty() ) {
+            return;
+        }
+        final int cap = 6;
+        java.util.List< String > shown = names.size() > cap ? names.subList( 0, cap ) : names;
+        String joined = String.join( ", ", shown );
+        if ( names.size() > cap ) {
+            joined += com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                    .format( "detailModal.whatsNew.more", names.size() - cap );
+        }
+        Label lbl = new Label(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                        .format( labelKey, joined ) );
+        lbl.getStyleClass().add( "muted" );
+        lbl.setWrapText( true );
+        box.getChildren().add( lbl );
     }
 
     /**
