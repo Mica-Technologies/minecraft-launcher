@@ -69,6 +69,9 @@ public class MCLauncherHelpWindow
     public static void show( HelpTopic topic )
     {
         GUIUtilities.JFXPlatformRun( () -> {
+            // One OS dark/light read for the whole pass so the root, sidebar, content sheet, and
+            // chrome all agree (the detector can otherwise flip between back-to-back calls).
+            refreshOsDarkCache();
             if ( helpStage == null ) {
                 buildStage();
             }
@@ -175,6 +178,8 @@ public class MCLauncherHelpWindow
             return;
         }
         GUIUtilities.JFXPlatformRun( () -> {
+            // One OS dark/light read for the whole pass (see refreshOsDarkCache).
+            refreshOsDarkCache();
             applyTheme();
             if ( currentTopic != null ) {
                 loadTopic( currentTopic );
@@ -348,14 +353,16 @@ public class MCLauncherHelpWindow
                                                                           .getResourceAsStream( topic.getResourcePath() )
                         ).readAllBytes(), StandardCharsets.UTF_8 );
 
-                // Resolve CSS URLs
-                String baseCssUrl = resolveResourceUrl( "help/help-style.css" );
-                String themeCssUrl = resolveResourceUrl( resolveThemeCssPath() );
-
-                // Wrap content with CSS links
+                // Inline the CSS text rather than <link href="file:..."> them. A page loaded via
+                // loadContent() has a null / about:blank origin, and WebKit (JavaFX 26) blocks that
+                // origin from pulling in file: stylesheet resources — so the linked sheets silently
+                // never applied and the content fell back to unstyled black-on-(dark root) default
+                // rendering (the help-window readability bug). Embedding the sheet text makes the
+                // content fully self-contained and theme-correct on every theme.
+                String baseCss = readResourceText( "help/help-style.css" );
+                String themeCss = readResourceText( resolveThemeCssPath() );
                 String fullHtml = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">" +
-                        "<link rel=\"stylesheet\" href=\"" + baseCssUrl + "\">" +
-                        "<link rel=\"stylesheet\" href=\"" + themeCssUrl + "\">" +
+                        "<style>" + baseCss + "\n" + themeCss + "</style>" +
                         "</head><body>" + html + "</body></html>";
 
                 webEngine.loadContent( fullHtml );
@@ -401,16 +408,31 @@ public class MCLauncherHelpWindow
             root.getStylesheets().add( tokens );
         }
 
-        // Native theme: paint the help root + scene transparent so DWM Mica composites
-        // through, the way the main stage does. Other themes get a solid bg via the
-        // theme stylesheets (no inline override needed — the legacy / token rules win
-        // their cascade since root has no inline style here).
+        // Native theme handling. On macOS the help root + scene stay transparent so the
+        // NSVisualEffectView vibrancy (installed below) frosts through. On Windows / Linux the
+        // help WebView can't composite over DWM Mica, so a transparent root leaves the content on
+        // an unreliable backdrop — e.g. the native-LIGHT help sheet's near-black text landing on a
+        // dark surface (the "black text on dark" the user hit). Give it a SOLID surface matching
+        // the native light/dark state (and the help content CSS's own --color-bg) so the text reads
+        // correctly, exactly like every non-native theme. Other themes get their solid bg via the
+        // theme stylesheets (no inline override needed — the legacy / token rules win their cascade).
         String activeTheme = ConfigManager.getTheme();
         boolean isNative = ConfigConstants.THEME_NATIVE.equals( activeTheme );
         if ( isNative ) {
-            root.setStyle( "-fx-background-color: transparent;" );
-            if ( helpStage != null && helpStage.getScene() != null ) {
-                helpStage.getScene().setFill( javafx.scene.paint.Color.TRANSPARENT );
+            if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+                root.setStyle( "-fx-background-color: transparent;" );
+                if ( helpStage != null && helpStage.getScene() != null ) {
+                    helpStage.getScene().setFill( javafx.scene.paint.Color.TRANSPARENT );
+                }
+            }
+            else {
+                // #0C1017 mirrors help-native.css --color-bg (dark, light text); #FFFFFF mirrors
+                // help-light.css --color-bg (light, dark text) used for native over OS light.
+                String nativeBg = isOsDark() ? "#0C1017" : "#FFFFFF";
+                root.setStyle( "-fx-background-color: " + nativeBg + ";" );
+                if ( helpStage != null && helpStage.getScene() != null ) {
+                    helpStage.getScene().setFill( javafx.scene.paint.Color.web( nativeBg ) );
+                }
             }
         }
         else {
@@ -461,11 +483,48 @@ public class MCLauncherHelpWindow
         }
     }
 
-    /** Cheap wrapper around OsThemeDetector for places that need the OS state but
-     *  shouldn't blow up if the detector can't init on a weird platform. */
+    /** Reads a classpath text resource (e.g. a help CSS sheet) into a String for inlining, or "" if
+     *  it can't be read. Used to embed the help stylesheets directly into the WebView document — see
+     *  {@link #loadTopic} for why linking them as file: resources doesn't work under loadContent(). */
+    private static String readResourceText( String resourcePath )
+    {
+        try ( InputStream in = MCLauncherHelpWindow.class.getClassLoader()
+                                                          .getResourceAsStream( resourcePath ) ) {
+            if ( in == null ) {
+                Logger.logWarningSilent( "Help: CSS resource not found: " + resourcePath );
+                return "";
+            }
+            return new String( in.readAllBytes(), StandardCharsets.UTF_8 );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Help: could not read CSS " + resourcePath + ": " + e.getMessage() );
+            return "";
+        }
+    }
+
+    /** Cached OS dark/light state for the current show / refresh pass. The jSystemThemeDetector can
+     *  return inconsistent values across rapid back-to-back calls; reading it once per pass keeps
+     *  every theming decision (root bg, sidebar tokens, content CSS, title-bar chrome) in agreement.
+     *  Otherwise the window splits — e.g. a dark root paired with the light content sheet, giving
+     *  the near-black-on-dark help text the user reported. */
+    private static Boolean osDarkCache = null;
+
+    /** Re-reads + caches the OS dark/light state. Called once at the start of each show / refresh so
+     *  the whole pass agrees on one value. */
+    private static void refreshOsDarkCache()
+    {
+        osDarkCache = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
+    }
+
+    /** OS dark/light for this pass — the value cached by {@link #refreshOsDarkCache()} (or a fresh
+     *  read if nothing's cached yet). Use this everywhere instead of calling the detector directly,
+     *  so a single pass never disagrees with itself. */
     private static boolean isOsDark()
     {
-        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
+        if ( osDarkCache == null ) {
+            refreshOsDarkCache();
+        }
+        return osDarkCache;
     }
 
     /** Returns the ui-tokens-*.css resource path for the active launcher theme.
@@ -474,8 +533,7 @@ public class MCLauncherHelpWindow
     {
         String theme = ConfigManager.getTheme();
         if ( ConfigConstants.THEME_NATIVE.equals( theme ) ) {
-            boolean osDark = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
-            return osDark ? "ui/ui-tokens-native.css" : "ui/ui-tokens-native-light.css";
+            return isOsDark() ? "ui/ui-tokens-native.css" : "ui/ui-tokens-native-light.css";
         }
         return switch ( theme ) {
             case ConfigConstants.THEME_LIGHT         -> "ui/ui-tokens-light.css";
@@ -520,8 +578,7 @@ public class MCLauncherHelpWindow
         if ( ConfigConstants.THEME_NATIVE.equals( theme ) ) {
             // Native follows OS dark/light: pair the matching legacy sheet so list-cell /
             // scroll-bar / etc. baseline rules carry the right palette.
-            boolean osDark = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
-            cssName = osDark ? "guiStyle-dark.css" : "guiStyle-light.css";
+            cssName = isOsDark() ? "guiStyle-dark.css" : "guiStyle-light.css";
         }
         else {
             cssName = switch ( theme ) {
