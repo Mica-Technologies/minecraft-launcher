@@ -507,11 +507,11 @@ public class MCLauncherGuiWindow extends Application
             // Set correct first theme
             forceThemeChange();
 
-            // Windows custom chrome: blend the title-bar navbar to the window background BEFORE the
-            // scene is shown, so it never flashes at its default (lighter) .navBar colour. The rest
-            // of the title-bar setup (caption buttons) runs after setScene since it needs the stage.
+            // Windows custom chrome: blend the title-bar navbar + arrange its controls BEFORE the
+            // scene is shown, so it never flashes at its default colour/layout first. The rest of
+            // the title-bar setup (caption buttons) runs after setScene since it needs the stage.
             com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls
-                    .prePaintBlend( gui.scene.getRoot() );
+                    .prePaintSetup( gui.scene.getRoot() );
 
             // Set scene
             stage.setScene( gui.scene );

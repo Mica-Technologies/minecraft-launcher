@@ -26,9 +26,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.RowConstraints;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -47,11 +45,10 @@ import org.apache.commons.lang3.SystemUtils;
  *   <li><b>Title-bar blend</b> — the top navbar is repainted in the window background colour
  *       (the {@code win-titlebar} style class) so the reclaimed strip reads as one seamless surface
  *       with the content below, instead of a lighter band.</li>
- *   <li><b>Main-menu relocation</b> — the main menu is the only screen with its own controls in the
- *       top-right; those would collide with the caption cluster, so its account + refresh / browse /
- *       settings / update controls move down into the bottom status bar (which grows to a control-bar
- *       height). The account sits left, the action buttons to its right; the version label reseats
- *       just left of Exit.</li>
+ *   <li><b>Main-menu top-bar arrangement</b> — the main menu keeps its controls in the title bar
+ *       (like macOS / Linux), just like every other screen: the refresh icon is grouped next to the
+ *       update icon, and a trailing spacer reserves room so the right-aligned controls clear the
+ *       caption cluster. The bottom status bar is left as the FXML defines it (version + Exit).</li>
  * </ul>
  *
  * <p>All no-ops unless {@link WindowsCustomChromeManager#isActive()}, so nothing here touches the
@@ -63,8 +60,8 @@ public final class WindowsTitleBarControls
 {
     /** Marker class on the assembled caption cluster — used for the idempotency check. */
     private static final String CLUSTER_STYLE_CLASS = "winCaptionCluster";
-    /** Height the bottom status bar grows to once it hosts the relocated controls. */
-    private static final double BOTTOM_BAR_HEIGHT = 52.0;
+    /** Id of the trailing spacer that keeps the navbar controls clear of the caption cluster. */
+    private static final String CLEARANCE_ID = "winCaptionClearance";
 
     // Caption-button glyphs, drawn as 1px-stroked SVG paths in a ~10x10 box (themed + hover-coloured
     // via the .winCaptionGlyph CSS). Stroked, not filled, so they stay crisp and recolour cleanly.
@@ -97,24 +94,26 @@ public final class WindowsTitleBarControls
 
         blendTitleBar( root );
         installCaptionButtons( root, helpAction );
-        relocateMainMenuControls( root );
+        arrangeMainMenuTopBar( root );
     }
 
     /**
-     * Blends the title-bar navbar <i>before</i> the scene is shown, so it's never painted at its
-     * default (lighter) {@code .navBar} colour first. Call this right before
-     * {@code stage.setScene(...)}; the full {@link #apply} still runs afterwards for the caption
-     * buttons (which need the stage). No-op off Windows / when the chrome is inactive.
+     * Prepares the title bar <i>before</i> the scene is shown — blends the navbar (so it's never
+     * painted at its default lighter colour first) and arranges the main-menu controls (so they're
+     * already cleared into their final spots). Call this right before {@code stage.setScene(...)};
+     * the full {@link #apply} still runs afterwards for the caption buttons (which need the stage).
+     * No-op off Windows / when the chrome is inactive.
      *
      * @param root the screen's inner root (already attached to its Scene, CSS-resolvable)
      */
-    public static void prePaintBlend( Parent root )
+    public static void prePaintSetup( Parent root )
     {
         if ( !SystemUtils.IS_OS_WINDOWS || root == null
                 || !WindowsCustomChromeManager.isActive() ) {
             return;
         }
         blendTitleBar( root );
+        arrangeMainMenuTopBar( root );
     }
 
     /**
@@ -269,66 +268,49 @@ public final class WindowsTitleBarControls
     }
 
     /**
-     * Main-menu only: moves the top navbar's account + refresh / browse / settings / update controls
-     * into the bottom status bar, grows that bar, and reseats the (smaller) version label just left
-     * of Exit. The account (avatar + name) leads at the far left with the action buttons to its
-     * right; a divider separates the two groups. Identified by the presence of {@code #libraryBtn} +
-     * {@code #exitBtn}; other screens have neither, so this no-ops. Idempotent — once the browse
-     * button lives in the bottom bar it's left alone.
+     * Main-menu only: keeps the navbar's controls in the title bar (matching macOS / Linux and every
+     * other screen) rather than banishing them to the bottom bar. Two tweaks:
+     * <ul>
+     *   <li>groups the refresh icon next to the update icon, and</li>
+     *   <li>appends a fixed-width spacer so the right-aligned controls clear the caption cluster
+     *       (help + min/max/close) pinned to the top-right.</li>
+     * </ul>
+     * Identified by {@code #libraryBtn} living in an HBox navbar; other screens have no such button,
+     * so this no-ops. Idempotent — the reorder is skipped once refresh already sits before update,
+     * and the spacer is added only once.
      */
-    private static void relocateMainMenuControls( Parent root )
+    private static void arrangeMainMenuTopBar( Parent root )
     {
-        Node exit = root.lookup( "#exitBtn" );
         Node browse = root.lookup( "#libraryBtn" );
-        if ( exit == null || browse == null || !( exit.getParent() instanceof HBox bottomBar ) ) {
+        if ( browse == null || !( browse.getParent() instanceof HBox navBar ) ) {
             return;   // not the main menu
         }
-        if ( browse.getParent() == bottomBar ) {
-            return;   // already relocated
+
+        // Group the refresh icon next to the update icon (move refresh to just before update).
+        Node refresh = root.lookup( "#refreshIcon" );
+        Node update = root.lookup( "#updateImgView" );
+        if ( refresh != null && update != null ) {
+            var kids = navBar.getChildren();
+            int ri = kids.indexOf( refresh );
+            int ui = kids.indexOf( update );
+            if ( ri >= 0 && ui >= 0 && ri != ui - 1 ) {
+                kids.remove( refresh );
+                kids.add( kids.indexOf( update ), refresh );
+            }
         }
 
-        // Account first (avatar + name), a divider, then the action buttons — left-to-right at the
-        // start of the bottom bar.
-        Node[] toMove = {
-                root.lookup( "#userImage" ),
-                root.lookup( "#playerLabel" ),
-                root.lookup( ".navDivider" ),
-                root.lookup( "#refreshIcon" ),
-                root.lookup( "#libraryBtn" ),
-                root.lookup( "#settingsBtn" ),
-                root.lookup( "#updateImgView" ),
-        };
-        int insert = 0;
-        for ( Node n : toMove ) {
-            if ( n == null ) {
-                continue;
-            }
-            if ( n.getParent() instanceof Pane src ) {
-                src.getChildren().remove( n );
-            }
-            bottomBar.getChildren().add( insert++, n );
-        }
-
-        // Version label: a touch smaller, reseated just left of the Exit button.
-        Node version = root.lookup( "#versionLabel" );
-        if ( version != null ) {
-            bottomBar.getChildren().remove( version );
-            int exitIdx = bottomBar.getChildren().indexOf( exit );
-            if ( exitIdx < 0 ) {
-                exitIdx = bottomBar.getChildren().size();
-            }
-            bottomBar.getChildren().add( exitIdx, version );
-            version.setStyle( "-fx-font-size: 11px;" );
-        }
-
-        // Grow the bottom bar so the relocated controls fit comfortably (matches the taller
-        // control bars on the other screens).
-        Integer rowIdx = GridPane.getRowIndex( bottomBar );
-        if ( root instanceof GridPane grid && rowIdx != null && rowIdx < grid.getRowConstraints().size() ) {
-            RowConstraints rc = grid.getRowConstraints().get( rowIdx );
-            rc.setMinHeight( BOTTOM_BAR_HEIGHT );
-            rc.setPrefHeight( BOTTOM_BAR_HEIGHT );
-            rc.setMaxHeight( BOTTOM_BAR_HEIGHT );
+        // Reserve trailing space so the right-aligned controls clear the caption cluster. A fixed
+        // spacer, not -fx-padding — the .navBar CSS padding stomps a programmatic right-padding.
+        if ( navBar.lookup( "#" + CLEARANCE_ID ) == null ) {
+            Region clearance = new Region();
+            clearance.setId( CLEARANCE_ID );
+            // help + minimize + maximize + close, each one button-slot wide.
+            double w = WindowsCustomChromeManager.BUTTON_WIDTH * 4.0;
+            clearance.setMinWidth( w );
+            clearance.setPrefWidth( w );
+            clearance.setMaxWidth( w );
+            clearance.setMouseTransparent( true );
+            navBar.getChildren().add( clearance );
         }
     }
 }
