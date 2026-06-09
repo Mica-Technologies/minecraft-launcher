@@ -96,6 +96,37 @@ class LauncherSession
         LauncherCore.configureLogger();
         ColdStartProfiler.mark( "logger_ready" );
 
+        // ===== Full-screen TUI mode (--cli / --tui) =====
+        // Headless: no JavaFX, no GUI login screen. Reuse the cached account (from a prior GUI
+        // sign-in), load the installed packs, and hand the terminal to the Lanterna app. Returns
+        // only when the user quits the TUI; then the launcher shuts down.
+        if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
+            if ( !com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.hasExistingLogin() ) {
+                com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut().println(
+                        "No saved Microsoft account found. Sign in via the GUI launcher once, "
+                                + "then relaunch with --cli." );
+                LauncherCore.closeApp();
+                return;
+            }
+            // Restore the cached user (instant) + refresh the token in the background so a launch is
+            // ready. Same fast-path the GUI uses, minus the interactive fallback.
+            com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.loadCachedUserNow();
+            com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.renewExistingLoginAsync();
+
+            GameModPackManager.fetchInstalledModPacks( null );
+            GameModPackManager.startAvailableModPacksFetchAsync();
+
+            try {
+                com.micatechnologies.minecraft.launcher.tui.TuiApp.run();
+            }
+            catch ( Throwable t ) {
+                Logger.logThrowable( t );
+                com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut().println( "TUI error: " + t );
+            }
+            LauncherCore.closeApp();
+            return;
+        }
+
         // Kick off JavaFX platform startup + the GUI-window construction on a
         // background daemon thread so their combined ~1.0 s of bootstrap work
         // (Prism + Glass + font loading + MCLauncherGuiWindow.start +

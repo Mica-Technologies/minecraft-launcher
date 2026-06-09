@@ -176,6 +176,14 @@ public class LauncherCore
         // window is created or DPI API is queried; later upgrades fail silently.
         WindowsDpiAwareness.enablePerMonitorV2();
 
+        // Full-screen TUI mode (--cli / --tui): capture the REAL console streams now, before the
+        // logger (configureLogger, later) reassigns System.out to a file stream. Lanterna renders to
+        // these captured streams while launcher logging goes file-only, so logs can't corrupt the
+        // TUI. The launcher still runs as a normal CLIENT for config/path resolution.
+        if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.requestedIn( args ) ) {
+            com.micatechnologies.minecraft.launcher.tui.TuiMode.enable( System.out, System.in );
+        }
+
         // Enforce single instance. If another instance is already running:
         //   - and we have a mmcl:// URI in argv, forward it to the running instance and exit
         //     silently (the running instance brings itself to focus and dispatches the action).
@@ -188,6 +196,14 @@ public class LauncherCore
                     System.exit( forwarded ? 0 : 1 );
                     return;
                 }
+            }
+            // Terminal mode: a Swing popup would be wrong (and may not show over SSH). Print to the
+            // real console and exit cleanly.
+            if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
+                com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut()
+                        .println( "Mica Minecraft Launcher is already running. Close it before starting --cli." );
+                System.exit( 0 );
+                return;
             }
             javax.swing.SwingUtilities.invokeLater( () -> {
                 javax.swing.JOptionPane.showMessageDialog( null,
@@ -227,6 +243,10 @@ public class LauncherCore
                 likelyClient = false;
                 break;
             }
+        }
+        // TUI mode is a CLIENT but renders no JavaFX — skip the toolkit prestart entirely.
+        if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
+            likelyClient = false;
         }
         if ( likelyClient ) {
             fxToolkitReadyLatch = new java.util.concurrent.CountDownLatch( 1 );
@@ -1145,6 +1165,23 @@ public class LauncherCore
                 GameModeManager.setCurrentGameMode( GameMode.CLIENT );
                 return "";
             }
+        }
+
+        // --cli / --tui: full-screen TUI mode (the flag was already captured in main()). It runs as
+        // a normal CLIENT (same config/paths as the GUI); the only other meaningful token is an
+        // optional modpack name to pre-select. Strip the mode flags and take the last bare token.
+        if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
+            GameModeManager.setCurrentGameMode( GameMode.CLIENT );
+            String tuiSelection = "";
+            for ( String a : args ) {
+                if ( "--cli".equals( a ) || "--tui".equals( a )
+                        || LauncherConstants.PROGRAM_ARG_CLIENT_MODE.equalsIgnoreCase( a )
+                        || LauncherConstants.PROGRAM_ARG_SERVER_MODE.equalsIgnoreCase( a ) ) {
+                    continue;
+                }
+                tuiSelection = a;
+            }
+            return tuiSelection;
         }
 
         String initialModPackSelection = "";

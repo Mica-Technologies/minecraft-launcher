@@ -174,16 +174,26 @@ public class Logger
          */
         PrintStream consoleErr = System.err;
 
-        // Create new tee print stream for System.out and System.err
+        // In full-screen TUI mode the real console belongs to Lanterna — tee-ing log output to it
+        // would corrupt the screen. Route logging file-only there; the launcher log is still on disk
+        // (and the TUI can tail it), while stray log lines never touch the terminal.
+        boolean fileOnly = com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled();
+
+        // Create new print stream(s) for System.out and System.err — tee'd to console + file
+        // normally, file-only under the TUI.
         PrintStream sysOut;
         PrintStream sysErr;
         if ( scheduled ) {
-            sysOut = new PrintStream( new TeeOutputStream( console, fileBufferedOutputStream ) );
-            sysErr = new PrintStream( new TeeOutputStream( consoleErr, fileBufferedOutputStream ) );
+            sysOut = fileOnly ? new PrintStream( fileBufferedOutputStream )
+                              : new PrintStream( new TeeOutputStream( console, fileBufferedOutputStream ) );
+            sysErr = fileOnly ? new PrintStream( fileBufferedOutputStream )
+                              : new PrintStream( new TeeOutputStream( consoleErr, fileBufferedOutputStream ) );
         }
         else {
-            sysOut = new PrintStream( new TeeOutputStream( console, fileOutputStream ) );
-            sysErr = new PrintStream( new TeeOutputStream( consoleErr, fileOutputStream ) );
+            sysOut = fileOnly ? new PrintStream( fileOutputStream )
+                              : new PrintStream( new TeeOutputStream( console, fileOutputStream ) );
+            sysErr = fileOnly ? new PrintStream( fileOutputStream )
+                              : new PrintStream( new TeeOutputStream( consoleErr, fileOutputStream ) );
             Logger.logErrorSilent( "Falling back to non-buffered log stream. Performance may be degraded!" );
         }
 
