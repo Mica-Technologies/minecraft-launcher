@@ -280,12 +280,19 @@ public final class MacOsTitleBarManager
      *
      * <p>Presses that land on an interactive control (a button, a text field, or any node
      * carrying an {@code onMouseClicked} handler such as the refresh/help glyphs) do
-     * <em>not</em> start a drag, so the navbar's own controls keep working; a double-click
-     * on empty space zooms, matching native title-bar behavior. No-op on non-macOS, a null
-     * arg, or a scene with no {@code .navBar}. Safe to call per scene — handlers are added
-     * to that scene's bar, which is discarded with the scene.</p>
+     * <em>not</em> start a drag, so the controls keep working; a double-click on empty space
+     * zooms, matching native title-bar behavior. No-op on non-macOS or a null arg. Safe to
+     * call per scene — handlers are added to that scene's node, which is discarded with the
+     * scene.</p>
      *
-     * @param root  the scene root to find the top navbar in
+     * <p><b>Drag region.</b> On screens with a top navbar that bar is the drag region. Screens
+     * <em>without</em> one (the login + launch-progress screens are centered cards with no
+     * title-bar strip) would otherwise have nowhere to grab the window once the native title
+     * bar is transparent + full-size-content — so we fall back to the whole scene root, letting
+     * the user drag from any empty area. The interactive-node exemption still keeps the card's
+     * own buttons / fields live, so only empty background starts a drag.</p>
+     *
+     * @param root  the scene root (its first {@code .navBar}, else the root itself, is the drag region)
      * @param stage the stage hosting the NSWindow to drag
      *
      * @since 2026.2
@@ -296,19 +303,18 @@ public final class MacOsTitleBarManager
             return;
         }
         // lookup returns the first .navBar in document order — the top bar, not the
-        // secondary search/filter bar some screens add below it.
+        // secondary search/filter bar some screens add below it. Screens with no navbar
+        // (login, launch progress) fall back to the whole root so they're still draggable.
         final Node bar = root.lookup( ".navBar" );
-        if ( bar == null ) {
-            return;
-        }
+        final Node dragRegion = ( bar != null ) ? bar : root;
 
-        bar.addEventHandler( MouseEvent.MOUSE_PRESSED, event -> {
+        dragRegion.addEventHandler( MouseEvent.MOUSE_PRESSED, event -> {
             if ( event.getButton() != MouseButton.PRIMARY
-                    || isOnInteractiveNode( event.getTarget(), bar ) ) {
+                    || isOnInteractiveNode( event.getTarget(), dragRegion ) ) {
                 return;
             }
             if ( event.getClickCount() == 2 ) {
-                // Double-click empty navbar space to zoom, matching the native title bar.
+                // Double-click empty space to zoom, matching the native title bar.
                 stage.setMaximized( !stage.isMaximized() );
                 return;
             }
