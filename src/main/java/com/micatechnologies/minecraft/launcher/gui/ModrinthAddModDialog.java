@@ -155,12 +155,11 @@ public final class ModrinthAddModDialog
         rootBox.setPadding( new Insets( 16 ) );
 
         Scene scene = new Scene( rootBox, 560, 520 );
-        // Inherit the launcher's active theme so the dialog matches the rest of the app.
-        if ( owner != null && owner.getScene() != null && owner.getScene().getRoot() != null ) {
-            scene.getStylesheets().addAll( owner.getScene().getStylesheets() );
-            rootBox.getStylesheets().addAll( owner.getScene().getRoot().getStylesheets() );
-        }
         stage.setScene( scene );
+        // Apply the launcher's active theme the same way other auxiliary windows do: installs the
+        // legacy + ui-base + token sheets AND paints a solid background, so the native (Mica) theme
+        // doesn't render this non-Mica popup as unreadable white-on-white.
+        MCLauncherGuiWindow.installCurrentThemeStylesheets( rootBox );
         stage.show();
         queryField.requestFocus();
     }
