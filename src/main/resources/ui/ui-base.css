@@ -141,6 +141,15 @@
 .navBar  { -fx-border-width: 0 0 1 0; }
 .bottomBar { -fx-border-width: 1 0 0 0; }
 
+/* Windows custom-chrome only: the row-0 navbar IS the reclaimed title bar, so make it transparent
+   and drop its divider — the rootPane background (solid, or native Mica) then shows through it as
+   one seamless surface with the content below instead of a lighter band. Applied (inline, for
+   determinism) via WindowsTitleBarControls. */
+.win-titlebar {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+}
+
 .navBrand {
     -fx-font-weight: 700;
     -fx-font-size: 14px;
@@ -1036,6 +1045,9 @@
 .winCaptionBtn {
     -fx-background-color: transparent;
     -fx-background-radius: 0;
+    /* Keep the hover fill 2px clear of the title-bar's bottom edge so it can't bleed into the
+       row below. Applies to every caption button's hover state (they only swap the colour). */
+    -fx-background-insets: 0 0 2 0;
     -fx-border-width: 0;
     -fx-padding: 0;
     -fx-alignment: CENTER;
@@ -1068,6 +1080,43 @@
 
 .winCaptionBtn-help:hover .text {
     -fx-fill: white;
+}
+
+/* The assembled help/min/max/close cluster floats over the top-right of the title bar. */
+.winCaptionCluster {
+    -fx-background-color: transparent;
+}
+
+/* Minimize / maximize / restore / close glyphs — stroked SVG paths (transparent fill) so they
+   recolour cleanly with the theme + hover, mirroring the resting/hover shade of the native
+   Win11 caption glyphs. */
+.winCaptionGlyph {
+    -fx-fill: transparent;
+    -fx-stroke: -color-text-muted;
+    -fx-stroke-width: 1.1;
+}
+
+.winCaptionBtn:hover .winCaptionGlyph {
+    -fx-stroke: -color-text;
+}
+
+/* Maximize button is OS-owned (HTMAXBUTTON) so it gets no JavaFX :hover — WindowsTitleBarControls
+   toggles .win-hover from the native non-client mouse tracking to match the neighbours. */
+.winCaptionBtn-max.win-hover {
+    -fx-background-color: -color-surface-hover;
+}
+
+.winCaptionBtn-max.win-hover .winCaptionGlyph {
+    -fx-stroke: -color-text;
+}
+
+/* Close button: red hover like the system close, with a white glyph. */
+.winCaptionBtn-close:hover {
+    -fx-background-color: #C42B1C;
+}
+
+.winCaptionBtn-close:hover .winCaptionGlyph {
+    -fx-stroke: white;
 }
 
 

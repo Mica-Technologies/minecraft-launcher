@@ -59,6 +59,9 @@ public final class WindowChromeManager
 
     /** Sentinel value telling DWM to use the system default for that attribute. */
     public static final int COLOR_DEFAULT = 0xFFFFFFFF;
+    /** Sentinel value telling DWM to draw <i>no</i> fill for that attribute — the caption / border
+     *  then composites like the client area (so a Mica backdrop shows through it uniformly). */
+    public static final int COLOR_NONE = 0xFFFFFFFE;
 
     /** DWMSBT_AUTO (let the system pick) / DWMSBT_NONE (no backdrop). */
     public static final int BACKDROP_NONE  = 1;
@@ -162,8 +165,33 @@ public final class WindowChromeManager
         setColorRef( stage, DWMWA_TEXT_COLOR, color );
     }
 
+    /**
+     * Clears DWM's caption fill ({@link #COLOR_NONE}) so the title-bar strip composites like the
+     * client area instead of being painted a flat colour. Use on the native (Mica) theme, whose
+     * client area is transparent — a solid caption colour there shows as a band against the
+     * backdrop. Win11 22H2+; older builds silently ignore.
+     */
+    public static void clearCaptionColor( Stage stage )
+    {
+        setColorRefRaw( stage, DWMWA_CAPTION_COLOR, COLOR_NONE );
+    }
+
+    /** Clears DWM's window border fill ({@link #COLOR_NONE}). Pairs with {@link #clearCaptionColor}
+     *  on the native theme so neither the caption nor the frame paints a flat colour. */
+    public static void clearBorderColor( Stage stage )
+    {
+        setColorRefRaw( stage, DWMWA_BORDER_COLOR, COLOR_NONE );
+    }
+
     /** Shared helper — encodes a JavaFX Color as a Windows COLORREF and forwards to DWM. */
     private static void setColorRef( Stage stage, int dwmAttribute, javafx.scene.paint.Color color )
+    {
+        setColorRefRaw( stage, dwmAttribute,
+                        ( color == null ) ? COLOR_DEFAULT : encodeColorRef( color ) );
+    }
+
+    /** Shared helper — forwards a raw DWM COLORREF / sentinel (e.g. {@link #COLOR_NONE}) to DWM. */
+    private static void setColorRefRaw( Stage stage, int dwmAttribute, int colorRef )
     {
         if ( !SystemUtils.IS_OS_WINDOWS || stage == null ) {
             return;
@@ -172,9 +200,6 @@ public final class WindowChromeManager
         if ( hwnd == null ) {
             return;
         }
-        int colorRef = ( color == null )
-                       ? COLOR_DEFAULT
-                       : encodeColorRef( color );
         IntByReference value = new IntByReference( colorRef );
         try {
             Dwmapi.INSTANCE.DwmSetWindowAttribute( hwnd, dwmAttribute, value, 4 );

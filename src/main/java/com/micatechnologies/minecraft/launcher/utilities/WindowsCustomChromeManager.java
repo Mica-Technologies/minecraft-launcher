@@ -40,23 +40,26 @@ import javafx.stage.WindowEvent;
 import org.apache.commons.lang3.SystemUtils;
 
 /**
- * Windows "Window Controls Overlay" chrome: keeps the standard decorated ({@code UNIFIED})
- * window — so the OS draws the real minimize / maximize / close buttons and owns resize,
- * maximize, aero-snap and the Windows 11 snap-layouts flyout — but subclasses Glass's window
- * procedure to <b>remove the title bar</b> so the JavaFX content fills to the very top edge,
- * with the native controls floating over the top-right corner.
+ * Windows custom title-bar chrome: drops {@code WS_CAPTION} so the OS stops drawing its own
+ * title-bar strip + min/max/close, and subclasses Glass's window procedure to <b>reclaim the
+ * remaining frame</b> so the JavaFX content fills to the very top edge. The launcher draws its own
+ * caption buttons in their place ({@link WindowsTitleBarControls}). The window stays maximizable
+ * (WS_MAXIMIZEBOX) + resizable (WS_THICKFRAME), so aero-snap and the Windows 11 snap-layouts flyout
+ * keep working via the hit-test below.
  *
- * <p>Always-on on Windows (no toggle): the decorated window is the launcher's normal window, so
- * this just extends content upward. The two message handlers:</p>
+ * <p>Always-on on Windows (no toggle). The style change + two message handlers:</p>
  * <ul>
- *   <li><b>WM_NCCALCSIZE</b> — reclaims the title-bar area so the client rect reaches the top
+ *   <li><b>WS_CAPTION removed</b> (in {@link #install}) — no native caption strip or buttons; only
+ *       our themed JavaFX ones remain. Restored in {@link #uninstall}.</li>
+ *   <li><b>WM_NCCALCSIZE</b> — reclaims the remaining frame so the client rect reaches the top
  *       (with a frame inset when maximized so content isn't clipped under the screen edge / taskbar).</li>
- *   <li><b>WM_NCHITTEST</b> — returns the resize borders; {@code HTMINBUTTON/HTMAXBUTTON/HTCLOSE}
- *       for the native caption-button rects (so the OS buttons + snap-layouts flyout keep working);
- *       and over the rest of the top strip, picks the JavaFX scene: a point over an interactive
- *       control returns {@code HTCLIENT} (so the launcher's own top-bar buttons stay clickable —
- *       the Windows analogue of the macOS drag-exclusion), empty space returns {@code HTCAPTION}
- *       so the OS drags / double-click-maximizes / shows the system menu.</li>
+ *   <li><b>WM_NCHITTEST</b> — returns the resize borders; {@code HTMAXBUTTON} over the maximize
+ *       slot only (so the Windows 11 snap-layouts flyout fires on hover and the OS owns
+ *       maximize/restore); and over the rest of the top strip, picks the JavaFX scene: a point over
+ *       an interactive control returns {@code HTCLIENT} — which includes our own JavaFX
+ *       minimize/close caption buttons and the launcher's top-bar controls (the Windows analogue of
+ *       the macOS drag-exclusion) — while empty space returns {@code HTCAPTION} so the OS drags /
+ *       double-click-maximizes / shows the system menu.</li>
  * </ul>
  *
  * <p><b>Fallback.</b> Gated on Windows + 64-bit and wrapped so any failure leaves
@@ -72,17 +75,26 @@ import org.apache.commons.lang3.SystemUtils;
 public final class WindowsCustomChromeManager
 {
     // ---- Caption metrics (logical / 96-DPI units), scaled to physical for hit-testing. --------
-    /** Title-bar / caption strip height — matches the standard Win11 caption. */
-    static final int CAPTION_HEIGHT = 32;
-    /** Width of one native caption button (minimize/maximize/close). */
+    /** Full title-bar strip height — matches the launcher's 52px navbar so the custom caption
+     *  buttons fill it and the whole brand bar acts as the drag region. */
+    static final int TITLE_BAR_HEIGHT = 52;
+    /** Width of one caption button (minimize/maximize/close). */
     static final int BUTTON_WIDTH   = 46;
-    /** Number of native caption buttons reserved at the top-right. */
+    /** Number of caption buttons reserved at the top-right (minimize / maximize / close). */
     static final int BUTTON_COUNT   = 3;
 
     // ---- Win32 constants ---------------------------------------------------------------------
     private static final int GWL_STYLE    = -16;
     private static final int GWLP_WNDPROC = -4;
-    private static final int WS_MAXIMIZE  = 0x01000000;
+    private static final int WS_MAXIMIZE     = 0x01000000;
+    private static final int WS_CAPTION      = 0x00C00000;   // WS_BORDER | WS_DLGFRAME (title bar)
+    private static final int WS_SYSMENU      = 0x00080000;
+    private static final int WS_THICKFRAME   = 0x00040000;   // sizing border (resize)
+    private static final int WS_MINIMIZEBOX  = 0x00020000;
+    private static final int WS_MAXIMIZEBOX  = 0x00010000;
+
+    private static final int TME_LEAVE        = 0x0002;
+    private static final int TME_NONCLIENT    = 0x0010;
 
     private static final int SWP_NOMOVE       = 0x0002;
     private static final int SWP_NOSIZE       = 0x0001;
@@ -90,9 +102,12 @@ public final class WindowsCustomChromeManager
     private static final int SWP_NOACTIVATE   = 0x0010;
     private static final int SWP_FRAMECHANGED = 0x0020;
 
-    private static final int WM_NCCALCSIZE = 0x0083;
-    private static final int WM_NCHITTEST  = 0x0084;
-    private static final int WM_DPICHANGED = 0x02E0;
+    private static final int WM_NCCALCSIZE   = 0x0083;
+    private static final int WM_NCHITTEST    = 0x0084;
+    private static final int WM_NCMOUSEMOVE  = 0x00A0;
+    private static final int WM_NCMOUSELEAVE = 0x02A2;
+    private static final int WM_MOUSEMOVE    = 0x0200;
+    private static final int WM_DPICHANGED    = 0x02E0;
 
     private static final int HTCLIENT      = 1;
     private static final int HTCAPTION     = 2;
@@ -104,9 +119,7 @@ public final class WindowsCustomChromeManager
     private static final int HTBOTTOM      = 15;
     private static final int HTBOTTOMLEFT  = 16;
     private static final int HTBOTTOMRIGHT = 17;
-    private static final int HTMINBUTTON   = 8;
     private static final int HTMAXBUTTON   = 9;
-    private static final int HTCLOSE       = 20;
 
     // ---- State (single window in this process) -----------------------------------------------
     private static volatile boolean active = false;
@@ -115,12 +128,57 @@ public final class WindowsCustomChromeManager
     /** Retained for the JVM lifetime so its native trampoline isn't GC'd. */
     private static WindowProc subclassProc = null;
     private static LONG_PTR   originalProc = null;
+    /** The window's GWL_STYLE before we dropped WS_CAPTION, so uninstall() can restore it. */
+    private static volatile int originalStyle = 0;
+    /** Notified (on the FX thread) when the pointer enters/leaves the maximize button's
+     *  HTMAXBUTTON rect, so the launcher can paint a hover the OS-owned button can't get from FX. */
+    private static volatile java.util.function.Consumer< Boolean > maxHoverSink = null;
+    /** Debounces the hover sink so it only fires on actual enter/leave transitions. */
+    private static volatile boolean maxButtonHovered = false;
     private static volatile int currentDpi = 96;
 
     private WindowsCustomChromeManager() { /* static-only */ }
 
     /** @return true once the WndProc subclass installed successfully. */
     public static boolean isActive() { return active; }
+
+    /** Registers a sink notified (on the FX thread) on maximize-button hover enter/leave. The OS
+     *  owns that button (HTMAXBUTTON) so it never gets JavaFX hover events; this lets the launcher
+     *  paint a matching hover state itself. Pass {@code null} to clear. */
+    public static void setMaxButtonHoverSink( java.util.function.Consumer< Boolean > sink )
+    {
+        maxHoverSink = sink;
+    }
+
+    /** Requests a one-shot WM_NCMOUSELEAVE so the maximize hover clears reliably when the pointer
+     *  leaves the non-client area (e.g. moves up into the snap-layouts flyout or off the window). */
+    private static void armNcLeaveTracking( HWND hwnd )
+    {
+        try {
+            TRACKMOUSEEVENT tme = new TRACKMOUSEEVENT();
+            tme.cbSize = tme.size();
+            tme.dwFlags = TME_LEAVE | TME_NONCLIENT;
+            tme.hwndTrack = hwnd;
+            tme.dwHoverTime = 0;
+            User32Ex.INSTANCE.TrackMouseEvent( tme );
+        }
+        catch ( Throwable t ) {
+            // best-effort: WM_MOUSEMOVE in the client area still clears the hover
+        }
+    }
+
+    /** Fires the hover sink only on a real enter/leave transition. */
+    private static void setMaxHover( boolean hovered )
+    {
+        if ( maxButtonHovered == hovered ) {
+            return;
+        }
+        maxButtonHovered = hovered;
+        java.util.function.Consumer< Boolean > sink = maxHoverSink;
+        if ( sink != null ) {
+            Platform.runLater( () -> sink.accept( hovered ) );
+        }
+    }
 
     /** Width (logical px) the native caption buttons occupy at the top-right — used by the
      *  Windows top-bar layout so the launcher's own controls clear them. */
@@ -169,10 +227,26 @@ public final class WindowsCustomChromeManager
             boundHwnd  = hwnd;
             currentDpi = queryDpi( hwnd );
             active = true;
+            // Drop WS_CAPTION so the OS stops painting its own title-bar strip + min/max/close
+            // overlay — we draw our own caption buttons in JavaFX. Keep the window maximizable
+            // (WS_MAXIMIZEBOX) so returning HTMAXBUTTON from the hit-test still pops the Windows 11
+            // snap-layouts flyout, plus the resize border (WS_THICKFRAME), minimize, and system
+            // menu. WM_NCCALCSIZE below still reclaims the thin remaining frame so content fills
+            // to the top edge.
+            try {
+                originalStyle = u.GetWindowLongW( hwnd, GWL_STYLE );
+                int custom = ( originalStyle & ~WS_CAPTION )
+                        | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU;
+                u.SetWindowLongW( hwnd, GWL_STYLE, custom );
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "WindowsCustomChrome: could not drop WS_CAPTION ("
+                                                 + t.getMessage() + "); native buttons may remain." );
+            }
             // Trigger a non-client recalc so the title bar is removed immediately.
             u.SetWindowPos( hwnd, null, 0, 0, 0, 0,
                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED );
-            Logger.logStd( "WindowsCustomChrome: title bar inset active (DPI " + currentDpi + ")." );
+            Logger.logStd( "WindowsCustomChrome: custom title bar active (DPI " + currentDpi + ")." );
         }
         catch ( Throwable t ) {
             active = false;
@@ -188,6 +262,9 @@ public final class WindowsCustomChromeManager
             return;
         }
         try {
+            if ( originalStyle != 0 ) {
+                User32Ex.INSTANCE.SetWindowLongW( boundHwnd, GWL_STYLE, originalStyle );
+            }
             User32Ex.INSTANCE.SetWindowLongPtrW( boundHwnd, GWLP_WNDPROC, originalProc );
             User32Ex.INSTANCE.SetWindowPos( boundHwnd, null, 0, 0, 0, 0,
                                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED );
@@ -213,6 +290,20 @@ public final class WindowsCustomChromeManager
                     break;
                 case WM_NCHITTEST:
                     return onNcHitTest( hwnd, lParam );
+                case WM_NCMOUSEMOVE:
+                    // wParam is the hit-test code under the pointer; light our maximize button when
+                    // it's over the HTMAXBUTTON slot. Falls through to the default proc so the OS
+                    // still renders the snap-layouts flyout. Arm non-client leave tracking so we
+                    // reliably get WM_NCMOUSELEAVE when the pointer exits (incl. up into the flyout).
+                    setMaxHover( wParam.intValue() == HTMAXBUTTON );
+                    armNcLeaveTracking( hwnd );
+                    break;
+                case WM_MOUSEMOVE:
+                case WM_NCMOUSELEAVE:
+                    // Pointer is in the client area (over our other buttons / content) or left the
+                    // non-client area entirely — either way it's no longer on the maximize button.
+                    setMaxHover( false );
+                    break;
                 case WM_DPICHANGED:
                     currentDpi = ( wParam.intValue() >> 16 ) & 0xFFFF;
                     if ( currentDpi <= 0 ) {
@@ -264,25 +355,39 @@ public final class WindowsCustomChromeManager
         int height = wr.bottom - wr.top;
 
         boolean maximized = isMaximized( hwnd );
-        int capH = scale( CAPTION_HEIGHT );
+        int capH = scale( TITLE_BAR_HEIGHT );
         int nativeButtonsW = scale( BUTTON_WIDTH ) * BUTTON_COUNT;
 
-        // 1. Native caption buttons (far top-right). Returning these codes keeps the OS-drawn
-        //    min/max/close clickable and makes the Win11 snap-layouts flyout fire on HTMAXBUTTON.
-        if ( relY >= 0 && relY < capH && relX >= width - nativeButtonsW && relX < width ) {
-            int fromRight = width - relX;
+        // When maximized, WM_NCCALCSIZE inset the client area by the frame thickness, so the JavaFX
+        // content (and our caption buttons) start that far in from the window-rect edges. Shift to
+        // content-relative coordinates so the button rects + the scene pick line up with where the
+        // buttons actually render. Non-maximized: origin is (0,0), so cx/cy == relX/relY.
+        int originX = maximized ? frameThicknessX() : 0;
+        int originY = maximized ? frameThicknessY() : 0;
+        int cx = relX - originX;
+        int cy = relY - originY;
+        int contentWidth = width - originX * 2;
+
+        // 1. Maximize button (the middle of the three top-right slots) → HTMAXBUTTON, which is what
+        //    makes the Windows 11 snap-layouts flyout appear on hover and lets the OS own
+        //    maximize/restore. The minimize (left) and close (right) slots are deliberately NOT
+        //    special-cased here: they fall through to the interactive-control check below, where our
+        //    own JavaFX caption buttons claim HTCLIENT and handle the clicks (so they get themed
+        //    hover + a red close). Only the maximize glyph needs the native flyout.
+        if ( cy >= 0 && cy < capH && cx >= contentWidth - nativeButtonsW && cx < contentWidth ) {
+            int fromRight = contentWidth - cx;
             int btnW = scale( BUTTON_WIDTH );
-            if ( fromRight <= btnW )     return new LRESULT( HTCLOSE );
-            if ( fromRight <= btnW * 2 ) return new LRESULT( HTMAXBUTTON );
-            return new LRESULT( HTMINBUTTON );
+            if ( fromRight > btnW && fromRight <= btnW * 2 ) {
+                return new LRESULT( HTMAXBUTTON );
+            }
         }
 
-        // 2. The launcher's own interactive controls in the caption strip (top-bar buttons, the
-        //    title-bar help button) stay clickable — checked BEFORE the resize border so their top
-        //    edge isn't a resize handle, matching how the native caption buttons behave. Mirrors
-        //    the macOS isOnInteractiveNode drag exclusion.
-        if ( relY >= 0 && relY < capH
-                && isOverInteractiveControl( relX / dpiScale(), relY / dpiScale() ) ) {
+        // 2. The launcher's own interactive controls in the caption strip (our minimize/close
+        //    caption buttons, the help button, top-bar controls) stay clickable — checked BEFORE the
+        //    resize border so their top edge isn't a resize handle, matching how the native caption
+        //    buttons behave. Mirrors the macOS isOnInteractiveNode drag exclusion.
+        if ( cy >= 0 && cy < capH
+                && isOverInteractiveControl( cx / dpiScale(), cy / dpiScale() ) ) {
             return new LRESULT( HTCLIENT );
         }
 
@@ -301,7 +406,7 @@ public final class WindowsCustomChromeManager
         }
 
         // 4. Rest of the caption strip drags the window.
-        if ( relY >= 0 && relY < capH ) {
+        if ( cy >= 0 && cy < capH ) {
             return new LRESULT( HTCAPTION );
         }
 
@@ -433,6 +538,7 @@ public final class WindowsCustomChromeManager
         User32Ex INSTANCE = Native.load( "user32", User32Ex.class );
 
         int      GetWindowLongW( HWND hWnd, int nIndex );
+        int      SetWindowLongW( HWND hWnd, int nIndex, int dwNewLong );
         LONG_PTR SetWindowLongPtrW( HWND hWnd, int nIndex, WindowProc proc );
         LONG_PTR SetWindowLongPtrW( HWND hWnd, int nIndex, LONG_PTR dwNewLong );
         LRESULT  CallWindowProcW( LONG_PTR lpPrevWndFunc, HWND hWnd, int msg, WPARAM wParam, LPARAM lParam );
@@ -440,5 +546,16 @@ public final class WindowsCustomChromeManager
         boolean  GetWindowRect( HWND hWnd, RECT rect );
         int      GetSystemMetrics( int nIndex );
         int      GetDpiForWindow( HWND hWnd );
+        boolean  TrackMouseEvent( TRACKMOUSEEVENT lpEventTrack );
+    }
+
+    /** Win32 TRACKMOUSEEVENT — used to request a one-shot non-client mouse-leave notification. */
+    @com.sun.jna.Structure.FieldOrder( { "cbSize", "dwFlags", "hwndTrack", "dwHoverTime" } )
+    public static class TRACKMOUSEEVENT extends com.sun.jna.Structure
+    {
+        public int  cbSize;
+        public int  dwFlags;
+        public HWND hwndTrack;
+        public int  dwHoverTime;
     }
 }

@@ -507,6 +507,12 @@ public class MCLauncherGuiWindow extends Application
             // Set correct first theme
             forceThemeChange();
 
+            // Windows custom chrome: blend the title-bar navbar to the window background BEFORE the
+            // scene is shown, so it never flashes at its default (lighter) .navBar colour. The rest
+            // of the title-bar setup (caption buttons) runs after setScene since it needs the stage.
+            com.micatechnologies.minecraft.launcher.utilities.WindowsTitleBarControls
+                    .prePaintBlend( gui.scene.getRoot() );
+
             // Set scene
             stage.setScene( gui.scene );
 
@@ -642,11 +648,24 @@ public class MCLauncherGuiWindow extends Application
                 // inset active the caption is stripped, but matching the caption + border
                 // color to the app background keeps any residual caption pixels from showing
                 // a seam against the content.
-                javafx.scene.paint.Color chrome = javafx.scene.paint.Color.web( themeBgHex( tokenSheet ) );
-                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
-                        .applyCaptionColor( stage, chrome );
-                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
-                        .applyBorderColor( stage, chrome );
+                //
+                // Native (Mica) theme is the exception: its client area is transparent so DWM
+                // composites the backdrop, and a SOLID caption/border colour would paint the
+                // title-bar strip a flat colour that reads as a band against that backdrop. Clear
+                // them to NONE so the title bar composites uniformly with the body instead.
+                if ( isNative ) {
+                    com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                            .clearCaptionColor( stage );
+                    com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                            .clearBorderColor( stage );
+                }
+                else {
+                    javafx.scene.paint.Color chrome = javafx.scene.paint.Color.web( themeBgHex( tokenSheet ) );
+                    com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                            .applyCaptionColor( stage, chrome );
+                    com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                            .applyBorderColor( stage, chrome );
+                }
 
                 // Force a non-client frame recalc so DWM repaints the title bar with
                 // the chrome attributes we just set.
@@ -745,6 +764,8 @@ public class MCLauncherGuiWindow extends Application
                 switchToNativeTheme();
                 break;
         }
+        // No Windows title-bar re-blend needed here: the title bar is transparent (it shows the
+        // rootPane's background through it), so a theme switch updates it automatically.
     }
 
     /** Resource paths for the legacy per-theme stylesheets. Loaded first so the new
@@ -973,11 +994,23 @@ public class MCLauncherGuiWindow extends Application
             // any of our themed dark bgs. DWMWA_CAPTION_COLOR + DWMWA_BORDER_COLOR are
             // Win11 22H2+ attrs; older Windows silently ignore the calls and keep the
             // immersive-dark fallback we set above.
-            javafx.scene.paint.Color chromeColor = javafx.scene.paint.Color.web( bg );
-            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
-                    .applyCaptionColor( stage, chromeColor );
-            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
-                    .applyBorderColor( stage, chromeColor );
+            //
+            // Native (Mica) theme is the exception: its client area is transparent so a solid
+            // caption/border colour paints the title-bar strip a flat band against the backdrop.
+            // Clear them to NONE so the title bar composites uniformly with the body.
+            if ( isNative ) {
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .clearCaptionColor( stage );
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .clearBorderColor( stage );
+            }
+            else {
+                javafx.scene.paint.Color chromeColor = javafx.scene.paint.Color.web( bg );
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .applyCaptionColor( stage, chromeColor );
+                com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                        .applyBorderColor( stage, chromeColor );
+            }
 
             // Force a full client + non-client repaint after every theme change. Without
             // this, DWM accepts the new attributes but doesn't immediately invalidate
