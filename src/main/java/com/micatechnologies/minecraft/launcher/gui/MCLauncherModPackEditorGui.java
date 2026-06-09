@@ -106,9 +106,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @FXML MFXTextField packForgeURLField;
     @FXML MFXTextField packForgeHashField;
     @FXML MFXTextField packMinecraftVersionField;
-    @FXML MFXTextField packLogoURLField;
+    @FXML TextArea     packLogoURLField;
     @FXML MFXTextField packLogoSha1Field;
-    @FXML MFXTextField packBgURLField;
+    @FXML TextArea     packBgURLField;
     @FXML MFXTextField packBgSha1Field;
     @FXML ImageView logoPreview;
     @FXML ImageView bgPreview;
@@ -290,12 +290,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // Configure image preview refresh on URL field focus loss
         packLogoURLField.focusedProperty().addListener( ( obs, wasFocused, isFocused ) -> {
             if ( !isFocused ) {
-                refreshImagePreview( packLogoURLField.getText(), logoPreview );
+                refreshImagePreview( firstLine( packLogoURLField.getText() ), logoPreview );
             }
         } );
         packBgURLField.focusedProperty().addListener( ( obs, wasFocused, isFocused ) -> {
             if ( !isFocused ) {
-                refreshImagePreview( packBgURLField.getText(), bgPreview );
+                refreshImagePreview( firstLine( packBgURLField.getText() ), bgPreview );
             }
         } );
 
@@ -1520,9 +1520,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         if ( packMinecraftVersionField != null ) {
             packMinecraftVersionField.setText( getDocString( "packMinecraftVersion" ) );
         }
-        packLogoURLField.setText( getDocString( "packLogoURL" ) );
+        packLogoURLField.setText( getDocStringOrArrayLines( "packLogoURL" ) );
         packLogoSha1Field.setText( getDocString( "packLogoSha1" ) );
-        packBgURLField.setText( getDocString( "packBackgroundURL" ) );
+        packBgURLField.setText( getDocStringOrArrayLines( "packBackgroundURL" ) );
         packBgSha1Field.setText( getDocString( "packBackgroundSha1" ) );
 
         // Scan exclusions
@@ -1540,9 +1540,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             scanExclusionsArea.setText( "" );
         }
 
-        // Image previews
-        refreshImagePreview( getDocString( "packLogoURL" ), logoPreview );
-        refreshImagePreview( getDocString( "packBackgroundURL" ), bgPreview );
+        // Image previews — use the primary (first) URL of each.
+        refreshImagePreview( firstLine( getDocStringOrArrayLines( "packLogoURL" ) ), logoPreview );
+        refreshImagePreview( firstLine( getDocStringOrArrayLines( "packBackgroundURL" ) ), bgPreview );
 
         // File lists
         populateFileListsFromDocument();
@@ -1585,9 +1585,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         if ( packMinecraftVersionField != null ) {
             workingDocument.addProperty( "packMinecraftVersion", packMinecraftVersionField.getText() );
         }
-        workingDocument.addProperty( "packLogoURL", packLogoURLField.getText() );
+        putStringOrArray( "packLogoURL", packLogoURLField.getText() );
         workingDocument.addProperty( "packLogoSha1", packLogoSha1Field.getText() );
-        workingDocument.addProperty( "packBackgroundURL", packBgURLField.getText() );
+        putStringOrArray( "packBackgroundURL", packBgURLField.getText() );
         workingDocument.addProperty( "packBackgroundSha1", packBgSha1Field.getText() );
 
         // Scan exclusions
@@ -1993,6 +1993,78 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         if ( workingDocument.has( key ) && !workingDocument.get( key ).isJsonNull() ) {
             return workingDocument.get( key ).getAsString();
+        }
+        return "";
+    }
+
+    /**
+     * Reads a {@code string | string[]} manifest value (e.g. {@code packLogoURL}) as newline-joined
+     * lines for a multi-line editor field: a single string → one line; an array → one line per
+     * element; absent / null → empty. The inverse of {@link #putStringOrArray}.
+     */
+    private String getDocStringOrArrayLines( String key )
+    {
+        if ( !workingDocument.has( key ) || workingDocument.get( key ).isJsonNull() ) {
+            return "";
+        }
+        var el = workingDocument.get( key );
+        if ( el.isJsonArray() ) {
+            StringBuilder sb = new StringBuilder();
+            for ( var item : el.getAsJsonArray() ) {
+                if ( item != null && !item.isJsonNull() ) {
+                    if ( sb.length() > 0 ) {
+                        sb.append( "\n" );
+                    }
+                    sb.append( item.getAsString() );
+                }
+            }
+            return sb.toString();
+        }
+        return el.getAsString();
+    }
+
+    /**
+     * Writes a multi-line editor field back as a {@code string | string[]} manifest value: one
+     * non-blank line → a bare string; several → a JSON array (order preserved); none → empty string.
+     * The inverse of {@link #getDocStringOrArrayLines}.
+     */
+    private void putStringOrArray( String key, String multilineText )
+    {
+        java.util.List< String > lines = new java.util.ArrayList<>();
+        if ( multilineText != null ) {
+            for ( String line : multilineText.split( "\n" ) ) {
+                String trimmed = line.trim();
+                if ( !trimmed.isEmpty() ) {
+                    lines.add( trimmed );
+                }
+            }
+        }
+        if ( lines.isEmpty() ) {
+            workingDocument.addProperty( key, "" );
+        }
+        else if ( lines.size() == 1 ) {
+            workingDocument.addProperty( key, lines.get( 0 ) );
+        }
+        else {
+            JsonArray arr = new JsonArray();
+            for ( String line : lines ) {
+                arr.add( line );
+            }
+            workingDocument.add( key, arr );
+        }
+    }
+
+    /** First non-blank line of a multi-line value (the "primary"), or "" if none. */
+    private static String firstLine( String text )
+    {
+        if ( text == null ) {
+            return "";
+        }
+        for ( String line : text.split( "\n" ) ) {
+            String trimmed = line.trim();
+            if ( !trimmed.isEmpty() ) {
+                return trimmed;
+            }
         }
         return "";
     }

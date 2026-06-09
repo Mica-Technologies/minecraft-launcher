@@ -30,8 +30,14 @@ public class JSONUtilities
 {
     /**
      * Shared Gson instance. Gson is thread-safe and expensive to instantiate.
+     *
+     * <p>Registers the {@link StringOrArray} adapter so any {@code string | string[]} union field
+     * (e.g. modpack logo / background URLs) deserializes from either shape and re-serializes
+     * minimally. Plain {@link Gson} behaviour is otherwise unchanged.</p>
      */
-    private static final Gson GSON = new Gson();
+    private static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter( StringOrArray.class, new StringOrArray.Adapter() )
+            .create();
 
     /**
      * Returns the shared {@link Gson} instance. Gson is thread-safe, so a single instance can be used across the

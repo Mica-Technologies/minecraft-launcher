@@ -89,12 +89,13 @@ public abstract class GameModPackMetadata
     protected boolean packCustomDiscordRpc;
 
     /**
-     * Mod pack logo URL. Value read from manifest JSON.
+     * Mod pack logo URL(s). Value read from manifest JSON — accepts a single string or an array of
+     * strings (fallback / mirror URLs, tried in order). See {@link com.micatechnologies.minecraft.launcher.utilities.StringOrArray}.
      *
      * @since 1.0
      */
     @SuppressWarnings( "unused" )
-    protected String packLogoURL;
+    protected com.micatechnologies.minecraft.launcher.utilities.StringOrArray packLogoURL;
 
     /**
      * Mod pack logo SHA-1. Value read from manifest JSON.
@@ -105,12 +106,13 @@ public abstract class GameModPackMetadata
     protected String packLogoSha1;
 
     /**
-     * Mod pack background URL. Value read from manifest JSON.
+     * Mod pack background URL(s). Value read from manifest JSON — accepts a single string or an array
+     * of strings (fallback / mirror URLs, tried in order). See {@link com.micatechnologies.minecraft.launcher.utilities.StringOrArray}.
      *
      * @since 1.0
      */
     @SuppressWarnings( "unused" )
-    protected String packBackgroundURL;
+    protected com.micatechnologies.minecraft.launcher.utilities.StringOrArray packBackgroundURL;
 
     /**
      * Mod pack background SHA-1. Value read from manifest JSON.

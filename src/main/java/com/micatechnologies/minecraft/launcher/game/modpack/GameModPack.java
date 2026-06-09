@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.function.Function;
 
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
+import com.micatechnologies.minecraft.launcher.utilities.StringOrArray;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackScanDetectionException;
@@ -632,7 +633,8 @@ public class GameModPack extends GameModPackMetadata
     public boolean hasCustomBackground()
     {
         return packBackgroundURL != null
-                && !packBackgroundURL.equals( ModPackConstants.MODPACK_DEFAULT_BG_URL );
+                && packBackgroundURL.all().stream()
+                                    .anyMatch( u -> !u.equals( ModPackConstants.MODPACK_DEFAULT_BG_URL ) );
     }
 
     /**
@@ -646,7 +648,8 @@ public class GameModPack extends GameModPackMetadata
     public boolean hasCustomLogo()
     {
         return packLogoURL != null
-                && !packLogoURL.equals( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
+                && packLogoURL.all().stream()
+                              .anyMatch( u -> !u.equals( ModPackConstants.MODPACK_DEFAULT_LOGO_URL ) );
     }
 
     /** Source URL of the pack's logo image as declared in the manifest. Distinct from
@@ -658,7 +661,7 @@ public class GameModPack extends GameModPackMetadata
      *  @since 3.2 */
     public String getPackLogoURL()
     {
-        return packLogoURL;
+        return packLogoURL != null ? packLogoURL.first() : null;
     }
 
     /** Source URL of the pack's background image as declared in the manifest. Same rationale
@@ -668,7 +671,7 @@ public class GameModPack extends GameModPackMetadata
      *  @since 3.2 */
     public String getPackBackgroundURL()
     {
-        return packBackgroundURL;
+        return packBackgroundURL != null ? packBackgroundURL.first() : null;
     }
 
     public void setProgressProvider( GameModPackProgressProvider progressProvider )
@@ -763,8 +766,8 @@ public class GameModPack extends GameModPackMetadata
         pack.packName = "Minecraft " + versionId;
         pack.packVersion = versionId;
         pack.packURL = "https://minecraft.net";
-        pack.packLogoURL = ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
-        pack.packBackgroundURL = ModPackConstants.MODPACK_DEFAULT_BG_URL;
+        pack.packLogoURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
+        pack.packBackgroundURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_BG_URL );
         pack.packMinRAMGB = "2";
         pack.packMods = new ArrayList<>();
         pack.vanillaVersion = true;
@@ -794,8 +797,8 @@ public class GameModPack extends GameModPackMetadata
         pack.packName = "[Failed to load] " + shortUrl;
         pack.packVersion = "Error";
         pack.packMinRAMGB = "2";
-        pack.packLogoURL = ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
-        pack.packBackgroundURL = ModPackConstants.MODPACK_DEFAULT_BG_URL;
+        pack.packLogoURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
+        pack.packBackgroundURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_BG_URL );
         return pack;
     }
 
@@ -852,7 +855,7 @@ public class GameModPack extends GameModPackMetadata
         GameModPack nullModPack = new GameModPack();
         nullModPack.packName = "No mod packs installed!";
         nullModPack.packVersion = "N/A";
-        nullModPack.packLogoURL = GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE;
+        nullModPack.packLogoURL = StringOrArray.of( GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE );
         return nullModPack;
     }
 }

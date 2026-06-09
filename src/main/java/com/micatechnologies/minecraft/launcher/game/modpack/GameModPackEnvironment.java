@@ -26,6 +26,7 @@ import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.StringOrArray;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,7 +35,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * Handles modpack environment setup: directory creation, image caching, and local path resolution. Extracted from
@@ -183,71 +189,94 @@ class GameModPackEnvironment
 
     private synchronized void fetchLatestModpackLogo() throws ModpackException
     {
-        try {
-            String effectiveUrl = Objects.requireNonNullElse(
-                    metadata.packLogoURL, ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
-            requireHttps( effectiveUrl, "modpack logo" );
-
-            // Declared-SHA1 path: download once to <declaredSha1>.png and verify on subsequent
-            // launches. Naturally dedupes across packs that declare the same hash.
-            if ( metadata.packLogoSha1 != null ) {
-                File destFile = SynchronizedFileManager.getSynchronizedFile(
-                        computedImageFile( metadata.packLogoSha1 ) );
-                resolveDeclaredImage( destFile, metadata.packLogoSha1, effectiveUrl );
-                return;
-            }
-
-            // Undeclared-SHA1 path: if the sidecar already cached a SHA-1 for this exact URL
-            // and the corresponding file still exists, we're done — no network at all.
-            ImageCacheInfo cache = loadImageCacheSafe();
-            if ( cache.logoSha1 != null
-                 && Objects.equals( cache.logoUrl, effectiveUrl )
-                 && new File( computedImageFile( cache.logoSha1 ) ).exists() ) {
-                return;
-            }
-
-            // Otherwise download to a per-pack temp file, hash, then move into the shared
-            // content-addressed slot. Two packs sharing the same fallback URL converge on the
-            // same <sha1>.png and the second one's move becomes a no-op delete.
-            String computedSha1 = downloadAndHashToContentAddressedFile( effectiveUrl, ".logo_download.tmp" );
-            cache.logoUrl = effectiveUrl;
-            cache.logoSha1 = computedSha1;
-            saveImageCache( cache );
-        }
-        catch ( IOException e ) {
-            throw new ModpackException( "Unable to download/fetch mod pack logo.", e );
-        }
+        fetchImageWithFallback( metadata.packLogoURL, metadata.packLogoSha1,
+                                ModPackConstants.MODPACK_DEFAULT_LOGO_URL, "modpack logo",
+                                ".logo_download.tmp",
+                                c -> c.logoUrl, c -> c.logoSha1,
+                                ( c, v ) -> { c.logoUrl = v[ 0 ]; c.logoSha1 = v[ 1 ]; } );
     }
 
     private synchronized void fetchLatestModpackBackground() throws ModpackException
     {
-        try {
-            String effectiveUrl = Objects.requireNonNullElse(
-                    metadata.packBackgroundURL, ModPackConstants.MODPACK_DEFAULT_BG_URL );
-            requireHttps( effectiveUrl, "modpack background" );
+        fetchImageWithFallback( metadata.packBackgroundURL, metadata.packBackgroundSha1,
+                                ModPackConstants.MODPACK_DEFAULT_BG_URL, "modpack background",
+                                ".background_download.tmp",
+                                c -> c.backgroundUrl, c -> c.backgroundSha1,
+                                ( c, v ) -> { c.backgroundUrl = v[ 0 ]; c.backgroundSha1 = v[ 1 ]; } );
+    }
 
-            if ( metadata.packBackgroundSha1 != null ) {
-                File destFile = SynchronizedFileManager.getSynchronizedFile(
-                        computedImageFile( metadata.packBackgroundSha1 ) );
-                resolveDeclaredImage( destFile, metadata.packBackgroundSha1, effectiveUrl );
+    /**
+     * Resolves a modpack image (logo or background) from a {@code string | string[]} set of source
+     * URLs, trying each in order and falling back to the bundled default. The first candidate that
+     * resolves — already-valid cached file, or a successful download (+ transcode/hash) — wins;
+     * on per-URL failure (bad scheme, network error, etc.) it logs and tries the next. Only if
+     * every candidate (including the appended default) fails does it raise {@link ModpackException}.
+     *
+     * @param urls            the manifest's URL(s) for this image (may be {@code null} / empty)
+     * @param declaredSha1    the manifest-declared SHA-1, or {@code null} (drives the content-addressed path)
+     * @param defaultUrl      the bundled-default URL, appended as the final fallback
+     * @param label           human-readable image label for logs / errors (e.g. "modpack logo")
+     * @param tempFileName    per-pack temp filename for the download-and-hash path
+     * @param cachedUrl       reads the sidecar's last-cached URL for this slot
+     * @param cachedSha1      reads the sidecar's last-cached SHA-1 for this slot
+     * @param setCacheSlot    writes {@code [url, sha1]} back into the sidecar for this slot
+     */
+    private synchronized void fetchImageWithFallback( StringOrArray urls, String declaredSha1,
+                                                      String defaultUrl, String label,
+                                                      String tempFileName,
+                                                      Function< ImageCacheInfo, String > cachedUrl,
+                                                      Function< ImageCacheInfo, String > cachedSha1,
+                                                      BiConsumer< ImageCacheInfo, String[] > setCacheSlot )
+            throws ModpackException
+    {
+        // Author URL(s) first, then the bundled default as the last-ditch fallback (de-duplicated,
+        // order preserved).
+        List< String > candidates = new ArrayList<>();
+        if ( urls != null ) {
+            candidates.addAll( urls.all() );
+        }
+        candidates.add( defaultUrl );
+        candidates = new ArrayList<>( new LinkedHashSet<>( candidates ) );
+
+        ImageCacheInfo cache = loadImageCacheSafe();
+        IOException lastError = null;
+        for ( String url : candidates ) {
+            try {
+                requireHttps( url, label );
+
+                // Declared-SHA1 path: resolve into <declaredSha1>.png (verify / heal / download).
+                // Naturally dedupes across packs that declare the same hash.
+                if ( declaredSha1 != null ) {
+                    File destFile = SynchronizedFileManager.getSynchronizedFile(
+                            computedImageFile( declaredSha1 ) );
+                    resolveDeclaredImage( destFile, declaredSha1, url );
+                    return;
+                }
+
+                // Undeclared-SHA1 path: if the sidecar already cached a SHA-1 for THIS exact URL
+                // and the file still exists, we're done — no network at all.
+                String slotSha1 = cachedSha1.apply( cache );
+                if ( slotSha1 != null
+                     && Objects.equals( cachedUrl.apply( cache ), url )
+                     && new File( computedImageFile( slotSha1 ) ).exists() ) {
+                    return;
+                }
+
+                // Otherwise download to a per-pack temp file, hash, then move into the shared
+                // content-addressed slot. Packs sharing the same URL converge on one <sha1>.png.
+                String computedSha1 = downloadAndHashToContentAddressedFile( url, tempFileName );
+                setCacheSlot.accept( cache, new String[]{ url, computedSha1 } );
+                saveImageCache( cache );
                 return;
             }
-
-            ImageCacheInfo cache = loadImageCacheSafe();
-            if ( cache.backgroundSha1 != null
-                 && Objects.equals( cache.backgroundUrl, effectiveUrl )
-                 && new File( computedImageFile( cache.backgroundSha1 ) ).exists() ) {
-                return;
+            catch ( IOException e ) {
+                lastError = e;
+                Logger.logWarningSilent( "Mod pack " + label + ": source URL failed (" + url + "): "
+                                                 + e.getMessage() + " — trying next." );
             }
-
-            String computedSha1 = downloadAndHashToContentAddressedFile( effectiveUrl, ".background_download.tmp" );
-            cache.backgroundUrl = effectiveUrl;
-            cache.backgroundSha1 = computedSha1;
-            saveImageCache( cache );
         }
-        catch ( IOException e ) {
-            throw new ModpackException( "Unable to download/fetch mod pack background.", e );
-        }
+        throw new ModpackException( "Unable to download/fetch " + label + " (all sources failed).",
+                                    lastError );
     }
 
     // region Content-addressed image cache

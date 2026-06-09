@@ -83,9 +83,11 @@ public final class InstallIndex
         public String packVersion;
         /** Website URL ({@code packURL} in the manifest), not the manifest URL. */
         public String packURL;
-        public String packLogoURL;
+        /** Logo URL(s) — string or array, mirroring the manifest. See {@link com.micatechnologies.minecraft.launcher.utilities.StringOrArray}. */
+        public com.micatechnologies.minecraft.launcher.utilities.StringOrArray packLogoURL;
         public String packLogoSha1;
-        public String packBackgroundURL;
+        /** Background URL(s) — string or array, mirroring the manifest. */
+        public com.micatechnologies.minecraft.launcher.utilities.StringOrArray packBackgroundURL;
         public String packBackgroundSha1;
         public String packMinRAMGB;
         public boolean packUnstable;
