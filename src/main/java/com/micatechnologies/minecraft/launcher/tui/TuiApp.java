@@ -72,7 +72,22 @@ public final class TuiApp
     {
         DefaultTerminalFactory factory =
                 new DefaultTerminalFactory( TuiMode.realOut(), TuiMode.realIn(), StandardCharsets.UTF_8 );
-        Terminal terminal = factory.createTerminal();
+        // Render inline in the invoking terminal rather than popping a Swing window. Lanterna's
+        // default heuristic falls back to a SwingTerminalFrame on Windows when it can't positively
+        // detect a console; force the native text terminal instead. If that genuinely can't attach
+        // (e.g. output is piped / no real console), degrade to the windowed emulator so the TUI
+        // still runs rather than crashing.
+        factory.setForceTextTerminal( true );
+        Terminal terminal;
+        try {
+            terminal = factory.createTerminal();
+        }
+        catch ( Throwable nativeFail ) {
+            com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
+                    "TUI: native terminal unavailable (" + nativeFail + "); using windowed emulator." );
+            factory.setForceTextTerminal( false );
+            terminal = factory.createTerminal();
+        }
         Screen screen = new TerminalScreen( terminal );
         screen.startScreen();
         try {
