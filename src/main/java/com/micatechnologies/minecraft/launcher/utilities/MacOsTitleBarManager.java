@@ -146,10 +146,11 @@ public final class MacOsTitleBarManager
      * macOS, on a null stage, or before the NSWindow peer is realized.
      *
      * <p><b>How.</b> AppKit sizes the title bar to fit the tallest
-     * {@code NSTitlebarAccessoryViewController} attached to the window. We attach a single
-     * empty {@code NSView} pinned (via Auto Layout) to {@code bandHeightPx} tall and only
-     * {@code 1pt} wide, left-aligned so it lands over the brand-logo gap just right of the
-     * traffic lights — never over the JavaFX navbar buttons. The bar grows to the band
+     * {@code NSTitlebarAccessoryViewController} attached to the window, reading the accessory's
+     * <em>frame</em> height at attach time. We attach a single empty {@code NSView} with its
+     * frame set to {@code bandHeightPx} tall and only {@code 1pt} wide, left-aligned so it lands
+     * over the brand-logo gap just right of the traffic lights — never over the JavaFX navbar
+     * buttons. The bar grows to the band
      * height, which re-centers the traffic lights and title; the 1pt-wide view doesn't
      * overlap (or swallow clicks from) the launcher's own navbar controls, which keep
      * working as ordinary JavaFX nodes painting under the transparent title bar.</p>
@@ -187,12 +188,15 @@ public final class MacOsTitleBarManager
             // would grow taller every time the user returns from a game.
             removeOurTitlebarAccessories( nsWindow );
 
-            // Empty spacer view, sized purely via Auto Layout constants (no NSRect/NSSize
-            // struct marshalling needed): 1pt wide, bandHeightPx tall.
+            // Empty spacer view with a real FRAME height. AppKit sizes the title bar to the
+            // accessory view's frame height at attach time, so an Auto-Layout-only height
+            // (resolved later) leaves the view 0pt tall and the bar doesn't grow — we must set
+            // the frame directly. NSSize is two CGFloats, which the ABI passes in the same FP
+            // registers as two double args (same routing the NSColor calls below rely on), so
+            // setFrameSize: needs no NSRect/NSSize struct marshalling. Width is irrelevant to
+            // the bar height; keep it 1pt so the spacer can't overlap the navbar buttons.
             ID view = Foundation.invoke( Foundation.invoke( "NSView", "alloc" ), "init" );
-            Foundation.invoke( view, "setTranslatesAutoresizingMaskIntoConstraints:", false );
-            activateConstant( Foundation.invoke( view, "heightAnchor" ), bandHeightPx );
-            activateConstant( Foundation.invoke( view, "widthAnchor" ), 1.0 );
+            Foundation.invoke( view, "setFrameSize:", 1.0, bandHeightPx );
 
             ID vc = Foundation.invoke(
                     Foundation.invoke( "NSTitlebarAccessoryViewController", "alloc" ), "init" );
@@ -224,13 +228,6 @@ public final class MacOsTitleBarManager
             }
             Foundation.invoke( nsWindow, "removeTitlebarAccessoryViewControllerAtIndex:", count - 1 );
         }
-    }
-
-    /** Pins an {@code NSLayoutAnchor} (dimension) to a constant and activates the constraint. */
-    private static void activateConstant( ID dimensionAnchor, double constant )
-    {
-        ID constraint = Foundation.invoke( dimensionAnchor, "constraintEqualToConstant:", constant );
-        Foundation.invoke( constraint, "setActive:", true );
     }
 
     /**

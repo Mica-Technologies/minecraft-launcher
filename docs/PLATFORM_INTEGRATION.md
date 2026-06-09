@@ -80,8 +80,10 @@ fills the full window height, with the traffic lights floating over the content.
 - `applyCenteredTrafficLights(stage, bandHeightPx)` — grows the title bar to the navbar row
   height (52pt) so the traffic lights + title sit **vertically centered** in the navbar band
   rather than hugging its top edge. AppKit sizes the title bar to fit its tallest
-  `NSTitlebarAccessoryViewController`, so we attach one empty `NSView` pinned via Auto Layout to
-  `bandHeightPx` tall × `1pt` wide, left-aligned over the (hidden) brand gap just right of the
+  `NSTitlebarAccessoryViewController` (read from the accessory's **frame** height at attach time,
+  so it must be a real frame, not an as-yet-unresolved Auto Layout constraint), so we attach one
+  empty `NSView` with its frame set to `bandHeightPx` tall × `1pt` wide, left-aligned over the
+  (hidden) brand gap just right of the
   traffic lights — it grows the bar without overlapping (or eating clicks from) the JavaFX navbar
   buttons. Idempotent: existing accessories are removed first, so re-applying on every
   `WINDOW_SHOWN` never compounds the height.
