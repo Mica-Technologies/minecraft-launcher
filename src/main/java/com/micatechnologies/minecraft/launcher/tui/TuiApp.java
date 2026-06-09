@@ -43,6 +43,7 @@ import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -75,7 +76,7 @@ public final class TuiApp
     private Label statusBar;
     private ScheduledExecutorService refresher;
 
-    private enum View { LIBRARY, BROWSE, LOGS }
+    private enum View { LIBRARY, BROWSE, LOGS, SETTINGS }
     private View currentView = View.LIBRARY;
     private GameModPack logsTarget;  // pack whose logs the Logs view is showing
     private TextBox logsBox;         // the read-only log display in the Logs view
@@ -162,7 +163,7 @@ public final class TuiApp
         Panel root = new Panel( new BorderLayout() );
 
         Label header = new Label(
-                "  Mica Minecraft Launcher    [L] Library  [B] Browse  [G] Logs    [Enter] actions  [q] Quit" );
+                "  Mica Launcher   [L] Library  [B] Browse  [G] Logs  [S] Settings    [Enter] actions  [q] Quit" );
         header.addStyle( SGR.BOLD );
         root.addComponent( header, BorderLayout.Location.TOP );
 
@@ -196,6 +197,10 @@ public final class TuiApp
                 }
                 else if ( c == 'g' ) {
                     showLogs();
+                    handled.set( true );
+                }
+                else if ( c == 's' ) {
+                    showSettings();
                     handled.set( true );
                 }
                 else if ( c == 'n' && currentView == View.LOGS ) {
@@ -403,6 +408,129 @@ public final class TuiApp
         return String.format( "%-34s  v%s", truncate( name, 34 ), truncate( version, 14 ) );
     }
 
+    // ================================================================ Settings
+
+    private void showSettings()
+    {
+        currentView = View.SETTINGS;
+        content.removeAllComponents();
+        ActionListBox list = new ActionListBox();
+
+        // Toggles (Enter flips). Numbers/strings prompt for a new value.
+        boolRow( list, "Discord Rich Presence",
+                 ConfigManager::getDiscordRpcEnable, ConfigManager::setDiscordRpcEnable );
+        boolRow( list, "In-game console (GUI)",
+                 ConfigManager::getInGameConsoleEnable, ConfigManager::setInGameConsoleEnable );
+        boolRow( list, "Check for launcher updates",
+                 ConfigManager::getLauncherUpdateCheckEnabled, ConfigManager::setLauncherUpdateCheckEnabled );
+        boolRow( list, "Auto-backup before update",
+                 ConfigManager::getAutoBackupBeforeUpdate, ConfigManager::setAutoBackupBeforeUpdate );
+        boolRow( list, "Proxy enabled",
+                 ConfigManager::getProxyEnable, ConfigManager::setProxyEnable );
+
+        longRow( list, "Min RAM (MB)", ConfigManager::getMinRam, ConfigManager::setMinRam );
+        longRow( list, "Max RAM (MB)", ConfigManager::getMaxRam, ConfigManager::setMaxRam );
+        intRow( list, "Max backups per pack",
+                ConfigManager::getMaxBackupsPerPack, ConfigManager::setMaxBackupsPerPack );
+        intRow( list, "Proxy port", ConfigManager::getProxyPort, ConfigManager::setProxyPort );
+
+        stringRow( list, "Custom JVM args", ConfigManager::getCustomJvmArgs, ConfigManager::setCustomJvmArgs );
+        stringRow( list, "Proxy host", ConfigManager::getProxyHost, ConfigManager::setProxyHost );
+        stringRow( list, "Theme", ConfigManager::getTheme, ConfigManager::setTheme );
+
+        content.addComponent( list.withBorder( Borders.singleLine( "Settings — Enter to change" ) ),
+                              BorderLayout.Location.CENTER );
+        window.invalidate();
+        window.setFocusedInteractable( list );
+    }
+
+    private void boolRow( ActionListBox list, String label,
+                          java.util.function.BooleanSupplier get, java.util.function.Consumer< Boolean > set )
+    {
+        boolean val = get.getAsBoolean();
+        list.addItem( String.format( "%-30s %s", label, val ? "[on]" : "[off]" ), () -> {
+            set.accept( !val );
+            showSettings();
+        } );
+    }
+
+    private void longRow( ActionListBox list, String label,
+                          java.util.function.LongSupplier get, java.util.function.LongConsumer set )
+    {
+        long val = get.getAsLong();
+        list.addItem( String.format( "%-30s %d", label, val ), () -> {
+            String input = prompt( label, String.valueOf( val ) );
+            if ( input != null ) {
+                try {
+                    set.accept( Long.parseLong( input.trim() ) );
+                }
+                catch ( NumberFormatException e ) {
+                    error( "Please enter a whole number." );
+                }
+                catch ( Throwable t ) {
+                    error( String.valueOf( t.getMessage() ) );
+                }
+            }
+            showSettings();
+        } );
+    }
+
+    private void intRow( ActionListBox list, String label,
+                         java.util.function.IntSupplier get, java.util.function.IntConsumer set )
+    {
+        int val = get.getAsInt();
+        list.addItem( String.format( "%-30s %d", label, val ), () -> {
+            String input = prompt( label, String.valueOf( val ) );
+            if ( input != null ) {
+                try {
+                    set.accept( Integer.parseInt( input.trim() ) );
+                }
+                catch ( NumberFormatException e ) {
+                    error( "Please enter a whole number." );
+                }
+                catch ( Throwable t ) {
+                    error( String.valueOf( t.getMessage() ) );
+                }
+            }
+            showSettings();
+        } );
+    }
+
+    private void stringRow( ActionListBox list, String label,
+                            java.util.function.Supplier< String > get, java.util.function.Consumer< String > set )
+    {
+        String val = get.get();
+        String shown = ( val == null || val.isEmpty() ) ? "(empty)" : truncate( val, 40 );
+        list.addItem( String.format( "%-30s %s", label, shown ), () -> {
+            String input = prompt( label, val == null ? "" : val );
+            if ( input != null ) {
+                try {
+                    set.accept( input );
+                }
+                catch ( Throwable t ) {
+                    error( String.valueOf( t.getMessage() ) );   // e.g. JVM-args validation rejects it
+                }
+            }
+            showSettings();
+        } );
+    }
+
+    private String prompt( String title, String initial )
+    {
+        return new com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder()
+                .setTitle( title )
+                .setInitialContent( initial == null ? "" : initial )
+                .build()
+                .showDialog( gui );
+    }
+
+    private void error( String msg )
+    {
+        MessageDialog.showMessageDialog( gui, "Invalid value",
+                                         msg == null ? "Could not apply that value." : msg,
+                                         MessageDialogButton.OK );
+    }
+
     // ==================================================================== Logs
 
     private void showLogs()
@@ -550,6 +678,7 @@ public final class TuiApp
             case LIBRARY -> showLibrary();
             case BROWSE -> showBrowse();
             case LOGS -> showLogs();
+            case SETTINGS -> showSettings();
         }
         statusBar.setText( statusLine() );
     }
