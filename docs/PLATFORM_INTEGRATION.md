@@ -71,43 +71,34 @@ fills the full window height, with the traffic lights floating over the content.
   `NSWindowStyleMaskFullSizeContentView` into the window's style mask (read-modify-write so
   `StageStyle.UNIFIED`'s bits survive).
 - `hideRedundantBranding(root)` — collapses the in-window `.navBrandLogo` / `.navBrand` nodes; the
-  OS title bar already shows the screen name.
+  OS title bar already shows the screen name, and this clears the top-left for the traffic lights.
 - `installWindowDrag(root, stage)` — because the full-size content view swallows the native
   title-bar drag, the top navbar becomes a drag region: a primary press on empty navbar space
   hands off to AppKit's `[NSWindow performWindowDragWithEvent:]` (native tracking loop — follows
   the cursor 1:1, no lag, with window snapping). Presses on buttons / text fields / clickable
   glyphs are excluded; double-click zooms.
+- `applyCenteredTrafficLights(stage, bandHeightPx)` — grows the title bar to the navbar row
+  height (52pt) so the traffic lights + title sit **vertically centered** in the navbar band
+  rather than hugging its top edge. AppKit sizes the title bar to fit its tallest
+  `NSTitlebarAccessoryViewController`, so we attach one empty `NSView` pinned via Auto Layout to
+  `bandHeightPx` tall × `1pt` wide, left-aligned over the (hidden) brand gap just right of the
+  traffic lights — it grows the bar without overlapping (or eating clicks from) the JavaFX navbar
+  buttons. Idempotent: existing accessories are removed first, so re-applying on every
+  `WINDOW_SHOWN` never compounds the height.
 
-### Native title-bar toolbar — `MacOsToolbarManager`
+**The launcher's own JavaFX navbar buttons stay in the title-bar band** (Browse / Settings / Help /
+account) — they're ordinary nodes painting under the transparent title bar, clickable because no
+native view overlays them.
 
-Attaching an `NSToolbar` does two things: it grows the title bar to the unified height (which
-re-centers the traffic lights and title vertically) and lets the launcher host its primary nav as
-real, clickable native items next to the traffic lights.
-
-- A small Obj-C **toolbar delegate class is built at runtime** via JFA
-  (`objc_allocateClassPair` + `class_addMethod`, the same technique `jSystemThemeDetector` uses for
-  its notification observer). It vends `NSToolbarItem`s for **Browse, Settings, Help, and the
-  account** (right-aligned via a flexible space), actions routed to `LauncherActions`.
-- **Theming:** item icons are SF Symbols tinted to the current theme accent
-  (`ThemeAccentColors.accentForCurrentTheme()` → `NSColor` → `NSImageSymbolConfiguration`), falling
-  back to the plain appearance-adaptive symbol. Small `sizeMode` gives the icon+label pairs
-  breathing room off the content seam.
-- **Account item:** shows the player name + a `person.crop.circle` glyph immediately, then an
-  async off-main load swaps in the real minotar player head (`NSImage` retained across the
-  thread hop, released after `setImage:`).
-- **Why native items, not the JavaFX navbar:** a toolbar's views consume clicks over the full-size
-  content band, so JavaFX buttons up there become unclickable. The fix is to put the controls in
-  the toolbar and **hide the now-redundant JavaFX navbar controls** (`hideReplacedControls`,
-  including the account display whose only action opened Settings).
-- **Fallback:** `install()` reports success and the JavaFX controls are hidden **only when
-  `isInstalled()` is true**. If any native step fails, nothing is hidden, no toolbar is attached
-  → the title bar stays short and the in-window navbar stays fully clickable.
-
-> ⚠️ The runtime delegate uses JNA callbacks as Obj-C method implementations. A wrong callback
-> signature / type-encoding can crash the JVM when AppKit invokes the delegate (at display time),
-> which the setup-time guards can't catch. The async avatar load is the one spot with manual
-> native memory management (retain/release across a thread hop) — first suspect for any
-> avatar-load crash.
+> **Why not an `NSToolbar`?** A unified `NSToolbar` grows the bar the same way *and* hosts native
+> items, but its view spans the whole band and consumes the clicks there — forcing the interactive
+> controls to be native `NSToolbarItem`s. Those items are vended lazily by a delegate and their SF
+> Symbol images are autoreleased; after a window hide/show (returning from a game, where the
+> re-show goes through the raw `Stage.show()` path) the items came back **blank**. The accessory
+> view grows the bar without the click-eating overlay, so the buttons can stay JavaFX and simply
+> can't go blank. `MCLauncherGuiWindow.show()` registers a persistent `WINDOW_SHOWN` handler that
+> re-applies the hidden-inset + centered-lights setup on **every** show, because a JavaFX
+> hide()/show() can rebuild the `NSWindow` peer and drop the native title-bar state.
 
 ### System menu bar — `SystemMenuBarManager`
 
@@ -209,8 +200,7 @@ native side actually succeeding.
 | Dark/light probe | `utilities/OsThemeUtilities` |
 | URL scheme / file association | `utilities/SchemeRegistrar` |
 | Per-pack desktop shortcuts | `system/DesktopShortcutManager` |
-| macOS hidden-inset title bar + drag | `utilities/MacOsTitleBarManager` |
-| macOS native toolbar | `utilities/MacOsToolbarManager` |
+| macOS hidden-inset title bar + drag + centered traffic lights | `utilities/MacOsTitleBarManager` |
 | macOS dock badge / progress / menu | `utilities/MacOsDockManager` |
 | macOS vibrancy backdrop | `utilities/MacOsVibrancyManager` |
 | macOS system menu bar | `gui/SystemMenuBarManager` |

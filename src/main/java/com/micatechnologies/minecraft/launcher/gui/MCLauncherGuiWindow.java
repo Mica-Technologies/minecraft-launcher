@@ -519,12 +519,6 @@ public class MCLauncherGuiWindow extends Application
             // top navbar a window drag region in JavaFX instead. No-op off macOS.
             com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
                     .installWindowDrag( gui.scene.getRoot(), stage );
-            // macOS native toolbar: once it's installed (centering the lights + hosting Browse /
-            // Settings / Help natively), hide the now-redundant JavaFX navbar controls so they
-            // don't sit dead under the toolbar band. No-op until/unless the toolbar installs —
-            // the elegant fallback leaves the JavaFX navbar fully intact and clickable.
-            com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
-                    .hideReplacedControls( gui.scene.getRoot() );
 
             gui.afterShow();
         } );
@@ -577,16 +571,17 @@ public class MCLauncherGuiWindow extends Application
             stage.show();
 
             // macOS only: adopt the hidden-inset title bar (transparent chrome + full-size
-            // content view) so the traffic lights float over the content. Idempotent and
-            // gated on IS_OS_MAC; applied post-show when the NSWindow peer is realized.
+            // content view) and grow it so the traffic lights sit vertically centered in the
+            // navbar band. Applied now (this first show's WINDOW_SHOWN already fired) and
+            // re-applied on every later show via the persistent handler below — returning from
+            // a game re-shows through the raw Stage.show()/requestFocus() path, which bypasses
+            // this method, and a JavaFX hide()/show() can rebuild the NSWindow peer and drop
+            // the native title-bar state. The navbar buttons are ordinary JavaFX nodes (no
+            // native toolbar overlay), so they render + click normally and never go blank.
             if ( firstShow ) {
-                com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
-                        .applyHiddenInset( stage );
-                // Attach the native title-bar toolbar: re-centers the traffic lights + title and
-                // hosts Browse / Settings / Help as native items. Self-guarded; on failure it
-                // no-ops and the JavaFX navbar stays in charge.
-                com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
-                        .install( stage );
+                applyMacTitleBar();
+                stage.addEventHandler( javafx.stage.WindowEvent.WINDOW_SHOWN,
+                                       e -> Platform.runLater( this::applyMacTitleBar ) );
             }
             // Re-apply DWM chrome attributes only on the *first* show. applyTheme() runs
             // before the HWND exists, so the very first paint needs a post-show retry —
@@ -634,6 +629,21 @@ public class MCLauncherGuiWindow extends Application
                         .forceFullRepaint( stage );
             }
         } );
+    }
+
+    /** Top navbar row height in points (see {@code mainGUI.fxml} RowConstraints). The macOS
+     *  title bar is grown to this so the traffic lights center vertically within the navbar. */
+    private static final double MAC_TITLEBAR_BAND_PX = 52.0;
+
+    /** Re-applies the macOS hidden-inset title bar + centered traffic lights to the current
+     *  NSWindow. Idempotent and gated on macOS inside each manager call; safe to run on every
+     *  show (the persistent WINDOW_SHOWN handler does exactly that so the state survives a
+     *  game-relaunch hide/show that rebuilds the peer). No-op off macOS. */
+    private void applyMacTitleBar() {
+        com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
+                .applyHiddenInset( stage );
+        com.micatechnologies.minecraft.launcher.utilities.MacOsTitleBarManager
+                .applyCenteredTrafficLights( stage, MAC_TITLEBAR_BAND_PX );
     }
 
     /** Returns the currently-loaded ui-tokens-*.css path (one of {@link #UI_TOKENS_DARK} et al.)

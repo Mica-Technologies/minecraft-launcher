@@ -78,6 +78,10 @@ public final class MacOsTitleBarManager
      *  into the window's existing style mask so the content view spans the title bar. */
     private static final long NS_WINDOW_STYLE_MASK_FULL_SIZE_CONTENT_VIEW = 1L << 15;
 
+    /** {@code NSLayoutAttributeLeft} — places the title-bar accessory just right of the
+     *  traffic lights, over the (hidden) brand-logo gap rather than the navbar buttons. */
+    private static final long NS_LAYOUT_ATTRIBUTE_LEFT = 1L;
+
     private MacOsTitleBarManager() { /* static-only utility */ }
 
     /**
@@ -133,6 +137,100 @@ public final class MacOsTitleBarManager
             Logger.logWarningSilent( "MacOsTitleBar: applyHiddenInset failed — "
                                              + t.getClass().getSimpleName() + ": " + t.getMessage() );
         }
+    }
+
+    /**
+     * Grows {@code stage}'s native title bar to {@code bandHeightPx} so the traffic-light
+     * close/minimize/zoom controls (and the window title) sit <em>vertically centered</em>
+     * within the launcher's top navbar band instead of hugging its top edge. No-op off
+     * macOS, on a null stage, or before the NSWindow peer is realized.
+     *
+     * <p><b>How.</b> AppKit sizes the title bar to fit the tallest
+     * {@code NSTitlebarAccessoryViewController} attached to the window. We attach a single
+     * empty {@code NSView} pinned (via Auto Layout) to {@code bandHeightPx} tall and only
+     * {@code 1pt} wide, left-aligned so it lands over the brand-logo gap just right of the
+     * traffic lights — never over the JavaFX navbar buttons. The bar grows to the band
+     * height, which re-centers the traffic lights and title; the 1pt-wide view doesn't
+     * overlap (or swallow clicks from) the launcher's own navbar controls, which keep
+     * working as ordinary JavaFX nodes painting under the transparent title bar.</p>
+     *
+     * <p><b>Why an accessory and not an {@code NSToolbar}.</b> A unified toolbar grows the
+     * bar the same way but lays its own view across the whole band and eats the clicks
+     * there, forcing the interactive controls to be native toolbar items — whose lazily
+     * built, autoreleased images did not survive a window hide/show (returning from a
+     * game), leaving blank buttons. The accessory grows the bar without that overlay, so
+     * the buttons can stay JavaFX and simply can't go blank.</p>
+     *
+     * <p><b>Idempotent.</b> Any accessory controllers from a previous show are removed
+     * first, so re-applying on every {@code WINDOW_SHOWN} (Glass can rebuild the NSWindow
+     * peer across hide/show) never compounds the bar height.</p>
+     *
+     * @param stage        the stage whose NSWindow title bar should grow
+     * @param bandHeightPx the target title-bar height in points (match the navbar row)
+     *
+     * @since 2026.6
+     */
+    public static void applyCenteredTrafficLights( Stage stage, double bandHeightPx )
+    {
+        if ( !SystemUtils.IS_OS_MAC || stage == null || !stage.isShowing() ) {
+            return;
+        }
+        try {
+            NativeLong handle = WindowUtils.getNativeHandleOfStageAsNativeLong( stage );
+            if ( handle == null || handle.longValue() == 0 ) {
+                return;
+            }
+            ID nsWindow = new ID( handle.longValue() );
+
+            // Drop any accessory we added on a prior show first — Glass may keep the same
+            // NSWindow peer across hide/show, so a blind re-add would stack and the bar
+            // would grow taller every time the user returns from a game.
+            removeOurTitlebarAccessories( nsWindow );
+
+            // Empty spacer view, sized purely via Auto Layout constants (no NSRect/NSSize
+            // struct marshalling needed): 1pt wide, bandHeightPx tall.
+            ID view = Foundation.invoke( Foundation.invoke( "NSView", "alloc" ), "init" );
+            Foundation.invoke( view, "setTranslatesAutoresizingMaskIntoConstraints:", false );
+            activateConstant( Foundation.invoke( view, "heightAnchor" ), bandHeightPx );
+            activateConstant( Foundation.invoke( view, "widthAnchor" ), 1.0 );
+
+            ID vc = Foundation.invoke(
+                    Foundation.invoke( "NSTitlebarAccessoryViewController", "alloc" ), "init" );
+            Foundation.invoke( vc, "setView:", view );
+            Foundation.invoke( view, "autorelease" );
+            Foundation.invoke( vc, "setLayoutAttribute:", NS_LAYOUT_ATTRIBUTE_LEFT );
+
+            Foundation.invoke( nsWindow, "addTitlebarAccessoryViewController:", vc );
+            Foundation.invoke( vc, "autorelease" );
+
+            Logger.logDebug( "MacOsTitleBar: title bar grown to " + bandHeightPx
+                                     + "px (centered traffic lights)" );
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( "MacOsTitleBar: applyCenteredTrafficLights failed — "
+                                             + t.getClass().getSimpleName() + ": " + t.getMessage() );
+        }
+    }
+
+    /** Removes every title-bar accessory view controller on {@code nsWindow}. We only ever
+     *  add one (the height spacer), so clearing them all is safe and keeps re-apply idempotent. */
+    private static void removeOurTitlebarAccessories( ID nsWindow )
+    {
+        for ( int guard = 0; guard < 16; guard++ ) {
+            ID vcs = Foundation.invoke( nsWindow, "titlebarAccessoryViewControllers" );
+            long count = Foundation.isNil( vcs ) ? 0 : Foundation.invoke( vcs, "count" ).longValue();
+            if ( count <= 0 ) {
+                return;
+            }
+            Foundation.invoke( nsWindow, "removeTitlebarAccessoryViewControllerAtIndex:", count - 1 );
+        }
+    }
+
+    /** Pins an {@code NSLayoutAnchor} (dimension) to a constant and activates the constraint. */
+    private static void activateConstant( ID dimensionAnchor, double constant )
+    {
+        ID constraint = Foundation.invoke( dimensionAnchor, "constraintEqualToConstant:", constant );
+        Foundation.invoke( constraint, "setActive:", true );
     }
 
     /**
