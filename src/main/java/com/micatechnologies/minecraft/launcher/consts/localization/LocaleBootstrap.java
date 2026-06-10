@@ -55,6 +55,22 @@ public final class LocaleBootstrap
     private LocaleBootstrap() { /* static-only */ }
 
     /**
+     * The genuine OS/JVM default locale, snapshotted at class load — i.e. BEFORE the first
+     * {@link #apply(String)} call mutates {@link Locale#getDefault()}.
+     *
+     * <p>This is load-bearing for "Use OS Language": {@link #apply} sets the JVM default to the
+     * resolved locale, so once a user has applied (say) Spanish, {@code Locale.getDefault()} returns
+     * Spanish. If {@link #detectOsLocale()} read the live default, switching the language back to
+     * "Use OS Language" would re-detect Spanish as the "system" locale and never return to the real
+     * OS language until a restart. Reading this immutable snapshot fixes that.</p>
+     *
+     * <p>Safe because the first reference to this class anywhere in the app is {@code apply()} at
+     * startup, and a class's static initializer runs before that method body — so this captures the
+     * pristine OS default before any override is applied.</p>
+     */
+    private static final Locale OS_DEFAULT = Locale.getDefault();
+
+    /**
      * Resolves the effective startup locale and sets it as the JVM default
      * via {@link Locale#setDefault}. Idempotent — safe to call more than
      * once (e.g. after the user toggles the language in Settings without a
@@ -100,7 +116,9 @@ public final class LocaleBootstrap
      */
     public static Locale detectOsLocale()
     {
-        Locale def = Locale.getDefault();
+        // Use the snapshot taken before any apply() override, NOT the live (possibly-overridden)
+        // Locale.getDefault() — otherwise "Use OS Language" sticks on the last manual choice.
+        Locale def = OS_DEFAULT;
         if ( def == null ) return Locale.US;
         String tag = def.toLanguageTag();
         if ( tag == null || tag.isBlank()
