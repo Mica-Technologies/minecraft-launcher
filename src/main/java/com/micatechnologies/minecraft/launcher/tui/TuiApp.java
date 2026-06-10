@@ -19,7 +19,6 @@ package com.micatechnologies.minecraft.launcher.tui;
 
 import com.googlecode.lanterna.SGR;
 import com.googlecode.lanterna.TerminalSize;
-import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.gui2.ActionListBox;
 import com.googlecode.lanterna.gui2.BasicWindow;
 import com.googlecode.lanterna.gui2.BorderLayout;
@@ -44,6 +43,7 @@ import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
@@ -116,7 +116,8 @@ public final class TuiApp
         screen.startScreen();
         try {
             gui = new MultiWindowTextGUI( screen, new DefaultWindowManager(),
-                                         new EmptySpace( TextColor.ANSI.BLACK ) );
+                                         new EmptySpace( TuiTheme.background() ) );
+            gui.setTheme( TuiTheme.build() );
             buildWindow();
             startRefresh();
             runEventLoop();
@@ -444,7 +445,7 @@ public final class TuiApp
 
         stringRow( list, loc( "tui.setting.jvmArgs" ), ConfigManager::getCustomJvmArgs, ConfigManager::setCustomJvmArgs );
         stringRow( list, loc( "tui.setting.proxyHost" ), ConfigManager::getProxyHost, ConfigManager::setProxyHost );
-        stringRow( list, loc( "tui.setting.theme" ), ConfigManager::getTheme, ConfigManager::setTheme );
+        themeRow( list );
 
         content.addComponent( list.withBorder( Borders.singleLine( loc( "tui.settings.title" ) ) ),
                               BorderLayout.Location.CENTER );
@@ -521,6 +522,37 @@ public final class TuiApp
             }
             showSettings();
         } );
+    }
+
+    /** Theme is a fixed-choice row: picking one applies it AND re-themes the CLI live (the CLI's
+     *  light/dark look is derived from this setting — see {@link TuiTheme}). */
+    private void themeRow( ActionListBox list )
+    {
+        list.addItem( String.format( "%-30s %s", loc( "tui.setting.theme" ), ConfigManager.getTheme() ), () -> {
+            ActionListDialogBuilder b = new ActionListDialogBuilder().setTitle( loc( "tui.setting.theme" ) );
+            for ( String opt : new String[] {
+                    ConfigConstants.THEME_DARK, ConfigConstants.THEME_LIGHT, ConfigConstants.THEME_AUTOMATIC,
+                    ConfigConstants.THEME_NATIVE, ConfigConstants.THEME_BLUE_GRAY,
+                    ConfigConstants.THEME_ORANGE_PURPLE, ConfigConstants.THEME_CREEPER } ) {
+                b.addAction( opt, () -> {
+                    ConfigManager.setTheme( opt );
+                    applyTheme();
+                    showSettings();
+                } );
+            }
+            b.build().showDialog( gui );
+        } );
+    }
+
+    /** Re-applies the CLI light/dark theme (e.g. after the Theme setting changes). */
+    private void applyTheme()
+    {
+        if ( gui != null ) {
+            gui.setTheme( TuiTheme.build() );
+            if ( window != null ) {
+                window.invalidate();
+            }
+        }
     }
 
     private String prompt( String title, String initial )
