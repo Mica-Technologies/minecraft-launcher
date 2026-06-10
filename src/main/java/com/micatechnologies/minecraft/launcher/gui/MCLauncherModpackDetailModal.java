@@ -151,6 +151,18 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  steal escape from other modals/screens when this one isn't active. */
     private boolean visibleState = false;
 
+    // === Hero multi-image cycle state (issue #43). Rebuilt by buildHeroSection on
+    //     every show; the modal auto-cycles via the shared clock AND lets the user
+    //     step manually with the ◀ ▶ buttons / by clicking the logo. ===
+    private Runnable heroCycleUnsub;
+    private java.util.List< Image > heroLogos = java.util.List.of();
+    private java.util.List< String > heroBgUrls = java.util.List.of();
+    private int heroCycleIndex = 0;
+    private Region heroBgLayer;
+    private ImageView heroLogoView;
+    /** Guards the one-shot background prefetch of not-yet-cached hero images per show. */
+    private boolean heroPrefetchStarted = false;
+
     /** Captured key handler — installed on show, removed on hide so we don't leak
      *  filters when the modal goes back to invisible. */
     private final javafx.event.EventHandler< KeyEvent > escHandler = e -> {
@@ -344,6 +356,12 @@ public class MCLauncherModpackDetailModal extends StackPane
         if ( !visibleState ) return;
         visibleState = false;
 
+        // Stop auto-cycling the hero images — the modal is closing.
+        if ( heroCycleUnsub != null ) {
+            heroCycleUnsub.run();
+            heroCycleUnsub = null;
+        }
+
         // Revert the idle RGB effect to the theme accent now that we're
         // leaving the pack-specific context. Same null-pack overload as
         // a generic launcher menu.
@@ -461,6 +479,9 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     private Node buildHeroSection( GameModPack pack )
     {
+        // Fresh hero per show — allow its cycle images to be prefetched once.
+        heroPrefetchStarted = false;
+
         StackPane hero = new StackPane();
         hero.getStyleClass().add( "modpackDetailHero" );
         hero.setMinHeight( HERO_HEIGHT );
@@ -491,6 +512,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             String existing = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
             bgLayer.setStyle( existing + " -fx-background-image: url('" + bgUrl + "');" );
         }
+        heroBgLayer = bgLayer;
 
         // Veil — heavier at the bottom-left where the logo and title sit, so they read
         // cleanly over arbitrary bright pack imagery.
@@ -553,6 +575,16 @@ public class MCLauncherModpackDetailModal extends StackPane
         logoView.setFitHeight( 88 );
         logoView.setPreserveRatio( true );
         logoView.setImage( logoImage );
+        heroLogoView = logoView;
+        // Clicking the logo advances to the next image immediately (issue #43). The
+        // cursor only turns into a hand when there's actually more than one logo —
+        // wired below once the logo list is resolved.
+        logoView.setOnMouseClicked( e -> {
+            if ( heroLogos.size() > 1 || heroBgUrls.size() > 1 ) {
+                e.consume();
+                advanceHero( 1 );
+            }
+        } );
         // Fade the logo in once its bytes arrive — keeps the modal from flickering
         // a blank logo square on cold-network opens.
         ImageFadeIn.apply( logoView );
@@ -593,11 +625,168 @@ public class MCLauncherModpackDetailModal extends StackPane
         titleBox.getChildren().addAll( nameLabel, playedLabel );
         titleRow.getChildren().addAll( logoBox, titleBox );
 
+        // Resolve the pack's full set of cached logos / backgrounds and wire the cycle.
+        // Returns the ◀ ▶ navigation control (only when there are multiple backgrounds
+        // to showcase) to overlay on the hero.
+        Node bgNav = setupHeroCycle( pack, logoImage );
+
         // closeBtn is added LAST so it z-orders on top of every other hero element.
         // If it weren't, the titleRow (added next in the bottom-anchored slot) could
         // overlap the close button's clickable region for very wide title rows.
-        hero.getChildren().addAll( bgLayer, veil, badgeRow, titleRow, closeBtn );
+        hero.getChildren().addAll( bgLayer, veil, badgeRow, titleRow );
+        if ( bgNav != null ) {
+            hero.getChildren().add( bgNav );
+        }
+        hero.getChildren().add( closeBtn );
         return hero;
+    }
+
+    /**
+     * (Re)builds the hero's multi-image cycle for {@code pack} (issue #43): resolves every
+     * cached logo + background, applies the Settings shuffle, subscribes to the shared
+     * {@link ModpackImageCycleClock} for auto-advance, and prefetches any not-yet-cached
+     * showcase images. Returns a ◀ ▶ navigation overlay when the pack ships more than one
+     * background (so the user can step through them — backgrounds double as showcase art),
+     * or {@code null} otherwise.
+     */
+    private Node setupHeroCycle( GameModPack pack, Image primaryLogo )
+    {
+        // Drop any prior subscription (modal reused across packs / re-shows).
+        if ( heroCycleUnsub != null ) {
+            heroCycleUnsub.run();
+            heroCycleUnsub = null;
+        }
+        heroCycleIndex = 0;
+
+        boolean showBg = ConfigManager.getShowPackBackgrounds();
+        java.util.List< Image > rawLogos = ModpackImageResolver.resolveLogosFromDisk( pack );
+        java.util.List< String > rawBgs = showBg
+                ? ModpackImageResolver.resolveBackgroundUrlsFromDisk( pack )
+                : java.util.List.of();
+
+        // One-shot prefetch of declared-but-uncached showcase images, then re-wire.
+        int declaredLogos = pack.hasCustomLogo() ? pack.getPackLogoUrlCount() : 0;
+        int declaredBgs = ( showBg && pack.hasCustomBackground() ) ? pack.getPackBackgroundUrlCount() : 0;
+        if ( !heroPrefetchStarted
+                && ( rawLogos.size() < declaredLogos || rawBgs.size() < declaredBgs ) ) {
+            heroPrefetchStarted = true;
+            final GameModPack captured = pack;
+            SystemUtilities.spawnNewTask( () -> {
+                try {
+                    captured.cacheImages();
+                }
+                catch ( Throwable ignored ) {
+                    return;
+                }
+                GUIUtilities.JFXPlatformRun( () -> {
+                    // Only re-wire if the modal still shows this pack and the hero nodes
+                    // are still the ones we built.
+                    if ( visibleState && heroBgLayer != null && heroLogoView != null ) {
+                        rewireHeroAfterPrefetch( captured, primaryLogo );
+                    }
+                } );
+            } );
+        }
+
+        java.util.List< Image > logos = rawLogos.isEmpty() && primaryLogo != null
+                ? new java.util.ArrayList<>( java.util.List.of( primaryLogo ) )
+                : new java.util.ArrayList<>( rawLogos );
+        java.util.List< String > bgs = new java.util.ArrayList<>( rawBgs );
+
+        if ( ConfigManager.getImageCycleShuffle() ) {
+            if ( logos.size() > 1 ) java.util.Collections.shuffle( logos );
+            if ( bgs.size() > 1 ) java.util.Collections.shuffle( bgs );
+        }
+
+        heroLogos = logos;
+        heroBgUrls = bgs;
+
+        // Hand cursor on the logo only when clicking it would actually do something.
+        if ( heroLogoView != null ) {
+            heroLogoView.setCursor( ( heroLogos.size() > 1 || heroBgUrls.size() > 1 )
+                                    ? Cursor.HAND : Cursor.DEFAULT );
+        }
+
+        // Auto-advance via the shared clock when there's more than one of either.
+        if ( heroLogos.size() > 1 || heroBgUrls.size() > 1 ) {
+            heroCycleUnsub = ModpackImageCycleClock.getInstance().register( () -> {
+                if ( visibleState ) advanceHero( 1 );
+            } );
+        }
+
+        return heroBgUrls.size() > 1 ? buildHeroNav() : null;
+    }
+
+    /** Re-resolves the hero cycle after a prefetch lands and refreshes the displayed
+     *  image. Re-adds the ◀ ▶ nav overlay if backgrounds newly became multiple. */
+    private void rewireHeroAfterPrefetch( GameModPack pack, Image primaryLogo )
+    {
+        Node bgNav = setupHeroCycle( pack, primaryLogo );
+        // The hero StackPane is the bgLayer's parent; re-insert the nav just under the
+        // close button if one is now warranted and not already present.
+        if ( bgNav != null && heroBgLayer != null
+                && heroBgLayer.getParent() instanceof StackPane heroPane ) {
+            boolean hasNav = heroPane.getChildren().stream()
+                    .anyMatch( n -> "heroNav".equals( n.getId() ) );
+            if ( !hasNav ) {
+                int insertAt = Math.max( 0, heroPane.getChildren().size() - 1 );
+                heroPane.getChildren().add( insertAt, bgNav );
+            }
+        }
+        applyHeroImages();
+    }
+
+    /** Builds the ◀ ▶ overlay that steps through the pack's backgrounds. */
+    private Node buildHeroNav()
+    {
+        Label prev = new Label( "‹" ); // ‹
+        Label next = new Label( "›" ); // ›
+        prev.getStyleClass().add( "modpackDetailHeroNav" );
+        next.getStyleClass().add( "modpackDetailHeroNav" );
+        prev.setCursor( Cursor.HAND );
+        next.setCursor( Cursor.HAND );
+        prev.setPickOnBounds( true );
+        next.setPickOnBounds( true );
+        prev.setOnMouseClicked( e -> { e.consume(); advanceHero( -1 ); } );
+        next.setOnMouseClicked( e -> { e.consume(); advanceHero( 1 ); } );
+
+        Region spacer = new Region();
+        HBox.setHgrow( spacer, Priority.ALWAYS );
+        HBox nav = new HBox( prev, spacer, next );
+        nav.setId( "heroNav" );
+        nav.setAlignment( Pos.CENTER );
+        nav.setPickOnBounds( false );
+        nav.setPadding( new Insets( 0, 12, 0, 12 ) );
+        // Fill the hero so the chevrons are pushed to its left / right edges by the
+        // spacer (a pref-sized HBox would bunch them in the middle).
+        nav.setMaxWidth( Double.MAX_VALUE );
+        nav.setMaxHeight( Double.MAX_VALUE );
+        StackPane.setAlignment( nav, Pos.CENTER );
+        return nav;
+    }
+
+    /** Steps the hero cycle by {@code delta} (wrapping) and repaints. Drives both the
+     *  logo and background in sync (issue #43), independent of the auto-cycle clock so
+     *  manual stepping works even when the interval is set to "Never". */
+    private void advanceHero( int delta )
+    {
+        int span = Math.max( heroLogos.size(), heroBgUrls.size() );
+        if ( span <= 1 ) return;
+        heroCycleIndex = ( ( heroCycleIndex + delta ) % span + span ) % span;
+        applyHeroImages();
+    }
+
+    /** Applies the current cycle index to the hero logo + background nodes. */
+    private void applyHeroImages()
+    {
+        if ( heroLogoView != null && heroLogos.size() > 1 ) {
+            heroLogoView.setImage( heroLogos.get( heroCycleIndex % heroLogos.size() ) );
+            ImageFadeIn.apply( heroLogoView );
+        }
+        if ( heroBgLayer != null && heroBgUrls.size() > 1 ) {
+            MCLauncherMainGui.setBackgroundImageInline(
+                    heroBgLayer, heroBgUrls.get( heroCycleIndex % heroBgUrls.size() ) );
+        }
     }
 
     private Node buildChipsRow( GameModPack pack )
