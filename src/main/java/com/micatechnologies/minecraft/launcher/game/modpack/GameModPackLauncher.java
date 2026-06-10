@@ -855,6 +855,59 @@ class GameModPackLauncher
     }
 
     /**
+     * Names (without the {@code -XX:} prefix and any {@code +}/{@code -}/{@code =value}
+     * decoration) of HotSpot VM options that require {@code -XX:+UnlockExperimentalVMOptions}
+     * before the JVM will accept them. Limited to the experimental flags the
+     * launcher's own presets / hardware-tuner can emit; extend as needed.
+     */
+    private static final java.util.Set< String > EXPERIMENTAL_VM_OPTIONS = java.util.Set.of(
+            "G1NewSizePercent",
+            "G1MaxNewSizePercent",
+            "G1MixedGCLiveThresholdPercent" );
+
+    /**
+     * Ensures {@code -XX:+UnlockExperimentalVMOptions} precedes any experimental
+     * VM option in the given JVM-arg token list. If the unlock flag is already
+     * present, or no experimental option is used, the list is left unchanged;
+     * otherwise the unlock flag is inserted at the front so it is evaluated
+     * before the options it gates.
+     *
+     * @param jvmArgs mutable list of tokenised JVM arguments (modified in place)
+     */
+    private static void ensureExperimentalOptionsUnlocked( List< String > jvmArgs )
+    {
+        final String unlockFlag = "-XX:+UnlockExperimentalVMOptions";
+        if ( jvmArgs.contains( unlockFlag ) ) {
+            return;
+        }
+        boolean usesExperimental = jvmArgs.stream().anyMatch( GameModPackLauncher::isExperimentalVmOption );
+        if ( usesExperimental ) {
+            jvmArgs.add( 0, unlockFlag );
+        }
+    }
+
+    /**
+     * @return {@code true} if {@code arg} is a {@code -XX:} option whose name is
+     *         in {@link #EXPERIMENTAL_VM_OPTIONS}, ignoring any {@code +}/{@code -}
+     *         boolean prefix and {@code =value} suffix.
+     */
+    private static boolean isExperimentalVmOption( String arg )
+    {
+        if ( arg == null || !arg.startsWith( "-XX:" ) ) {
+            return false;
+        }
+        String name = arg.substring( "-XX:".length() );
+        if ( !name.isEmpty() && ( name.charAt( 0 ) == '+' || name.charAt( 0 ) == '-' ) ) {
+            name = name.substring( 1 );
+        }
+        int eq = name.indexOf( '=' );
+        if ( eq >= 0 ) {
+            name = name.substring( 0, eq );
+        }
+        return EXPERIMENTAL_VM_OPTIONS.contains( name );
+    }
+
+    /**
      * Builds the full launch command, replaces all placeholders, and starts the game process.
      *
      * @throws ModpackException if unable to launch the game
@@ -953,7 +1006,16 @@ class GameModPackLauncher
         // separate argv entries.
         String customJvmArgs = ConfigManager.getCustomJvmArgs();
         if ( customJvmArgs != null && !customJvmArgs.isBlank() ) {
-            argv.addAll( ProcessUtilities.splitCommandLine( customJvmArgs ) );
+            List< String > customTokens = ProcessUtilities.splitCommandLine( customJvmArgs );
+            // Some G1 tuning flags the launcher emits (G1NewSizePercent /
+            // G1MaxNewSizePercent, etc.) are *experimental* VM options. The JVM
+            // aborts at startup ("... is experimental and must be enabled via
+            // -XX:+UnlockExperimentalVMOptions") unless that unlock flag appears
+            // first. Configs generated before the unlock flag was added — and any
+            // hand-edited experimental flag — would otherwise crash the game, so
+            // inject the unlock flag defensively when it's missing.
+            ensureExperimentalOptionsUnlocked( customTokens );
+            argv.addAll( customTokens );
         }
 
         // Add min and max RAM

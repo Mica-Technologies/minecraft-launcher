@@ -83,6 +83,10 @@ public final class HardwareTunedJvmArgs
 
         StringBuilder sb = new StringBuilder( 256 );
         sb.append( "-XX:+UseG1GC" );
+        // G1NewSizePercent / G1MaxNewSizePercent (emitted below) are experimental
+        // VM options; the JVM refuses to start unless they're unlocked first, and
+        // this flag must precede them on the command line.
+        sb.append( " -XX:+UnlockExperimentalVMOptions" );
 
         if ( maxRamGB <= 4 ) {
             // Constrained environment: minimise per-GC work; accept higher
