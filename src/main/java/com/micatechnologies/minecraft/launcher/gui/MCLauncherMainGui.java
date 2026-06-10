@@ -1119,6 +1119,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         private final MFXButton websiteBtn;
         private final PauseTransition singleClickTimer;
 
+        // === Multi-image cycle state (issue #43). Populated per-bind from the
+        //     pack's cached logos / backgrounds; the card subscribes to the shared
+        //     ModpackImageCycleClock only while it shows a pack with >1 of either. ===
+        private java.util.List< Image >  cycleLogos   = java.util.List.of();
+        private java.util.List< String > cycleBgUrls  = java.util.List.of();
+        private int                      cycleIndex   = 0;
+        /** Unsubscribe handle for the current clock registration, or null when not cycling. */
+        private Runnable                 cycleUnsub;
+        /** Guards the one-shot background prefetch of not-yet-cached cycle images per bind. */
+        private boolean                  cyclePrefetchStarted;
+
         ModpackHeroCard( GameModPack initialPack )
         {
             getStyleClass().add( "heroCardShell" );
@@ -1301,6 +1312,9 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         void bind( GameModPack newPack )
         {
             this.pack = newPack;
+            // Reset the per-bind prefetch guard so a newly-bound pack can warm its
+            // not-yet-cached cycle images exactly once.
+            this.cyclePrefetchStarted = false;
 
             // Logo image — drives both the logo ImageView and the bgLayer's
             // derived-color gradient fallback. Re-resolved every bind in case the
@@ -1372,6 +1386,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                         if ( this.pack != capturedPack ) return;
                         String currentStyle = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
                         bgLayer.setStyle( currentStyle + " -fx-background-image: url('" + fetchedUrl + "');" );
+                        // Newly-cached backgrounds may now form a cycle.
+                        refreshImageCycle();
                     } );
                 } );
             }
@@ -1401,6 +1417,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                             if ( this.pack != capturedPack ) return;
                             logo.setImage( fresh );
                             ImageFadeIn.apply( logo );
+                            // Newly-cached logos may now form a cycle.
+                            refreshImageCycle();
                         } );
                     } );
                 }
@@ -1478,6 +1496,110 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                                       MCLauncherMainGui.this::hideBackgroundStatus,
                                                       MCLauncherMainGui.this::rebuildCards );
             setOnContextMenuRequested( e -> menu.show( this, e.getScreenX(), e.getScreenY() ) );
+
+            // Multi-image cycle: resolve the pack's cached logos / backgrounds and
+            // subscribe to the shared clock if there's more than one of either.
+            setupImageCycle( newPack, packLogoImage, showBackgrounds );
+        }
+
+        /**
+         * (Re)builds this card's image-cycle state for {@code pack} and (un)subscribes from
+         * the shared {@link ModpackImageCycleClock} accordingly. Called at the end of
+         * {@link #bind} and again after an async image warm-up lands, so a pack whose extra
+         * images weren't cached at first paint starts cycling once they arrive. Idempotent.
+         *
+         * @param primaryLogo  the already-resolved primary logo, used as a single-item
+         *                     fallback when no logos are cached on disk yet
+         * @param showBg       whether background imagery is enabled (Settings opt-out)
+         */
+        private void setupImageCycle( GameModPack pack, Image primaryLogo, boolean showBg )
+        {
+            // Drop any prior subscription before recomputing — a rebind may switch to a
+            // pack with a different image count (or none).
+            if ( cycleUnsub != null ) {
+                cycleUnsub.run();
+                cycleUnsub = null;
+            }
+
+            java.util.List< Image > rawLogos = ModpackImageResolver.resolveLogosFromDisk( pack );
+            java.util.List< String > rawBgs = showBg
+                    ? ModpackImageResolver.resolveBackgroundUrlsFromDisk( pack )
+                    : java.util.List.of();
+
+            // Prefetch any declared-but-not-yet-cached images once, so a pack whose primary
+            // is cached but whose extra showcase images aren't still ends up cycling. Cheap
+            // "warm a little while the user browses" behavior; cacheImages() only fetches
+            // what's missing.
+            int declaredLogos = pack.hasCustomLogo() ? pack.getPackLogoUrlCount() : 0;
+            int declaredBgs = ( showBg && pack.hasCustomBackground() ) ? pack.getPackBackgroundUrlCount() : 0;
+            if ( !cyclePrefetchStarted
+                    && ( rawLogos.size() < declaredLogos || rawBgs.size() < declaredBgs ) ) {
+                cyclePrefetchStarted = true;
+                final GameModPack captured = pack;
+                SystemUtilities.spawnNewTask( () -> {
+                    try {
+                        captured.cacheImages();
+                    }
+                    catch ( Throwable ignored ) {
+                        return;
+                    }
+                    GUIUtilities.JFXPlatformRun( () -> {
+                        if ( this.pack == captured ) refreshImageCycle();
+                    } );
+                } );
+            }
+
+            java.util.List< Image > logos = rawLogos;
+            if ( logos.isEmpty() && primaryLogo != null ) {
+                logos = java.util.List.of( primaryLogo );
+            }
+            java.util.List< String > bgs = rawBgs;
+
+            // One-time shuffle of the cycle order when the user opts in. Copy first —
+            // the resolver returns lists we shouldn't mutate in place.
+            if ( ConfigManager.getImageCycleShuffle() ) {
+                if ( logos.size() > 1 ) {
+                    logos = new java.util.ArrayList<>( logos );
+                    java.util.Collections.shuffle( logos );
+                }
+                if ( bgs.size() > 1 ) {
+                    bgs = new java.util.ArrayList<>( bgs );
+                    java.util.Collections.shuffle( bgs );
+                }
+            }
+
+            cycleLogos = logos;
+            cycleBgUrls = bgs;
+            cycleIndex = 0;
+
+            if ( cycleLogos.size() > 1 || cycleBgUrls.size() > 1 ) {
+                cycleUnsub = ModpackImageCycleClock.getInstance().register( this::onCycleTick );
+            }
+        }
+
+        /** Re-derives the cycle state from the card's current pack + on-disk cache. Called
+         *  after an async image warm-up so newly-cached images join the cycle. */
+        private void refreshImageCycle()
+        {
+            setupImageCycle( this.pack, logo.getImage(), ConfigManager.getShowPackBackgrounds() );
+        }
+
+        /** Advances to the next logo / background image. Runs on the FX thread via the
+         *  shared clock. No-ops for off-screen (pooled, unattached) cards so recycled
+         *  cards don't repaint needlessly. */
+        private void onCycleTick()
+        {
+            if ( getScene() == null ) {
+                return; // card not currently displayed
+            }
+            cycleIndex++;
+            if ( cycleLogos.size() > 1 ) {
+                logo.setImage( cycleLogos.get( cycleIndex % cycleLogos.size() ) );
+                ImageFadeIn.apply( logo );
+            }
+            if ( cycleBgUrls.size() > 1 ) {
+                setBackgroundImageInline( bgLayer, cycleBgUrls.get( cycleIndex % cycleBgUrls.size() ) );
+            }
         }
 
         private void startPlay( GameModPack pack ) {
@@ -1555,6 +1677,22 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  uses what's already cached, falling through to the gradient otherwise. */
     static String resolveBackgroundUrl( GameModPack pack ) {
         return ModpackImageResolver.resolveBackgroundUrlFromDisk( pack );
+    }
+
+    /** Swaps the {@code -fx-background-image} declaration on a hero {@code bgLayer} to
+     *  {@code fileUrl} (or removes it when null), preserving the procedural-gradient
+     *  base style (and any other inline declarations) underneath. Used by the image
+     *  cycle to change the displayed background without disturbing the gradient that
+     *  shows through transparent pixels / during loads. */
+    static void setBackgroundImageInline( Region bgLayer, String fileUrl ) {
+        String style = bgLayer.getStyle() == null ? "" : bgLayer.getStyle();
+        // Strip any existing background-image declaration, then re-append the new one.
+        style = style.replaceAll( "\\s*-fx-background-image:[^;]*;?", "" ).trim();
+        if ( fileUrl != null ) {
+            style = ( style.isEmpty() ? "" : style + " " )
+                    + "-fx-background-image: url('" + fileUrl + "');";
+        }
+        bgLayer.setStyle( style );
     }
 
     // =========================================================================================

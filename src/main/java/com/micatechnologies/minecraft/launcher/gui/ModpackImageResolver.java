@@ -22,6 +22,8 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import javafx.scene.image.Image;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Shared logo / background image resolution for the launcher's card-grid screens.
@@ -71,6 +73,52 @@ public final class ModpackImageResolver
         }
         catch ( Exception ignored ) { /* fall through to null */ }
         return null;
+    }
+
+    /**
+     * Returns every cached logo the pack declares, in declaration order, as JavaFX
+     * {@link Image}s — for the multi-image cycle (issue #43). Only images already on
+     * disk are returned (side-effect-free, FX-thread-safe); a not-yet-cached image is
+     * skipped. Returns an empty list when the pack has no cached logos yet — callers
+     * fall back to {@link #resolveLogoOrDefault(GameModPack)} / a placeholder.
+     */
+    public static List< Image > resolveLogosFromDisk( GameModPack pack ) {
+        List< Image > images = new ArrayList<>();
+        if ( pack == null ) return images;
+        try {
+            for ( String path : pack.getPackLogoFilepathsRaw() ) {
+                if ( path == null ) continue;
+                File f = new File( path );
+                if ( f.exists() ) {
+                    images.add( new Image( f.toURI().toString(), true ) );
+                }
+            }
+        }
+        catch ( Exception ignored ) { /* return whatever resolved */ }
+        return images;
+    }
+
+    /**
+     * Returns every cached custom background the pack declares, in declaration order, as
+     * {@code file:} URL strings — for the multi-image cycle (issue #43). Same gating as
+     * {@link #resolveBackgroundUrlFromDisk(GameModPack)}: empty when the pack ships no
+     * custom background, and only on-disk files are included.
+     */
+    public static List< String > resolveBackgroundUrlsFromDisk( GameModPack pack ) {
+        List< String > urls = new ArrayList<>();
+        if ( pack == null ) return urls;
+        try {
+            if ( !pack.hasCustomBackground() ) return urls;
+            for ( String path : pack.getPackBackgroundFilepathsRaw() ) {
+                if ( path == null ) continue;
+                File f = new File( path );
+                if ( f.exists() && f.length() > 0 ) {
+                    urls.add( f.toURI().toString() );
+                }
+            }
+        }
+        catch ( Exception ignored ) { /* return whatever resolved */ }
+        return urls;
     }
 
     /**

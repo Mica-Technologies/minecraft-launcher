@@ -713,6 +713,24 @@ public class GameModPack extends GameModPackMetadata
         return packLogoURL != null ? packLogoURL.first() : null;
     }
 
+    /** Number of logo URLs the manifest declares (1 for a bare string, N for an array,
+     *  0 if unset). Lets the UI know how many distinct showcase logos to expect / prefetch
+     *  for the multi-image cycle.
+     *
+     *  @since 3.6 */
+    public int getPackLogoUrlCount()
+    {
+        return packLogoURL != null ? packLogoURL.all().size() : 0;
+    }
+
+    /** Number of background URLs the manifest declares. See {@link #getPackLogoUrlCount()}.
+     *
+     *  @since 3.6 */
+    public int getPackBackgroundUrlCount()
+    {
+        return packBackgroundURL != null ? packBackgroundURL.all().size() : 0;
+    }
+
     /** Source URL of the pack's background image as declared in the manifest. Same rationale
      *  as {@link #getPackLogoURL()} — use directly with {@code Image(url, true)} to avoid the
      *  file-cache trigger that {@link #getPackBackgroundFilepath()} would cause.
