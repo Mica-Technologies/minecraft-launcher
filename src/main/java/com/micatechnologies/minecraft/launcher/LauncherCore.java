@@ -201,7 +201,7 @@ public class LauncherCore
             // real console and exit cleanly.
             if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
                 com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut()
-                        .println( "Mica Minecraft Launcher is already running. Close it before starting --cli." );
+                        .println( LocalizationManager.get( "tui.alreadyRunning" ) );
                 System.exit( 0 );
                 return;
             }

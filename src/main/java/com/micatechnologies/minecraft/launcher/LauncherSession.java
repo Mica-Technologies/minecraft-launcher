@@ -103,8 +103,7 @@ class LauncherSession
         if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
             if ( !com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.hasExistingLogin() ) {
                 com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut().println(
-                        "No saved Microsoft account found. Sign in via the GUI launcher once, "
-                                + "then relaunch with --cli." );
+                        LocalizationManager.get( "tui.auth.noAccount" ) );
                 LauncherCore.closeApp();
                 return;
             }
@@ -121,7 +120,8 @@ class LauncherSession
             }
             catch ( Throwable t ) {
                 Logger.logThrowable( t );
-                com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut().println( "TUI error: " + t );
+                com.micatechnologies.minecraft.launcher.tui.TuiMode.realOut().println(
+                        LocalizationManager.format( "tui.error.generic", String.valueOf( t ) ) );
             }
             LauncherCore.closeApp();
             return;

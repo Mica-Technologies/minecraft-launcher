@@ -44,6 +44,7 @@ import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -83,6 +84,10 @@ public final class TuiApp
     private int     lastLogSize = -1; // last-rendered log line count, so we only refresh on new output
 
     private TuiApp() { /* via run() */ }
+
+    /** Localized string lookup shorthands. */
+    private static String loc( String key ) { return LocalizationManager.get( key ); }
+    private static String locf( String key, Object... args ) { return LocalizationManager.format( key, args ); }
 
     /** Builds the screen and runs the event loop until the user quits. */
     public static void run() throws Exception
@@ -163,7 +168,10 @@ public final class TuiApp
         Panel root = new Panel( new BorderLayout() );
 
         Label header = new Label(
-                "  Mica Launcher   [L] Library  [B] Browse  [G] Logs  [S] Settings    [Enter] actions  [q] Quit" );
+                "  " + loc( "tui.appName" ) + "   [L] " + loc( "tui.view.library" )
+                        + "  [B] " + loc( "tui.view.browse" ) + "  [G] " + loc( "tui.view.logs" )
+                        + "  [S] " + loc( "tui.view.settings" ) + "    [Enter] " + loc( "tui.nav.actions" )
+                        + "  [q] " + loc( "tui.nav.quit" ) );
         header.addStyle( SGR.BOLD );
         root.addComponent( header, BorderLayout.Location.TOP );
 
@@ -223,14 +231,14 @@ public final class TuiApp
         ActionListBox list = new ActionListBox();
         List< GameModPack > packs = GameModPackManager.getInstalledModPacks();
         if ( packs.isEmpty() ) {
-            list.addItem( "(no modpacks installed — Browse/Install lands in a later step)", () -> { } );
+            list.addItem( loc( "tui.library.empty" ), () -> { } );
         }
         else {
             for ( GameModPack pack : packs ) {
                 list.addItem( formatPackRow( pack ), () -> packActions( pack ) );
             }
         }
-        content.addComponent( list.withBorder( Borders.singleLine( "Installed Packs" ) ),
+        content.addComponent( list.withBorder( Borders.singleLine( loc( "tui.library.title" ) ) ),
                               BorderLayout.Location.CENTER );
         window.invalidate();
         window.setFocusedInteractable( list );
@@ -242,33 +250,33 @@ public final class TuiApp
         boolean running = TuiRuntime.isRunning( pack );
         ActionListDialogBuilder b = new ActionListDialogBuilder()
                 .setTitle( pack.getFriendlyName() )
-                .setDescription( running ? "This pack is running." : "Choose an action" );
+                .setDescription( running ? loc( "tui.actions.running" ) : loc( "tui.actions.choose" ) );
         if ( !running ) {
-            b.addAction( "Launch", () -> launch( pack ) );
-            b.addAction( "Uninstall", () -> confirmUninstall( pack ) );
+            b.addAction( loc( "tui.action.launch" ), () -> launch( pack ) );
+            b.addAction( loc( "tui.action.uninstall" ), () -> confirmUninstall( pack ) );
         }
         else {
-            b.addAction( "View logs", () -> { logsTarget = pack; showLogs(); } );
-            b.addAction( "Stop game", () -> {
+            b.addAction( loc( "tui.action.viewLogs" ), () -> { logsTarget = pack; showLogs(); } );
+            b.addAction( loc( "tui.action.stop" ), () -> {
                 RunningGame g = TuiRuntime.runningFor( pack );
                 if ( g != null ) {
                     g.stop();
                 }
             } );
         }
-        b.addAction( "Close", () -> { } );
+        b.addAction( loc( "tui.action.close" ), () -> { } );
         b.build().showDialog( gui );
     }
 
     private void confirmUninstall( GameModPack pack )
     {
-        MessageDialogButton r = MessageDialog.showMessageDialog( gui, "Uninstall",
-                "Uninstall " + pack.getFriendlyName() + "?\nThis removes its installed files.",
+        MessageDialogButton r = MessageDialog.showMessageDialog( gui, loc( "tui.uninstall.title" ),
+                locf( "tui.uninstall.confirm", pack.getFriendlyName() ),
                 MessageDialogButton.Yes, MessageDialogButton.No );
         if ( r != MessageDialogButton.Yes ) {
             return;
         }
-        runWithSpinner( "Uninstalling " + pack.getFriendlyName() + "…",
+        runWithSpinner( locf( "tui.uninstall.working", pack.getFriendlyName() ),
                         () -> GameModPackManager.uninstallModPack( pack ),
                         this::showLibrary );
     }
@@ -278,10 +286,10 @@ public final class TuiApp
         if ( TuiRuntime.isRunning( pack ) ) {
             return;
         }
-        BasicWindow progress = new BasicWindow( " Launching " + pack.getFriendlyName() + " " );
+        BasicWindow progress = new BasicWindow( " " + locf( "tui.launch.title", pack.getFriendlyName() ) + " " );
         progress.setHints( List.of( Window.Hint.CENTERED ) );
         Panel pp = new Panel( new LinearLayout( Direction.VERTICAL ) );
-        Label section = new Label( "Preparing…" );
+        Label section = new Label( loc( "tui.launch.preparing" ) );
         Label detail = new Label( "" );
         Label pct = new Label( "0%" );
         pp.addComponent( section );
@@ -307,7 +315,7 @@ public final class TuiApp
                 pack.startGame();
                 Process proc = pack.getLastLaunchedProcess();
                 if ( proc == null ) {
-                    throw new IllegalStateException( "No game process was started." );
+                    throw new IllegalStateException( loc( "tui.launch.noProcess" ) );
                 }
                 RunningGame game = new RunningGame( pack, proc );
                 TuiRuntime.register( game, () -> gui.getGUIThread().invokeLater( this::onGamesChanged ) );
@@ -320,7 +328,7 @@ public final class TuiApp
                 Logger.logThrowable( t );
                 gui.getGUIThread().invokeLater( () -> {
                     progress.close();
-                    MessageDialog.showMessageDialog( gui, "Launch failed",
+                    MessageDialog.showMessageDialog( gui, loc( "tui.launch.failed" ),
                                                      String.valueOf( t.getMessage() ),
                                                      MessageDialogButton.OK );
                 } );
@@ -338,12 +346,12 @@ public final class TuiApp
         content.removeAllComponents();
 
         ActionListBox list = new ActionListBox();
-        list.addItem( "＋  Install from URL…", this::installByUrl );
+        list.addItem( "＋  " + loc( "tui.browse.installFromUrl" ), this::installByUrl );
 
         java.util.concurrent.CompletableFuture< Void > fetch = GameModPackManager.getAvailableFetchFuture();
         boolean ready = fetch == null || fetch.isDone();
         if ( !ready ) {
-            list.addItem( "(loading available modpacks…)", () -> { } );
+            list.addItem( loc( "tui.browse.loading" ), () -> { } );
             // Rebuild Browse once the background fetch completes.
             fetch.whenComplete( ( v, t ) -> gui.getGUIThread().invokeLater( () -> {
                 if ( currentView == View.BROWSE ) {
@@ -363,10 +371,10 @@ public final class TuiApp
                 shown++;
             }
             if ( shown == 0 ) {
-                list.addItem( "(all available modpacks are already installed)", () -> { } );
+                list.addItem( loc( "tui.browse.allInstalled" ), () -> { } );
             }
         }
-        content.addComponent( list.withBorder( Borders.singleLine( "Browse / Install" ) ),
+        content.addComponent( list.withBorder( Borders.singleLine( loc( "tui.browse.title" ) ) ),
                               BorderLayout.Location.CENTER );
         window.invalidate();
         window.setFocusedInteractable( list );
@@ -374,13 +382,13 @@ public final class TuiApp
 
     private void confirmInstall( GameModPack pack )
     {
-        MessageDialogButton r = MessageDialog.showMessageDialog( gui, "Install",
-                "Install " + pack.getFriendlyName() + "?",
+        MessageDialogButton r = MessageDialog.showMessageDialog( gui, loc( "tui.install.title" ),
+                locf( "tui.install.confirm", pack.getFriendlyName() ),
                 MessageDialogButton.Yes, MessageDialogButton.No );
         if ( r != MessageDialogButton.Yes ) {
             return;
         }
-        runWithSpinner( "Installing " + pack.getFriendlyName() + "…",
+        runWithSpinner( locf( "tui.install.working", pack.getFriendlyName() ),
                         () -> GameModPackManager.installModPack( pack ),
                         this::showBrowse );
     }
@@ -388,15 +396,15 @@ public final class TuiApp
     private void installByUrl()
     {
         String url = new com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder()
-                .setTitle( "Install from URL" )
-                .setDescription( "Enter a modpack manifest URL:" )
+                .setTitle( loc( "tui.install.url.title" ) )
+                .setDescription( loc( "tui.install.url.prompt" ) )
                 .build()
                 .showDialog( gui );
         if ( url == null || url.isBlank() ) {
             return;
         }
         String u = url.trim();
-        runWithSpinner( "Installing…",
+        runWithSpinner( loc( "tui.install.url.working" ),
                         () -> GameModPackManager.installModPackByURL( u ),
                         this::showBrowse );
     }
@@ -417,28 +425,28 @@ public final class TuiApp
         ActionListBox list = new ActionListBox();
 
         // Toggles (Enter flips). Numbers/strings prompt for a new value.
-        boolRow( list, "Discord Rich Presence",
+        boolRow( list, loc( "tui.setting.discord" ),
                  ConfigManager::getDiscordRpcEnable, ConfigManager::setDiscordRpcEnable );
-        boolRow( list, "In-game console (GUI)",
+        boolRow( list, loc( "tui.setting.console" ),
                  ConfigManager::getInGameConsoleEnable, ConfigManager::setInGameConsoleEnable );
-        boolRow( list, "Check for launcher updates",
+        boolRow( list, loc( "tui.setting.updateCheck" ),
                  ConfigManager::getLauncherUpdateCheckEnabled, ConfigManager::setLauncherUpdateCheckEnabled );
-        boolRow( list, "Auto-backup before update",
+        boolRow( list, loc( "tui.setting.autoBackup" ),
                  ConfigManager::getAutoBackupBeforeUpdate, ConfigManager::setAutoBackupBeforeUpdate );
-        boolRow( list, "Proxy enabled",
+        boolRow( list, loc( "tui.setting.proxyEnable" ),
                  ConfigManager::getProxyEnable, ConfigManager::setProxyEnable );
 
-        longRow( list, "Min RAM (MB)", ConfigManager::getMinRam, ConfigManager::setMinRam );
-        longRow( list, "Max RAM (MB)", ConfigManager::getMaxRam, ConfigManager::setMaxRam );
-        intRow( list, "Max backups per pack",
+        longRow( list, loc( "tui.setting.minRam" ), ConfigManager::getMinRam, ConfigManager::setMinRam );
+        longRow( list, loc( "tui.setting.maxRam" ), ConfigManager::getMaxRam, ConfigManager::setMaxRam );
+        intRow( list, loc( "tui.setting.maxBackups" ),
                 ConfigManager::getMaxBackupsPerPack, ConfigManager::setMaxBackupsPerPack );
-        intRow( list, "Proxy port", ConfigManager::getProxyPort, ConfigManager::setProxyPort );
+        intRow( list, loc( "tui.setting.proxyPort" ), ConfigManager::getProxyPort, ConfigManager::setProxyPort );
 
-        stringRow( list, "Custom JVM args", ConfigManager::getCustomJvmArgs, ConfigManager::setCustomJvmArgs );
-        stringRow( list, "Proxy host", ConfigManager::getProxyHost, ConfigManager::setProxyHost );
-        stringRow( list, "Theme", ConfigManager::getTheme, ConfigManager::setTheme );
+        stringRow( list, loc( "tui.setting.jvmArgs" ), ConfigManager::getCustomJvmArgs, ConfigManager::setCustomJvmArgs );
+        stringRow( list, loc( "tui.setting.proxyHost" ), ConfigManager::getProxyHost, ConfigManager::setProxyHost );
+        stringRow( list, loc( "tui.setting.theme" ), ConfigManager::getTheme, ConfigManager::setTheme );
 
-        content.addComponent( list.withBorder( Borders.singleLine( "Settings — Enter to change" ) ),
+        content.addComponent( list.withBorder( Borders.singleLine( loc( "tui.settings.title" ) ) ),
                               BorderLayout.Location.CENTER );
         window.invalidate();
         window.setFocusedInteractable( list );
@@ -448,7 +456,7 @@ public final class TuiApp
                           java.util.function.BooleanSupplier get, java.util.function.Consumer< Boolean > set )
     {
         boolean val = get.getAsBoolean();
-        list.addItem( String.format( "%-30s %s", label, val ? "[on]" : "[off]" ), () -> {
+        list.addItem( String.format( "%-30s %s", label, val ? loc( "tui.settings.on" ) : loc( "tui.settings.off" ) ), () -> {
             set.accept( !val );
             showSettings();
         } );
@@ -465,7 +473,7 @@ public final class TuiApp
                     set.accept( Long.parseLong( input.trim() ) );
                 }
                 catch ( NumberFormatException e ) {
-                    error( "Please enter a whole number." );
+                    error( loc( "tui.error.number" ) );
                 }
                 catch ( Throwable t ) {
                     error( String.valueOf( t.getMessage() ) );
@@ -486,7 +494,7 @@ public final class TuiApp
                     set.accept( Integer.parseInt( input.trim() ) );
                 }
                 catch ( NumberFormatException e ) {
-                    error( "Please enter a whole number." );
+                    error( loc( "tui.error.number" ) );
                 }
                 catch ( Throwable t ) {
                     error( String.valueOf( t.getMessage() ) );
@@ -500,7 +508,7 @@ public final class TuiApp
                             java.util.function.Supplier< String > get, java.util.function.Consumer< String > set )
     {
         String val = get.get();
-        String shown = ( val == null || val.isEmpty() ) ? "(empty)" : truncate( val, 40 );
+        String shown = ( val == null || val.isEmpty() ) ? loc( "tui.settings.empty" ) : truncate( val, 40 );
         list.addItem( String.format( "%-30s %s", label, shown ), () -> {
             String input = prompt( label, val == null ? "" : val );
             if ( input != null ) {
@@ -526,8 +534,8 @@ public final class TuiApp
 
     private void error( String msg )
     {
-        MessageDialog.showMessageDialog( gui, "Invalid value",
-                                         msg == null ? "Could not apply that value." : msg,
+        MessageDialog.showMessageDialog( gui, loc( "tui.error.invalid.title" ),
+                                         msg == null ? loc( "tui.error.invalid.body" ) : msg,
                                          MessageDialogButton.OK );
     }
 
@@ -540,8 +548,8 @@ public final class TuiApp
 
         java.util.Collection< RunningGame > running = TuiRuntime.running();
         if ( running.isEmpty() ) {
-            content.addComponent( new Label( "  No running games. Launch one from the Library (L)." )
-                                          .withBorder( Borders.singleLine( "Logs" ) ),
+            content.addComponent( new Label( "  " + loc( "tui.logs.none" ) )
+                                          .withBorder( Borders.singleLine( loc( "tui.logs.title" ) ) ),
                                   BorderLayout.Location.CENTER );
             logsBox = null;
             window.invalidate();
@@ -555,9 +563,9 @@ public final class TuiApp
         // The log box is the focused, scrollable component — a read-only multi-line TextBox scrolls
         // with the arrow keys ONLY while it holds focus, so we make it the sole interactable here
         // (no left-hand picker stealing focus/arrows). Multiple running games are cycled with 'n'.
-        String title = "Game Log — " + truncate( logsTarget.getFriendlyName(), 32 )
-                + ( running.size() > 1 ? "   (n: next · " + running.size() + " running)" : "" )
-                + "   [↑↓←→] scroll · follows newest unless scrolled up";
+        String title = locf( "tui.logs.header", truncate( logsTarget.getFriendlyName(), 32 ) )
+                + ( running.size() > 1 ? "   " + locf( "tui.logs.next", running.size() ) : "" )
+                + "   [↑↓←→] " + loc( "tui.logs.scrollHint" );
         logsBox = new LogBox( new TerminalSize( 100, 24 ) );
         content.addComponent( logsBox.withBorder( Borders.singleLine( title ) ),
                               BorderLayout.Location.CENTER );
@@ -601,7 +609,7 @@ public final class TuiApp
         RunningGame g = TuiRuntime.runningFor( target );
         if ( g == null ) {
             if ( lastLogSize != -2 ) {
-                box.setText( "(game exited)" );
+                box.setText( loc( "tui.logs.exited" ) );
                 lastLogSize = -2;
             }
             return;
@@ -706,7 +714,8 @@ public final class TuiApp
             gui.getGUIThread().invokeLater( () -> {
                 modal.close();
                 if ( finalError != null ) {
-                    MessageDialog.showMessageDialog( gui, "Failed", String.valueOf( finalError.getMessage() ),
+                    MessageDialog.showMessageDialog( gui, loc( "tui.generic.failed" ),
+                                                     String.valueOf( finalError.getMessage() ),
                                                      MessageDialogButton.OK );
                 }
                 else if ( onDone != null ) {
@@ -759,9 +768,9 @@ public final class TuiApp
         String version = safe( pack::getPackVersion, "?" );
         String lastPlayed = safe( pack::getLastPlayedFormatted, "" );
         String playtime = formatDuration( pack.getTotalPlayTimeMs() );
-        return String.format( "%s%-28s  v%-12s  last: %-12s  %s",
+        return String.format( "%s%-28s  v%-12s  %s %-12s  %s",
                               marker, truncate( name, 28 ), truncate( version, 12 ),
-                              truncate( lastPlayed, 12 ), playtime );
+                              loc( "tui.row.lastPlayed" ), truncate( lastPlayed, 12 ), playtime );
     }
 
     static String statusLine()
@@ -769,9 +778,9 @@ public final class TuiApp
         int running = TuiRuntime.runningCount();
         long totalMs = TuiRuntime.liveTotalPlaytimeMs();
         var user = MCLauncherAuthManager.getLoggedInUser();
-        String userName = ( user != null && user.name() != null ) ? user.name() : "(signed out)";
-        return "  " + running + " running   ·   total playtime " + formatDuration( totalMs )
-                + "   ·   " + userName;
+        String userName = ( user != null && user.name() != null )
+                ? user.name() : loc( "tui.status.signedOut" );
+        return "  " + locf( "tui.status.line", running, formatDuration( totalMs ), userName );
     }
 
     static String formatDuration( long ms )
