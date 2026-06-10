@@ -333,4 +333,55 @@ public final class ModPackConfig
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.SHOW_PACK_BACKGROUNDS_KEY, show );
         ConfigStore.scheduleWrite();
     }
+
+    // ====================================================================
+    // Multi-image cycle (issue #43)
+    // ====================================================================
+
+    /** How often a pack's logo + background cycle advances when the manifest
+     *  declares multiple images. One of
+     *  {@link ConfigConstants#IMAGE_CYCLE_INTERVAL_OPTIONS}; {@code "never"}
+     *  disables cycling. Unknown / malformed stored values fall back to the
+     *  default rather than breaking the cycler. */
+    public static synchronized String getImageCycleInterval() {
+        JsonObject json = ConfigStore.ensureLoaded();
+        if ( !json.has( ConfigConstants.IMAGE_CYCLE_INTERVAL_KEY ) ) {
+            return ConfigConstants.IMAGE_CYCLE_INTERVAL_DEFAULT;
+        }
+        try {
+            String v = json.get( ConfigConstants.IMAGE_CYCLE_INTERVAL_KEY ).getAsString();
+            if ( v == null || !ConfigConstants.IMAGE_CYCLE_INTERVAL_OPTIONS.contains( v ) ) {
+                return ConfigConstants.IMAGE_CYCLE_INTERVAL_DEFAULT;
+            }
+            return v;
+        }
+        catch ( Exception e ) {
+            return ConfigConstants.IMAGE_CYCLE_INTERVAL_DEFAULT;
+        }
+    }
+
+    public static synchronized void setImageCycleInterval( String interval ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.IMAGE_CYCLE_INTERVAL_KEY, interval );
+        ConfigStore.scheduleWrite();
+    }
+
+    /** Whether the per-pack image cycle visits images in a one-time shuffled
+     *  order. Default false (manifest order). */
+    public static synchronized boolean getImageCycleShuffle() {
+        JsonObject json = ConfigStore.ensureLoaded();
+        if ( !json.has( ConfigConstants.IMAGE_CYCLE_SHUFFLE_KEY ) ) {
+            return ConfigConstants.IMAGE_CYCLE_SHUFFLE_DEFAULT;
+        }
+        try {
+            return json.get( ConfigConstants.IMAGE_CYCLE_SHUFFLE_KEY ).getAsBoolean();
+        }
+        catch ( Exception e ) {
+            return ConfigConstants.IMAGE_CYCLE_SHUFFLE_DEFAULT;
+        }
+    }
+
+    public static synchronized void setImageCycleShuffle( boolean shuffle ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.IMAGE_CYCLE_SHUFFLE_KEY, shuffle );
+        ConfigStore.scheduleWrite();
+    }
 }

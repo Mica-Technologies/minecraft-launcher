@@ -298,6 +298,13 @@
                             </font>
                         </Label>
                         <MFXToggleButton fx:id="showPackBackgroundsToggle" text="%settings.fxml.showPackBackground" />
+                        <Label text="%settings.fxml.imageCycleInterval" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXComboBox fx:id="imageCycleIntervalSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="300.0" />
+                        <MFXToggleButton fx:id="imageCycleShuffleToggle" text="%settings.fxml.imageCycleShuffle" />
                     </VBox>
                 </VBox>
             </ScrollPane>

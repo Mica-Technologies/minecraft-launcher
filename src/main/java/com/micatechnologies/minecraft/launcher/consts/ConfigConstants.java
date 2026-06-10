@@ -815,5 +815,50 @@ public class ConfigConstants
      */
     public static final boolean SHOW_PACK_BACKGROUNDS_DEFAULT = true;
 
+    /**
+     * JSON key for how often the main-menu / detail-modal logo + background cycle
+     * advances when a pack declares multiple images (issue #43). Stored as one of
+     * {@link #IMAGE_CYCLE_INTERVAL_OPTIONS}; {@code "never"} means "show only the
+     * first image and never cycle".
+     *
+     * @since 3.6
+     */
+    public static final String IMAGE_CYCLE_INTERVAL_KEY = "imageCycleInterval";
+
+    /**
+     * Default for {@link #IMAGE_CYCLE_INTERVAL_KEY} — 30 seconds, matching the
+     * behavior described in issue #43.
+     *
+     * @since 3.6
+     */
+    public static final String IMAGE_CYCLE_INTERVAL_DEFAULT = "30s";
+
+    /**
+     * Ordered, canonical set of cycle-interval tokens offered in Settings. Each maps
+     * to a concrete duration (or "no cycling") in the GUI's image cycler. Order is the
+     * display order in the Settings dropdown.
+     *
+     * @since 3.6
+     */
+    public static final java.util.List< String > IMAGE_CYCLE_INTERVAL_OPTIONS = java.util.List.of(
+            "5s", "15s", "30s", "1m", "5m", "15m", "30m", "1h", "6h", "12h", "1d", "7d", "never" );
+
+    /**
+     * JSON key for whether the per-pack image cycle visits its images in a one-time
+     * shuffled order (still advancing sequentially through that shuffled order) instead
+     * of strict manifest order. Default false (manifest order).
+     *
+     * @since 3.6
+     */
+    public static final String IMAGE_CYCLE_SHUFFLE_KEY = "imageCycleShuffle";
+
+    /**
+     * Default for {@link #IMAGE_CYCLE_SHUFFLE_KEY} — false, so images cycle in the order
+     * the modpack author declared them.
+     *
+     * @since 3.6
+     */
+    public static final boolean IMAGE_CYCLE_SHUFFLE_DEFAULT = false;
+
     // endregion
 }

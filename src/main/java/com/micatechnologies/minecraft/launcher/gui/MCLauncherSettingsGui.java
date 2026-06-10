@@ -193,6 +193,25 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     io.github.palexdev.materialfx.controls.MFXToggleButton showPackBackgroundsToggle;
 
+    /** Appearance dropdown: how often a pack's logo + background cycle when the
+     *  manifest declares multiple images (issue #43). Items are localized labels;
+     *  the selected index maps to a token in
+     *  {@link ConfigConstants#IMAGE_CYCLE_INTERVAL_OPTIONS}.
+     *
+     *  @since 3.6 */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXComboBox< String > imageCycleIntervalSelection;
+
+    /** Appearance toggle: cycle a pack's images in a one-time shuffled order
+     *  instead of manifest order. Backed by
+     *  {@link ConfigManager#getImageCycleShuffle}, default off.
+     *
+     *  @since 3.6 */
+    @SuppressWarnings( "unused" )
+    @FXML
+    io.github.palexdev.materialfx.controls.MFXToggleButton imageCycleShuffleToggle;
+
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > jvmPresetSelection;
@@ -954,6 +973,43 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             showPackBackgroundsToggle.setSelected( ConfigManager.getShowPackBackgrounds() );
             showPackBackgroundsToggle.selectedProperty().addListener(
                     ( obs, oldV, newV ) -> ConfigManager.setShowPackBackgrounds(
+                            Boolean.TRUE.equals( newV ) ) );
+        }
+
+        // Multi-image cycle interval (Appearance tab). The combo shows localized
+        // labels; selection maps back to a canonical token. On change we write the
+        // token AND reconfigure the live cycle clock so the new cadence takes effect
+        // immediately without a restart.
+        if ( imageCycleIntervalSelection != null ) {
+            imageCycleIntervalSelection.getItems().clear();
+            for ( String token : ConfigConstants.IMAGE_CYCLE_INTERVAL_OPTIONS ) {
+                imageCycleIntervalSelection.getItems().add( cycleIntervalLabel( token ) );
+            }
+            String savedToken = ConfigManager.getImageCycleInterval();
+            int savedIdx = ConfigConstants.IMAGE_CYCLE_INTERVAL_OPTIONS.indexOf( savedToken );
+            imageCycleIntervalSelection.selectItem(
+                    cycleIntervalLabel( savedIdx >= 0
+                                        ? savedToken
+                                        : ConfigConstants.IMAGE_CYCLE_INTERVAL_DEFAULT ) );
+            // On change, map the chosen label back to its token, persist it, and
+            // reconfigure the live clock so the new cadence applies without a restart.
+            imageCycleIntervalSelection.setOnAction( e -> {
+                String label = imageCycleIntervalSelection.getValue();
+                for ( String token : ConfigConstants.IMAGE_CYCLE_INTERVAL_OPTIONS ) {
+                    if ( cycleIntervalLabel( token ).equals( label ) ) {
+                        ConfigManager.setImageCycleInterval( token );
+                        ModpackImageCycleClock.getInstance().reconfigure();
+                        break;
+                    }
+                }
+            } );
+        }
+
+        // Multi-image cycle shuffle toggle (Appearance tab).
+        if ( imageCycleShuffleToggle != null ) {
+            imageCycleShuffleToggle.setSelected( ConfigManager.getImageCycleShuffle() );
+            imageCycleShuffleToggle.selectedProperty().addListener(
+                    ( obs, oldV, newV ) -> ConfigManager.setImageCycleShuffle(
                             Boolean.TRUE.equals( newV ) ) );
         }
 
@@ -1758,6 +1814,29 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_ASUS_AURA     -> "ASUS Aura";
             case com.micatechnologies.minecraft.launcher.consts.ConfigConstants.RGB_BACKEND_NONE          -> "None";
             default -> "Auto";
+        };
+    }
+
+    /** Localized, human-readable label for an image-cycle interval token (e.g.
+     *  {@code "30s"} → "30 seconds", {@code "never"} → "Never (use first)"). Keys
+     *  live in the base bundle and fall back to English in untranslated locales. */
+    private static String cycleIntervalLabel( String token )
+    {
+        return switch ( token == null ? "" : token ) {
+            case "5s"  -> LocalizationManager.format( "settings.cycle.seconds", 5 );
+            case "15s" -> LocalizationManager.format( "settings.cycle.seconds", 15 );
+            case "30s" -> LocalizationManager.format( "settings.cycle.seconds", 30 );
+            case "1m"  -> LocalizationManager.get( "settings.cycle.minute" );
+            case "5m"  -> LocalizationManager.format( "settings.cycle.minutes", 5 );
+            case "15m" -> LocalizationManager.format( "settings.cycle.minutes", 15 );
+            case "30m" -> LocalizationManager.format( "settings.cycle.minutes", 30 );
+            case "1h"  -> LocalizationManager.get( "settings.cycle.hour" );
+            case "6h"  -> LocalizationManager.format( "settings.cycle.hours", 6 );
+            case "12h" -> LocalizationManager.format( "settings.cycle.hours", 12 );
+            case "1d"  -> LocalizationManager.get( "settings.cycle.daily" );
+            case "7d"  -> LocalizationManager.get( "settings.cycle.weekly" );
+            case "never" -> LocalizationManager.get( "settings.cycle.never" );
+            default -> token;
         };
     }
 

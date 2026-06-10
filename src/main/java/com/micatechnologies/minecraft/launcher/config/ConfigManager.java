@@ -252,6 +252,22 @@ public class ConfigManager
         ModPackConfig.setShowPackBackgrounds( show );
     }
 
+    public synchronized static String getImageCycleInterval() {
+        return ModPackConfig.getImageCycleInterval();
+    }
+
+    public synchronized static void setImageCycleInterval( String interval ) {
+        ModPackConfig.setImageCycleInterval( interval );
+    }
+
+    public synchronized static boolean getImageCycleShuffle() {
+        return ModPackConfig.getImageCycleShuffle();
+    }
+
+    public synchronized static void setImageCycleShuffle( boolean shuffle ) {
+        ModPackConfig.setImageCycleShuffle( shuffle );
+    }
+
     // ====================================================================
     // AuthTokenStore delegates
     // ====================================================================
