@@ -100,8 +100,19 @@ public final class InstallIndex
 
     // ===== load / save =====
 
+    /** Test seam: when non-null, overrides the on-disk index location so concurrency /
+     *  round-trip tests can target a temp file instead of the real launcher folder. */
+    static volatile Path testPathOverride;
+
+    /** Monotonic counter giving each write a unique temp filename — see {@link #save()}. */
+    private static final java.util.concurrent.atomic.AtomicLong TMP_SEQ =
+            new java.util.concurrent.atomic.AtomicLong();
+
     private static Path indexPath()
     {
+        if ( testPathOverride != null ) {
+            return testPathOverride;
+        }
         return Path.of( LocalPathManager.getLauncherModpackFolderPath(), INDEX_FILENAME );
     }
 
@@ -160,8 +171,11 @@ public final class InstallIndex
         String json = JSONUtilities.getGson().toJson( this );
 
         // Primary path: write to a sibling .tmp file and atomically rename
-        // into place so a partial write can't corrupt the live index.
-        Path tmp = p.resolveSibling( INDEX_FILENAME + ".tmp" );
+        // into place so a partial write can't corrupt the live index. The temp
+        // name is unique per write so two concurrent writes can never clobber
+        // each other's staging file (the exact corruption a shared ".tmp" caused),
+        // and a leftover temp from a crashed write can't collide with a live one.
+        Path tmp = p.resolveSibling( p.getFileName() + ".tmp." + TMP_SEQ.incrementAndGet() );
         try {
             Files.writeString( tmp, json, StandardCharsets.UTF_8 );
             try {
@@ -191,11 +205,53 @@ public final class InstallIndex
         }
     }
 
+    // ===== atomic disk mutations (serialized + crash-safe) =====
+
+    /**
+     * Atomically loads the on-disk index, upserts {@code pack} under {@code manifestUrl},
+     * and writes it back — the whole read-modify-write under one lock (the same
+     * {@code InstallIndex.class} monitor {@link #load()} uses), so concurrent writers can
+     * neither lose each other's updates nor corrupt the file.
+     *
+     * <p>This is the ONLY safe way to mutate the persisted index from the parallel
+     * manifest-load paths ({@code fetchInstalledModPacks} fans out over a
+     * {@code parallelStream}). A bare {@code load() / upsert() / save()} sequence on
+     * separate instances races two ways: two loaders read the same snapshot so the later
+     * save drops the earlier's entry, and two {@code save()} calls — instance-synchronized
+     * on <em>different</em> instances, hence not mutually excluded — used to interleave
+     * their writes to a single shared temp file and publish a garbled JSON that the next
+     * {@code load()} rejected with a {@code JsonSyntaxException}.</p>
+     *
+     * @since 3.6
+     */
+    public static synchronized void upsertAndSave( String manifestUrl, GameModPack pack )
+    {
+        if ( manifestUrl == null || manifestUrl.isBlank() || pack == null ) return;
+        InstallIndex idx = load();
+        idx.upsert( manifestUrl, pack );
+        idx.save();
+    }
+
+    /**
+     * Atomic load-remove-save counterpart of {@link #upsertAndSave}. Use on uninstall so
+     * dropping an entry can't race a concurrent upsert into a lost update or a corrupt file.
+     *
+     * @since 3.6
+     */
+    public static synchronized void removeAndSave( String manifestUrl )
+    {
+        if ( manifestUrl == null || manifestUrl.isBlank() ) return;
+        InstallIndex idx = load();
+        idx.remove( manifestUrl );
+        idx.save();
+    }
+
     // ===== mutation =====
 
     /** Adds-or-replaces the entry for {@code manifestUrl} with the card-rendering
-     *  subset of {@code pack}. Caller is expected to {@link #save()} after a
-     *  burst of upserts. */
+     *  subset of {@code pack}. NOT safe to pair with a separate {@link #save()} from
+     *  concurrent threads — use {@link #upsertAndSave} for any disk-backed mutation
+     *  that can run in parallel. */
     public synchronized void upsert( String manifestUrl, GameModPack pack )
     {
         if ( manifestUrl == null || manifestUrl.isBlank() || pack == null ) return;

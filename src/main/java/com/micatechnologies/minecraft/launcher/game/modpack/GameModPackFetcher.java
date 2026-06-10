@@ -374,9 +374,10 @@ public class GameModPackFetcher
     {
         if ( manifestUrl == null || parsedPack == null ) return;
         try {
-            InstallIndex idx = InstallIndex.load();
-            idx.upsert( manifestUrl, parsedPack );
-            idx.save();
+            // Atomic load-upsert-save: this runs from fetchInstalledModPacks' parallel
+            // manifest loads, so a non-atomic load()/upsert()/save() here would race
+            // concurrent writers into lost updates / a corrupt index.
+            InstallIndex.upsertAndSave( manifestUrl, parsedPack );
         }
         catch ( Throwable t ) {
             Logger.logWarningSilent( "Could not update install index for " + manifestUrl

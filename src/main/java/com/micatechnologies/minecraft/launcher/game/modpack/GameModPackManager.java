@@ -816,9 +816,7 @@ public class GameModPackManager
             try {
                 String url = gameModPack.getManifestUrl();
                 if ( url != null && !url.isBlank() ) {
-                    InstallIndex idx = InstallIndex.load();
-                    idx.remove( url );
-                    idx.save();
+                    InstallIndex.removeAndSave( url );
                 }
             }
             catch ( Throwable t ) {
