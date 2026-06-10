@@ -30,10 +30,12 @@ The top section of the editor contains the core modpack information:
 | **Minecraft Version** | The Minecraft release version this modpack targets (e.g., `1.20.1`). |
 | **Forge Version** | The Forge build version to install. Use the **Forge version picker** (see below) to browse available builds. |
 | **Website URL** | Optional URL to the modpack's homepage, linked from the main screen's Website button. |
-| **Logo URL(s)** | Optional image shown as the modpack's logo. Enter **one URL per line** -- the first line is the primary, and any additional lines are fallback/mirror URLs the launcher tries in order if an earlier one fails to download. A single URL is just one line. |
-| **Background Image URL(s)** | Optional image displayed as the modpack's background on the main screen. Like the logo, accepts **one URL per line** (first = primary, rest = fallbacks). |
+| **Logo URL(s)** | Optional image(s) shown as the modpack's logo. Enter **one URL per line**. With a single line you get one logo (as before). With **multiple lines, each is a distinct logo** and the launcher cycles through them on the main-menu card and detail modal. The first line is the primary (shown first). |
+| **Background Image URL(s)** | Optional image(s) shown as the modpack's background. Like the logo, **one URL per line**; multiple lines become a set of **showcase backgrounds** the launcher cycles through. In the detail modal users can also step through them with ◀ ▶ buttons, so these double as a gallery. |
 
-> **Manifest format:** `packLogoURL` and `packBackgroundURL` in `installable.json` accept either a single string (as before) **or** an array of strings. The launcher tries each URL in order and falls back to the bundled default if all fail; the optional `packLogoSha1` / `packBackgroundSha1` applies to whichever mirror resolves. Existing single-string manifests keep working unchanged.
+> **Manifest format:** `packLogoURL` and `packBackgroundURL` in `installable.json` accept either a single string (as before) **or** an array of strings. Multiple strings are treated as **distinct showcase images that cycle** (issue #43) -- not mirrors of one image. The launcher caches every image; a URL that fails to download is simply skipped, and the bundled default is used only when a slot has nothing usable. The optional `packLogoSha1` / `packBackgroundSha1` verifies the **first** image; the rest are content-addressed automatically. Existing single-string manifests keep working unchanged.
+>
+> **Cycle speed:** how often the displayed image changes is a user preference in **Settings -> Appearance** ("how often the displayed image changes": 5 seconds ... Weekly, or *Never* to show only the first image), along with an option to **shuffle** the cycle order. Single-image packs are unaffected.
 
 ### Forge Version Picker
 
