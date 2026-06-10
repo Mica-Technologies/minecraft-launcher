@@ -270,6 +270,14 @@ public final class SchemeRegistrar
         appendRecentPacksActions( content, exePath );
         Files.writeString( desktopFile, content.toString(), StandardCharsets.UTF_8 );
 
+        // Portable / non-jpackage installs don't get the deb/rpm's icon-theme + MIME registration,
+        // so stage them here too (both idempotent — skipped once present, so the post-launch recents
+        // refresh doesn't redo the work every launch):
+        //   - the launcher icon into the user hicolor theme so Icon=mica-minecraft-launcher resolves
+        //   - the .mmcjson MIME type so double-clicking a modpack file maps to the handler above
+        installLinuxAppIcon();
+        registerLinuxMimeType();
+
         // Best-effort cache refresh. Both commands are no-ops if not installed — we don't
         // want missing helpers to fail the whole registration.
         runQuietly( "update-desktop-database", desktopDir.toString() );
@@ -373,6 +381,100 @@ public final class SchemeRegistrar
             }
         }
         return sb.toString();
+    }
+
+    /** Extracts the bundled launcher PNG and writes scaled copies into the per-user hicolor icon
+     *  theme as {@code mica-minecraft-launcher.png}, so the {@code .desktop} file's
+     *  {@code Icon=mica-minecraft-launcher} resolves on portable / non-jpackage installs (the
+     *  deb/rpm ship this icon themselves). Several standard sizes are emitted so panels that only
+     *  scan specific sizes still find it. Idempotent: skips the work when already staged, so the
+     *  post-launch recents refresh doesn't re-scale every launch. Remove the dir to force a refresh
+     *  after an icon change. Offscreen image work — safe on headless ({@code --cli}) Linux. */
+    private static void installLinuxAppIcon()
+    {
+        try {
+            Path hicolor = Paths.get( System.getProperty( "user.home" ), ".local", "share", "icons", "hicolor" );
+            Path sentinel = hicolor.resolve( "256x256/apps/mica-minecraft-launcher.png" );
+            if ( Files.exists( sentinel ) ) {
+                return;
+            }
+            java.awt.image.BufferedImage src;
+            try ( java.io.InputStream in = SchemeRegistrar.class.getClassLoader()
+                    .getResourceAsStream( "micaminecraftlauncher.png" ) ) {
+                if ( in == null ) {
+                    Logger.logWarningSilent( "Launcher icon resource missing; skipping Linux icon install." );
+                    return;
+                }
+                src = javax.imageio.ImageIO.read( in );
+            }
+            if ( src == null ) {
+                return;
+            }
+            for ( int size : new int[] { 256, 128, 64, 48, 32 } ) {
+                Path dir = hicolor.resolve( size + "x" + size ).resolve( "apps" );
+                Files.createDirectories( dir );
+                java.awt.image.BufferedImage scaled =
+                        new java.awt.image.BufferedImage( size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB );
+                java.awt.Graphics2D g = scaled.createGraphics();
+                g.setRenderingHint( java.awt.RenderingHints.KEY_INTERPOLATION,
+                                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR );
+                g.setRenderingHint( java.awt.RenderingHints.KEY_RENDERING,
+                                    java.awt.RenderingHints.VALUE_RENDER_QUALITY );
+                g.drawImage( src, 0, 0, size, size, null );
+                g.dispose();
+                javax.imageio.ImageIO.write( scaled, "png",
+                                             dir.resolve( "mica-minecraft-launcher.png" ).toFile() );
+            }
+            Logger.logDebug( "Linux launcher icon installed into the user hicolor theme." );
+        }
+        catch ( Exception | Error e ) {
+            Logger.logWarningSilent( "Could not install Linux launcher icon: " + e.getMessage() );
+        }
+    }
+
+    /** Registers the {@code application/x-mmcjson} MIME type with a {@code *.mmcjson} glob in the
+     *  per-user shared-mime-info database, so double-clicking a modpack file resolves to the type
+     *  the {@code .desktop} file declares it handles. Without this the runtime registration covers
+     *  the URL scheme but not the file association on portable installs (the deb/rpm register the
+     *  type at install time via jpackage's {@code --file-associations}). Idempotent. */
+    private static void registerLinuxMimeType()
+    {
+        try {
+            Path mimeBase = Paths.get( System.getProperty( "user.home" ), ".local", "share", "mime" );
+            Path packagesDir = mimeBase.resolve( "packages" );
+            Path mimeFile = packagesDir.resolve( "mica-minecraft-launcher.xml" );
+            if ( Files.exists( mimeFile ) ) {
+                return;
+            }
+            Files.createDirectories( packagesDir );
+
+            String glob = "*" + ModPackConstants.MODPACK_FILE_EXTENSION;   // "*.mmcjson"
+            String comment = xmlEscape( ModPackConstants.MODPACK_FILE_DESCRIPTION );
+            String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                    + "<mime-info xmlns=\"http://www.freedesktop.org/standards/shared-mime-info\">\n"
+                    + "  <mime-type type=\"application/x-mmcjson\">\n"
+                    + "    <comment>" + comment + "</comment>\n"
+                    + "    <glob pattern=\"" + glob + "\"/>\n"
+                    + "  </mime-type>\n"
+                    + "</mime-info>\n";
+            Files.writeString( mimeFile, xml, StandardCharsets.UTF_8 );
+
+            // Rebuild the user MIME cache so the new glob takes effect. No-op if the helper is absent.
+            runQuietly( "update-mime-database", mimeBase.toString() );
+            Logger.logDebug( "Linux .mmcjson MIME type registered via " + mimeFile );
+        }
+        catch ( Exception | Error e ) {
+            Logger.logWarningSilent( "Could not register Linux .mmcjson MIME type: " + e.getMessage() );
+        }
+    }
+
+    /** Minimal XML text escaping for the few characters that matter inside an element body. */
+    private static String xmlEscape( String s )
+    {
+        if ( s == null ) {
+            return "";
+        }
+        return s.replace( "&", "&amp;" ).replace( "<", "&lt;" ).replace( ">", "&gt;" );
     }
 
     /** Fire-and-forget invocation of an external command with a 2-second timeout. Used for
