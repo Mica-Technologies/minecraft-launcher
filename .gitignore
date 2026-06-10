@@ -46,6 +46,15 @@ Thumbs.db
 # Build output (cached JDK, native installers)
 build/
 
+# Stray/legacy build outputs at the project root. The pom anchors all output
+# under build/ (build/target, build/jdk cache, build/packaging), but older build
+# configs — and tools that default --dest/output to the working directory — can
+# drop these at the repo root instead. Root-anchored so they only match the
+# top level, never the src/.../config-style source packages.
+/target/
+/jdk/
+/packaging/
+
 ## IntelliJ/Jetbrains GitIgnore
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
