@@ -95,6 +95,7 @@ public final class WindowsTitleBarControls
         blendTitleBar( root );
         installCaptionButtons( root, helpAction );
         arrangeMainMenuTopBar( root );
+        reserveCaptionClearance( root );
     }
 
     /**
@@ -114,6 +115,7 @@ public final class WindowsTitleBarControls
         }
         blendTitleBar( root );
         arrangeMainMenuTopBar( root );
+        reserveCaptionClearance( root );
     }
 
     /**
@@ -269,15 +271,13 @@ public final class WindowsTitleBarControls
 
     /**
      * Main-menu only: keeps the navbar's controls in the title bar (matching macOS / Linux and every
-     * other screen) rather than banishing them to the bottom bar. Two tweaks:
-     * <ul>
-     *   <li>groups the refresh icon next to the update icon, and</li>
-     *   <li>appends a fixed-width spacer so the right-aligned controls clear the caption cluster
-     *       (help + min/max/close) pinned to the top-right.</li>
-     * </ul>
-     * Identified by {@code #libraryBtn} living in an HBox navbar; other screens have no such button,
-     * so this no-ops. Idempotent — the reorder is skipped once refresh already sits before update,
-     * and the spacer is added only once.
+     * other screen) rather than banishing them to the bottom bar — groups the refresh icon next to
+     * the update icon. The trailing clearance that keeps the right-aligned controls clear of the
+     * caption cluster is reserved generically by {@link #reserveCaptionClearance} for every screen.
+     *
+     * <p>Identified by {@code #libraryBtn} living in an HBox navbar; other screens have no such
+     * button, so this no-ops. Idempotent — the reorder is skipped once refresh already sits before
+     * update.</p>
      */
     private static void arrangeMainMenuTopBar( Parent root )
     {
@@ -298,19 +298,36 @@ public final class WindowsTitleBarControls
                 kids.add( kids.indexOf( update ), refresh );
             }
         }
+    }
 
-        // Reserve trailing space so the right-aligned controls clear the caption cluster. A fixed
-        // spacer, not -fx-padding — the .navBar CSS padding stomps a programmatic right-padding.
-        if ( navBar.lookup( "#" + CLEARANCE_ID ) == null ) {
-            Region clearance = new Region();
-            clearance.setId( CLEARANCE_ID );
-            // help + minimize + maximize + close, each one button-slot wide.
-            double w = WindowsCustomChromeManager.BUTTON_WIDTH * 4.0;
-            clearance.setMinWidth( w );
-            clearance.setPrefWidth( w );
-            clearance.setMaxWidth( w );
-            clearance.setMouseTransparent( true );
-            navBar.getChildren().add( clearance );
+    /**
+     * Reserves trailing space in the title-bar navbar (row 0) so its right-aligned controls clear
+     * the caption cluster (help + min/max/close) pinned to the top-right corner. Without this, any
+     * right-anchored navbar content — e.g. the Game Console's "Running" status label or the main
+     * menu's player identity — slides underneath the caption buttons and overlaps them.
+     *
+     * <p>A fixed-width spacer appended as the navbar's last child, not {@code -fx-padding} — the
+     * {@code .navBar} CSS padding stomps a programmatic right-padding. Idempotent: the spacer is
+     * added only once per scene. No-op for screens whose row-0 isn't an HBox navbar.</p>
+     */
+    private static void reserveCaptionClearance( Parent root )
+    {
+        for ( Node n : root.lookupAll( ".navBar" ) ) {
+            Integer row = GridPane.getRowIndex( n );
+            if ( ( row == null || row == 0 ) && n instanceof HBox navBar ) {
+                if ( navBar.lookup( "#" + CLEARANCE_ID ) == null ) {
+                    Region clearance = new Region();
+                    clearance.setId( CLEARANCE_ID );
+                    // help + minimize + maximize + close, each one button-slot wide.
+                    double w = WindowsCustomChromeManager.BUTTON_WIDTH * 4.0;
+                    clearance.setMinWidth( w );
+                    clearance.setPrefWidth( w );
+                    clearance.setMaxWidth( w );
+                    clearance.setMouseTransparent( true );
+                    navBar.getChildren().add( clearance );
+                }
+                return;
+            }
         }
     }
 }
