@@ -74,6 +74,7 @@ public final class TuiApp
     private MultiWindowTextGUI gui;
     private BasicWindow window;
     private Panel content;          // swappable CENTER region
+    private Label headerLabel;      // top nav bar (re-rendered on language change)
     private Label statusBar;
     private ScheduledExecutorService refresher;
 
@@ -168,13 +169,9 @@ public final class TuiApp
 
         Panel root = new Panel( new BorderLayout() );
 
-        Label header = new Label(
-                "  " + loc( "tui.appName" ) + "   [L] " + loc( "tui.view.library" )
-                        + "  [B] " + loc( "tui.view.browse" ) + "  [G] " + loc( "tui.view.logs" )
-                        + "  [S] " + loc( "tui.view.settings" ) + "    [Enter] " + loc( "tui.nav.actions" )
-                        + "  [q] " + loc( "tui.nav.quit" ) );
-        header.addStyle( SGR.BOLD );
-        root.addComponent( header, BorderLayout.Location.TOP );
+        headerLabel = new Label( headerText() );
+        headerLabel.addStyle( SGR.BOLD );
+        root.addComponent( headerLabel, BorderLayout.Location.TOP );
 
         content = new Panel( new BorderLayout() );
         root.addComponent( content, BorderLayout.Location.CENTER );
@@ -220,6 +217,14 @@ public final class TuiApp
         } );
 
         showLibrary();
+    }
+
+    private static String headerText()
+    {
+        return "  " + loc( "tui.appName" ) + "   [L] " + loc( "tui.view.library" )
+                + "  [B] " + loc( "tui.view.browse" ) + "  [G] " + loc( "tui.view.logs" )
+                + "  [S] " + loc( "tui.view.settings" ) + "    [Enter] " + loc( "tui.nav.actions" )
+                + "  [q] " + loc( "tui.nav.quit" );
     }
 
     // ================================================================= Library
@@ -446,6 +451,7 @@ public final class TuiApp
         stringRow( list, loc( "tui.setting.jvmArgs" ), ConfigManager::getCustomJvmArgs, ConfigManager::setCustomJvmArgs );
         stringRow( list, loc( "tui.setting.proxyHost" ), ConfigManager::getProxyHost, ConfigManager::setProxyHost );
         themeRow( list );
+        localeRow( list );
 
         content.addComponent( list.withBorder( Borders.singleLine( loc( "tui.settings.title" ) ) ),
                               BorderLayout.Location.CENTER );
@@ -553,6 +559,53 @@ public final class TuiApp
                 window.invalidate();
             }
         }
+    }
+
+    /** Language is a fixed-choice row: "Use OS Language", English, then every translated locale.
+     *  Picking one persists the override and switches the active bundle live. */
+    private void localeRow( ActionListBox list )
+    {
+        list.addItem( String.format( "%-30s %s", loc( "tui.setting.language" ), currentLocaleLabel() ), () -> {
+            ActionListDialogBuilder b = new ActionListDialogBuilder().setTitle( loc( "tui.setting.language" ) );
+            b.addAction( loc( "tui.locale.osDefault" ), () -> applyLocaleChoice( "" ) );
+            b.addAction( "English", () -> applyLocaleChoice( "en-US" ) );
+            for ( com.micatechnologies.minecraft.launcher.consts.localization.SupportedLocales.Entry e
+                    : com.micatechnologies.minecraft.launcher.consts.localization.SupportedLocales.ENTRIES ) {
+                b.addAction( e.displayName(), () -> applyLocaleChoice( e.tag() ) );
+            }
+            b.build().showDialog( gui );
+        } );
+    }
+
+    /** Persists the locale override, re-resolves the effective locale (override → OS → en-US), switches
+     *  the active translation bundle, and re-renders the UI in the new language. */
+    private void applyLocaleChoice( String tag )
+    {
+        ConfigManager.setLocaleOverride( tag );
+        com.micatechnologies.minecraft.launcher.consts.localization.LocaleBootstrap.apply( tag );
+        LocalizationManager.setLocale( java.util.Locale.getDefault() );
+        if ( headerLabel != null ) {
+            headerLabel.setText( headerText() );
+        }
+        if ( statusBar != null ) {
+            statusBar.setText( statusLine() );
+        }
+        showSettings();
+    }
+
+    private static String currentLocaleLabel()
+    {
+        String tag = ConfigManager.getLocaleOverride();
+        if ( tag == null || tag.isBlank() ) {
+            return loc( "tui.locale.osDefault" );
+        }
+        for ( com.micatechnologies.minecraft.launcher.consts.localization.SupportedLocales.Entry e
+                : com.micatechnologies.minecraft.launcher.consts.localization.SupportedLocales.ENTRIES ) {
+            if ( e.tag().equals( tag ) ) {
+                return e.displayName();
+            }
+        }
+        return tag;   // e.g. en-US
     }
 
     private String prompt( String title, String initial )
