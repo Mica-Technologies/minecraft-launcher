@@ -24,9 +24,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * A modpack game launched from the TUI: wraps the child {@link Process}, captures its piped
@@ -45,7 +45,11 @@ public final class RunningGame
     private final GameModPack pack;
     private final Process     process;
     private final long        startMs;
-    private final ConcurrentLinkedDeque< String > log = new ConcurrentLinkedDeque<>();
+    // Bounded log ring buffer. Both reader threads (stdout + stderr) append under this lock, and the
+    // GUI thread copies it for display. ArrayDeque (not ConcurrentLinkedDeque) so size() is O(1) — a
+    // fast-spewing game log would otherwise pay an O(n) size() traversal on every captured line.
+    private final ArrayDeque< String > log = new ArrayDeque<>();
+    private final Object               logLock = new Object();
 
     RunningGame( GameModPack pack, Process process )
     {
@@ -93,9 +97,11 @@ public final class RunningGame
             try ( BufferedReader br = new BufferedReader( new InputStreamReader( in, StandardCharsets.UTF_8 ) ) ) {
                 String line;
                 while ( ( line = br.readLine() ) != null ) {
-                    log.addLast( line );
-                    while ( log.size() > MAX_LOG_LINES ) {
-                        log.pollFirst();
+                    synchronized ( logLock ) {
+                        log.addLast( line );
+                        while ( log.size() > MAX_LOG_LINES ) {
+                            log.pollFirst();
+                        }
                     }
                 }
             }
@@ -131,6 +137,8 @@ public final class RunningGame
     /** A point-in-time copy of the captured log lines (oldest first). */
     public List< String > logSnapshot()
     {
-        return new ArrayList<>( log );
+        synchronized ( logLock ) {
+            return new ArrayList<>( log );
+        }
     }
 }

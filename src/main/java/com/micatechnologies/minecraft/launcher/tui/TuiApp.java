@@ -72,9 +72,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class TuiApp
 {
     private MultiWindowTextGUI gui;
+    private Screen screen;          // backing screen, read for the current terminal width
     private BasicWindow window;
     private Panel content;          // swappable CENTER region
-    private Label headerLabel;      // top nav bar (re-rendered on language change)
+    private Label headerLabel;      // top nav bar (re-rendered on language change / resize)
     private Label statusBar;
     private ScheduledExecutorService refresher;
 
@@ -118,7 +119,7 @@ public final class TuiApp
             factory.setForceTextTerminal( false );
             terminal = factory.createTerminal();
         }
-        Screen screen = new TerminalScreen( terminal );
+        screen = new TerminalScreen( terminal );
         screen.startScreen();
         try {
             gui = new MultiWindowTextGUI( screen, new DefaultWindowManager(),
@@ -157,7 +158,10 @@ public final class TuiApp
                 Logger.logThrowable( t );
             }
             try {
-                Thread.sleep( 5 );
+                // Poll cadence for the manual event loop. 20 ms (~50 Hz) keeps key/scroll response
+                // imperceptibly snappy while avoiding the ~200 Hz idle spin a 5 ms sleep caused —
+                // noticeably easier on laptop battery when the TUI is just sitting open.
+                Thread.sleep( 20 );
             }
             catch ( InterruptedException ie ) {
                 Thread.currentThread().interrupt();
@@ -197,6 +201,15 @@ public final class TuiApp
                 // key here (deliverEvent=false) keeps the shortcuts working from every view.
                 if ( handleGlobalKey( key ) ) {
                     deliverEvent.set( false );
+                }
+            }
+
+            @Override
+            public void onResized( Window base, TerminalSize oldSize, TerminalSize newSize )
+            {
+                // Re-pick the header density for the new width so hints never truncate mid-word.
+                if ( headerLabel != null && newSize != null ) {
+                    headerLabel.setText( headerText( newSize.getColumns() ) );
                 }
             }
         } );
@@ -241,12 +254,49 @@ public final class TuiApp
         }
     }
 
-    private static String headerText()
+    private String headerText()
     {
-        return "  " + loc( "tui.appName" ) + "   [L] " + loc( "tui.view.library" )
-                + "  [B] " + loc( "tui.view.browse" ) + "  [G] " + loc( "tui.view.logs" )
-                + "  [S] " + loc( "tui.view.settings" ) + "    [Enter] " + loc( "tui.nav.actions" )
-                + "  [Esc] " + loc( "tui.nav.back" ) + "  [q] " + loc( "tui.nav.quit" );
+        return headerText( currentColumns() );
+    }
+
+    /** Builds the top nav bar, degrading gracefully as the terminal narrows so the shortcuts never
+     *  get truncated mid-hint: full (with app name + Enter hint) → drop those → letters only →
+     *  bare minimum. */
+    private String headerText( int cols )
+    {
+        String views = "[L] " + loc( "tui.view.library" ) + "  [B] " + loc( "tui.view.browse" )
+                + "  [G] " + loc( "tui.view.logs" ) + "  [S] " + loc( "tui.view.settings" );
+        String back = "[Esc] " + loc( "tui.nav.back" );
+        String quit = "[q] " + loc( "tui.nav.quit" );
+
+        String full = "  " + loc( "tui.appName" ) + "   " + views + "    [Enter] "
+                + loc( "tui.nav.actions" ) + "  " + back + "  " + quit;
+        if ( full.length() <= cols ) {
+            return full;
+        }
+        String medium = "  " + views + "    " + back + "  " + quit;   // drop app name + Enter hint
+        if ( medium.length() <= cols ) {
+            return medium;
+        }
+        String compact = "  [L] [B] [G] [S]    " + back + "  " + quit;   // letters only
+        if ( compact.length() <= cols ) {
+            return compact;
+        }
+        return "  [L][B][G][S]  [Esc][q]";   // bare minimum for very narrow terminals
+    }
+
+    /** Current terminal width in columns (falls back to a wide default before the screen is ready). */
+    private int currentColumns()
+    {
+        try {
+            if ( screen != null && screen.getTerminalSize() != null ) {
+                return screen.getTerminalSize().getColumns();
+            }
+        }
+        catch ( Throwable ignored ) {
+            // size unavailable (e.g. screen torn down) — fall through to the default
+        }
+        return 120;
     }
 
     // ================================================================= Library
