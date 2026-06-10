@@ -1036,7 +1036,14 @@
                 <os><family>unix</family><name>Linux</name></os>
             </activation>
             <properties>
-                <packaging.name>mica-minecraft-launcher</packaging.name>
+                <!-- Linux deb/rpm package identifier: lowercase, no spaces. This is ONLY the system
+                     package name (dpkg / rpm) and the /opt install sub-path, NOT the user-facing name.
+                     It is passed via jpackage's dedicated linux-package-name flag so the name flag can
+                     stay ${packaging.name} (= "Mica Minecraft Launcher"), which is what jpackage writes
+                     into the .desktop "Name" field: the application/menu label and icon caption.
+                     Previously the name flag was overridden to this lowercase id, so the desktop entry
+                     showed "mica-minecraft-launcher" instead of the real display name. -->
+                <packaging.linux.packageName>mica-minecraft-launcher</packaging.linux.packageName>
             </properties>
             <build>
                 <plugins>
@@ -1096,6 +1103,11 @@
                                         <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
+                                        <!-- System package identifier (lowercase, no spaces). Kept
+                                             separate from the name flag so the .desktop entry shows the
+                                             real display name; see the linux-packaging profile. -->
+                                        <argument>--linux-package-name</argument>
+                                        <argument>${packaging.linux.packageName}</argument>
                                         <argument>--type</argument>
                                         <argument>deb</argument>
                                         <argument>--license-file</argument>
@@ -1162,6 +1174,11 @@
                                         <argument>${jpackage.appcds.autocreate}</argument>
                                         <argument>--icon</argument>
                                         <argument>${project.basedir}/deploy/linux/Mica Minecraft Launcher.png</argument>
+                                        <!-- System package identifier (lowercase, no spaces). Kept
+                                             separate from the name flag so the .desktop entry shows the
+                                             real display name; see the linux-packaging profile. -->
+                                        <argument>--linux-package-name</argument>
+                                        <argument>${packaging.linux.packageName}</argument>
                                         <argument>--type</argument>
                                         <argument>rpm</argument>
                                         <argument>--license-file</argument>
@@ -1190,7 +1207,9 @@
                 <packaging.name>${packaging.displayName}</packaging.name>
             </properties>
         </profile>
-        <!-- Linux + dev combined: override the packaging.name for Linux-safe identifier -->
+        <!-- Linux + dev combined: override the Linux package identifier so the dev build installs
+             side-by-side with a production install. The display name still comes from
+             packaging.name (= "Mica Minecraft Launcher DEV" via the dev profile). -->
         <profile>
             <id>linux-dev-packaging-safe-name</id>
             <activation>
@@ -1203,7 +1222,7 @@
                 </property>
             </activation>
             <properties>
-                <packaging.name>mica-minecraft-launcher-dev</packaging.name>
+                <packaging.linux.packageName>mica-minecraft-launcher-dev</packaging.linux.packageName>
             </properties>
         </profile>
     </profiles>
