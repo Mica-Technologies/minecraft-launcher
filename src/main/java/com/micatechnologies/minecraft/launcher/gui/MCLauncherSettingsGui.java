@@ -1089,16 +1089,30 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         proxyTypeSelection.getItems().addAll( ConfigConstants.PROXY_TYPES );
         proxyTypeSelection.selectItem( ConfigManager.getProxyType() );
 
-        // Load system RAM config label
-        SystemInfo systemInfo = new SystemInfo();
-        long memTotalRaw = systemInfo.getHardware().getMemory().getTotal();
-        long memAvailRaw = systemInfo.getHardware().getMemory().getAvailable();
-        double memTotal = memTotalRaw / 1024.0 / 1024.0 / 1024.0;
-        double memAvail = memAvailRaw / 1024.0 / 1024.0 / 1024.0;
-        double memUsed = memTotal - memAvail;
-        sysRamLabel.setText( LocalizationManager.format( "settings.sysRamLabel",
-                                                          Precision.round( memTotal, 2 ),
-                                                          Precision.round( memUsed, 2 ) ) );
+        // Load system RAM config label off the JavaFX Application Thread.
+        // OSHI's first hardware query shells out to the OS and can stall
+        // for several seconds (notably on macOS), which would freeze the
+        // whole UI — including the menu-bar transition that opened this
+        // screen — until it returns. Compute on a worker, then push the
+        // result back to the label via the FX thread.
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                SystemInfo systemInfo = new SystemInfo();
+                long memTotalRaw = systemInfo.getHardware().getMemory().getTotal();
+                long memAvailRaw = systemInfo.getHardware().getMemory().getAvailable();
+                double memTotal = memTotalRaw / 1024.0 / 1024.0 / 1024.0;
+                double memAvail = memAvailRaw / 1024.0 / 1024.0 / 1024.0;
+                double memUsed = memTotal - memAvail;
+                GUIUtilities.JFXPlatformRun( () -> sysRamLabel.setText(
+                        LocalizationManager.format( "settings.sysRamLabel",
+                                                    Precision.round( memTotal, 2 ),
+                                                    Precision.round( memUsed, 2 ) ) ) );
+            }
+            catch ( Exception e ) {
+                Logger.logError( "Unable to query system memory for the settings screen." );
+                Logger.logThrowable( e );
+            }
+        } );
 
         // Calculate configured RAM amounts in GB
         final double minRamGbVal = ConfigManager.getMinRam() / 1024.0;
@@ -1363,10 +1377,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         var user = MCLauncherAuthManager.getLoggedInUser();
         accountNameLabel.setText( user.name() );
         accountUuidLabel.setText( LocalizationManager.format( "settings.accountUuidLabel", user.uuid() ) );
+        // backgroundLoading = true so the avatar fetch happens off the
+        // FX thread; otherwise the single-arg Image(url) constructor
+        // blocks the JavaFX Application Thread on a network round-trip to
+        // the avatar service (and hangs far longer on a slow/unreachable
+        // network), freezing the Settings screen as it opens.
         accountAvatar.setImage( new javafx.scene.image.Image(
                 com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS
                         .replace( com.micatechnologies.minecraft.launcher.consts.GUIConstants.URL_MINECRAFT_USER_ICONS_USER_REPLACE_KEY,
-                                  user.uuid() ) ) );
+                                  user.uuid() ), true ) );
 
         // Helpful links
         minecraftNetBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
