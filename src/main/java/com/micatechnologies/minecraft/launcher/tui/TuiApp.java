@@ -83,6 +83,7 @@ public final class TuiApp
     private GameModPack logsTarget;  // pack whose logs the Logs view is showing
     private TextBox logsBox;         // the read-only log display in the Logs view
     private int     lastLogSize = -1; // last-rendered log line count, so we only refresh on new output
+    private ActionListBox settingsList; // current Settings list, so a rebuild can keep the selection
 
     private TuiApp() { /* via run() */ }
 
@@ -110,6 +111,10 @@ public final class TuiApp
         catch ( Throwable nativeFail ) {
             Logger.logWarningSilent( "TUI: native terminal unavailable (" + nativeFail
                                              + "); using windowed emulator." );
+            // Tell the user on the real console why a separate window is opening instead of
+            // rendering inline — otherwise the Swing fallback looks like a mystery (this happens
+            // under IDE run consoles and anywhere there's no controlling /dev/tty for stty).
+            TuiMode.realOut().println( loc( "tui.fallback.windowed" ) );
             factory.setForceTextTerminal( false );
             terminal = factory.createTerminal();
         }
@@ -183,35 +188,15 @@ public final class TuiApp
         window.addWindowListener( new WindowListenerAdapter()
         {
             @Override
-            public void onUnhandledInput( Window base, KeyStroke key, AtomicBoolean handled )
+            public void onInput( Window base, KeyStroke key, AtomicBoolean deliverEvent )
             {
-                if ( key.getKeyType() != KeyType.Character || key.getCharacter() == null ) {
-                    return;
-                }
-                char c = Character.toLowerCase( key.getCharacter() );
-                if ( c == 'q' ) {
-                    window.close();
-                    handled.set( true );
-                }
-                else if ( c == 'l' ) {
-                    showLibrary();
-                    handled.set( true );
-                }
-                else if ( c == 'b' ) {
-                    showBrowse();
-                    handled.set( true );
-                }
-                else if ( c == 'g' ) {
-                    showLogs();
-                    handled.set( true );
-                }
-                else if ( c == 's' ) {
-                    showSettings();
-                    handled.set( true );
-                }
-                else if ( c == 'n' && currentView == View.LOGS ) {
-                    cycleLogsTarget();
-                    handled.set( true );
+                // Handle the global navigation keys BEFORE the focused component sees them.
+                // The focused ActionListBox does first-letter item navigation, so handling these
+                // in onUnhandledInput let it swallow the key first — e.g. pressing 'L' in Settings
+                // jumped to the "Language" row instead of returning to the Library. Consuming the
+                // key here (deliverEvent=false) keeps the shortcuts working from every view.
+                if ( handleGlobalKey( key ) ) {
+                    deliverEvent.set( false );
                 }
             }
         } );
@@ -219,12 +204,49 @@ public final class TuiApp
         showLibrary();
     }
 
+    /**
+     * Global navigation shortcuts, intercepted before the focused component so list views can't
+     * swallow them. {@code q} quits; {@code L/B/G/S} switch views; {@code n} cycles the Logs target;
+     * {@code Esc} backs out of any sub-view to the Library (the TUI's home — on the Library itself
+     * Esc does nothing, so it can't be an accidental quit).
+     *
+     * @return {@code true} if the key was a global shortcut and should not reach the focused component
+     */
+    private boolean handleGlobalKey( KeyStroke key )
+    {
+        if ( key.getKeyType() == KeyType.Escape ) {
+            if ( currentView != View.LIBRARY ) {
+                showLibrary();
+                return true;
+            }
+            return false;
+        }
+        if ( key.getKeyType() != KeyType.Character || key.getCharacter() == null ) {
+            return false;
+        }
+        switch ( Character.toLowerCase( key.getCharacter() ) ) {
+            case 'q' -> { window.close();  return true; }
+            case 'l' -> { showLibrary();   return true; }
+            case 'b' -> { showBrowse();    return true; }
+            case 'g' -> { showLogs();      return true; }
+            case 's' -> { showSettings();  return true; }
+            case 'n' -> {
+                if ( currentView == View.LOGS ) {
+                    cycleLogsTarget();
+                    return true;
+                }
+                return false;
+            }
+            default -> { return false; }
+        }
+    }
+
     private static String headerText()
     {
         return "  " + loc( "tui.appName" ) + "   [L] " + loc( "tui.view.library" )
                 + "  [B] " + loc( "tui.view.browse" ) + "  [G] " + loc( "tui.view.logs" )
                 + "  [S] " + loc( "tui.view.settings" ) + "    [Enter] " + loc( "tui.nav.actions" )
-                + "  [q] " + loc( "tui.nav.quit" );
+                + "  [Esc] " + loc( "tui.nav.back" ) + "  [q] " + loc( "tui.nav.quit" );
     }
 
     // ================================================================= Library
@@ -426,6 +448,10 @@ public final class TuiApp
 
     private void showSettings()
     {
+        // Remember the selected row so a rebuild (after a toggle / value change / game-state
+        // refresh) keeps the user where they were instead of snapping back to the top.
+        int keepIndex = ( currentView == View.SETTINGS && settingsList != null )
+                ? settingsList.getSelectedIndex() : -1;
         currentView = View.SETTINGS;
         content.removeAllComponents();
         ActionListBox list = new ActionListBox();
@@ -453,6 +479,10 @@ public final class TuiApp
         themeRow( list );
         localeRow( list );
 
+        settingsList = list;
+        if ( keepIndex >= 0 && list.getItemCount() > 0 ) {
+            list.setSelectedIndex( Math.min( keepIndex, list.getItemCount() - 1 ) );
+        }
         content.addComponent( list.withBorder( Borders.singleLine( loc( "tui.settings.title" ) ) ),
                               BorderLayout.Location.CENTER );
         window.invalidate();
@@ -764,14 +794,15 @@ public final class TuiApp
 
     // ================================================================== shared
 
-    /** Called when a game starts or exits: refresh the visible view + the status bar. */
+    /** Called when a game starts or exits: refresh the views that reflect running state (Library's
+     *  running marker, the Logs view) plus the status bar. Browse and Settings don't show running
+     *  state, so we leave them untouched rather than rebuilding and losing the user's place. */
     private void onGamesChanged()
     {
         switch ( currentView ) {
             case LIBRARY -> showLibrary();
-            case BROWSE -> showBrowse();
             case LOGS -> showLogs();
-            case SETTINGS -> showSettings();
+            case BROWSE, SETTINGS -> { /* no running-state shown here — don't disrupt the user */ }
         }
         statusBar.setText( statusLine() );
     }
