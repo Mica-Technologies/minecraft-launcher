@@ -589,6 +589,31 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
+     * Returns the on-disk paths of every cached logo this pack declares (the manifest's
+     * {@code packLogoURL} may list multiple distinct showcase images). Triggers a
+     * synchronous cache download for any missing images — call off the FX thread. Use
+     * {@link #getPackLogoFilepathsRaw()} on the FX thread.
+     *
+     * @return ordered list of cached logo paths; never {@code null}, possibly empty
+     * @since 3.6
+     */
+    public synchronized java.util.List< String > getPackLogoFilepaths()
+    {
+        return getEnvironment().getPackLogoFilepaths();
+    }
+
+    /**
+     * Background-image counterpart of {@link #getPackLogoFilepaths()}.
+     *
+     * @return ordered list of cached background paths; never {@code null}, possibly empty
+     * @since 3.6
+     */
+    public synchronized java.util.List< String > getPackBackgroundFilepaths()
+    {
+        return getEnvironment().getPackBackgroundFilepaths();
+    }
+
+    /**
      * Returns the expected on-disk path for the pack logo image WITHOUT
      * triggering the image-download cache step. Use this when running on the
      * FX thread to avoid a synchronous network fetch blocking the rendering
@@ -614,6 +639,30 @@ public class GameModPack extends GameModPackMetadata
     public synchronized String getPackBackgroundFilepathRaw()
     {
         return getEnvironment().getRawBackgroundFilePath();
+    }
+
+    /**
+     * Side-effect-free counterpart of {@link #getPackLogoFilepaths()} — returns the paths of
+     * every declared logo already cached on disk WITHOUT triggering a network fetch. Safe to
+     * call on the FX thread; a not-yet-cached image is simply absent from the list.
+     *
+     * @return ordered list of cached logo paths; never {@code null}, possibly empty
+     * @since 3.6
+     */
+    public synchronized java.util.List< String > getPackLogoFilepathsRaw()
+    {
+        return getEnvironment().getRawLogoFilePaths();
+    }
+
+    /**
+     * Side-effect-free counterpart of {@link #getPackBackgroundFilepaths()}.
+     *
+     * @return ordered list of cached background paths; never {@code null}, possibly empty
+     * @since 3.6
+     */
+    public synchronized java.util.List< String > getPackBackgroundFilepathsRaw()
+    {
+        return getEnvironment().getRawBackgroundFilePaths();
     }
 
     /**
