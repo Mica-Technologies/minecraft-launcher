@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Core (Terminal UI)" type="Application" factoryName="Application">
+  <configuration default="false" name="Core (Terminal UI)" type="Application" factoryName="Application" focusToolWindowBeforeRun="true">
     <option name="MAIN_CLASS_NAME" value="com.micatechnologies.minecraft.launcher.LauncherCore" />
     <module name="launcher" />
     <option name="PROGRAM_PARAMETERS" value="--cli" />
