@@ -264,6 +264,8 @@ public final class SchemeRegistrar
         content.append( "Icon=mica-minecraft-launcher\n" );
         content.append( "MimeType=x-scheme-handler/mmcl;application/x-mmcjson;\n" );
         content.append( "Categories=Game;\n" );
+        // Surfaces the launcher in app-menu / overview search under common terms, not just its name.
+        content.append( "Keywords=minecraft;modpack;forge;launcher;mica;\n" );
         content.append( "NoDisplay=false\n" );
         appendRecentPacksActions( content, exePath );
         Files.writeString( desktopFile, content.toString(), StandardCharsets.UTF_8 );

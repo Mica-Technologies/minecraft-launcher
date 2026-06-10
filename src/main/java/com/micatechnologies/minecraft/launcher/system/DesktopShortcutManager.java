@@ -644,11 +644,15 @@ public class DesktopShortcutManager
         Files.writeString( desktopFile.toPath(), desktop.toString(), StandardCharsets.UTF_8 );
         desktopFile.setExecutable( true, false );
 
-        // Some desktop environments require gio to trust the .desktop file
+        // Some desktop environments require gio to trust the .desktop file. Bound the wait so a
+        // hung/blocked gio (e.g. a stuck D-Bus call) can't stall shortcut creation indefinitely.
         try {
-            new ProcessBuilder( "gio", "set", desktopFile.getAbsolutePath(),
-                                 "metadata::trusted", "true" )
-                    .redirectErrorStream( true ).start().waitFor();
+            Process gio = new ProcessBuilder( "gio", "set", desktopFile.getAbsolutePath(),
+                                              "metadata::trusted", "true" )
+                    .redirectErrorStream( true ).start();
+            if ( !gio.waitFor( 2, java.util.concurrent.TimeUnit.SECONDS ) ) {
+                gio.destroyForcibly();
+            }
         }
         catch ( Exception ignored ) {
             // gio may not be available on all systems

@@ -21,12 +21,17 @@ import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
+import org.apache.commons.lang3.SystemUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.Image;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Cross-platform native notification sink. Routes calls to the host OS notification system via
@@ -56,6 +61,8 @@ public final class NotificationManager
     private static volatile TrayIcon trayIcon    = null;
     private static volatile boolean  initialized = false;
     private static volatile boolean  disabled    = false;
+    /** Cached "is notify-send on PATH?" probe for the Linux fallback (null = not yet checked). */
+    private static volatile Boolean  notifySendAvailable = null;
 
     private NotificationManager() { /* static-only */ }
 
@@ -82,12 +89,8 @@ public final class NotificationManager
 
     private static synchronized void display( String title, String body, TrayIcon.MessageType type )
     {
-        if ( disabled ) {
-            logFallback( title, body );
-            return;
-        }
-        if ( !ensureInitialized() ) {
-            logFallback( title, body );
+        if ( disabled || !ensureInitialized() ) {
+            fallback( title, body, type );
             return;
         }
         try {
@@ -95,15 +98,78 @@ public final class NotificationManager
         }
         catch ( Exception | Error e ) {
             Logger.logWarningSilent( "Notification display failed: " + e.getMessage() );
-            logFallback( title, body );
+            fallback( title, body, type );
         }
     }
 
+    /** Fallback when the AWT {@code SystemTray} toast can't be shown. On Linux this is the common
+     *  case (GNOME/Wayland report {@code SystemTray} unsupported), so fire a real desktop
+     *  notification via libnotify's {@code notify-send} for toast parity with macOS/Windows. The
+     *  log line always runs too (paper trail), so the behaviour degrades to log-only when even
+     *  {@code notify-send} is absent. */
+    private static void fallback( String title, String body, TrayIcon.MessageType type )
+    {
+        if ( SystemUtils.IS_OS_LINUX ) {
+            linuxNotifySend( title, body, type );
+        }
+        logFallback( title, body );
+    }
+
     /** Always log notifications too — gives a paper trail when the user reports "I missed a toast"
-     *  and is the only path on platforms where {@code SystemTray} isn't available. */
+     *  and is the only path on platforms where neither {@code SystemTray} nor notify-send works. */
     private static void logFallback( String title, String body )
     {
         Logger.logStd( "[notify] " + title + ( body == null || body.isBlank() ? "" : " — " + body ) );
+    }
+
+    /** Best-effort desktop notification via libnotify's {@code notify-send} (present on virtually
+     *  every modern Linux desktop, including GNOME/Wayland where AWT's tray is unavailable). The
+     *  availability probe is cached, and the call is bounded by a short timeout so a hung helper
+     *  never stalls a notifying thread. Errors are swallowed — this is a fallback path. */
+    private static void linuxNotifySend( String title, String body, TrayIcon.MessageType type )
+    {
+        try {
+            if ( notifySendAvailable == null ) {
+                notifySendAvailable = commandExists( "notify-send" );
+            }
+            if ( !notifySendAvailable ) {
+                return;
+            }
+            List< String > cmd = new ArrayList<>();
+            cmd.add( "notify-send" );
+            cmd.add( "--app-name=" + LauncherConstants.LAUNCHER_APPLICATION_NAME );
+            // Icon-theme name installed by the deb/rpm; ignored gracefully if not present.
+            cmd.add( "--icon=mica-minecraft-launcher" );
+            // Errors raised to critical urgency so they don't auto-expire before the user sees them.
+            cmd.add( "--urgency=" + ( type == TrayIcon.MessageType.ERROR ? "critical" : "normal" ) );
+            cmd.add( title == null ? "" : title );
+            if ( body != null && !body.isBlank() ) {
+                cmd.add( body );
+            }
+            ProcessBuilder pb = new ProcessBuilder( cmd );
+            pb.redirectErrorStream( true );
+            Process p = pb.start();
+            try ( var is = p.getInputStream() ) {
+                is.transferTo( OutputStream.nullOutputStream() );
+            }
+            p.waitFor( 2, TimeUnit.SECONDS );
+        }
+        catch ( Exception | Error ignored ) {
+            // notify-send missing / denied / timed out — fall through to the log line.
+        }
+    }
+
+    /** @return {@code true} if {@code cmd} resolves on the PATH (via POSIX {@code command -v}). */
+    private static boolean commandExists( String cmd )
+    {
+        try {
+            Process p = new ProcessBuilder( "sh", "-c", "command -v " + cmd ).start();
+            boolean finished = p.waitFor( 2, TimeUnit.SECONDS );
+            return finished && p.exitValue() == 0;
+        }
+        catch ( Exception | Error e ) {
+            return false;
+        }
     }
 
     /** Lazy first-use init. Returns true if {@link #trayIcon} is usable. Subsequent calls are cheap
