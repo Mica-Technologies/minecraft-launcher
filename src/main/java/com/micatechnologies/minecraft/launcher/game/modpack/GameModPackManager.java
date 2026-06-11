@@ -125,6 +125,38 @@ public class GameModPackManager
      */
     private static volatile CompletableFuture< Void > availableFetchFuture = null;
 
+    /** Dedicated pool for the manager's network-bound parallel manifest fetches,
+     *  so they don't run on (and block) the shared {@code ForkJoinPool.commonPool}
+     *  — which is sized {@code availableProcessors-1} for CPU-bound work and, on
+     *  a low-core machine, would serialize these I/O-bound fetches. Sized above
+     *  core count since the work is latency-bound, not CPU-bound. */
+    private static final java.util.concurrent.ForkJoinPool MANIFEST_FETCH_POOL =
+            new java.util.concurrent.ForkJoinPool(
+                    Math.max( 4, Runtime.getRuntime().availableProcessors() * 2 ) );
+
+    /** Runs a parallel-stream block on {@link #MANIFEST_FETCH_POOL} instead of the
+     *  common pool (a parallel stream uses the pool of the ForkJoinWorkerThread
+     *  that drives it). Unwraps and rethrows any unchecked failure from the block
+     *  so callers see the same exception they would from a bare parallelStream. */
+    private static void runOnManifestFetchPool( Runnable parallelWork ) {
+        try {
+            MANIFEST_FETCH_POOL.submit( parallelWork ).get();
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+        }
+        catch ( java.util.concurrent.ExecutionException e ) {
+            Throwable cause = e.getCause();
+            if ( cause instanceof RuntimeException runtimeException ) {
+                throw runtimeException;
+            }
+            if ( cause instanceof Error error ) {
+                throw error;
+            }
+            throw new RuntimeException( cause );
+        }
+    }
+
     /**
      * Method to handle populating the list of available mod packs from the available mod packs manifest referenced in
      * {@link ModPackConstants#AVAILABLE_PACKS_MANIFEST_URL}.
@@ -174,6 +206,7 @@ public class GameModPackManager
         // when there's a meaningful number of available packs in the manifest.
         JsonObject installableManifestUrls = JSONUtilities.getGson().fromJson( availableModPackManifestBody, JsonObject.class );
         final MCLauncherProgressGui finalProgressWindow = progressWindow;
+        runOnManifestFetchPool( () ->
         installableManifestUrls.getAsJsonArray( ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY )
                 .asList().parallelStream().forEach( manifestUrl -> {
             final String manifestUrlVal = manifestUrl.getAsString();
@@ -222,7 +255,7 @@ public class GameModPackManager
                                            manifestUrlVal );
                 }
             }
-        } );
+        } ) );
         // Update progress window
         if ( progressWindow != null ) {
             progressWindow.setDetailText( LocalizationManager.COMPLETED_TEXT );
@@ -324,7 +357,7 @@ public class GameModPackManager
         // which on a warm launcher is empty.
         final MCLauncherProgressGui finalProgressWindow = progressWindow;
         if ( !needsNetwork.isEmpty() ) {
-            needsNetwork.parallelStream().forEach( manifestUrl -> {
+            runOnManifestFetchPool( () -> needsNetwork.parallelStream().forEach( manifestUrl -> {
                 try {
                     GameModPack gameModPack = GameModPackFetcher.get( manifestUrl, true );
                     installedGameModPacks.add( gameModPack );
@@ -346,7 +379,7 @@ public class GameModPackManager
                                              + " " + manifestUrl );
                     Logger.logThrowable( e );
                 }
-            } );
+            } ) );
         }
 
         // Phase 2 — background revalidate. Kick off network fetches for every pack
