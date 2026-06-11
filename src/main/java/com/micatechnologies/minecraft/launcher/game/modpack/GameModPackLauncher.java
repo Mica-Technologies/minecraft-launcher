@@ -84,6 +84,22 @@ class GameModPackLauncher
      */
     private Process lastLaunchedProcess = null;
 
+    /**
+     * Dedicated daemon pool for the parallel pre-launch I/O branches (modpack
+     * content / Forge libs / MC libs + JRE). Those branches block for
+     * seconds-to-minutes on HTTP and {@code awaitTermination}; running them on
+     * the default {@code ForkJoinPool.commonPool()} (sized
+     * {@code availableProcessors - 1}, meant for CPU-bound work) pins its workers
+     * and, on low-core machines, effectively serializes the "parallel" branches
+     * and starves any other {@code parallelStream} user during a launch.
+     */
+    private static final java.util.concurrent.ExecutorService LAUNCH_IO_POOL =
+            java.util.concurrent.Executors.newCachedThreadPool( r -> {
+                Thread t = new Thread( r, "mica-launch-io" );
+                t.setDaemon( true );
+                return t;
+            } );
+
     // region Log4j security config constants
 
     /**
@@ -320,7 +336,7 @@ class GameModPackLauncher
                         catch ( Throwable t ) {
                             throw rethrowAsCompletion( t );
                         }
-                    } );
+                    }, LAUNCH_IO_POOL );
 
             java.util.concurrent.CompletableFuture< String > branchForgeLibs =
                     java.util.concurrent.CompletableFuture.supplyAsync( () -> {
@@ -330,7 +346,7 @@ class GameModPackLauncher
                         catch ( Throwable t ) {
                             throw rethrowAsCompletion( t );
                         }
-                    } );
+                    }, LAUNCH_IO_POOL );
 
             java.util.concurrent.CompletableFuture< McLibsAndJreResult > branchMcLibsJre =
                     java.util.concurrent.CompletableFuture.supplyAsync( () -> {
@@ -340,7 +356,7 @@ class GameModPackLauncher
                         catch ( Throwable t ) {
                             throw rethrowAsCompletion( t );
                         }
-                    } );
+                    }, LAUNCH_IO_POOL );
 
             try {
                 java.util.concurrent.CompletableFuture.allOf( branchModpackContent,
