@@ -315,7 +315,14 @@ public class GameAssetManifest extends ManagedGameFile
         // under <packRoot>/assets/{objects,indexes}/ — now both live in the shared launcher
         // folder. Delete the orphans so they don't waste disk. The per-pack assets/virtual/
         // subtree (legacy flat-asset materialization) stays.
-        cleanupLegacyPerPackAssetsTree();
+        //
+        // Run on a background thread: when those legacy folders DO exist with content
+        // (the one launch where migration fires), the recursive delete of tens of
+        // thousands of asset objects would otherwise add minutes to the launch path
+        // with no progress feedback (reads as a hang). Nothing on the launch path
+        // reads the per-pack objects/indexes tree anymore, so deleting it concurrently
+        // is safe.
+        SystemUtilities.spawnNewTask( this::cleanupLegacyPerPackAssetsTree );
 
         // Update asset manifest first
         updateLocalFile();
@@ -326,9 +333,14 @@ public class GameAssetManifest extends ManagedGameFile
             return;
         }
 
-        // Build list of asset download threads
-        int maxThreads = Math.max( 1, Runtime.getRuntime().availableProcessors() );
-        int threadCount = Math.min( assets.size(), maxThreads );
+        // Build list of asset download threads. Assets are thousands of tiny,
+        // latency-bound files (a modern index is ~3,500-4,500 objects), so the
+        // cold-install download is bound by per-request round-trip latency, not
+        // CPU or bandwidth. Allow more concurrency than core count (min 12) so a
+        // low-core machine doesn't leave CDN bandwidth idle; cap at the asset
+        // count so we never over-allocate threads.
+        int maxThreads = Math.max( 12, Runtime.getRuntime().availableProcessors() );
+        int threadCount = Math.max( 1, Math.min( assets.size(), maxThreads ) );
         ExecutorService threadPool = Executors.newFixedThreadPool( threadCount );
         List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
         for ( ManagedGameFile asset : assets ) {

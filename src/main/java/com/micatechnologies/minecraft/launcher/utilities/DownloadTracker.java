@@ -75,9 +75,11 @@ public class DownloadTracker
     private volatile double speedBytesPerSec = 0;
 
     /**
-     * Timestamp of the last speed recalculation.
+     * Timestamp of the last speed recalculation. Atomic so concurrent
+     * {@code addBytes()} callers CAS the window open and only one of them
+     * performs the read-modify-write of the speed fields per interval.
      */
-    private volatile long lastSpeedUpdateMs = 0;
+    private final AtomicLong lastSpeedUpdateMs = new AtomicLong( 0 );
 
     /**
      * Bytes downloaded at the time of the last speed recalculation (for rolling window).
@@ -97,7 +99,7 @@ public class DownloadTracker
         totalFiles.set( 0 );
         startTimeMs = 0;
         speedBytesPerSec = 0;
-        lastSpeedUpdateMs = 0;
+        lastSpeedUpdateMs.set( 0 );
         lastSpeedBytes = 0;
     }
 
@@ -126,7 +128,7 @@ public class DownloadTracker
         long now = System.currentTimeMillis();
         if ( startTimeMs == 0 ) {
             startTimeMs = now;
-            lastSpeedUpdateMs = now;
+            lastSpeedUpdateMs.set( now );
         }
         activeDownloads.incrementAndGet();
     }
@@ -166,17 +168,22 @@ public class DownloadTracker
     private void recalculateSpeed()
     {
         long now = System.currentTimeMillis();
-        long elapsed = now - lastSpeedUpdateMs;
+        long last = lastSpeedUpdateMs.get();
+        long elapsed = now - last;
         if ( elapsed >= SPEED_UPDATE_INTERVAL_MS ) {
-            long currentBytes = totalBytesDownloaded.get();
-            long bytesDelta = currentBytes - lastSpeedBytes;
-            if ( elapsed > 0 ) {
-                // Blend new measurement with previous speed for smoothing
-                double instantSpeed = ( bytesDelta * 1000.0 ) / elapsed;
-                speedBytesPerSec = ( speedBytesPerSec * 0.3 ) + ( instantSpeed * 0.7 );
+            // Only the thread that wins the CAS advances the window and updates the
+            // speed fields, so concurrent chunk reports don't all pass the gate and
+            // race the read-modify-write (which produced garbage speed samples).
+            if ( lastSpeedUpdateMs.compareAndSet( last, now ) ) {
+                long currentBytes = totalBytesDownloaded.get();
+                long bytesDelta = currentBytes - lastSpeedBytes;
+                if ( elapsed > 0 ) {
+                    // Blend new measurement with previous speed for smoothing
+                    double instantSpeed = ( bytesDelta * 1000.0 ) / elapsed;
+                    speedBytesPerSec = ( speedBytesPerSec * 0.3 ) + ( instantSpeed * 0.7 );
+                }
+                lastSpeedBytes = currentBytes;
             }
-            lastSpeedBytes = currentBytes;
-            lastSpeedUpdateMs = now;
         }
     }
 

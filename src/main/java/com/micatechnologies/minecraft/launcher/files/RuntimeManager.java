@@ -211,7 +211,6 @@ public class RuntimeManager
 
             // Count total files for progress
             int totalFiles = files.entrySet().size();
-            int processedFiles = 0;
 
             Logger.logStd( "Installing runtime " + component + " (" + versionName + ") - " + totalFiles + " files..." );
 
@@ -224,6 +223,14 @@ public class RuntimeManager
                                                                 .toAbsolutePath()
                                                                 .normalize();
 
+            // First pass (sequential): validate entry names, create directories, and
+            // collect the file entries that need downloading. Directories must exist
+            // before the parallel file writes below target them.
+            final java.util.concurrent.atomic.AtomicInteger processedCounter =
+                    new java.util.concurrent.atomic.AtomicInteger( 0 );
+            final int totalFilesFinal = totalFiles;
+            final MCLauncherProgressGui progressWindowFinal = progressWindow;
+            List< java.util.concurrent.Callable< Void > > fileTasks = new ArrayList<>();
             for ( Map.Entry< String, JsonElement > entry : files.entrySet() ) {
                 String relativePath = entry.getKey();
                 JsonObject fileEntry = entry.getValue().getAsJsonObject();
@@ -243,7 +250,7 @@ public class RuntimeManager
                             "Skipping runtime manifest entry that escapes base dir: " + relativePath );
                     continue;
                 }
-                File localFile = resolved.toFile();
+                final File localFile = resolved.toFile();
 
                 if ( "directory".equals( type ) ) {
                     localFile.mkdirs();
@@ -251,49 +258,90 @@ public class RuntimeManager
                 else if ( "file".equals( type ) ) {
                     JsonObject downloads = JsonHelper.getRequiredJsonObject( fileEntry, "downloads" );
                     JsonObject rawDownload = JsonHelper.getRequiredJsonObject( downloads, "raw" );
-                    String sha1 = JsonHelper.getRequiredString( rawDownload, "sha1" );
-                    String url = JsonHelper.getRequiredString( rawDownload, "url" );
-
-                    // Only download if file doesn't exist or hash doesn't match
-                    if ( !localFile.exists() || !HashUtilities.verifySHA1( localFile, sha1 ) ) {
-                        localFile.getParentFile().mkdirs();
-                        // Post-download integrity gate: the manifest's SHA-1 must hold
-                        // for the bytes actually received, otherwise the mismatched
-                        // file would be installed and executed as the JRE this session
-                        // (and re-downloaded-and-accepted on every later launch).
-                        // Bounded retry absorbs transient corruption.
-                        final int maxAttempts = 3;
-                        boolean downloadVerified = false;
-                        for ( int attempt = 1; attempt <= maxAttempts && !downloadVerified; attempt++ ) {
-                            NetworkUtilities.downloadFileFromURL( url, localFile );
-                            downloadVerified = HashUtilities.verifySHA1( localFile, sha1 );
+                    final String sha1 = JsonHelper.getRequiredString( rawDownload, "sha1" );
+                    final String url = JsonHelper.getRequiredString( rawDownload, "url" );
+                    final boolean executable = fileEntry.has( "executable" )
+                            && fileEntry.get( "executable" ).getAsBoolean();
+                    final String relativePathFinal = relativePath;
+                    fileTasks.add( () -> {
+                        // Only download if file doesn't exist or hash doesn't match
+                        if ( !localFile.exists() || !HashUtilities.verifySHA1( localFile, sha1 ) ) {
+                            localFile.getParentFile().mkdirs();
+                            // Post-download integrity gate: the manifest's SHA-1 must hold
+                            // for the bytes actually received, otherwise the mismatched
+                            // file would be installed and executed as the JRE this session.
+                            // Bounded retry absorbs transient corruption.
+                            final int maxAttempts = 3;
+                            boolean downloadVerified = false;
+                            for ( int attempt = 1; attempt <= maxAttempts && !downloadVerified; attempt++ ) {
+                                NetworkUtilities.downloadFileFromURL( url, localFile );
+                                downloadVerified = HashUtilities.verifySHA1( localFile, sha1 );
+                                if ( !downloadVerified ) {
+                                    //noinspection ResultOfMethodCallIgnored
+                                    localFile.delete();
+                                    Logger.logWarningSilent(
+                                            "Runtime file failed hash verification (attempt " + attempt + " of " +
+                                                    maxAttempts + "): " + relativePathFinal );
+                                }
+                            }
                             if ( !downloadVerified ) {
-                                //noinspection ResultOfMethodCallIgnored
-                                localFile.delete();
-                                Logger.logWarningSilent(
-                                        "Runtime file failed hash verification (attempt " + attempt + " of " +
-                                                maxAttempts + "): " + relativePath );
+                                throw new IOException(
+                                        "Runtime file failed hash verification after " + maxAttempts +
+                                                " attempts: " + relativePathFinal + " (from " + url + ")" );
                             }
                         }
-                        if ( !downloadVerified ) {
-                            throw new IOException(
-                                    "Runtime file failed hash verification after " + maxAttempts + " attempts: " +
-                                            relativePath + " (from " + url + ")" );
-                        }
-                    }
 
-                    // Set executable permission if needed
-                    if ( fileEntry.has( "executable" ) && fileEntry.get( "executable" ).getAsBoolean() ) {
-                        localFile.setExecutable( true );
-                    }
+                        // Set executable permission if needed
+                        if ( executable ) {
+                            localFile.setExecutable( true );
+                        }
+
+                        int done = processedCounter.incrementAndGet();
+                        if ( progressWindowFinal != null && done % 20 == 0 ) {
+                            double pct = 15 + ( 80.0 * done / totalFilesFinal );
+                            reportProgress( progressWindowFinal, progressCallback, label,
+                                            "Installing files... (" + done + "/" + totalFilesFinal + ")", pct );
+                        }
+                        return null;
+                    } );
                 }
                 // Skip "link" type entries on Windows (symlinks require elevated privileges)
+            }
 
-                processedFiles++;
-                if ( progressWindow != null && processedFiles % 20 == 0 ) {
-                    double pct = 15 + ( 80.0 * processedFiles / totalFiles );
-                    reportProgress( progressWindow, progressCallback, label, "Installing files... (" + processedFiles + "/" +
-                            totalFiles + ")", pct );
+            // Second pass (parallel): a runtime is ~500-700 small files; downloading
+            // them one at a time made first install take minutes. Latency-bound, so
+            // allow more concurrency than core count.
+            if ( !fileTasks.isEmpty() ) {
+                int poolSize = Math.max( 1, Math.min( fileTasks.size(),
+                        Math.max( 12, Runtime.getRuntime().availableProcessors() ) ) );
+                java.util.concurrent.ExecutorService filePool =
+                        java.util.concurrent.Executors.newFixedThreadPool( poolSize );
+                List< java.util.concurrent.Future< Void > > futures;
+                try {
+                    futures = filePool.invokeAll( fileTasks );
+                }
+                catch ( InterruptedException ie ) {
+                    filePool.shutdownNow();
+                    Thread.currentThread().interrupt();
+                    throw new IOException( "Interrupted while installing the Java runtime.", ie );
+                }
+                finally {
+                    filePool.shutdown();
+                }
+                // Surface the first per-file failure.
+                for ( java.util.concurrent.Future< Void > f : futures ) {
+                    try {
+                        f.get();
+                    }
+                    catch ( InterruptedException ie ) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException( "Interrupted while installing the Java runtime.", ie );
+                    }
+                    catch ( java.util.concurrent.ExecutionException ee ) {
+                        Throwable cause = ee.getCause();
+                        throw new IOException( "Failed to install a Java runtime file: "
+                                + ( cause == null ? ee.getMessage() : cause.getMessage() ), cause );
+                    }
                 }
             }
 
