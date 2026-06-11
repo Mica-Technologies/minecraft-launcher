@@ -148,7 +148,7 @@ public final class MachineSecretCipher
         byte[] iv = new byte[ 12 ];
         random.nextBytes( iv );
 
-        SecretKey key = deriveMachineKey( salt );
+        SecretKey key = deriveMachineKey( salt, false );
         Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
         cipher.init( Cipher.ENCRYPT_MODE, key, new GCMParameterSpec( 128, iv ) );
         byte[] ciphertext = cipher.doFinal( plaintext );
@@ -175,7 +175,36 @@ public final class MachineSecretCipher
         System.arraycopy( combined, 16, iv, 0, 12 );
         System.arraycopy( combined, 28, ciphertext, 0, ciphertext.length );
 
-        SecretKey key = deriveMachineKey( salt );
+        try {
+            // Current fingerprint always mixes in the per-install random secret.
+            return doDecrypt( salt, iv, ciphertext, false );
+        }
+        catch ( javax.crypto.AEADBadTagException newFingerprintFailed ) {
+            // The blob may predate the always-mix-install-secret change (its key
+            // was derived from the legacy UUID-only fingerprint). Retry with the
+            // legacy fingerprint so existing auth tokens / CF keys keep
+            // decrypting. A successful legacy decrypt is transparently upgraded:
+            // the next time the caller re-encrypts the value (token renewal,
+            // settings re-save) it is written under the new fingerprint. If the
+            // legacy attempt also fails, this is a genuine wrong-machine /
+            // tampered blob — surface the primary failure.
+            try {
+                return doDecrypt( salt, iv, ciphertext, true );
+            }
+            catch ( javax.crypto.AEADBadTagException legacyAlsoFailed ) {
+                throw newFingerprintFailed;
+            }
+        }
+    }
+
+    /** Single decrypt attempt against the machine key for the given fingerprint
+     *  mode ({@code legacy} = pre-2026.6 UUID-only). Separated so
+     *  {@link #decryptBytes} can try the current fingerprint then fall back to
+     *  the legacy one for transparent migration. */
+    private static byte[] doDecrypt( byte[] salt, byte[] iv, byte[] ciphertext, boolean legacy )
+            throws Exception
+    {
+        SecretKey key = deriveMachineKey( salt, legacy );
         Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
         cipher.init( Cipher.DECRYPT_MODE, key, new GCMParameterSpec( 128, iv ) );
         return cipher.doFinal( ciphertext );
@@ -184,57 +213,96 @@ public final class MachineSecretCipher
     // ===== internals =====
 
     /**
-     * Derives an AES-256 key from a hardware + OS fingerprint via PBKDF2.
-     * Salt comes from the caller (so each encryption gets a fresh key).
-     * Hardware UUID + MAC fall back to a per-install random secret rather
-     * than constant strings when detection fails — closes the "every cloud
-     * VM derives the same key" hole.
+     * Derives an AES-256 key from a hardware + OS + per-install-secret
+     * fingerprint via PBKDF2. Salt comes from the caller (so each encryption
+     * gets a fresh key).
+     *
+     * <p>The per-install random secret ({@code machine-key.bin}, owner-only) is
+     * <b>always</b> mixed in (mode {@code legacy == false}). Without it the key
+     * derived purely from {@code username | os.name | hardwareUUID} — all values
+     * any local process can read — so a sibling user could reconstruct the key
+     * and decrypt the tokens whenever the best-effort owner-only ACL on the
+     * config files failed (FAT32/exFAT data partitions, network homes, some WSL
+     * mounts). Mixing the secret in means an attacker also needs to read
+     * {@code machine-key.bin}, which carries the same owner-only protection.</p>
+     *
+     * <p>{@code legacy == true} reproduces the pre-2026.6 fingerprint (hardware
+     * UUID when present, else the install secret — never both) so blobs written
+     * before this change still decrypt via the fallback in
+     * {@link #decryptBytes}.</p>
+     *
+     * <p>Note: a network MAC address was previously mixed in too, but modern
+     * macOS randomizes every interface's MAC, which rotated the key
+     * intermittently and broke decryption ({@code AEADBadTagException} on ~90% of
+     * launches). The hardware UUID already provides machine binding, so the
+     * volatile MAC is gone.</p>
      */
-    private static SecretKey deriveMachineKey( byte[] salt ) throws Exception
+    private static SecretKey deriveMachineKey( byte[] salt, boolean legacy ) throws Exception
     {
-        StringBuilder fingerprint = new StringBuilder();
-        fingerprint.append( resolveOsUsername() ).append( '|' );
-        fingerprint.append( System.getProperty( "os.name", "" ) ).append( '|' );
+        String user = resolveOsUsername();
+        String osName = System.getProperty( "os.name", "" );
+        String hwUuid = resolveHardwareUuid();
+        // Legacy only consulted the install secret when the UUID was missing;
+        // the current fingerprint always needs it. Avoid creating the secret
+        // file in the legacy-with-UUID case so the legacy fingerprint is a
+        // byte-for-byte match of what old blobs were encrypted under.
+        String installSecret = ( legacy && !hwUuid.isBlank() ) ? "" : getOrCreateInstallSecret();
 
-        // Hardware UUID via oshi binds the key to this physical machine, so a
-        // copied config directory (stolen disk image, misconfigured cloud sync)
-        // can't be decrypted on another host. It is stable across launches —
-        // only a genuine hardware change rotates it, which is exactly when the
-        // cache *should* be invalidated. Fallback: per-install random secret
-        // (cloud VMs / sandboxes where the UUID query is unavailable or shared
-        // across instances).
-        try {
-            String hwUuid = new SystemInfo().getHardware().getComputerSystem().getHardwareUUID();
-            if ( hwUuid == null || hwUuid.isBlank() ) {
-                fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
-            }
-            else {
-                fingerprint.append( hwUuid );
-            }
-        }
-        catch ( Exception e ) {
-            fingerprint.append( "install:" ).append( getOrCreateInstallSecret() );
-        }
-
-        // NOTE: a network MAC address was previously mixed into the fingerprint
-        // here. It had to be removed. On modern macOS every interface — en0
-        // included — carries a randomized, locally-administered MAC (Private
-        // Wi-Fi Address / Apple-Silicon randomization), so the filter found no
-        // universally-administered MAC and fell back to the install secret.
-        // Whenever a real OUI MAC *did* appear transiently (Thunderbolt dock,
-        // USB-Ethernet, iPhone tethering) the fingerprint changed, and tokens
-        // encrypted in one interface state failed to decrypt in the other with
-        // AEADBadTagException — the macOS "token renewal failed / unknown login
-        // error" symptom (~90% of launches). Windows was unaffected because it
-        // exposes a stable real-OUI MAC on its primary NIC. The hardware UUID
-        // above already provides machine binding, so the volatile MAC is gone.
+        String fingerprint = assembleFingerprint( user, osName, hwUuid, installSecret, legacy );
 
         KeySpec spec = new PBEKeySpec(
-                fingerprint.toString().toCharArray(), salt,
+                fingerprint.toCharArray(), salt,
                 PBKDF2_ITERATIONS, PBKDF2_KEY_LENGTH_BITS );
         SecretKeyFactory factory = SecretKeyFactory.getInstance( "PBKDF2WithHmacSHA256" );
         byte[] keyBytes = factory.generateSecret( spec ).getEncoded();
         return new SecretKeySpec( keyBytes, "AES" );
+    }
+
+    /**
+     * Assembles the PBKDF2 passphrase from its components. Pure +
+     * package-private so the format — and crucially the legacy-vs-current
+     * compatibility the decrypt fallback depends on — can be unit-tested
+     * without filesystem / hardware coupling.
+     *
+     * @param legacy when true, reproduce the pre-2026.6 format exactly
+     *               ({@code user|os|uuid} or, with no uuid, {@code user|os|install:secret});
+     *               when false, always append the install secret
+     *               ({@code user|os|uuid|install:secret}).
+     */
+    static String assembleFingerprint( String user, String osName, String hwUuid,
+                                       String installSecret, boolean legacy )
+    {
+        StringBuilder fingerprint = new StringBuilder();
+        fingerprint.append( user == null ? "" : user ).append( '|' );
+        fingerprint.append( osName == null ? "" : osName ).append( '|' );
+        String uuid = hwUuid == null ? "" : hwUuid;
+        if ( legacy ) {
+            if ( uuid.isBlank() ) {
+                fingerprint.append( "install:" ).append( installSecret );
+            }
+            else {
+                fingerprint.append( uuid );
+            }
+        }
+        else {
+            fingerprint.append( uuid ).append( '|' );
+            fingerprint.append( "install:" ).append( installSecret );
+        }
+        return fingerprint.toString();
+    }
+
+    /** Hardware UUID via oshi (motherboard / BIOS), or {@code ""} when the query
+     *  is unavailable (cloud VMs, restricted containers, sandboxed processes) —
+     *  in which case the install secret alone carries the machine binding. */
+    private static String resolveHardwareUuid()
+    {
+        try {
+            String hwUuid = new SystemInfo().getHardware().getComputerSystem().getHardwareUUID();
+            return ( hwUuid == null || hwUuid.isBlank() ) ? "" : hwUuid;
+        }
+        catch ( Exception e ) {
+            return "";
+        }
     }
 
     /**
