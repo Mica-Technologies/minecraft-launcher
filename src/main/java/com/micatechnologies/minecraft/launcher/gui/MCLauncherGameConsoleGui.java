@@ -120,6 +120,18 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     private boolean showingCrashReport = false;
     private File logFile;
     private BufferedWriter logFileWriter;
+    /** Guards all access to {@link #logFileWriter} — written from both stream
+     *  readers (stdout + stderr) and flushed from the UI flush thread, so the
+     *  non-thread-safe BufferedWriter needs serializing. */
+    private final Object logFileLock = new Object();
+
+    /** Hard cap on the in-memory captured-log buffer. A long modded session can
+     *  emit hundreds of MB of log text; the complete log is already persisted to
+     *  the per-session log file, so the in-memory copy only needs enough tail for
+     *  the "switch back from crash view" display. Past the trigger the oldest
+     *  content is dropped down to the retain size (trimmed to a line boundary). */
+    private static final int FULL_LOG_TRIGGER_CHARS = 5_000_000;
+    private static final int FULL_LOG_RETAIN_CHARS = 4_000_000;
 
     private final ConcurrentLinkedQueue< String > pendingLines = new ConcurrentLinkedQueue<>();
     private int displayLineCount = 0;
@@ -413,9 +425,11 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                     break;
                 }
                 flushPendingLines();
+                flushLogFile();
             }
             // Final flush after process ends
             flushPendingLines();
+            flushLogFile();
         } );
         flushThread.setDaemon( true );
         flushThread.start();
@@ -668,6 +682,14 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                         .redact( line );
                 synchronized ( fullLogContent ) {
                     fullLogContent.append( safe ).append( '\n' );
+                    // Bound the in-memory buffer — drop the oldest content past the
+                    // trigger, trimmed to a line boundary. The full log lives in the
+                    // session log file.
+                    if ( fullLogContent.length() > FULL_LOG_TRIGGER_CHARS ) {
+                        int dropTo = fullLogContent.length() - FULL_LOG_RETAIN_CHARS;
+                        int nl = fullLogContent.indexOf( "\n", dropTo );
+                        fullLogContent.delete( 0, nl >= 0 ? nl + 1 : dropTo );
+                    }
                 }
                 writeToLogFile( safe );
                 if ( !showingCrashReport ) {
@@ -754,7 +776,14 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
      */
     private void trimDisplayIfNeeded() {
         int maxLines = ConfigManager.getConsoleLogMaxLines();
-        if ( maxLines <= 0 || displayLineCount <= maxLines ) {
+        if ( maxLines <= 0 ) {
+            return;
+        }
+        // Trim with slack so the O(n) scan amortizes: only fire once we're ~20%
+        // over the cap, then drop back to maxLines, rather than trimming a line
+        // at a time on every 150 ms flush once steadily at the limit.
+        int slack = Math.max( 50, maxLines / 5 );
+        if ( displayLineCount <= maxLines + slack ) {
             return;
         }
 
@@ -769,14 +798,16 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
             idx = next + 1;
         }
 
-        if ( idx > 0 && idx < current.length() ) {
-            logArea.setText( current.substring( idx ) );
+        if ( idx > 0 && idx <= current.length() ) {
+            // deleteText avoids the getText()+substring()+setText() full copy (and
+            // the undo/selection reset that setText forces).
+            logArea.deleteText( 0, idx );
             displayLineCount = maxLines;
             // Only re-pin to the bottom when auto-pin is on. Otherwise
             // the user gets snapped down whenever a trim fires, which
             // contradicts the auto-pin-off intent.
             if ( autoPinCheckBox == null || autoPinCheckBox.isSelected() ) {
-                logArea.positionCaret( logArea.getText().length() );
+                logArea.positionCaret( logArea.getLength() );
             }
         }
 
@@ -846,27 +877,50 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     }
 
     private void writeToLogFile( String line ) {
-        if ( logFileWriter == null ) {
-            return;
+        synchronized ( logFileLock ) {
+            if ( logFileWriter == null ) {
+                return;
+            }
+            try {
+                // No per-line flush — that turned the BufferedWriter into an
+                // unbuffered one (a syscall per log line during heavy mod output).
+                // The flush thread flushes periodically; close() flushes the tail.
+                logFileWriter.write( line );
+                logFileWriter.newLine();
+            }
+            catch ( IOException e ) {
+                // Silently ignore file write errors to avoid impacting game performance
+            }
         }
-        try {
-            logFileWriter.write( line );
-            logFileWriter.newLine();
-            logFileWriter.flush();
-        }
-        catch ( IOException e ) {
-            // Silently ignore file write errors to avoid impacting game performance
+    }
+
+    /** Periodically flushes the buffered log writer (called from the UI flush
+     *  thread) so log lines reach disk within the flush interval without paying
+     *  a syscall per line. */
+    private void flushLogFile() {
+        synchronized ( logFileLock ) {
+            if ( logFileWriter == null ) {
+                return;
+            }
+            try {
+                logFileWriter.flush();
+            }
+            catch ( IOException e ) {
+                // Best-effort — a failed flush still gets a final shot at close().
+            }
         }
     }
 
     private void closeLogFileWriter() {
-        if ( logFileWriter != null ) {
-            try {
-                logFileWriter.close();
+        synchronized ( logFileLock ) {
+            if ( logFileWriter != null ) {
+                try {
+                    logFileWriter.close();
+                }
+                catch ( IOException ignored ) {
+                }
+                logFileWriter = null;
             }
-            catch ( IOException ignored ) {
-            }
-            logFileWriter = null;
         }
     }
 
