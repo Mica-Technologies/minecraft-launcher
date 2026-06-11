@@ -47,10 +47,17 @@ import java.util.concurrent.TimeUnit;
  * unchanged during the migration.</p>
  *
  * <h3>Threading</h3>
- * <p>{@link #ensureLoaded()}, raw get/has/put, and {@link #flushNow()}
- * are all class-level synchronised so concurrent setters see a
- * consistent {@link JsonObject}. The debounced write task acquires
- * the same lock when it runs on the scheduler thread.</p>
+ * <p>{@link #ensureLoaded()}, {@link #mutate(java.util.function.Consumer)},
+ * {@link #flushNow()}, and the debounced write task are all synchronised on
+ * the {@code ConfigStore} class monitor. The typed config setters in the
+ * per-domain slices ({@code RuntimeConfig}, {@code AppConfig}, …) currently
+ * mutate the {@link JsonObject} returned by {@link #ensureLoaded()} under their
+ * OWN class monitors rather than {@code ConfigStore}'s, so they are not mutually
+ * exclusive with the serializer. To keep that from corrupting / losing a write,
+ * {@link #writeNow()} serializes a retrying {@code deepCopy} snapshot rather than
+ * the live object. New mutation code should go through
+ * {@link #mutate(java.util.function.Consumer)} (which holds the right monitor),
+ * and the existing setters can migrate to it incrementally.</p>
  *
  * @since 2026.5
  */
@@ -87,10 +94,11 @@ public final class ConfigStore
     // ====================================================================
 
     /** Lazily loads the config from disk on first call; subsequent
-     *  calls are no-ops. Returns the live {@link JsonObject} so
-     *  ConfigManager's existing patterns continue to work — wrap
-     *  reads + writes against this object in {@code synchronized}
-     *  on the ConfigManager class (which it already does). */
+     *  calls are no-ops. Returns the live {@link JsonObject}. Callers that
+     *  mutate it do so under their own per-slice class monitors today; that
+     *  isn't mutually exclusive with the serializer, so {@link #writeNow()}
+     *  snapshots defensively. Prefer {@link #mutate(java.util.function.Consumer)}
+     *  for new writes. */
     public static synchronized JsonObject ensureLoaded() {
         if ( json == null ) {
             loadFromDisk();
@@ -111,6 +119,49 @@ public final class ConfigStore
      *  object. */
     public static synchronized JsonObject peek() {
         return json;
+    }
+
+    /**
+     * Applies a mutation to the live config JSON under the {@code ConfigStore}
+     * monitor. This is the lock-correct way to change config: writes serialize
+     * the JSON under the same monitor, so a mutation routed through here can
+     * never race the serializer. Most existing typed setters still mutate the
+     * object returned by {@link #ensureLoaded()} under their own class monitors
+     * instead — {@link #writeNow()} defends against that with a retrying deep-copy
+     * snapshot — but new code should prefer this, and the setters can migrate to
+     * it incrementally.
+     *
+     * @param mutation receives the live JSON; must not retain the reference
+     *                 beyond the callback
+     *
+     * @since 2026.6
+     */
+    public static synchronized void mutate( java.util.function.Consumer< JsonObject > mutation ) {
+        mutation.accept( ensureLoaded() );
+    }
+
+    /**
+     * Returns a deep copy of the live config JSON for serialization, retrying the
+     * copy if a setter mutating under a different monitor structurally modifies
+     * the backing map mid-copy ({@link java.util.ConcurrentModificationException}).
+     * Bounded so a pathological continuous-mutation storm can't spin forever — on
+     * exhaustion the CME propagates to {@link #writeNow()}, whose next scheduled
+     * write retries anyway. Must be called with the {@code ConfigStore} monitor
+     * held.
+     */
+    private static JsonObject snapshotJson() {
+        final int maxAttempts = 8;
+        for ( int attempt = 1; ; attempt++ ) {
+            try {
+                return json.deepCopy();
+            }
+            catch ( java.util.ConcurrentModificationException cme ) {
+                if ( attempt >= maxAttempts ) {
+                    throw cme;
+                }
+                Thread.onSpinWait();
+            }
+        }
     }
 
     // ====================================================================
@@ -314,10 +365,20 @@ public final class ConfigStore
         File configFile = SynchronizedFileManager.getSynchronizedFile( path );
         java.nio.file.Path target = configFile.toPath();
         java.nio.file.Path tmp = target.resolveSibling( target.getFileName() + ".tmp" );
+
+        // Snapshot the live config before serializing. The typed config setters
+        // mutate this object under their OWN class monitors (RuntimeConfig.class,
+        // AppConfig.class, ...), not ConfigStore's, so a concurrent setter can
+        // structurally modify the backing map while objectToString iterates it —
+        // a ConcurrentModificationException that writeNow would catch, dropping
+        // the debounced write (lost update). Serializing a private deep copy makes
+        // the write immune to concurrent mutation; snapshotJson retries the copy
+        // itself if a setter races the deepCopy.
+        JsonObject snapshot = snapshotJson();
         try {
-            // Serialize the in-memory JSON.
+            // Serialize the snapshot.
             String payload = com.micatechnologies.minecraft.launcher.utilities.JSONUtilities
-                    .objectToString( json );
+                    .objectToString( snapshot );
             byte[] bytes = payload.getBytes( java.nio.charset.StandardCharsets.UTF_8 );
 
             // Diagnostic: log the byte count and pack list being written. Helps
@@ -326,9 +387,9 @@ public final class ConfigStore
             // line readable — the full payload is on disk seconds later.
             int packCount = -1;
             try {
-                if ( json.has( ConfigConstants.MOD_PACKS_INSTALLED_KEY )
-                        && json.get( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).isJsonArray() ) {
-                    packCount = json.getAsJsonArray( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).size();
+                if ( snapshot.has( ConfigConstants.MOD_PACKS_INSTALLED_KEY )
+                        && snapshot.get( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).isJsonArray() ) {
+                    packCount = snapshot.getAsJsonArray( ConfigConstants.MOD_PACKS_INSTALLED_KEY ).size();
                 }
             }
             catch ( Exception ignored ) { /* defensive — diagnostic only */ }
