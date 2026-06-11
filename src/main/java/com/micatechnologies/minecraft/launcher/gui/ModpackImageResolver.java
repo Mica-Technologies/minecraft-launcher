@@ -52,6 +52,14 @@ public final class ModpackImageResolver
 {
     private ModpackImageResolver() { /* static-only */ }
 
+    /** Decode size hint for pack logos. Logos display at 68 px on the home hero
+     *  cards and modestly larger in the detail modal; without a hint a
+     *  1024×1024 source logo decodes to ~4 MB of heap and is held for the card's
+     *  lifetime (and across the whole multi-image cycle list). Decoding to a
+     *  256 px box — comfortably above any display size, so no visible blur —
+     *  caps each logo at ~256 KB while preserving aspect ratio. */
+    private static final double LOGO_DECODE_SIZE = 256;
+
     /**
      * Returns the pack's logo as a JavaFX {@link Image} loaded from the on-disk
      * cache. Returns {@code null} when the pack doesn't have a logo path or the
@@ -68,7 +76,10 @@ public final class ModpackImageResolver
             String path = pack.getPackLogoFilepathRaw();
             if ( path != null ) {
                 File f = new File( path );
-                if ( f.exists() ) return new Image( f.toURI().toString(), true );
+                if ( f.exists() ) {
+                    return new Image( f.toURI().toString(),
+                                      LOGO_DECODE_SIZE, LOGO_DECODE_SIZE, true, true, true );
+                }
             }
         }
         catch ( Exception ignored ) { /* fall through to null */ }
@@ -90,7 +101,8 @@ public final class ModpackImageResolver
                 if ( path == null ) continue;
                 File f = new File( path );
                 if ( f.exists() ) {
-                    images.add( new Image( f.toURI().toString(), true ) );
+                    images.add( new Image( f.toURI().toString(),
+                                           LOGO_DECODE_SIZE, LOGO_DECODE_SIZE, true, true, true ) );
                 }
             }
         }
@@ -132,7 +144,8 @@ public final class ModpackImageResolver
         Image fromDisk = resolveLogoFromDisk( pack );
         if ( fromDisk != null ) return fromDisk;
         try {
-            return new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL, true );
+            return new Image( ModPackConstants.MODPACK_DEFAULT_LOGO_URL,
+                              LOGO_DECODE_SIZE, LOGO_DECODE_SIZE, true, true, true );
         }
         catch ( Exception ignored ) {
             return null;
