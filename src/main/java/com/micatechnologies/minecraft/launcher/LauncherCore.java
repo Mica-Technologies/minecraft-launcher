@@ -38,6 +38,7 @@ import com.micatechnologies.minecraft.launcher.gui.MCLauncherLoginGui;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherProgressGui;
 import com.micatechnologies.minecraft.launcher.utilities.*;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
+import com.micatechnologies.minecraft.launcher.utilities.SchemeRegistrar;
 import com.micatechnologies.minecraft.launcher.utilities.SingleInstanceLock;
 import com.sun.jna.WString;
 import com.sun.jna.platform.win32.Shell32;
@@ -1386,6 +1387,75 @@ public class LauncherCore
     private static void restartAppNow() {
         cleanupApp();
         currentSession.exitLatch.countDown();
+    }
+
+    /**
+     * Fully relaunches the launcher in a <em>new</em> process. Required when a
+     * change must be picked up by state that is bound at JVM class-load time and
+     * cannot be reset in-process — specifically a language change:
+     * {@link com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager}
+     * caches its resource bundle and binds ~89 {@code static final} translation
+     * fields the first time the class loads, against the launch-time locale. The
+     * in-process {@link #restartApp()} loop reuses the same JVM, so those stay
+     * stuck and the UI only partially re-localizes. A genuine process restart
+     * re-runs class init and binds every string to the new locale.
+     *
+     * <p>Only possible when the launcher knows its own executable path — jpackage
+     * installs expose it via the {@code jpackage.app-path} system property. When
+     * that's unavailable (running from a raw JAR or the IDE), there's no stable
+     * exe to respawn, so this falls back to the in-process {@link #restartApp()};
+     * a developer iterating in the IDE keeps the documented static-final-locale
+     * limitation and can do a real restart manually.</p>
+     *
+     * <p>Safe to call from the FX thread; like {@link #restartApp}, cleanup is
+     * hopped to a fresh non-FX thread to avoid the macOS AppKit dispatch-sync
+     * deadlock.</p>
+     *
+     * @since 2026.6
+     */
+    public static void relaunchApp() {
+        if ( javafx.application.Platform.isFxApplicationThread() ) {
+            Thread relauncher = new Thread( LauncherCore::relaunchAppNow, "Launcher-Relaunch" );
+            relauncher.setDaemon( false );
+            relauncher.start();
+            return;
+        }
+        relaunchAppNow();
+    }
+
+    private static void relaunchAppNow() {
+        String exePath = SchemeRegistrar.resolveLauncherExePath();
+        if ( exePath == null || exePath.isBlank() ) {
+            // No installed exe to respawn (dev / raw-JAR / IDE run). Fall back to
+            // the in-process restart — dynamic strings re-resolve on the rebuilt
+            // GUI, but the static-final translation fields stay at the launch
+            // locale until a real process restart (an accepted dev-only gap).
+            Logger.logStd( "Full process relaunch unavailable (no jpackage app path; likely dev/IDE run) — "
+                                   + "falling back to in-process restart." );
+            restartFlag = true;
+            restartAppNow();
+            return;
+        }
+        // Installed app: tear this instance down (which releases the
+        // single-instance lock and flushes config + logging), spawn a fresh
+        // process, then exit. The new JVM re-runs class init so the changed
+        // locale binds everywhere.
+        Logger.logStd( "Relaunching launcher process: " + exePath );
+        cleanupApp();
+        try {
+            new ProcessBuilder( exePath ).start();
+            System.exit( LauncherConstants.EXIT_STATUS_CODE_GOOD );
+        }
+        catch ( IOException e ) {
+            // Spawn failed after cleanup — don't leave the user with a dead
+            // launcher. Re-enter the restart loop instead (Phase 2's loop-top
+            // tryAcquire re-establishes the lock + IPC, and the new session
+            // reconfigures logging).
+            Logger.logError( "Failed to spawn relaunch process (" + e.getMessage()
+                                     + "); falling back to in-process restart." );
+            restartFlag = true;
+            currentSession.exitLatch.countDown();
+        }
     }
 
     /**

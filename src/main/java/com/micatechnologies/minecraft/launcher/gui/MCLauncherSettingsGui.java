@@ -612,15 +612,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             } );
         } ) );
 
-        // Configure save & restart button — same persistence as Save, then an
-        // in-process relaunch so a just-saved language change takes full effect
-        // immediately. Shown only while a language change is pending (see
-        // refreshSaveAndRestartButton). restartApp() off the FX thread (we're in
-        // a spawnNewTask) runs synchronously, after persistSettings has flushed
-        // the locale override to config.
+        // Configure save & restart button — same persistence as Save, then a full
+        // process relaunch so a just-saved language change takes effect everywhere
+        // immediately. A language switch can't be fully applied in-process:
+        // LocalizationManager caches its bundle and binds static-final translation
+        // fields at class-load against the launch-time locale, so the in-process
+        // restart loop only partially re-localizes. relaunchApp() spawns a fresh
+        // JVM (falling back to an in-process restart in dev where there's no exe to
+        // respawn). Shown only while a language change is pending (see
+        // refreshSaveAndRestartButton).
         saveAndRestartBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
             persistSettings();
-            LauncherCore.restartApp();
+            LauncherCore.relaunchApp();
         } ) );
 
         // Configure reset launcher button
@@ -2231,19 +2234,21 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Resolves the BCP-47 override tag the language dropdown's current selection
-     * maps to: a concrete tag for a named locale, or the empty string for the
-     * "Use OS Language" sentinel (which clears the override). Mirrors the lookup
-     * {@link #persistSettings()} writes, so visibility logic and the actual save
-     * agree on what "changed" means.
+     * Resolves the BCP-47 override tag a language-dropdown display label maps to:
+     * a concrete tag for a named locale, or the empty string for the "Use OS
+     * Language" sentinel / any unrecognized label (which clears the override).
+     * Mirrors the lookup {@link #persistSettings()} writes, so visibility logic
+     * and the actual save agree on what "changed" means. Pure + static so it can
+     * be unit-tested without an FX scene.
      *
-     * @return the override tag for the current selection, or {@code ""} for OS-default
+     * @param selectedDisplay the dropdown's selected display label (may be null)
+     *
+     * @return the override tag for that label, or {@code ""} for OS-default
      */
-    private String selectedLanguageOverrideTag() {
-        if ( languageSelection == null || languageSelection.getSelectedItem() == null ) {
+    static String overrideTagForDisplay( String selectedDisplay ) {
+        if ( selectedDisplay == null ) {
             return "";
         }
-        String selectedDisplay = languageSelection.getSelectedItem();
         for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
                 .SupportedLocales.ENTRIES ) {
             if ( entry.displayName().equals( selectedDisplay ) ) {
@@ -2252,6 +2257,36 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
         // OS-default sentinel (or any unrecognized display) → clear the override.
         return "";
+    }
+
+    /**
+     * Whether the dropdown selection represents a language change relative to the
+     * saved override — i.e. the Save &amp; Restart shortcut should be shown. Pure +
+     * static for unit testing; the live UI passes the current selection label and
+     * {@code ConfigManager.getLocaleOverride()}.
+     *
+     * @param selectedDisplay the dropdown's selected display label
+     * @param savedOverrideTag the persisted locale override (may be null/blank for OS-default)
+     *
+     * @return true when the selection differs from what is saved
+     */
+    static boolean isLanguageChangePending( String selectedDisplay, String savedOverrideTag ) {
+        String saved = savedOverrideTag == null ? "" : savedOverrideTag;
+        return !overrideTagForDisplay( selectedDisplay ).equalsIgnoreCase( saved );
+    }
+
+    /**
+     * Resolves the BCP-47 override tag the language dropdown's current selection
+     * maps to (or {@code ""} for OS-default). Instance wrapper over
+     * {@link #overrideTagForDisplay(String)} used by {@link #persistSettings()}.
+     *
+     * @return the override tag for the current selection, or {@code ""} for OS-default
+     */
+    private String selectedLanguageOverrideTag() {
+        if ( languageSelection == null ) {
+            return "";
+        }
+        return overrideTagForDisplay( languageSelection.getSelectedItem() );
     }
 
     /**
@@ -2265,11 +2300,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( saveAndRestartBtn == null ) {
             return;
         }
-        String savedTag = ConfigManager.getLocaleOverride();
-        if ( savedTag == null ) {
-            savedTag = "";
-        }
-        boolean pending = !selectedLanguageOverrideTag().equalsIgnoreCase( savedTag );
+        String selectedDisplay = languageSelection == null ? null : languageSelection.getSelectedItem();
+        boolean pending = isLanguageChangePending( selectedDisplay, ConfigManager.getLocaleOverride() );
         saveAndRestartBtn.setVisible( pending );
         saveAndRestartBtn.setManaged( pending );
     }

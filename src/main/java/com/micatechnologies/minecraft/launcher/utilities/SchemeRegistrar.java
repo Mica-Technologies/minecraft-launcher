@@ -126,8 +126,9 @@ public final class SchemeRegistrar
     /** Resolves the absolute path of the user-facing launcher executable. jpackage sets
      *  {@code jpackage.app-path} as a system property pointing at the wrapper exe — without
      *  that, we're running from a raw JAR / IDE classpath and there's no stable exe to
-     *  register. */
-    private static String resolveLauncherExePath()
+     *  register (or to relaunch — see {@code LauncherCore.relaunchApp}). Returns {@code null}
+     *  in that case. */
+    public static String resolveLauncherExePath()
     {
         String jpackagePath = System.getProperty( "jpackage.app-path" );
         if ( jpackagePath != null && !jpackagePath.isBlank() ) {
