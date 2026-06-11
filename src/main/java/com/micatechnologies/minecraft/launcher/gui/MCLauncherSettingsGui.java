@@ -163,6 +163,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     MFXButton saveBtn;
 
+    /** Save shortcut that also relaunches the launcher. Hidden in FXML; shown
+     *  only while the language dropdown differs from the saved override, because
+     *  a language change needs a relaunch to fully re-apply. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton saveAndRestartBtn;
+
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton returnBtn;
@@ -581,105 +588,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         // Configure save button
         saveBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            // Store min ram to config
-            final long minRamMb = ( long ) ( minRamGb.getValue() * 1024 );
-            ConfigManager.setMinRam( minRamMb );
+            persistSettings();
 
-            // Store max ram to config
-            final long maxRamMb = ( long ) ( maxRamGb.getValue() * 1024 );
-            ConfigManager.setMaxRam( maxRamMb );
-
-            // Store debug mode to config
-            ConfigManager.setDebugLogging( debugCheckBox.isSelected() );
-
-            // Store Discord RPC enable to config and stop Discord RPC if required
-            ConfigManager.setDiscordRpcEnable( discordCheckBox.isSelected() );
-            if ( !discordCheckBox.isSelected() ) {
-                DiscordRpcUtility.exit();
-            }
-
-            // Store Discord invites enable to config
-            ConfigManager.setDiscordInvitesEnable( discordInvitesCheckBox.isSelected() );
-
-            // Store resizable windows to config
-            ConfigManager.setResizableWindows( windowResizeCheckBox.isSelected() );
-            GUIUtilities.JFXPlatformRun( () -> stage.setResizable( ConfigManager.getResizableWindows() ) );
-
-            // Store enhanced logging to config
-            ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
-            ConfigManager.setInGameConsoleEnable( inGameConsoleCheckBox.isSelected() );
-
-            // Console log buffer-size: map selected label back to its
-            // preset value via index. Falls through silently when
-            // selection is null (initial empty state).
-            if ( consoleLogMaxLinesSelection != null
-                    && consoleLogMaxLinesSelection.getSelectedItem() != null ) {
-                int idx = consoleLogMaxLinesSelection.getSelectedIndex();
-                if ( idx >= 0 && idx < ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS.length ) {
-                    ConfigManager.setConsoleLogMaxLines(
-                            ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS[ idx ] );
-                }
-            }
-
-            // Store battery throttle preference
-            ConfigManager.setBatteryThrottleEnable( batteryThrottleCheckBox.isSelected() );
-
-            // Store LWJGL ARM64 patching to config
-            ConfigManager.setLwjglArmPatchEnable( lwjglArmPatchCheckBox.isSelected() );
-
-            // Store theme selection
-            if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
-                ConfigManager.setTheme( themeSelection.getSelectedItem() );
-                MCLauncherGuiController.forceThemeRefresh();
-                // The menu RGB effect derives its accent from the active
-                // theme — repaint so the user's keyboard reflects the new
-                // theme immediately instead of waiting for the next idle
-                // tick / game-exit transition.
-                com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu();
-            }
-
-            // Store language override. The first dropdown item is the
-            // "Use OS Language" sentinel which clears the override; any
-            // other selection maps back to a BCP-47 tag via the
-            // SupportedLocales lookup. New value takes effect on the
-            // next launcher restart — Locale.setDefault has already run
-            // for this session and the 89 static-final translation
-            // fields are locked at the launch-time bundle.
-            if ( languageSelection != null && languageSelection.getSelectedItem() != null ) {
-                String selectedDisplay = languageSelection.getSelectedItem();
-                String overrideTag = "";
-                for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
-                        .SupportedLocales.ENTRIES ) {
-                    if ( entry.displayName().equals( selectedDisplay ) ) {
-                        overrideTag = entry.tag();
-                        break;
-                    }
-                }
-                // Any other selectedDisplay (the OS-default sentinel)
-                // leaves overrideTag empty, which clears the config key.
-                ConfigManager.setLocaleOverride( overrideTag );
-            }
-
-            // Store proxy settings
-            ConfigManager.setProxyEnable( proxyEnableCheckBox.isSelected() );
-            ConfigManager.setProxyHost( proxyHostField.getText() );
-            ConfigManager.setProxyPort( proxyPortSpinner.getValue() );
-            String selectedProxyType = proxyTypeSelection.getSelectedItem();
-            if ( selectedProxyType != null ) {
-                ConfigManager.setProxyType( selectedProxyType );
-            }
-            NetworkUtilities.reloadProxy();
-
-            // Store JVM preset selection
-            String selectedPreset = jvmPresetSelection.getSelectedItem();
-            if ( selectedPreset != null ) {
-                for ( int i = 0; i < ConfigConstants.JVM_PRESET_NAMES.length; i++ ) {
-                    if ( ConfigConstants.JVM_PRESET_NAMES[i].equals( selectedPreset ) ) {
-                        ConfigManager.setCustomJvmArgs( ConfigConstants.JVM_PRESET_ARGS[i] );
-                        break;
-                    }
-                }
-            }
+            // Recompute the pending-language state: after a plain Save the saved
+            // override now matches the dropdown, so the Save & Restart shortcut
+            // hides (the user chose to defer the relaunch). It reappears if they
+            // change the language again.
+            GUIUtilities.JFXPlatformRun( this::refreshSaveAndRestartButton );
 
             // Change save button text to indicate successful save
             GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( LocalizationManager.get( "settings.saveBtn.saved" ) ) );
@@ -695,6 +610,17 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
                 GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( LocalizationManager.get( "settings.saveBtn.label" ) ) );
             } );
+        } ) );
+
+        // Configure save & restart button — same persistence as Save, then an
+        // in-process relaunch so a just-saved language change takes full effect
+        // immediately. Shown only while a language change is pending (see
+        // refreshSaveAndRestartButton). restartApp() off the FX thread (we're in
+        // a spawnNewTask) runs synchronously, after persistSettings has flushed
+        // the locale override to config.
+        saveAndRestartBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+            persistSettings();
+            LauncherCore.restartApp();
         } ) );
 
         // Configure reset launcher button
@@ -962,6 +888,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     languageSelection.selectFirst();
                 }
             }
+
+            // Reveal the Save & Restart shortcut whenever the dropdown moves to a
+            // language different from the saved override (and hide it again on
+            // revert). The listener fires after the initial selectItem/selectFirst
+            // above, so seed the correct hidden state explicitly afterwards.
+            languageSelection.selectedItemProperty().addListener(
+                    ( obs, oldV, newV ) -> refreshSaveAndRestartButton() );
+            refreshSaveAndRestartButton();
         }
 
         // Pack-background display toggle (Appearance tab). Writes back to config
@@ -2189,6 +2123,155 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
         // Cancel (0) -- stay on settings, abort the launch.
         return false;
+    }
+
+    /**
+     * Writes every settings control's current value back to {@link ConfigManager}
+     * and applies the immediate, non-restart side effects (theme refresh, proxy
+     * reload, stage resizability, RGB repaint). Shared by the Save and Save &amp;
+     * Restart buttons so the two paths can never drift.
+     *
+     * <p>Runs on a background thread (both callers wrap it in
+     * {@link SystemUtilities#spawnNewTask}); the few main-thread touches it needs
+     * are individually marshalled via {@link GUIUtilities#JFXPlatformRun}. Reading
+     * control values off the FX thread matches the long-standing save-handler
+     * pattern — nothing mutates these controls concurrently while a save runs.</p>
+     *
+     * @since 2026.6
+     */
+    private void persistSettings() {
+        // Store min ram to config
+        final long minRamMb = ( long ) ( minRamGb.getValue() * 1024 );
+        ConfigManager.setMinRam( minRamMb );
+
+        // Store max ram to config
+        final long maxRamMb = ( long ) ( maxRamGb.getValue() * 1024 );
+        ConfigManager.setMaxRam( maxRamMb );
+
+        // Store debug mode to config
+        ConfigManager.setDebugLogging( debugCheckBox.isSelected() );
+
+        // Store Discord RPC enable to config and stop Discord RPC if required
+        ConfigManager.setDiscordRpcEnable( discordCheckBox.isSelected() );
+        if ( !discordCheckBox.isSelected() ) {
+            DiscordRpcUtility.exit();
+        }
+
+        // Store Discord invites enable to config
+        ConfigManager.setDiscordInvitesEnable( discordInvitesCheckBox.isSelected() );
+
+        // Store resizable windows to config
+        ConfigManager.setResizableWindows( windowResizeCheckBox.isSelected() );
+        GUIUtilities.JFXPlatformRun( () -> stage.setResizable( ConfigManager.getResizableWindows() ) );
+
+        // Store enhanced logging to config
+        ConfigManager.setEnhancedLogging( enhancedLoggingCheckBox.isSelected() );
+        ConfigManager.setInGameConsoleEnable( inGameConsoleCheckBox.isSelected() );
+
+        // Console log buffer-size: map selected label back to its
+        // preset value via index. Falls through silently when
+        // selection is null (initial empty state).
+        if ( consoleLogMaxLinesSelection != null
+                && consoleLogMaxLinesSelection.getSelectedItem() != null ) {
+            int idx = consoleLogMaxLinesSelection.getSelectedIndex();
+            if ( idx >= 0 && idx < ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS.length ) {
+                ConfigManager.setConsoleLogMaxLines(
+                        ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS[ idx ] );
+            }
+        }
+
+        // Store battery throttle preference
+        ConfigManager.setBatteryThrottleEnable( batteryThrottleCheckBox.isSelected() );
+
+        // Store LWJGL ARM64 patching to config
+        ConfigManager.setLwjglArmPatchEnable( lwjglArmPatchCheckBox.isSelected() );
+
+        // Store theme selection
+        if ( ConfigConstants.ALLOWED_THEMES.contains( themeSelection.getSelectedItem() ) ) {
+            ConfigManager.setTheme( themeSelection.getSelectedItem() );
+            MCLauncherGuiController.forceThemeRefresh();
+            // The menu RGB effect derives its accent from the active
+            // theme — repaint so the user's keyboard reflects the new
+            // theme immediately instead of waiting for the next idle
+            // tick / game-exit transition.
+            com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onMenu();
+        }
+
+        // Store language override. The first dropdown item is the
+        // "Use OS Language" sentinel which clears the override; any
+        // other selection maps back to a BCP-47 tag via the
+        // SupportedLocales lookup. New value takes effect on the
+        // next launcher restart — Locale.setDefault has already run
+        // for this session and the 89 static-final translation
+        // fields are locked at the launch-time bundle.
+        if ( languageSelection != null && languageSelection.getSelectedItem() != null ) {
+            ConfigManager.setLocaleOverride( selectedLanguageOverrideTag() );
+        }
+
+        // Store proxy settings
+        ConfigManager.setProxyEnable( proxyEnableCheckBox.isSelected() );
+        ConfigManager.setProxyHost( proxyHostField.getText() );
+        ConfigManager.setProxyPort( proxyPortSpinner.getValue() );
+        String selectedProxyType = proxyTypeSelection.getSelectedItem();
+        if ( selectedProxyType != null ) {
+            ConfigManager.setProxyType( selectedProxyType );
+        }
+        NetworkUtilities.reloadProxy();
+
+        // Store JVM preset selection
+        String selectedPreset = jvmPresetSelection.getSelectedItem();
+        if ( selectedPreset != null ) {
+            for ( int i = 0; i < ConfigConstants.JVM_PRESET_NAMES.length; i++ ) {
+                if ( ConfigConstants.JVM_PRESET_NAMES[i].equals( selectedPreset ) ) {
+                    ConfigManager.setCustomJvmArgs( ConfigConstants.JVM_PRESET_ARGS[i] );
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolves the BCP-47 override tag the language dropdown's current selection
+     * maps to: a concrete tag for a named locale, or the empty string for the
+     * "Use OS Language" sentinel (which clears the override). Mirrors the lookup
+     * {@link #persistSettings()} writes, so visibility logic and the actual save
+     * agree on what "changed" means.
+     *
+     * @return the override tag for the current selection, or {@code ""} for OS-default
+     */
+    private String selectedLanguageOverrideTag() {
+        if ( languageSelection == null || languageSelection.getSelectedItem() == null ) {
+            return "";
+        }
+        String selectedDisplay = languageSelection.getSelectedItem();
+        for ( var entry : com.micatechnologies.minecraft.launcher.consts.localization
+                .SupportedLocales.ENTRIES ) {
+            if ( entry.displayName().equals( selectedDisplay ) ) {
+                return entry.tag();
+            }
+        }
+        // OS-default sentinel (or any unrecognized display) → clear the override.
+        return "";
+    }
+
+    /**
+     * Shows the Save &amp; Restart button only when the language dropdown's
+     * resolved override tag differs from the saved override — i.e. a language
+     * change is pending that a relaunch would apply. Toggles both visibility and
+     * managed-ness so the button takes no layout space while hidden. Must run on
+     * the FX thread.
+     */
+    private void refreshSaveAndRestartButton() {
+        if ( saveAndRestartBtn == null ) {
+            return;
+        }
+        String savedTag = ConfigManager.getLocaleOverride();
+        if ( savedTag == null ) {
+            savedTag = "";
+        }
+        boolean pending = !selectedLanguageOverrideTag().equalsIgnoreCase( savedTag );
+        saveAndRestartBtn.setVisible( pending );
+        saveAndRestartBtn.setManaged( pending );
     }
 
     /**

@@ -950,6 +950,12 @@
         </padding>
         <Pane HBox.hgrow="ALWAYS"/>
         <MFXButton fx:id="saveBtn" prefHeight="28.0" prefWidth="80.0" text="%settings.fxml.save" />
+        <!-- Only shown (visible + managed) while a language change is pending — a
+             language switch needs a relaunch to fully re-apply (Locale.setDefault and
+             the static translation fields are locked at launch), so this offers a
+             save-and-relaunch shortcut inline next to Save. Toggled in
+             MCLauncherSettingsGui via the language dropdown listener. -->
+        <MFXButton fx:id="saveAndRestartBtn" prefHeight="28.0" prefWidth="140.0" text="%settings.fxml.saveAndRestart" visible="false" managed="false" />
         <MFXButton fx:id="returnBtn" prefHeight="28.0" prefWidth="80.0" text="%settings.fxml.return" />
     </HBox>
 </GridPane>
