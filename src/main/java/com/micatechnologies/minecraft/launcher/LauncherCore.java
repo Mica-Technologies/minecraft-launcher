@@ -1468,19 +1468,83 @@ public class LauncherCore
         // locale binds everywhere.
         Logger.logStd( "Relaunching launcher process: " + exePath );
         cleanupApp();
-        try {
-            new ProcessBuilder( exePath ).start();
+        if ( spawnRelaunchProcess( exePath ) ) {
             System.exit( LauncherConstants.EXIT_STATUS_CODE_GOOD );
         }
-        catch ( IOException e ) {
+        else {
             // Spawn failed after cleanup — don't leave the user with a dead
             // launcher. Re-enter the restart loop instead (Phase 2's loop-top
             // tryAcquire re-establishes the lock + IPC, and the new session
             // reconfigures logging).
-            Logger.logError( "Failed to spawn relaunch process (" + e.getMessage()
-                                     + "); falling back to in-process restart." );
+            Logger.logError( "Failed to spawn relaunch process; falling back to in-process restart." );
             restartFlag = true;
             currentSession.exitLatch.countDown();
+        }
+    }
+
+    /**
+     * Spawns a fresh, fully-independent launcher process for a relaunch.
+     *
+     * <p>Prefers the OS shell-execute path (Windows {@code cmd /c start} /
+     * {@code Desktop.open}) so the new instance launches as a top-level process
+     * exactly like a double-click — NOT as a console-inheriting child of this
+     * dying JVM. The child-of-a-GUI-process spawn differs in foreground / window
+     * activation / handle inheritance, and that left the Windows custom title-bar
+     * chrome only partially applied on the relaunched window (the OS caption strip
+     * showed through alongside our own navbar — a double title bar). Falls back to
+     * a detached {@link ProcessBuilder} with discarded stdio if shell-execute is
+     * unavailable.
+     *
+     * @return {@code true} if a new process was started
+     */
+    private static boolean spawnRelaunchProcess( String exePath ) {
+        java.io.File exe = new java.io.File( exePath );
+        java.io.File workingDir = exe.getParentFile();
+
+        // Windows: relaunch via the shell so it's a true top-level launch. The empty
+        // "" is start's mandatory title argument; ProcessBuilder quotes the path.
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            try {
+                ProcessBuilder pb = new ProcessBuilder( "cmd", "/c", "start", "", exePath );
+                if ( workingDir != null && workingDir.isDirectory() ) {
+                    pb.directory( workingDir );
+                }
+                pb.start();
+                return true;
+            }
+            catch ( IOException e ) {
+                Logger.logWarningSilent( "cmd-start relaunch failed (" + e.getClass().getSimpleName()
+                                                 + "); trying Desktop.open." );
+            }
+            // Secondary: ShellExecute via AWT Desktop (also a double-click-equivalent launch).
+            try {
+                if ( java.awt.Desktop.isDesktopSupported()
+                        && java.awt.Desktop.getDesktop().isSupported( java.awt.Desktop.Action.OPEN ) ) {
+                    java.awt.Desktop.getDesktop().open( exe );
+                    return true;
+                }
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( "Desktop.open relaunch failed (" + t.getClass().getSimpleName()
+                                                 + "); falling back to direct spawn." );
+            }
+        }
+
+        // Non-Windows, or Windows shell paths unavailable: detached direct spawn with
+        // discarded stdio so the child isn't tied to the dying parent's pipes.
+        try {
+            ProcessBuilder pb = new ProcessBuilder( exePath );
+            if ( workingDir != null && workingDir.isDirectory() ) {
+                pb.directory( workingDir );
+            }
+            pb.redirectOutput( ProcessBuilder.Redirect.DISCARD );
+            pb.redirectError( ProcessBuilder.Redirect.DISCARD );
+            pb.start();
+            return true;
+        }
+        catch ( IOException e ) {
+            Logger.logError( "Failed to spawn relaunch process: " + e.getMessage() );
+            return false;
         }
     }
 
