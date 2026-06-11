@@ -444,6 +444,8 @@ public class ManagedGameFile
                     NetworkUtilities.downloadFileFromURL( parsed, localFile );
                 }
                 if ( !hasAnyUsableHash() || matchesDeclaredHash( localFile ) ) {
+                    // Invalidate the parse cache — the file just changed on disk.
+                    cachedJson = null;
                     return;
                 }
                 //noinspection ResultOfMethodCallIgnored
@@ -631,8 +633,23 @@ public class ManagedGameFile
         }
     }
 
+    /** Memoized parse of {@link #readToJsonObject()}, keyed by the on-disk
+     *  fingerprint (mtime + length) so a re-download invalidates it. A single
+     *  launch reads the big manifests (client.json 2-4 MB, the asset index 3-6 MB)
+     *  a dozen-plus times each across the library / asset / argument accessors;
+     *  without this every call re-reads the whole file from disk and re-parses it
+     *  through GSON. Transient + unsynchronized: the worst-case race is two
+     *  threads redundantly re-parsing the same content, which is benign. */
+    private transient JsonObject cachedJson;
+    private transient long cachedJsonMtime;
+    private transient long cachedJsonLen;
+
     /**
      * Read this file into a JsonObject.
+     *
+     * <p>The returned object is cached and shared between callers — callers must
+     * treat it as read-only (every current caller does; the library / asset
+     * manifests only read from it).</p>
      *
      * @return JsonObject of this file
      *
@@ -643,10 +660,21 @@ public class ManagedGameFile
         // Verify file is locally downloaded
         updateLocalFile();
 
-        // Return file contents as JSON object
+        // Return file contents as JSON object, reusing the memoized parse when the
+        // on-disk file is unchanged since we last read it.
         File localFileObject = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
+        long mtime = localFileObject.lastModified();
+        long len = localFileObject.length();
+        JsonObject cached = cachedJson;
+        if ( cached != null && mtime == cachedJsonMtime && len == cachedJsonLen ) {
+            return cached;
+        }
         try {
-            return FileUtilities.readAsJsonObject( localFileObject );
+            JsonObject parsed = FileUtilities.readAsJsonObject( localFileObject );
+            cachedJson = parsed;
+            cachedJsonMtime = mtime;
+            cachedJsonLen = len;
+            return parsed;
         }
         catch ( IOException e ) {
             throw new ModpackException( LocalizationManager.UNABLE_READ_LOCAL_FILE_TO_JSON_EXCEPTION_TEXT, e );
