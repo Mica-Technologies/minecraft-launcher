@@ -368,6 +368,13 @@ public class SingleInstanceLock
             MCLauncherGuiController.requestFocus();
 
             if ( LauncherUriHandler.isLauncherUri( line ) ) {
+                // Note: the token check above authenticates the SENDER as the same OS
+                // user, but any same-UID process can read the token file and forward
+                // an mmcl://play / join here. That's an accepted boundary (same-UID
+                // code can already act as the user); the meaningful guard is that
+                // LauncherUriHandler confirms game launches with the user
+                // (confirmDeepLinkLaunch), so an injected play can't start a game
+                // silently.
                 Logger.logDebug( "IPC: dispatching deep-link " + line );
                 LauncherUriHandler.handle( line );
             }

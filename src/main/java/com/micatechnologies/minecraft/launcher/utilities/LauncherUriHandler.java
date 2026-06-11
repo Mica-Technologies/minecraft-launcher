@@ -248,6 +248,9 @@ public final class LauncherUriHandler
             if ( !readyToLaunchViaDeepLink() ) {
                 return;
             }
+            if ( !confirmDeepLinkLaunch( pack.getFriendlyName() ) ) {
+                return;
+            }
             LauncherCore.play( pack );
         } );
     }
@@ -284,6 +287,12 @@ public final class LauncherUriHandler
             // on an already-installed URL is a no-op.
             GameModPack existing = GameModPackManager.getInstalledModPackByURL( url );
             if ( existing != null ) {
+                // Already installed → no install prompt fired, so confirm the launch
+                // itself (the freshly-installed branch below is covered by its
+                // install confirmation instead).
+                if ( !confirmDeepLinkLaunch( existing.getFriendlyName() ) ) {
+                    return;
+                }
                 LauncherCore.play( existing );
                 return;
             }
@@ -323,6 +332,10 @@ public final class LauncherUriHandler
     {
         SystemUtilities.spawnNewTask( () -> {
             if ( !readyToLaunchViaDeepLink() ) {
+                return;
+            }
+            if ( !confirmDeepLinkLaunch(
+                    LocalizationManager.format( "dialog.uri.confirmLaunch.vanillaName", versionId ) ) ) {
                 return;
             }
             try {
@@ -394,6 +407,46 @@ public final class LauncherUriHandler
         MCLauncherAbstractGui current = MCLauncherGuiController.getCurrentGuiOrNull();
         if ( current != null && !current.confirmNavigateAwayForDeepLink() ) {
             Logger.logStd( "mmcl:// launch cancelled by user (unsaved changes on current screen)." );
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Confirmation prompt shown before a {@code mmcl://play} / {@code join} deep
+     * link starts a game. These links can be triggered by any web page (pack
+     * names are guessable/enumerable) or by any same-UID process forwarding over
+     * the single-instance IPC channel, and launching a modpack runs that pack's
+     * mod code on the user's machine — so an explicit consent gate turns a
+     * drive-by launch into a deliberate one. The launcher's own in-app Play
+     * actions don't route through here, so this only ever fires for external
+     * deep links. Users who want to disable deep links entirely already have the
+     * {@code getUriHandlerEnabled()} kill switch.
+     *
+     * <p>Threading: blocks the calling worker task until the user answers (the
+     * dialog runs on the FX thread). All deep-link launch handlers run inside
+     * {@link SystemUtilities#spawnNewTask}, satisfying this.</p>
+     *
+     * @param packDisplayName friendly name of the pack/version being launched
+     *
+     * @return {@code true} to proceed with the launch, {@code false} to abort
+     */
+    private static boolean confirmDeepLinkLaunch( String packDisplayName )
+    {
+        String name = ( packDisplayName == null || packDisplayName.isBlank() )
+                ? LocalizationManager.get( "dialog.uri.confirmLaunch.unknownPack" )
+                : packDisplayName;
+        int answer = GUIUtilities.showQuestionMessage(
+                LocalizationManager.get( "dialog.uri.confirmLaunch.title" ),
+                LocalizationManager.format( "dialog.uri.confirmLaunch.header", name ),
+                LocalizationManager.get( "dialog.uri.confirmLaunch.body" ),
+                LocalizationManager.get( "dialog.uri.confirmLaunch.button.launch" ),
+                LocalizationManager.get( "dialog.button.cancel" ),
+                MCLauncherGuiController.getTopStageOrNull() );
+        // showQuestionMessage returns 1 for the first button (Launch); anything
+        // else (Cancel / dismiss) aborts.
+        if ( answer != 1 ) {
+            Logger.logStd( "User declined mmcl:// launch of " + name );
             return false;
         }
         return true;
