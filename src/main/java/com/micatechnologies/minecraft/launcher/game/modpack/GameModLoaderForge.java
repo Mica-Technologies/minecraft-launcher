@@ -94,6 +94,22 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
      */
     private final GameModPack parentModPack;
 
+    /** One-pass snapshot of the installer JAR's entry names, so the per-library
+     *  {@link #hasEmbeddedMavenEntry}/{@link #hasEmbeddedTopLevelEntry} probes
+     *  become O(1) set lookups instead of each re-opening the multi-MB installer
+     *  and re-parsing its full central directory (100-250+ opens per launch).
+     *  Cleared when the installer is re-downloaded. */
+    private transient java.util.Set< String > cachedJarEntryNames;
+
+    /** Cached parse of the Forge version manifest (modern {@code version.json} or
+     *  legacy {@code versionInfo}). Re-opening + re-GSON-parsing it on every
+     *  accessor was a major per-launch cost. */
+    private transient JsonObject cachedForgeVersionManifest;
+
+    /** Cached library list built from {@link #cachedForgeVersionManifest}; built
+     *  once instead of twice per launch (classpath + download both ask). */
+    private transient ArrayList< GameAsset > cachedForgeLibrariesList;
+
     /**
      * Constructor for {@link GameModLoaderForge}. Creates a {@link GameModLoaderForge} object with the specified remote
      * URL, SHA-1 hash and associated mod pack.
@@ -303,6 +319,22 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     }
 
     /**
+     * Invalidates the per-instance installer caches (entry-name set, version
+     * manifest, library list) whenever the installer JAR is re-downloaded, so a
+     * fresh jar is re-read rather than serving stale cached metadata.
+     */
+    @Override
+    public boolean updateLocalFile() throws ModpackException {
+        boolean changed = super.updateLocalFile();
+        if ( changed ) {
+            cachedJarEntryNames = null;
+            cachedForgeVersionManifest = null;
+            cachedForgeLibrariesList = null;
+        }
+        return changed;
+    }
+
+    /**
      * Gets the {@link JarFile} for this Forge mod loader instance.
      *
      * @return Forge {@link JarFile}
@@ -328,6 +360,10 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
      * @since 1.0
      */
     private ArrayList< GameAsset > getForgeLibrariesList() throws ModpackException {
+        ArrayList< GameAsset > cachedList = cachedForgeLibrariesList;
+        if ( cachedList != null ) {
+            return cachedList;
+        }
         // Get Forge version manifest libraries array
         JsonObject forgeVersionManifest = getForgeVersionManifest();
         JsonArray forgeAssetsArray = forgeVersionManifest.getAsJsonArray(
@@ -446,6 +482,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         }
 
         // Return resulting list of Forge Assets
+        cachedForgeLibrariesList = forgeAssets;
         return forgeAssets;
     }
 
@@ -559,13 +596,31 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return new ForgeAssetRequirements( clientReq, serverReq );
     }
 
-    private boolean hasEmbeddedMavenEntry( String repoPath ) {
+    /** Lazily builds (once) the set of every entry name in the installer JAR.
+     *  Converts the hot {@code hasEmbedded*} probes from a fresh JarFile open +
+     *  central-directory parse each call into an O(1) set lookup. A failed read
+     *  returns an empty set without caching so a transient error can be retried. */
+    private java.util.Set< String > jarEntryNames() {
+        java.util.Set< String > cached = cachedJarEntryNames;
+        if ( cached != null ) {
+            return cached;
+        }
+        java.util.Set< String > names = new java.util.HashSet<>();
         try ( JarFile forgeJarFile = getForgeJarFile() ) {
-            return forgeJarFile.getEntry( "maven/" + repoPath ) != null;
+            Enumeration< JarEntry > entries = forgeJarFile.entries();
+            while ( entries.hasMoreElements() ) {
+                names.add( entries.nextElement().getName() );
+            }
         }
         catch ( IOException | ModpackException e ) {
-            return false;
+            return names;  // don't cache a failed read
         }
+        cachedJarEntryNames = names;
+        return names;
+    }
+
+    private boolean hasEmbeddedMavenEntry( String repoPath ) {
+        return jarEntryNames().contains( "maven/" + repoPath );
     }
 
     private String getEmbeddedMavenEntryURL( String repoPath ) {
@@ -578,12 +633,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
      *  the {@code maven/} subtree). Used to detect the bundled
      *  universal jar in pre-1.13 installers, which sit at the root. */
     private boolean hasEmbeddedTopLevelEntry( String entryName ) {
-        try ( JarFile forgeJarFile = getForgeJarFile() ) {
-            return forgeJarFile.getEntry( entryName ) != null;
-        }
-        catch ( IOException | ModpackException e ) {
-            return false;
-        }
+        return jarEntryNames().contains( entryName );
     }
 
     /** Build a {@code jar:file://} URL pointing at a top-level entry
@@ -600,21 +650,55 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     {
         // Get list of Forge Assets
         ArrayList< GameAsset > forgeAssetsList = getForgeLibrariesList();
+        final String localPathPrefix = SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
+                                                                       ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
 
-        // For each asset, verify and download as necessary
+        // Verify + download in parallel — these are 40-80 multi-MB JARs and the
+        // sequential loop serialized both the cold-install downloads and the
+        // warm-launch SHA-1 hashing onto one core. ManagedGameFile's per-path
+        // locks + verify cache are concurrent and each asset writes a distinct
+        // path, so this is safe. Mirrors GameLibraryManifest.downloadVerifyLibraries.
+        int maxThreads = Math.max( 4, Runtime.getRuntime().availableProcessors() );
+        int threadCount = Math.max( 1, Math.min( forgeAssetsList.size(), maxThreads ) );
+        java.util.concurrent.ExecutorService threadPool =
+                java.util.concurrent.Executors.newFixedThreadPool( threadCount );
+        List< java.util.concurrent.Future< ? > > futures = new ArrayList<>();
         for ( GameAsset forgeAsset : forgeAssetsList ) {
-            String localPathPrefix = SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
-                                                                    ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
-            forgeAsset.setLocalPathPrefix( localPathPrefix );
-            forgeAsset.updateLocalFile( gameAppMode );
-
-            // Update progress provider if present
-            if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Verified asset " +
-                                                         SynchronizedFileManager.getSynchronizedFile(
-                                                                 forgeAsset.getFullLocalFilePath() ).getName(),
-                                                 ( 60.0 / ( double ) forgeAssetsList.size() ) );
+            futures.add( threadPool.submit( ( java.util.concurrent.Callable< Void > ) () -> {
+                forgeAsset.setLocalPathPrefix( localPathPrefix );
+                forgeAsset.updateLocalFile( gameAppMode );
+                if ( progressProvider != null ) {
+                    progressProvider.submitProgress( "Verified asset " +
+                                                             SynchronizedFileManager.getSynchronizedFile(
+                                                                     forgeAsset.getFullLocalFilePath() ).getName(),
+                                                     ( 60.0 / ( double ) forgeAssetsList.size() ) );
+                }
+                return null;
+            } ) );
+        }
+        threadPool.shutdown();
+        try {
+            if ( !threadPool.awaitTermination( 30, java.util.concurrent.TimeUnit.MINUTES ) ) {
+                threadPool.shutdownNow();
+                throw new ModpackException( "Forge library downloads did not complete within 30 minutes." );
             }
+            // Surface any per-asset failure (download / hash) from the workers.
+            for ( java.util.concurrent.Future< ? > future : futures ) {
+                future.get();
+            }
+        }
+        catch ( InterruptedException e ) {
+            threadPool.shutdownNow();
+            Thread.currentThread().interrupt();
+            throw new ModpackException( "Interrupted while downloading Forge libraries.", e );
+        }
+        catch ( java.util.concurrent.ExecutionException e ) {
+            Throwable cause = e.getCause();
+            if ( cause instanceof ModpackException modpackException ) {
+                throw modpackException;
+            }
+            throw new ModpackException( "Failed to download a Forge library: "
+                                                + ( cause == null ? e.getMessage() : cause.getMessage() ), e );
         }
     }
 
@@ -1175,6 +1259,16 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     }
 
     private JsonObject getForgeVersionManifest() throws ModpackException {
+        JsonObject cached = cachedForgeVersionManifest;
+        if ( cached != null ) {
+            return cached;
+        }
+        JsonObject manifest = readForgeVersionManifest();
+        cachedForgeVersionManifest = manifest;
+        return manifest;
+    }
+
+    private JsonObject readForgeVersionManifest() throws ModpackException {
         try ( JarFile forgeJarFile = getForgeJarFile() ) {
             // Modern Forge (1.13+, plus some 1.12.x builds): version.json
             // lives at the root of the installer jar with the full
