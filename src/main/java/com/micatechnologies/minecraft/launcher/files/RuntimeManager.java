@@ -129,6 +129,36 @@ public class RuntimeManager
         String newJavaPath = null;
         String newJavaVersion = null;
 
+        // Fast path: a runtime is already installed (version marker + java exec
+        // both present). Trust it and resolve immediately, WITHOUT the synchronous
+        // Mojang index fetch below — that ~500 KB round trip otherwise blocks every
+        // launch (even fully warm) on the network, stalling up to ~40 s on a flaky
+        // link before the cached fallback. We can't tell from disk alone whether a
+        // newer runtime exists, so the update check runs in the background: if
+        // Mojang ships a newer versionName it drops the version marker, and the
+        // NEXT launch falls through to a full verify + install.
+        File installedVersionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
+        File installedJavaExec = new File( runtimeFolderPath, RuntimeConstants.getJavaExecPathForOs() );
+        if ( installedVersionFile.exists() && installedJavaExec.exists() ) {
+            String installedVersion;
+            try {
+                installedVersion = org.apache.commons.io.FileUtils.readFileToString(
+                        installedVersionFile, "UTF-8" ).trim();
+            }
+            catch ( IOException e ) {
+                installedVersion = "Unknown";
+            }
+            Logger.logStd( "Runtime " + component + " (" + installedVersion + ") already installed — using it; "
+                                   + "checking for updates in the background." );
+            verifiedPaths.put( component, installedJavaExec.getAbsolutePath() );
+            verifiedVersions.put( component, installedVersion );
+            reportProgress( progressWindow, progressCallback, label, "Already installed.", 100 );
+            final String installedVersionFinal = installedVersion;
+            SystemUtilities.spawnNewTask(
+                    () -> backgroundRuntimeUpdateCheck( component, runtimeFolderPath, installedVersionFinal ) );
+            return;
+        }
+
         try {
             // Get the Mojang runtime index
             reportProgress( progressWindow, progressCallback, label, "Fetching runtime index...", 10 );
@@ -704,6 +734,46 @@ public class RuntimeManager
      */
     private static String getComponentRuntimeFolderPath( String component ) {
         return SystemUtilities.buildFilePath( LocalPathManager.getLauncherRuntimeFolderPath(), component );
+    }
+
+    /**
+     * Off-launch-path check for a newer Java runtime. Fetches the Mojang index,
+     * compares the latest {@code versionName} for {@code component} against the
+     * installed one, and — if newer — deletes the on-disk version marker so the
+     * fast path in {@link #verifyRuntime} misses on the next launch and runs a
+     * full verify + install. Best-effort: any failure (offline, parse error) is
+     * logged and ignored, leaving the working runtime in place.
+     */
+    private static void backgroundRuntimeUpdateCheck( String component, String runtimeFolderPath,
+                                                      String installedVersion ) {
+        try {
+            JsonObject index = getMojangRuntimeIndex();
+            String platform = RuntimeConstants.getMojangPlatformKey();
+            if ( !index.has( platform ) ) {
+                return;
+            }
+            JsonObject platformObj = index.getAsJsonObject( platform );
+            if ( !platformObj.has( component ) ) {
+                return;
+            }
+            JsonArray componentArray = platformObj.getAsJsonArray( component );
+            if ( componentArray.isEmpty() ) {
+                return;
+            }
+            JsonObject versionObj = JsonHelper.getRequiredJsonObject(
+                    componentArray.get( 0 ).getAsJsonObject(), "version" );
+            String latestVersion = JsonHelper.getRequiredString( versionObj, "name" );
+            if ( !latestVersion.equals( installedVersion ) ) {
+                Logger.logStd( "Newer Java runtime " + component + " available (" + installedVersion
+                                       + " -> " + latestVersion + "); it will be installed on the next launch." );
+                File versionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
+                //noinspection ResultOfMethodCallIgnored
+                versionFile.delete();
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Background runtime update check failed: " + e.getClass().getSimpleName() );
+        }
     }
 
     /**
