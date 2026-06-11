@@ -319,6 +319,23 @@ public class MCLauncherHelpWindow
             );
         } );
 
+        // Belt-and-braces: help content is bundled and loaded via loadContent (null
+        // origin), so the main-frame location must never leave about:blank. If a
+        // future help topic ever embedded remote content (an <a> to https, an
+        // iframe) a navigation would change the location AND let that remote page's
+        // scripts reach window.helpBridge. Cancel any such navigation so the bridge
+        // is only ever exposed to the bundled content.
+        engineRef.locationProperty().addListener( ( obs, oldLoc, newLoc ) -> {
+            if ( webEngine != engineRef ) {
+                return;
+            }
+            if ( newLoc == null || newLoc.isEmpty() || newLoc.equals( "about:blank" ) ) {
+                return;
+            }
+            Logger.logWarningSilent( "Help window blocked navigation to non-bundled location: " + newLoc );
+            engineRef.getLoadWorker().cancel();
+        } );
+
         // Layout
         root = new BorderPane();
         root.setLeft( sidebar );

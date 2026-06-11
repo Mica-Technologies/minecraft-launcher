@@ -125,19 +125,41 @@ public class Logger
             rotateLogFiles( logFile );
         }
 
-        // Create a new log file
-        var newFile = logFile.createNewFile();
-        if ( !newFile ) {
-            Logger.logError( LocalizationManager.LOG_FILE_NOT_CREATED_TEXT );
+        // Create the log file owner-only FROM CREATION on POSIX filesystems, so
+        // there's no window between createNewFile and the permission tighten where
+        // a sibling user could open the file and keep the handle. On non-POSIX
+        // (Windows/NTFS) we fall back to a plain create + ACL-tighten below; the
+        // content isn't written until after the tighten, so the only exposure
+        // there is an empty file.
+        java.nio.file.Path logPath = logFile.toPath();
+        boolean created = false;
+        try {
+            java.nio.file.Files.createFile( logPath,
+                    java.nio.file.attribute.PosixFilePermissions.asFileAttribute(
+                            java.util.EnumSet.of(
+                                    java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                                    java.nio.file.attribute.PosixFilePermission.OWNER_WRITE ) ) );
+            created = true;
+        }
+        catch ( UnsupportedOperationException nonPosix ) {
+            // Non-POSIX FS — create normally and ACL-tighten below.
+        }
+        catch ( java.nio.file.FileAlreadyExistsException alreadyExists ) {
+            created = true;  // a prior log remains (rotation didn't fire); reused + truncated below.
+        }
+        if ( !created ) {
+            var newFile = logFile.createNewFile();
+            if ( !newFile && !logFile.exists() ) {
+                Logger.logError( LocalizationManager.LOG_FILE_NOT_CREATED_TEXT );
+            }
         }
 
-        // Tighten perms so a sibling user on a shared workstation can't read this user's
-        // launcher log. Redaction (auth tokens etc.) is applied at log-write time, but
-        // the launcher log also contains file paths, account user names, and other PII
-        // that doesn't belong to other accounts on the machine. Best-effort — non-POSIX
-        // FS without ACL support silently no-ops, which is no worse than today's behavior.
-        com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly(
-                logFile.toPath() );
+        // Tighten perms (idempotent) before the first write. Redaction (auth tokens
+        // etc.) is applied at log-write time, but the launcher log also contains file
+        // paths, account user names, and other PII that doesn't belong to other
+        // accounts on a shared workstation. Best-effort — non-POSIX FS without ACL
+        // support silently no-ops.
+        com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly( logPath );
 
         /*
          * File print stream
@@ -226,14 +248,30 @@ public class Logger
             File from = new File( basePath + "." + i );
             File to = new File( basePath + "." + ( i + 1 ) );
             if ( from.exists() ) {
-                //noinspection ResultOfMethodCallIgnored
-                from.renameTo( to );
+                moveLogBackup( from.toPath(), to.toPath() );
             }
         }
 
         // Rename current log file to .1
-        //noinspection ResultOfMethodCallIgnored
-        logFile.renameTo( new File( basePath + ".1" ) );
+        moveLogBackup( logFile.toPath(), new File( basePath + ".1" ).toPath() );
+    }
+
+    /** Moves a log file to a rotated-backup path, replacing any existing target,
+     *  and tightens the backup's permissions. {@code File.renameTo} (the old
+     *  approach) silently fails on Windows when the target exists or the source is
+     *  still open, leaving rotation gaps and unbounded {@code .1} growth — {@code
+     *  Files.move(REPLACE_EXISTING)} surfaces the failure so we can at least log it,
+     *  and a rotated file inherits the owner-only restriction the live log had. */
+    private static void moveLogBackup( java.nio.file.Path from, java.nio.file.Path to )
+    {
+        try {
+            java.nio.file.Files.move( from, to, java.nio.file.StandardCopyOption.REPLACE_EXISTING );
+            com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly( to );
+        }
+        catch ( IOException e ) {
+            Logger.logWarningSilent( "Could not rotate log file " + from.getFileName()
+                                             + ": " + e.getClass().getSimpleName() );
+        }
     }
 
     /**
