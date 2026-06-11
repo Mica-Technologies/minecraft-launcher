@@ -79,13 +79,24 @@ launcher_runtime_folder/
 
 ### Standard Mojang Runtimes (Java 16+)
 
+**Warm-launch fast path (2026.6).** Before any network call, `verifyRuntime` checks
+for an installed runtime (`.version` marker + java executable both present). If found
+it resolves that runtime immediately and returns, *skipping the synchronous Mojang
+index fetch entirely* — that ~500 KB round trip otherwise blocked every launch, even
+fully warm, and stalled up to ~40 s on a flaky link. An off-thread
+`backgroundRuntimeUpdateCheck` then fetches the index and, if Mojang ships a newer
+`versionName`, deletes the `.version` marker so the next launch falls through to a
+full verify + install. First install / post-update launches run the full flow below.
+
 1. Check `.version` file against remote manifest version
 2. Fetch Mojang runtime index from `MOJANG_RUNTIME_INDEX_URL`
 3. Extract platform-specific component using `RuntimeConstants.getMojangPlatformKey()`
 4. Download component manifest (lists every file with SHA1 hashes)
-5. Process manifest entries:
-   - `"directory"` type: create directory
-   - `"file"` type: download with SHA1 verification
+5. Process manifest entries (file downloads run in parallel):
+   - `"directory"` type: create directory (sequential first pass)
+   - `"file"` type: download with SHA1 verification — the SHA-1 is enforced on the
+     bytes actually received (bounded retry, fail on mismatch), not just used to
+     decide whether to re-download
    - `"link"` type: skip on Windows (symlinks require elevation)
 6. Set executable bit on files flagged `executable: true`
 7. Write version marker to `.version` file

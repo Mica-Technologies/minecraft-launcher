@@ -84,6 +84,13 @@ Key methods:
   `natives-windows`, `natives-linux-${arch}`)
 - **Multi-threaded downloads** -- thread pool sized to
   `min(libraryCount, availableProcessors)`; SHA-1 verified
+- **Post-download integrity gate** -- the declared hash is enforced on the bytes
+  *actually received*, not just used as a "should I re-download?" trigger.
+  `ManagedGameFile.downloadLocalFile` re-hashes each download (strongest-first
+  SHA-256 → SHA-1 → MD5, bypassing the verify cache / FAST_PATH) and fails the
+  launch on mismatch after a bounded retry; `RuntimeManager` and the Forge
+  processor-library loader do the same. This stops a compromised mirror / corrupted
+  transfer from being placed on the classpath, extracted, or executed.
 - **Classpath building** -- `LinkedHashSet` for deduplication
 - **Modern vs legacy detection:**
   - `hasModernArguments()` -- checks for `"arguments"` field (modern) vs

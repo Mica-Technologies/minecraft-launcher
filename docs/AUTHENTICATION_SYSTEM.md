@@ -76,11 +76,31 @@ specific machine. The fingerprint is composed of:
 
 1. Operating system username
 2. OS name
-3. Hardware UUID (platform-specific query) — falls back to a per-install random
-   secret at `<config>/machine-key.bin` when the UUID query is unavailable
-   (cloud VMs, sandboxes) or returns a shared/blank value.
+3. Hardware UUID (platform-specific query), when available
+4. A per-install random secret at `<config>/machine-key.bin` — **always** mixed in
+   (lazily created on first use, owner-only permissions)
 
 This prevents cached tokens from being usable if the file is copied to another machine.
+
+> **Always-mixed install secret (2026.6).** The per-install secret used to be only
+> a *fallback* for when the hardware-UUID query failed, so on a normal machine the
+> key derived purely from `username | os.name | hardwareUUID` — all values any
+> local process can read. A sibling user could therefore reconstruct the key
+> whenever the best-effort owner-only ACL on the config files silently failed
+> (FAT32/exFAT data partitions, network homes, some WSL mounts). The secret is now
+> always part of the fingerprint, so an attacker also needs to read the owner-only
+> `machine-key.bin`. **Migration is transparent:** `MachineSecretCipher.decryptBytes`
+> tries the current fingerprint, and on AEAD-tag failure retries the legacy
+> (UUID-only) fingerprint; a value that decrypts under the legacy key is re-encrypted
+> under the new one the next time it's written (token renewal, settings re-save).
+
+> **Accepted residual risk — argv token exposure.** The live Minecraft access token
+> is passed to the game JVM as a command-line argument (`--accessToken`), which any
+> same-machine process can read (`/proc/<pid>/cmdline`, `Win32_Process.CommandLine`).
+> This is inherent to the Minecraft launch protocol (the vanilla launcher does the
+> same) and isn't avoidable; it's mitigated for *logs* by `SensitiveDataRedactor`
+> (launch command + game-console output are redacted), but the live argv exposure to
+> a same-UID process is an accepted residual.
 
 > **Note:** A primary network MAC address was previously part of the fingerprint
 > but was removed. Modern macOS randomizes every interface's MAC (Private Wi-Fi
