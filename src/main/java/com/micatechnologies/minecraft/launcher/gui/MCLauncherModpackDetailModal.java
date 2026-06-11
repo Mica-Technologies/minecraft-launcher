@@ -887,7 +887,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         if ( DiscordRpcUtility.buildInviteLinkFromPack( pack ) == null ) {
             inviteBtn.setDisable( true );
             TooltipManager.install( inviteBtn,
-                    "This pack has no manifest URL or vanilla ID to invite friends to." );
+                    LocalizationManager.get( "tooltip.modal.invite" ) );
         }
         grid.getChildren().add( inviteBtn );
 
@@ -1610,7 +1610,8 @@ public class MCLauncherModpackDetailModal extends StackPane
         // bake into the visual row but useful for auditors comparing the
         // manifest's claim against a freshly computed hash of the JAR.
         if ( a.fileSha256 != null && !a.fileSha256.isBlank() ) {
-            TooltipManager.install( row, "File SHA-256: " + a.fileSha256 );
+            TooltipManager.install( row,
+                    LocalizationManager.format( "tooltip.modal.fileSha", a.fileSha256 ) );
         }
 
         return row;

@@ -257,7 +257,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // could differ if a refresh races with the click.
         if ( announcementClose != null ) {
             announcementClose.setCursor( Cursor.HAND );
-            TooltipManager.install( announcementClose, "Dismiss this announcement." );
+            TooltipManager.install( announcementClose,
+                                    LocalizationManager.get( "tooltip.main.announcementClose" ) );
             announcementClose.setOnMouseClicked( e -> {
                 String shown = announcement.getText();
                 if ( shown != null && !shown.isEmpty() ) {
@@ -511,15 +512,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Tooltips so the controls are discoverable. Help text matches the
         // Library screen's hints where applicable so users get a consistent
         // mental model across the two screens.
-        TooltipManager.install( searchField,
-                "Filter packs. Each whitespace-separated word must match somewhere in "
-                        + "the pack's name, version, Minecraft version, or Forge version. "
-                        + "Try \"1.12\", \"forge\", or \"biomes 1.12\"." );
-        TooltipManager.install( typeFilter,     "Filter by Modpack or Vanilla version." );
-        TooltipManager.install( sortFilter,     "Choose how packs are ordered in the grid." );
+        TooltipManager.install( searchField, LocalizationManager.get( "tooltip.main.search" ) );
+        TooltipManager.install( typeFilter,     LocalizationManager.get( "tooltip.main.typeFilter" ) );
+        TooltipManager.install( sortFilter,     LocalizationManager.get( "tooltip.main.sortFilter" ) );
         TooltipManager.install( recentlyUpdatedOnlyCheck,
-                                "Show only packs whose manifest has changed since last launch." );
-        TooltipManager.install( pageSizeFilter, "How many cards to render per page." );
+                                LocalizationManager.get( "tooltip.main.recentlyUpdated" ) );
+        TooltipManager.install( pageSizeFilter, LocalizationManager.get( "tooltip.main.pageSize" ) );
     }
 
     @Override
@@ -533,14 +531,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             ColdStartProfiler.writeAndMaybeExit();
         } ) );
 
-        TooltipManager.install( settingsBtn, "Open launcher settings (RAM, theme, JVM flags, proxy)." );
-        TooltipManager.install( libraryBtn, "Browse, install, and manage modpacks + vanilla Minecraft versions." );
-        // Tooltip text intentionally still uses "Browse, install, manage" — matches
-        // the button's new "Browse" label.
-        TooltipManager.install( helpBtn, "Open the help window for this screen." );
+        TooltipManager.install( settingsBtn, LocalizationManager.get( "tooltip.main.settings" ) );
+        TooltipManager.install( libraryBtn, LocalizationManager.get( "tooltip.main.library" ) );
+        TooltipManager.install( helpBtn, LocalizationManager.get( "tooltip.common.help" ) );
         if ( refreshIcon != null ) {
             TooltipManager.install( refreshIcon,
-                                    "Refresh modpack data (same as pressing F5)." );
+                                    LocalizationManager.get( "tooltip.main.refresh" ) );
         }
 
         // First-launch quick-start wizard. Fires once per install (the config flag

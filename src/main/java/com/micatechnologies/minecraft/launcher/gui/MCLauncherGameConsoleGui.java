@@ -241,7 +241,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         if ( helpBtn != null ) {
             helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
             helpBtn.setCursor( javafx.scene.Cursor.HAND );
-            TooltipManager.install( helpBtn, "Open the help window for this screen." );
+            TooltipManager.install( helpBtn, LocalizationManager.get( "tooltip.common.help" ) );
         }
 
         // Search bar — find-next on Enter or click, find-prev on the

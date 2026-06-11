@@ -116,7 +116,8 @@ public class UpdateCheckManager
                             // an unlabelled glyph.
                             com.micatechnologies.minecraft.launcher.gui.TooltipManager.install(
                                     updateImgView,
-                                    "Mica Launcher " + latestVersion + " is available — click to download." );
+                                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                                            .format( "tooltip.update.available", latestVersion ) );
                             updateImgView.setOnMouseClicked(
                                     mouseEvent -> promptAndOpenUpdate( latestVersionURL, stage ) );
                         }

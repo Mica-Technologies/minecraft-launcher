@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import javafx.scene.control.Label;
 
@@ -44,10 +45,6 @@ public final class OfflineIndicator
 {
     private OfflineIndicator() { /* static-only */ }
 
-    private static final String TOOLTIP_TEXT =
-            "You're offline. Installing, updating, and version pickers won't work until "
-                    + "the network is back.";
-
     /**
      * Toggles {@code label} visible / managed based on
      * {@link NetworkUtilities#isOffline()} and installs an explanatory
@@ -64,6 +61,6 @@ public final class OfflineIndicator
         boolean offline = NetworkUtilities.isOffline();
         label.setVisible( offline );
         label.setManaged( offline );
-        TooltipManager.install( label, TOOLTIP_TEXT );
+        TooltipManager.install( label, LocalizationManager.get( "tooltip.offline" ) );
     }
 }

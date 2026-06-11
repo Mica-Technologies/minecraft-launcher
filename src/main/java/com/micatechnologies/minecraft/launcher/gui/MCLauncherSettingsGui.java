@@ -988,7 +988,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             // spinner — the recommendation depends on it.
             maxRamGb.valueProperty().addListener( ( obs, oldV, newV ) -> updateHint.run() );
             TooltipManager.install( generateJvmArgsBtn,
-                    "Builds a JVM-args string tuned to your CPU + RAM + max-heap setting." );
+                    LocalizationManager.get( "tooltip.settings.generateJvmArgs" ) );
             generateJvmArgsBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
                 int maxRam = currentMaxRamGb();
                 String generated = com.micatechnologies.minecraft.launcher.utilities
@@ -2021,44 +2021,35 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         themeSelection.getSelectionModel().selectItem( safeCurrentConfigTheme );
 
         // Install tooltips on all settings controls
-        TooltipManager.install( minRamGb, "Minimum RAM allocated to Minecraft (GB). Recommended: 2-4 GB." );
-        TooltipManager.install( maxRamGb,
-                "Maximum RAM Minecraft can use (GB). Set 4-8 GB for large modpacks." );
-        TooltipManager.install( debugCheckBox,
-                "Enables verbose logging output. Useful for troubleshooting issues." );
+        TooltipManager.install( minRamGb, LocalizationManager.get( "tooltip.settings.minRam" ) );
+        TooltipManager.install( maxRamGb, LocalizationManager.get( "tooltip.settings.maxRam" ) );
+        TooltipManager.install( debugCheckBox, LocalizationManager.get( "tooltip.settings.debug" ) );
         TooltipManager.install( windowResizeCheckBox,
-                "Allows the launcher window to be resized freely." );
-        TooltipManager.install( discordCheckBox,
-                "Shows your current modpack and play status in Discord." );
+                LocalizationManager.get( "tooltip.settings.windowResize" ) );
+        TooltipManager.install( discordCheckBox, LocalizationManager.get( "tooltip.settings.discord" ) );
         TooltipManager.install( discordInvitesCheckBox,
-                "When in-game, friends see a Join Game button on your Discord status that installs and launches the same modpack on their machine." );
+                LocalizationManager.get( "tooltip.settings.discordInvites" ) );
         TooltipManager.install( enhancedLoggingCheckBox,
-                "Writes additional diagnostic info to log files." );
+                LocalizationManager.get( "tooltip.settings.enhancedLogging" ) );
         TooltipManager.install( inGameConsoleCheckBox,
-                "Shows a real-time game output console while playing. Useful for debugging." );
+                LocalizationManager.get( "tooltip.settings.inGameConsole" ) );
         TooltipManager.install( batteryThrottleCheckBox,
-                "Slows downloads on laptops running on battery to conserve power. "
-                        + "Desktops and devices on AC are never throttled." );
-        TooltipManager.install( themeSelection,
-                "Choose the launcher's visual theme. Automatic matches your OS setting." );
-        TooltipManager.install( jvmPresetSelection,
-                "JVM tuning flags. Performance (Aikar's Flags) is recommended for most users." );
+                LocalizationManager.get( "tooltip.settings.batteryThrottle" ) );
+        TooltipManager.install( themeSelection, LocalizationManager.get( "tooltip.settings.theme" ) );
+        TooltipManager.install( jvmPresetSelection, LocalizationManager.get( "tooltip.settings.jvmPreset" ) );
         TooltipManager.install( proxyEnableCheckBox,
-                "Enable if you're behind a corporate or school proxy/firewall." );
-        TooltipManager.install( proxyHostField,
-                "The proxy server hostname or IP address (e.g. proxy.example.com or 10.0.0.1)." );
-        TooltipManager.install( proxyPortSpinner,
-                "The proxy server port number (commonly 8080 for HTTP, 1080 for SOCKS)." );
-        TooltipManager.install( proxyTypeSelection,
-                "HTTP for web proxies, SOCKS for lower-level network proxies." );
+                LocalizationManager.get( "tooltip.settings.proxyEnable" ) );
+        TooltipManager.install( proxyHostField, LocalizationManager.get( "tooltip.settings.proxyHost" ) );
+        TooltipManager.install( proxyPortSpinner, LocalizationManager.get( "tooltip.settings.proxyPort" ) );
+        TooltipManager.install( proxyTypeSelection, LocalizationManager.get( "tooltip.settings.proxyType" ) );
         TooltipManager.install( resetLauncherBtn,
-                "Deletes all launcher data and resets to defaults. Use as a last resort!" );
+                LocalizationManager.get( "tooltip.settings.resetLauncher" ) );
         TooltipManager.install( resetRuntimeBtn,
-                "Removes all cached Java runtimes. They will re-download on next launch." );
+                LocalizationManager.get( "tooltip.settings.resetRuntime" ) );
         TooltipManager.install( exportSettingsBtn,
-                "Save your current launcher settings to a JSON file for backup or sharing." );
+                LocalizationManager.get( "tooltip.settings.exportSettings" ) );
         TooltipManager.install( importSettingsBtn,
-                "Load settings from a previously exported JSON file." );
+                LocalizationManager.get( "tooltip.settings.importSettings" ) );
 
         // Navbar help button — same pattern the main menu uses (Label with .helpButton
         // styleClass). MCLauncherGuiWindow.injectHelpButton() detects the navbar entry
@@ -2066,7 +2057,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( helpBtn != null ) {
             helpBtn.setOnMouseClicked( e -> MCLauncherHelpWindow.show( getHelpTopic() ) );
             helpBtn.setCursor( javafx.scene.Cursor.HAND );
-            TooltipManager.install( helpBtn, "Open the help window for this screen." );
+            TooltipManager.install( helpBtn, LocalizationManager.get( "tooltip.common.help" ) );
         }
 
         OfflineIndicator.applyTo( offlineLabel );
