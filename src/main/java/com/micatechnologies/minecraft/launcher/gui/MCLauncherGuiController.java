@@ -213,6 +213,14 @@ public class MCLauncherGuiController
             }
             guiWindow.setScene( newMainGui );
             guiWindow.show();
+            // Re-arm the prebuild so a later return to the main menu
+            // (Main -> Settings/Library/... -> Main) skips the ~250 ms FXML parse
+            // again rather than only the first visit. The constructor just loads
+            // the FXML scene graph (all wiring happens in setup() at setScene
+            // time), so building a spare while one is shown is side-effect-free;
+            // it's consumed on the next goToMainGui and cleared in exit().
+            com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask(
+                    MCLauncherGuiController::prebuildMainGui );
         }
         else {
             Logger.logError( "The application main GUI could not be displayed due to the application GUI not being " +
