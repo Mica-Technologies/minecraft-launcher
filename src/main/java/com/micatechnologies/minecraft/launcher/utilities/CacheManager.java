@@ -165,6 +165,14 @@ public class CacheManager
             return existing;
         }
 
+        // Only cache network URLs. Reject file:/jar:/etc. so a (potentially
+        // user/manifest-supplied) URL can't make the launcher copy an arbitrary
+        // local file into the content cache.
+        String lower = url == null ? "" : url.toLowerCase( java.util.Locale.ROOT );
+        if ( !lower.startsWith( "https://" ) && !lower.startsWith( "http://" ) ) {
+            throw new java.io.IOException( "Refusing to cache non-http(s) URL: " + url );
+        }
+
         String hash = hashUrl( url );
         String ext = getExtension( url );
         File cacheFile = new File( getCacheDir(), hash + ext );

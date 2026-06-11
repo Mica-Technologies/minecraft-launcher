@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor;
 import javafx.stage.Stage;
 import org.apache.commons.io.output.TeeOutputStream;
 
@@ -302,7 +303,7 @@ public class Logger
      * @since 1.0
      */
     public static void logErrorSilent( String errorLog ) {
-        System.err.println( logErrorPrefix + errorLog );
+        System.err.println( logErrorPrefix + SensitiveDataRedactor.redact( errorLog ) );
     }
 
     /**
@@ -313,7 +314,7 @@ public class Logger
      * @since 1.0
      */
     public static void logStd( String log ) {
-        System.out.println( logStdPrefix + log );
+        System.out.println( logStdPrefix + SensitiveDataRedactor.redact( log ) );
     }
 
     /** Whether {@link #logDebug} is allowed to consult {@link ConfigManager}
@@ -359,14 +360,14 @@ public class Logger
         // bootstrap has progressed far enough that consulting
         // ConfigManager is safe — see configBackedDebugReady doc above.
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            System.out.println( logDebugPrefix + debugLog );
+            System.out.println( logDebugPrefix + SensitiveDataRedactor.redact( debugLog ) );
             return;
         }
         if ( !configBackedDebugReady ) {
             return;
         }
         if ( ConfigManager.getDebugLogging() ) {
-            System.out.println( logDebugPrefix + debugLog );
+            System.out.println( logDebugPrefix + SensitiveDataRedactor.redact( debugLog ) );
         }
     }
 
@@ -378,7 +379,12 @@ public class Logger
      * @since 1.0
      */
     public static void logThrowable( Throwable throwable ) {
-        throwable.printStackTrace( System.err );
+        // Redact the full stack trace (message + causes) before it lands in the
+        // log — an exception message can embed a token (e.g. an IOException whose
+        // message contains a URL with a token query param).
+        java.io.StringWriter sw = new java.io.StringWriter();
+        throwable.printStackTrace( new java.io.PrintWriter( sw ) );
+        System.err.print( SensitiveDataRedactor.redact( sw.toString() ) );
     }
 
     /**
@@ -406,7 +412,7 @@ public class Logger
      * @since 1.0
      */
     public static void logWarningSilent( String warningLog ) {
-        System.err.println( logWarnPrefix + warningLog );
+        System.err.println( logWarnPrefix + SensitiveDataRedactor.redact( warningLog ) );
     }
 
     /**
