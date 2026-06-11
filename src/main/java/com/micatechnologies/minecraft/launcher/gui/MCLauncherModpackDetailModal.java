@@ -349,6 +349,19 @@ public class MCLauncherModpackDetailModal extends StackPane
         bodyDelay.play();
     }
 
+    /** Tear-down hook for the owning GUI's cleanup. Unconditionally drops the
+     *  hero-image cycle-clock subscription (idempotent), so a main GUI torn down
+     *  while the modal is open doesn't leak the subscription into the app-wide
+     *  {@link ModpackImageCycleClock}. Unlike {@link #hide()} it does no
+     *  animation and ignores {@code visibleState}. */
+    public void dispose()
+    {
+        if ( heroCycleUnsub != null ) {
+            heroCycleUnsub.run();
+            heroCycleUnsub = null;
+        }
+    }
+
     /** Fades the modal out and returns it to its hidden, unmanaged state so no input
      *  events leak through. Safe to call when already hidden. */
     public void hide()

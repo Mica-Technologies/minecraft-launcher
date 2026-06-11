@@ -104,4 +104,14 @@ public final class CardPool< T >
     {
         return pool.poll();
     }
+
+    /** Runs {@code action} over every pooled (not-currently-displayed) card.
+     *  Used by the owning GUI's cleanup to tear down per-card subscriptions
+     *  (e.g. the image-cycle clock) on cards that aren't in the scene graph. */
+    public void forEach( java.util.function.Consumer< ? super T > action )
+    {
+        for ( T card : pool ) {
+            action.accept( card );
+        }
+    }
 }

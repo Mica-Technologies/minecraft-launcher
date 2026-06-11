@@ -625,7 +625,27 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // (e.g. progressGUI for a game launch) isn't competing with a stale
         // red overlay. Stop only — the wrapper itself is owned by
         // TaskbarProgressManager and lives until app exit.
-        GUIUtilities.JFXPlatformRun( TaskbarProgressManager::stop );
+        GUIUtilities.JFXPlatformRun( () -> {
+            TaskbarProgressManager.stop();
+
+            // Unsubscribe every hero card — both the ones currently in the grid AND
+            // the pooled (off-screen) ones — from the app-wide image-cycle clock.
+            // Without this, navigating away from the main menu leaves the clock
+            // singleton strongly retaining the discarded cards (and their decoded
+            // Image lists + the whole scene graph), and its Timeline running
+            // forever. The clock stops itself once its listener list empties.
+            for ( javafx.scene.Node n : modpackCardList.getChildren() ) {
+                if ( n instanceof ModpackHeroCard card ) {
+                    card.unsubscribeCycle();
+                }
+            }
+            cardPool.forEach( ModpackHeroCard::unsubscribeCycle );
+
+            // Drop the detail modal's own clock subscription too.
+            if ( detailModal != null ) {
+                detailModal.dispose();
+            }
+        } );
     }
 
     @Override
@@ -1140,6 +1160,22 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             setMaxWidth( CARD_WIDTH );
             setSpacing( 0 );
 
+            // Drop the image-cycle clock subscription whenever this card leaves the
+            // scene (navigation away, pool recycle) and re-derive it when shown
+            // again. Combined with the explicit unsubscribe in
+            // MCLauncherMainGui.cleanup(), this stops the app-wide
+            // ModpackImageCycleClock from strongly retaining discarded cards (and
+            // their decoded Image lists + whole scene graph) and running its
+            // Timeline forever.
+            sceneProperty().addListener( ( obs, oldScene, newScene ) -> {
+                if ( newScene == null ) {
+                    unsubscribeCycle();
+                }
+                else if ( cycleUnsub == null && pack != null ) {
+                    refreshImageCycle();
+                }
+            } );
+
             // Bitmap-cache the whole card so the ScrollPane reuses the rasterized
             // bitmap during vertical scrolling instead of re-rendering each card's
             // gaussian dropshadow, rounded image clip, and CSS bg-image every
@@ -1582,6 +1618,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         private void refreshImageCycle()
         {
             setupImageCycle( this.pack, logo.getImage(), ConfigManager.getShowPackBackgrounds() );
+        }
+
+        /** Drops this card's image-cycle clock subscription (idempotent). Invoked
+         *  by the scene-detach listener and by {@link MCLauncherMainGui#cleanup()}
+         *  so a torn-down GUI's cards leave the shared clock's listener list,
+         *  letting the discarded scene graph be collected and the clock's Timeline
+         *  stop once empty. */
+        void unsubscribeCycle()
+        {
+            if ( cycleUnsub != null ) {
+                cycleUnsub.run();
+                cycleUnsub = null;
+            }
         }
 
         /** Advances to the next logo / background image. Runs on the FX thread via the
