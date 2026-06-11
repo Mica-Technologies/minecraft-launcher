@@ -31,6 +31,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.manifests.ManifestRuleUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
@@ -676,7 +677,15 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
 
         Logger.logStd( "Running Forge install processors for " + side + "..." );
 
-        // Download install_profile libraries
+        // Download install_profile libraries. These JARs are about to be
+        // executed as child JVMs (processor pipeline below), so any SHA-1 the
+        // profile declares for them is enforced: on already-present files, on
+        // bytes extracted from the installer, and on bytes downloaded from
+        // the network. The declared hashes are collected (keyed by the
+        // forward-slash relative path under the libs folder) so the processor
+        // loop can re-check each JAR right before execution.
+        java.util.Map< String, String > declaredLibSha1ByPath = new java.util.HashMap<>();
+        java.util.Set< String > verifiedLibPaths = new java.util.HashSet<>();
         JsonArray profileLibs = installProfile.getAsJsonArray( "libraries" );
         for ( JsonElement libEl : profileLibs ) {
             JsonObject lib = libEl.getAsJsonObject();
@@ -689,6 +698,15 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
 
             String path = JsonHelper.getRequiredString( artifact, "path" );
             String url = JsonHelper.getString( artifact, "url", "" );
+            String sha1 = JsonHelper.getString( artifact, "sha1", null );
+            boolean hasSha1 = sha1 != null && !sha1.isBlank();
+            if ( hasSha1 ) {
+                declaredLibSha1ByPath.put( path, sha1 );
+            }
+            else {
+                Logger.logWarningSilent(
+                        "Forge processor library declares no hash; it will be used unverified: " + path );
+            }
 
             // The Forge installer's library descriptors contribute both a relative
             // path and a URL. Both come straight from JSON inside the installer
@@ -711,7 +729,18 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             File localFile = resolved.toFile();
 
             if ( localFile.exists() ) {
-                continue;
+                if ( !hasSha1 || HashUtilities.verifySHA1( localFile, sha1 ) ) {
+                    if ( hasSha1 ) {
+                        verifiedLibPaths.add( path );
+                    }
+                    continue;
+                }
+                // Existing file no longer matches the profile's declared hash —
+                // fall through and re-acquire it instead of executing it as-is.
+                Logger.logWarningSilent(
+                        "Existing processor library failed hash verification, re-acquiring: " + path );
+                //noinspection ResultOfMethodCallIgnored
+                localFile.delete();
             }
 
             if ( url.isEmpty() ) {
@@ -722,6 +751,15 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                     }
                     catch ( IOException e ) {
                         throw new ModpackException( "Failed to extract embedded library: " + path, e );
+                    }
+                    if ( hasSha1 && !HashUtilities.verifySHA1( localFile, sha1 ) ) {
+                        //noinspection ResultOfMethodCallIgnored
+                        localFile.delete();
+                        throw new ModpackException(
+                                "Embedded processor library failed hash verification: " + path );
+                    }
+                    if ( hasSha1 ) {
+                        verifiedLibPaths.add( path );
                     }
                 }
                 continue;
@@ -735,11 +773,34 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             }
 
             localFile.getParentFile().mkdirs();
-            try {
-                NetworkUtilities.downloadFileFromURL( url, localFile );
+            // Post-download integrity gate: these JARs run as child JVMs, so
+            // the profile's declared SHA-1 must hold for the bytes actually
+            // received. Bounded retry absorbs transient corruption.
+            final int maxAttempts = 3;
+            boolean downloadAccepted = false;
+            for ( int attempt = 1; attempt <= maxAttempts && !downloadAccepted; attempt++ ) {
+                try {
+                    NetworkUtilities.downloadFileFromURL( url, localFile );
+                }
+                catch ( IOException e ) {
+                    throw new ModpackException( "Failed to download processor library: " + url, e );
+                }
+                downloadAccepted = !hasSha1 || HashUtilities.verifySHA1( localFile, sha1 );
+                if ( !downloadAccepted ) {
+                    //noinspection ResultOfMethodCallIgnored
+                    localFile.delete();
+                    Logger.logWarningSilent(
+                            "Processor library failed hash verification (attempt " + attempt + " of " +
+                                    maxAttempts + "): " + path );
+                }
             }
-            catch ( IOException e ) {
-                throw new ModpackException( "Failed to download processor library: " + url, e );
+            if ( !downloadAccepted ) {
+                throw new ModpackException(
+                        "Processor library failed hash verification after " + maxAttempts + " attempts: " +
+                                path + " (from " + url + ")" );
+            }
+            if ( hasSha1 ) {
+                verifiedLibPaths.add( path );
             }
 
             if ( progressProvider != null ) {
@@ -777,15 +838,21 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             String processorJar = JsonHelper.getRequiredString( proc, "jar" );
             Logger.logStd( "Running Forge processor " + ( i + 1 ) + "/" + processors.size() + ": " + processorJar );
 
-            // Build classpath for this processor
+            // Build classpath for this processor, verifying each JAR against the
+            // profile's declared hash right before it gets executed. Artifacts
+            // verified earlier in this run are skipped via verifiedLibPaths;
+            // coordinates the profile carries no hash for have nothing to check.
+            String processorJarPath = mavenCoordToPath( processorJar );
+            verifyProcessorArtifact( libsFolder, processorJarPath, declaredLibSha1ByPath, verifiedLibPaths );
             StringBuilder procClasspath = new StringBuilder();
-            procClasspath.append( new File( libsFolder, mavenCoordToPath( processorJar ) ).getAbsolutePath() );
+            procClasspath.append( new File( libsFolder, processorJarPath ).getAbsolutePath() );
 
             if ( proc.has( "classpath" ) ) {
                 for ( JsonElement cpEl : proc.getAsJsonArray( "classpath" ) ) {
+                    String cpPath = mavenCoordToPath( cpEl.getAsString() );
+                    verifyProcessorArtifact( libsFolder, cpPath, declaredLibSha1ByPath, verifiedLibPaths );
                     procClasspath.append( File.pathSeparator );
-                    procClasspath.append(
-                            new File( libsFolder, mavenCoordToPath( cpEl.getAsString() ) ).getAbsolutePath() );
+                    procClasspath.append( new File( libsFolder, cpPath ).getAbsolutePath() );
                 }
             }
 
@@ -860,6 +927,39 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
      */
     private static String mavenCoordToPath( String coord ) throws ModpackException {
         return MavenArtifactPath.toRelativePathStrict( coord );
+    }
+
+    /**
+     * Verifies a processor-pipeline JAR against the SHA-1 the install profile
+     * declared for it, immediately before the JAR is placed on a child JVM's
+     * classpath. No-op when the profile carries no hash for the path (nothing
+     * to check) or when this run already verified it ({@code alreadyVerified}
+     * avoids re-hashing shared libraries once per processor).
+     *
+     * @param libsFolder      libraries folder the relative path resolves under
+     * @param relativePath    forward-slash relative path of the artifact
+     * @param declaredSha1    profile-declared SHA-1 hashes keyed by relative path
+     * @param alreadyVerified relative paths verified earlier in this run
+     *
+     * @throws ModpackException if the on-disk JAR no longer matches its declared hash
+     *
+     * @since 2026.6
+     */
+    private static void verifyProcessorArtifact( String libsFolder, String relativePath,
+                                                  java.util.Map< String, String > declaredSha1,
+                                                  java.util.Set< String > alreadyVerified )
+    throws ModpackException
+    {
+        String sha1 = declaredSha1.get( relativePath );
+        if ( sha1 == null || alreadyVerified.contains( relativePath ) ) {
+            return;
+        }
+        File artifactFile = new File( libsFolder, relativePath.replace( "/", File.separator ) );
+        if ( !HashUtilities.verifySHA1( artifactFile, sha1 ) ) {
+            throw new ModpackException(
+                    "Processor JAR failed hash verification before execution: " + relativePath );
+        }
+        alreadyVerified.add( relativePath );
     }
 
     /**
