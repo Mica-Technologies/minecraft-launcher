@@ -180,6 +180,10 @@ public class ManagedGameFile
      */
     private transient boolean sessionVerified = false;
 
+    /** One-shot guard so the "MD5-only verification" notice logs at most once per
+     *  instance rather than on every verify-cache miss. */
+    private transient boolean md5OnlyWarned = false;
+
     /**
      * Optional download tracker for byte-level progress reporting. Set via {@link #setDownloadTracker(DownloadTracker)}
      * before calling {@link #updateLocalFile()}.
@@ -333,6 +337,16 @@ public class ManagedGameFile
             return verifyWithCache( localFile, sha1, "sha1", HashUtilities::verifySHA1 );
         }
         if ( hasUsableHash( this.md5 ) ) {
+            // MD5 is the only declared hash (no SHA-256/SHA-1). MD5 is
+            // collision-broken, so it's a weak integrity guarantee — flag it once
+            // so a manifest relying solely on MD5 is visible in the log. Most
+            // upstreams (Mojang, Forge, Modrinth) publish a stronger hash and never
+            // reach here.
+            if ( !md5OnlyWarned ) {
+                md5OnlyWarned = true;
+                Logger.logDebug( "Verifying with MD5 only (no SHA-256/SHA-1 declared) for "
+                                         + getFullLocalFilePath() );
+            }
             return verifyWithCache( localFile, md5, "md5", HashUtilities::verifyMD5 );
         }
         // No hash declared — accept existence only.

@@ -116,12 +116,43 @@ public final class InstallIndex
         return Path.of( LocalPathManager.getLauncherModpackFolderPath(), INDEX_FILENAME );
     }
 
+    /** Best-effort reap of leftover {@code install_index.json.tmp.N} staging files
+     *  from a crash between write and rename — otherwise they accumulate forever
+     *  (the in-process cleanup only fires on an in-flight IOException). Only files
+     *  older than a few minutes are removed, so a concurrent in-flight write's temp
+     *  is never deleted out from under it. */
+    private static void reapStaleTempFiles()
+    {
+        try {
+            Path p = indexPath();
+            Path dir = p.getParent();
+            if ( dir == null || !Files.isDirectory( dir ) ) {
+                return;
+            }
+            String prefix = p.getFileName().toString() + ".tmp.";
+            long cutoff = System.currentTimeMillis() - 5 * 60 * 1000L;
+            try ( java.util.stream.Stream< Path > entries = Files.list( dir ) ) {
+                entries.filter( f -> f.getFileName().toString().startsWith( prefix ) )
+                       .forEach( f -> {
+                           try {
+                               if ( Files.getLastModifiedTime( f ).toMillis() < cutoff ) {
+                                   Files.deleteIfExists( f );
+                               }
+                           }
+                           catch ( IOException ignored ) { /* best-effort */ }
+                       } );
+            }
+        }
+        catch ( Exception ignored ) { /* best-effort cleanup; never block load */ }
+    }
+
     /** Reads the index from disk, or returns an empty instance if the file is
      *  missing / unreadable / from a future schema version. Treating any read
      *  failure as empty forces the per-manifest fallback path on this launch,
      *  which transparently rebuilds the index as packs refresh. */
     public static synchronized InstallIndex load()
     {
+        reapStaleTempFiles();
         try {
             Path p = indexPath();
             if ( !Files.isRegularFile( p ) ) return new InstallIndex();

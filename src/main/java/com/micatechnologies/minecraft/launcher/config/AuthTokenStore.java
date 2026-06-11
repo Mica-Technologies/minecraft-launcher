@@ -102,13 +102,15 @@ public final class AuthTokenStore
         JsonObject json = ConfigStore.ensureLoaded();
         if ( apiKey == null || apiKey.isBlank() ) {
             json.remove( ConfigConstants.CURSEFORGE_API_KEY_KEY );
-            ConfigStore.scheduleWrite();
+            // Flush now rather than debounce: a credential change shouldn't be lost
+            // to a crash / hard-kill inside the 500 ms debounce window.
+            ConfigStore.flushNow();
             return;
         }
         try {
             String envelope = MachineSecretCipher.encrypt( apiKey );
             json.addProperty( ConfigConstants.CURSEFORGE_API_KEY_KEY, envelope );
-            ConfigStore.scheduleWrite();
+            ConfigStore.flushNow();
         }
         catch ( Throwable t ) {
             Logger.logWarningSilent( "CurseForge API key could not be encrypted on this machine: "

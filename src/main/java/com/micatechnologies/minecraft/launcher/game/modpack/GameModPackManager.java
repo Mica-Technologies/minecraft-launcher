@@ -180,8 +180,11 @@ public class GameModPackManager
         // Fetch contents of available mod pack manifest
         String availableModPackManifestBody;
         try {
-            availableModPackManifestBody = NetworkUtilities.downloadFileFromURL(
-                    ModPackConstants.AVAILABLE_PACKS_MANIFEST_URL );
+            // Bounded fetch (50 MB cap) instead of the unbounded string overload, so a
+            // compromised / misbehaving manifest host can't OOM the launcher with a
+            // multi-GB body. Also gains the HTTPS-per-hop + Content-Type assertions.
+            availableModPackManifestBody = NetworkUtilities.downloadFileFromURLBounded(
+                    ModPackConstants.AVAILABLE_PACKS_MANIFEST_URL, 50L * 1024 * 1024 );
         }
         catch ( IOException e ) {
             Logger.logThrowable( e );

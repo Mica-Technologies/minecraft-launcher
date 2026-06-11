@@ -33,10 +33,13 @@ import java.util.regex.Pattern;
  *       token but still account-linked.</li>
  *   <li>{@code token:<token>:<uuid>} — the legacy session format used pre-1.6.
  *       Carries the same access token in a different syntax.</li>
- *   <li>{@code --uuid <value>} / {@code --auth_uuid <value>} — UUIDs aren't
- *       secrets per se but they're PII when paired with usernames; redact in
- *       contexts where the user might paste publicly.</li>
  * </ul>
+ *
+ * <p>UUIDs ({@code --uuid} / {@code --auth_uuid}, and the trailing field of the
+ * legacy {@code token:} form) are intentionally NOT redacted: a UUID is not a
+ * credential, and the legacy pattern deliberately preserves it so the scrubbed
+ * line still reads as a recognizable session string. Don't add UUID redaction
+ * without reconciling that decision.</p>
  *
  * <p>Performance: regexes are compiled once and held in static fields, so the
  * per-line cost is one regex pass per pattern. The game console processes a

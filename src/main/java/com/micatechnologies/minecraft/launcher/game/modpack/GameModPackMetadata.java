@@ -366,7 +366,23 @@ public abstract class GameModPackMetadata
      */
     public double getPackMinRAMGB()
     {
-        return Double.parseDouble( packMinRAMGB );
+        // Defensive parse: packMinRAMGB is a raw manifest string. A malformed value
+        // ("lots", "") would otherwise throw NumberFormatException out of a simple
+        // accessor and break the launch / RAM check. Fall back to 0 (no minimum) and
+        // clamp to a sane ceiling so a hostile manifest can't demand absurd RAM.
+        if ( packMinRAMGB == null || packMinRAMGB.isBlank() ) {
+            return 0.0;
+        }
+        try {
+            double parsed = Double.parseDouble( packMinRAMGB.trim() );
+            if ( Double.isNaN( parsed ) || parsed < 0.0 ) {
+                return 0.0;
+            }
+            return Math.min( parsed, 1024.0 );  // clamp well beyond any real pack
+        }
+        catch ( NumberFormatException e ) {
+            return 0.0;
+        }
     }
 
     /**

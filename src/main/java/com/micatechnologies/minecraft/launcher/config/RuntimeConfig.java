@@ -103,6 +103,9 @@ public final class RuntimeConfig
     public static synchronized void setCustomJvmArgs( String jvmArgs ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.JVM_ARGS_KEY,
                                                   jvmArgs == null ? "" : jvmArgs );
-        ConfigStore.scheduleWrite();
+        // Flush now rather than debounce: custom JVM args control what gets
+        // executed at launch, so the value shouldn't be lost to a crash inside
+        // the debounce window.
+        ConfigStore.flushNow();
     }
 }
