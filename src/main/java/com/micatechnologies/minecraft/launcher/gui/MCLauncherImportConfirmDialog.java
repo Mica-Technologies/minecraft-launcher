@@ -132,7 +132,7 @@ public final class MCLauncherImportConfirmDialog
             }
         }
         if ( !anyShown ) {
-            Label empty = new Label( "(No mod files listed — pack may be configs/resources only.)" );
+            Label empty = new Label( LocalizationManager.get( "importConfirm.empty" ) );
             empty.getStyleClass().add( "subtle" );
             empty.setStyle( "-fx-font-size: 11px;" );
             modListContent.getChildren().add( empty );
@@ -146,13 +146,13 @@ public final class MCLauncherImportConfirmDialog
 
         // ----- Footer: Import / Cancel -----
         final boolean[] confirmed = { false };
-        MFXButton importBtn = new MFXButton( "Import" );
+        MFXButton importBtn = new MFXButton( LocalizationManager.get( "common.button.import" ) );
         importBtn.getStyleClass().add( "primary" );
         importBtn.setOnAction( e -> {
             confirmed[ 0 ] = true;
             stage.close();
         } );
-        MFXButton cancelBtn = new MFXButton( "Cancel" );
+        MFXButton cancelBtn = new MFXButton( LocalizationManager.get( "common.button.cancel" ) );
         cancelBtn.setOnAction( e -> {
             confirmed[ 0 ] = false;
             stage.close();

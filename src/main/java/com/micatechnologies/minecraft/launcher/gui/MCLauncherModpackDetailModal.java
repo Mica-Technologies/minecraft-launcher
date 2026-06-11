@@ -1235,8 +1235,8 @@ public class MCLauncherModpackDetailModal extends StackPane
                     list.getChildren().add( buildUpdateLogRow( finalEntries.get( i ) ) );
                 }
                 if ( finalEntries.size() > MAX_LOG_ENTRIES_SHOWN ) {
-                    Label more = new Label( "+ " + ( finalEntries.size() - MAX_LOG_ENTRIES_SHOWN )
-                                                    + " older entries" );
+                    Label more = new Label( LocalizationManager.format( "modal.updateLog.more",
+                                                    finalEntries.size() - MAX_LOG_ENTRIES_SHOWN ) );
                     more.getStyleClass().add( "muted" );
                     list.getChildren().add( more );
                 }
@@ -1340,7 +1340,7 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  clicks to expand. */
     private void buildAdvancedSectionBody( VBox section, GameModPack pack )
     {
-        Label hint = new Label( "Per-pack power-user controls. Defaults are fine for most users." );
+        Label hint = new Label( LocalizationManager.get( "modal.advanced.hint" ) );
         hint.setWrapText( true );
         hint.getStyleClass().add( "muted" );
         hint.setStyle( "-fx-font-size: 11px;" );
@@ -1350,16 +1350,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         // Stored per-pack-URL via ConfigManager. Default OFF — fast-path
         // eligible — matches the design choice from the 3.3 question pass.
         io.github.palexdev.materialfx.controls.MFXToggleButton alwaysVerifyToggle =
-                new io.github.palexdev.materialfx.controls.MFXToggleButton( "Always verify game files on launch" );
+                new io.github.palexdev.materialfx.controls.MFXToggleButton(
+                        LocalizationManager.get( "modal.advanced.alwaysVerify" ) );
         alwaysVerifyToggle.setSelected(
                 ConfigManager.getAlwaysVerifyOnLaunch( pack.getManifestUrl() ) );
         alwaysVerifyToggle.selectedProperty().addListener( ( obs, oldVal, newVal ) ->
                 ConfigManager.setAlwaysVerifyOnLaunch( pack.getManifestUrl(),
                                                        Boolean.TRUE.equals( newVal ) ) );
-        Label toggleHint = new Label(
-                "When off (default), the launcher skips re-hashing files that haven't changed since the "
-                        + "last successful verify — making subsequent launches noticeably faster. Turn on if you've "
-                        + "had issues with corrupted files or want the strict integrity check every time." );
+        Label toggleHint = new Label( LocalizationManager.get( "modal.advanced.alwaysVerify.hint" ) );
         toggleHint.setWrapText( true );
         toggleHint.getStyleClass().add( "subtle" );
         toggleHint.setStyle( "-fx-font-size: 11px;" );
@@ -1399,12 +1397,9 @@ public class MCLauncherModpackDetailModal extends StackPane
                 }
             }
         } );
-        Label scanFreqLabel = new Label( "Security scan frequency" );
+        Label scanFreqLabel = new Label( LocalizationManager.get( "modal.advanced.scanFreq.label" ) );
         scanFreqLabel.setStyle( "-fx-font-size: 12px;" );
-        Label scanFreqHint = new Label(
-                "How often to run the malware scan before launching this pack. \"Use global default\" "
-                        + "follows whatever you've set in Settings → Advanced. Disable only if you trust the "
-                        + "source — the scan is the launcher's last line of defense against tampered mods." );
+        Label scanFreqHint = new Label( LocalizationManager.get( "modal.advanced.scanFreq.hint" ) );
         scanFreqHint.setWrapText( true );
         scanFreqHint.getStyleClass().add( "subtle" );
         scanFreqHint.setStyle( "-fx-font-size: 11px;" );
@@ -1426,7 +1421,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         // Button: verify this pack now.
         // Runs a force-FULL verify in the background using the new launch
         // progress GUI for the per-step display.
-        MFXButton verifyNowBtn = new MFXButton( "Verify this pack now" );
+        MFXButton verifyNowBtn = new MFXButton( LocalizationManager.get( "modal.advanced.verifyNow" ) );
         verifyNowBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
         verifyNowBtn.setMinHeight( 32 );
         verifyNowBtn.setPrefHeight( 32 );
@@ -1435,9 +1430,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             com.micatechnologies.minecraft.launcher.utilities.VerifyAction.runForPacks(
                     java.util.List.of( pack ) );
         } );
-        Label verifyHint = new Label(
-                "Re-hashes every mod, library, and asset against the pack's manifest. Repairs anything corrupted. "
-                        + "Takes a few seconds to a couple minutes depending on pack size." );
+        Label verifyHint = new Label( LocalizationManager.get( "modal.advanced.verifyNow.hint" ) );
         verifyHint.setWrapText( true );
         verifyHint.getStyleClass().add( "subtle" );
         verifyHint.setStyle( "-fx-font-size: 11px;" );
@@ -1472,9 +1465,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                     MCLauncherMainGui.handleRemoveFromOfficialLauncher( pack, owner );
                 } );
                 Label removeHint = new Label(
-                        "This pack is already exported to the official Minecraft Launcher. "
-                                + "Removing here deletes the profile + the exported game directory; "
-                                + "your Mica install is unaffected." );
+                        LocalizationManager.get( "modal.advanced.removeOfficial.hint" ) );
                 removeHint.setWrapText( true );
                 removeHint.getStyleClass().add( "subtle" );
                 removeHint.setStyle( "-fx-font-size: 11px;" );
@@ -1495,9 +1486,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                     MCLauncherMainGui.handleAddToOfficialLauncher( pack, owner );
                 } );
                 Label addToOfficialHint = new Label(
-                        "Creates a profile in your official Minecraft Launcher that points at this pack's "
-                                + "mods and configs (vanilla versions get a profile-only entry — no copy needed). "
-                                + "Modded packs can auto-install the matching modloader during export." );
+                        LocalizationManager.get( "modal.advanced.addOfficial.hint" ) );
                 addToOfficialHint.setWrapText( true );
                 addToOfficialHint.getStyleClass().add( "subtle" );
                 addToOfficialHint.setStyle( "-fx-font-size: 11px;" );
@@ -1526,15 +1515,11 @@ public class MCLauncherModpackDetailModal extends StackPane
     {
         VBox container = new VBox( 6 );
 
-        Label heading = new Label( "Acknowledged scan findings" );
+        Label heading = new Label( LocalizationManager.get( "modal.ack.heading" ) );
         heading.setStyle( "-fx-font-size: 12px; -fx-font-weight: bold;" );
         container.getChildren().add( heading );
 
-        Label intro = new Label(
-                "The pack maintainer has marked these specific scan findings as known-OK so the "
-                        + "launcher doesn't block on them. The scan still runs against every file — only "
-                        + "the listed (file + rule + location) combinations are silenced, and a mod "
-                        + "update that changes the file's content automatically invalidates the entry." );
+        Label intro = new Label( LocalizationManager.get( "modal.ack.intro" ) );
         intro.setWrapText( true );
         intro.getStyleClass().add( "subtle" );
         intro.setStyle( "-fx-font-size: 11px;" );
@@ -1600,7 +1585,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             row.getChildren().add( reasonLabel );
         }
         else {
-            Label noReason = new Label( "(no reason given by the pack maintainer)" );
+            Label noReason = new Label( LocalizationManager.get( "modal.ack.noReason" ) );
             noReason.getStyleClass().add( "subtle" );
             noReason.setStyle( "-fx-font-size: 11px; -fx-font-style: italic;" );
             row.getChildren().add( noReason );
@@ -1642,7 +1627,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         // received — see the BTN_H comment in MCLauncherMainGui.ModpackHeroCard.
         final double BTN_H = 42;
 
-        MFXButton playBtn = new MFXButton( "Play" );
+        MFXButton playBtn = new MFXButton( LocalizationManager.get( "common.button.play" ) );
         playBtn.getStyleClass().addAll( "primary", "modpackDetailPlayBtn" );
         playBtn.setMinHeight( BTN_H );
         playBtn.setPrefHeight( BTN_H );
@@ -1655,7 +1640,7 @@ public class MCLauncherModpackDetailModal extends StackPane
             startPlay( pack );
         } );
 
-        MFXButton websiteBtn = new MFXButton( "Website" );
+        MFXButton websiteBtn = new MFXButton( LocalizationManager.get( "common.button.website" ) );
         websiteBtn.getStyleClass().add( "modpackDetailSecondaryBtn" );
         websiteBtn.setMinHeight( BTN_H );
         websiteBtn.setPrefHeight( BTN_H );

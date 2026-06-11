@@ -242,7 +242,7 @@ public class MCLauncherHelpWindow
 
         // Sidebar header — uses the same heading scale + muted caption pattern as the
         // app's navbar so the help window reads as a part of the same shell.
-        Label sidebarHeader = new Label( "Help Topics" );
+        Label sidebarHeader = new Label( LocalizationManager.get( "help.sidebar.header" ) );
         sidebarHeader.getStyleClass().addAll( "heading-h3", "helpSidebarHeader" );
         sidebarHeader.setPadding( new Insets( 14, 14, 8, 14 ) );
 

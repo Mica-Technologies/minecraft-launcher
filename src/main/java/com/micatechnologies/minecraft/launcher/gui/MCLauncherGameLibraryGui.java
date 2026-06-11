@@ -1205,7 +1205,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             nameLabel.setAlignment( Pos.CENTER );
             nameLabel.setMaxWidth( Double.MAX_VALUE );
 
-            statusLabel = new Label( "Preparing import…" );
+            statusLabel = new Label( LocalizationManager.get( "library.import.preparing" ) );
             statusLabel.getStyleClass().add( "subtle" );
             statusLabel.setWrapText( true );
             statusLabel.setAlignment( Pos.CENTER );
@@ -1561,14 +1561,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         VBox box = new VBox( 8 );
         box.setAlignment( Pos.CENTER );
         box.setPrefHeight( 280 );
-        Label heading = new Label( "Nothing matches those filters" );
+        Label heading = new Label( LocalizationManager.get( "library.empty.heading" ) );
         heading.getStyleClass().add( "heading-h1" );
         Label sub;
         if ( !search.isEmpty() ) {
-            sub = new Label( "No items in “" + type + " · " + status + "” match \"" + search + "\"." );
+            sub = new Label( LocalizationManager.format( "library.empty.sub.search", type, status, search ) );
         }
         else {
-            sub = new Label( "Switch the Type or Status filters to see more." );
+            sub = new Label( LocalizationManager.get( "library.empty.sub.noSearch" ) );
         }
         sub.getStyleClass().add( "muted" );
         box.getChildren().addAll( heading, sub );

@@ -328,7 +328,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         playerLabel.setCursor( Cursor.HAND );
 
         playerLabel.setText( MCLauncherAuthManager.getLoggedInUser().name() );
-        versionLabel.setText( "Mica Launcher v" + LauncherConstants.LAUNCHER_APPLICATION_VERSION );
+        versionLabel.setText( LocalizationManager.format( "main.versionLabel",
+                LauncherConstants.LAUNCHER_APPLICATION_VERSION ) );
 
         OfflineIndicator.applyTo( offlineLabel );
 
@@ -939,14 +940,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         Label heading;
         Label sub;
         if ( hasAnyInstalled && filtersActive ) {
-            heading = new Label( "No packs match those filters" );
+            heading = new Label( LocalizationManager.get( "main.empty.filtered.heading" ) );
             sub = new Label( search != null && !search.isEmpty()
-                    ? "Clear the search box or switch filters to see more."
-                    : "Switch filters to see more." );
+                    ? LocalizationManager.get( "main.empty.filtered.sub.search" )
+                    : LocalizationManager.get( "main.empty.filtered.sub.noSearch" ) );
         }
         else {
-            heading = new Label( "No mod packs installed yet" );
-            sub = new Label( "Click \"Library\" in the top bar to add a modpack from a URL." );
+            heading = new Label( LocalizationManager.get( "main.empty.none.heading" ) );
+            sub = new Label( LocalizationManager.get( "main.empty.none.sub" ) );
         }
         heading.getStyleClass().add( "heading-h1" );
         sub.getStyleClass().add( "muted" );
@@ -1265,7 +1266,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // default .mfx-button skin .heroCardSecondaryBtn inherits ) would
             // otherwise size the two buttons by their intrinsic content, giving
             // the play button a slightly taller box than its neighbour.
-            playBtn = new MFXButton( "Play" );
+            playBtn = new MFXButton( LocalizationManager.get( "common.button.play" ) );
             playBtn.getStyleClass().addAll( "primary", "heroPlayBtn" );
             playBtn.setMinHeight( BTN_H );
             playBtn.setPrefHeight( BTN_H );
@@ -1276,7 +1277,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // the current pack rather than the one captured at card construction.
             playBtn.setOnAction( e -> startPlay( this.pack ) );
 
-            websiteBtn = new MFXButton( "Website" );
+            websiteBtn = new MFXButton( LocalizationManager.get( "common.button.website" ) );
             websiteBtn.getStyleClass().add( "heroCardSecondaryBtn" );
             websiteBtn.setMinHeight( BTN_H );
             websiteBtn.setPrefHeight( BTN_H );
@@ -2522,25 +2523,25 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     {
         ContextMenu menu = new ContextMenu();
 
-        MenuItem playStats = new MenuItem( "Played " + pack.getTotalPlayTimeFormatted() +
-                                                   " (" + pack.getLaunchCount() + " launches)" );
+        MenuItem playStats = new MenuItem( LocalizationManager.format( "main.contextMenu.playStats",
+                pack.getTotalPlayTimeFormatted(), pack.getLaunchCount() ) );
         playStats.setDisable( true );
 
-        MenuItem openFolder       = new MenuItem( "Open Install Folder" );
-        MenuItem openScreenshots  = new MenuItem( "Open Screenshots" );
-        MenuItem openResourcePks  = new MenuItem( "Open Resource Packs" );
-        MenuItem openShaderPacks  = new MenuItem( "Open Shader Packs" );
-        MenuItem openMods         = new MenuItem( "Open Mods Folder" );
-        MenuItem openConfig       = new MenuItem( "Open Config Folder" );
-        MenuItem createShortcut   = new MenuItem( "Create Desktop Shortcut" );
-        MenuItem copyInviteLink   = new MenuItem( "Copy Discord Invite Link" );
-        MenuItem editPack         = new MenuItem( "Edit Pack…" );
-        MenuItem exportPack       = new MenuItem( "Export as ZIP…" );
+        MenuItem openFolder       = new MenuItem( LocalizationManager.get( "main.contextMenu.openInstall" ) );
+        MenuItem openScreenshots  = new MenuItem( LocalizationManager.get( "main.contextMenu.openScreenshots" ) );
+        MenuItem openResourcePks  = new MenuItem( LocalizationManager.get( "main.contextMenu.openResourcePacks" ) );
+        MenuItem openShaderPacks  = new MenuItem( LocalizationManager.get( "main.contextMenu.openShaderPacks" ) );
+        MenuItem openMods         = new MenuItem( LocalizationManager.get( "main.contextMenu.openMods" ) );
+        MenuItem openConfig       = new MenuItem( LocalizationManager.get( "main.contextMenu.openConfig" ) );
+        MenuItem createShortcut   = new MenuItem( LocalizationManager.get( "main.contextMenu.createShortcut" ) );
+        MenuItem copyInviteLink   = new MenuItem( LocalizationManager.get( "main.contextMenu.copyInvite" ) );
+        MenuItem editPack         = new MenuItem( LocalizationManager.get( "main.contextMenu.editPack" ) );
+        MenuItem exportPack       = new MenuItem( LocalizationManager.get( "main.contextMenu.exportZip" ) );
         MenuItem addToOfficial    = new MenuItem(
                 LocalizationManager.get( "officialExport.menuItem" ) );
         MenuItem removeOfficial   = new MenuItem(
                 LocalizationManager.get( "officialExport.remove.menuItem" ) );
-        MenuItem uninstall        = new MenuItem( "Uninstall…" );
+        MenuItem uninstall        = new MenuItem( LocalizationManager.get( "main.contextMenu.uninstall" ) );
 
         openFolder.setOnAction(       e -> openPackSubfolder( pack, "" ) );
         openScreenshots.setOnAction(  e -> openPackSubfolder( pack, "screenshots" ) );

@@ -310,7 +310,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // Add Modrinth search button to the Mods tab toolbar
         BorderPane modsContent = ( BorderPane ) modsTab.getContent();
         HBox modsToolbar = ( HBox ) modsContent.getTop();
-        MFXButton searchModrinthBtn = new MFXButton( "Search Modrinth" );
+        MFXButton searchModrinthBtn = new MFXButton( LocalizationManager.get( "editor.searchModrinth" ) );
         searchModrinthBtn.setOnAction( e -> searchModrinth() );
         modsToolbar.getChildren().add( modsToolbar.getChildren().size() - 1, searchModrinthBtn );
 
@@ -1143,7 +1143,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 }
             } );
 
-            Label infoLabel = new Label( "Enter a search term and click Search" );
+            Label infoLabel = new Label( LocalizationManager.get( "editor.search.prompt" ) );
 
             javafx.scene.layout.VBox content = new javafx.scene.layout.VBox( 8, searchBar, versionBar, loaderBar,
                                                                               infoLabel, resultsList );
@@ -1710,7 +1710,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         calcCol.setSortable( false );
         calcCol.setCellFactory( col -> new TableCell< >()
         {
-            private final Button btn = new Button( "Calc" );
+            private final Button btn = new Button( LocalizationManager.get( "editor.calc" ) );
 
             {
                 btn.setOnAction( e -> {
@@ -1759,7 +1759,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
         // Filter field and buttons
         MFXTextField filterField = new MFXTextField();
-        filterField.setFloatingText( "Filter..." );
+        filterField.setFloatingText( LocalizationManager.get( "editor.filter.prompt" ) );
         filterField.setPrefWidth( 200 );
         filterField.setMinHeight( 32 );
         filterField.textProperty().addListener( ( obs, oldVal, newVal ) -> {
@@ -1774,20 +1774,20 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             } );
         } );
 
-        MFXButton addBtn = new MFXButton( "Add" );
+        MFXButton addBtn = new MFXButton( LocalizationManager.get( "common.button.add" ) );
         addBtn.setOnAction( e -> {
             ModPackEditorFileEntry newEntry = new ModPackEditorFileEntry();
             data.add( newEntry );
         } );
 
-        MFXButton removeBtn = new MFXButton( "Remove" );
+        MFXButton removeBtn = new MFXButton( LocalizationManager.get( "common.button.remove" ) );
         removeBtn.getStyleClass().add( "dangerZone" );
         removeBtn.setOnAction( e -> {
             List< ModPackEditorFileEntry > selected = new ArrayList<>( table.getSelectionModel().getSelectedItems() );
             data.removeAll( selected );
         } );
 
-        MFXButton checkUrlsBtn = new MFXButton( "Check URLs" );
+        MFXButton checkUrlsBtn = new MFXButton( LocalizationManager.get( "editor.checkUrls" ) );
         checkUrlsBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             updateStatus( "Checking URLs for " + tabName + "..." );
             int broken = 0;
