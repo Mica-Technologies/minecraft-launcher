@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.utilities.FilePermissions;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 
 import java.io.IOException;
@@ -114,14 +115,16 @@ public final class ProfileArchive
         try {
             Path target = profilesRoot().resolve( uuid );
             Files.createDirectories( target );
+            // Tighten the profile directory itself — on Windows the copied
+            // credential files below inherit the directory ACL, so the directory
+            // must be owner-only before they land.
+            FilePermissions.applyOwnerOnly( target );
 
-            Files.copy( activeLogin, target.resolve( ARCHIVED_LOGIN_FILE ),
-                         StandardCopyOption.REPLACE_EXISTING );
+            copyOwnerOnly( activeLogin, target.resolve( ARCHIVED_LOGIN_FILE ) );
             for ( String sibling : SIBLING_FILES ) {
                 Path src = activeFolder.resolve( sibling );
                 if ( Files.exists( src ) ) {
-                    Files.copy( src, target.resolve( sibling ),
-                                 StandardCopyOption.REPLACE_EXISTING );
+                    copyOwnerOnly( src, target.resolve( sibling ) );
                 }
             }
 
@@ -130,8 +133,9 @@ public final class ProfileArchive
             meta.addProperty( "uuid", uuid );
             meta.addProperty( "displayName", displayName == null ? "" : displayName );
             meta.addProperty( "lastUsedMs", now );
-            Files.writeString( target.resolve( ARCHIVED_META_FILE ),
-                                JSONUtilities.getGson().toJson( meta ) );
+            Path metaPath = target.resolve( ARCHIVED_META_FILE );
+            Files.writeString( metaPath, JSONUtilities.getGson().toJson( meta ) );
+            FilePermissions.applyOwnerOnly( metaPath );
 
             return new ProfileEntry( uuid, displayName, now );
         }
@@ -206,12 +210,11 @@ public final class ProfileArchive
         Path activeLogin = Path.of( LocalPathManager.getRememberedAccountFilePath() );
         Path activeFolder = activeLogin.getParent();
         try {
-            Files.copy( archivedLogin, activeLogin, StandardCopyOption.REPLACE_EXISTING );
+            copyOwnerOnly( archivedLogin, activeLogin );
             for ( String sibling : SIBLING_FILES ) {
                 Path src = source.resolve( sibling );
                 if ( Files.exists( src ) && activeFolder != null ) {
-                    Files.copy( src, activeFolder.resolve( sibling ),
-                                 StandardCopyOption.REPLACE_EXISTING );
+                    copyOwnerOnly( src, activeFolder.resolve( sibling ) );
                 }
             }
             // Touch the last-used timestamp so the switcher list
@@ -256,5 +259,17 @@ public final class ProfileArchive
     private static Path profilesRoot()
     {
         return Path.of( LocalPathManager.getLauncherConfigFolderPath(), PROFILES_DIR );
+    }
+
+    /** Copies a (potentially credential-bearing) file and restricts the
+     *  destination to owner-only, matching how {@link MCLauncherAuthManager}
+     *  protects the in-place auth files. Without this, an archived
+     *  {@code player.mica} could land group/world-readable — on Windows it
+     *  inherits the parent directory ACL rather than the source file's
+     *  restrictive ACL. */
+    private static void copyOwnerOnly( Path src, Path dst ) throws IOException
+    {
+        Files.copy( src, dst, StandardCopyOption.REPLACE_EXISTING );
+        FilePermissions.applyOwnerOnly( dst );
     }
 }
