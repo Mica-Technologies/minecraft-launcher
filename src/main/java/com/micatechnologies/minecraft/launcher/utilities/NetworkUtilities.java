@@ -129,16 +129,17 @@ public class NetworkUtilities
 
     /**
      * Returns a shared lock object for the given file path, creating one if needed.
+     * Keyed by the normalized absolute path (case-folded on Windows) so different
+     * File objects pointing at the same file share a lock — matching
+     * {@code SynchronizedFileManager}'s keying — without the per-download
+     * {@code getCanonicalPath()} filesystem syscall the old version paid.
      */
     private static Object getPathLock( File file ) {
-        try {
-            String key = file.getCanonicalPath();
-            return PATH_LOCKS.computeIfAbsent( key, k -> new Object() );
-        }
-        catch ( IOException e ) {
-            // Fallback to absolute path if canonical fails
-            return PATH_LOCKS.computeIfAbsent( file.getAbsolutePath(), k -> new Object() );
-        }
+        java.nio.file.Path normalized = file.toPath().toAbsolutePath().normalize();
+        String key = File.separatorChar == '\\'
+                     ? normalized.toString().toLowerCase( java.util.Locale.ROOT )
+                     : normalized.toString();
+        return PATH_LOCKS.computeIfAbsent( key, k -> new Object() );
     }
 
     /**
