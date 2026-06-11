@@ -266,6 +266,49 @@ public final class ConfigStore
             Logger.logError( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
             return;
         }
+        // The atomic write below goes through a FileChannel, which is an
+        // InterruptibleChannel: if this thread's interrupt flag is set when a
+        // blocking write()/force() runs, the channel throws
+        // ClosedByInterruptException and closes mid-write, losing the config.
+        // This bit the relaunch path — cleanupApp()'s executor shutdownNow()
+        // interrupted the very thread doing the durability-critical flush, so the
+        // new locale override never reached disk and the relaunched process came
+        // back in the old language. Clear the interrupt flag for the duration of
+        // the I/O (restoring it afterward so a genuine interrupt isn't swallowed),
+        // and retry once if an interrupt still lands mid-write: persisting config
+        // wins over promptly honoring a shutdown interrupt.
+        boolean wasInterrupted = Thread.interrupted();
+        try {
+            for ( int attempt = 1; ; attempt++ ) {
+                try {
+                    writeNowOnce();
+                    return;
+                }
+                catch ( java.nio.channels.ClosedByInterruptException ie ) {
+                    wasInterrupted = true;
+                    Thread.interrupted();  // clear the flag the interrupt re-set, then retry
+                    if ( attempt >= 2 ) {
+                        Logger.logError( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
+                        Logger.logThrowable( ie );
+                        return;
+                    }
+                }
+            }
+        }
+        finally {
+            if ( wasInterrupted ) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /** A single atomic-write attempt: serialize the in-memory JSON to a sibling
+     *  temp file, fsync it, and atomic-rename it over the target. Lets
+     *  {@link java.nio.channels.ClosedByInterruptException} propagate so
+     *  {@link #writeNow()} can retry it; every other failure is logged and the
+     *  temp file cleaned up. Must be called with the {@code ConfigStore} monitor
+     *  held (it is — {@link #writeNow()} is {@code synchronized}). */
+    private static void writeNowOnce() throws java.nio.channels.ClosedByInterruptException {
         String path = LocalPathManager.getLauncherConfigFolderPath()
                 + ConfigConstants.CONFIG_FILE_NAME;
         File configFile = SynchronizedFileManager.getSynchronizedFile( path );
@@ -339,6 +382,14 @@ public final class ConfigStore
                 java.nio.file.Files.move( tmp, target,
                         java.nio.file.StandardCopyOption.REPLACE_EXISTING );
             }
+        }
+        catch ( java.nio.channels.ClosedByInterruptException ie ) {
+            // A set/landed interrupt closed the channel mid-write. Clean the temp
+            // file and rethrow so writeNow() can clear the flag and retry rather
+            // than treating this as a genuine save failure.
+            try { java.nio.file.Files.deleteIfExists( tmp ); }
+            catch ( Exception ignored ) { /* nothing else to do */ }
+            throw ie;
         }
         catch ( Exception e ) {
             Logger.logError( LocalizationManager.CONFIG_SAVE_ERROR_TEXT );
