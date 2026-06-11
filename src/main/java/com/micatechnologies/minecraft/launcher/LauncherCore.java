@@ -280,7 +280,7 @@ public class LauncherCore
             // Re-acquire the single-instance lock + IPC accept loop for this lifecycle
             // iteration. cleanupApp() releases the lock at the end of every session
             // (restart and exit alike), so without this a restarted session — Logout,
-            // Reset Launcher, language change — would run with no lock: a second
+            // Add/Switch account, Reset Launcher — would run with no lock: a second
             // launcher process could start concurrently (re-opening the concurrent
             // config/install-index write corruption class) and mmcl:// deep-link
             // forwarding would silently stop. tryAcquire() is idempotent, so the
