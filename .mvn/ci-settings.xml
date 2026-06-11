@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Supply-chain hardening for CI builds. Passed to Maven via `-s .mvn/ci-settings.xml`.
+
+  The mirror routes EVERY repository through Maven Central EXCEPT the two narrow
+  third-party repos the project genuinely needs (jitpack.io, repo.u-team.info),
+  identified by their repository <id>. The effect: those third-party hosts can
+  only ever serve their own artifacts — a compromised jitpack / u-team response
+  cannot substitute a Maven Central artifact (gson, commons-*, asm, etc.) into
+  the build, closing the dependency-confusion vector. Their own pinned-release
+  artifacts (DiscordIPC, jSystemThemeDetector, FXTaskbarProgressBar,
+  minecraft_authenticator) still resolve directly from them.
+
+  Local dev (IntelliJ-bundled Maven) does not use this file, so it cannot break
+  a developer's build; it only tightens resolution in CI.
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+    <mirrors>
+        <mirror>
+            <id>central-secure-mirror</id>
+            <name>Maven Central for everything except the scoped third-party repos</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <mirrorOf>*,!jitpack.io,!repo.u-team.info</mirrorOf>
+        </mirror>
+    </mirrors>
+</settings>

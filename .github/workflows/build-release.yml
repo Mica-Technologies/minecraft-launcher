@@ -159,7 +159,7 @@ jobs:
       - name: Build and package (Burn bootstrapper EXE + per-user MSI + per-machine MSI)
         shell: bash
         run: >
-          mvn -B package --file pom.xml
+          mvn -B -s .mvn/ci-settings.xml package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}
           -Djpackage.app.version=${{ needs.prepare.outputs.win_version }}
 
@@ -202,7 +202,7 @@ jobs:
 
       - name: Build and package (DMG)
         run: >
-          mvn -B package --file pom.xml
+          mvn -B -s .mvn/ci-settings.xml package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}
 
       # jpackage names both arch builds the same ("<name>-<ver>.dmg/.pkg"),
@@ -250,7 +250,7 @@ jobs:
 
       - name: Build and package (DMG)
         run: >
-          mvn -B package --file pom.xml
+          mvn -B -s .mvn/ci-settings.xml package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}
 
       # Mirror of the arm64 staging step: tag Intel outputs with `-intel`
@@ -302,7 +302,7 @@ jobs:
       # executions in the linux-packaging profile (jpackage-deb + jpackage-rpm).
       - name: Build and package (DEB + RPM)
         run: >
-          mvn -B package --file pom.xml
+          mvn -B -s .mvn/ci-settings.xml package --file pom.xml
           -Drevision=${{ needs.prepare.outputs.version }}
 
       # Produce a CycloneDX SBOM describing every Maven dependency that landed in

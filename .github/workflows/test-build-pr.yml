@@ -63,7 +63,9 @@ jobs:
           cache: 'maven'
 
       - name: Run unit tests
-        run: mvn -B test --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
+        # -s .mvn/ci-settings.xml: route all but the two scoped third-party repos
+        # through Maven Central (dependency-confusion hardening, see the file).
+        run: mvn -B -s .mvn/ci-settings.xml test --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       # Surfaces JUnit XML output as a downloadable artifact on test
       # failures — quicker than scrolling through the raw log when a
@@ -110,7 +112,7 @@ jobs:
       # with "Unknown lifecycle phase". Git Bash handles dotted args verbatim.
       - name: Build and package
         shell: bash
-        run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
+        run: mvn -B -s .mvn/ci-settings.xml package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       # Mirror the release workflow's flat staging + scope-suffix rename so PR
       # downloads are labeled the same way the eventual release will be.
@@ -148,7 +150,7 @@ jobs:
           cache: 'maven'
 
       - name: Build and package
-        run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
+        run: mvn -B -s .mvn/ci-settings.xml package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       # Mirror the release workflow's flat staging + arch-suffix rename so
       # PR downloads are labeled the same way the eventual release will be,
@@ -199,7 +201,7 @@ jobs:
           cache: 'maven'
 
       - name: Build and package
-        run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
+        run: mvn -B -s .mvn/ci-settings.xml package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       - name: Stage macOS Intel installers with arch-suffixed names
         shell: bash
@@ -243,7 +245,7 @@ jobs:
         run: sudo apt-get install -y dpkg fakeroot rpm
 
       - name: Build and package
-        run: mvn -B package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
+        run: mvn -B -s .mvn/ci-settings.xml package --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
 
       - name: Upload Linux test-build artifacts
         uses: actions/upload-artifact@v7

@@ -165,22 +165,44 @@
     </properties>
 
     <!-- SPECIFIED REPOSITORIES FOR DEPENDENCIES -->
-    <repositories>
-        <!-- JCenter was decommissioned by JFrog (read-only since 2021, full sunset
-             August 2024). Every artifact published there has long since been mirrored
-             to Maven Central, so this entry was either unused or a stealth fallback
-             to a deprecated host. -->
+    <!--
+      Supply-chain note: Maven Central is declared explicitly FIRST so that any
+      artifact available there resolves from Central before the two narrow
+      third-party repos below are ever consulted — shrinking the dependency-
+      confusion surface where a malicious jitpack / u-team response could
+      substitute a Central artifact (gson, commons-*, etc.). Both third-party
+      repos are restricted to releases-only (no snapshots; all our deps from
+      them are pinned release versions). CI additionally routes everything
+      except these two repo IDs through Central via .mvn/ci-settings.xml so the
+      third-party hosts can only ever serve their own artifacts.
 
-        <!-- GitHub BASED MAVEN REPOS -->
+      JCenter was decommissioned by JFrog (read-only since 2021, full sunset
+      August 2024); every artifact published there is long since mirrored to
+      Maven Central, so it is intentionally not listed.
+    -->
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+
+        <!-- GitHub-based artifacts (DiscordIPC, jSystemThemeDetector, FXTaskbarProgressBar). -->
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
         </repository>
 
-        <!-- Minecraft Authenticator MAVEN REPO -->
+        <!-- minecraft_authenticator (net.hycrafthd) — handles the Microsoft OAuth flow. -->
         <repository>
             <id>repo.u-team.info</id>
             <url>https://repo.u-team.info</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
         </repository>
     </repositories>
 
