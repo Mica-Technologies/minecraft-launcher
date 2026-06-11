@@ -169,6 +169,13 @@ public class LauncherCore
     public static void main( String[] args ) {
         ColdStartProfiler.mark( "main_entry" );
 
+        // Remove the current working directory from the Windows DLL search order
+        // before any bare-name native load (the RGB vendor SDKs are loaded by name
+        // and aren't System32 KnownDLLs, so a planted DLL in the launcher's working
+        // directory could otherwise be loaded into the process). No-op off Windows.
+        com.micatechnologies.minecraft.launcher.utilities.WindowsDllSearchHardening
+                .removeCurrentDirectoryFromSearchPath();
+
         // Opt the process into Per-Monitor DPI Awareness V2 before anything else.
         // JavaFX's Glass backend internally sets only V1, which scales the JavaFX
         // client area per-monitor but leaves the OS-managed title bar sized at the
