@@ -1007,6 +1007,14 @@ class GameModPackLauncher
         String customJvmArgs = ConfigManager.getCustomJvmArgs();
         if ( customJvmArgs != null && !customJvmArgs.isBlank() ) {
             List< String > customTokens = ProcessUtilities.splitCommandLine( customJvmArgs );
+            // Defense-in-depth against a tampered config: drop any token still
+            // carrying ${...} placeholder syntax so a value like
+            // ${auth_access_token} can't be smuggled into argv and expanded by the
+            // launch templating that runs after custom args are appended.
+            // ConfigManager.getCustomJvmArgs already filters these on read; this
+            // enforces it at the spawn boundary too.
+            customTokens.removeIf( t -> t.contains(
+                    com.micatechnologies.minecraft.launcher.utilities.JvmArgsValidator.PLACEHOLDER_OPEN ) );
             // Some G1 tuning flags the launcher emits (G1NewSizePercent /
             // G1MaxNewSizePercent, etc.) are *experimental* VM options. The JVM
             // aborts at startup ("... is experimental and must be enabled via

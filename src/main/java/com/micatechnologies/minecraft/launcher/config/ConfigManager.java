@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.utilities.JvmArgsValidator;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
 
 import java.io.File;
@@ -94,7 +95,21 @@ public class ConfigManager
     }
 
     public synchronized static String getCustomJvmArgs() {
-        return RuntimeConfig.getCustomJvmArgs();
+        // Validate on READ as well as write: setCustomJvmArgs rejects control
+        // chars + ${...} placeholders, but the value can also reach the config
+        // file out-of-band (hand edit, sync-restored tamper, same-user malware),
+        // and from there it would be tokenised straight into the game JVM argv —
+        // including -javaagent: or a literal ${auth_access_token} that the launch
+        // templating would expand. A tampered value is dropped in favour of the
+        // default rather than executed.
+        String stored = RuntimeConfig.getCustomJvmArgs();
+        if ( !JvmArgsValidator.isClean( stored ) ) {
+            Logger.logWarningSilent( "Stored custom JVM args failed validation (control characters or "
+                                             + "'${...}' placeholder syntax); ignoring them and using the default. "
+                                             + "The configuration file may have been edited outside the launcher." );
+            return ConfigConstants.JVM_ARGS_VALUE_DEFAULT;
+        }
+        return stored;
     }
 
     // -- Backup-before-update policy (delegates to ModPackConfig) ----------
@@ -154,32 +169,7 @@ public class ConfigManager
      *                                  metacharacters
      */
     public synchronized static void setCustomJvmArgs( String jvmArgs ) {
-        RuntimeConfig.setCustomJvmArgs( validateCustomJvmArgs( jvmArgs ) );
-    }
-
-    private static String validateCustomJvmArgs( String jvmArgs ) {
-        if ( jvmArgs == null ) {
-            return "";
-        }
-        for ( int i = 0; i < jvmArgs.length(); i++ ) {
-            char c = jvmArgs.charAt( i );
-            // Control chars and DEL (0x7F). Newlines / TAB included so a
-            // multi-line paste can't smuggle command-line args separated
-            // by a line break — splitCommandLine splits on
-            // Character.isWhitespace which includes them.
-            if ( c < 0x20 || c == 0x7F ) {
-                throw new IllegalArgumentException(
-                        "Custom JVM args contain a control character at position " + i );
-            }
-        }
-        // Reject ${...} placeholder syntax — the launch pipeline runs
-        // templating after appending custom args, so a literal
-        // "${auth_access_token}" here would expand.
-        if ( jvmArgs.indexOf( "${" ) >= 0 ) {
-            throw new IllegalArgumentException(
-                    "Custom JVM args may not contain '${...}' placeholder syntax." );
-        }
-        return jvmArgs;
+        RuntimeConfig.setCustomJvmArgs( JvmArgsValidator.requireClean( jvmArgs ) );
     }
 
     // ====================================================================
