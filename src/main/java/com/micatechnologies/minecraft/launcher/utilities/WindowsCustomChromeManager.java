@@ -191,8 +191,25 @@ public final class WindowsCustomChromeManager
      */
     public static void install( Stage stage )
     {
-        if ( !SystemUtils.IS_OS_WINDOWS || stage == null || active ) {
+        if ( !SystemUtils.IS_OS_WINDOWS || stage == null ) {
             return;
+        }
+        // Already installed on THIS stage — genuine idempotent no-op.
+        if ( active && boundStage == stage ) {
+            return;
+        }
+        // Installed on a PRIOR stage. An in-process restart (e.g. Save & Restart for a
+        // language change) tears down the old window and builds a brand-new Stage +
+        // HWND, but this JVM — and therefore the static `active`/`boundHwnd` state —
+        // survives. Without clearing it, the `active` guard would no-op and the new
+        // window would keep its native WS_CAPTION title bar showing *above* our JavaFX
+        // navbar (the double-title-bar bug). Detach from the old binding first
+        // (uninstall() restores the prior window proc + style if that HWND somehow
+        // still lives, and is a harmless no-op once it's destroyed), which also clears
+        // `active`, then fall through to subclass the new window.
+        if ( active && boundStage != stage ) {
+            Logger.logStd( "WindowsCustomChrome: rebinding to new window after in-process restart." );
+            uninstall();
         }
         if ( Native.POINTER_SIZE != 8 ) {
             Logger.logWarningSilent( "WindowsCustomChrome: skipping — not a 64-bit JVM." );
