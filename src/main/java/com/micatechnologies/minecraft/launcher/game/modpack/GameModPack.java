@@ -294,8 +294,17 @@ public class GameModPack extends GameModPackMetadata
             return out;
         };
 
+        // The manifest's scan-exclusion list is attacker-controllable, so it
+        // passes through ScanExclusionPolicy before EITHER scan pass honors
+        // it — otherwise a malicious pack could exclude mods/ (or the pack
+        // root) and disarm the malware scan entirely. Rejected entries are
+        // logged by the policy.
+        List< String > safeScanExclusions =
+                com.micatechnologies.minecraft.launcher.security.ScanExclusionPolicy.filterUntrusted(
+                        getPackScanExclusions() );
+
         Results scanResults = Main.run( scanCoreCount, Path.of( getPackRootFolder() ), emitWalkErrors,
-                                        getPackScanExclusions(), logOutput, null );
+                                        safeScanExclusions, logOutput, null );
 
         // Supplemental, non-Fractureiser-specific heuristics. The Nekodetector
         // checks above are narrowly targeted at one malware family; this layer
@@ -307,7 +316,7 @@ public class GameModPack extends GameModPackMetadata
         List< SupplementalScanner.Finding > supplemental = new ArrayList<>();
         try {
             supplemental.addAll( SupplementalScanner.scanFolder( Path.of( getPackRootFolder() ),
-                                                                  getPackScanExclusions(), scanCoreCount ) );
+                                                                  safeScanExclusions, scanCoreCount ) );
         }
         catch ( IOException e ) {
             // I/O failure during the supplemental walk shouldn't abort the

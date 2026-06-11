@@ -54,6 +54,15 @@ public class Main
                                Function< String, String > logOutput,
                                Function< Progress, Progress > progessOutput ) throws IOException, InterruptedException
     {
+        // Local hardening on top of upstream jarscanner: the exclusion list can
+        // originate from an attacker-controllable modpack manifest, so it is
+        // re-filtered here (mirroring SupplementalScanner) so this scanner
+        // structurally cannot be made to skip protected content roots like
+        // mods/, regardless of caller discipline.
+        final List< String > safeExcludeFolders =
+                com.micatechnologies.minecraft.launcher.security.ScanExclusionPolicy
+                        .filterUntrusted( excludeFolders );
+
         // Output scan start
         long startTime = System.currentTimeMillis();
         logOutput.apply( Constants.ANSI_GREEN +
@@ -83,7 +92,7 @@ public class Main
         // set progress[1] to the total number of files in the directory
         logOutput.apply( Constants.ANSI_GREEN + "Preparing Scanner..." + Constants.ANSI_RESET );
         long scannerPrepStartTime = System.currentTimeMillis();
-        progress[1] = countValidFiles(dirToCheck, excludeFolders);
+        progress[1] = countValidFiles(dirToCheck, safeExcludeFolders);
         long scannerPrepEndTime = System.currentTimeMillis();
         long scannerPrepTime = scannerPrepEndTime - scannerPrepStartTime;
         logOutput.apply( Constants.ANSI_GREEN +
@@ -108,7 +117,7 @@ public class Main
             @Override
             public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs ) {
                 // Check if the directory should be excluded
-                if ( isPathExcludedFromScan( dirToCheck, dir, excludeFolders ) ) {
+                if ( isPathExcludedFromScan( dirToCheck, dir, safeExcludeFolders ) ) {
                     return FileVisitResult.SKIP_SUBTREE; // Skip visiting contents of this directory
                 }
                 return FileVisitResult.CONTINUE;
@@ -124,7 +133,7 @@ public class Main
             @Override
             public FileVisitResult visitFile( Path file, BasicFileAttributes attrs ) {
                 // Check if the file should be excluded
-                if ( isPathExcludedFromScan( dirToCheck, file, excludeFolders ) ) {
+                if ( isPathExcludedFromScan( dirToCheck, file, safeExcludeFolders ) ) {
                     return FileVisitResult.CONTINUE; // Skip scanning this file
                 }
 

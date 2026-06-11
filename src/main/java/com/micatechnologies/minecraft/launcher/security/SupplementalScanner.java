@@ -365,9 +365,12 @@ public final class SupplementalScanner
         // BUILT_IN_EXCLUSIONS (libraries/, bin/, runtime/) so heuristic scanning
         // never fires on Mojang/Forge-controlled hash-verified content. The
         // hardcoded list is appended after the caller's so it can't be undone
-        // by a manifest-supplied empty exclusions list.
+        // by a manifest-supplied empty exclusions list. Caller exclusions are
+        // additionally run through ScanExclusionPolicy here (not just at the
+        // GameModPack call site) so this scanner structurally cannot be made
+        // to skip protected content roots, regardless of caller discipline.
         List< String > combinedExcludes = new ArrayList<>(
-                normalizeExclusions( excludeFolders ) );
+                normalizeExclusions( ScanExclusionPolicy.filterUntrusted( excludeFolders ) ) );
         combinedExcludes.addAll( BUILT_IN_EXCLUSIONS );
         final List< String > normalizedExclusions = combinedExcludes;
 
