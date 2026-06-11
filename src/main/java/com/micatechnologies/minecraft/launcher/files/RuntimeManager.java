@@ -227,7 +227,29 @@ public class RuntimeManager
                     // Only download if file doesn't exist or hash doesn't match
                     if ( !localFile.exists() || !HashUtilities.verifySHA1( localFile, sha1 ) ) {
                         localFile.getParentFile().mkdirs();
-                        NetworkUtilities.downloadFileFromURL( url, localFile );
+                        // Post-download integrity gate: the manifest's SHA-1 must hold
+                        // for the bytes actually received, otherwise the mismatched
+                        // file would be installed and executed as the JRE this session
+                        // (and re-downloaded-and-accepted on every later launch).
+                        // Bounded retry absorbs transient corruption.
+                        final int maxAttempts = 3;
+                        boolean downloadVerified = false;
+                        for ( int attempt = 1; attempt <= maxAttempts && !downloadVerified; attempt++ ) {
+                            NetworkUtilities.downloadFileFromURL( url, localFile );
+                            downloadVerified = HashUtilities.verifySHA1( localFile, sha1 );
+                            if ( !downloadVerified ) {
+                                //noinspection ResultOfMethodCallIgnored
+                                localFile.delete();
+                                Logger.logWarningSilent(
+                                        "Runtime file failed hash verification (attempt " + attempt + " of " +
+                                                maxAttempts + "): " + relativePath );
+                            }
+                        }
+                        if ( !downloadVerified ) {
+                            throw new IOException(
+                                    "Runtime file failed hash verification after " + maxAttempts + " attempts: " +
+                                            relativePath + " (from " + url + ")" );
+                        }
                     }
 
                     // Set executable permission if needed

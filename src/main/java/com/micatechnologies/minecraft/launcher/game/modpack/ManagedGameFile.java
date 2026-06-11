@@ -353,6 +353,38 @@ public class ManagedGameFile
     }
 
     /**
+     * Whether this file declares at least one usable hash that downloaded
+     * content can (and therefore must) be verified against.
+     */
+    private boolean hasAnyUsableHash() {
+        return hasUsableHash( sha256 ) || hasUsableHash( sha1 ) || hasUsableHash( md5 );
+    }
+
+    /**
+     * Hashes {@code file} on disk against the strongest declared hash
+     * (SHA-256 → SHA-1 → MD5) and returns whether it matches. Unlike
+     * {@link #verifyLocalFile}, this deliberately consults neither the
+     * {@link LaunchVerifyMode#FAST_PATH} bypass nor {@link #verifyCache} —
+     * it is the post-download acceptance gate, and freshly downloaded bytes
+     * must always be hashed for real. Returns {@code true} when no usable
+     * hash is declared (nothing to verify against).
+     */
+    // Package-private so the unit test in the same package can exercise the
+    // gate directly against a temp file.
+    boolean matchesDeclaredHash( File file ) {
+        if ( hasUsableHash( sha256 ) ) {
+            return HashUtilities.verifySHA256( file, sha256 );
+        }
+        if ( hasUsableHash( sha1 ) ) {
+            return HashUtilities.verifySHA1( file, sha1 );
+        }
+        if ( hasUsableHash( md5 ) ) {
+            return HashUtilities.verifyMD5( file, md5 );
+        }
+        return true;
+    }
+
+    /**
      * Download a copy of the remote file to the configured local file path
      *
      * @throws ModpackException if unable to download file
@@ -395,12 +427,34 @@ public class ManagedGameFile
             }
             //noinspection ResultOfMethodCallIgnored
             localFile.getParentFile().mkdirs();
-            if ( downloadTracker != null ) {
-                NetworkUtilities.downloadFileFromURL( parsed, localFile, downloadTracker );
+
+            // Post-download integrity gate: the declared hash must hold for the
+            // bytes we actually received, not just decide whether to re-download.
+            // Without this, a compromised CDN/mirror (or a corrupted transfer)
+            // serves content that gets placed on the classpath / executed this
+            // session, re-detected as mismatched next launch, re-downloaded from
+            // the same source, and accepted again — indefinitely. A bounded
+            // retry absorbs transient corruption before giving up.
+            final int maxAttempts = 3;
+            for ( int attempt = 1; attempt <= maxAttempts; attempt++ ) {
+                if ( downloadTracker != null ) {
+                    NetworkUtilities.downloadFileFromURL( parsed, localFile, downloadTracker );
+                }
+                else {
+                    NetworkUtilities.downloadFileFromURL( parsed, localFile );
+                }
+                if ( !hasAnyUsableHash() || matchesDeclaredHash( localFile ) ) {
+                    return;
+                }
+                //noinspection ResultOfMethodCallIgnored
+                localFile.delete();
+                Logger.logWarningSilent(
+                        "Downloaded file failed hash verification (attempt " + attempt + " of " + maxAttempts +
+                                "): " + getFullLocalFilePath() );
             }
-            else {
-                NetworkUtilities.downloadFileFromURL( parsed, localFile );
-            }
+            throw new ModpackException(
+                    "Downloaded file failed hash verification after " + maxAttempts + " attempts: " +
+                            getFullLocalFilePath() + " (from " + remote + ")" );
         }
         catch ( IOException e ) {
             throw new ModpackException(
