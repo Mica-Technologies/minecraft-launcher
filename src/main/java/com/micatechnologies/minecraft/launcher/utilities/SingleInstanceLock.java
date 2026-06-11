@@ -101,6 +101,15 @@ public class SingleInstanceLock
      */
     public static boolean tryAcquire()
     {
+        // Idempotent: if this process already holds the lock, report success without
+        // rebinding. The launcher's restart loop calls tryAcquire() at the top of every
+        // lifecycle iteration; on the first iteration the lock is already held from the
+        // pre-loop acquire, and re-binding the same port would fail spuriously. A held
+        // lock means the socket is open and the IPC accept loop is running, so there's
+        // nothing to redo.
+        if ( lockSocket != null && !lockSocket.isClosed() ) {
+            return true;
+        }
         int port = ipcPort();
         try {
             // Backlog 8 — enough to absorb a small burst of website-link clicks. Bound to

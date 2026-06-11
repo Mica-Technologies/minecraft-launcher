@@ -384,6 +384,17 @@ public class MCLauncherGuiController
     }
 
     public static void exit() {
+        // Discard any unconsumed pre-built main GUI. It holds a reference to THIS
+        // session's Stage (passed to its constructor in prebuildMainGui); if the
+        // session restarts before goToMainGui consumes it, a restarted session's
+        // prebuildMainGui() early-returns on the still-non-null field and
+        // goToMainGui would then bind a controller wired to the previous session's
+        // now-closed Stage (installing setOnCloseRequest on a dead stage and
+        // retaining the old scene graph). Clearing it here under PREBUILD_LOCK
+        // forces the next session to prebuild against its own live Stage.
+        synchronized ( PREBUILD_LOCK ) {
+            prebuiltMainGui = null;
+        }
         if ( guiWindow != null ) {
             guiWindow.cleanup();
             if ( guiWindow.getStage() != null ) {

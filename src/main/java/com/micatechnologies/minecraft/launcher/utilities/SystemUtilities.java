@@ -289,7 +289,25 @@ public class SystemUtilities
      * @since 1.1
      */
     public static void spawnNewTask( Runnable runnable ) {
-        BACKGROUND_EXECUTOR.execute( runnable );
+        try {
+            backgroundExecutor().execute( runnable );
+        }
+        catch ( java.util.concurrent.RejectedExecutionException ree ) {
+            // The pool was shut down (e.g. mid-cleanup, or a task submitted in the
+            // narrow window between shutdownBackgroundExecutor() and the next
+            // backgroundExecutor() recreation) and rejected the task. backgroundExecutor()
+            // already recreates a shut-down pool on the next call, so this should be
+            // vanishingly rare — but rather than silently drop the work, run it inline
+            // as a last resort. Worst case is the caller's thread blocks for the task's
+            // duration instead of fanning out.
+            Logger.logWarningSilent( "Background executor rejected a task; running it inline as a fallback." );
+            try {
+                runnable.run();
+            }
+            catch ( Throwable t ) {
+                Logger.logThrowable( t );
+            }
+        }
     }
 
     /**
@@ -303,24 +321,41 @@ public class SystemUtilities
      * Runnables no longer churns one OS thread apiece.
      *
      * <p>All workers are daemon threads named {@code mica-bg-N} so they don't keep the
-     * JVM alive past launcher exit and are easy to find in a thread dump. The pool
-     * is exposed package-private to {@link com.micatechnologies.minecraft.launcher.LauncherCore}
-     * for the shutdown-drain hook — every other consumer should go through
-     * {@link #spawnNewTask}.</p>
+     * JVM alive past launcher exit and are easy to find in a thread dump.</p>
+     *
+     * <p><b>Lazily (re)created.</b> The field is no longer {@code final} because the
+     * launcher's {@code while(restartFlag)} restart loop runs {@code cleanupApp()} —
+     * which calls {@link #shutdownBackgroundExecutor(long)} — between sessions. A
+     * {@code final} pool stayed shut down forever after the first in-process restart,
+     * so every {@code spawnNewTask} in the restarted session threw
+     * {@code RejectedExecutionException} and silently disabled image caching, auth
+     * renewal, Play actions, etc. {@link #backgroundExecutor()} now rebuilds the pool
+     * on demand whenever it is {@code null} or already shut down.</p>
      */
-    static final java.util.concurrent.ExecutorService BACKGROUND_EXECUTOR =
-            java.util.concurrent.Executors.newCachedThreadPool( new java.util.concurrent.ThreadFactory()
-            {
-                private final java.util.concurrent.atomic.AtomicInteger seq =
-                        new java.util.concurrent.atomic.AtomicInteger( 0 );
+    private static volatile java.util.concurrent.ExecutorService backgroundExecutor;
 
-                @Override
-                public Thread newThread( Runnable r ) {
-                    Thread t = new Thread( r, "mica-bg-" + seq.incrementAndGet() );
-                    t.setDaemon( true );
-                    return t;
-                }
+    /** Monotonic worker-thread sequence, kept outside the per-pool {@link java.util.concurrent.ThreadFactory}
+     *  so names stay unique across pool generations (a restart that recreates the
+     *  pool continues numbering rather than colliding {@code mica-bg-1} twice). */
+    private static final java.util.concurrent.atomic.AtomicInteger BG_THREAD_SEQ =
+            new java.util.concurrent.atomic.AtomicInteger( 0 );
+
+    /**
+     * Returns the shared background executor, lazily constructing it on first use and
+     * reconstructing it if a prior {@link #shutdownBackgroundExecutor(long)} (e.g. from
+     * a restart's {@code cleanupApp()}) left the previous pool shut down. Synchronized so
+     * two threads racing on the first/post-restart call can't build two pools.
+     */
+    private static synchronized java.util.concurrent.ExecutorService backgroundExecutor() {
+        if ( backgroundExecutor == null || backgroundExecutor.isShutdown() ) {
+            backgroundExecutor = java.util.concurrent.Executors.newCachedThreadPool( r -> {
+                Thread t = new Thread( r, "mica-bg-" + BG_THREAD_SEQ.incrementAndGet() );
+                t.setDaemon( true );
+                return t;
             } );
+        }
+        return backgroundExecutor;
+    }
 
     /**
      * Shuts down the shared background-task executor with a bounded wait so any
@@ -329,24 +364,32 @@ public class SystemUtilities
      * the timeout caps how long the launcher will wait, after which we move on
      * and let daemon-thread semantics clean up whatever is still running.
      *
-     * <p>Package-private; called from {@link com.micatechnologies.minecraft.launcher.LauncherCore}
+     * <p>Safe to call on the restart path as well as on exit: the pool is recreated
+     * on demand by {@link #backgroundExecutor()} the next time {@link #spawnNewTask}
+     * runs, so a restarted session gets a fresh, live pool.</p>
+     *
+     * <p>Public; called from {@link com.micatechnologies.minecraft.launcher.LauncherCore}
      * on app shutdown.</p>
      *
      * @param awaitMillis milliseconds to wait for graceful completion
      */
     public static void shutdownBackgroundExecutor( long awaitMillis ) {
-        BACKGROUND_EXECUTOR.shutdown();
+        java.util.concurrent.ExecutorService pool = backgroundExecutor;
+        if ( pool == null ) {
+            return;
+        }
+        pool.shutdown();
         try {
-            if ( !BACKGROUND_EXECUTOR.awaitTermination( awaitMillis,
-                                                         java.util.concurrent.TimeUnit.MILLISECONDS ) ) {
+            if ( !pool.awaitTermination( awaitMillis,
+                                         java.util.concurrent.TimeUnit.MILLISECONDS ) ) {
                 Logger.logWarningSilent( "Background executor did not drain within "
                                                  + awaitMillis + "ms — proceeding with shutdown anyway." );
-                BACKGROUND_EXECUTOR.shutdownNow();
+                pool.shutdownNow();
             }
         }
         catch ( InterruptedException e ) {
             Thread.currentThread().interrupt();
-            BACKGROUND_EXECUTOR.shutdownNow();
+            pool.shutdownNow();
         }
     }
 

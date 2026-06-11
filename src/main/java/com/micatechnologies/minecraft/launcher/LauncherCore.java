@@ -277,6 +277,23 @@ public class LauncherCore
             restartFlag = false;
             restartError = null;
 
+            // Re-acquire the single-instance lock + IPC accept loop for this lifecycle
+            // iteration. cleanupApp() releases the lock at the end of every session
+            // (restart and exit alike), so without this a restarted session — Logout,
+            // Reset Launcher, language change — would run with no lock: a second
+            // launcher process could start concurrently (re-opening the concurrent
+            // config/install-index write corruption class) and mmcl:// deep-link
+            // forwarding would silently stop. tryAcquire() is idempotent, so the
+            // first iteration (lock still held from the pre-loop acquire above) is a
+            // no-op; later iterations re-bind the socket and regenerate the IPC token.
+            // A failed re-acquire is non-fatal — the session runs degraded rather than
+            // refusing to come back.
+            if ( !SingleInstanceLock.tryAcquire() ) {
+                Logger.logWarningSilent( "Could not re-acquire single-instance lock after restart; "
+                                                 + "a second instance may be able to start and deep-link "
+                                                 + "forwarding may be unavailable this session." );
+            }
+
             currentSession = new LauncherSession( args, previousRestartError );
             currentSession.run();
         }
