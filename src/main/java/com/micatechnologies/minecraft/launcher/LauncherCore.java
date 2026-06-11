@@ -1407,23 +1407,33 @@ public class LauncherCore
      * a developer iterating in the IDE keeps the documented static-final-locale
      * limitation and can do a real restart manually.</p>
      *
-     * <p>Safe to call from the FX thread; like {@link #restartApp}, cleanup is
-     * hopped to a fresh non-FX thread to avoid the macOS AppKit dispatch-sync
-     * deadlock.</p>
+     * <p><b>Always</b> runs on a fresh dedicated thread — never the FX thread
+     * (macOS AppKit dispatch-sync deadlock, same as {@link #restartApp}) and,
+     * crucially, never a background-executor worker. The Settings handler calls
+     * this from {@code SystemUtilities.spawnNewTask}, i.e. an executor thread;
+     * {@link #cleanupApp()} shuts that pool down, and its {@code shutdownNow()}
+     * would interrupt the calling thread, aborting the interruptible-FileChannel
+     * config flush ({@code ConfigStore.writeNow}) before the spawned process
+     * reads the new locale override from disk — which manifested as "the language
+     * didn't change at all" after a relaunch. A dedicated thread is immune to
+     * that pool shutdown.</p>
      *
      * @since 2026.6
      */
     public static void relaunchApp() {
-        if ( javafx.application.Platform.isFxApplicationThread() ) {
-            Thread relauncher = new Thread( LauncherCore::relaunchAppNow, "Launcher-Relaunch" );
-            relauncher.setDaemon( false );
-            relauncher.start();
-            return;
-        }
-        relaunchAppNow();
+        Thread relauncher = new Thread( LauncherCore::relaunchAppNow, "Launcher-Relaunch" );
+        relauncher.setDaemon( false );
+        relauncher.start();
     }
 
     private static void relaunchAppNow() {
+        // Persist config to disk NOW, up front, on this un-interrupted dedicated
+        // thread — the spawned process reads the locale override (and the rest of
+        // config) from disk, so the write must be durable before anything is torn
+        // down or respawned. (cleanupApp flushes too, but doing it here makes the
+        // durability ordering explicit and independent of cleanup internals.)
+        com.micatechnologies.minecraft.launcher.config.ConfigManager.flushPendingWrite();
+
         String exePath = SchemeRegistrar.resolveLauncherExePath();
         if ( exePath == null || exePath.isBlank() ) {
             // No installed exe to respawn (dev / raw-JAR / IDE run). Fall back to
