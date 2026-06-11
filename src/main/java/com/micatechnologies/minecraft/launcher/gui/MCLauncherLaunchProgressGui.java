@@ -82,6 +82,17 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
     private LaunchProgressTracker attachedTracker;
     private LaunchProgressTracker.Listener attachedListener;
 
+    /** Coalesces the per-file progress storm. A warm launch fires thousands of
+     *  tracker notifications in a tight burst (one per verified asset — ~3,500-4,500
+     *  for a modern asset index); a naive {@code Platform.runLater} per event floods
+     *  the FX queue and re-runs the native taskbar update each time, freezing the
+     *  progress window. Instead we schedule at most one pending FX flush at a time
+     *  (compareAndSet gate): when it runs it re-renders all rows from the tracker's
+     *  current state and refreshes the taskbar once, then re-arms. This naturally
+     *  throttles updates to the FX thread's frame rate. */
+    private final java.util.concurrent.atomic.AtomicBoolean progressFlushScheduled =
+            new java.util.concurrent.atomic.AtomicBoolean( false );
+
     public MCLauncherLaunchProgressGui( Stage stage ) throws IOException
     {
         super( stage );
@@ -160,11 +171,24 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
                 rowWidgets.put( step.id(), row );
                 renderRow( row, step );
             }
-            attachedListener = step -> Platform.runLater( () -> {
-                RowWidgets row = rowWidgets.get( step.id() );
-                if ( row != null ) renderRow( row, step );
-                refreshOverallTaskbarProgress();
-            } );
+            attachedListener = step -> {
+                // Coalesce: only the first event since the last flush queues an FX
+                // runnable; the rest fall through (their state is picked up when the
+                // pending flush reads the tracker's current rows).
+                if ( progressFlushScheduled.compareAndSet( false, true ) ) {
+                    Platform.runLater( () -> {
+                        progressFlushScheduled.set( false );
+                        LaunchProgressTracker t = attachedTracker;
+                        if ( t != null ) {
+                            for ( Step s : t.steps() ) {
+                                RowWidgets row = rowWidgets.get( s.id() );
+                                if ( row != null ) renderRow( row, s );
+                            }
+                        }
+                        refreshOverallTaskbarProgress();
+                    } );
+                }
+            };
             tracker.addListener( attachedListener );
             refreshOverallTaskbarProgress();
         } );

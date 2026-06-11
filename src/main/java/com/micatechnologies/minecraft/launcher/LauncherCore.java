@@ -169,6 +169,15 @@ public class LauncherCore
     public static void main( String[] args ) {
         ColdStartProfiler.mark( "main_entry" );
 
+        // Raise the per-host keep-alive connection cap for the legacy
+        // HttpURLConnection stack (JDK default is 5). The launcher fans out
+        // availableProcessors-many concurrent downloads at the same Mojang /
+        // Forge CDNs during a cold install; with only 5 pooled connections per
+        // host the rest pay a fresh TLS handshake each. Must be set before the
+        // first HTTP connection. Cheap, broad win independent of the larger
+        // (deferred) shared-HttpClient/HTTP-2 migration.
+        System.setProperty( "http.maxConnections", "32" );
+
         // Remove the current working directory from the Windows DLL search order
         // before any bare-name native load (the RGB vendor SDKs are loaded by name
         // and aren't System32 KnownDLLs, so a planted DLL in the launcher's working
