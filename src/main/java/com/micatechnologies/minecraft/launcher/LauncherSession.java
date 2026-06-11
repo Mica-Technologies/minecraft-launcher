@@ -85,8 +85,26 @@ class LauncherSession
         // correct by the time they fire. Calling LocaleBootstrap from a
         // standalone class avoids triggering LocalizationManager class
         // load here. See LocaleBootstrap class docs for the rationale.
-        com.micatechnologies.minecraft.launcher.consts.localization.LocaleBootstrap.apply(
-                com.micatechnologies.minecraft.launcher.config.ConfigManager.getLocaleOverride() );
+        String localeOverride = com.micatechnologies.minecraft.launcher.config.ConfigManager.getLocaleOverride();
+        com.micatechnologies.minecraft.launcher.consts.localization.LocaleBootstrap.apply( localeOverride );
+        // Reload the active resource bundle against the just-applied locale so an
+        // IN-PROCESS restart actually re-localizes the dynamic UI. LocaleBootstrap.apply
+        // only calls Locale.setDefault; LocalizationManager caches its bundle in a
+        // static field that the restart loop never re-reads, so without this a
+        // restart (a Save & Restart that fell back to in-process in dev, Logout,
+        // account switch) left LocalizationManager.get/format and every freshly
+        // loaded FXML scene — which bind via currentBundle() — stuck at the first
+        // session's language. This is the first LocalizationManager reference in
+        // the startup chain (everything earlier deliberately avoids it, per
+        // LocaleBootstrap's docs), so on the first session the class loads here,
+        // AFTER apply() set the default, and the 89 static-final translation
+        // fields still bind to the correct launch locale. Those finals can't be
+        // reset in-process — only a full process relaunch (LauncherCore.relaunchApp)
+        // does that — but they back mostly logs and a few secondary strings; the
+        // primary UI is dynamic and re-localizes here.
+        LocalizationManager.setLocale(
+                com.micatechnologies.minecraft.launcher.consts.localization.LocaleBootstrap.resolve(
+                        localeOverride ) );
         ColdStartProfiler.mark( "locale_ready" );
 
         // Apply system properties
