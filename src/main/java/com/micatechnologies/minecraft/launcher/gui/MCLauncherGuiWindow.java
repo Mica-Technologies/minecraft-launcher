@@ -879,6 +879,15 @@ public class MCLauncherGuiWindow extends Application
      * Any previously-installed theme/token sheets are removed first so we never accumulate stylesheets across
      * theme switches or scene transitions.
      */
+    /** The (legacy, token) stylesheet pair whose native chrome (DWM backdrop,
+     *  caption/border, title-bar mode) is currently established on the window.
+     *  Lets {@link #applyTheme} skip the chrome pipeline — and its synchronous
+     *  RedrawWindow + Mica backdrop toggle, which flickered on every screen
+     *  change — when a plain navigation re-applies the same theme. Null until
+     *  the first applyTheme. */
+    private String appliedLegacySheet;
+    private String appliedTokenSheet;
+
     private void applyTheme( String legacySheet, String tokenSheet ) {
         GUIUtilities.JFXPlatformRun( () -> {
             // Cold-start window: the initial placeholder scene installed in start()
@@ -963,6 +972,22 @@ public class MCLauncherGuiWindow extends Application
                         .clear( stage );
             }
 
+            // Stylesheets + scene fill above must run every setScene (the new scene's
+            // rootPane starts with none). The native-chrome pipeline below, however,
+            // is per-STAGE state that only needs touching on an actual theme change —
+            // running it on every navigation re-toggled the DWM Mica backdrop and
+            // forced a synchronous RedrawWindow, causing a visible composition flicker.
+            // Skip it when this is a plain navigation re-applying the same theme to an
+            // already-showing window.
+            boolean themeUnchanged = legacySheet.equals( appliedLegacySheet )
+                                  && tokenSheet.equals( appliedTokenSheet )
+                                  && stage.isShowing();
+            appliedLegacySheet = legacySheet;
+            appliedTokenSheet = tokenSheet;
+            if ( themeUnchanged ) {
+                return;
+            }
+
             // Native theme: request the Mica backdrop via DWM. For non-Native themes,
             // clear any previously-set backdrop so the solid bg paints normally.
             //
@@ -1041,9 +1066,15 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /** Resolves a classpath CSS resource to its external URL form, throwing if missing. */
+    /** Resolved CSS resource URLs, memoized — applyTheme resolves ~13 of these
+     *  per call and they never change for the process lifetime. */
+    private static final java.util.concurrent.ConcurrentHashMap< String, String > CSS_URL_CACHE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     private String cssUrl( String resourcePath ) {
-        return Objects.requireNonNull( getClass().getClassLoader().getResource( resourcePath ),
-                                       "Missing CSS resource: " + resourcePath ).toExternalForm();
+        return CSS_URL_CACHE.computeIfAbsent( resourcePath, p ->
+                Objects.requireNonNull( getClass().getClassLoader().getResource( p ),
+                                        "Missing CSS resource: " + p ).toExternalForm() );
     }
 
     /**
