@@ -221,8 +221,14 @@ public final class ModpackZipImporter
     {
         Path destNormalized = dest.toAbsolutePath().normalize();
         Enumeration< ? extends ZipEntry > entries = zip.entries();
+        long totalBytes = 0;
+        int entryCount = 0;
         while ( entries.hasMoreElements() ) {
             ZipEntry entry = entries.nextElement();
+            if ( ++entryCount > BoundedZipExtraction.MAX_ENTRIES ) {
+                throw new IOException( "ZIP has too many entries (>" + BoundedZipExtraction.MAX_ENTRIES
+                                               + ") — refusing to extract." );
+            }
             String name = entry.getName();
             // Skip the two book-keeping entries; they belong with the
             // manifest in imported-manifests/, not in the pack root.
@@ -242,8 +248,11 @@ public final class ModpackZipImporter
             }
             Path parent = target.getParent();
             if ( parent != null ) Files.createDirectories( parent );
+            // Bounded copy (per-entry + cumulative caps) so a decompression bomb
+            // can't fill the disk.
             try ( InputStream in = zip.getInputStream( entry ) ) {
-                Files.copy( in, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING );
+                totalBytes += BoundedZipExtraction.copyCapped( in, target,
+                        BoundedZipExtraction.MAX_TOTAL_BYTES - totalBytes );
             }
         }
     }
