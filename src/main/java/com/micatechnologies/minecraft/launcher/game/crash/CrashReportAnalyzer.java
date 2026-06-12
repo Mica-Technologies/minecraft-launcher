@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.game.crash;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
@@ -131,7 +132,7 @@ public final class CrashReportAnalyzer
             catch ( Exception | Error e ) {
                 // A buggy detector shouldn't take down the crash-display path itself —
                 // log and move on to the next.
-                Logger.logWarningSilent( "Crash-report detector threw: " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.detectorThrew", e.getMessage() ) );
             }
         }
         return CrashDiagnosis.unknown( exitCode );
@@ -163,25 +164,25 @@ public final class CrashReportAnalyzer
         if ( suggestedGb > currentMaxGb ) {
             final long suggested = suggestedGb;
             suggestions.add( Suggestion.primary(
-                    "Increase max RAM to " + suggestedGb + " GB",
+                    LocalizationManager.format( "crash.oom.increaseRam", suggestedGb ),
                     () -> {
                         ConfigManager.setMaxRam( suggested * 1024L );
-                        Logger.logStd( "Crash-diagnosis: bumped max RAM to " + suggested + " GB on user request." );
+                        Logger.logStd( LocalizationManager.format( "log.crashAnalyzer.bumpedRam", suggested ) );
                     } ) );
         }
-        suggestions.add( Suggestion.of( "Open RAM settings", () -> openSettings() ) );
+        suggestions.add( Suggestion.of( LocalizationManager.get( "crash.oom.openRamSettings" ), () -> openSettings() ) );
 
-        String summary = "Minecraft ran out of memory"
-                + ( detail != null && !detail.isBlank() ? " (" + detail.trim() + ")" : "" )
-                + ". Your launcher's max RAM is currently " + currentMaxGb + " GB; this pack needs more.";
+        String detailPart = ( detail != null && !detail.isBlank() )
+                ? LocalizationManager.format( "crash.oom.detailSuffix", detail.trim() ) : "";
+        String summary = LocalizationManager.format( "crash.oom.summary", detailPart, currentMaxGb );
         if ( systemGb > 0 ) {
-            summary += " Your system has about " + systemGb + " GB total.";
+            summary += LocalizationManager.format( "crash.oom.systemTotal", systemGb );
         }
 
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.OUT_OF_MEMORY,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Out of memory",
+                LocalizationManager.get( "crash.oom.title" ),
                 summary,
                 suggestions );
     }
@@ -200,20 +201,20 @@ public final class CrashReportAnalyzer
         Matcher m = Pattern.compile( "class file version (\\d+)\\.\\d+" ).matcher( text );
         String requiredJava = m.find() ? javaReleaseForClassFileVersion( m.group( 1 ) ) : null;
 
-        String summary = "A mod or library in this pack was compiled for a newer Java version "
-                + "than the runtime currently being used"
-                + ( requiredJava != null ? " (this mod targets Java " + requiredJava + ")" : "" )
-                + ". The launcher's runtime management screen can install or pick a different Java."
-                + ( pack != null ? " The required Java version is normally declared by the modpack manifest." : "" );
+        String targetPart = ( requiredJava != null )
+                ? LocalizationManager.format( "crash.javaVersion.targetSuffix", requiredJava ) : "";
+        String manifestPart = ( pack != null )
+                ? LocalizationManager.get( "crash.javaVersion.manifestSuffix" ) : "";
+        String summary = LocalizationManager.format( "crash.javaVersion.summary", targetPart, manifestPart );
 
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.JAVA_VERSION,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Java version mismatch",
+                LocalizationManager.get( "crash.javaVersion.title" ),
                 summary,
                 List.of(
-                        Suggestion.primary( "Open Runtime Management", () -> openRuntime() ),
-                        Suggestion.of( "Open Settings", () -> openSettings() )
+                        Suggestion.primary( LocalizationManager.get( "crash.action.openRuntime" ), () -> openRuntime() ),
+                        Suggestion.of( LocalizationManager.get( "crash.action.openSettings" ), () -> openSettings() )
                 ) );
     }
 
@@ -228,10 +229,8 @@ public final class CrashReportAnalyzer
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.DISK_IO,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Disk full",
-                "The system ran out of disk space mid-launch. Free some space — modpack worlds, "
-                        + "old screenshots, and crash reports under the pack's install folder are usually "
-                        + "the biggest offenders — and try again.",
+                LocalizationManager.get( "crash.diskFull.title" ),
+                LocalizationManager.get( "crash.diskFull.summary" ),
                 openFolderSuggestions( pack ) );
     }
 
@@ -255,11 +254,8 @@ public final class CrashReportAnalyzer
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.NATIVE_LIBRARY,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Couldn't load a native library",
-                "The JVM couldn't load one of Minecraft's native libraries (typically LWJGL or a "
-                        + "JNI binding). The usual causes are an antivirus quarantining the file, a "
-                        + "corrupted install, or — on Linux — a missing system library. Reinstalling "
-                        + "the modpack usually fixes it.",
+                LocalizationManager.get( "crash.nativeLib.title" ),
+                LocalizationManager.get( "crash.nativeLib.summary" ),
                 suggestions );
     }
 
@@ -279,10 +275,9 @@ public final class CrashReportAnalyzer
         Matcher owner = MIXIN_OWNER_PATTERN.matcher( text );
         String offendingMod = owner.find() ? ( owner.group( 1 ) != null ? owner.group( 1 ) : owner.group( 2 ) ) : null;
 
-        String summary = "A mod's mixin patch failed to apply"
-                + ( offendingMod != null ? " — mixin from \"" + offendingMod + "\" appears to be the culprit" : "" )
-                + ". This usually means two mods are trying to patch the same class, or one of them "
-                + "doesn't support this Minecraft version yet.";
+        String culpritPart = ( offendingMod != null )
+                ? LocalizationManager.format( "crash.mixin.culpritSuffix", offendingMod ) : "";
+        String summary = LocalizationManager.format( "crash.mixin.summary", culpritPart );
 
         List< Suggestion > suggestions = new ArrayList<>();
         // If we identified the offending mod and a matching jar lives in mods/, surface a
@@ -300,7 +295,7 @@ public final class CrashReportAnalyzer
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.MIXIN_CONFLICT,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Mod mixin conflict",
+                LocalizationManager.get( "crash.mixin.title" ),
                 summary,
                 suggestions );
     }
@@ -328,15 +323,12 @@ public final class CrashReportAnalyzer
         String requiredMod  = m.group( 2 ) != null ? m.group( 2 ) : m.group( 5 );
         String requiredVer  = m.group( 3 ) != null ? m.group( 3 ) : m.group( 6 );
 
-        String summary = "Mod \"" + requiringMod + "\" needs " + requiredMod + " "
-                + requiredVer + " installed, but a compatible version isn't loaded. "
-                + "Either add the missing dependency, update the existing one to a matching "
-                + "version, or remove the mod that requires it.";
+        String summary = LocalizationManager.format( "crash.forgeDep.summary", requiringMod, requiredMod, requiredVer );
 
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.MOD_LOADING,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Missing or mismatched mod dependency",
+                LocalizationManager.get( "crash.forgeDep.title" ),
                 summary,
                 openFolderSuggestions( pack ) );
     }
@@ -360,20 +352,16 @@ public final class CrashReportAnalyzer
 
         String summary;
         if ( missingClass != null ) {
-            summary = "A mod tried to use class \"" + missingClass + "\" but it wasn't found. "
-                    + "That usually means a required dependency mod is missing or a mod from a different "
-                    + "Minecraft / Forge version snuck in.";
+            summary = LocalizationManager.format( "crash.modLoading.summaryWithClass", missingClass );
         }
         else {
-            summary = "Forge couldn't load this pack's mods cleanly. The most common causes are a "
-                    + "missing dependency, a mod that targets a different Minecraft / Forge version, "
-                    + "or two mods that don't get along.";
+            summary = LocalizationManager.get( "crash.modLoading.summaryGeneric" );
         }
 
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.MOD_LOADING,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Mod loading failed",
+                LocalizationManager.get( "crash.modLoading.title" ),
                 summary,
                 openFolderSuggestions( pack ) );
     }
@@ -391,14 +379,12 @@ public final class CrashReportAnalyzer
         if ( !GPU_PATTERN.matcher( text ).find() ) {
             return null;
         }
-        String summary = "Minecraft couldn't initialize the graphics layer. The usual causes are "
-                + "out-of-date GPU drivers, the wrong GPU being picked on a laptop with both integrated "
-                + "and discrete graphics, or remote-desktop sessions where OpenGL isn't accelerated.";
+        String summary = LocalizationManager.get( "crash.gpu.summary" );
 
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.GPU,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Graphics initialization failed",
+                LocalizationManager.get( "crash.gpu.title" ),
                 summary,
                 List.of() );
     }
@@ -419,11 +405,8 @@ public final class CrashReportAnalyzer
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.WORLD_CORRUPTION,
                 CrashDiagnosis.Severity.CRITICAL,
-                "World data couldn't be read",
-                "Minecraft choked on a save file — a chunk, region, or level.dat is unreadable. "
-                        + "Common causes: an unexpected reboot during a previous save, two mods writing "
-                        + "conflicting NBT, or a mod removed between sessions whose data is still on disk. "
-                        + "Try loading a different world, or restore from a recent backup.",
+                LocalizationManager.get( "crash.world.title" ),
+                LocalizationManager.get( "crash.world.summary" ),
                 openFolderSuggestions( pack ) );
     }
 
@@ -438,11 +421,10 @@ public final class CrashReportAnalyzer
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.AUTH,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Minecraft couldn't authenticate",
-                "The game rejected the session token the launcher provided. Usually the saved login "
-                        + "has expired; signing out of the launcher and signing back in clears it up.",
+                LocalizationManager.get( "crash.auth.title" ),
+                LocalizationManager.get( "crash.auth.summary" ),
                 List.of(
-                        Suggestion.primary( "Open Settings", () -> openSettings() )
+                        Suggestion.primary( LocalizationManager.get( "crash.action.openSettings" ), () -> openSettings() )
                 ) );
     }
 
@@ -463,14 +445,11 @@ public final class CrashReportAnalyzer
         if ( !AUDIO_PATTERN.matcher( text ).find() ) {
             return null;
         }
-        String summary = "Minecraft couldn't initialize the audio subsystem. On Linux this is "
-                + "usually a PulseAudio ↔ ALSA mismatch (especially in containers or fresh installs); "
-                + "on Windows it's typically a disabled / disconnected output device. Music & Sounds "
-                + "can also be turned off in-game as a workaround.";
+        String summary = LocalizationManager.get( "crash.audio.summary" );
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.AUDIO,
                 CrashDiagnosis.Severity.WARNING,
-                "Audio initialization failed",
+                LocalizationManager.get( "crash.audio.title" ),
                 summary,
                 openCrashReportFolderSuggestion( pack ) );
     }
@@ -490,18 +469,14 @@ public final class CrashReportAnalyzer
         if ( !FILE_LOCK_PATTERN.matcher( text ).find() ) {
             return null;
         }
-        String summary = "A file the game tried to write was locked by another process. "
-                + "On Windows this is almost always an antivirus (or Windows Defender) scanning the "
-                + "downloaded mod or runtime — try whitelisting the launcher's install folder, then "
-                + "retry the launch. Closing OneDrive / sync clients pointed at the install folder "
-                + "is the other common fix.";
+        String summary = LocalizationManager.get( "crash.fileLock.summary" );
         List< Suggestion > suggestions = new ArrayList<>();
-        suggestions.add( Suggestion.primary( "Open Install Folder", () -> openPackSubfolder( pack, "" ) ) );
+        suggestions.add( Suggestion.primary( LocalizationManager.get( "crash.action.openInstallFolder" ), () -> openPackSubfolder( pack, "" ) ) );
         suggestions.addAll( openCrashReportFolderSuggestion( pack ) );
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.FILE_LOCK,
                 CrashDiagnosis.Severity.CRITICAL,
-                "File locked by another process",
+                LocalizationManager.get( "crash.fileLock.title" ),
                 summary,
                 suggestions );
     }
@@ -525,11 +500,7 @@ public final class CrashReportAnalyzer
                 || !SODIUM_PATTERN.matcher( text ).find() ) {
             return null;
         }
-        String summary = "Both OptiFine and Sodium are installed. They patch the same Minecraft "
-                + "rendering internals in incompatible ways and can't safely coexist — pick one. "
-                + "Sodium needs the Fabric loader; OptiFine works on Forge or with the OptiFabric "
-                + "bridge. The Disable buttons below rename one of the two jars to {name}.jar.disabled "
-                + "so the loader skips it on next launch.";
+        String summary = LocalizationManager.get( "crash.optifineSodium.summary" );
 
         List< Suggestion > suggestions = new ArrayList<>();
         Suggestion disableOptifine = maybeDisableModSuggestion( pack, "optifine" );
@@ -538,20 +509,20 @@ public final class CrashReportAnalyzer
         if ( disableSodium != null ) suggestions.add( disableSodium );
         if ( suggestions.isEmpty() ) {
             // Mods folder doesn't surface the jar names — fall back to a manual prompt.
-            suggestions.add( Suggestion.primary( "Open Mods Folder",
+            suggestions.add( Suggestion.primary( LocalizationManager.get( "crash.action.openModsFolder" ),
                     () -> openPackSubfolder( pack, "mods" ) ) );
         }
         else {
             // Tag the first auto-disable button as primary for visual emphasis.
             Suggestion first = suggestions.get( 0 );
             suggestions.set( 0, new Suggestion( first.label(), first.action(), true ) );
-            suggestions.add( Suggestion.of( "Open Mods Folder",
+            suggestions.add( Suggestion.of( LocalizationManager.get( "crash.action.openModsFolder" ),
                     () -> openPackSubfolder( pack, "mods" ) ) );
         }
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.LOADER_CONFLICT,
                 CrashDiagnosis.Severity.CRITICAL,
-                "OptiFine and Sodium are incompatible",
+                LocalizationManager.get( "crash.optifineSodium.title" ),
                 summary,
                 suggestions );
     }
@@ -579,13 +550,11 @@ public final class CrashReportAnalyzer
         }
         String requiredMc = m.group( 1 );
         String currentMc  = m.group( 2 );
-        String summary = "A mod in this pack was built for Minecraft " + requiredMc
-                + " but the pack is launching Minecraft " + currentMc + ". Either downgrade the pack's "
-                + "Minecraft version, swap the mod for one built for " + currentMc + ", or remove it.";
+        String summary = LocalizationManager.format( "crash.modMcMismatch.summary", requiredMc, currentMc );
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.MOD_LOADING,
                 CrashDiagnosis.Severity.CRITICAL,
-                "Mod built for Minecraft " + requiredMc + ", pack runs " + currentMc,
+                LocalizationManager.format( "crash.modMcMismatch.title", requiredMc, currentMc ),
                 summary,
                 openFolderSuggestions( pack ) );
     }
@@ -618,9 +587,7 @@ public final class CrashReportAnalyzer
         String summary;
         List< Suggestion > suggestions = new ArrayList<>();
         if ( dual ) {
-            summary = "Both Just Enough Items (JEI) and Roughly Enough Items (REI) are installed. "
-                    + "They register the same recipe-viewer hooks and one of them will fail on every "
-                    + "launch. Pick one — most modern packs use REI on Fabric and JEI on Forge.";
+            summary = LocalizationManager.get( "crash.jeiRei.summaryDual" );
             Suggestion disableJei = maybeDisableModSuggestion( pack, "jei" );
             if ( disableJei != null ) suggestions.add( disableJei );
             Suggestion disableRei = maybeDisableModSuggestion( pack, "rei" );
@@ -631,16 +598,13 @@ public final class CrashReportAnalyzer
             }
         }
         else {
-            summary = "A recipe ID collided between two mods — typically when two mods register the "
-                    + "same recipe identifier, or when a recipe-management mod (JEI / REI / CraftTweaker) "
-                    + "is loading recipes faster than the underlying mods publish them. Removing one "
-                    + "of the recipe-management mods usually unblocks the launch.";
+            summary = LocalizationManager.get( "crash.jeiRei.summaryCollision" );
         }
-        suggestions.add( Suggestion.of( "Open Mods Folder", () -> openPackSubfolder( pack, "mods" ) ) );
+        suggestions.add( Suggestion.of( LocalizationManager.get( "crash.action.openModsFolder" ), () -> openPackSubfolder( pack, "mods" ) ) );
         return new CrashDiagnosis(
                 CrashDiagnosis.Category.MOD_LOADING,
                 CrashDiagnosis.Severity.CRITICAL,
-                dual ? "JEI and REI conflict" : "Recipe ID collision",
+                dual ? LocalizationManager.get( "crash.jeiRei.titleDual" ) : LocalizationManager.get( "crash.jeiRei.titleCollision" ),
                 summary,
                 suggestions );
     }
@@ -685,8 +649,8 @@ public final class CrashReportAnalyzer
             return List.of();
         }
         List< Suggestion > out = new ArrayList<>();
-        out.add( Suggestion.primary( "Open Mods Folder", () -> openPackSubfolder( pack, "mods" ) ) );
-        out.add( Suggestion.of( "Open Install Folder", () -> openPackSubfolder( pack, "" ) ) );
+        out.add( Suggestion.primary( LocalizationManager.get( "crash.action.openModsFolder" ), () -> openPackSubfolder( pack, "mods" ) ) );
+        out.add( Suggestion.of( LocalizationManager.get( "crash.action.openInstallFolder" ), () -> openPackSubfolder( pack, "" ) ) );
         return out;
     }
 
@@ -697,7 +661,7 @@ public final class CrashReportAnalyzer
         if ( pack == null ) {
             return List.of();
         }
-        return List.of( Suggestion.of( "Open Crash Reports",
+        return List.of( Suggestion.of( LocalizationManager.get( "crash.action.openCrashReports" ),
                 () -> openPackSubfolder( pack, "crash-reports" ) ) );
     }
 
@@ -706,16 +670,16 @@ public final class CrashReportAnalyzer
      *  fix. Caller is expected to gate on {@code pack.getPackURL() != null} before invoking. */
     private static Suggestion reinstallPackSuggestion( GameModPack pack )
     {
-        return Suggestion.primary( "Reinstall Modpack", () -> SystemUtilities.spawnNewTask( () -> {
+        return Suggestion.primary( LocalizationManager.get( "crash.action.reinstallModpack" ), () -> SystemUtilities.spawnNewTask( () -> {
             try {
                 String url = pack.getPackURL();
-                Logger.logStd( "Crash-diagnosis: reinstall requested for " + pack.getPackName()
-                                       + " via " + url );
+                Logger.logStd( LocalizationManager.format( "log.crashAnalyzer.reinstallRequested",
+                                       pack.getPackName(), url ) );
                 GameModPackManager.uninstallModPack( pack );
                 GameModPackManager.installModPackByURL( url );
             }
             catch ( Exception | Error e ) {
-                Logger.logWarningSilent( "Reinstall from crash diagnosis failed: " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.reinstallFailed", e.getMessage() ) );
             }
         } ) );
     }
@@ -747,16 +711,16 @@ public final class CrashReportAnalyzer
         // Pick the first match. There's rarely more than one optifine/sodium/jei/rei jar in
         // a single pack — and if there is, disabling the first is still progress.
         File target = jars[ 0 ];
-        return Suggestion.of( "Disable " + target.getName(), () -> SystemUtilities.spawnNewTask( () -> {
+        return Suggestion.of( LocalizationManager.format( "crash.action.disableMod", target.getName() ), () -> SystemUtilities.spawnNewTask( () -> {
             try {
                 Path src = target.toPath();
                 Path dst = src.resolveSibling( target.getName() + ".disabled" );
                 Files.move( src, dst, StandardCopyOption.REPLACE_EXISTING );
-                Logger.logStd( "Crash-diagnosis: renamed " + src + " → " + dst );
+                Logger.logStd( LocalizationManager.format( "log.crashAnalyzer.renamedMod", src.toString(), dst.toString() ) );
             }
             catch ( Exception | Error e ) {
-                Logger.logWarningSilent( "Could not disable mod " + target.getName()
-                                                 + ": " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.disableModFailed",
+                                                 target.getName(), e.getMessage() ) );
             }
         } ) );
     }
@@ -774,14 +738,14 @@ public final class CrashReportAnalyzer
                 + crashPhrase;
         String encoded = URLEncoder.encode( query, StandardCharsets.UTF_8 );
         String url = "https://www.google.com/search?q=" + encoded;
-        return Suggestion.of( "Search the web", () -> SystemUtilities.spawnNewTask( () -> {
+        return Suggestion.of( LocalizationManager.get( "crash.action.searchWeb" ), () -> SystemUtilities.spawnNewTask( () -> {
             try {
                 if ( Desktop.isDesktopSupported() ) {
                     Desktop.getDesktop().browse( new java.net.URI( url ) );
                 }
             }
             catch ( Exception | Error e ) {
-                Logger.logWarningSilent( "Could not open documentation search: " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.openSearchFailed", e.getMessage() ) );
             }
         } ) );
     }
@@ -803,7 +767,7 @@ public final class CrashReportAnalyzer
                 Desktop.getDesktop().open( folder );
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to open " + subfolder + " folder: " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.openFolderFailed", subfolder, e.getMessage() ) );
             }
         } );
     }
@@ -815,7 +779,7 @@ public final class CrashReportAnalyzer
                 MCLauncherGuiController.goToSettingsGui();
             }
             catch ( IOException e ) {
-                Logger.logWarningSilent( "Couldn't open settings from crash diagnosis: " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.openSettingsFailed", e.getMessage() ) );
             }
         } );
     }
@@ -827,7 +791,7 @@ public final class CrashReportAnalyzer
                 MCLauncherGuiController.goToRuntimeGui();
             }
             catch ( IOException e ) {
-                Logger.logWarningSilent( "Couldn't open runtime management from crash diagnosis: " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.openRuntimeFailed", e.getMessage() ) );
             }
         } );
     }

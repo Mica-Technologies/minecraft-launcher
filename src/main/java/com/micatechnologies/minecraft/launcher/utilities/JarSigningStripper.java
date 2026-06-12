@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.io.BufferedInputStream;
@@ -154,7 +155,7 @@ public final class JarSigningStripper
         Files.move( temp.toPath(), jarFile.toPath(),
                     StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE );
-        Logger.logDebug( "Stripped signing from " + jarFile.getName() );
+        Logger.logDebug( LocalizationManager.format( "log.jarStripper.strippedSigning", jarFile.getName() ) );
         return true;
     }
 

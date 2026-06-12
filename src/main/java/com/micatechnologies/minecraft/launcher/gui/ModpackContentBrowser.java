@@ -276,7 +276,7 @@ public final class ModpackContentBrowser
                     } );
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "Mod update scan threw: " + t.getClass().getSimpleName() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.modUpdateScanThrew", t.getClass().getSimpleName() ) );
                     javafx.application.Platform.runLater( () -> {
                         checkUpdatesStatus.setText( LocalizationManager.get( "detailModal.mods.checkFailed" ) );
                         checkUpdatesBtn.setDisable( false );
@@ -400,7 +400,7 @@ public final class ModpackContentBrowser
                 javafx.application.Platform.runLater( rerender );
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Mod toggle failed for " + mod.getName() + ": " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.modToggleFailed", mod.getName(), ex.getMessage() ) );
                 NotificationManager.warn( LocalizationManager.get( "notification.content.toggleModFailed.title" ),
                                           LocalizationManager.get( "notification.content.toggleModFailed.body" ) );
             }
@@ -473,7 +473,7 @@ public final class ModpackContentBrowser
             } );
         }
         catch ( Exception ex ) {
-            Logger.logWarningSilent( "Mod update failed for " + oldJarName + ": " + ex.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.modUpdateFailed", oldJarName, ex.getMessage() ) );
             javafx.application.Platform.runLater( () -> {
                 updateLabel.setText( LocalizationManager.get( "detailModal.mods.updateFailed" ) );
                 updateBtn.setDisable( false );
@@ -561,7 +561,7 @@ public final class ModpackContentBrowser
                 ServerFavoritesStore.save( pack, favorites );
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Couldn't save server favorites: " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.saveFavoritesFailed", ex.getMessage() ) );
                 NotificationManager.warn(
                         LocalizationManager.get( "detailModal.servers.saveFailedTitle" ),
                         LocalizationManager.get( "detailModal.servers.saveFailedBody" ) );
@@ -652,7 +652,7 @@ public final class ModpackContentBrowser
                 ServerFavoritesStore.save( pack, favorites );
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Couldn't save server favorites: " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.saveFavoritesFailed", ex.getMessage() ) );
                 NotificationManager.warn(
                         LocalizationManager.get( "detailModal.servers.saveFailedTitle" ),
                         LocalizationManager.get( "detailModal.servers.saveFailedBody" ) );
@@ -692,7 +692,7 @@ public final class ModpackContentBrowser
                 ServerFavoritesStore.setDefaultServerDisabled( pack, !isNow );
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Couldn't save default-server toggle: " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.saveDefaultToggleFailed", ex.getMessage() ) );
                 NotificationManager.warn(
                         LocalizationManager.get( "detailModal.servers.saveFailedTitle" ),
                         LocalizationManager.get( "detailModal.servers.saveFailedBody" ) );
@@ -723,7 +723,7 @@ public final class ModpackContentBrowser
                     MCLauncherGuiController.requestFocus();
                 }
                 catch ( Exception e ) {
-                    Logger.logErrorSilent( "Quick-join return to main GUI failed: " + e.getMessage() );
+                    Logger.logErrorSilent( LocalizationManager.format( "log.contentBrowser.quickJoinReturnFailed", e.getMessage() ) );
                 }
             } ) );
         } );
@@ -804,7 +804,7 @@ public final class ModpackContentBrowser
             text = java.nio.file.Files.readString( report.toPath() );
         }
         catch ( Exception ex ) {
-            text = "Failed to read " + report.getName() + ":\n" + ex.getMessage();
+            text = LocalizationManager.format( "detailModal.crash.viewer.readFailed", report.getName(), ex.getMessage() );
         }
         final String crashText = text;
 
@@ -892,7 +892,7 @@ public final class ModpackContentBrowser
                         .CrashReportAnalyzer.analyze( crashText, pack, 0 );
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Crash analyzer threw: " + t.getClass().getSimpleName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.crashAnalyzerThrew", t.getClass().getSimpleName() ) );
                 diagnosis = null;
             }
             final com.micatechnologies.minecraft.launcher.game.crash.CrashDiagnosis finalDiag = diagnosis;
@@ -932,8 +932,7 @@ public final class ModpackContentBrowser
                             suggBtn.setOnAction( e -> {
                                 try { s.action().run(); }
                                 catch ( Throwable t ) {
-                                    Logger.logWarningSilent( "Crash suggestion action failed: "
-                                                                     + t.getMessage() );
+                                    Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.crashSuggestionFailed", t.getMessage() ) );
                                 }
                             } );
                             suggestionRow.getChildren().add( suggBtn );
@@ -1004,9 +1003,8 @@ public final class ModpackContentBrowser
                 result = bgWork.get();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Detail-modal section bg work failed: "
-                                                 + t.getClass().getSimpleName() + " — "
-                                                 + t.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.sectionBgWorkFailed",
+                                                 t.getClass().getSimpleName(), t.getMessage() ) );
                 result = null;
             }
             final T finalResult = result;
@@ -1016,8 +1014,8 @@ public final class ModpackContentBrowser
                     fxRender.accept( section, finalResult );
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "Detail-modal section fx render failed: "
-                                                     + t.getClass().getSimpleName() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.sectionFxRenderFailed",
+                                                     t.getClass().getSimpleName() ) );
                     section.getChildren().add( emptyLabel() );
                 }
             } );
@@ -1279,7 +1277,7 @@ public final class ModpackContentBrowser
                 Desktop.getDesktop().open( f.isDirectory() ? f : f.getParentFile() );
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Could not open in file browser: " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.openInBrowserFailed", ex.getMessage() ) );
             }
         } );
     }
@@ -1303,7 +1301,7 @@ public final class ModpackContentBrowser
                 }
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Could not show in file browser: " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.contentBrowser.showInBrowserFailed", ex.getMessage() ) );
             }
         } );
     }

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -95,7 +96,7 @@ public final class WindowsDpiAwareness
             ShcoreDpi.INSTANCE.SetProcessDpiAwareness( LEGACY_PER_MONITOR );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "DPI awareness setup failed: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.dpiAwareness.setupFailed", t.getMessage() ) );
         }
     }
 }

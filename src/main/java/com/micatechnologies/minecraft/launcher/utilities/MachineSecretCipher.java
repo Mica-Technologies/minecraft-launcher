@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import oshi.SystemInfo;
@@ -338,9 +339,8 @@ public final class MachineSecretCipher
                 return cachedInstallSecret;
             }
             catch ( IOException e ) {
-                Logger.logWarningSilent( "Unable to persist install secret ("
-                                                 + e.getClass().getSimpleName()
-                                                 + "); using ephemeral fallback." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.machineCipher.persistSecretFailed",
+                                                 e.getClass().getSimpleName() ) );
                 byte[] fresh = new byte[ INSTALL_SECRET_BYTES ];
                 new SecureRandom().nextBytes( fresh );
                 cachedInstallSecret = bytesToHex( fresh );

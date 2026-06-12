@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.function.Function;
 
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.utilities.StringOrArray;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
@@ -321,8 +322,8 @@ public class GameModPack extends GameModPackMetadata
         catch ( IOException e ) {
             // I/O failure during the supplemental walk shouldn't abort the
             // launch on its own — the upstream Nekodetector already completed.
-            Logger.logWarningSilent( "Supplemental scan I/O error: "
-                                             + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPack.supplementalScanIoError",
+                                             e.getClass().getSimpleName() ) );
         }
 
         // Apply per-finding acknowledgements declared in the manifest. Each
@@ -351,8 +352,8 @@ public class GameModPack extends GameModPackMetadata
             if ( matched != null ) {
                 String reasonSuffix = ( matched.reason == null || matched.reason.isBlank() )
                         ? ""
-                        : " (reason: " + matched.reason + ")";
-                String line = "Acknowledged scan finding: " + f + reasonSuffix;
+                        : LocalizationManager.format( "log.gameModPack.ackReasonSuffix", matched.reason );
+                String line = LocalizationManager.format( "log.gameModPack.acknowledgedFinding", f, reasonSuffix );
                 logOutput.apply( line );
                 Logger.logStd( line );
             }
@@ -368,24 +369,24 @@ public class GameModPack extends GameModPackMetadata
         List< String > stage2 = scanResults.getStage2Detections();
         if ( stage1 != null ) {
             for ( String f : stage1 ) {
-                Logger.logWarning( "Modpack scan flagged: " + f );
+                Logger.logWarning( LocalizationManager.format( "log.gameModPack.scanFlagged", f ) );
                 Logger.logStd( nekoCannotAckHint() );
             }
         }
         if ( stage2 != null ) {
             for ( String f : stage2 ) {
-                Logger.logWarning( "Modpack scan flagged: " + f );
+                Logger.logWarning( LocalizationManager.format( "log.gameModPack.scanFlagged", f ) );
                 Logger.logStd( nekoCannotAckHint() );
             }
         }
         for ( SupplementalScanner.Finding f : remainingSupp ) {
             if ( f.severity() == SupplementalScanner.Severity.HIGH ) {
-                logOutput.apply( "Supplemental infection signal: " + f );
+                logOutput.apply( LocalizationManager.format( "log.gameModPack.supplementalInfection", f ) );
             }
             else {
-                logOutput.apply( "Supplemental warning: " + f );
+                logOutput.apply( LocalizationManager.format( "log.gameModPack.supplementalWarning", f ) );
             }
-            Logger.logWarning( "Supplemental modpack scan flagged: " + f );
+            Logger.logWarning( LocalizationManager.format( "log.gameModPack.supplementalScanFlagged", f ) );
             emitAcknowledgementHint( f );
         }
 
@@ -404,8 +405,9 @@ public class GameModPack extends GameModPackMetadata
                 || ( stage2 != null && !stage2.isEmpty() );
         if ( anyBlocking ) {
             int total = blockingHigh.size() + ( stage2 == null ? 0 : stage2.size() );
-            logOutput.apply( "Security scan blocked launch: " + total
-                                     + ( total == 1 ? " issue detected." : " issues detected." ) );
+            logOutput.apply( total == 1
+                                     ? LocalizationManager.format( "log.gameModPack.scanBlockedLaunchOne", total )
+                                     : LocalizationManager.format( "log.gameModPack.scanBlockedLaunchMany", total ) );
             throw new ModpackScanDetectionException(
                     new Results( blockingHigh, stage2 ),
                     getPackName(), getPackRootFolder() );
@@ -450,15 +452,12 @@ public class GameModPack extends GameModPackMetadata
                 && ( innerSha == null || innerSha.isBlank() ) ) {
             // Without any hash we can't produce a stable signature. Tell the user
             // why no hint appears rather than emit an unmatchable snippet.
-            Logger.logStd( "No acknowledgement signature available for this finding — "
-                                   + "neither inner-element nor outer-JAR hash could be computed. "
-                                   + "The finding will continue to block launches until the file is "
-                                   + "removed or repaired." );
+            Logger.logStd( LocalizationManager.get( "log.gameModPack.noAckSignature" ) );
             return;
         }
         String kindName = f.kind() == null ? "" : f.kind().name();
         String locator = f.locator() == null ? "" : f.locator();
-        Logger.logStd( "To silence this finding, append to the manifest's packScanAcknowledgements:" );
+        Logger.logStd( LocalizationManager.get( "log.gameModPack.silenceHintHeader" ) );
         Logger.logStd( "  {" );
         // Lead with innerSha256 — survives outer-mod updates as long as the
         // bundled artifact / class itself doesn't change. Falls back to a
@@ -487,9 +486,7 @@ public class GameModPack extends GameModPackMetadata
      *  why no JSON snippet appears. */
     private static String nekoCannotAckHint()
     {
-        return "This finding is from the malware-specific (Nekodetector) scanner and cannot be "
-                + "silenced via packScanAcknowledgements. If you trust this content, change "
-                + "the pack's Security Scan Frequency to Disabled in its Advanced settings.";
+        return LocalizationManager.get( "log.gameModPack.nekoCannotAckHint" );
     }
 
     /** Minimal JSON string-content escaper for the ack-hint log line.
@@ -580,7 +577,7 @@ public class GameModPack extends GameModPackMetadata
             return org.apache.commons.io.FileUtils.readFileToString( latest, "UTF-8" );
         }
         catch ( IOException e ) {
-            Logger.logError( "Failed to read crash report: " + latest.getName() );
+            Logger.logError( LocalizationManager.format( "log.gameModPack.crashReportReadFailed", latest.getName() ) );
             return null;
         }
     }
@@ -839,7 +836,7 @@ public class GameModPack extends GameModPackMetadata
      */
     public static GameModPack createVanillaModPack( String versionId ) {
         GameModPack pack = new GameModPack();
-        pack.packName = "Minecraft " + versionId;
+        pack.packName = LocalizationManager.format( "modpack.vanilla.name", versionId );
         pack.packVersion = versionId;
         pack.packURL = "https://minecraft.net";
         pack.packLogoURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
@@ -870,8 +867,8 @@ public class GameModPack extends GameModPackMetadata
         if ( shortUrl.length() > 40 ) {
             shortUrl = "..." + shortUrl.substring( shortUrl.length() - 37 );
         }
-        pack.packName = "[Failed to load] " + shortUrl;
-        pack.packVersion = "Error";
+        pack.packName = LocalizationManager.format( "modpack.failed.name", shortUrl );
+        pack.packVersion = LocalizationManager.get( "modpack.failed.version" );
         pack.packMinRAMGB = "2";
         pack.packLogoURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
         pack.packBackgroundURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_BG_URL );
@@ -929,8 +926,8 @@ public class GameModPack extends GameModPackMetadata
 
     public static GameModPack NULL_MODPACK() {
         GameModPack nullModPack = new GameModPack();
-        nullModPack.packName = "No mod packs installed!";
-        nullModPack.packVersion = "N/A";
+        nullModPack.packName = LocalizationManager.get( "modpack.none.name" );
+        nullModPack.packVersion = LocalizationManager.get( "modpack.none.version" );
         nullModPack.packLogoURL = StringOrArray.of( GUIConstants.URL_MINECRAFT_NO_MOD_PACK_IMAGE );
         return nullModPack;
     }

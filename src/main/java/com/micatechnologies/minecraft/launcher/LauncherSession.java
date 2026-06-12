@@ -174,21 +174,19 @@ class LauncherSession
                     javafx.application.Platform.runLater( () -> { /* probe */ } );
                 }
                 catch ( IllegalStateException notReady ) {
-                    Logger.logWarningSilent( "FX toolkit still not ready after main()'s prestart "
-                                                     + "completed — JFXPlatformRun will lazy-init it." );
+                    Logger.logWarningSilent( LocalizationManager.get( "log.launcherSession.fxToolkitNotReady" ) );
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "FX toolkit probe failed: "
-                                                     + t.getClass().getSimpleName() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.launcherSession.fxToolkitProbeFailed",
+                                                                         t.getClass().getSimpleName() ) );
                     return;
                 }
                 try {
                     com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController.prestartGui();
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "JavaFX pre-start (gui window) failed: "
-                                                     + t.getClass().getSimpleName() + " — "
-                                                     + "falling back to lazy init in goToMainGui." );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.launcherSession.fxPrestartFailed",
+                                                                         t.getClass().getSimpleName() ) );
                     return;
                 }
                 try {
@@ -200,9 +198,8 @@ class LauncherSession
                     com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController.prebuildMainGui();
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "Main GUI pre-build failed: "
-                                                     + t.getClass().getSimpleName() + " — "
-                                                     + "falling back to lazy construct in goToMainGui." );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.launcherSession.mainGuiPrebuildFailed",
+                                                                         t.getClass().getSimpleName() ) );
                 }
             }, "mmcl-fx-prestart" );
             fxPrestart.setDaemon( true );
@@ -210,15 +207,14 @@ class LauncherSession
         }
 
         // Log startup
-        Logger.logDebug( "Logging configured. Application arguments parsed: " );
+        Logger.logDebug( LocalizationManager.get( "log.launcherSession.loggingConfigured" ) );
         for ( String arg : args ) {
             Logger.logDebug( "  " + arg );
         }
 
         // Log development mode
         if ( com.micatechnologies.minecraft.launcher.consts.LauncherConstants.LAUNCHER_IS_DEV ) {
-            Logger.logDebug( "[NOTICE] Development Mode is Enabled! Bugs may be present and not all features " +
-                                     "may function as intended." );
+            Logger.logDebug( LocalizationManager.get( "log.launcherSession.devModeNotice" ) );
         }
 
         // If client, do login
@@ -311,8 +307,7 @@ class LauncherSession
             exitLatch.await();
         }
         catch ( InterruptedException e ) {
-            Logger.logError( "The main thread was interrupted before receiving an exit signal. The application " +
-                                     "will be unable to restart!" );
+            Logger.logError( LocalizationManager.get( "log.launcherSession.mainThreadInterrupted" ) );
             Logger.logThrowable( e );
         }
     }

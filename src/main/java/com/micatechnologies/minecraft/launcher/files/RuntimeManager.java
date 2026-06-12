@@ -114,13 +114,14 @@ public class RuntimeManager
                 }
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load progress GUI for runtime verification." );
+                Logger.logError( LocalizationManager.get( "log.runtimeManager.progressGuiLoadFailed" ) );
                 Logger.logThrowable( e );
             }
         }
 
-        String label = "Java Runtime (" + component + ")";
-        reportProgress( progressWindow, progressCallback, label, "Checking runtime...", 5 );
+        String label = LocalizationManager.format( "runtime.label.named", component );
+        reportProgress( progressWindow, progressCallback, label,
+                        LocalizationManager.get( "runtime.status.checking" ), 5 );
 
         String runtimeFolderPath = getComponentRuntimeFolderPath( component );
         File runtimeFolder = SynchronizedFileManager.getSynchronizedFile( runtimeFolderPath );
@@ -148,11 +149,12 @@ public class RuntimeManager
             catch ( IOException e ) {
                 installedVersion = "Unknown";
             }
-            Logger.logStd( "Runtime " + component + " (" + installedVersion + ") already installed — using it; "
-                                   + "checking for updates in the background." );
+            Logger.logStd( LocalizationManager.format( "log.runtimeManager.alreadyInstalledBgCheck",
+                                                       component, installedVersion ) );
             verifiedPaths.put( component, installedJavaExec.getAbsolutePath() );
             verifiedVersions.put( component, installedVersion );
-            reportProgress( progressWindow, progressCallback, label, "Already installed.", 100 );
+            reportProgress( progressWindow, progressCallback, label,
+                            LocalizationManager.get( "runtime.status.alreadyInstalled" ), 100 );
             final String installedVersionFinal = installedVersion;
             SystemUtilities.spawnNewTask(
                     () -> backgroundRuntimeUpdateCheck( component, runtimeFolderPath, installedVersionFinal ) );
@@ -161,7 +163,8 @@ public class RuntimeManager
 
         try {
             // Get the Mojang runtime index
-            reportProgress( progressWindow, progressCallback, label, "Fetching runtime index...", 10 );
+            reportProgress( progressWindow, progressCallback, label,
+                            LocalizationManager.get( "runtime.status.fetchingIndex" ), 10 );
             JsonObject index = getMojangRuntimeIndex();
             String platform = RuntimeConstants.getMojangPlatformKey();
 
@@ -192,10 +195,12 @@ public class RuntimeManager
                                                                                              "UTF-8" ).trim();
                 File javaExec = new File( runtimeFolderPath, RuntimeConstants.getJavaExecPathForOs() );
                 if ( installedVersion.equals( versionName ) && javaExec.exists() ) {
-                    Logger.logStd( "Runtime " + component + " (" + versionName + ") is already installed." );
+                    Logger.logStd( LocalizationManager.format( "log.runtimeManager.alreadyInstalled",
+                                                               component, versionName ) );
                     newJavaPath = javaExec.getAbsolutePath();
                     newJavaVersion = versionName;
-                    reportProgress( progressWindow, progressCallback, label, "Already installed.", 100 );
+                    reportProgress( progressWindow, progressCallback, label,
+                                    LocalizationManager.get( "runtime.status.alreadyInstalled" ), 100 );
                     verifiedPaths.put( component, newJavaPath );
                     verifiedVersions.put( component, newJavaVersion );
                     return;
@@ -203,7 +208,8 @@ public class RuntimeManager
             }
 
             // Download the file manifest
-            reportProgress( progressWindow, progressCallback, label, "Downloading file manifest...", 15 );
+            reportProgress( progressWindow, progressCallback, label,
+                            LocalizationManager.get( "runtime.status.downloadingManifest" ), 15 );
             File manifestFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_MANIFEST_FILE_NAME );
             NetworkUtilities.downloadFileFromURL( manifestUrl, manifestFile );
             JsonObject manifest = FileUtilities.readAsJsonObject( manifestFile );
@@ -212,7 +218,8 @@ public class RuntimeManager
             // Count total files for progress
             int totalFiles = files.entrySet().size();
 
-            Logger.logStd( "Installing runtime " + component + " (" + versionName + ") - " + totalFiles + " files..." );
+            Logger.logStd( LocalizationManager.format( "log.runtimeManager.installing",
+                                                       component, versionName, totalFiles ) );
 
             // Process each file entry. Each "relativePath" is attacker-controllable in
             // principle (Mojang publishes the manifest, but defense-in-depth: a path
@@ -300,7 +307,8 @@ public class RuntimeManager
                         if ( progressWindowFinal != null && done % 20 == 0 ) {
                             double pct = 15 + ( 80.0 * done / totalFilesFinal );
                             reportProgress( progressWindowFinal, progressCallback, label,
-                                            "Installing files... (" + done + "/" + totalFilesFinal + ")", pct );
+                                            LocalizationManager.format( "runtime.status.installingFiles",
+                                                                        done, totalFilesFinal ), pct );
                         }
                         return null;
                     } );
@@ -353,22 +361,25 @@ public class RuntimeManager
             if ( javaExec.exists() ) {
                 newJavaPath = javaExec.getAbsolutePath();
                 newJavaVersion = versionName;
-                Logger.logStd( "Runtime " + component + " (" + versionName + ") installed successfully." );
+                Logger.logStd( LocalizationManager.format( "log.runtimeManager.installedSuccess",
+                                                           component, versionName ) );
             }
             else {
                 // Try finding java executable by searching
-                Logger.logError( "Java executable not found at expected path: " + javaExec.getAbsolutePath() );
+                Logger.logError( LocalizationManager.format( "log.runtimeManager.javaExecNotFound",
+                                                             javaExec.getAbsolutePath() ) );
                 newJavaPath = findJavaExecutable( runtimeFolder );
                 newJavaVersion = versionName;
                 if ( newJavaPath == null ) {
-                    Logger.logError( "Could not find Java executable in runtime folder. Falling back to system Java." );
+                    Logger.logError( LocalizationManager.get( "log.runtimeManager.javaExecNotFoundFallback" ) );
                     newJavaPath = "java";
                     newJavaVersion = "Unknown (System Java)";
                 }
             }
         }
         catch ( Exception e ) {
-            Logger.logError( "Failed to install runtime " + component + ": " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.runtimeManager.installFailed",
+                                                         component, e.getMessage() ) );
             Logger.logThrowable( e );
             // Try to use existing installation even if update check failed
             File javaExec = new File( runtimeFolderPath, RuntimeConstants.getJavaExecPathForOs() );
@@ -381,7 +392,7 @@ public class RuntimeManager
                 catch ( Exception ignored ) {
                     newJavaVersion = "Unknown";
                 }
-                Logger.logStd( "Using existing runtime installation at: " + newJavaPath );
+                Logger.logStd( LocalizationManager.format( "log.runtimeManager.usingExisting", newJavaPath ) );
             }
             else {
                 newJavaPath = "java";
@@ -389,7 +400,8 @@ public class RuntimeManager
             }
         }
 
-        reportProgress( progressWindow, progressCallback, label, "Completed.", 100 );
+        reportProgress( progressWindow, progressCallback, label,
+                        LocalizationManager.get( "runtime.status.completed" ), 100 );
 
         verifiedPaths.put( component, newJavaPath );
         verifiedVersions.put( component, newJavaVersion );
@@ -590,12 +602,13 @@ public class RuntimeManager
                 }
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load progress GUI for legacy JRE verification." );
+                Logger.logError( LocalizationManager.get( "log.runtimeManager.progressGuiLoadFailedLegacy" ) );
             }
         }
 
-        String label = "Java Runtime (jre-legacy / Liberica 8u392)";
-        reportProgress( progressWindow, progressCallback, label, "Checking runtime...", 5 );
+        String label = LocalizationManager.get( "runtime.label.legacy" );
+        reportProgress( progressWindow, progressCallback, label,
+                        LocalizationManager.get( "runtime.status.checking" ), 5 );
 
         String runtimeFolderPath = getComponentRuntimeFolderPath( component );
         File runtimeFolder = SynchronizedFileManager.getSynchronizedFile( runtimeFolderPath );
@@ -621,7 +634,8 @@ public class RuntimeManager
             String apiUrl = LIBERICA_JRE8_API_TEMPLATE.replace( "{OS}", os ).replace( "{ARCH}", arch );
 
             // Download API info
-            reportProgress( progressWindow, progressCallback, label, "Fetching JRE 8 info...", 15 );
+            reportProgress( progressWindow, progressCallback, label,
+                            LocalizationManager.get( "runtime.status.fetchingJre8Info" ), 15 );
             String apiDataFileName = "jre-legacy.api.json";
             File apiFile = new File( runtimeFolderPath, apiDataFileName );
 
@@ -633,7 +647,7 @@ public class RuntimeManager
             catch ( Exception e ) {
                 if ( apiFile.exists() ) {
                     apiData = FileUtilities.readAsJsonArray( apiFile );
-                    Logger.logWarningSilent( "Using cached JRE 8 API info." );
+                    Logger.logWarningSilent( LocalizationManager.get( "log.runtimeManager.usingCachedJre8Info" ) );
                 }
                 else {
                     throw e;
@@ -673,27 +687,32 @@ public class RuntimeManager
                     if ( javaExec.exists() ) {
                         // Heal pre-2026.x installs that landed without execute bits set.
                         markJavaBinariesExecutable( javaExec );
-                        Logger.logStd( "JRE 8 (Liberica " + newJavaVersion + ") is already installed." );
+                        Logger.logStd( LocalizationManager.format( "log.runtimeManager.jre8AlreadyInstalled",
+                                                                   newJavaVersion ) );
                         verifiedPaths.put( component, javaExec.getAbsolutePath() );
                         verifiedVersions.put( component, newJavaVersion );
-                        reportProgress( progressWindow, progressCallback, label, "Already installed.", 100 );
+                        reportProgress( progressWindow, progressCallback, label,
+                                        LocalizationManager.get( "runtime.status.alreadyInstalled" ), 100 );
                         return;
                     }
                 }
             }
 
             // Verify/download archive
-            reportProgress( progressWindow, progressCallback, label, "Verifying JRE 8 archive...", 30 );
+            reportProgress( progressWindow, progressCallback, label,
+                            LocalizationManager.get( "runtime.status.verifyingJre8" ), 30 );
             String archiveHash = JsonHelper.getRequiredString( info, "sha1" );
             File archiveFile = new File( runtimeFolderPath, JsonHelper.getRequiredString( info, "filename" ) );
             if ( !HashUtilities.verifySHA1( archiveFile, archiveHash ) ) {
-                reportProgress( progressWindow, progressCallback, label, "Downloading JRE 8...", -1 );
+                reportProgress( progressWindow, progressCallback, label,
+                                LocalizationManager.get( "runtime.status.downloadingJre8" ), -1 );
                 NetworkUtilities.downloadFileFromURL( JsonHelper.getRequiredString( info, "downloadUrl" ),
                                                       archiveFile );
             }
 
             // Extract
-            reportProgress( progressWindow, progressCallback, label, "Extracting JRE 8...", 75 );
+            reportProgress( progressWindow, progressCallback, label,
+                            LocalizationManager.get( "runtime.status.extractingJre8" ), 75 );
             if ( extractedFolder.exists() ) {
                 FileUtils.deleteDirectory( extractedFolder );
             }
@@ -740,16 +759,19 @@ public class RuntimeManager
             // Write version marker
             org.apache.commons.io.FileUtils.writeStringToFile( versionFile, newJavaVersion, "UTF-8" );
 
-            Logger.logStd( "JRE 8 (Liberica " + newJavaVersion + ") installed successfully." );
+            Logger.logStd( LocalizationManager.format( "log.runtimeManager.jre8InstalledSuccess",
+                                                       newJavaVersion ) );
         }
         catch ( Exception e ) {
-            Logger.logError( "Failed to install legacy JRE 8: " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.runtimeManager.jre8InstallFailed",
+                                                         e.getMessage() ) );
             Logger.logThrowable( e );
             newJavaPath = "java";
             newJavaVersion = "Unknown (System Java)";
         }
 
-        reportProgress( progressWindow, progressCallback, label, "Completed.", 100 );
+        reportProgress( progressWindow, progressCallback, label,
+                        LocalizationManager.get( "runtime.status.completed" ), 100 );
         verifiedPaths.put( component, newJavaPath );
         verifiedVersions.put( component, newJavaVersion );
     }
@@ -812,15 +834,16 @@ public class RuntimeManager
                     componentArray.get( 0 ).getAsJsonObject(), "version" );
             String latestVersion = JsonHelper.getRequiredString( versionObj, "name" );
             if ( !latestVersion.equals( installedVersion ) ) {
-                Logger.logStd( "Newer Java runtime " + component + " available (" + installedVersion
-                                       + " -> " + latestVersion + "); it will be installed on the next launch." );
+                Logger.logStd( LocalizationManager.format( "log.runtimeManager.newerAvailable",
+                                                           component, installedVersion, latestVersion ) );
                 File versionFile = new File( runtimeFolderPath, RuntimeConstants.RUNTIME_VERSION_FILE_NAME );
                 //noinspection ResultOfMethodCallIgnored
                 versionFile.delete();
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Background runtime update check failed: " + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.runtimeManager.bgUpdateCheckFailed",
+                                                                 e.getClass().getSimpleName() ) );
         }
     }
 
@@ -842,7 +865,7 @@ public class RuntimeManager
         }
         catch ( IOException e ) {
             if ( indexFile.exists() ) {
-                Logger.logWarningSilent( "Failed to update runtime index, using cached version." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.runtimeManager.indexUpdateFailedCached" ) );
             }
             else {
                 throw e;

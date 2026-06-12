@@ -232,7 +232,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         // Announcements — dev banner if applicable, otherwise whatever the announcement service returns.
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            setAnnouncementRow( "[DEVELOPMENT MODE: Bugs may be present and not all features may function as intended]" );
+            setAnnouncementRow( LocalizationManager.get( "main.announcement.devMode" ) );
         }
         else {
             setAnnouncementRow( null );
@@ -267,7 +267,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 // Re-run setAnnouncementRow with the same "extra" dev banner so the
                 // dismissal logic collapses the row in a single code path.
                 if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-                    setAnnouncementRow( "[DEVELOPMENT MODE: Bugs may be present and not all features may function as intended]" );
+                    setAnnouncementRow( LocalizationManager.get( "main.announcement.devMode" ) );
                 }
                 else {
                     setAnnouncementRow( null );
@@ -281,7 +281,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Settings" ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load settings GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( LocalizationManager.get( "log.mainGui.loadSettingsFailed" ) );
                 Logger.logThrowable( e );
             }
         } ) );
@@ -293,7 +293,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Browsing modpacks" ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load library GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( LocalizationManager.get( "log.mainGui.loadLibraryFailed" ) );
                 Logger.logThrowable( e );
             }
         } ) );
@@ -313,7 +313,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Settings" ) );
             }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to load settings GUI from account label click." );
+                Logger.logError( LocalizationManager.get( "log.mainGui.loadSettingsAccountFailed" ) );
                 Logger.logThrowable( ex );
             }
         } );
@@ -1471,12 +1471,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
             // Badge row — rebuilt from scratch on every bind. Only 0–2 badges in practice.
             badgeRow.getChildren().clear();
-            if ( newPack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
+            if ( newPack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( LocalizationManager.get( "main.badge.beta" ), "stat-chip-warn" ) );
             // "Recently updated" matches the terminology the Library screen uses on
             // installed-pack cards — keeping the two screens phrased the same way so
             // users learn one vocabulary, not two. Avoids the ambiguous imperative
             // ("Update!") that "Update" alone would imply.
-            if ( newPack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Recently updated", "stat-chip-success" ) );
+            if ( newPack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( LocalizationManager.get( "main.badge.recentlyUpdated" ), "stat-chip-success" ) );
 
             // Name + chips
             name.setText( resolveDisplayName( newPack ) );
@@ -1488,12 +1488,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // "Vanilla" chip — placed first so it's the first visual cue that this card
             // is a stock Minecraft version, not a modded pack.
             if ( newPack.isVanillaVersion() ) {
-                chips.getChildren().add( buildChip( "Vanilla" ) );
+                chips.getChildren().add( buildChip( LocalizationManager.get( "main.chip.vanilla" ) ) );
             }
             // "Minecraft 1.20.4" (not "MC 1.20.4") — full name reads clearer and the chip
             // has room. Minecraft is a trademark of Mojang Synergies AB / Microsoft;
             // attribution is surfaced in the Settings → About / Attributions section.
-            if ( mc != null && !mc.isBlank() ) chips.getChildren().add( buildChip( "Minecraft " + mc ) );
+            if ( mc != null && !mc.isBlank() ) chips.getChildren().add( buildChip( LocalizationManager.format( "main.chip.minecraft", mc ) ) );
             if ( loaderName != null && loaderVersion != null && !loaderVersion.isBlank() ) {
                 String shortLoader = loaderVersion.contains( "-" )
                         ? loaderVersion.substring( loaderVersion.lastIndexOf( '-' ) + 1 )
@@ -1505,7 +1505,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // the redundant "v1.21.11" alongside "Minecraft 1.21.11". Modded packs with
             // a distinct pack version (e.g. "v26.5.2" vs "Minecraft 1.12.2") keep theirs.
             if ( packVersion != null && !packVersion.isBlank() && !packVersion.equals( mc ) ) {
-                chips.getChildren().add( buildChip( "v" + packVersion ) );
+                chips.getChildren().add( buildChip( LocalizationManager.format( "main.chip.packVersion", packVersion ) ) );
             }
 
             // Last-played hint. Use isNeverPlayed() rather than string-comparing
@@ -1660,7 +1660,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                         MCLauncherGuiController.requestFocus();
                     }
                     catch ( Exception e ) {
-                        Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                        Logger.logError( LocalizationManager.get( "log.mainGui.loadMainGuiFailed" ) );
                         Logger.logThrowable( e );
                         LauncherCore.closeApp();
                     }
@@ -1692,7 +1692,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
         String name = pack.getFriendlyName();
         if ( name == null || name.isBlank() ) name = pack.getPackName();
-        return name != null ? name : "Unnamed Pack";
+        return name != null ? name : LocalizationManager.get( "main.unnamedPack" );
     }
 
     /** Resolves the pack's own background image to a file URL <em>only if it's
@@ -2462,15 +2462,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // button open arbitrary local files via file:// or other schemes.
             if ( url == null
                     || !( url.startsWith( "https://" ) || url.startsWith( "http://" ) ) ) {
-                Logger.logWarning( "Refusing to open non-http(s) modpack URL: " + url );
+                Logger.logWarning( LocalizationManager.format( "log.modpack.refuseNonHttpUrl", url ) );
                 return;
             }
             try {
                 Desktop.getDesktop().browse( URI.create( url ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open your browser. Please visit " + url +
-                                         " to view the mod pack's website!" );
+                Logger.logError( LocalizationManager.format( "log.modpack.openBrowserFailed", url ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -2554,7 +2553,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         editPack.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             try { MCLauncherGuiController.goToModPackEditorGui( pack ); }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to open modpack editor." );
+                Logger.logError( LocalizationManager.get( "log.mainGui.openEditorFailed" ) );
                 Logger.logThrowable( ex );
             }
         } ) );
@@ -2711,7 +2710,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 loaderName = pack.isVanillaVersion() ? "Minecraft" : pack.getLoaderName();
             }
             catch ( Exception e ) {
-                loaderName = "the modloader";
+                loaderName = LocalizationManager.get( "main.officialExport.loaderFallback" );
             }
             String middleBlurb;
             if ( pack.isVanillaVersion() ) {
@@ -2833,7 +2832,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                                 installResult.message(), loaderName ) );
                 if ( installResult.installerStderr() != null
                         && !installResult.installerStderr().isBlank() ) {
-                    Logger.logStd( "[loader-installer stderr]\n" + installResult.installerStderr() );
+                    Logger.logStd( LocalizationManager.format( "log.mainGui.loaderInstallerStderr", installResult.installerStderr() ) );
                 }
             }
         }
@@ -2927,7 +2926,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 }
             }
             catch ( Exception ex ) {
-                Logger.logError( "Failed to create desktop shortcut: " + ex.getMessage() );
+                Logger.logError( LocalizationManager.format( "log.modpack.createShortcutFailed", ex.getMessage() ) );
                 Logger.logThrowable( ex );
                 Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
                 if ( ownerStage != null ) {
@@ -2953,7 +2952,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                 Desktop.getDesktop().open( folder );
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Unable to open folder: " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.modpack.openFolderFailed", ex.getMessage() ) );
             }
         } );
     }

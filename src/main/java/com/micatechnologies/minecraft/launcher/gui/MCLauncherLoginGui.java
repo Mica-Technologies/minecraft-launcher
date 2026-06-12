@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import com.micatechnologies.minecraft.launcher.LauncherCore;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
@@ -210,7 +211,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         loadMsAuthFrame();
 
         // Set Discord rich presence
-        SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( "Logging In" ) );
+        SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "login.discord.loggingIn" ) ) );
     }
 
     @Override
@@ -306,16 +307,16 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
                 }
                 else {
                     // Get error description
-                    String errorDescription = "(Unknown)";
+                    String errorDescription = LocalizationManager.get( "login.error.unknown" );
                     if ( locationParamsList.containsKey( "error_description" ) ) {
                         errorDescription = locationParamsList.get( "error_description" ).get( 0 );
                     }
 
                     if ( errorDescription.contains( "user has denied access" ) ) {
-                        Logger.logDebug( "User cancelled or denied during the Microsoft authentication flow!" );
+                        Logger.logDebug( LocalizationManager.get( "log.login.userCancelled" ) );
                     }
                     else {
-                        Logger.logError( "A Microsoft account login error occurred: " + errorDescription );
+                        Logger.logError( LocalizationManager.format( "log.login.msLoginError", errorDescription ) );
                     }
                     // The OAuth flow returned an error parameter (server rejected
                     // the request, user cancelled, etc.). WebView is now sitting
@@ -339,7 +340,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      * @since 1.0
      */
     private void handleBadLogin() {
-        Logger.logError( "Failed to login with Microsoft!" );
+        Logger.logError( LocalizationManager.get( "log.login.failed" ) );
         Platform.runLater( this::loadMsAuthFrame );
     }
 

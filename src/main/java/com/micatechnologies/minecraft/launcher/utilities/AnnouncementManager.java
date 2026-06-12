@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import org.apache.commons.io.IOUtils;
@@ -191,7 +192,7 @@ public class AnnouncementManager
             announcementJson = JSONUtilities.getGson().fromJson( manifestBody, JsonObject.class );
         }
         catch ( Exception e ) {
-            Logger.logError( "The launcher announcements could not be loaded." );
+            Logger.logError( LocalizationManager.get( "log.announcement.loadFailed" ) );
             Logger.logThrowable( e );
         }
 

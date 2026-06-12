@@ -122,12 +122,13 @@ public class GameAssetManifest extends ManagedGameFile
                 }
             }
             if ( !f.delete() ) {
-                Logger.logWarningSilent( "Unable to delete legacy asset path: " + f.getAbsolutePath() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.assetManifest.deleteLegacyPathFailed",
+                                                                     f.getAbsolutePath() ) );
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Error cleaning legacy asset path " + f.getAbsolutePath() +
-                                             ": " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.assetManifest.cleanLegacyPathError",
+                                                                 f.getAbsolutePath(), e.getMessage() ) );
         }
     }
 
@@ -251,8 +252,8 @@ public class GameAssetManifest extends ManagedGameFile
             }
         }
 
-        Logger.logDebug( "Virtual asset tree ready at " + destRoot +
-                                 " (" + copied + " copied, " + skipped + " up-to-date)" );
+        Logger.logDebug( LocalizationManager.format( "log.assetManifest.virtualTreeReady",
+                                                     destRoot, copied, skipped ) );
     }
 
     /**

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.rgb.backends.asusaura;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.RgbBackend;
 import com.micatechnologies.minecraft.launcher.rgb.RgbColor;
@@ -157,8 +158,8 @@ public final class AsusAuraBackend implements RgbBackend
                                                      + "Try OpenRGB for broader ASUS coverage." );
         }
         started = true;
-        Logger.logStd( "ASUS Aura: " + families.size() + " device family/families connected — "
-                               + describeFamilies() );
+        Logger.logStd( LocalizationManager.format( "log.rgb.asusAura.familiesConnected",
+                               families.size(), describeFamilies() ) );
     }
 
     @Override
@@ -196,8 +197,7 @@ public final class AsusAuraBackend implements RgbBackend
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "ASUS Aura: SetXColor threw on family "
-                                                 + fam.name, t );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.asusAura.setColorThrew", fam.name ), t );
                 handleFamilyFailure( fam, -1 );
             }
         }
@@ -216,8 +216,7 @@ public final class AsusAuraBackend implements RgbBackend
         for ( Family fam : families ) {
             try { fam.releaseHandler.run(); }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "ASUS Aura: release threw on family "
-                                                 + fam.name, t );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.asusAura.releaseThrew", fam.name ), t );
             }
         }
         families.clear();
@@ -247,11 +246,11 @@ public final class AsusAuraBackend implements RgbBackend
             rc = createFn.apply( ref );
         }
         catch ( Throwable t ) {
-            Logger.logDebug( "ASUS Aura: Create" + label + "Controller threw — skipping." );
+            Logger.logDebug( LocalizationManager.format( "log.rgb.asusAura.createControllerThrew", label ) );
             return;
         }
         if ( rc < 0 || ref.getValue() == null ) {
-            Logger.logDebug( "ASUS Aura: no " + label + " controller (rc=" + rc + ")" );
+            Logger.logDebug( LocalizationManager.format( "log.rgb.asusAura.noController", label, rc ) );
             return;
         }
         Pointer ctrl = ref.getValue();
@@ -259,7 +258,7 @@ public final class AsusAuraBackend implements RgbBackend
         try { ledCount = ledCountFn.apply( ctrl ); }
         catch ( Throwable t ) { ledCount = 0; }
         if ( ledCount <= 0 ) {
-            Logger.logDebug( "ASUS Aura: " + label + " reports zero LEDs — skipping." );
+            Logger.logDebug( LocalizationManager.format( "log.rgb.asusAura.zeroLeds", label ) );
             try { releaseFn.apply( ref ); } catch ( Throwable ignored ) { }
             return;
         }
@@ -285,7 +284,7 @@ public final class AsusAuraBackend implements RgbBackend
             catch ( Throwable ignored ) { }
         };
         families.add( new Family( label, ctrl, ledCount, applyColor, release ) );
-        Logger.logStd( "ASUS Aura: " + label + " connected — " + ledCount + " LED(s)." );
+        Logger.logStd( LocalizationManager.format( "log.rgb.asusAura.familyConnected", label, ledCount ) );
     }
 
     /** Build a {@code BYTE[3 * ledCount]} color buffer with the same
@@ -308,9 +307,8 @@ public final class AsusAuraBackend implements RgbBackend
         int failures = fam.consecutiveFailures.incrementAndGet();
         if ( !fam.succeededOnce && failures >= FAMILY_FAILURE_DROP_THRESHOLD ) {
             fam.droppedFromRotation = true;
-            Logger.logStd( "ASUS Aura: giving up on family \"" + fam.name + "\" after "
-                                   + failures + " consecutive failures (rc=" + rc + "). "
-                                   + "Will not be retried this session." );
+            Logger.logStd( LocalizationManager.format( "log.rgb.asusAura.givingUpOnFamily",
+                                   fam.name, failures, rc ) );
         }
     }
 

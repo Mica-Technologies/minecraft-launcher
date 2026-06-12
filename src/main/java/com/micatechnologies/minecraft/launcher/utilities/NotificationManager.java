@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
@@ -97,7 +98,7 @@ public final class NotificationManager
             trayIcon.displayMessage( title, body, type );
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Notification display failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.notification.displayFailed", e.getMessage() ) );
             fallback( title, body, type );
         }
     }
@@ -119,7 +120,8 @@ public final class NotificationManager
      *  and is the only path on platforms where neither {@code SystemTray} nor notify-send works. */
     private static void logFallback( String title, String body )
     {
-        Logger.logStd( "[notify] " + title + ( body == null || body.isBlank() ? "" : " — " + body ) );
+        Logger.logStd( LocalizationManager.format( "log.notification.fallback", title,
+                                                   ( body == null || body.isBlank() ? "" : " — " + body ) ) );
     }
 
     /** Best-effort desktop notification via libnotify's {@code notify-send} (present on virtually
@@ -183,14 +185,14 @@ public final class NotificationManager
 
         if ( !SystemTray.isSupported() ) {
             disabled = true;
-            Logger.logDebug( "System tray not supported on this platform — notifications will log only." );
+            Logger.logDebug( LocalizationManager.get( "log.notification.trayUnsupported" ) );
             return false;
         }
 
         try {
             Image image = loadTrayImage();
             if ( image == null ) {
-                Logger.logWarningSilent( "Notification tray image missing from resources; disabling notifications." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.notification.trayImageMissing" ) );
                 disabled = true;
                 return false;
             }
@@ -212,7 +214,7 @@ public final class NotificationManager
             return true;
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Unable to initialize system tray icon: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.notification.trayInitFailed", e.getMessage() ) );
             trayIcon = null;
             disabled = true;
             return false;

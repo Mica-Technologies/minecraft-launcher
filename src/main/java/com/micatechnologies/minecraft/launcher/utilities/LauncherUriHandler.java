@@ -132,7 +132,7 @@ public final class LauncherUriHandler
         // the OS-level scheme. Defaults true so the website install flow keeps
         // working out of the box.
         if ( !ConfigManager.getUriHandlerEnabled() ) {
-            Logger.logStd( "Ignoring mmcl:// URI — handler disabled in settings." );
+            Logger.logStd( LocalizationManager.get( "log.uriHandler.handlerDisabled" ) );
             return;
         }
         URI uri;
@@ -140,7 +140,7 @@ public final class LauncherUriHandler
             uri = URI.create( uriString );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Malformed launcher URI: " + uriString );
+            Logger.logWarningSilent( LocalizationManager.format( "log.uriHandler.malformedUri", uriString ) );
             return;
         }
 
@@ -154,14 +154,14 @@ public final class LauncherUriHandler
         }
         Map< String, String > params = parseQuery( uri.getRawQuery() );
 
-        Logger.logDebug( "Launcher URI dispatch: action=" + action + " params=" + params );
+        Logger.logDebug( LocalizationManager.format( "log.uriHandler.dispatch", action, String.valueOf( params ) ) );
 
         switch ( action.toLowerCase() ) {
             case "add"  -> handleAdd( params.get( "url" ) );
             case "play" -> handlePlay( params.get( "name" ) );
             case "join" -> handleJoin( params.get( "url" ), params.get( "vanilla" ) );
             case "open" -> handleOpen();
-            default     -> Logger.logWarningSilent( "Unknown mmcl:// action: " + action );
+            default     -> Logger.logWarningSilent( LocalizationManager.format( "log.uriHandler.unknownAction", action ) );
         }
     }
 
@@ -175,11 +175,11 @@ public final class LauncherUriHandler
     private static void handleAdd( String url )
     {
         if ( url == null || url.isBlank() ) {
-            Logger.logWarningSilent( "mmcl://add missing required url parameter" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.uriHandler.addMissingUrl" ) );
             return;
         }
         SystemUtilities.spawnNewTask( () -> {
-            if ( !confirmInstallUrl( url, "Install modpack from this site?" ) ) {
+            if ( !confirmInstallUrl( url, LocalizationManager.get( "dialog.uri.confirmInstall.headerAdd" ) ) ) {
                 return;
             }
             try {
@@ -194,7 +194,7 @@ public final class LauncherUriHandler
                 refreshMainIfCurrent();
             }
             catch ( Exception e ) {
-                Logger.logError( "Failed to install modpack via mmcl://add — " + e.getMessage() );
+                Logger.logError( LocalizationManager.format( "log.uriHandler.addInstallFailed", e.getMessage() ) );
                 Logger.logThrowable( e );
                 NotificationManager.error(
                         LocalizationManager.get( "notification.uri.modpackAddFailed.title" ),
@@ -226,7 +226,7 @@ public final class LauncherUriHandler
     private static void handlePlay( String name )
     {
         if ( name == null || name.isBlank() ) {
-            Logger.logWarningSilent( "mmcl://play missing required name parameter" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.uriHandler.playMissingName" ) );
             return;
         }
         SystemUtilities.spawnNewTask( () -> {
@@ -271,7 +271,7 @@ public final class LauncherUriHandler
             return;
         }
         if ( url == null || url.isBlank() ) {
-            Logger.logWarningSilent( "mmcl://join missing required url or vanilla parameter" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.uriHandler.joinMissingParam" ) );
             return;
         }
         SystemUtilities.spawnNewTask( () -> {
@@ -297,7 +297,7 @@ public final class LauncherUriHandler
                 return;
             }
 
-            if ( !confirmInstallUrl( url, "Join your friend's modpack from this site?" ) ) {
+            if ( !confirmInstallUrl( url, LocalizationManager.get( "dialog.uri.confirmInstall.headerJoin" ) ) ) {
                 return;
             }
             try {
@@ -307,7 +307,7 @@ public final class LauncherUriHandler
                         LocalizationManager.get( "notification.uri.discordJoinModpack.body" ) );
             }
             catch ( Exception e ) {
-                Logger.logError( "Failed to install modpack via mmcl://join — " + e.getMessage() );
+                Logger.logError( LocalizationManager.format( "log.uriHandler.joinInstallFailed", e.getMessage() ) );
                 Logger.logThrowable( e );
                 NotificationManager.error(
                         LocalizationManager.get( "notification.uri.discordJoinFailed.title" ),
@@ -321,7 +321,7 @@ public final class LauncherUriHandler
                 LauncherCore.play( installed );
             }
             else {
-                Logger.logErrorSilent( "mmcl://join: install reported success but pack not found in installed list." );
+                Logger.logErrorSilent( LocalizationManager.get( "log.uriHandler.joinPackNotFound" ) );
             }
         } );
     }
@@ -351,8 +351,7 @@ public final class LauncherUriHandler
                 LauncherCore.play( vanilla );
             }
             catch ( Exception e ) {
-                Logger.logError( "Failed to join vanilla via mmcl://join?vanilla=" + versionId + " — "
-                                         + e.getMessage() );
+                Logger.logError( LocalizationManager.format( "log.uriHandler.joinVanillaFailed", versionId, e.getMessage() ) );
                 Logger.logThrowable( e );
                 NotificationManager.error(
                         LocalizationManager.get( "notification.uri.discordJoinFailed.title" ),
@@ -395,7 +394,7 @@ public final class LauncherUriHandler
     private static boolean readyToLaunchViaDeepLink()
     {
         if ( LauncherCore.isGameRunning() ) {
-            Logger.logStd( "Refusing mmcl:// launch — a game is already launching or running." );
+            Logger.logStd( LocalizationManager.get( "log.uriHandler.refuseGameRunning" ) );
             NotificationManager.warn(
                     LocalizationManager.get( "notification.uri.gameRunning.title" ),
                     LocalizationManager.get( "notification.uri.gameRunning.body" ) );
@@ -406,7 +405,7 @@ public final class LauncherUriHandler
         }
         MCLauncherAbstractGui current = MCLauncherGuiController.getCurrentGuiOrNull();
         if ( current != null && !current.confirmNavigateAwayForDeepLink() ) {
-            Logger.logStd( "mmcl:// launch cancelled by user (unsaved changes on current screen)." );
+            Logger.logStd( LocalizationManager.get( "log.uriHandler.launchCancelledUnsaved" ) );
             return false;
         }
         return true;
@@ -446,7 +445,7 @@ public final class LauncherUriHandler
         // showQuestionMessage returns 1 for the first button (Launch); anything
         // else (Cancel / dismiss) aborts.
         if ( answer != 1 ) {
-            Logger.logStd( "User declined mmcl:// launch of " + name );
+            Logger.logStd( LocalizationManager.format( "log.uriHandler.userDeclinedLaunch", name ) );
             return false;
         }
         return true;
@@ -470,7 +469,7 @@ public final class LauncherUriHandler
             case ACCEPT_TRUSTED:
                 return true;
             case REJECT:
-                Logger.logWarningSilent( "Refusing mmcl:// install URL: " + url );
+                Logger.logWarningSilent( LocalizationManager.format( "log.uriHandler.refuseInstallUrl", url ) );
                 NotificationManager.error(
                         LocalizationManager.get( "notification.uri.unsafeLink.title" ),
                         LocalizationManager.get( "notification.uri.unsafeLink.body" ) );
@@ -488,7 +487,7 @@ public final class LauncherUriHandler
                 // showQuestionMessage returns 1 for the first button (Install), 2 for the
                 // second, 0 for Cancel / dismiss. Anything other than 1 = refuse.
                 if ( answer != 1 ) {
-                    Logger.logStd( "User declined untrusted mmcl:// install for " + host );
+                    Logger.logStd( LocalizationManager.format( "log.uriHandler.userDeclinedInstall", host ) );
                     return false;
                 }
                 return true;

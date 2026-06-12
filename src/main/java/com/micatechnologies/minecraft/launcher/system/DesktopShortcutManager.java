@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.system;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import org.apache.commons.lang3.SystemUtils;
@@ -76,7 +77,7 @@ public class DesktopShortcutManager
             createLinuxShortcut( desktopDir, shortcutName, launcherPath, packName, iconPath );
         }
 
-        Logger.logStd( "Desktop shortcut created for: " + packName );
+        Logger.logStd( LocalizationManager.format( "log.desktopShortcut.created", packName ) );
     }
 
     // ---- Path Resolution ----
@@ -143,7 +144,8 @@ public class DesktopShortcutManager
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Unable to resolve launcher path: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.desktopShortcut.resolvePathFailed",
+                                                                 e.getMessage() ) );
         }
 
         // Last resort: use the process command (java binary)
@@ -291,7 +293,8 @@ public class DesktopShortcutManager
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Icon conversion failed, shortcut will use default icon: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.desktopShortcut.iconConversionFailed",
+                                                                 e.getMessage() ) );
             return null;
         }
     }
@@ -409,7 +412,8 @@ public class DesktopShortcutManager
             return exitCode == 0;
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "iconutil conversion failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.desktopShortcut.iconutilFailed",
+                                                                 e.getMessage() ) );
             return false;
         }
     }

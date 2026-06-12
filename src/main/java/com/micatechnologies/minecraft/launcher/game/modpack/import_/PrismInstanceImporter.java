@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
@@ -186,7 +187,7 @@ public final class PrismInstanceImporter
         }
 
         String manifestUrl = manifestPath.toUri().toString();
-        Logger.logStd( "Prism import: wrote manifest for \"" + packName + "\" at " + manifestPath );
+        Logger.logStd( LocalizationManager.format( "log.prismImporter.wroteManifest", packName, manifestPath.toString() ) );
 
         // Register through the standard install pipeline. installModPackByURL
         // is synchronous and creates the pack folder skeleton.
@@ -226,7 +227,7 @@ public final class PrismInstanceImporter
                                                + e.getMessage() );
         }
 
-        Logger.logStd( "Prism import: copied .minecraft/ contents for \"" + packName + "\"." );
+        Logger.logStd( LocalizationManager.format( "log.prismImporter.copiedContents", packName ) );
         return manifestUrl;
     }
 

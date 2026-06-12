@@ -27,6 +27,7 @@ import com.jagrosh.discordipc.entities.RichPresence;
 import com.jagrosh.discordipc.entities.User;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 
@@ -97,18 +98,18 @@ public class DiscordRpcUtility
                         // as the wire format, so this is just a deep-link delivered via
                         // the Discord IPC channel instead of via the OS scheme handler.
                         // Routes through the same dispatcher as cold-start argv URIs.
-                        Logger.logStd( "Discord RPC: received join request, dispatching " + joinSecret );
+                        Logger.logStd( LocalizationManager.format( "log.discordRpc.joinReceived", joinSecret ) );
                         try {
                             if ( LauncherUriHandler.isLauncherUri( joinSecret ) ) {
                                 LauncherUriHandler.handle( joinSecret );
                             }
                             else {
                                 Logger.logWarningSilent(
-                                        "Discord RPC join secret was not a recognized mmcl:// URI: " + joinSecret );
+                                        LocalizationManager.format( "log.discordRpc.joinNotRecognized", joinSecret ) );
                             }
                         }
                         catch ( Throwable t ) {
-                            Logger.logWarningSilent( "Failed to handle Discord RPC join secret." );
+                            Logger.logWarningSilent( LocalizationManager.get( "log.discordRpc.joinHandleFailed" ) );
                             Logger.logThrowable( t );
                         }
                     }
@@ -132,11 +133,11 @@ public class DiscordRpcUtility
                         // dereferences it unconditionally, so an unset value NPEs.
                         RichPresence.Builder builder = new RichPresence.Builder();
                         builder.setActivityType( ActivityType.Playing )
-                               .setState( "In Menus" )
-                               .setDetails( "Loading" )
+                               .setState( LocalizationManager.get( "discordRpc.state.inMenus" ) )
+                               .setDetails( LocalizationManager.get( "discordRpc.details.loading" ) )
                                .setStartTimestamp( OffsetDateTime.now().toEpochSecond() )
-                               .setLargeImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" )
-                               .setSmallImage( "mica_minecraft_launcher", "Mica Minecraft Launcher" );
+                               .setLargeImage( "mica_minecraft_launcher", LocalizationManager.get( "discordRpc.image.launcher" ) )
+                               .setSmallImage( "mica_minecraft_launcher", LocalizationManager.get( "discordRpc.image.launcher" ) );
                         client.sendRichPresence( builder.build() );
                     }
 
@@ -153,7 +154,7 @@ public class DiscordRpcUtility
                 discordRpcClient.connect();
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to setup Discord rich presence!" );
+                Logger.logWarningSilent( LocalizationManager.get( "log.discordRpc.setupFailed" ) );
                 Logger.logThrowable( e );
             }
         }
@@ -198,7 +199,7 @@ public class DiscordRpcUtility
                     discordRpcClient.sendRichPresence( builder.build() );
                 }
                 catch ( Exception e ) {
-                    Logger.logWarningSilent( "Unable to update Discord rich presence!" );
+                    Logger.logWarningSilent( LocalizationManager.get( "log.discordRpc.updateFailed" ) );
                     Logger.logThrowable( e );
                 }
             }
@@ -217,8 +218,8 @@ public class DiscordRpcUtility
     public static void setMenuPresence( String screenName )
     {
         clearJoinParty();
-        setRichPresence( "In Menus", screenName, OffsetDateTime.now(),
-                          "mica_minecraft_launcher", "Mica Minecraft Launcher",
+        setRichPresence( LocalizationManager.get( "discordRpc.state.inMenus" ), screenName, OffsetDateTime.now(),
+                          "mica_minecraft_launcher", LocalizationManager.get( "discordRpc.image.launcher" ),
                           "clipboard", screenName );
     }
 
@@ -279,8 +280,8 @@ public class DiscordRpcUtility
                 currentPartyMax = 4;
             }
             else {
-                Logger.logWarningSilent( "Discord join secret would exceed " + DISCORD_SECRET_MAX_BYTES
-                                                 + " bytes — disabling Join button for this pack." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.discordRpc.joinSecretTooLong",
+                                                                     DISCORD_SECRET_MAX_BYTES ) );
                 clearJoinParty();
             }
         }
@@ -288,9 +289,11 @@ public class DiscordRpcUtility
             clearJoinParty();
         }
 
-        setRichPresence( "In Game (Minecraft)", "Mod Pack: " + sanitizePresenceField( packName ),
+        setRichPresence( LocalizationManager.get( "discordRpc.state.inGame" ),
+                          LocalizationManager.format( "discordRpc.details.modPack", sanitizePresenceField( packName ) ),
                           OffsetDateTime.now(),
-                          "mica_minecraft_launcher", "Mica Minecraft Launcher", "game", "In Game" );
+                          "mica_minecraft_launcher", LocalizationManager.get( "discordRpc.image.launcher" ),
+                          "game", LocalizationManager.get( "discordRpc.image.inGame" ) );
     }
 
     /**
@@ -445,7 +448,7 @@ public class DiscordRpcUtility
                 discordRpcClient.close();
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "An exception occurred while exiting the Discord rich presence client!" );
+                Logger.logWarningSilent( LocalizationManager.get( "log.discordRpc.exitFailed" ) );
                 Logger.logThrowable( e );
             }
             finally {

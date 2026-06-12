@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.sun.jna.Function;
@@ -150,7 +151,7 @@ final class WindowsJumpList
      *  parity. */
     private static final int MAX_PACKS_IN_JUMP_LIST = 5;
 
-    private static final String CATEGORY_TITLE = "Recent Modpacks";
+    private static final String CATEGORY_TITLE = LocalizationManager.get( "jumpList.category.recentModpacks" );
 
     // =========================================================================================
     //  Entry point
@@ -171,7 +172,7 @@ final class WindowsJumpList
 
         String exePath = System.getProperty( "jpackage.app-path" );
         if ( exePath == null || exePath.isBlank() ) {
-            Logger.logDebug( "WindowsJumpList: no jpackage exe path; skipping jump-list refresh." );
+            Logger.logDebug( LocalizationManager.get( "log.jumpList.noExePath" ) );
             return;
         }
 
@@ -180,8 +181,8 @@ final class WindowsJumpList
             buildAndCommit( exePath, recent );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Jump-list refresh threw "
-                                             + t.getClass().getSimpleName() + ": " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.jumpList.refreshThrew",
+                                                                 t.getClass().getSimpleName(), t.getMessage() ) );
         }
     }
 
@@ -202,8 +203,8 @@ final class WindowsJumpList
         boolean weInitialized = hrCode == 0;
         boolean changedMode = hrCode == 0x80010106;
         if ( !weInitialized && hrCode != 1 && !changedMode ) {
-            Logger.logWarningSilent( "CoInitializeEx returned HRESULT 0x" + Integer.toHexString( hrCode )
-                                             + " — skipping jump-list refresh." );
+            Logger.logWarningSilent( LocalizationManager.format( "log.jumpList.coInitFailed",
+                                                                 Integer.toHexString( hrCode ) ) );
             return;
         }
 
@@ -308,7 +309,7 @@ final class WindowsJumpList
             if ( failed( hr, "IShellLinkW::SetArguments" ) ) return releaseAndNull( link );
 
             // Tooltip text — shown on hover over the jump-list entry.
-            String tooltip = "Play " + display;
+            String tooltip = LocalizationManager.format( "jumpList.tooltip.play", display );
             hr = invokeHr( link, ISL_SET_DESCRIPTION, new WString( tooltip ) );
             if ( failed( hr, "IShellLinkW::SetDescription" ) ) return releaseAndNull( link );
 
@@ -391,7 +392,8 @@ final class WindowsJumpList
             return !failed( hr, "IPropertyStore::SetValue(PKEY_Title)" );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "PropertyStore title set failed: " + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.jumpList.propertyStoreFailed",
+                                                                 t.getClass().getSimpleName() ) );
             return false;
         }
         finally {
@@ -414,9 +416,9 @@ final class WindowsJumpList
         WinNT.HRESULT hr = Ole32.INSTANCE.CoCreateInstance( clsid, null, CLSCTX_INPROC_SERVER,
                                                             iid, ppv );
         if ( hr == null || hr.intValue() != 0 ) {
-            Logger.logWarningSilent( "CoCreateInstance failed for "
-                                             + clsid.toGuidString() + " HRESULT="
-                                             + ( hr == null ? "null" : "0x" + Integer.toHexString( hr.intValue() ) ) );
+            Logger.logWarningSilent( LocalizationManager.format( "log.jumpList.coCreateFailed",
+                                                                 clsid.toGuidString(),
+                                                                 ( hr == null ? "null" : "0x" + Integer.toHexString( hr.intValue() ) ) ) );
             return null;
         }
         return ppv.getValue();
@@ -430,8 +432,8 @@ final class WindowsJumpList
         PointerByReference ppv = new PointerByReference();
         int hr = invokeHr( iface, IUNKNOWN_QUERY_INTERFACE, asIidRef( iid ), ppv );
         if ( hr != 0 ) {
-            Logger.logWarningSilent( "QueryInterface failed for " + iid.toGuidString()
-                                             + " HRESULT=0x" + Integer.toHexString( hr ) );
+            Logger.logWarningSilent( LocalizationManager.format( "log.jumpList.queryInterfaceFailed",
+                                                                 iid.toGuidString(), Integer.toHexString( hr ) ) );
             return null;
         }
         return ppv.getValue();
@@ -489,7 +491,8 @@ final class WindowsJumpList
     private static boolean failed( int hr, String where )
     {
         if ( hr == 0 ) return false;
-        Logger.logWarningSilent( where + " HRESULT=0x" + Integer.toHexString( hr ) );
+        Logger.logWarningSilent( LocalizationManager.format( "log.jumpList.hresultFailure",
+                                                             where, Integer.toHexString( hr ) ) );
         return true;
     }
 

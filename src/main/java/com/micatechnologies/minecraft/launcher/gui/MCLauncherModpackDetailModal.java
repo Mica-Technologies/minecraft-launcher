@@ -558,10 +558,10 @@ public class MCLauncherModpackDetailModal extends StackPane
         // Badge row — top-left so it doesn't collide with the close button.
         HBox badgeRow = new HBox( 6 );
         badgeRow.setAlignment( Pos.TOP_LEFT );
-        if ( pack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( "Beta", "stat-chip-warn" ) );
+        if ( pack.getPackUnstable() ) badgeRow.getChildren().add( buildChip( LocalizationManager.get( "modal.badge.beta" ), "stat-chip-warn" ) );
         // "Recently updated" matches the Library screen's badge text — keeping
         // the same vocabulary across surfaces so the user learns one term.
-        if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( "Recently updated", "stat-chip-success" ) );
+        if ( pack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( LocalizationManager.get( "modal.badge.recentlyUpdated" ), "stat-chip-success" ) );
         StackPane.setAlignment( badgeRow, Pos.TOP_LEFT );
         StackPane.setMargin( badgeRow, new Insets( 14, 0, 0, 18 ) );
 
@@ -808,11 +808,11 @@ public class MCLauncherModpackDetailModal extends StackPane
         chips.setAlignment( Pos.CENTER_LEFT );
 
         if ( pack.isVanillaVersion() ) {
-            chips.getChildren().add( buildChip( "Vanilla", "stat-chip" ) );
+            chips.getChildren().add( buildChip( LocalizationManager.get( "modal.chip.vanilla" ), "stat-chip" ) );
         }
         String mc = safeMinecraftVersion( pack );
         if ( mc != null && !mc.isBlank() ) {
-            chips.getChildren().add( buildChip( "Minecraft " + mc, "stat-chip" ) );
+            chips.getChildren().add( buildChip( LocalizationManager.format( "modal.chip.minecraft", mc ), "stat-chip" ) );
         }
         String loaderName = safeLoaderName( pack );
         String loaderVersion = safeLoaderVersion( pack );
@@ -825,7 +825,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
         String packVersion = pack.getPackVersion();
         if ( packVersion != null && !packVersion.isBlank() && !packVersion.equals( mc ) ) {
-            chips.getChildren().add( buildChip( "v" + packVersion, "stat-chip" ) );
+            chips.getChildren().add( buildChip( LocalizationManager.format( "modal.chip.packVersion", packVersion ), "stat-chip" ) );
         }
 
         // RAM chip — the manifest declares a minimum, which is genuinely useful for
@@ -836,15 +836,17 @@ public class MCLauncherModpackDetailModal extends StackPane
             catch ( Exception ignored ) { return null; }
         } );
         if ( ramGB != null && ramGB > 0 ) {
-            String ramText = ( ramGB == Math.floor( ramGB ) )
-                    ? String.format( "Minimum RAM: %.0f GB", ramGB )
-                    : String.format( "Minimum RAM: %.1f GB", ramGB );
-            chips.getChildren().add( buildChip( ramText, "stat-chip" ) );
+            String ramAmount = ( ramGB == Math.floor( ramGB ) )
+                    ? String.format( "%.0f", ramGB )
+                    : String.format( "%.1f", ramGB );
+            chips.getChildren().add( buildChip(
+                    LocalizationManager.format( "modal.chip.minimumRam", ramAmount ), "stat-chip" ) );
         }
 
         int modCount = safePackModCount( pack );
         if ( modCount > 0 ) {
-            chips.getChildren().add( buildChip( modCount + " mods", "stat-chip" ) );
+            chips.getChildren().add( buildChip(
+                    LocalizationManager.format( "modal.chip.modCount", modCount ), "stat-chip" ) );
         }
 
         return chips;
@@ -859,30 +861,30 @@ public class MCLauncherModpackDetailModal extends StackPane
         javafx.scene.layout.FlowPane grid = new javafx.scene.layout.FlowPane( 8, 8 );
         grid.setAlignment( Pos.CENTER_LEFT );
 
-        grid.getChildren().add( buildQuickActionBtn( "Open Folder",
+        grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.openFolder" ),
                 () -> openPackSubfolder( pack, "" ) ) );
         // Mods/config/resourcepacks/shaderpacks only make sense for modded packs —
         // vanilla versions don't have a separate Forge config dir, no mods, etc.
         if ( !pack.isVanillaVersion() ) {
-            grid.getChildren().add( buildQuickActionBtn( "Mods",
+            grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.mods" ),
                     () -> openPackSubfolder( pack, "mods" ) ) );
-            grid.getChildren().add( buildQuickActionBtn( "Config",
+            grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.config" ),
                     () -> openPackSubfolder( pack, "config" ) ) );
         }
-        grid.getChildren().add( buildQuickActionBtn( "Screenshots",
+        grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.screenshots" ),
                 () -> openPackSubfolder( pack, "screenshots" ) ) );
-        grid.getChildren().add( buildQuickActionBtn( "Resource Packs",
+        grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.resourcePacks" ),
                 () -> openPackSubfolder( pack, "resourcepacks" ) ) );
-        grid.getChildren().add( buildQuickActionBtn( "Shaders",
+        grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.shaders" ),
                 () -> openPackSubfolder( pack, "shaderpacks" ) ) );
-        grid.getChildren().add( buildQuickActionBtn( "Desktop Shortcut",
+        grid.getChildren().add( buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.desktopShortcut" ),
                 () -> createDesktopShortcut( pack ) ) );
         grid.getChildren().add( buildQuickActionBtn(
                 com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.exportPack.label" ),
                 () -> showSmartExportDialog( pack ) ) );
 
         // Copy Invite Link — only enabled when the pack has something to invite to.
-        MFXButton inviteBtn = buildQuickActionBtn( "Copy Invite Link",
+        MFXButton inviteBtn = buildQuickActionBtn( LocalizationManager.get( "modal.quickAction.copyInvite" ),
                 () -> copyInviteLinkToClipboard( pack ) );
         if ( DiscordRpcUtility.buildInviteLinkFromPack( pack ) == null ) {
             inviteBtn.setDisable( true );
@@ -926,26 +928,24 @@ public class MCLauncherModpackDetailModal extends StackPane
         // and which one is "recommended" for this pack so the user picks
         // the lightest mode that actually works.
         StringBuilder body = new StringBuilder();
-        body.append( "How would you like to share this pack?\n\n" );
+        body.append( LocalizationManager.get( "modal.share.prompt" ) ).append( "\n\n" );
         switch ( mode ) {
-            case SHARE_URL -> body.append( "Recommended: Share URL — this pack was installed "
-                                                    + "from a remote manifest, so anyone with the URL "
-                                                    + "can install it directly." );
-            case SHARE_MANIFEST_JSON -> body.append( "Recommended: Share Manifest JSON — every mod in "
-                                                              + "this pack downloads from an HTTPS URL, so "
-                                                              + "the manifest file alone is enough to install." );
-            case EXPORT_ZIP -> body.append( "This pack contains local-file mod references, so the only "
-                                                     + "way to share it is as a full ZIP archive that "
-                                                     + "includes the mod files themselves." );
+            case SHARE_URL -> body.append( LocalizationManager.get( "modal.share.recommend.url" ) );
+            case SHARE_MANIFEST_JSON -> body.append( LocalizationManager.get( "modal.share.recommend.manifest" ) );
+            case EXPORT_ZIP -> body.append( LocalizationManager.get( "modal.share.recommend.zip" ) );
         }
         chooser.setContentText( body.toString() );
 
         // Button types per available mode. ButtonType is mutable here so we
         // can also offer ZIP as a fallback regardless of recommended mode.
-        javafx.scene.control.ButtonType shareUrlBtn = new javafx.scene.control.ButtonType( "Share URL" );
-        javafx.scene.control.ButtonType shareJsonBtn = new javafx.scene.control.ButtonType( "Share Manifest" );
-        javafx.scene.control.ButtonType zipBtn = new javafx.scene.control.ButtonType( "Export as ZIP" );
-        javafx.scene.control.ButtonType cancel = new javafx.scene.control.ButtonType( "Cancel",
+        javafx.scene.control.ButtonType shareUrlBtn = new javafx.scene.control.ButtonType(
+                LocalizationManager.get( "modal.share.button.shareUrl" ) );
+        javafx.scene.control.ButtonType shareJsonBtn = new javafx.scene.control.ButtonType(
+                LocalizationManager.get( "modal.share.button.shareManifest" ) );
+        javafx.scene.control.ButtonType zipBtn = new javafx.scene.control.ButtonType(
+                LocalizationManager.get( "modal.share.button.exportZip" ) );
+        javafx.scene.control.ButtonType cancel = new javafx.scene.control.ButtonType(
+                LocalizationManager.get( "dialog.button.cancel" ),
                 javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE );
 
         java.util.List< javafx.scene.control.ButtonType > buttons = new java.util.ArrayList<>();
@@ -1024,7 +1024,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                     dest.getAbsolutePath() );
         }
         catch ( java.io.IOException ex ) {
-            Logger.logErrorSilent( "Failed to save manifest JSON: " + ex.getMessage() );
+            Logger.logErrorSilent( LocalizationManager.format( "log.modpackDetail.saveManifestJsonFailed", ex.getMessage() ) );
             NotificationManager.error(
                     LocalizationManager.get("detailModal.manifest.couldNotSave.title" ),
                     ex.getMessage() );
@@ -1064,7 +1064,8 @@ public class MCLauncherModpackDetailModal extends StackPane
                 + "-" + System.currentTimeMillis() + ".zip";
         chooser.setInitialFileName( defaultName );
         chooser.getExtensionFilters().add(
-                new javafx.stage.FileChooser.ExtensionFilter( "ZIP archive", "*.zip" ) );
+                new javafx.stage.FileChooser.ExtensionFilter(
+                        LocalizationManager.get( "dialog.fileChooser.zipArchive.filter" ), "*.zip" ) );
         javafx.stage.Stage owner = MCLauncherGuiController.getTopStageOrNull();
         java.io.File dest = chooser.showSaveDialog( owner );
         if ( dest == null ) return;
@@ -1197,7 +1198,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                 entries = ModPackUpdateLog.readEntries( pack );
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Update log read failed: " + t.getClass().getSimpleName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.modpackDetail.updateLogReadFailed", t.getClass().getSimpleName() ) );
                 entries = java.util.Collections.emptyList();
             }
             // When an update is pending, diff the manifest's mods against what's installed so we can
@@ -1209,7 +1210,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Pending-update diff failed: " + t.getClass().getSimpleName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.modpackDetail.pendingDiffFailed", t.getClass().getSimpleName() ) );
             }
             final List< ModPackUpdateLog.Entry > finalEntries = entries;
             final com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result finalDiff = diff;
@@ -1221,9 +1222,8 @@ public class MCLauncherModpackDetailModal extends StackPane
                 if ( finalEntries.isEmpty() ) {
                     Label empty = new Label(
                             pack.isVanillaVersion()
-                                    ? "Vanilla versions don't track manifest updates."
-                                    : "No manifest updates have been observed for this pack yet. "
-                                            + "When the upstream pack version changes, the change will be recorded here." );
+                                    ? LocalizationManager.get( "modal.updateLog.empty.vanilla" )
+                                    : LocalizationManager.get( "modal.updateLog.empty.modded" ) );
                     empty.setWrapText( true );
                     empty.getStyleClass().add( "muted" );
                     section.getChildren().add( empty );
@@ -1561,7 +1561,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         // detail (class.method or inner JAR path).
         HBox header = new HBox( 8 );
         header.setAlignment( Pos.CENTER_LEFT );
-        Label kindLabel = new Label( a.kind != null ? a.kind : "(unknown rule)" );
+        Label kindLabel = new Label( a.kind != null ? a.kind : LocalizationManager.get( "modal.ack.unknownRule" ) );
         kindLabel.setStyle( "-fx-font-weight: bold; -fx-font-size: 11px;" );
         header.getChildren().add( kindLabel );
         if ( a.locator != null && !a.locator.isBlank() ) {
@@ -1605,9 +1605,7 @@ public class MCLauncherModpackDetailModal extends StackPane
     private Node buildComingSoonSection()
     {
         VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.comingSoon" ) );
-        Label hint = new Label(
-                "This area will eventually host per-pack news, custom action buttons "
-                        + "defined by the pack manifest, and more — let us know what you'd like to see!" );
+        Label hint = new Label( LocalizationManager.get( "modal.comingSoon.hint" ) );
         hint.setWrapText( true );
         hint.getStyleClass().add( "muted" );
         section.getChildren().add( hint );
@@ -1766,8 +1764,8 @@ public class MCLauncherModpackDetailModal extends StackPane
                     for ( Runnable r : pending ) {
                         try { r.run(); }
                         catch ( Throwable t ) {
-                            Logger.logWarningSilent( "Lazy section populate failed: "
-                                                             + t.getClass().getSimpleName() );
+                            Logger.logWarningSilent( LocalizationManager.format( "log.modpackDetail.lazyPopulateFailed",
+                                                             t.getClass().getSimpleName() ) );
                         }
                     }
                 }
@@ -1813,7 +1811,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         btn.setOnAction( e -> {
             try { action.run(); }
             catch ( Throwable t ) {
-                Logger.logErrorSilent( "Modal quick-action failed: " + t.getMessage() );
+                Logger.logErrorSilent( LocalizationManager.format( "log.modpackDetail.quickActionFailed", t.getMessage() ) );
                 Logger.logThrowable( t );
             }
         } );
@@ -1898,7 +1896,7 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
         String name = pack.getFriendlyName();
         if ( name == null || name.isBlank() ) name = pack.getPackName();
-        return name != null ? name : "Unnamed Pack";
+        return name != null ? name : LocalizationManager.get( "modal.unnamedPack" );
     }
 
     /** Counts mods on the pack metadata, swallowing exceptions for vanilla / null cases. */
@@ -1965,7 +1963,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                 }
                 catch ( Exception e ) {
                     Logger.logError(
-                            "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                            LocalizationManager.get( "log.modpackDetail.loadMainGuiFailed" ) );
                     Logger.logThrowable( e );
                     LauncherCore.closeApp();
                 }
@@ -1981,15 +1979,14 @@ public class MCLauncherModpackDetailModal extends StackPane
             // from opening local files via file:// or arbitrary other schemes.
             if ( url == null
                     || !( url.startsWith( "https://" ) || url.startsWith( "http://" ) ) ) {
-                Logger.logWarning( "Refusing to open non-http(s) modpack URL: " + url );
+                Logger.logWarning( LocalizationManager.format( "log.modpack.refuseNonHttpUrl", url ) );
                 return;
             }
             try {
                 Desktop.getDesktop().browse( URI.create( url ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open your browser. Please visit " + url +
-                                         " to view the mod pack's website!" );
+                Logger.logError( LocalizationManager.format( "log.modpack.openBrowserFailed", url ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -2011,7 +2008,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                 Desktop.getDesktop().open( folder );
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Unable to open folder: " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.modpack.openFolderFailed", ex.getMessage() ) );
             }
         } );
     }
@@ -2039,7 +2036,7 @@ public class MCLauncherModpackDetailModal extends StackPane
                 }
             }
             catch ( Exception ex ) {
-                Logger.logError( "Failed to create desktop shortcut: " + ex.getMessage() );
+                Logger.logError( LocalizationManager.format( "log.modpack.createShortcutFailed", ex.getMessage() ) );
                 Logger.logThrowable( ex );
                 Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
                 if ( ownerStage != null ) {

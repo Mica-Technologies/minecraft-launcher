@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
@@ -538,7 +539,7 @@ public abstract class GameModPackMetadata
                 return Files.readString( versionFile, StandardCharsets.UTF_8 ).trim();
             }
             catch ( IOException e ) {
-                Logger.logWarningSilent( "Unable to read installed version for " + getPackName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadInstalledVersion", getPackName() ) );
             }
         }
         return null;
@@ -559,7 +560,7 @@ public abstract class GameModPackMetadata
             updateAvailable = null; // Reset cached check
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Unable to save installed version for " + getPackName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveInstalledVersion", getPackName() ) );
         }
     }
 
@@ -597,8 +598,8 @@ public abstract class GameModPackMetadata
         }
         catch ( Throwable t ) {
             com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
-                    "isUpdateAvailable: comparing \"" + installed + "\" vs \""
-                            + remote + "\" for " + getPackName() + " — assuming no update", t );
+                    LocalizationManager.format( "log.gameModPackMetadata.isUpdateAvailableCompareFailed",
+                            installed, remote, getPackName() ), t );
             updateAvailable = false;
         }
         return updateAvailable;
@@ -645,7 +646,7 @@ public abstract class GameModPackMetadata
                 }
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to read launch history for " + getPackName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadLaunchHistory", getPackName() ) );
             }
         }
 
@@ -657,7 +658,7 @@ public abstract class GameModPackMetadata
             Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Unable to save launch history for " + getPackName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveLaunchHistory", getPackName() ) );
         }
 
         // Update cache
@@ -696,7 +697,7 @@ public abstract class GameModPackMetadata
                 }
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to read launch history for " + getPackName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadLaunchHistory", getPackName() ) );
             }
         }
 
@@ -706,7 +707,7 @@ public abstract class GameModPackMetadata
             Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Unable to save launch history for " + getPackName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveLaunchHistory", getPackName() ) );
         }
 
         // Update cache
@@ -836,18 +837,21 @@ public abstract class GameModPackMetadata
     {
         long totalMs = getTotalPlayTimeMs();
         if ( totalMs == 0 ) {
-            return "0 minutes";
+            return LocalizationManager.get( "gameModPackMetadata.totalPlayTime.zero" );
         }
         long totalMinutes = totalMs / 60_000;
         if ( totalMinutes < 60 ) {
-            return totalMinutes + ( totalMinutes == 1 ? " minute" : " minutes" );
+            return LocalizationManager.format(
+                    totalMinutes == 1 ? "gameModPackMetadata.totalPlayTime.minute"
+                                      : "gameModPackMetadata.totalPlayTime.minutes",
+                    totalMinutes );
         }
         double hours = totalMinutes / 60.0;
         if ( hours < 24 ) {
-            return String.format( "%.1f hours", hours );
+            return LocalizationManager.format( "gameModPackMetadata.totalPlayTime.hours", hours );
         }
         double days = hours / 24.0;
-        return String.format( "%.1f days", days );
+        return LocalizationManager.format( "gameModPackMetadata.totalPlayTime.days", days );
     }
 
     /**

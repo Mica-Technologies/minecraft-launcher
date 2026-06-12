@@ -209,7 +209,7 @@ public final class MacOsToolbarManager
             Foundation.invoke( nsWindow, "setToolbarStyle:", NS_WINDOW_TOOLBAR_STYLE_UNIFIED );
 
             installed = true;
-            Logger.logDebug( "MacOsToolbar: native toolbar attached" );
+            Logger.logDebug( LocalizationManager.get( "log.macToolbar.attached" ) );
 
             // The first scene was set before the toolbar existed, so re-run the hide on it now
             // that isInstalled() is true (subsequent scene swaps hit hideReplacedControls directly).
@@ -219,8 +219,8 @@ public final class MacOsToolbarManager
         }
         catch ( Throwable t ) {
             installed = false;
-            Logger.logWarningSilent( "MacOsToolbar: install failed — "
-                                             + t.getClass().getSimpleName() + ": " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macToolbar.installFailed",
+                                             t.getClass().getSimpleName(), t.getMessage() ) );
         }
     }
 
@@ -262,7 +262,7 @@ public final class MacOsToolbarManager
         }
         catch ( Throwable t ) {
             delegateRef = null;
-            Logger.logWarningSilent( "MacOsToolbar: delegate class build failed — " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macToolbar.delegateBuildFailed", t.getMessage() ) );
         }
     }
 
@@ -293,7 +293,7 @@ public final class MacOsToolbarManager
                 return arr.toPointer();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "MacOsToolbar: identifiers callback failed — " + t.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.macToolbar.identifiersCallbackFailed", t.getMessage() ) );
                 return ID.NIL.toPointer();
             }
         }
@@ -344,7 +344,7 @@ public final class MacOsToolbarManager
                 return item.toPointer();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "MacOsToolbar: itemForIdentifier callback failed — " + t.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.macToolbar.itemForIdentifierCallbackFailed", t.getMessage() ) );
                 return ID.NIL.toPointer();
             }
         }
@@ -378,7 +378,7 @@ public final class MacOsToolbarManager
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "MacOsToolbar: action dispatch failed — " + t.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.macToolbar.actionDispatchFailed", t.getMessage() ) );
             }
         }
     }
@@ -463,7 +463,7 @@ public final class MacOsToolbarManager
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "MacOsToolbar: account avatar load failed — " + t.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.macToolbar.avatarLoadFailed", t.getMessage() ) );
             }
             finally {
                 pool.drain();

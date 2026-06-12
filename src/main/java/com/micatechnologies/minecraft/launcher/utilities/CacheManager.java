@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
@@ -239,6 +240,6 @@ public class CacheManager
             }
         }
 
-        Logger.logDebug( "Cache cleanup complete. Remaining: " + ( totalSize / 1024 ) + " KB" );
+        Logger.logDebug( LocalizationManager.format( "log.cacheManager.cleanupComplete", totalSize / 1024 ) );
     }
 }

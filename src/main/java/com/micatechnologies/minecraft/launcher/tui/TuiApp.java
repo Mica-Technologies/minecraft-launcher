@@ -110,8 +110,7 @@ public final class TuiApp
             terminal = factory.createTerminal();
         }
         catch ( Throwable nativeFail ) {
-            Logger.logWarningSilent( "TUI: native terminal unavailable (" + nativeFail
-                                             + "); using windowed emulator." );
+            Logger.logWarningSilent( locf( "log.tui.nativeTerminalUnavailable", String.valueOf( nativeFail ) ) );
             // Tell the user on the real console why a separate window is opening instead of
             // rendering inline — otherwise the Swing fallback looks like a mystery (this happens
             // under IDE run consoles and anywhere there's no controlling /dev/tty for stty).
@@ -150,7 +149,7 @@ public final class TuiApp
                 break;
             }
             catch ( java.io.IOException io ) {
-                Logger.logWarningSilent( "TUI: terminal I/O error: " + io.getMessage() );
+                Logger.logWarningSilent( locf( "log.tui.terminalIoError", io.getMessage() ) );
                 break;
             }
             catch ( Throwable t ) {

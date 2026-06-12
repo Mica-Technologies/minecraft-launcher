@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.auth;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.FilePermissions;
@@ -104,12 +105,12 @@ public final class ProfileArchive
         if ( uuid == null || uuid.isBlank() ) return null;
         Path activeLogin = Path.of( LocalPathManager.getRememberedAccountFilePath() );
         if ( !Files.exists( activeLogin ) ) {
-            Logger.logWarningSilent( "ProfileArchive.archiveActive called with no active login file." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.profileArchive.archiveNoActiveLogin" ) );
             return null;
         }
         Path activeFolder = activeLogin.getParent();
         if ( activeFolder == null ) {
-            Logger.logWarningSilent( "Active login path has no parent — bailing out of archive." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.profileArchive.archiveNoParent" ) );
             return null;
         }
         try {
@@ -140,7 +141,7 @@ public final class ProfileArchive
             return new ProfileEntry( uuid, displayName, now );
         }
         catch ( IOException e ) {
-            Logger.logError( "Failed to archive profile " + uuid + ": " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.profileArchive.archiveFailed", uuid, e.getMessage() ) );
             Logger.logThrowable( e );
             return null;
         }
@@ -173,13 +174,13 @@ public final class ProfileArchive
                     out.add( new ProfileEntry( uuid, displayName, lastUsed ) );
                 }
                 catch ( Exception ex ) {
-                    Logger.logWarningSilent( "Skipping unreadable archived profile at "
-                                                     + dir.getFileName() + ": " + ex.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.profileArchive.skipUnreadable",
+                                                     dir.getFileName(), ex.getMessage() ) );
                 }
             } );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Failed to list profiles: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.profileArchive.listFailed", e.getMessage() ) );
         }
         out.sort( Comparator.comparingLong( ProfileEntry::lastUsedMs ).reversed() );
         return out;
@@ -204,7 +205,7 @@ public final class ProfileArchive
         Path source = profilesRoot().resolve( uuid );
         Path archivedLogin = source.resolve( ARCHIVED_LOGIN_FILE );
         if ( !Files.isRegularFile( archivedLogin ) ) {
-            Logger.logWarningSilent( "ProfileArchive.activate: no login file for " + uuid );
+            Logger.logWarningSilent( LocalizationManager.format( "log.profileArchive.activateNoLoginFile", uuid ) );
             return false;
         }
         Path activeLogin = Path.of( LocalPathManager.getRememberedAccountFilePath() );
@@ -229,7 +230,7 @@ public final class ProfileArchive
             return true;
         }
         catch ( IOException e ) {
-            Logger.logError( "Failed to activate profile " + uuid + ": " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.profileArchive.activateFailed", uuid, e.getMessage() ) );
             Logger.logThrowable( e );
             return false;
         }
@@ -251,7 +252,7 @@ public final class ProfileArchive
             return true;
         }
         catch ( IOException e ) {
-            Logger.logError( "Failed to forget profile " + uuid + ": " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.profileArchive.forgetFailed", uuid, e.getMessage() ) );
             return false;
         }
     }

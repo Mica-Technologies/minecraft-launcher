@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.JvmArgsValidator;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
@@ -104,9 +105,7 @@ public class ConfigManager
         // default rather than executed.
         String stored = RuntimeConfig.getCustomJvmArgs();
         if ( !JvmArgsValidator.isClean( stored ) ) {
-            Logger.logWarningSilent( "Stored custom JVM args failed validation (control characters or "
-                                             + "'${...}' placeholder syntax); ignoring them and using the default. "
-                                             + "The configuration file may have been edited outside the launcher." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.configManager.jvmArgsValidationFailed" ) );
             return ConfigConstants.JVM_ARGS_VALUE_DEFAULT;
         }
         return stored;
@@ -411,7 +410,8 @@ public class ConfigManager
             return;
         }
 
-        Logger.logStd( "Migrating config from version " + storedVersion + " to " + ConfigConstants.CONFIG_VERSION );
+        Logger.logStd( LocalizationManager.format( "log.configManager.migrating", storedVersion,
+                                                   ConfigConstants.CONFIG_VERSION ) );
 
         // -----------------------------------------------------------------
         // Version-bracketed corrections — apply BEFORE the touch-every-key
@@ -432,8 +432,7 @@ public class ConfigManager
             if ( configObject.has( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY )
                     && !configObject.get( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY ).getAsBoolean() ) {
                 configObject.addProperty( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY, true );
-                Logger.logStd( "Config migration v4→v5: flipped resizableWindows to true "
-                                       + "(it was persisted as false from a pre-2026-05-13 install)." );
+                Logger.logStd( LocalizationManager.get( "log.configManager.migrateV5ResizeWindows" ) );
             }
         }
 
@@ -494,9 +493,7 @@ public class ConfigManager
             }
 
             if ( migrated > 0 ) {
-                Logger.logStd( "Config migration v5→v6: rewrote " + migrated
-                                       + " Mica-hosted modpack URL(s) from .json to .mmcjson "
-                                       + "(manifests moved to the new .mmcjson extension)." );
+                Logger.logStd( LocalizationManager.format( "log.configManager.migrateV6Urls", migrated ) );
             }
         }
 
@@ -546,7 +543,8 @@ public class ConfigManager
             return true;
         }
         catch ( Exception e ) {
-            Logger.logErrorSilent( "Failed to export settings: " + e.getMessage() );
+            Logger.logErrorSilent( LocalizationManager.format( "log.configManager.exportFailed",
+                                                               e.getMessage() ) );
             return false;
         }
     }
@@ -573,7 +571,8 @@ public class ConfigManager
             return true;
         }
         catch ( Exception e ) {
-            Logger.logErrorSilent( "Failed to import settings: " + e.getMessage() );
+            Logger.logErrorSilent( LocalizationManager.format( "log.configManager.importFailed",
+                                                               e.getMessage() ) );
             return false;
         }
     }

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.sun.glass.ui.Window;
 import com.sun.jna.Pointer;
@@ -109,7 +110,7 @@ public final class WindowsShellRefresh
             }
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "SetWindowPos frame-refresh failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.shellRefresh.setWindowPosFailed", e.getMessage() ) );
         }
     }
 
@@ -141,7 +142,7 @@ public final class WindowsShellRefresh
             return 0L;
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Couldn't resolve HWND for shell refresh: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.shellRefresh.resolveHwndFailed", e.getMessage() ) );
             return 0L;
         }
     }

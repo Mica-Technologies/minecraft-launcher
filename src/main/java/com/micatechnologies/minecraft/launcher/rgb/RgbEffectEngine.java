@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.rgb;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.util.concurrent.Executors;
@@ -167,8 +168,7 @@ public final class RgbEffectEngine
             // whole session. Persistent failures will spam the log
             // and the user can pick a different effect; that's
             // better UX than silently dropping back to a no-op.
-            Logger.logWarningSilent( "RGB effect '" + safeName( effect )
-                                             + "' threw at tick", t );
+            Logger.logWarningSilent( LocalizationManager.format( "log.rgb.effectThrewAtTick", safeName( effect ) ), t );
         }
     }
 

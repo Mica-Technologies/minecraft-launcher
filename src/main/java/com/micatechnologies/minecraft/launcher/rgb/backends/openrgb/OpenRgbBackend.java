@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.rgb.backends.openrgb;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.KeyboardKey;
 import com.micatechnologies.minecraft.launcher.rgb.RgbBackend;
@@ -169,8 +170,7 @@ public final class OpenRgbBackend implements RgbBackend
                 // A single device with a malformed blob shouldn't kill
                 // the whole start. Log + skip; the user may still get
                 // other devices working.
-                Logger.logWarningSilent( "OpenRGB: failed to parse device "
-                                                 + i + " data — skipping", t );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.openrgb.parseDeviceFailed", i ), t );
                 continue;
             }
             if ( data.ledCount() <= 0 ) continue; // no addressable LEDs — nothing to drive
@@ -191,16 +191,16 @@ public final class OpenRgbBackend implements RgbBackend
                     ? buildLedNameKeyMap( data.ledNames() )
                     : null;
             devices.add( new Device( i, data.deviceType(), data.ledCount(), keyMap, data.name() ) );
-            Logger.logStd( "OpenRGB: registered " + deviceTypeName( data.deviceType() )
-                                   + " #" + i + " — \"" + data.name() + "\" ("
-                                   + data.ledCount() + " LEDs"
-                                   + ( keyMap != null ? ", " + keyMap.size() + " mapped keys" : "" )
-                                   + ")" );
+            String mappedKeysSuffix = keyMap != null
+                    ? LocalizationManager.format( "log.rgb.openrgb.mappedKeysSuffix", keyMap.size() )
+                    : "";
+            Logger.logStd( LocalizationManager.format( "log.rgb.openrgb.registeredDevice",
+                                   deviceTypeName( data.deviceType() ), i, data.name(),
+                                   data.ledCount(), mappedKeysSuffix ) );
         }
 
         if ( devices.isEmpty() ) {
-            Logger.logStd( "OpenRGB: connected but no usable devices detected. "
-                                   + "Effects will run as no-ops until a device appears." );
+            Logger.logStd( LocalizationManager.get( "log.rgb.openrgb.noUsableDevices" ) );
         }
     }
 

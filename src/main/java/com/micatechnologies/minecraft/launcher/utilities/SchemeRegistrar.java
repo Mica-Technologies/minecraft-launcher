@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.sun.jna.platform.win32.Advapi32Util;
 import com.sun.jna.platform.win32.WinReg;
@@ -76,12 +77,12 @@ public final class SchemeRegistrar
     public static void registerIfNeeded()
     {
         if ( LauncherConstants.LAUNCHER_IS_DEV ) {
-            Logger.logDebug( "SchemeRegistrar: dev mode, skipping OS scheme/file-extension registration." );
+            Logger.logDebug( LocalizationManager.get( "log.schemeRegistrar.devModeSkip" ) );
             return;
         }
         String exePath = resolveLauncherExePath();
         if ( exePath == null ) {
-            Logger.logDebug( "SchemeRegistrar: launcher exe path unknown (not jpackage-launched?), skipping." );
+            Logger.logDebug( LocalizationManager.get( "log.schemeRegistrar.exePathUnknown" ) );
             return;
         }
         try {
@@ -96,7 +97,7 @@ public final class SchemeRegistrar
             // with Launch Services' cache.
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Scheme/file-association registration failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.schemeRegistrar.registrationFailed", e.getMessage() ) );
         }
     }
 
@@ -184,7 +185,7 @@ public final class SchemeRegistrar
                                                   "\"" + iconPath + "\",0" );
         }
 
-        Logger.logDebug( "Windows scheme + file-association registered for " + exePath );
+        Logger.logDebug( LocalizationManager.format( "log.schemeRegistrar.windowsRegistered", exePath ) );
     }
 
     /** Extracts the bundled {@code mmcjson-file.ico} from JAR resources to a
@@ -206,7 +207,7 @@ public final class SchemeRegistrar
             try ( java.io.InputStream in = SchemeRegistrar.class
                     .getResourceAsStream( "/mmcjson-file.ico" ) ) {
                 if ( in == null ) {
-                    Logger.logWarningSilent( "Bundled mmcjson-file.ico not found in JAR resources." );
+                    Logger.logWarningSilent( LocalizationManager.get( "log.schemeRegistrar.icoMissing" ) );
                     return null;
                 }
                 Files.copy( in, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING );
@@ -214,7 +215,7 @@ public final class SchemeRegistrar
             return dest.toAbsolutePath().toString();
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Could not stage .mmcjson Explorer icon: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.schemeRegistrar.icoStageFailed", e.getMessage() ) );
             return null;
         }
     }
@@ -283,7 +284,7 @@ public final class SchemeRegistrar
         // want missing helpers to fail the whole registration.
         runQuietly( "update-desktop-database", desktopDir.toString() );
 
-        Logger.logDebug( "Linux scheme + file-association registered via " + desktopFile );
+        Logger.logDebug( LocalizationManager.format( "log.schemeRegistrar.linuxRegistered", String.valueOf( desktopFile ) ) );
     }
 
     /** Number of recently-played modpacks surfaced in the {@code .desktop}
@@ -314,8 +315,8 @@ public final class SchemeRegistrar
             // mid-uninstall race could surface as an IOException etc.
             // Skip the Actions= block entirely rather than failing the
             // whole .desktop registration.
-            Logger.logWarningSilent( "RecentPacks lookup failed during .desktop refresh: "
-                                             + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.schemeRegistrar.recentPacksLookupFailed",
+                                                                 t.getClass().getSimpleName() ) );
             return;
         }
         if ( recent.isEmpty() ) return;
@@ -403,7 +404,7 @@ public final class SchemeRegistrar
             try ( java.io.InputStream in = SchemeRegistrar.class.getClassLoader()
                     .getResourceAsStream( "micaminecraftlauncher.png" ) ) {
                 if ( in == null ) {
-                    Logger.logWarningSilent( "Launcher icon resource missing; skipping Linux icon install." );
+                    Logger.logWarningSilent( LocalizationManager.get( "log.schemeRegistrar.iconResourceMissing" ) );
                     return;
                 }
                 src = javax.imageio.ImageIO.read( in );
@@ -426,10 +427,10 @@ public final class SchemeRegistrar
                 javax.imageio.ImageIO.write( scaled, "png",
                                              dir.resolve( "mica-minecraft-launcher.png" ).toFile() );
             }
-            Logger.logDebug( "Linux launcher icon installed into the user hicolor theme." );
+            Logger.logDebug( LocalizationManager.get( "log.schemeRegistrar.iconInstalled" ) );
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Could not install Linux launcher icon: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.schemeRegistrar.iconInstallFailed", e.getMessage() ) );
         }
     }
 
@@ -462,10 +463,10 @@ public final class SchemeRegistrar
 
             // Rebuild the user MIME cache so the new glob takes effect. No-op if the helper is absent.
             runQuietly( "update-mime-database", mimeBase.toString() );
-            Logger.logDebug( "Linux .mmcjson MIME type registered via " + mimeFile );
+            Logger.logDebug( LocalizationManager.format( "log.schemeRegistrar.mimeRegistered", String.valueOf( mimeFile ) ) );
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Could not register Linux .mmcjson MIME type: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.schemeRegistrar.mimeRegisterFailed", e.getMessage() ) );
         }
     }
 

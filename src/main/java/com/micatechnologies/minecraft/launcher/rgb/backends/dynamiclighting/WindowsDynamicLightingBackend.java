@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.rgb.backends.dynamiclighting;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.RgbBackend;
 import com.micatechnologies.minecraft.launcher.rgb.RgbColor;
@@ -174,8 +175,7 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
             WinRt.check( hr, "ILampArrayStatics::GetDeviceSelector" );
             selectorHstring = selectorOut.getValue();
             String selectorStr = WinRt.readHstring( selectorHstring );
-            Logger.logDebug( "Windows Dynamic Lighting: device selector = "
-                                     + selectorStr );
+            Logger.logDebug( LocalizationManager.format( "log.rgb.dynamicLighting.deviceSelector", selectorStr ) );
 
             // (3) Get IDeviceInformationStatics + call FindAllAsyncAqsFilter
             //     with the LampArray selector. Returns IAsyncOperation
@@ -210,8 +210,7 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
             hr = WinRt.invokeHr( collection, WinRt.IVECTORVIEW_GET_SIZE, sizeRef );
             WinRt.check( hr, "IVectorView<DeviceInformation>::get_Size" );
             int count = sizeRef.getValue();
-            Logger.logStd( "Windows Dynamic Lighting: " + count + " LampArray "
-                                   + "device(s) reported by enumeration." );
+            Logger.logStd( LocalizationManager.format( "log.rgb.dynamicLighting.devicesReported", count ) );
 
             for ( int i = 0; i < count; i++ ) {
                 openLampArray( lampStatics, collection, i );
@@ -228,8 +227,7 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
             }
 
             started = true;
-            Logger.logStd( "Windows Dynamic Lighting: " + lampArrays.size()
-                                   + " LampArray device(s) connected and ready." );
+            Logger.logStd( LocalizationManager.format( "log.rgb.dynamicLighting.devicesReady", lampArrays.size() ) );
         }
         catch ( Throwable t ) {
             // Roll back any LampArrays we already opened so we don't
@@ -278,8 +276,7 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
                 else           lastHr = hr;
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Windows Dynamic Lighting: SetColor threw on "
-                                                 + "device — continuing", t );
+                Logger.logWarningSilent( LocalizationManager.get( "log.rgb.dynamicLighting.setColorThrew" ), t );
             }
         }
 
@@ -368,9 +365,8 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
 
             int status = WinRt.waitForAsync( fromIdOp, ASYNC_TIMEOUT_MS );
             if ( status != WinRt.ASYNC_COMPLETED ) {
-                Logger.logWarningSilent( "Windows Dynamic Lighting: FromIdAsync "
-                                                 + asyncDescription( status )
-                                                 + " for device " + idStr );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.dynamicLighting.fromIdAsyncFailed",
+                                                 asyncDescription( status ), idStr ) );
                 return;
             }
 
@@ -379,17 +375,14 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
             WinRt.check( hr, "IAsyncOperation<LampArray>::GetResults" );
             Pointer lamp = lampOut.getValue();
             if ( lamp == null || Pointer.nativeValue( lamp ) == 0L ) {
-                Logger.logWarningSilent( "Windows Dynamic Lighting: GetResults "
-                                                 + "returned null for device "
-                                                 + idStr );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.dynamicLighting.getResultsNull", idStr ) );
                 return;
             }
             lampArrays.add( lamp );
-            Logger.logStd( "Windows Dynamic Lighting: opened LampArray " + idStr );
+            Logger.logStd( LocalizationManager.format( "log.rgb.dynamicLighting.openedLampArray", idStr ) );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Windows Dynamic Lighting: failed to open "
-                                             + "LampArray at index " + index, t );
+            Logger.logWarningSilent( LocalizationManager.format( "log.rgb.dynamicLighting.openLampArrayFailed", index ), t );
         }
         finally {
             WinRt.release( fromIdOp );

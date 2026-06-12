@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack.import_;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
@@ -228,8 +229,8 @@ public final class TechnicServerZipImporter
             // is null and the manifest ships with empty loader fields —
             // user fills those in via the modpack editor.
             String serverJarName = findServerJarFromLaunchScript( zip );
-            Logger.logStd( "TechnicServerZipImporter: launch-script-derived server JAR = "
-                                   + ( serverJarName != null ? serverJarName : "<none>" ) );
+            Logger.logStd( LocalizationManager.format( "log.technicImporter.launchScriptJar",
+                                   ( serverJarName != null ? serverJarName : LocalizationManager.get( "log.technicImporter.none" ) ) ) );
             // Fallback: if launch script didn't surface a JAR (missing /
             // unparseable / -jar uses a path that doesn't normalize to a
             // top-level entry), scan the ZIP for the first top-level .jar.
@@ -237,21 +238,22 @@ public final class TechnicServerZipImporter
             // this catches the common case without false positives.
             if ( serverJarName == null ) {
                 serverJarName = findFirstTopLevelJar( zip );
-                Logger.logStd( "TechnicServerZipImporter: fallback top-level JAR scan = "
-                                       + ( serverJarName != null ? serverJarName : "<none>" ) );
+                Logger.logStd( LocalizationManager.format( "log.technicImporter.fallbackJar",
+                                       ( serverJarName != null ? serverJarName : LocalizationManager.get( "log.technicImporter.none" ) ) ) );
             }
             LoaderInfo loaderInfo = serverJarName != null
                     ? detectLoader( zip, serverJarName ) : null;
             if ( loaderInfo != null ) {
-                Logger.logStd( "TechnicServerZipImporter: detected " + loaderInfo.loader
-                                       + " loader" + ( loaderInfo.mcVersion != null
-                                                                ? " for MC " + loaderInfo.mcVersion : "" )
-                                       + " from " + serverJarName );
+                Logger.logStd( LocalizationManager.format( "log.technicImporter.detectedLoader",
+                                       loaderInfo.loader,
+                                       ( loaderInfo.mcVersion != null
+                                                ? LocalizationManager.format( "log.technicImporter.forMc", loaderInfo.mcVersion )
+                                                : "" ),
+                                       serverJarName ) );
             }
             else {
-                Logger.logStd( "TechnicServerZipImporter: no loader markers found in "
-                                       + ( serverJarName != null ? serverJarName : "any JAR" )
-                                       + " — manifest will ship with empty loader / MC version fields." );
+                Logger.logStd( LocalizationManager.format( "log.technicImporter.noLoaderMarkers",
+                                       ( serverJarName != null ? serverJarName : LocalizationManager.get( "log.technicImporter.anyJar" ) ) ) );
             }
 
             JsonObject manifest = buildManifest( packName, packVersion, modFilenames, loaderInfo );
@@ -263,9 +265,8 @@ public final class TechnicServerZipImporter
             Files.writeString( manifestPath,
                                 JSONUtilities.getGson().toJson( manifest ),
                                 StandardCharsets.UTF_8 );
-            Logger.logStd( "TechnicServerZipImporter: wrote manifest at " + manifestPath
-                                   + " (" + modFilenames.size() + " mods) and extracted to "
-                                   + installFolder );
+            Logger.logStd( LocalizationManager.format( "log.technicImporter.wroteManifest",
+                                   manifestPath.toString(), modFilenames.size(), installFolder.toString() ) );
 
             String manifestUrl = manifestPath.toUri().toString();
             GameModPackManager.installModPackByURL( manifestUrl );
@@ -275,7 +276,7 @@ public final class TechnicServerZipImporter
             throw new ImportException( "Couldn't read the ZIP file: " + ioe.getMessage() );
         }
         catch ( Throwable t ) {
-            Logger.logErrorSilent( "TechnicServerZipImporter: unexpected failure — " + t.getMessage() );
+            Logger.logErrorSilent( LocalizationManager.format( "log.technicImporter.unexpectedFailure", t.getMessage() ) );
             throw new ImportException( "Unexpected error during import: " + t.getMessage() );
         }
     }
@@ -453,8 +454,8 @@ public final class TechnicServerZipImporter
             jarBytes = in.readAllBytes();
         }
         catch ( IOException ioe ) {
-            Logger.logWarningSilent( "TechnicServerZipImporter: couldn't read " + serverJarEntryName
-                                              + " for loader detection: " + ioe.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.technicImporter.readJarFailed",
+                                              serverJarEntryName, ioe.getMessage() ) );
             return null;
         }
 
@@ -480,8 +481,8 @@ public final class TechnicServerZipImporter
                     catch ( IOException ignored ) { /* fall through */ }
                     fmlMcVersion = props.getProperty( "fmlbuild.mcversion" );
                     sawFml = true;
-                    Logger.logStd( "TechnicServerZipImporter: found fmlversion.properties — "
-                                            + "mcversion=" + fmlMcVersion );
+                    Logger.logStd( LocalizationManager.format( "log.technicImporter.foundFmlVersion",
+                                            String.valueOf( fmlMcVersion ) ) );
                     // Don't break — keep scanning to confirm whether this
                     // is also a modern Forge / NeoForge variant.
                     continue;
@@ -495,15 +496,12 @@ public final class TechnicServerZipImporter
             }
         }
         catch ( IOException ioe ) {
-            Logger.logWarningSilent( "TechnicServerZipImporter: error scanning " + serverJarEntryName
-                                              + ": " + ioe.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.technicImporter.scanError",
+                                              serverJarEntryName, ioe.getMessage() ) );
         }
-        Logger.logStd( "TechnicServerZipImporter: scanned " + entriesScanned + " entries in "
-                               + serverJarEntryName + " — fml=" + sawFml
-                               + " forgeModern=" + sawForgeModern
-                               + " neoforged=" + sawNeoforged
-                               + " fabric=" + sawFabric
-                               + " fmlMcVersion=" + fmlMcVersion );
+        Logger.logStd( LocalizationManager.format( "log.technicImporter.scanned",
+                               entriesScanned, serverJarEntryName, sawFml, sawForgeModern,
+                               sawNeoforged, sawFabric, String.valueOf( fmlMcVersion ) ) );
 
         // Apply detection priorities. NeoForge / Fabric win over generic
         // Forge signals because the NeoForge / Fabric loaders may still

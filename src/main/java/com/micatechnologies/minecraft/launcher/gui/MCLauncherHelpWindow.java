@@ -147,7 +147,7 @@ public class MCLauncherHelpWindow
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Help window cleanup: stage close", t );
+                Logger.logWarningSilent( LocalizationManager.get( "log.help.cleanupStageClose" ), t );
             }
             // Also clear the WebView page so any in-flight JS / pending
             // navigations stop trying to call back into the about-to-die
@@ -158,7 +158,7 @@ public class MCLauncherHelpWindow
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Help window cleanup: webEngine clear", t );
+                Logger.logWarningSilent( LocalizationManager.get( "log.help.cleanupWebEngineClear" ), t );
             }
             helpStage = null;
             webView = null;
@@ -212,7 +212,7 @@ public class MCLauncherHelpWindow
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Unable to load help window icon: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.help.loadIconFailed", e.getMessage() ) );
         }
 
         // Set owner so help stays above launcher
@@ -332,7 +332,7 @@ public class MCLauncherHelpWindow
             if ( newLoc == null || newLoc.isEmpty() || newLoc.equals( "about:blank" ) ) {
                 return;
             }
-            Logger.logWarningSilent( "Help window blocked navigation to non-bundled location: " + newLoc );
+            Logger.logWarningSilent( LocalizationManager.format( "log.help.blockedNavigation", newLoc ) );
             engineRef.getLoadWorker().cancel();
         } );
 
@@ -387,14 +387,14 @@ public class MCLauncherHelpWindow
             else {
                 webEngine.loadContent(
                         "<html><body style='font-family:sans-serif;padding:20px;color:#E6E1E5;background:#1C1B1F;'>" +
-                                "<h2>Help topic not available</h2>" +
-                                "<p>The help content for \"" + topic.getDisplayName() +
-                                "\" has not been created yet.</p></body></html>" );
+                                "<h2>" + LocalizationManager.get( "help.topic.unavailable.heading" ) + "</h2>" +
+                                "<p>" + LocalizationManager.format( "help.topic.unavailable.body", topic.getDisplayName() ) +
+                                "</p></body></html>" );
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Failed to load help topic: " + topic.getDisplayName() );
-            webEngine.loadContent( "<html><body><p>Error loading help content.</p></body></html>" );
+            Logger.logWarningSilent( LocalizationManager.format( "log.help.loadTopicFailed", topic.getDisplayName() ) );
+            webEngine.loadContent( "<html><body><p>" + LocalizationManager.get( "help.topic.loadError" ) + "</p></body></html>" );
         }
     }
 
@@ -508,13 +508,13 @@ public class MCLauncherHelpWindow
         try ( InputStream in = MCLauncherHelpWindow.class.getClassLoader()
                                                           .getResourceAsStream( resourcePath ) ) {
             if ( in == null ) {
-                Logger.logWarningSilent( "Help: CSS resource not found: " + resourcePath );
+                Logger.logWarningSilent( LocalizationManager.format( "log.help.cssNotFound", resourcePath ) );
                 return "";
             }
             return new String( in.readAllBytes(), StandardCharsets.UTF_8 );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Help: could not read CSS " + resourcePath + ": " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.help.cssReadFailed", resourcePath, e.getMessage() ) );
             return "";
         }
     }
@@ -643,7 +643,7 @@ public class MCLauncherHelpWindow
                 } );
             }
             catch ( IllegalArgumentException ignored ) {
-                Logger.logWarningSilent( "Unknown help topic link: " + topicName );
+                Logger.logWarningSilent( LocalizationManager.format( "log.help.unknownTopicLink", topicName ) );
             }
         }
     }
@@ -681,8 +681,8 @@ public class MCLauncherHelpWindow
         }
         catch ( Throwable t ) {
             Logger.logWarningSilent(
-                    "Help WebView transparency setup failed (" + t.getClass().getSimpleName()
-                            + "): " + t.getMessage() );
+                    LocalizationManager.format( "log.help.webViewTransparencyFailed",
+                            t.getClass().getSimpleName(), t.getMessage() ) );
         }
     }
 }

@@ -190,7 +190,7 @@ public final class LauncherActions
                     MCLauncherGuiController.requestFocus();
                 }
                 catch ( Exception ex ) {
-                    Logger.logError( "Unable to return to main GUI after shell-menu Play." );
+                    Logger.logError( LocalizationManager.get( "log.launcherActions.returnMainGuiFailed" ) );
                     Logger.logThrowable( ex );
                 }
             } ) );
@@ -205,7 +205,7 @@ public final class LauncherActions
                 MCLauncherGuiController.goToGameLibraryGui();
             }
             catch ( Exception ex ) {
-                Logger.logError( "Unable to open Browse from shell menu." );
+                Logger.logError( LocalizationManager.get( "log.launcherActions.openBrowseFailed" ) );
                 Logger.logThrowable( ex );
             }
         } );
@@ -219,7 +219,7 @@ public final class LauncherActions
                 MCLauncherGuiController.goToSettingsGui();
             }
             catch ( Exception ex ) {
-                Logger.logError( "Unable to open Settings from shell menu." );
+                Logger.logError( LocalizationManager.get( "log.launcherActions.openSettingsFailed" ) );
                 Logger.logThrowable( ex );
             }
         } );
@@ -234,7 +234,7 @@ public final class LauncherActions
                         com.micatechnologies.minecraft.launcher.gui.HelpTopic.GETTING_STARTED );
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Unable to open Help from shell menu: " + t.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.launcherActions.openHelpFailed", t.getMessage() ) );
             }
         } );
     }
@@ -259,7 +259,7 @@ public final class LauncherActions
                 Desktop.getDesktop().open( folder );
             }
             catch ( Exception ex ) {
-                Logger.logWarningSilent( "Unable to open mods folder from shell menu: " + ex.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.launcherActions.openModsFolderFailed", ex.getMessage() ) );
             }
         } );
     }

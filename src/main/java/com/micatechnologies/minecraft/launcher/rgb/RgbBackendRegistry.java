@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.rgb;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.backends.NoOpBackend;
 import com.micatechnologies.minecraft.launcher.rgb.backends.asusaura.AsusAuraBackend;
@@ -98,8 +99,7 @@ public final class RgbBackendRegistry
             case ConfigConstants.RGB_BACKEND_ASUS_AURA     -> List.of( new AsusAuraBackend() );
             case ConfigConstants.RGB_BACKEND_NONE          -> List.of();
             default -> {
-                Logger.logWarningSilent( "Unrecognized RGB backend choice '" + c
-                                                 + "' — treating as Auto." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.registry.unrecognizedChoiceAuto", c ) );
                 yield probeAutoEnabled();
             }
         };
@@ -148,8 +148,7 @@ public final class RgbBackendRegistry
             case ConfigConstants.RGB_BACKEND_ASUS_AURA     -> new AsusAuraBackend();
             case ConfigConstants.RGB_BACKEND_NONE          -> new NoOpBackend();
             default -> {
-                Logger.logWarningSilent( "Unrecognized RGB backend choice '" + c
-                                                 + "' — falling back to NoOp." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.registry.unrecognizedChoiceNoOp", c ) );
                 yield new NoOpBackend();
             }
         };
@@ -203,8 +202,7 @@ public final class RgbBackendRegistry
         List< RgbBackend > selected = new ArrayList<>( candidates.size() );
         for ( Candidate cand : candidates ) {
             if ( !cand.enabled() ) {
-                Logger.logDebug( "RGB auto-probe: " + cand.backend().name()
-                                         + " skipped — disabled in Settings." );
+                Logger.logDebug( LocalizationManager.format( "log.rgb.registry.probeSkippedDisabled", cand.backend().name() ) );
                 continue;
             }
             boolean available;
@@ -212,17 +210,16 @@ public final class RgbBackendRegistry
                 available = cand.backend().isAvailable();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "RGB auto-probe: " + cand.backend().name()
-                                                 + " isAvailable() threw — skipping", t );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.registry.probeIsAvailableThrew", cand.backend().name() ), t );
                 continue;
             }
             if ( available ) {
-                Logger.logStd( "RGB auto-probe: including " + cand.backend().name() );
+                Logger.logStd( LocalizationManager.format( "log.rgb.registry.probeIncluding", cand.backend().name() ) );
                 selected.add( cand.backend() );
             }
         }
         if ( selected.isEmpty() ) {
-            Logger.logStd( "RGB auto-probe: no enabled backend available on this system." );
+            Logger.logStd( LocalizationManager.get( "log.rgb.registry.probeNoneAvailable" ) );
         }
         return selected;
     }

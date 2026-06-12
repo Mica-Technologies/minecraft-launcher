@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack.import_;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
@@ -129,8 +130,8 @@ public final class MmcjsonImporter
         }
 
         String manifestUrl = manifestPath.toUri().toString();
-        Logger.logStd( "MMCJSON import: wrote manifest at " + manifestPath
-                               + " for pack \"" + packName + "\"" );
+        Logger.logStd( LocalizationManager.format( "log.mmcjsonImporter.wroteManifest",
+                               manifestPath.toString(), packName ) );
         try {
             GameModPackManager.installModPackByURL( manifestUrl );
         }

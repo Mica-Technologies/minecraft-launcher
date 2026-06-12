@@ -24,6 +24,7 @@ import com.micatechnologies.minecraft.launcher.consts.LocalPathConstants;
 import com.micatechnologies.minecraft.launcher.consts.ManifestConstants;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameLibrary;
@@ -233,7 +234,8 @@ public class GameLibraryManifest extends ManagedGameFile
             }
             // Output failure to decode library JSON
             else {
-                Logger.logWarningSilent( "SKIPPED A LIBRARY - UNKNOWN TYPE: " + libManifestLibObj );
+                Logger.logWarningSilent( LocalizationManager.format( "log.libraryManifest.skippedUnknownType",
+                                                                     libManifestLibObj ) );
             }
         }
         return libraries;
@@ -302,7 +304,8 @@ public class GameLibraryManifest extends ManagedGameFile
 
                 // Update progress provider if present
                 if ( progressProvider != null ) {
-                    progressProvider.submitProgress( "Verified library " + library.getFileName(),
+                    progressProvider.submitProgress( LocalizationManager.format( "libraryManifest.verifiedLibrary",
+                                                                                 library.getFileName() ),
                                                      ( 25.0 / ( double ) libraries.size() ) );
                 }
                 return didChange;
@@ -336,7 +339,7 @@ public class GameLibraryManifest extends ManagedGameFile
         // Get list of libraries
         ArrayList< GameLibrary > minecraftLibsList = getLibraries();
         if ( progressProvider != null ) {
-            progressProvider.submitProgress( "Got Minecraft library list", 5 );
+            progressProvider.submitProgress( LocalizationManager.get( "libraryManifest.gotLibraryList" ), 5 );
         }
 
         // Download the libraries
@@ -389,7 +392,8 @@ public class GameLibraryManifest extends ManagedGameFile
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Added to classpath: " + library.getLocalFilePath(),
+                progressProvider.submitProgress( LocalizationManager.format( "libraryManifest.addedToClasspath",
+                                                                             library.getLocalFilePath() ),
                                                  ( 10.0 / ( double ) minecraftLibsList.size() ) );
             }
         }
@@ -514,12 +518,13 @@ public class GameLibraryManifest extends ManagedGameFile
                             .stripSigning( mcJar );
                     if ( stripped ) {
                         com.micatechnologies.minecraft.launcher.files.Logger.logStd(
-                                "Stripped Mojang signing from minecraft.jar for legacy compatibility" );
+                                LocalizationManager.get( "log.libraryManifest.strippedSigning" ) );
                     }
                 }
                 catch ( java.io.IOException e ) {
                     com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
-                            "Unable to strip signing from minecraft.jar: " + e.getMessage() );
+                            LocalizationManager.format( "log.libraryManifest.stripSigningFailed",
+                                                        e.getMessage() ) );
                 }
             }
 
@@ -529,18 +534,19 @@ public class GameLibraryManifest extends ManagedGameFile
             try {
                 if ( !verifiedMarker.createNewFile() && !verifiedMarker.isFile() ) {
                     com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
-                            "Unable to create verified-marker for minecraft.jar" );
+                            LocalizationManager.get( "log.libraryManifest.verifiedMarkerCreateFailed" ) );
                 }
             }
             catch ( java.io.IOException e ) {
                 com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
-                        "Unable to create verified-marker for minecraft.jar: " + e.getMessage() );
+                        LocalizationManager.format( "log.libraryManifest.verifiedMarkerCreateFailedDetail",
+                                                    e.getMessage() ) );
             }
         }
 
         // Update progress provider if present
         if ( progressProvider != null ) {
-            progressProvider.submitProgress( "Verified Minecraft application", 10 );
+            progressProvider.submitProgress( LocalizationManager.get( "libraryManifest.verifiedMinecraftApp" ), 10 );
         }
     }
 

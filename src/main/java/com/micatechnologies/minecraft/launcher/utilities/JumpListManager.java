@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -74,8 +75,8 @@ public final class JumpListManager
             }
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Jump list refresh failed: "
-                                             + t.getClass().getSimpleName() + " — " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.jumpListManager.refreshFailed",
+                                             t.getClass().getSimpleName(), t.getMessage() ) );
         }
     }
 }

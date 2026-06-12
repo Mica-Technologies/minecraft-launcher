@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.rgb;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui;
@@ -79,8 +80,7 @@ public final class RgbIntegration
                 applyMenuEffect( null );
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "RGB bootstrap threw — RGB will be disabled "
-                                                 + "this session", t );
+                Logger.logWarningSilent( LocalizationManager.get( "log.rgb.bootstrapThrew" ), t );
             }
         } );
     }
@@ -104,7 +104,7 @@ public final class RgbIntegration
             applyMenuEffect( contextPack );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "RGB onMenu threw — effect not applied", t );
+            Logger.logWarningSilent( LocalizationManager.get( "log.rgb.onMenuThrew" ), t );
         }
     }
 
@@ -255,7 +255,7 @@ public final class RgbIntegration
             RgbController.getInstance().stop();
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "RGB shutdown threw — ignoring", t );
+            Logger.logWarningSilent( LocalizationManager.get( "log.rgb.shutdownThrew" ), t );
         }
     }
 
@@ -314,7 +314,7 @@ public final class RgbIntegration
             RgbController.getInstance().setEffect( effect );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "RGB onPlayStarted threw — effect not applied", t );
+            Logger.logWarningSilent( LocalizationManager.get( "log.rgb.onPlayStartedThrew" ), t );
         }
     }
 
@@ -332,7 +332,7 @@ public final class RgbIntegration
             applyMenuEffect( null );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "RGB onPlayEnded threw — ignoring", t );
+            Logger.logWarningSilent( LocalizationManager.get( "log.rgb.onPlayEndedThrew" ), t );
         }
     }
 

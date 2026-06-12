@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.security;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -403,9 +404,9 @@ public final class SupplementalScanner
                         findings.addAll( scanJar( jf, jar ) );
                     }
                     catch ( IOException e ) {
-                        Logger.logWarningSilent( "Supplemental scan failed to open "
-                                                         + jar.getFileName() + ": "
-                                                         + e.getClass().getSimpleName() );
+                        Logger.logWarningSilent( LocalizationManager.format(
+                                "log.supplementalScanner.openFailed",
+                                jar.getFileName(), e.getClass().getSimpleName() ) );
                     }
                 } );
             }

@@ -17,6 +17,8 @@
 
 package com.micatechnologies.minecraft.launcher.game.crash;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
+
 import java.util.List;
 
 /**
@@ -88,10 +90,8 @@ public record CrashDiagnosis(
         return new CrashDiagnosis(
                 Category.UNKNOWN,
                 Severity.CRITICAL,
-                "Minecraft crashed",
-                "We couldn't identify a specific cause from the crash report. "
-                        + "Exit code " + exitCode + ". Check the full report below for details; "
-                        + "the line beginning with \"Caused by:\" is usually the most useful starting point.",
+                LocalizationManager.get( "crash.unknown.title" ),
+                LocalizationManager.format( "crash.unknown.summary", exitCode ),
                 List.of() );
     }
 }

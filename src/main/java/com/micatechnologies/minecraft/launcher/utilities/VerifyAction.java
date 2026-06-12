@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker;
@@ -100,7 +101,7 @@ public final class VerifyAction
                 SystemUtilities.spawnNewTask( () -> {
                     try { onAllSucceeded.run(); }
                     catch ( Throwable t ) {
-                        Logger.logError( "Verify continuation threw: " + t.getClass().getSimpleName() );
+                        Logger.logError( LocalizationManager.format( "log.verifyAction.continuationThrew", t.getClass().getSimpleName() ) );
                         Logger.logThrowable( t );
                     }
                 } );
@@ -117,12 +118,12 @@ public final class VerifyAction
             progressGui = MCLauncherGuiController.goToLaunchProgressGui();
         }
         catch ( IOException e ) {
-            Logger.logError( "Could not show launch progress GUI for verify action." );
+            Logger.logError( LocalizationManager.get( "log.verifyAction.noProgressGui" ) );
             Logger.logThrowable( e );
             return;
         }
         if ( progressGui == null ) {
-            Logger.logErrorSilent( "Verify action: GUI subsystem returned null progress window." );
+            Logger.logErrorSilent( LocalizationManager.get( "log.verifyAction.nullProgressWindow" ) );
             return;
         }
 
@@ -156,8 +157,8 @@ public final class VerifyAction
             LaunchTrackerProgressBridge bridge = new LaunchTrackerProgressBridge( tracker );
 
             final String title = ( total > 1 )
-                    ? "Verifying " + safePackName( pack ) + " (" + ( i + 1 ) + " of " + total + ")"
-                    : "Verifying " + safePackName( pack );
+                    ? LocalizationManager.format( "verify.progress.titleCounted", safePackName( pack ), ( i + 1 ), total )
+                    : LocalizationManager.format( "verify.progress.title", safePackName( pack ) );
             final MCLauncherLaunchProgressGui finalProgressGui = progressGui;
             GUIUtilities.JFXPlatformRun( () -> {
                 finalProgressGui.setTitle( title );
@@ -171,8 +172,8 @@ public final class VerifyAction
             }
             catch ( Throwable t ) {
                 failureCount++;
-                Logger.logError( "Verify failed for pack " + safePackName( pack )
-                                         + ": " + t.getClass().getSimpleName() );
+                Logger.logError( LocalizationManager.format( "log.verifyAction.packFailed",
+                                                             safePackName( pack ), t.getClass().getSimpleName() ) );
                 Logger.logThrowable( t );
             }
         }
@@ -192,14 +193,14 @@ public final class VerifyAction
                     MCLauncherGuiController.goToMainGui();
                 }
                 catch ( IOException e ) {
-                    Logger.logErrorSilent( "Verify action: could not return to main GUI." );
+                    Logger.logErrorSilent( LocalizationManager.get( "log.verifyAction.returnMainFailed" ) );
                 }
             } );
             try {
                 onAllSucceeded.run();
             }
             catch ( Throwable t ) {
-                Logger.logError( "Verify continuation threw: " + t.getClass().getSimpleName() );
+                Logger.logError( LocalizationManager.format( "log.verifyAction.continuationThrew", t.getClass().getSimpleName() ) );
                 Logger.logThrowable( t );
             }
             return;
@@ -224,17 +225,17 @@ public final class VerifyAction
                 MCLauncherGuiController.goToMainGui();
             }
             catch ( IOException e ) {
-                Logger.logErrorSilent( "Verify action: could not return to main GUI." );
+                Logger.logErrorSilent( LocalizationManager.get( "log.verifyAction.returnMainFailed" ) );
             }
         } );
     }
 
     private static String safePackName( GameModPack pack )
     {
-        if ( pack == null ) return "modpack";
+        if ( pack == null ) return LocalizationManager.get( "verify.packName.fallback" );
         String name = pack.getFriendlyName();
         if ( name != null && !name.isBlank() ) return name;
         name = pack.getPackName();
-        return ( name != null && !name.isBlank() ) ? name : "modpack";
+        return ( name != null && !name.isBlank() ) ? name : LocalizationManager.get( "verify.packName.fallback" );
     }
 }

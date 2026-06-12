@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.io.IOException;
@@ -67,8 +68,8 @@ public final class FilePermissions
             // Non-POSIX FS — try ACL path below.
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "POSIX perms tighten failed on " + path.getFileName()
-                                             + ": " + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.filePermissions.posixTightenFailed",
+                                             path.getFileName(), e.getClass().getSimpleName() ) );
         }
         if ( !applied ) {
             try {
@@ -86,8 +87,8 @@ public final class FilePermissions
                 view.setAcl( Collections.singletonList( entry ) );
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "ACL tighten failed on " + path.getFileName()
-                                                 + ": " + e.getClass().getSimpleName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.filePermissions.aclTightenFailed",
+                                                 path.getFileName(), e.getClass().getSimpleName() ) );
             }
         }
     }

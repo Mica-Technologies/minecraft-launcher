@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack.import_;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
@@ -144,31 +145,28 @@ public final class MrpackImporter
 
         Path tempMrpack = null;
         try {
-            Logger.logStd( "Modrinth import: starting for slug=" + projectSlug
-                                   + " from " + mrpackDownloadUrl );
+            Logger.logStd( LocalizationManager.format( "log.mrpackImporter.starting", projectSlug, mrpackDownloadUrl ) );
 
             // (1) Download the .mrpack to a temp file.
-            Logger.logStd( "Modrinth import: downloading .mrpack archive…" );
+            Logger.logStd( LocalizationManager.get( "log.mrpackImporter.downloading" ) );
             tempMrpack = downloadMrpack( mrpackDownloadUrl );
-            Logger.logStd( "Modrinth import: archive downloaded to "
-                                   + tempMrpack + " (" + tempMrpack.toFile().length() + " bytes)" );
+            Logger.logStd( LocalizationManager.format( "log.mrpackImporter.downloaded", tempMrpack.toString(), tempMrpack.toFile().length() ) );
 
             // (2) Open as ZIP + (3) parse modrinth.index.json.
-            Logger.logStd( "Modrinth import: parsing modrinth.index.json…" );
+            Logger.logStd( LocalizationManager.get( "log.mrpackImporter.parsing" ) );
             ModrinthIndex index = parseIndex( tempMrpack );
             if ( index == null ) {
                 throw new ImportException( "The downloaded archive doesn't look like a Modrinth modpack "
                                                    + "(no modrinth.index.json inside)." );
             }
-            Logger.logStd( "Modrinth import: parsed pack=\"" + index.name
-                                   + "\" version=" + index.versionId
-                                   + " files=" + ( index.files == null ? 0 : index.files.size() ) );
+            Logger.logStd( LocalizationManager.format( "log.mrpackImporter.parsed", index.name, index.versionId,
+                                   ( index.files == null ? 0 : index.files.size() ) ) );
 
             // (4) Loader check — refuse anything other than Forge for v1.
             String loader = pickLoader( index );
             if ( loader == null ) {
-                Logger.logStd( "Modrinth import: refusing pack — unsupported loader. "
-                                       + "Dependencies: " + index.dependencies );
+                Logger.logStd( LocalizationManager.format( "log.mrpackImporter.unsupportedLoader",
+                                       String.valueOf( index.dependencies ) ) );
                 throw new ImportException( "This pack uses a mod loader the launcher can't import yet. "
                                                    + "Supported in this version: Forge." );
             }
@@ -177,22 +175,21 @@ public final class MrpackImporter
             if ( mcVersion == null || mcVersion.isBlank() ) {
                 throw new ImportException( "Pack manifest is missing a Minecraft version." );
             }
-            Logger.logStd( "Modrinth import: target MC=" + mcVersion
-                                   + " " + loader + "=" + loaderVersion );
+            Logger.logStd( LocalizationManager.format( "log.mrpackImporter.target", mcVersion, loader, loaderVersion ) );
 
             // (5) + (6) Build Mica manifest JSON.
-            Logger.logStd( "Modrinth import: building Mica manifest + fetching loader installer for hash…" );
+            Logger.logStd( LocalizationManager.get( "log.mrpackImporter.buildingManifest" ) );
             JsonObject manifest = buildMicaManifest( index, mcVersion, loaderVersion, loader, iconUrl );
-            Logger.logStd( "Modrinth import: manifest built" );
+            Logger.logStd( LocalizationManager.get( "log.mrpackImporter.manifestBuilt" ) );
 
             // (7) Write the manifest to disk.
             Path manifestPath = writeManifestToDisk( manifest, projectSlug, index.versionId );
-            Logger.logStd( "Modrinth import: wrote translated Mica manifest to " + manifestPath );
+            Logger.logStd( LocalizationManager.format( "log.mrpackImporter.wroteManifest", manifestPath.toString() ) );
 
             // (8) Return the file URL.
             String fileUrl = manifestPath.toUri().toString();
             int modCount = countMods( index );
-            Logger.logStd( "Modrinth import: success — " + modCount + " mods staged, file URL " + fileUrl );
+            Logger.logStd( LocalizationManager.format( "log.mrpackImporter.success", modCount, fileUrl ) );
             return new Result( fileUrl, index, modCount );
         }
         catch ( ImportException e ) {
@@ -311,12 +308,11 @@ public final class MrpackImporter
         if ( logoSha1 != null ) {
             logoUrl = iconUrl;
             manifest.addProperty( "packLogoSha1", logoSha1 );
-            Logger.logStd( "Modrinth import: staged project icon to metadata cache (sha1=" + logoSha1 + ")" );
+            Logger.logStd( LocalizationManager.format( "log.mrpackImporter.stagedIcon", logoSha1 ) );
         }
         else {
             logoUrl = com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MODPACK_DEFAULT_LOGO_URL;
-            Logger.logStd( "Modrinth import: no project icon staged (iconUrl=" + iconUrl
-                                   + "); using bundled default logo" );
+            Logger.logStd( LocalizationManager.format( "log.mrpackImporter.noIconStaged", String.valueOf( iconUrl ) ) );
         }
         manifest.addProperty( "packLogoURL", logoUrl );
         manifest.addProperty( "packBackgroundURL",
@@ -387,7 +383,7 @@ public final class MrpackImporter
                 // Mica's pack pipeline requires SHA-1 for verification. Skip
                 // any file Modrinth didn't ship a sha1 for — exceedingly rare
                 // (their CDN always exposes both sha1 + sha512).
-                Logger.logWarningSilent( "Skipping mrpack entry without sha1: " + entryPath );
+                Logger.logWarningSilent( LocalizationManager.format( "log.mrpackImporter.skipNoSha1", entryPath ) );
                 continue;
             }
             boolean clientReq = f.env == null || !"unsupported".equalsIgnoreCase( f.env.client );
@@ -442,8 +438,8 @@ public final class MrpackImporter
             }
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Could not fetch / hash Forge installer at "
-                                             + installerUrl + ": " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mrpackImporter.forgeHashFailed",
+                                             installerUrl, t.getMessage() ) );
             return null;
         }
     }
@@ -490,9 +486,7 @@ public final class MrpackImporter
             // No-op when the bytes are already PNG / JPEG / GIF / BMP.
             if ( !com.micatechnologies.minecraft.launcher.utilities.ImageFormatUtilities
                     .ensureJavaFxDecodable( tempFile ) ) {
-                Logger.logStd( "Modrinth import: project icon at " + iconUrl
-                                       + " is in a format ImageIO can't decode; "
-                                       + "falling back to the bundled-default logo." );
+                Logger.logStd( LocalizationManager.format( "log.mrpackImporter.iconUndecodable", iconUrl ) );
                 return null;
             }
 
@@ -513,9 +507,8 @@ public final class MrpackImporter
             return sha1;
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Could not stage imported pack logo from "
-                                             + iconUrl + ": " + t.getClass().getSimpleName()
-                                             + " — " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.mrpackImporter.stageLogoFailed",
+                                             iconUrl, t.getClass().getSimpleName(), t.getMessage() ) );
             return null;
         }
         finally {

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.rgb.backends.corsair;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.RgbBackend;
 import com.micatechnologies.minecraft.launcher.rgb.RgbColor;
@@ -191,7 +192,7 @@ public final class CorsairBackend implements RgbBackend
                                                      + describeSessionState( finalState ) );
         }
         connected = true;
-        Logger.logStd( "Corsair iCUE: session connected — enumerating devices." );
+        Logger.logStd( LocalizationManager.get( "log.rgb.corsair.sessionConnected" ) );
 
         enumerateDevices();
         if ( devices.isEmpty() ) {
@@ -201,8 +202,7 @@ public final class CorsairBackend implements RgbBackend
                                                      + "found. Check iCUE recognises your "
                                                      + "hardware." );
         }
-        Logger.logStd( "Corsair iCUE: " + devices.size()
-                               + " device(s) connected — backend ready." );
+        Logger.logStd( LocalizationManager.format( "log.rgb.corsair.devicesReady", devices.size() ) );
     }
 
     @Override
@@ -235,8 +235,7 @@ public final class CorsairBackend implements RgbBackend
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Corsair iCUE: SetLedColors threw on device "
-                                                 + dev.model, t );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.corsair.setLedColorsThrew", dev.model ), t );
                 handleDeviceFailure( dev, CorsairSdkLibrary.CE_INVALID_OPERATION );
             }
         }
@@ -281,8 +280,7 @@ public final class CorsairBackend implements RgbBackend
                                                                 infoArr[ 0 ],
                                                                 sizeRef );
         if ( rc != CorsairSdkLibrary.CE_SUCCESS ) {
-            Logger.logWarningSilent( "Corsair iCUE: CorsairGetDevices returned error "
-                                             + describeError( rc ) );
+            Logger.logWarningSilent( LocalizationManager.format( "log.rgb.corsair.getDevicesError", describeError( rc ) ) );
             return;
         }
         // JNA's toArray() shares one Memory block — we MUST call read()
@@ -297,8 +295,7 @@ public final class CorsairBackend implements RgbBackend
             byte[] idCopy = info.id.clone(); // detach from shared Memory
             String model = trimTrailingNulls( info.model );
             devices.add( new Device( idCopy, ledIds, model ) );
-            Logger.logStd( "Corsair iCUE: device \"" + model + "\" — "
-                                   + ledIds.length + " LED(s)" );
+            Logger.logStd( LocalizationManager.format( "log.rgb.corsair.deviceRegistered", model, ledIds.length ) );
         }
     }
 
@@ -315,8 +312,7 @@ public final class CorsairBackend implements RgbBackend
         int rc = CorsairSdkLibrary.INSTANCE.CorsairGetLedPositions(
                 idMem, CorsairSdkLibrary.MAX_LEDS_PER_DEVICE, posArr[ 0 ], sizeRef );
         if ( rc != CorsairSdkLibrary.CE_SUCCESS ) {
-            Logger.logWarningSilent( "Corsair iCUE: GetLedPositions returned error "
-                                             + describeError( rc ) );
+            Logger.logWarningSilent( LocalizationManager.format( "log.rgb.corsair.getLedPositionsError", describeError( rc ) ) );
             return new int[ 0 ];
         }
         int count = Math.min( sizeRef.getValue(), posArr.length );
@@ -362,10 +358,8 @@ public final class CorsairBackend implements RgbBackend
         int failures = dev.consecutiveFailures.incrementAndGet();
         if ( !dev.succeededOnce && failures >= DEVICE_FAILURE_DROP_THRESHOLD ) {
             dev.droppedFromRotation = true;
-            Logger.logStd( "Corsair iCUE: giving up on device \"" + dev.model
-                                   + "\" after " + failures + " consecutive failures "
-                                   + "(last error=" + describeError( errorCode )
-                                   + "). Will not be retried this session." );
+            Logger.logStd( LocalizationManager.format( "log.rgb.corsair.givingUpOnDevice",
+                                   dev.model, failures, describeError( errorCode ) ) );
         }
     }
 

@@ -108,7 +108,7 @@ public class GameModPackManager
             listener.accept( message, cause );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "background-error listener threw: " + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackManager.bgErrorListenerThrew", t.getClass().getSimpleName() ) );
         }
     }
 
@@ -368,8 +368,8 @@ public class GameModPackManager
                         ModPackUpdateLog.recordRemoteVersionSeen( gameModPack );
                     }
                     catch ( Throwable t ) {
-                        Logger.logWarningSilent( "Update-log record failed for "
-                                                         + gameModPack.getPackName() + ": " + t.getMessage() );
+                        Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackManager.updateLogRecordFailed",
+                                                         gameModPack.getPackName(), t.getMessage() ) );
                     }
                     if ( finalProgressWindow != null ) {
                         finalProgressWindow.setDetailText( LocalizationManager.GOT_LATEST_VERSION_OF_TEXT
@@ -483,22 +483,22 @@ public class GameModPackManager
                             ModPackUpdateLog.recordRemoteVersionSeen( fresh );
                         }
                         catch ( Throwable t ) {
-                            Logger.logWarningSilent( "Update-log record failed for "
-                                                             + fresh.getPackName() + ": " + t.getMessage() );
+                            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackManager.updateLogRecordFailed",
+                                                             fresh.getPackName(), t.getMessage() ) );
                         }
                     }
                     catch ( Throwable t ) {
                         // Per-pack failure is non-fatal — the cached version stays in the list.
-                        Logger.logWarningSilent( "Background revalidate failed for "
-                                                         + manifestUrl + ": " + t.getMessage() );
+                        Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackManager.backgroundRevalidateFailed",
+                                                         manifestUrl, t.getMessage() ) );
                     }
                 } );
             }
             catch ( Throwable t ) {
-                Logger.logErrorSilent( "Installed-modpack background revalidate failed." );
+                Logger.logErrorSilent( LocalizationManager.get( "log.gameModPackManager.installedRevalidateFailed" ) );
                 Logger.logThrowable( t );
                 fireBackgroundError(
-                        "Couldn't refresh installed-modpack info — using cached data.", t );
+                        LocalizationManager.get( "gameModPackManager.installedRevalidateFailed" ), t );
             }
         } );
     }
@@ -567,10 +567,10 @@ public class GameModPackManager
                     fetchAvailableModPacks( null );
                 }
                 catch ( Throwable t ) {
-                    Logger.logErrorSilent( "Background available-modpacks fetch failed." );
+                    Logger.logErrorSilent( LocalizationManager.get( "log.gameModPackManager.availableFetchFailed" ) );
                     Logger.logThrowable( t );
                     fireBackgroundError(
-                            "Couldn't load the available-modpacks list — Browse will show only installed packs.", t );
+                            LocalizationManager.get( "gameModPackManager.availableFetchFailed" ), t );
                 }
             } );
             return availableFetchFuture;
@@ -669,7 +669,7 @@ public class GameModPackManager
                 f.get();
             }
             catch ( Exception e ) {
-                Logger.logErrorSilent( "Wait for available-modpacks fetch was interrupted." );
+                Logger.logErrorSilent( LocalizationManager.get( "log.gameModPackManager.waitAvailableInterrupted" ) );
             }
         }
     }
@@ -856,8 +856,8 @@ public class GameModPackManager
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Install-index cleanup failed for uninstall: "
-                                                 + t.getClass().getSimpleName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackManager.installIndexCleanupFailed",
+                                                 t.getClass().getSimpleName() ) );
             }
             saveToConfig();
             fetchModPackInfo();
@@ -932,7 +932,7 @@ public class GameModPackManager
             fetchModPackInfo();
         }
         else {
-            Logger.logError( "Unable to install mod pack " + gameModPack.getPackName() + "!" );
+            Logger.logError( LocalizationManager.format( "log.gameModPackManager.unableToInstallModPack", gameModPack.getPackName() ) );
         }
     }
 

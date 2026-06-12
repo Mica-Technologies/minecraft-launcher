@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.rgb.backends.chromanative;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.KeyboardKey;
 import com.micatechnologies.minecraft.launcher.rgb.RgbBackend;
@@ -173,9 +174,7 @@ public final class ChromaNativeBackend implements RgbBackend
                                          + describeResult( initResult ) );
         }
         initialized = true;
-        Logger.logStd( "Razer Chroma (Native): SDK initialized — appears in "
-                               + "Synapse's connected-apps list as \""
-                               + APP_TITLE + "\"." );
+        Logger.logStd( LocalizationManager.format( "log.rgb.chroma.nativeSdkInitialized", APP_TITLE ) );
     }
 
     @Override
@@ -358,8 +357,7 @@ public final class ChromaNativeBackend implements RgbBackend
         // transient run from a few minutes ago.
         familyFailureCount.put( familyName, 0 );
         if ( familySucceededOnce.add( familyName ) ) {
-            Logger.logStd( "Razer Chroma (Native): " + familyName
-                                   + " first frame succeeded (result=0)" );
+            Logger.logStd( LocalizationManager.format( "log.rgb.chroma.nativeFirstFrameSucceeded", familyName ) );
         }
         return true;
     }
@@ -382,21 +380,16 @@ public final class ChromaNativeBackend implements RgbBackend
                 && count >= FAMILY_FAILURE_DROP_THRESHOLD ) {
             if ( familyPermanentlyDropped.add( familyName )
                     && familyDropLoggedOnce.add( familyName ) ) {
-                Logger.logStd( "Razer Chroma (Native): giving up on family "
-                                       + familyName + " after "
-                                       + FAMILY_FAILURE_DROP_THRESHOLD
-                                       + " consecutive failures (no Razer "
-                                       + familyName + " device connected?). "
-                                       + "Will not be retried this session." );
+                Logger.logStd( LocalizationManager.format( "log.rgb.chroma.nativeGivingUpOnFamily",
+                                       familyName, FAMILY_FAILURE_DROP_THRESHOLD ) );
             }
             return; // suppress the per-frame log for the dropped family
         }
 
         // logWarningSilent so a user without (say) a Razer keyboard
         // doesn't see "ERROR" toast spam every frame.
-        Logger.logWarningSilent( "Razer Chroma (Native) " + op + " for family "
-                                         + familyName + " returned result=" + result
-                                         + " (" + describeResult( result ) + ")" );
+        Logger.logWarningSilent( LocalizationManager.format( "log.rgb.chroma.nativeOpReturnedResult",
+                                         op, familyName, result, describeResult( result ) ) );
     }
 
     // =========================================================================

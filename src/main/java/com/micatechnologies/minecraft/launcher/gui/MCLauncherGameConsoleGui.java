@@ -442,8 +442,8 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                 long minutes = ( elapsed / 60000 ) % 60;
                 long hours = elapsed / 3600000;
                 String timeStr = hours > 0 ?
-                                 String.format( "Uptime: %d:%02d:%02d", hours, minutes, seconds ) :
-                                 String.format( "Uptime: %d:%02d", minutes, seconds );
+                                 LocalizationManager.format( "console.uptime.hms", hours, minutes, seconds ) :
+                                 LocalizationManager.format( "console.uptime.ms", minutes, seconds );
                 Platform.runLater( () -> uptimeLabel.setText( timeStr ) );
                 try {
                     Thread.sleep( 1000 );
@@ -487,14 +487,13 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                     if ( crashed ) {
                         titleLabel.setText( LocalizationManager.get( "console.title.crashed" ) );
                         statusLabel.setText( LocalizationManager.format( "console.status.exitCode", exitCode ) );
-                        appendToDisplay( "\n--- Game crashed with exit code " + exitCode +
-                                                 " (session: " + durationStr + ") ---\n" );
+                        appendToDisplay( LocalizationManager.format( "console.banner.crashed", exitCode, durationStr ) );
                     }
                     else {
                         titleLabel.setText( LocalizationManager.get( "console.title.complete" ) );
                         statusLabel.setText( LocalizationManager.format( "console.status.playedFor", durationStr ) );
                         uptimeLabel.setText( "" );
-                        appendToDisplay( "\n--- Game exited normally (session: " + durationStr + ") ---\n" );
+                        appendToDisplay( LocalizationManager.format( "console.banner.exitedNormally", durationStr ) );
                     }
                 } );
 
@@ -503,7 +502,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                 }
             }
             catch ( InterruptedException e ) {
-                Logger.logWarningSilent( "Game process monitor interrupted." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.console.processMonitorInterrupted" ) );
             }
         } );
     }
@@ -870,7 +869,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                     logFile.toPath() );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Could not create game log file: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.console.createLogFileFailed", e.getMessage() ) );
             logFile = null;
             logFileWriter = null;
         }
@@ -931,7 +930,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                     Desktop.getDesktop().open( logFile );
                 }
                 catch ( IOException e ) {
-                    Logger.logWarningSilent( "Could not open log file: " + e.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.console.openLogFileFailed", e.getMessage() ) );
                 }
             } );
         }
@@ -945,7 +944,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                 statusLabel.setText( LocalizationManager.get( "console.status.killed" ) );
                 killBtn.setDisable( true );
                 closeBtn.setDisable( false );
-                appendToDisplay( "\n--- Game was killed by user ---\n" );
+                appendToDisplay( LocalizationManager.get( "console.banner.killed" ) );
             } );
         }
     }
@@ -955,7 +954,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
             MCLauncherGuiController.goToMainGui();
         }
         catch ( IOException e ) {
-            Logger.logError( "Unable to return to main GUI." );
+            Logger.logError( LocalizationManager.get( "log.console.returnToMainFailed" ) );
             Logger.logThrowable( e );
         }
     }

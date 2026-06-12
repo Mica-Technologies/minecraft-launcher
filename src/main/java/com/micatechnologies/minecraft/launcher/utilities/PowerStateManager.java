@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import oshi.SystemInfo;
 import oshi.hardware.PowerSource;
@@ -154,8 +155,8 @@ public final class PowerStateManager
             return;
         }
         if ( throttledThisSession.compareAndSet( false, true ) ) {
-            Logger.logDebug( "Battery saver: download throttle engaged at " +
-                                     ConfigConstants.BATTERY_THROTTLE_BYTES_PER_SEC + " bytes/s/stream" );
+            Logger.logDebug( LocalizationManager.format( "log.powerState.throttleEngaged",
+                                     ConfigConstants.BATTERY_THROTTLE_BYTES_PER_SEC ) );
         }
         long bps = ConfigConstants.BATTERY_THROTTLE_BYTES_PER_SEC;
         if ( bps <= 0 ) {
@@ -281,7 +282,7 @@ public final class PowerStateManager
         catch ( Exception | Error e ) {
             // Probe failed — safest default is "not on battery" so we never throttle
             // unexpectedly because of an oshi quirk on an obscure platform.
-            Logger.logWarningSilent( "Power-state probe failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.powerState.probeFailed", e.getMessage() ) );
             onBattery = false;
             pct = -1;
         }

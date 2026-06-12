@@ -147,7 +147,7 @@ public final class SystemMenuBarManager
                 }
             }
             catch ( Exception | Error e ) {
-                Logger.logWarningSilent( "Unable to install OPEN_URI / OPEN_FILE handler: " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.menu.installUriFileHandlerFailed", e.getMessage() ) );
             }
         }
 
@@ -180,7 +180,7 @@ public final class SystemMenuBarManager
             }
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Unable to install macOS Desktop handlers: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.menu.installDesktopHandlersFailed", e.getMessage() ) );
         }
     }
 
@@ -446,7 +446,7 @@ public final class SystemMenuBarManager
                 MCLauncherGuiController.goToSettingsGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open Settings from system menu." );
+                Logger.logError( LocalizationManager.get( "log.menu.openSettingsFailed" ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -459,7 +459,7 @@ public final class SystemMenuBarManager
                 MCLauncherGuiController.goToGameLibraryGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open Library from system menu." );
+                Logger.logError( LocalizationManager.get( "log.menu.openLibraryFailed" ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -472,7 +472,7 @@ public final class SystemMenuBarManager
                 MCLauncherGuiController.goToRuntimeGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open Runtime Management from system menu." );
+                Logger.logError( LocalizationManager.get( "log.menu.openRuntimeFailed" ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -487,7 +487,7 @@ public final class SystemMenuBarManager
                 MCLauncherGuiController.goToMainGui();
             }
             catch ( Exception e ) {
-                Logger.logError( "Unable to refresh main GUI from system menu." );
+                Logger.logError( LocalizationManager.get( "log.menu.refreshMainFailed" ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -500,7 +500,7 @@ public final class SystemMenuBarManager
                 MCLauncherGuiController.goToMainGui();
             }
             catch ( Exception e ) {
-                Logger.logError( "Unable to open Home from system menu." );
+                Logger.logError( LocalizationManager.get( "log.menu.openHomeFailed" ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -513,7 +513,7 @@ public final class SystemMenuBarManager
                 MCLauncherGuiController.goToModPackEditorGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open Modpack Editor from system menu." );
+                Logger.logError( LocalizationManager.get( "log.menu.openEditorFailed" ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -532,7 +532,7 @@ public final class SystemMenuBarManager
                 LauncherCore.play( pack );
             }
             catch ( Throwable t ) {
-                Logger.logError( "Unable to launch \"" + pack.getPackName() + "\" from system menu." );
+                Logger.logError( LocalizationManager.format( "log.menu.launchPackFailed", pack.getPackName() ) );
                 Logger.logThrowable( t );
             }
         } );
@@ -574,7 +574,7 @@ public final class SystemMenuBarManager
                 }
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open URL: " + url );
+                Logger.logError( LocalizationManager.format( "log.menu.openUrlFailed", url ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -615,15 +615,15 @@ public final class SystemMenuBarManager
             } );
         }
         catch ( MmcjsonImporter.ImportException ie ) {
-            Logger.logErrorSilent( "MMCJSON import failed for "
-                                           + ( file == null ? "<null>" : file.getName() )
-                                           + ": " + ie.getMessage() );
+            Logger.logErrorSilent( LocalizationManager.format( "log.menu.mmcjsonImportFailed",
+                                           ( file == null ? "<null>" : file.getName() ),
+                                           ie.getMessage() ) );
             NotificationManager.error(
                     LocalizationManager.get( "notification.uri.modpackAddFailed.title" ),
                     ie.getMessage() );
         }
         catch ( Exception e ) {
-            Logger.logErrorSilent( "MMCJSON import unexpected failure: " + e.getMessage() );
+            Logger.logErrorSilent( LocalizationManager.format( "log.menu.mmcjsonImportUnexpected", e.getMessage() ) );
             Logger.logThrowable( e );
             NotificationManager.error(
                     LocalizationManager.get( "notification.uri.modpackAddFailed.title" ),

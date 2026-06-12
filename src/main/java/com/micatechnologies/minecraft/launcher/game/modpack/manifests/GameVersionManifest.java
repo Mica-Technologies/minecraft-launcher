@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.RuntimeConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -90,12 +91,12 @@ public class GameVersionManifest
     public static void ensureManifestDownloaded() throws ModpackException {
         if ( versionManifest == null ) {
             try {
-                Logger.logDebug( "Minecraft version manifest has not been downloaded. Getting now..." );
+                Logger.logDebug( LocalizationManager.get( "log.versionManifest.notDownloadedGettingNow" ) );
                 download();
-                Logger.logDebug( "Minecraft version manifest has been downloaded!" );
+                Logger.logDebug( LocalizationManager.get( "log.versionManifest.downloaded" ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Failed to download and read Minecraft version manifest!" );
+                Logger.logError( LocalizationManager.get( "log.versionManifest.downloadReadFailed" ) );
                 Logger.logThrowable( e );
                 throw new ModpackException( "Unable to download Minecraft version manifest.", e );
             }

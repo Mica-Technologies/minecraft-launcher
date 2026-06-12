@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -165,15 +166,13 @@ public final class OfficialLauncherExporter
     public static Result exportPack( GameModPack pack )
     {
         if ( pack == null ) {
-            return Result.failure( "No pack supplied." );
+            return Result.failure( LocalizationManager.get( "import.export.noPack" ) );
         }
         Path dotMc = resolveDotMinecraft();
         Path profilesFile = dotMc.resolve( "launcher_profiles.json" );
         if ( !Files.isRegularFile( profilesFile ) ) {
             return Result.failure(
-                    "The Minecraft Launcher data folder wasn't found at "
-                            + dotMc + ". Install the Minecraft Launcher (and run it once) "
-                            + "before exporting." );
+                    LocalizationManager.format( "import.export.dataFolderMissing", dotMc.toString() ) );
         }
 
         // Resolve version ID + loader install state up front so the
@@ -188,8 +187,7 @@ public final class OfficialLauncherExporter
             installerUrl = pack.isVanillaVersion() ? null : safeGetLoaderInstallerUrl( pack );
         }
         catch ( Exception e ) {
-            return Result.failure( "Could not resolve loader version for this pack: "
-                                           + e.getMessage() );
+            return Result.failure( LocalizationManager.format( "import.export.loaderResolveFailed", e.getMessage() ) );
         }
 
         // Compute + create the export gameDir, then copy mods + configs
@@ -205,7 +203,7 @@ public final class OfficialLauncherExporter
         }
         catch ( Exception e ) {
             Logger.logThrowable( e );
-            return Result.failure( "Couldn't prepare the export directory: " + e.getMessage() );
+            return Result.failure( LocalizationManager.format( "import.export.prepareDirFailed", e.getMessage() ) );
         }
 
         // Read existing profiles, merge our entry, write back atomically.
@@ -229,14 +227,14 @@ public final class OfficialLauncherExporter
             profilesJson.add( "profiles", profiles );
 
             atomicWriteProfilesJson( profilesFile, profilesJson );
-            Logger.logStd( "OfficialLauncherExporter: wrote profile \""
-                                   + profileName + "\" to " + profilesFile );
+            Logger.logStd( LocalizationManager.format( "log.officialExporter.wroteProfile",
+                                   profileName, profilesFile.toString() ) );
             return Result.success( profileName, gameDir.toString(), versionId,
                                     loaderInstalled, installerUrl );
         }
         catch ( Exception e ) {
             Logger.logThrowable( e );
-            return Result.failure( "Couldn't update launcher_profiles.json: " + e.getMessage() );
+            return Result.failure( LocalizationManager.format( "import.export.updateProfilesFailed", e.getMessage() ) );
         }
     }
 
@@ -256,15 +254,14 @@ public final class OfficialLauncherExporter
     public static Result removeExport( GameModPack pack )
     {
         if ( pack == null ) {
-            return Result.failure( "No pack supplied." );
+            return Result.failure( LocalizationManager.get( "import.export.noPack" ) );
         }
         Path dotMc = resolveDotMinecraft();
         Path profilesFile = dotMc.resolve( "launcher_profiles.json" );
         if ( !Files.isRegularFile( profilesFile ) ) {
             // Mojang launcher isn't around — there's nothing to remove,
             // but we still try to clean up the gameDir below.
-            Logger.logStd( "OfficialLauncherExporter.removeExport: launcher_profiles.json missing — "
-                                   + "skipping profile removal." );
+            Logger.logStd( LocalizationManager.get( "log.officialExporter.removeProfilesMissing" ) );
         }
         else {
             try {
@@ -276,18 +273,16 @@ public final class OfficialLauncherExporter
                     if ( profiles.has( key ) ) {
                         profiles.remove( key );
                         atomicWriteProfilesJson( profilesFile, profilesJson );
-                        Logger.logStd( "OfficialLauncherExporter.removeExport: removed profile "
-                                               + key );
+                        Logger.logStd( LocalizationManager.format( "log.officialExporter.removedProfile", key ) );
                     }
                     else {
-                        Logger.logDebug( "OfficialLauncherExporter.removeExport: no profile "
-                                                 + "with key " + key + " — already removed." );
+                        Logger.logDebug( LocalizationManager.format( "log.officialExporter.removeNoProfile", key ) );
                     }
                 }
             }
             catch ( Exception e ) {
                 Logger.logThrowable( e );
-                return Result.failure( "Couldn't update launcher_profiles.json: " + e.getMessage() );
+                return Result.failure( LocalizationManager.format( "import.export.updateProfilesFailed", e.getMessage() ) );
             }
         }
 
@@ -300,11 +295,11 @@ public final class OfficialLauncherExporter
             Path gameDir = computeExportGameDir( pack );
             if ( Files.isDirectory( gameDir ) ) {
                 deleteRecursively( gameDir );
-                Logger.logStd( "OfficialLauncherExporter.removeExport: deleted " + gameDir );
+                Logger.logStd( LocalizationManager.format( "log.officialExporter.deletedGameDir", gameDir.toString() ) );
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Couldn't fully delete export gameDir: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.officialExporter.deleteGameDirFailed", e.getMessage() ) );
         }
         return Result.success(
                 profileDisplayName( pack ),
@@ -330,8 +325,7 @@ public final class OfficialLauncherExporter
                     .has( stableProfileKey( pack ) );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Couldn't read launcher_profiles.json to check for export: "
-                                             + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.officialExporter.readProfilesFailed", e.getMessage() ) );
             return false;
         }
     }
@@ -795,8 +789,8 @@ public final class OfficialLauncherExporter
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Couldn't resolve Mica runtime base dir for component "
-                                             + component + ": " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.officialExporter.runtimeBaseDirFailed",
+                                             component, e.getMessage() ) );
         }
         return null;
     }
@@ -824,7 +818,7 @@ public final class OfficialLauncherExporter
                     + Base64.getEncoder().encodeToString( bos.toByteArray() );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Couldn't encode pack icon for export: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.officialExporter.encodeIconFailed", e.getMessage() ) );
             return null;
         }
     }
@@ -869,8 +863,7 @@ public final class OfficialLauncherExporter
                     StandardCopyOption.REPLACE_EXISTING );
         }
         catch ( AtomicMoveNotSupportedException atomicEx ) {
-            Logger.logWarningSilent( "Atomic move not supported for launcher_profiles.json — "
-                                             + "falling back to non-atomic replace." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.officialExporter.atomicMoveUnsupported" ) );
             Files.move( tmp, target, StandardCopyOption.REPLACE_EXISTING );
         }
     }

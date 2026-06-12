@@ -213,8 +213,8 @@ public final class ConfigStore
                     }
                     catch ( Exception ignored ) { /* defensive — diagnostic only */ }
                     long size = configFile.length();
-                    Logger.logDebug( "ConfigStore.loadFromDisk: read " + size + " bytes "
-                                             + "(modpacks=" + packCount + ") from " + path );
+                    Logger.logDebug( LocalizationManager.format( "log.configStore.loadFromDisk",
+                                                                 size, packCount, path ) );
                 }
             }
             catch ( Exception e ) {
@@ -262,11 +262,11 @@ public final class ConfigStore
                     configFile.getName() + ".corrupt-" + timestamp );
             java.nio.file.Files.move( src, dst,
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING );
-            Logger.logStd( "Preserved corrupt config at " + dst
-                                   + " — settings can be manually recovered from it." );
+            Logger.logStd( LocalizationManager.format( "log.configStore.preservedCorrupt", dst ) );
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Could not preserve corrupt config file: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.configStore.preserveCorruptFailed",
+                                                                 e.getMessage() ) );
         }
     }
 
@@ -393,8 +393,8 @@ public final class ConfigStore
                 }
             }
             catch ( Exception ignored ) { /* defensive — diagnostic only */ }
-            Logger.logDebug( "ConfigStore.writeNow: writing " + bytes.length
-                                     + " bytes (modpacks=" + packCount + ") to " + target );
+            Logger.logDebug( LocalizationManager.format( "log.configStore.writeNow",
+                                                         bytes.length, packCount, target ) );
 
             // Ensure the parent directory exists — the launcher creates it
             // at startup but a stale clean / fresh user-home wipe could
@@ -438,8 +438,7 @@ public final class ConfigStore
                 // partial-file exposure is small but not zero — log so
                 // operators can investigate the underlying FS if it
                 // recurs.
-                Logger.logWarningSilent( "Atomic config move not supported on this filesystem — "
-                                                 + "falling back to non-atomic replace." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.configStore.atomicMoveUnsupported" ) );
                 java.nio.file.Files.move( tmp, target,
                         java.nio.file.StandardCopyOption.REPLACE_EXISTING );
             }

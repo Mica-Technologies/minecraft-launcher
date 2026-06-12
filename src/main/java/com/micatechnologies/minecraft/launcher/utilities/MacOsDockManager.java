@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import io.github.palexdev.materialfx.controls.MFXProgressBar;
 
@@ -69,7 +70,7 @@ public final class MacOsDockManager
             return true;
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Unable to initialize macOS dock manager: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macDock.initFailed", e.getMessage() ) );
             disabled = true;
             taskbar = null;
             return false;
@@ -103,7 +104,7 @@ public final class MacOsDockManager
             taskbar.setProgressValue( pct );
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Dock progress update failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macDock.progressUpdateFailed", e.getMessage() ) );
         }
     }
 
@@ -119,7 +120,7 @@ public final class MacOsDockManager
             }
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Dock progress clear failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macDock.progressClearFailed", e.getMessage() ) );
         }
     }
 
@@ -137,7 +138,7 @@ public final class MacOsDockManager
             }
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Dock requestUserAttention failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macDock.requestAttentionFailed", e.getMessage() ) );
         }
     }
 
@@ -156,7 +157,7 @@ public final class MacOsDockManager
             }
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Dock setError failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macDock.setErrorFailed", e.getMessage() ) );
         }
     }
 
@@ -176,7 +177,7 @@ public final class MacOsDockManager
             }
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Dock badge update failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macDock.badgeUpdateFailed", e.getMessage() ) );
         }
     }
 
@@ -199,7 +200,7 @@ public final class MacOsDockManager
             }
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Dock setMenu failed: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macDock.setMenuFailed", e.getMessage() ) );
         }
     }
 

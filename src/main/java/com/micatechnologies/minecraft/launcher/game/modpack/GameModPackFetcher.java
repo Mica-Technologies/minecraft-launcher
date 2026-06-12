@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -111,7 +112,7 @@ public class GameModPackFetcher
         }
         catch ( Exception e ) {
             // Cache read failures aren't fatal — the caller falls back to a network fetch.
-            Logger.logWarningSilent( "Cached manifest unreadable for " + manifestUrl + ": " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFetcher.cachedManifestUnreadable", manifestUrl, e.getMessage() ) );
             return null;
         }
     }
@@ -164,7 +165,7 @@ public class GameModPackFetcher
                 if ( manifestBody == null ) {
                     throw new IOException( "Local manifest not found at " + manifestUrl );
                 }
-                Logger.logStd( "Loaded imported manifest from local file: " + manifestUrl );
+                Logger.logStd( LocalizationManager.format( "log.gameModPackFetcher.loadedImportedManifest", manifestUrl ) );
             }
             else if ( NetworkUtilities.isOffline() ) {
                 // Offline: load from cache
@@ -172,7 +173,7 @@ public class GameModPackFetcher
                 if ( manifestBody == null ) {
                     throw new IOException( "No cached manifest available for offline mode" );
                 }
-                Logger.logStd( "Loaded cached manifest for offline mode: " + manifestUrl );
+                Logger.logStd( LocalizationManager.format( "log.gameModPackFetcher.loadedCachedManifestOffline", manifestUrl ) );
             }
             else {
                 // Online: HTTPS-only bounded fetch with conditional-GET support. The 50 MB
@@ -228,9 +229,8 @@ public class GameModPackFetcher
                         gameModPack.cacheImages();
                     }
                     catch ( Throwable t ) {
-                        Logger.logWarningSilent( "Image cache failed for "
-                                                         + manifestUrl + " (non-fatal): "
-                                                         + t.getClass().getSimpleName() );
+                        Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFetcher.imageCacheFailed",
+                                                         manifestUrl, t.getClass().getSimpleName() ) );
                     }
                 }
             }
@@ -241,7 +241,7 @@ public class GameModPackFetcher
         }
         catch ( Exception e ) {
             // Use silent logging to avoid blocking error dialogs for each failed pack
-            Logger.logErrorSilent( "The following installed mod pack could not be loaded: " + manifestUrl );
+            Logger.logErrorSilent( LocalizationManager.format( "log.gameModPackFetcher.installedModPackNotLoaded", manifestUrl ) );
             Logger.logThrowable( e );
             gameModPack = GameModPack.createFailedModPack( manifestUrl, e.getMessage() );
         }
@@ -292,8 +292,8 @@ public class GameModPackFetcher
             return Files.readString( p, StandardCharsets.UTF_8 );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Could not read local manifest at " + fileUrl + ": "
-                                             + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFetcher.couldNotReadLocalManifest", fileUrl,
+                                             e.getClass().getSimpleName() ) );
             return null;
         }
     }
@@ -356,7 +356,7 @@ public class GameModPackFetcher
             Files.writeString( cacheFile, manifestBody, StandardCharsets.UTF_8 );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Unable to cache manifest for " + manifestUrl );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFetcher.unableToCacheManifest", manifestUrl ) );
         }
     }
 
@@ -380,8 +380,8 @@ public class GameModPackFetcher
             InstallIndex.upsertAndSave( manifestUrl, parsedPack );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Could not update install index for " + manifestUrl
-                                             + ": " + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFetcher.couldNotUpdateInstallIndex", manifestUrl,
+                                             t.getClass().getSimpleName() ) );
         }
     }
 
@@ -413,7 +413,7 @@ public class GameModPackFetcher
             }
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Unable to load cached manifest for " + manifestUrl );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFetcher.unableToLoadCachedManifest", manifestUrl ) );
         }
         return null;
     }
@@ -467,7 +467,7 @@ public class GameModPackFetcher
         catch ( IOException e ) {
             // Non-fatal: failing to persist meta just means the next fetch can't go
             // conditional — it'll still get the right body, just less efficiently.
-            Logger.logWarningSilent( "Unable to save manifest cache meta for " + manifestUrl );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFetcher.unableToSaveCacheMeta", manifestUrl ) );
         }
     }
 
@@ -480,9 +480,8 @@ public class GameModPackFetcher
                     - Files.getLastModifiedTime( cacheFile ).toMillis();
             if ( ageMs > MANIFEST_STALE_THRESHOLD_MS ) {
                 long days = ageMs / ( 24L * 60L * 60L * 1000L );
-                Logger.logWarning( "Using cached manifest for " + manifestUrl
-                                           + " — last refreshed " + days
-                                           + " days ago. Reconnect to pick up any updates." );
+                Logger.logWarning( LocalizationManager.format( "log.gameModPackFetcher.usingStaleCachedManifest", manifestUrl,
+                                           days ) );
             }
         }
         catch ( IOException ignored ) {

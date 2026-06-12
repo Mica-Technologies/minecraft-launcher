@@ -473,8 +473,8 @@ public class LauncherCore
             boolean ok = com.micatechnologies.minecraft.launcher.game.modpack.ModConflictDetector
                     .disableJar( pack, first.firstJarName() );
             if ( ok ) {
-                Logger.logStd( "Pre-launch: disabled " + first.firstJarName()
-                                       + " to resolve conflict with " + first.secondJarName() );
+                Logger.logStd( LocalizationManager.format( "log.launcherCore.preLaunchDisabledMod",
+                                                           first.firstJarName(), first.secondJarName() ) );
                 return true;
             }
             // Rename failed — most likely the file is locked or already
@@ -487,8 +487,8 @@ public class LauncherCore
             return false;
         }
         if ( response == 2 ) {
-            Logger.logStd( "Pre-launch: user chose to launch anyway with conflict "
-                                   + first.firstJarName() + " + " + first.secondJarName() );
+            Logger.logStd( LocalizationManager.format( "log.launcherCore.preLaunchLaunchAnyway",
+                                                       first.firstJarName(), first.secondJarName() ) );
             return true;
         }
         return false; // Cancel
@@ -519,25 +519,24 @@ public class LauncherCore
             return;
         }
         try {
-            Logger.logStd( "Awaiting deferred auth refresh before launch..." );
+            Logger.logStd( LocalizationManager.get( "log.launcherCore.awaitingAuthRefresh" ) );
             long startNs = System.nanoTime();
             MCLauncherAuthResult result = pending.get( 60, java.util.concurrent.TimeUnit.SECONDS );
             long waitMs = ( System.nanoTime() - startNs ) / 1_000_000L;
             if ( AuthUtilities.checkAuthResponse( result ) ) {
-                Logger.logStd( "Auth refresh settled (" + waitMs + " ms wait); proceeding with launch." );
+                Logger.logStd( LocalizationManager.format( "log.launcherCore.authRefreshSettled", waitMs ) );
             }
             else {
-                Logger.logWarningSilent(
-                        "Deferred auth refresh returned non-success after " + waitMs +
-                                " ms; launching with cached token." );
+                Logger.logWarningSilent( LocalizationManager.format(
+                        "log.launcherCore.authRefreshNonSuccess", waitMs ) );
             }
         }
         catch ( java.util.concurrent.TimeoutException e ) {
-            Logger.logWarningSilent( "Deferred auth refresh timed out at 60 s; launching with cached token." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.launcherCore.authRefreshTimedOut" ) );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Deferred auth refresh await failed (" + t.getClass().getSimpleName()
-                                             + "); launching with cached token." );
+            Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.authRefreshAwaitFailed",
+                                                                 t.getClass().getSimpleName() ) );
         }
     }
 
@@ -612,7 +611,7 @@ public class LauncherCore
                 }
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load launch progress GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( LocalizationManager.get( "log.launcherCore.launchProgressGuiLoadFailed" ) );
                 Logger.logThrowable( e );
             }
 
@@ -665,7 +664,7 @@ public class LauncherCore
                             MCLauncherGuiController.goToMainGui();
                         }
                         catch ( IOException ioe ) {
-                            Logger.logErrorSilent( "Unable to return to main GUI after launch cancel." );
+                            Logger.logErrorSilent( LocalizationManager.get( "log.launcherCore.returnMainGuiAfterCancelFailed" ) );
                         }
                     } ) );
                 } );
@@ -749,7 +748,7 @@ public class LauncherCore
                     if ( orphan != null && orphan.isAlive() ) {
                         orphan.destroyForcibly();
                     }
-                    Logger.logStd( "Launch cancelled by user after process spawn — killed game process." );
+                    Logger.logStd( LocalizationManager.get( "log.launcherCore.launchCancelledAfterSpawn" ) );
                     TaskbarProgressManager.stop();
                     returnToMainGuiOnError();
                     return;
@@ -823,7 +822,7 @@ public class LauncherCore
                             }
                         }
                         catch ( IOException e ) {
-                            Logger.logError( "Unable to open in-game console GUI." );
+                            Logger.logError( LocalizationManager.get( "log.launcherCore.inGameConsoleGuiFailed" ) );
                             Logger.logThrowable( e );
                         }
                     }
@@ -839,7 +838,8 @@ public class LauncherCore
                             // RGB: game exited — drop the in-game effect.
                             com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.onPlayEnded();
                             if ( exitCode != 0 ) {
-                                Logger.logError( "Game crashed with exit code " + exitCode );
+                                Logger.logError( LocalizationManager.format( "log.launcherCore.gameCrashedExitCode",
+                                                                             exitCode ) );
                                 NotificationManager.error(
                                         LocalizationManager.get( "notification.launch.gameCrashed.title" ),
                                         LocalizationManager.format( "notification.launch.gameCrashed.body",
@@ -860,12 +860,12 @@ public class LauncherCore
                                     }
                                 }
                                 catch ( IOException e ) {
-                                    Logger.logError( "Unable to show crash report GUI." );
+                                    Logger.logError( LocalizationManager.get( "log.launcherCore.crashReportGuiFailed" ) );
                                 }
                             }
                         }
                         catch ( InterruptedException e ) {
-                            Logger.logError( "Game process wait was interrupted." );
+                            Logger.logError( LocalizationManager.get( "log.launcherCore.gameWaitInterrupted" ) );
                         }
                     }
                 }
@@ -883,7 +883,7 @@ public class LauncherCore
                 // or downstream IOException) — distinguish from a real failure so the user
                 // doesn't see an error log for a deliberate cancel.
                 if ( session.isCancelled() ) {
-                    Logger.logStd( "Launch cancelled by user." );
+                    Logger.logStd( LocalizationManager.get( "log.launcherCore.launchCancelled" ) );
                     TaskbarProgressManager.stop();
                     returnToMainGuiOnError();
                 }
@@ -968,7 +968,7 @@ public class LauncherCore
                             MCLauncherGuiController.requestFocus();
                         }
                         catch ( IOException e ) {
-                            Logger.logError( "Unable to load main GUI after auto-launched pack exited." );
+                            Logger.logError( LocalizationManager.get( "log.launcherCore.mainGuiAfterAutoLaunchFailed" ) );
                             Logger.logThrowable( e );
                             closeApp();
                         }
@@ -981,7 +981,7 @@ public class LauncherCore
                 MCLauncherGuiController.goToMainGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load main GUI due to an incomplete response from the GUI subsystem." );
+                Logger.logError( LocalizationManager.get( "log.launcherCore.mainGuiLoadFailed" ) );
                 Logger.logThrowable( e );
             }
         }
@@ -995,8 +995,10 @@ public class LauncherCore
                 int restartCount = 0;
                 boolean shouldRestart = true;
                 while ( shouldRestart ) {
-                    Logger.logStd( "Starting server" + ( restartCount > 0
-                                           ? " (restart " + restartCount + "/" + maxRestarts + ")" : "" ) + "..." );
+                    Logger.logStd( restartCount > 0
+                                           ? LocalizationManager.format( "log.launcherCore.startingServerRestart",
+                                                                         restartCount, maxRestarts )
+                                           : LocalizationManager.get( "log.launcherCore.startingServer" ) );
                     play( finalGameModPack );
 
                     Process proc = finalGameModPack.getLastLaunchedProcess();
@@ -1009,7 +1011,7 @@ public class LauncherCore
                             // with kernel-managed ordering; we just block on waitFor() and
                             // surface the exit code + restart decision.
                             int exitCode = proc.waitFor();
-                            Logger.logStd( "Server exited with code " + exitCode );
+                            Logger.logStd( LocalizationManager.format( "log.launcherCore.serverExited", exitCode ) );
 
                             if ( exitCode == 0 ) {
                                 // Clean shutdown — don't restart
@@ -1017,17 +1019,17 @@ public class LauncherCore
                             }
                             else if ( restartCount < maxRestarts ) {
                                 restartCount++;
-                                Logger.logStd( "Server crashed, restarting in 5 seconds..." );
+                                Logger.logStd( LocalizationManager.get( "log.launcherCore.serverCrashedRestarting" ) );
                                 Thread.sleep( 5_000 );
                             }
                             else {
-                                Logger.logErrorSilent(
-                                        "Server crashed " + maxRestarts + " times, not restarting." );
+                                Logger.logErrorSilent( LocalizationManager.format(
+                                        "log.launcherCore.serverCrashedGivingUp", maxRestarts ) );
                                 shouldRestart = false;
                             }
                         }
                         catch ( InterruptedException e ) {
-                            Logger.logErrorSilent( "Server wait interrupted." );
+                            Logger.logErrorSilent( LocalizationManager.get( "log.launcherCore.serverWaitInterrupted" ) );
                             shouldRestart = false;
                         }
                     }
@@ -1095,7 +1097,7 @@ public class LauncherCore
             net.hycrafthd.minecraft_authenticator.login.User cached =
                     MCLauncherAuthManager.loadCachedUserNow();
             if ( cached != null ) {
-                Logger.logStd( "[" + cached.name() + "] cached session loaded; refreshing token in background." );
+                Logger.logStd( LocalizationManager.format( "log.launcherCore.cachedSessionLoaded", cached.name() ) );
                 MCLauncherAuthManager.renewExistingLoginAsync();
                 return;
             }
@@ -1103,7 +1105,7 @@ public class LauncherCore
             // sync renewal path. This is the cold-uninstalled, fresh-install,
             // or corrupt-cache case; rare in steady state but the existing
             // progress-GUI flow handles it cleanly.
-            Logger.logStd( "Saved account present but cached user info unreadable; falling back to sync renewal." );
+            Logger.logStd( LocalizationManager.get( "log.launcherCore.cachedUserUnreadable" ) );
 
             MCLauncherProgressGui authProgressWindow = null;
             try {
@@ -1112,12 +1114,12 @@ public class LauncherCore
                 }
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to load progress GUI for auth renewal." );
+                Logger.logError( LocalizationManager.get( "log.launcherCore.authRenewalProgressGuiFailed" ) );
                 Logger.logThrowable( e );
             }
             if ( authProgressWindow != null ) {
-                authProgressWindow.setUpperLabelText( "Signing In" );
-                authProgressWindow.setSectionText( "Checking session..." );
+                authProgressWindow.setUpperLabelText( LocalizationManager.get( "auth.progress.signingIn" ) );
+                authProgressWindow.setSectionText( LocalizationManager.get( "auth.progress.checkingSession" ) );
                 authProgressWindow.setDetailText( "" );
             }
 
@@ -1141,7 +1143,7 @@ public class LauncherCore
                 return;
             }
             else {
-                Logger.logStd( "Saved account could not be renewed. Showing login screen." );
+                Logger.logStd( LocalizationManager.get( "log.launcherCore.savedAccountNotRenewed" ) );
                 MCLauncherAuthManager.logout();
                 if ( initialErrorMessage == null || initialErrorMessage.isEmpty() ) {
                     initialErrorMessage = LocalizationManager.AUTH_UNABLE_TO_REFRESH_TEXT;
@@ -1172,7 +1174,7 @@ public class LauncherCore
             }
         }
         catch ( IOException e ) {
-            Logger.logError( "Unable to load login GUI due to an incomplete response from the GUI subsystem." );
+            Logger.logError( LocalizationManager.get( "log.launcherCore.loginGuiLoadFailed" ) );
             Logger.logThrowable( e );
             closeApp();
         }
@@ -1281,15 +1283,14 @@ public class LauncherCore
                 String appUserModelId = LauncherConstants.LAUNCHER_IS_DEV ?
                                         LauncherCore.class.getCanonicalName() + "DEV" :
                                         LauncherCore.class.getCanonicalName();
-                Logger.logDebug( "Setting app user model ID: " + appUserModelId );
+                Logger.logDebug( LocalizationManager.format( "log.launcherCore.settingAppUserModelId",
+                                                             appUserModelId ) );
                 WString appUserModelIdWString = new WString( appUserModelId );
                 Shell32.INSTANCE.SetCurrentProcessExplicitAppUserModelID( appUserModelIdWString );
             }
         }
         catch ( Exception e ) {
-            Logger.logErrorSilent( "Unable to set up user model ID for application. If you are using Windows, this " +
-                                           "may result in your taskbar showing a separate icon for the launcher than " +
-                                           "the currently pinned icon, if present." );
+            Logger.logErrorSilent( LocalizationManager.get( "log.launcherCore.appUserModelIdFailed" ) );
             Logger.logThrowable( e );
         }
 
@@ -1456,8 +1457,7 @@ public class LauncherCore
             // the in-process restart — dynamic strings re-resolve on the rebuilt
             // GUI, but the static-final translation fields stay at the launch
             // locale until a real process restart (an accepted dev-only gap).
-            Logger.logStd( "Full process relaunch unavailable (no jpackage app path; likely dev/IDE run) — "
-                                   + "falling back to in-process restart." );
+            Logger.logStd( LocalizationManager.get( "log.launcherCore.relaunchUnavailable" ) );
             restartFlag = true;
             restartAppNow();
             return;
@@ -1466,7 +1466,7 @@ public class LauncherCore
         // single-instance lock and flushes config + logging), spawn a fresh
         // process, then exit. The new JVM re-runs class init so the changed
         // locale binds everywhere.
-        Logger.logStd( "Relaunching launcher process: " + exePath );
+        Logger.logStd( LocalizationManager.format( "log.launcherCore.relaunchingProcess", exePath ) );
         cleanupApp();
         if ( spawnRelaunchProcess( exePath ) ) {
             System.exit( LauncherConstants.EXIT_STATUS_CODE_GOOD );
@@ -1476,7 +1476,7 @@ public class LauncherCore
             // launcher. Re-enter the restart loop instead (Phase 2's loop-top
             // tryAcquire re-establishes the lock + IPC, and the new session
             // reconfigures logging).
-            Logger.logError( "Failed to spawn relaunch process; falling back to in-process restart." );
+            Logger.logError( LocalizationManager.get( "log.launcherCore.relaunchSpawnFailedFallback" ) );
             restartFlag = true;
             currentSession.exitLatch.countDown();
         }
@@ -1513,8 +1513,8 @@ public class LauncherCore
                 return true;
             }
             catch ( IOException e ) {
-                Logger.logWarningSilent( "cmd-start relaunch failed (" + e.getClass().getSimpleName()
-                                                 + "); trying Desktop.open." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.cmdStartRelaunchFailed",
+                                                                     e.getClass().getSimpleName() ) );
             }
             // Secondary: ShellExecute via AWT Desktop (also a double-click-equivalent launch).
             try {
@@ -1525,8 +1525,8 @@ public class LauncherCore
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Desktop.open relaunch failed (" + t.getClass().getSimpleName()
-                                                 + "); falling back to direct spawn." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.launcherCore.desktopOpenRelaunchFailed",
+                                                                     t.getClass().getSimpleName() ) );
             }
         }
 
@@ -1543,7 +1543,7 @@ public class LauncherCore
             return true;
         }
         catch ( IOException e ) {
-            Logger.logError( "Failed to spawn relaunch process: " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.launcherCore.relaunchSpawnFailed", e.getMessage() ) );
             return false;
         }
     }
@@ -1586,7 +1586,7 @@ public class LauncherCore
                 MCLauncherGuiController.goToMainGui();
             }
             catch ( IOException e ) {
-                Logger.logErrorSilent( "Unable to return to main GUI after launch error." );
+                Logger.logErrorSilent( LocalizationManager.get( "log.launcherCore.returnMainGuiAfterErrorFailed" ) );
             }
         }
     }

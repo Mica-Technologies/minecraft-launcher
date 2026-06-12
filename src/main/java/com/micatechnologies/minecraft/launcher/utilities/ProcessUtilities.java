@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import jodd.io.StreamGobbler;
@@ -67,10 +68,10 @@ public class ProcessUtilities
             // Start process and wait for finish — redact auth tokens before logging.
             String redacted = SensitiveDataRedactor.redact( command );
             if ( retryNumber > 0 ) {
-                Logger.logStd( "Executing command (retry " + retryNumber + "): " + redacted );
+                Logger.logStd( LocalizationManager.format( "log.processUtil.executingCommandRetry", retryNumber, redacted ) );
             }
             else {
-                Logger.logStd( "Executing command: " + redacted );
+                Logger.logStd( LocalizationManager.format( "log.processUtil.executingCommand", redacted ) );
             }
             Process mcProcess = processBuilder.start();
 
@@ -96,8 +97,8 @@ public class ProcessUtilities
             // Check return code
             if ( returnCode != 0 ) {
                 retry = Logger.logErrorConfirmRetry(
-                        "Oops - The game has crashed! Try again, and check the log files if the issue persists.",
-                        "Reload" );
+                        LocalizationManager.get( "processUtil.gameCrashed.message" ),
+                        LocalizationManager.get( "processUtil.gameCrashed.retry" ) );
             }
 
             if ( retry ) {
@@ -236,7 +237,7 @@ public class ProcessUtilities
         stripSensitiveEnv( processBuilder.environment() );
         // Redact auth tokens before logging — see SensitiveDataRedactor for the patterns.
         // Joined back with spaces for the log line only; the actual spawn uses the List.
-        Logger.logStd( "Launching command: " + SensitiveDataRedactor.redact( String.join( " ", argv ) ) );
+        Logger.logStd( LocalizationManager.format( "log.processUtil.launchingCommand", SensitiveDataRedactor.redact( String.join( " ", argv ) ) ) );
         return processBuilder.start();
     }
 
@@ -308,8 +309,8 @@ public class ProcessUtilities
         int returnCode = process.waitFor();
         if ( returnCode != 0 ) {
             Logger.logErrorConfirmRetry(
-                    "Oops - The game has crashed! Try again, and check the log files if the issue persists.",
-                    "Reload" );
+                    LocalizationManager.get( "processUtil.gameCrashed.message" ),
+                    LocalizationManager.get( "processUtil.gameCrashed.retry" ) );
         }
     }
 

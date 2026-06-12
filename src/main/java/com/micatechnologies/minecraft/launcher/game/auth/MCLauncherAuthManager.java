@@ -115,21 +115,21 @@ public class MCLauncherAuthManager
                     long parsed = readRenewalTimestamp( raw );
                     if ( parsed > 0 ) {
                         lastSuccessfulRenewalMs = parsed;
-                        Logger.logStd( "Loaded renewal timestamp from disk: " +
+                        Logger.logStd( LocalizationManager.format( "log.authManager.renewalTimestampLoaded",
                                                new java.text.SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" ).format(
-                                                       new java.util.Date( lastSuccessfulRenewalMs ) ) );
+                                                       new java.util.Date( lastSuccessfulRenewalMs ) ) ) );
                     }
                     else {
-                        Logger.logWarningSilent( "Renewal timestamp file present but unreadable; ignoring." );
+                        Logger.logWarningSilent( LocalizationManager.get( "log.authManager.renewalTimestampUnreadable" ) );
                         lastSuccessfulRenewalMs = 0;
                     }
                 }
                 else {
-                    Logger.logStd( "No renewal timestamp file found -- token renewal will be required." );
+                    Logger.logStd( LocalizationManager.get( "log.authManager.noRenewalTimestamp" ) );
                 }
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Failed to read renewal timestamp: " + e.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.authManager.renewalTimestampReadFailed", e.getMessage() ) );
                 lastSuccessfulRenewalMs = 0;
             }
         }
@@ -138,8 +138,9 @@ public class MCLauncherAuthManager
         long elapsedMinutes = elapsed / 60000;
         long thresholdMinutes = TOKEN_REFRESH_INTERVAL_MS / 60000;
         boolean shouldRenew = elapsed >= TOKEN_REFRESH_INTERVAL_MS;
-        Logger.logStd( "Token age check: " + elapsedMinutes + "m since last server renewal (threshold: " +
-                               thresholdMinutes + "m) -> " + ( shouldRenew ? "RENEWAL NEEDED" : "still valid" ) );
+        Logger.logStd( LocalizationManager.format( "log.authManager.tokenAgeCheck", elapsedMinutes, thresholdMinutes,
+                               ( shouldRenew ? LocalizationManager.get( "log.authManager.renewalNeeded" )
+                                             : LocalizationManager.get( "log.authManager.stillValid" ) ) ) );
         return shouldRenew;
     }
 
@@ -209,15 +210,15 @@ public class MCLauncherAuthManager
                     && fileBytes[0] == GZIP_MAGIC_0
                     && fileBytes[1] == GZIP_MAGIC_1 ) {
                 AuthenticationFile legacy = AuthenticationFile.readCompressed( fileBytes );
-                Logger.logStd( "Migrating legacy plaintext player.mica to encrypted form." );
+                Logger.logStd( LocalizationManager.get( "log.authManager.migratingLegacyAuthFile" ) );
                 try {
                     saveAuthFileEncrypted( legacy );
                 }
                 catch ( Exception migrateFailure ) {
                     // Migration failure shouldn't block login — leave the legacy file alone
                     // and try again next time. Log a sanitized warning (no token data).
-                    Logger.logWarningSilent( "Auth file migration failed: "
-                                                     + migrateFailure.getClass().getSimpleName() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.authManager.authFileMigrationFailed",
+                                                     migrateFailure.getClass().getSimpleName() ) );
                 }
                 return legacy;
             }
@@ -230,8 +231,8 @@ public class MCLauncherAuthManager
             return AuthenticationFile.readCompressed( gzipped );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Failed to load saved auth file: "
-                                             + e.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.loadAuthFileFailed",
+                                             e.getClass().getSimpleName() ) );
             return null;
         }
     }
@@ -254,7 +255,7 @@ public class MCLauncherAuthManager
             applyOwnerOnlyPermissions( cachedPath );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Failed to save cached user data: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.saveCachedUserFailed", e.getMessage() ) );
         }
     }
 
@@ -284,7 +285,7 @@ public class MCLauncherAuthManager
             );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Failed to load cached user data: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.loadCachedUserFailed", e.getMessage() ) );
             return null;
         }
     }
@@ -305,7 +306,7 @@ public class MCLauncherAuthManager
             applyOwnerOnlyPermissions( renewalPath );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Failed to save renewal timestamp: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.saveRenewalTimestampFailed", e.getMessage() ) );
         }
     }
 
@@ -381,17 +382,16 @@ public class MCLauncherAuthManager
         long backoffMs = 0;
         if ( consecutiveFailures > 0 ) {
             backoffMs = Math.min( MIN_AUTH_INTERVAL_MS * ( 1L << Math.min( consecutiveFailures, 10 ) ), MAX_BACKOFF_MS );
-            Logger.logStd( "Auth backoff: waiting " + ( backoffMs / 1000 ) + "s after " + consecutiveFailures +
-                                   " consecutive failure(s)." );
+            Logger.logStd( LocalizationManager.format( "log.authManager.authBackoff", ( backoffMs / 1000 ), consecutiveFailures ) );
         }
 
         long elapsed = System.currentTimeMillis() - lastAuthAttemptTimeMs;
         long waitMs = Math.max( MIN_AUTH_INTERVAL_MS - elapsed, backoffMs - elapsed );
         if ( waitMs > 0 ) {
             if ( consecutiveFailures > 0 ) {
-                reportStatus( "Signing In",
-                              "Waiting " + ( waitMs / 1000 ) + "s before retrying (attempt " +
-                                      ( consecutiveFailures + 1 ) + ")..." );
+                reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                              LocalizationManager.format( "authManager.status.waitingRetry", ( waitMs / 1000 ),
+                                      ( consecutiveFailures + 1 ) ) );
             }
             try {
                 Thread.sleep( waitMs );
@@ -550,7 +550,7 @@ public class MCLauncherAuthManager
             Files.deleteIfExists( resolveSiblingPath( CACHED_USER_FILE ) );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Unable to delete saved user account file!" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.authManager.deleteSavedUserFailed" ) );
             Logger.logThrowable( e );
         }
     }
@@ -663,7 +663,7 @@ public class MCLauncherAuthManager
             if ( com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.isOffline() ) {
                 return;
             }
-            Logger.logStd( "Token age in soft-refresh window — kicking off background renewal." );
+            Logger.logStd( LocalizationManager.get( "log.authManager.softRefreshKickoff" ) );
             java.util.concurrent.CompletableFuture.runAsync( () -> {
                 try {
                     renewExistingLogin();
@@ -671,29 +671,30 @@ public class MCLauncherAuthManager
                 catch ( Throwable t ) {
                     // Best-effort: any failure here is invisible to the user — they'll
                     // hit the sync renewal next launch if this one didn't take.
-                    Logger.logWarningSilent( "Preemptive background renewal failed: "
-                                                     + t.getClass().getSimpleName() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.authManager.preemptiveRenewalFailed",
+                                                     t.getClass().getSimpleName() ) );
                 }
             } );
         }
         catch ( Throwable t ) {
             // Wrapper guard — nothing in this opportunistic path should throw onto the
             // launcher's startup critical path.
-            Logger.logWarningSilent( "tryPreemptiveBackgroundRenewal aborted: "
-                                             + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.preemptiveRenewalAborted",
+                                             t.getClass().getSimpleName() ) );
         }
     }
 
     public static MCLauncherAuthResult renewExistingLogin() {
-        reportStatus( "Signing In", "Checking session..." );
+        reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                      LocalizationManager.get( "authManager.status.checkingSession" ) );
 
         // Check if we can skip renewal -- token was refreshed recently and is still valid
         if ( !shouldRenewToken() && loggedIn != null ) {
             long hoursAgo = ( System.currentTimeMillis() - lastSuccessfulRenewalMs ) / 3600000;
             long minutesAgo = ( ( System.currentTimeMillis() - lastSuccessfulRenewalMs ) / 60000 ) % 60;
-            Logger.logStd( "Using existing session (token renewed " + hoursAgo + "h " + minutesAgo +
-                                   "m ago, no server contact needed)." );
-            reportStatus( "Signing In", "Using existing session (no server contact needed)" );
+            Logger.logStd( LocalizationManager.format( "log.authManager.usingExistingSession", hoursAgo, minutesAgo ) );
+            reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                          LocalizationManager.get( "authManager.status.usingExistingSession" ) );
             return new MCLauncherAuthResult( loggedIn );
         }
 
@@ -705,20 +706,21 @@ public class MCLauncherAuthManager
                 loggedIn = cachedUser;
                 long hoursAgo = ( System.currentTimeMillis() - lastSuccessfulRenewalMs ) / 3600000;
                 long minutesAgo = ( ( System.currentTimeMillis() - lastSuccessfulRenewalMs ) / 60000 ) % 60;
-                Logger.logStd( "Loaded session from disk (token renewed " + hoursAgo + "h " + minutesAgo +
-                                       "m ago, no server contact needed)." );
-                reportStatus( "Signing In", "Restored session from disk (no server contact needed)" );
+                Logger.logStd( LocalizationManager.format( "log.authManager.loadedSessionFromDisk", hoursAgo, minutesAgo ) );
+                reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                              LocalizationManager.get( "authManager.status.restoredSession" ) );
                 consecutiveFailures = 0;
                 return new MCLauncherAuthResult( loggedIn );
             }
             else {
-                Logger.logStd( "Cached user file not found or invalid, will contact authentication servers." );
+                Logger.logStd( LocalizationManager.get( "log.authManager.cachedUserNotFound" ) );
             }
         }
 
         // Token is stale or could not be loaded -- need to contact authentication servers
-        Logger.logStd( "Session needs renewal, will contact authentication servers." );
-        reportStatus( "Signing In", "Preparing to contact authentication servers..." );
+        Logger.logStd( LocalizationManager.get( "log.authManager.sessionNeedsRenewal" ) );
+        reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                      LocalizationManager.get( "authManager.status.preparingContact" ) );
 
         // Enforce rate limiting before making API calls
         enforceRateLimit();
@@ -738,8 +740,9 @@ public class MCLauncherAuthManager
             final Authenticator authenticator =
                     Authenticator.of( previousAuthFile ).serviceConnectTimeout( 5000 ).serviceReadTimeout( 10000 ).shouldAuthenticate().shouldRetrieveXBoxProfile().build();
 
-            reportStatus( "Signing In", "Contacting authentication servers..." );
-            Logger.logStd( "Renewing token with authentication servers (timeout: " + AUTH_TIMEOUT_SECONDS + "s)..." );
+            reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                          LocalizationManager.get( "authManager.status.contactingServers" ) );
+            Logger.logStd( LocalizationManager.format( "log.authManager.renewingToken", AUTH_TIMEOUT_SECONDS ) );
             ExecutorService authExecutor = Executors.newSingleThreadExecutor();
             Future< Void > authFuture = authExecutor.submit( () -> {
                 authenticator.run();
@@ -751,14 +754,13 @@ public class MCLauncherAuthManager
             }
             catch ( TimeoutException e ) {
                 authFuture.cancel( true );
-                Logger.logError( "Authentication timed out after " + AUTH_TIMEOUT_SECONDS +
-                                         " seconds. The authentication servers may be unreachable." );
+                Logger.logError( LocalizationManager.format( "log.authManager.authTimedOut", AUTH_TIMEOUT_SECONDS ) );
                 recordAuthFailure();
                 return MCLauncherAuthResult.ERROR_OTHER;
             }
             catch ( ExecutionException e ) {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
-                Logger.logWarningSilent( "Token renewal failed with an error (server was contacted)." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.authManager.tokenRenewalFailed" ) );
                 // Sanitized: log only the exception class, not the message or stack. The
                 // minecraft_authenticator library wraps OAuth response bodies in exception
                 // messages, which can contain token fragments and detailed account state.
@@ -771,7 +773,7 @@ public class MCLauncherAuthManager
                 authExecutor.shutdownNow();
             }
 
-            Logger.logStd( "Token renewed successfully (server responded)." );
+            Logger.logStd( LocalizationManager.get( "log.authManager.tokenRenewedSuccess" ) );
 
             if ( authenticator.getResultFile() != null ) {
                 // Get new authentication file and write to disk
@@ -793,13 +795,14 @@ public class MCLauncherAuthManager
         // Ensure loggedIn was populated as expected and return result
         MCLauncherAuthResult result;
         if ( loggedIn == null ) {
-            Logger.logStd( "Token renewal completed but no user was returned (login may have expired)." );
+            Logger.logStd( LocalizationManager.get( "log.authManager.renewalNoUser" ) );
             recordAuthFailure();
             result = MCLauncherAuthResult.ERROR_LOGIN_EXPIRED;
         }
         else {
-            Logger.logStd( "Sign-in complete (token renewed with server)." );
-            reportStatus( "Signing In", "Signed in successfully" );
+            Logger.logStd( LocalizationManager.get( "log.authManager.signInComplete" ) );
+            reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                          LocalizationManager.get( "authManager.status.signedIn" ) );
             recordAuthSuccess();
             result = new MCLauncherAuthResult( loggedIn );
         }
@@ -816,7 +819,7 @@ public class MCLauncherAuthManager
             final Authenticator authenticator =
                     Authenticator.ofMicrosoft( authCode ).serviceConnectTimeout( 5000 ).serviceReadTimeout( 10000 ).shouldAuthenticate().shouldRetrieveXBoxProfile().build();
 
-            Logger.logStd( "Authenticating with Microsoft (timeout: " + AUTH_TIMEOUT_SECONDS + "s)..." );
+            Logger.logStd( LocalizationManager.format( "log.authManager.authenticatingMicrosoft", AUTH_TIMEOUT_SECONDS ) );
             ExecutorService authExecutor = Executors.newSingleThreadExecutor();
             Future< Void > authFuture = authExecutor.submit( () -> {
                 authenticator.run();
@@ -828,7 +831,7 @@ public class MCLauncherAuthManager
             }
             catch ( TimeoutException e ) {
                 authFuture.cancel( true );
-                Logger.logError( "Microsoft authentication timed out after " + AUTH_TIMEOUT_SECONDS + " seconds." );
+                Logger.logError( LocalizationManager.format( "log.authManager.microsoftAuthTimedOut", AUTH_TIMEOUT_SECONDS ) );
                 recordAuthFailure();
                 return MCLauncherAuthResult.ERROR_OTHER;
             }
@@ -841,7 +844,7 @@ public class MCLauncherAuthManager
                 authExecutor.shutdownNow();
             }
 
-            Logger.logStd( "Microsoft authentication response received." );
+            Logger.logStd( LocalizationManager.get( "log.authManager.microsoftAuthResponse" ) );
 
             if ( authenticator.getResultFile() != null ) {
                 handleAuthFile( authenticator.getResultFile(), save );
@@ -902,7 +905,7 @@ public class MCLauncherAuthManager
             result = MCLauncherAuthResult.ERROR_NO_VAL;
         }
         else {
-            Logger.logWarningSilent( "Failed to login due to an exception while contacting the login service!" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.authManager.loginException" ) );
             // Sanitized — these are direct auth-library exceptions, so the message
             // can carry token fragments. Log type only.
             logAuthErrorType( e );
@@ -926,7 +929,7 @@ public class MCLauncherAuthManager
         if ( t == null ) {
             return;
         }
-        Logger.logWarningSilent( "Auth error type: " + t.getClass().getName() );
+        Logger.logWarningSilent( LocalizationManager.format( "log.authManager.authErrorType", t.getClass().getName() ) );
     }
 
     private static boolean checkIfExceptionIsNoValuePresent( Exception e ) {

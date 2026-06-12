@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.GUIConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import io.github.palexdev.materialfx.controls.MFXButton;
 import javafx.animation.PauseTransition;
@@ -102,7 +103,7 @@ public class MCLauncherGuiWindow extends Application
             }
         }
         catch ( Exception e ) {
-            Logger.logError( "An error occurred while setting the application icon!" );
+            Logger.logError( LocalizationManager.get( "log.guiWindow.setIconFailed" ) );
             Logger.logThrowable( e );
         }
 
@@ -111,7 +112,7 @@ public class MCLauncherGuiWindow extends Application
             detector = OsThemeDetector.getDetector();
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Unable to configure theme detector for dark/light mode!" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.guiWindow.themeDetectorFailed" ) );
             Logger.logThrowable( e );
         }
 
@@ -280,7 +281,7 @@ public class MCLauncherGuiWindow extends Application
         // Verify the saved rectangle still overlaps an attached screen before applying it.
         Rectangle2D savedRect = new Rectangle2D( savedX, savedY, savedWidth, savedHeight );
         if ( Screen.getScreensForRectangle( savedRect ).isEmpty() ) {
-            Logger.logDebug( "Saved launcher window bounds are off-screen; using default position." );
+            Logger.logDebug( LocalizationManager.get( "log.guiWindow.boundsOffScreen" ) );
             return false;
         }
 
@@ -353,7 +354,7 @@ public class MCLauncherGuiWindow extends Application
                                            stage.isMaximized() );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Unable to persist launcher window bounds." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.guiWindow.persistBoundsFailed" ) );
             Logger.logThrowable( e );
         }
     }
@@ -580,7 +581,7 @@ public class MCLauncherGuiWindow extends Application
                 detector.registerListener( themeListener );
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to configure theme change listener for dark/light mode!" );
+                Logger.logWarningSilent( LocalizationManager.get( "log.guiWindow.themeListenerFailed" ) );
                 Logger.logThrowable( e );
             }
         }
@@ -1253,7 +1254,7 @@ public class MCLauncherGuiWindow extends Application
                 detector.removeListener( themeListener );
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to remove theme change listener during cleanup." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.guiWindow.removeThemeListenerFailed" ) );
             }
             themeListener = null;
         }

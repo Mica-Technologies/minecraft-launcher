@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import javax.imageio.ImageIO;
@@ -104,7 +105,7 @@ public final class ImageFormatUtilities
             img = ImageIO.read( file );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "ImageIO.read failed for " + file + ": " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.imageFormat.readFailed", file, e.getMessage() ) );
             return false;
         }
         if ( img == null ) return false;
@@ -117,8 +118,7 @@ public final class ImageFormatUtilities
         try {
             boolean ok = ImageIO.write( img, "PNG", tempOut );
             if ( !ok ) {
-                Logger.logWarningSilent( "ImageIO.write PNG returned false for " + file
-                                                 + " (no PNG writer available?)" );
+                Logger.logWarningSilent( LocalizationManager.format( "log.imageFormat.writeFailed", file ) );
                 return false;
             }
             Files.move( tempOut.toPath(), file.toPath(),
@@ -126,7 +126,7 @@ public final class ImageFormatUtilities
             return true;
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "PNG transcode failed for " + file + ": " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.imageFormat.transcodeFailed", file, e.getMessage() ) );
             return false;
         }
         finally {

@@ -561,7 +561,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         MCLauncherGuiController.goToMainGui();
                     }
                     catch ( IOException e ) {
-                        Logger.logError( "Unable to open the main application GUI!" );
+                        Logger.logError( LocalizationManager.get( "log.settings.openMainGuiFailed" ) );
                         Logger.logThrowable( e );
                     }
                 }
@@ -570,7 +570,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         MCLauncherGuiController.goToMainGui();
                     }
                     catch ( IOException e ) {
-                        Logger.logError( "Unable to open the main application GUI!" );
+                        Logger.logError( LocalizationManager.get( "log.settings.openMainGuiFailed" ) );
                         Logger.logThrowable( e );
                     }
                 }
@@ -580,7 +580,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     MCLauncherGuiController.goToMainGui();
                 }
                 catch ( IOException e ) {
-                    Logger.logError( "Unable to open the main application GUI!" );
+                    Logger.logError( LocalizationManager.get( "log.settings.openMainGuiFailed" ) );
                     Logger.logThrowable( e );
                 }
             }
@@ -605,8 +605,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     Thread.sleep( 5000 );
                 }
                 catch ( InterruptedException ignored ) {
-                    Logger.logDebug( "An error occurred while waiting to reset the save button text from \"Saved\" " +
-                                             "to \"Save\"." );
+                    Logger.logDebug( LocalizationManager.get( "log.settings.saveBtnResetInterrupted" ) );
                 }
                 GUIUtilities.JFXPlatformRun( () -> saveBtn.setText( LocalizationManager.get( "settings.saveBtn.label" ) ) );
             } );
@@ -643,15 +642,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 LauncherCore.cleanupApp();
             }
             catch ( Exception e ) {
-                Logger.logWarningSilent( "Unable to cleanup launcher systems before resetting the launcher. Some " +
-                                                 "files may not be removed or reset!" );
+                Logger.logWarningSilent( LocalizationManager.get( "log.settings.cleanupBeforeResetFailed" ) );
             }
             try {
                 FileUtils.deleteDirectory(
                         SynchronizedFileManager.getSynchronizedFile( LocalPathManager.getLauncherLocalPath() ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "An error prevented some or all of the launcher files from being removed or reset!" );
+                Logger.logError( LocalizationManager.get( "log.settings.resetFilesFailed" ) );
             }
             finally {
                 LauncherCore.restartApp();
@@ -696,18 +694,17 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     RuntimeManager.clearRuntime( rt.get( "component" ) );
                 }
                 catch ( IOException e ) {
-                    Logger.logError( "Failed to delete " + rt.get( "component" ) + " runtime: " +
-                                             e.getMessage() );
+                    Logger.logError( LocalizationManager.format( "log.settings.deleteRuntimeFailed", rt.get( "component" ), e.getMessage() ) );
                 }
             }
-            Logger.logStd( "All runtimes cleared. They will be re-downloaded when a modpack is launched." );
+            Logger.logStd( LocalizationManager.get( "log.settings.runtimesCleared" ) );
 
             //Return to the settings window
             try {
                 MCLauncherGuiController.goToSettingsGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Oops! Unable to reload settings GUI" );
+                Logger.logError( LocalizationManager.get( "log.settings.reloadSettingsFailed" ) );
                 Logger.logThrowable( e );
                 LauncherCore.closeApp();
             }
@@ -719,7 +716,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 MCLauncherGuiController.goToRuntimeGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to open runtime management GUI." );
+                Logger.logError( LocalizationManager.get( "log.settings.openRuntimeGuiFailed" ) );
                 Logger.logThrowable( e );
             }
         } ) );
@@ -757,7 +754,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
             fileChooser.setTitle( LocalizationManager.get( "settings.fileChooser.importTitle" ) );
             fileChooser.getExtensionFilters().add(
-                    new javafx.stage.FileChooser.ExtensionFilter( "JSON Files", "*.json" ) );
+                    new javafx.stage.FileChooser.ExtensionFilter(
+                            LocalizationManager.get( "dialog.fileChooser.json.filter" ), "*.json" ) );
             java.io.File file = fileChooser.showOpenDialog( stage );
             if ( file != null ) {
                 SystemUtilities.spawnNewTask( () -> {
@@ -770,7 +768,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                                 MCLauncherGuiController.goToSettingsGui();
                             }
                             catch ( IOException e ) {
-                                Logger.logErrorSilent( "Unable to reload settings after import." );
+                                Logger.logErrorSilent( LocalizationManager.get( "log.settings.reloadAfterImportFailed" ) );
                             }
                         }
                         else {
@@ -796,7 +794,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 java.awt.Desktop.getDesktop().open( launcherFolder );
             }
             catch ( Exception e ) {
-                Logger.logError( "Unable to open the launcher folder." );
+                Logger.logError( LocalizationManager.get( "log.settings.openLauncherFolderFailed" ) );
                 Logger.logThrowable( e );
             }
         } ) );
@@ -1001,7 +999,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 com.micatechnologies.minecraft.launcher.utilities.NotificationManager.success(
                         LocalizationManager.get( "notification.settings.jvmArgsGenerated.title" ),
                         LocalizationManager.get( "notification.settings.jvmArgsGenerated.body" ) );
-                Logger.logStd( "Generated tuned JVM args: " + generated );
+                Logger.logStd( LocalizationManager.format( "log.settings.generatedJvmArgs", generated ) );
             } ) );
         }
 
@@ -1102,7 +1100,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                                                     Precision.round( memUsed, 2 ) ) ) );
             }
             catch ( Exception e ) {
-                Logger.logError( "Unable to query system memory for the settings screen." );
+                Logger.logError( LocalizationManager.get( "log.settings.queryMemoryFailed" ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -1182,7 +1180,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         }
                         catch ( Exception e ) {
                             scanOutputLabel.setText( LocalizationManager.get( "settings.scanOutputLabel.failed" ) );
-                            Logger.logError( "Scan failed (exception)!" );
+                            Logger.logError( LocalizationManager.get( "log.settings.scanFailed" ) );
                             Logger.logThrowable( e );
                         }
                         scanning = false;
@@ -1199,7 +1197,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     } );
                 }
                 else {
-                    Logger.logWarning( "No folder selected. Select a folder to scan!" );
+                    Logger.logWarning( LocalizationManager.get( "log.settings.noFolderSelected" ) );
                 }
             }
         } );
@@ -1356,11 +1354,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 .hasCurseForgeApiKey();
         if ( configured ) {
             curseForgeApiKeyStatusLabel.setText(
-                    "An encrypted API key is currently saved on this machine." );
+                    LocalizationManager.get( "settings.curseforge.keyConfigured" ) );
         }
         else {
             curseForgeApiKeyStatusLabel.setText(
-                    "No API key is configured. CurseForge URL imports will fall back to the manual-download workaround." );
+                    LocalizationManager.get( "settings.curseforge.keyNotConfigured" ) );
         }
     }
 
@@ -1386,7 +1384,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 java.awt.Desktop.getDesktop().browse( java.net.URI.create( "https://www.minecraft.net/en-us/profile" ) );
             }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to open browser." );
+                Logger.logError( LocalizationManager.get( "log.settings.openBrowserFailed" ) );
                 Logger.logThrowable( ex );
             }
         } ) );
@@ -1395,7 +1393,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 java.awt.Desktop.getDesktop().browse( java.net.URI.create( "https://account.microsoft.com/" ) );
             }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to open browser." );
+                Logger.logError( LocalizationManager.get( "log.settings.openBrowserFailed" ) );
                 Logger.logThrowable( ex );
             }
         } ) );
@@ -1529,7 +1527,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                             java.net.URI.create( "https://micatechnologies.com" ) );
                 }
                 catch ( Exception ex ) {
-                    Logger.logWarningSilent( "Couldn't open website: " + ex.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.settings.openWebsiteFailed", ex.getMessage() ) );
                 }
             } ) );
         }
@@ -1540,7 +1538,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                             java.net.URI.create( "https://github.com/MicaTechnologies/Mica-Minecraft-Launcher" ) );
                 }
                 catch ( Exception ex ) {
-                    Logger.logWarningSilent( "Couldn't open source repo: " + ex.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.settings.openSourceRepoFailed", ex.getMessage() ) );
                 }
             } ) );
         }
@@ -1811,7 +1809,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "RGB controller restart from Settings threw", t );
+                Logger.logWarningSilent( LocalizationManager.get( "log.settings.rgbRestartThrew" ), t );
             }
             GUIUtilities.JFXPlatformRun( this::refreshRgbStatusChip );
         } );
@@ -1836,11 +1834,11 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             String text;
             String styleSuffix;
             if ( !ConfigManager.getRgbEnable() ) {
-                text = "Disabled";
+                text = LocalizationManager.get( "settings.rgb.status.disabled" );
                 styleSuffix = ""; // base muted chip
             }
             else if ( !s.running() || s.backends().isEmpty() ) {
-                text = "Not detected";
+                text = LocalizationManager.get( "settings.rgb.status.notDetected" );
                 styleSuffix = "-warn";
             }
             else {
@@ -1851,9 +1849,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 }
                 com.micatechnologies.minecraft.launcher.rgb.RgbBackendHealth.State worst = s.worstHealth();
                 text = switch ( worst ) {
-                    case HEALTHY  -> "Connected: " + label;
-                    case DEGRADED -> "Degraded: " + label;
-                    case DEAD     -> "Unavailable: " + label;
+                    case HEALTHY  -> LocalizationManager.format( "settings.rgb.status.connected", label );
+                    case DEGRADED -> LocalizationManager.format( "settings.rgb.status.degraded", label );
+                    case DEAD     -> LocalizationManager.format( "settings.rgb.status.unavailable", label );
                 };
                 styleSuffix = switch ( worst ) {
                     case HEALTHY  -> "-success";
@@ -1907,7 +1905,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 Thread.currentThread().interrupt();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "RGB connection test threw", t );
+                Logger.logWarningSilent( LocalizationManager.get( "log.settings.rgbTestThrew" ), t );
             }
             GUIUtilities.JFXPlatformRun( this::refreshRgbStatusChip );
         } );
@@ -1962,27 +1960,26 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 else {
                     supplementalMedium++;
                 }
-                logOutput.apply( "Supplemental scan: " + f );
+                logOutput.apply( LocalizationManager.format( "settings.scan.supplemental", f ) );
             }
         }
         catch ( IOException e ) {
-            logOutput.apply( "Supplemental scan I/O error: " + e.getMessage() );
+            logOutput.apply( LocalizationManager.format( "settings.scan.supplementalIoError", e.getMessage() ) );
         }
 
         int stage1 = scanResults.getStage1Detections() == null ? 0 : scanResults.getStage1Detections().size();
         int stage2 = scanResults.getStage2Detections() == null ? 0 : scanResults.getStage2Detections().size();
         int total = stage1 + stage2 + supplementalHigh + supplementalMedium;
         if ( total > 0 ) {
-            logOutput.apply( "Infections found — stage1=" + stage1 + ", stage2=" + stage2
-                                     + ", supplemental-high=" + supplementalHigh
-                                     + ", supplemental-warn=" + supplementalMedium );
+            logOutput.apply( LocalizationManager.format( "settings.scan.infectionsFound",
+                                     stage1, stage2, supplementalHigh, supplementalMedium ) );
         }
         else if ( scanningCanceled ) {
-            logOutput.apply( "Scan canceled!" );
+            logOutput.apply( LocalizationManager.get( "settings.scan.canceled" ) );
             scanningCanceled = false;
         }
         else {
-            logOutput.apply( "No infections found!" );
+            logOutput.apply( LocalizationManager.get( "settings.scan.noInfections" ) );
         }
     }
 

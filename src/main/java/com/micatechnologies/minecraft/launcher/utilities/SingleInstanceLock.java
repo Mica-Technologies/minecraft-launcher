@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.MCLauncherGuiController;
@@ -124,8 +125,7 @@ public class SingleInstanceLock
             // running launcher" can verify the IPC server actually came up. Without
             // this line, the only signal was a passive absence of "already running"
             // popups across instances.
-            Logger.logDebug( "Single-instance lock acquired on loopback:" + port
-                                     + "; IPC accept loop running." );
+            Logger.logDebug( LocalizationManager.format( "log.singleInstance.lockAcquired", port ) );
             return true;
         }
         catch ( IOException e ) {
@@ -160,9 +160,8 @@ public class SingleInstanceLock
             applyOwnerOnlyPermissions( tokenPath );
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Could not persist IPC token ("
-                                             + e.getClass().getSimpleName()
-                                             + "); URI forwarding disabled this session." );
+            Logger.logWarningSilent( LocalizationManager.format( "log.singleInstance.tokenPersistFailed",
+                                                                 e.getClass().getSimpleName() ) );
         }
         return token;
     }
@@ -352,7 +351,7 @@ public class SingleInstanceLock
             String expected = ipcToken;
             if ( expected == null || tokenLine == null
                     || !slowEquals( expected, tokenLine.trim() ) ) {
-                Logger.logWarningSilent( "Refusing IPC connection with bad or missing token." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.singleInstance.badToken" ) );
                 return;
             }
 
@@ -375,11 +374,12 @@ public class SingleInstanceLock
                 // LauncherUriHandler confirms game launches with the user
                 // (confirmDeepLinkLaunch), so an injected play can't start a game
                 // silently.
-                Logger.logDebug( "IPC: dispatching deep-link " + line );
+                Logger.logDebug( LocalizationManager.format( "log.singleInstance.dispatchDeepLink", line ) );
                 LauncherUriHandler.handle( line );
             }
             else {
-                Logger.logWarningSilent( "Ignoring unrecognized IPC payload: " + line );
+                Logger.logWarningSilent( LocalizationManager.format( "log.singleInstance.unrecognizedPayload",
+                                                                     line ) );
             }
         }
         catch ( IOException ignored ) {

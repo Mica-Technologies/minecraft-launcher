@@ -120,7 +120,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
                 MCLauncherGuiController.goToSettingsGui();
             }
             catch ( IOException e ) {
-                Logger.logError( "Unable to return to settings GUI." );
+                Logger.logError( LocalizationManager.get( "log.runtime.returnToSettingsFailed" ) );
                 Logger.logThrowable( e );
             }
         } ) );
@@ -165,10 +165,10 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             try {
                 RuntimeManager.clearRuntime( component );
                 GUIUtilities.JFXPlatformRun(
-                        () -> statusLabel.setText( component + " runtime deleted." ) );
+                        () -> statusLabel.setText( LocalizationManager.format( "runtime.status.deleted", component ) ) );
             }
             catch ( IOException e ) {
-                Logger.logError( "Failed to delete " + component + " runtime." );
+                Logger.logError( LocalizationManager.format( "log.runtime.deleteFailed", component ) );
                 Logger.logThrowable( e );
                 GUIUtilities.JFXPlatformRun(
                         () -> statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.deleteFailed" ) ) );
@@ -200,7 +200,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
                     RuntimeManager.clearRuntime( rt.get( "component" ) );
                 }
                 catch ( IOException e ) {
-                    Logger.logError( "Failed to delete " + rt.get( "component" ) + " runtime." );
+                    Logger.logError( LocalizationManager.format( "log.runtime.deleteFailed", rt.get( "component" ) ) );
                 }
             }
 
@@ -247,7 +247,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             runtimeListView.setItems( items );
             ensureEmptyPlaceholder();
             if ( !currentRuntimes.isEmpty() ) {
-                statusLabel.setText( currentRuntimes.size() + " runtime(s) installed." );
+                statusLabel.setText( LocalizationManager.format( "runtime.status.countInstalled", currentRuntimes.size() ) );
             }
             else {
                 statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.noneInstalled" ) );
@@ -265,12 +265,10 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
     private void ensureEmptyPlaceholder()
     {
         if ( runtimeListView.getPlaceholder() != null ) return;
-        javafx.scene.control.Label heading = new javafx.scene.control.Label( "No Java runtimes installed yet" );
+        javafx.scene.control.Label heading = new javafx.scene.control.Label( LocalizationManager.get( "runtime.empty.heading" ) );
         heading.getStyleClass().add( "heading-h3" );
         javafx.scene.control.Label body = new javafx.scene.control.Label(
-                "Runtimes download automatically the first time you launch a modpack that needs one. "
-                        + "You don't need to install anything here unless you want to pre-fetch a specific "
-                        + "Java version." );
+                LocalizationManager.get( "runtime.empty.body" ) );
         body.getStyleClass().add( "muted" );
         body.setWrapText( true );
         body.setMaxWidth( 420 );

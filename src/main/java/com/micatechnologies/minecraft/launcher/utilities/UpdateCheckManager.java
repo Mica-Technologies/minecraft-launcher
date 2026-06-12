@@ -81,8 +81,7 @@ public class UpdateCheckManager
                 || version.startsWith( "0.0.0" )
                 || version.contains( "no-git-tag" )
                 || version.contains( "-dev" ) ) {
-            Logger.logDebug( "UpdateCheckManager: skipping update check on unstamped build (version=" +
-                                     version + ")" );
+            Logger.logDebug( LocalizationManager.format( "log.updateCheck.skipUnstampedBuild", version ) );
             return;
         }
 
@@ -134,7 +133,7 @@ public class UpdateCheckManager
                 }
             }
             catch ( Exception e ) {
-                Logger.logError( "An error occurred while checking for an updated launcher version!" );
+                Logger.logError( LocalizationManager.get( "log.updateCheck.checkError" ) );
                 Logger.logThrowable( e );
             }
         } );
@@ -168,15 +167,16 @@ public class UpdateCheckManager
                 if ( latestVersionURL == null
                         || !( latestVersionURL.startsWith( "https://" )
                               || latestVersionURL.startsWith( "http://" ) ) ) {
-                    Logger.logError( "Refusing to open non-http(s) launcher update URL: " + latestVersionURL );
+                    Logger.logError( LocalizationManager.format( "log.updateCheck.refuseNonHttpUrl",
+                                                                 latestVersionURL ) );
                 }
                 else {
                     try {
                         Desktop.getDesktop().browse( URI.create( latestVersionURL ) );
                     }
                     catch ( IOException e ) {
-                        Logger.logError( "Unable to open your browser. Please visit " + latestVersionURL +
-                                                 " to download the latest launcher updates!" );
+                        Logger.logError( LocalizationManager.format( "log.updateCheck.browserOpenFailed",
+                                                                     latestVersionURL ) );
                         Logger.logThrowable( e );
                     }
                 }

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
 
@@ -25,19 +26,19 @@ public class AuthUtilities
     public static boolean checkAuthResponse( MCLauncherAuthResult authResult ) {
         boolean authSuccess = false;
         if ( authResult == MCLauncherAuthResult.ERROR_BAD_USERNAME_PASSWORD ) {
-            Logger.logError( "Unable to login: incorrect username/password" );
+            Logger.logError( LocalizationManager.get( "log.authUtil.badUsernamePassword" ) );
         }
         else if ( authResult == MCLauncherAuthResult.ERROR_LOGIN_EXPIRED ) {
-            Logger.logError( "Unable to login: login expired" );
+            Logger.logError( LocalizationManager.get( "log.authUtil.loginExpired" ) );
         }
         else if ( authResult == MCLauncherAuthResult.ERROR_NO_VAL ) {
-            Logger.logError( "Unable to login: no value present (Account may not be registered to Xbox Live)" );
+            Logger.logError( LocalizationManager.get( "log.authUtil.noValue" ) );
         }
         else if ( authResult == MCLauncherAuthResult.ERROR_OTHER ) {
-            Logger.logError( "Unable to login: unknown error" );
+            Logger.logError( LocalizationManager.get( "log.authUtil.unknownError" ) );
         }
         else if ( authResult == MCLauncherAuthResult.ERROR_NOT_OWNED ) {
-            Logger.logError( "Unable to login: account does not own Minecraft" );
+            Logger.logError( LocalizationManager.get( "log.authUtil.notOwned" ) );
         }
         else {
             authSuccess = true;

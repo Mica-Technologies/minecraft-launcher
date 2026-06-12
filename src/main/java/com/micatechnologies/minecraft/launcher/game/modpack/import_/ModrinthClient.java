@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack.import_;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
@@ -167,8 +168,8 @@ public final class ModrinthClient
             return out;
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Modrinth search failed for \"" + query + "\": "
-                                             + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modrinthClient.searchFailed",
+                                             query, t.getClass().getSimpleName() ) );
             return out;
         }
     }
@@ -205,8 +206,8 @@ public final class ModrinthClient
             return null;
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Modrinth version resolve failed for " + projectId
-                                             + ": " + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modrinthClient.versionResolveFailed",
+                                             projectId, t.getClass().getSimpleName() ) );
             return null;
         }
     }
@@ -293,8 +294,8 @@ public final class ModrinthClient
                                         iconUrl, mcVersions, loaders, version );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Modrinth project fetch failed for " + slugOrId
-                                             + ": " + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modrinthClient.projectFetchFailed",
+                                             slugOrId, t.getClass().getSimpleName() ) );
             return null;
         }
     }
@@ -334,8 +335,8 @@ public final class ModrinthClient
                     files );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Modrinth version fetch failed for " + versionId
-                                             + ": " + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modrinthClient.versionFetchFailed",
+                                             versionId, t.getClass().getSimpleName() ) );
             return null;
         }
     }

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import javafx.application.Platform;
 import javafx.stage.Stage;
@@ -111,7 +112,7 @@ public class MCLauncherGuiController
                 }
                 catch ( Exception e ) {
                     guiWindow = null;
-                    Logger.logError( "An exception was encountered while starting the application GUI window." );
+                    Logger.logError( LocalizationManager.get( "log.controller.startGuiFailed" ) );
                     Logger.logThrowable( e );
                     startSuccess.set( false );
                 }
@@ -173,9 +174,8 @@ public class MCLauncherGuiController
                 prebuiltMainGui = new MCLauncherMainGui( guiWindow.getStage() );
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Main GUI pre-build failed: "
-                                                 + t.getClass().getSimpleName() + " — "
-                                                 + "falling back to lazy construct in goToMainGui." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.controller.prebuildMainFailed",
+                                                 t.getClass().getSimpleName() ) );
             }
         }
     }
@@ -223,8 +223,7 @@ public class MCLauncherGuiController
                     MCLauncherGuiController::prebuildMainGui );
         }
         else {
-            Logger.logError( "The application main GUI could not be displayed due to the application GUI not being " +
-                                     "started." );
+            Logger.logError( LocalizationManager.get( "log.controller.mainNotDisplayed" ) );
         }
         return newMainGui;
     }
@@ -239,8 +238,7 @@ public class MCLauncherGuiController
             guiWindow.show();
         }
         else {
-            Logger.logError( "The application settings GUI could not be displayed due to the application GUI not " +
-                                     "being started." );
+            Logger.logError( LocalizationManager.get( "log.controller.settingsNotDisplayed" ) );
         }
         return newSettingsGui;
     }
@@ -255,8 +253,7 @@ public class MCLauncherGuiController
             guiWindow.show();
         }
         else {
-            Logger.logError( "The game library GUI could not be displayed due to the application GUI not " +
-                                     "being started." );
+            Logger.logError( LocalizationManager.get( "log.controller.libraryNotDisplayed" ) );
         }
         return newLibraryGui;
     }
@@ -271,8 +268,7 @@ public class MCLauncherGuiController
             guiWindow.show();
         }
         else {
-            Logger.logError(
-                    "The login GUI could not be displayed due to the application GUI not " + "being started." );
+            Logger.logError( LocalizationManager.get( "log.controller.loginNotDisplayed" ) );
         }
         return newLoginGui;
     }
@@ -287,8 +283,7 @@ public class MCLauncherGuiController
             guiWindow.show();
         }
         else {
-            Logger.logError(
-                    "The progress GUI could not be displayed due to the application GUI not " + "being started." );
+            Logger.logError( LocalizationManager.get( "log.controller.progressNotDisplayed" ) );
         }
         return newProgressGui;
     }
@@ -310,9 +305,7 @@ public class MCLauncherGuiController
             guiWindow.show();
         }
         else {
-            Logger.logError(
-                    "The launch progress GUI could not be displayed due to the application GUI not "
-                            + "being started." );
+            Logger.logError( LocalizationManager.get( "log.controller.launchProgressNotDisplayed" ) );
         }
         return newGui;
     }
@@ -327,7 +320,7 @@ public class MCLauncherGuiController
             guiWindow.show();
         }
         else {
-            Logger.logError( "The game console GUI could not be displayed." );
+            Logger.logError( LocalizationManager.get( "log.controller.consoleNotDisplayed" ) );
         }
         return newGui;
     }
@@ -342,8 +335,7 @@ public class MCLauncherGuiController
             guiWindow.show();
         }
         else {
-            Logger.logError(
-                    "The runtime management GUI could not be displayed due to the application GUI not being started." );
+            Logger.logError( LocalizationManager.get( "log.controller.runtimeNotDisplayed" ) );
         }
         return newRuntimeGui;
     }
@@ -379,8 +371,7 @@ public class MCLauncherGuiController
             guiWindow.show();
         }
         else {
-            Logger.logError(
-                    "The modpack editor GUI could not be displayed due to the application GUI not being started." );
+            Logger.logError( LocalizationManager.get( "log.controller.editorNotDisplayed" ) );
         }
         return newEditorGui;
     }

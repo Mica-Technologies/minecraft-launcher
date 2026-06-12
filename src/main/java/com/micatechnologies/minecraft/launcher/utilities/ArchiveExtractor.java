@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
@@ -150,14 +151,14 @@ public final class ArchiveExtractor
                         || tarEntry.isCharacterDevice()
                         || tarEntry.isBlockDevice()
                         || tarEntry.isFIFO() ) {
-                    Logger.logWarningSilent( "Skipping non-regular TAR entry ("
-                                                     + describeTarType( tarEntry ) + "): " + name );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.archiveExtractor.skippingNonRegularTar",
+                                                     describeTarType( tarEntry ), name ) );
                     continue;
                 }
             }
             else if ( entry instanceof ZipArchiveEntry zipEntry ) {
                 if ( zipEntry.isUnixSymlink() ) {
-                    Logger.logWarningSilent( "Skipping ZIP symlink entry: " + name );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.archiveExtractor.skippingZipSymlink", name ) );
                     continue;
                 }
             }
@@ -174,7 +175,7 @@ public final class ArchiveExtractor
                 int dot = basename.lastIndexOf( '.' );
                 String stem = dot >= 0 ? basename.substring( 0, dot ) : basename;
                 if ( WINDOWS_RESERVED_NAMES.contains( stem.toLowerCase( Locale.ROOT ) ) ) {
-                    Logger.logWarningSilent( "Skipping reserved-name archive entry: " + name );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.archiveExtractor.skippingReservedName", name ) );
                     continue;
                 }
             }

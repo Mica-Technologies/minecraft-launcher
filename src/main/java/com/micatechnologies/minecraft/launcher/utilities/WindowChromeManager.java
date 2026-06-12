@@ -9,6 +9,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.sun.glass.ui.Window;
 import com.sun.jna.Native;
@@ -125,7 +126,7 @@ public final class WindowChromeManager
             }
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "DwmSetWindowAttribute (dark mode) failed: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.windowChrome.darkModeFailed", t.getMessage() ) );
         }
     }
 
@@ -205,8 +206,8 @@ public final class WindowChromeManager
             Dwmapi.INSTANCE.DwmSetWindowAttribute( hwnd, dwmAttribute, value, 4 );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "DwmSetWindowAttribute (color " + dwmAttribute
-                                             + ") failed: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.windowChrome.colorFailed",
+                                                                 dwmAttribute, t.getMessage() ) );
         }
     }
 
@@ -250,7 +251,7 @@ public final class WindowChromeManager
                     hwnd, null, null, new com.sun.jna.platform.win32.WinDef.DWORD( flags ) );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "RedrawWindow failed: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.windowChrome.redrawFailed", t.getMessage() ) );
         }
     }
 
@@ -279,7 +280,7 @@ public final class WindowChromeManager
                     hwnd, DWMWA_SYSTEMBACKDROP_TYPE, value, 4 );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "DwmSetWindowAttribute (backdrop) failed: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.windowChrome.backdropFailed", t.getMessage() ) );
         }
     }
 
@@ -312,7 +313,7 @@ public final class WindowChromeManager
             }
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "Could not resolve HWND for stage: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.windowChrome.resolveHwndFailed", t.getMessage() ) );
         }
         return null;
     }

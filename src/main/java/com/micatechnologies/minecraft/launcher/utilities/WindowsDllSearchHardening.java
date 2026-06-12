@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.sun.jna.Native;
 import com.sun.jna.WString;
@@ -80,12 +81,11 @@ public final class WindowsDllSearchHardening
         }
         try {
             if ( !Kernel32Dll.INSTANCE.SetDllDirectoryW( new WString( "" ) ) ) {
-                Logger.logWarningSilent(
-                        "SetDllDirectory(\"\") returned false; current directory left in DLL search order." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.dllHardening.returnedFalse" ) );
             }
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "DLL search-path hardening failed: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.dllHardening.failed", t.getMessage() ) );
         }
     }
 }

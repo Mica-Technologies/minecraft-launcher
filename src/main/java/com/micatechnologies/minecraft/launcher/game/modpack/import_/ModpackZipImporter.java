@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.game.modpack.import_;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
@@ -104,8 +105,7 @@ public final class ModpackZipImporter
             ZipEntry markerEntry = zip.getEntry( ModpackExporter.MARKER_FILENAME );
             if ( markerEntry == null ) {
                 if ( TechnicServerZipImporter.looksLikeTechnicServerZip( zip ) ) {
-                    Logger.logStd( "ModpackZipImporter: ZIP matches Technic server format — "
-                                            + "delegating to TechnicServerZipImporter." );
+                    Logger.logStd( LocalizationManager.get( "log.zipImporter.delegatingTechnic" ) );
                     try {
                         return TechnicServerZipImporter.importZip( zipFile );
                     }
@@ -193,8 +193,8 @@ public final class ModpackZipImporter
                                             manifestFilename );
             Files.createDirectories( manifestPath.getParent() );
             Files.writeString( manifestPath, manifestBody, StandardCharsets.UTF_8 );
-            Logger.logStd( "ZIP import: wrote manifest at " + manifestPath
-                                   + " and extracted pack contents to " + installFolder );
+            Logger.logStd( LocalizationManager.format( "log.zipImporter.wroteManifest",
+                                   manifestPath.toString(), installFolder.toString() ) );
 
             String manifestUrl = manifestPath.toUri().toString();
             GameModPackManager.installModPackByURL( manifestUrl );
@@ -207,7 +207,7 @@ public final class ModpackZipImporter
             throw new ImportException( "Couldn't read the ZIP file: " + ioe.getMessage() );
         }
         catch ( Throwable t ) {
-            Logger.logErrorSilent( "ZIP import unexpected failure: " + t.getMessage() );
+            Logger.logErrorSilent( LocalizationManager.format( "log.zipImporter.unexpectedFailure", t.getMessage() ) );
             throw new ImportException( "Unexpected error during import: " + t.getMessage() );
         }
     }

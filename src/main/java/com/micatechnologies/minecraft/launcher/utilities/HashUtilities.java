@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 
 import java.io.File;
@@ -81,13 +82,11 @@ public class HashUtilities
             checksum = String.format( "%040x", checksumBigInteger );
         }
         catch ( IOException e ) {
-            Logger.logError( "Unable to calculate the SHA-1 sum of " + file.getAbsolutePath() + "!" );
+            Logger.logError( LocalizationManager.format( "log.hashUtil.sha1CalcFailed", file.getAbsolutePath() ) );
             Logger.logThrowable( e );
         }
         catch ( NoSuchAlgorithmException e ) {
-            Logger.logError( "The SHA-1 algorithm is not available to calculate the checksum of " +
-                                     file.getAbsolutePath() +
-                                     "!" );
+            Logger.logError( LocalizationManager.format( "log.hashUtil.sha1Unavailable", file.getAbsolutePath() ) );
             Logger.logThrowable( e );
         }
         return checksum;
@@ -109,13 +108,11 @@ public class HashUtilities
             checksum = String.format( "%064x", checksumBigInteger );
         }
         catch ( IOException e ) {
-            Logger.logError( "Unable to calculate the SHA-256 sum of " + file.getAbsolutePath() + "!" );
+            Logger.logError( LocalizationManager.format( "log.hashUtil.sha256CalcFailed", file.getAbsolutePath() ) );
             Logger.logThrowable( e );
         }
         catch ( NoSuchAlgorithmException e ) {
-            Logger.logError( "The SHA-256 algorithm is not available to calculate the checksum of " +
-                                     file.getAbsolutePath() +
-                                     "!" );
+            Logger.logError( LocalizationManager.format( "log.hashUtil.sha256Unavailable", file.getAbsolutePath() ) );
             Logger.logThrowable( e );
         }
         return checksum;
@@ -137,12 +134,11 @@ public class HashUtilities
             checksum = String.format( "%032x", checksumBigInteger );
         }
         catch ( IOException e ) {
-            Logger.logError( "Unable to calculate the MD5 sum of " + file.getAbsolutePath() + "!" );
+            Logger.logError( LocalizationManager.format( "log.hashUtil.md5CalcFailed", file.getAbsolutePath() ) );
             Logger.logThrowable( e );
         }
         catch ( NoSuchAlgorithmException e ) {
-            Logger.logError(
-                    "The MD5 algorithm is not available to calculate the checksum of " + file.getAbsolutePath() + "!" );
+            Logger.logError( LocalizationManager.format( "log.hashUtil.md5Unavailable", file.getAbsolutePath() ) );
             Logger.logThrowable( e );
         }
         return checksum;

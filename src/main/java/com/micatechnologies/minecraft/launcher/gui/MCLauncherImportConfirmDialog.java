@@ -75,16 +75,16 @@ public final class MCLauncherImportConfirmDialog
         title.getStyleClass().add( "heading-h2" );
 
         StringBuilder subBuilder = new StringBuilder();
-        if ( packVersion != null && !packVersion.isBlank() ) subBuilder.append( "Version " ).append( packVersion );
+        if ( packVersion != null && !packVersion.isBlank() ) subBuilder.append( LocalizationManager.format( "importConfirm.meta.version", packVersion ) );
         String mc = ( index.dependencies != null ) ? index.dependencies.get( "minecraft" ) : null;
         if ( mc != null && !mc.isBlank() ) {
             if ( subBuilder.length() > 0 ) subBuilder.append( " · " );
-            subBuilder.append( "Minecraft " ).append( mc );
+            subBuilder.append( LocalizationManager.format( "importConfirm.meta.minecraft", mc ) );
         }
         String forge = ( index.dependencies != null ) ? index.dependencies.get( "forge" ) : null;
         if ( forge != null && !forge.isBlank() ) {
             if ( subBuilder.length() > 0 ) subBuilder.append( " · " );
-            subBuilder.append( "Forge " ).append( forge );
+            subBuilder.append( LocalizationManager.format( "importConfirm.meta.forge", forge ) );
         }
         Label subtitle = new Label( subBuilder.toString() );
         subtitle.getStyleClass().add( "subtle" );
@@ -164,10 +164,7 @@ public final class MCLauncherImportConfirmDialog
         footer.setAlignment( Pos.CENTER_RIGHT );
         footer.setPadding( new Insets( 12, 0, 0, 0 ) );
 
-        Label note = new Label(
-                "After confirming, the launcher will download every mod listed above to a freshly-created "
-                        + "pack folder. You can cancel a stuck download from the launch progress screen if it "
-                        + "doesn't finish in a reasonable time." );
+        Label note = new Label( LocalizationManager.get( "importConfirm.note" ) );
         note.setWrapText( true );
         note.getStyleClass().add( "subtle" );
         note.setStyle( "-fx-font-size: 11px;" );
@@ -224,13 +221,13 @@ public final class MCLauncherImportConfirmDialog
     private static String buildTotalsText( int mods, int configs, int rps, int sps, int other, long totalBytes )
     {
         StringBuilder sb = new StringBuilder();
-        sb.append( mods ).append( mods == 1 ? " mod" : " mods" );
-        if ( configs > 0 ) sb.append( ", " ).append( configs ).append( configs == 1 ? " config" : " configs" );
-        if ( rps > 0 )     sb.append( ", " ).append( rps ).append( rps == 1 ? " resource pack" : " resource packs" );
-        if ( sps > 0 )     sb.append( ", " ).append( sps ).append( sps == 1 ? " shader pack" : " shader packs" );
-        if ( other > 0 )   sb.append( ", " ).append( other ).append( " other file" ).append( other == 1 ? "" : "s" );
+        sb.append( LocalizationManager.format( mods == 1 ? "importConfirm.totals.mod" : "importConfirm.totals.mods", mods ) );
+        if ( configs > 0 ) sb.append( ", " ).append( LocalizationManager.format( configs == 1 ? "importConfirm.totals.config" : "importConfirm.totals.configs", configs ) );
+        if ( rps > 0 )     sb.append( ", " ).append( LocalizationManager.format( rps == 1 ? "importConfirm.totals.resourcePack" : "importConfirm.totals.resourcePacks", rps ) );
+        if ( sps > 0 )     sb.append( ", " ).append( LocalizationManager.format( sps == 1 ? "importConfirm.totals.shaderPack" : "importConfirm.totals.shaderPacks", sps ) );
+        if ( other > 0 )   sb.append( ", " ).append( LocalizationManager.format( other == 1 ? "importConfirm.totals.otherFile" : "importConfirm.totals.otherFiles", other ) );
         String size = formatBytes( totalBytes );
-        if ( size != null ) sb.append( "  ·  " ).append( size ).append( " total" );
+        if ( size != null ) sb.append( "  ·  " ).append( LocalizationManager.format( "importConfirm.totals.size", size ) );
         return sb.toString();
     }
 

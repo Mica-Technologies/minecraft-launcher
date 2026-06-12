@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.pixelduke.window.MacThemeWindowManager;
 import com.pixelduke.window.ThemeWindowManager;
@@ -153,13 +154,12 @@ public final class MacOsVibrancyManager
             applyWindowAppearance( stage, dark );
 
             currentDark.put( stage, dark );
-            Logger.logDebug( "MacOsVibrancy: applied " + ( dark ? "DarkAqua" : "Aqua" )
-                                     + " (vibrancy + title-bar) to \"" + stage.getTitle() + "\"" );
+            Logger.logDebug( LocalizationManager.format( "log.macVibrancy.applied",
+                                     ( dark ? "DarkAqua" : "Aqua" ), stage.getTitle() ) );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "MacOsVibrancy: apply failed — "
-                                             + t.getClass().getSimpleName() + ": "
-                                             + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macVibrancy.applyFailed",
+                                             t.getClass().getSimpleName(), t.getMessage() ) );
         }
     }
 
@@ -191,7 +191,7 @@ public final class MacOsVibrancyManager
             mgr.setDarkModeForWindowFrame( stage, isOsDark() );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "MacOsVibrancy: clear failed — " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macVibrancy.clearFailed", t.getMessage() ) );
         }
     }
 
@@ -258,8 +258,8 @@ public final class MacOsVibrancyManager
             }
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "MacOsVibrancy: NSWindow appearance set failed — "
-                                             + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macVibrancy.appearanceSetFailed",
+                                             t.getMessage() ) );
         }
     }
 
@@ -280,9 +280,8 @@ public final class MacOsVibrancyManager
                     macManager = ( MacThemeWindowManager ) twm;
                 }
                 else {
-                    Logger.logWarningSilent(
-                            "MacOsVibrancy: FXThemes returned non-Mac manager on macOS: "
-                                    + ( twm == null ? "null" : twm.getClass().getName() ) );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.macVibrancy.nonMacManager",
+                            ( twm == null ? "null" : twm.getClass().getName() ) ) );
                 }
             }
             return macManager;

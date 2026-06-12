@@ -258,7 +258,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 MCLauncherGuiController.goToGameLibraryGui();
             }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to return to library screen." );
+                Logger.logError( LocalizationManager.get( "log.editor.returnLibraryFailed" ) );
                 Logger.logThrowable( ex );
             }
         } ) );
@@ -339,8 +339,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         if ( pack == null ) return;
         String manifestUrl = pack.getManifestUrl();
         if ( manifestUrl == null || manifestUrl.isBlank() ) {
-            updateStatus( "No manifest source for " + pack.getFriendlyName()
-                                  + "; opened a blank document instead." );
+            updateStatus( LocalizationManager.format( "editor.status.noManifestSource", pack.getFriendlyName() ) );
             return;
         }
         SystemUtilities.spawnNewTask( () -> {
@@ -348,14 +347,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 String json = com.micatechnologies.minecraft.launcher.game.modpack.GameModPackFetcher
                         .loadManifestText( manifestUrl );
                 if ( json == null || json.isBlank() ) {
-                    updateStatus( "Couldn't load the manifest for "
-                                          + pack.getFriendlyName() + "." );
+                    updateStatus( LocalizationManager.format( "editor.status.manifestLoadFailed", pack.getFriendlyName() ) );
                     return;
                 }
                 JsonObject parsed = JSONUtilities.getGson().fromJson( json, JsonObject.class );
                 if ( parsed == null ) {
-                    updateStatus( "Manifest for " + pack.getFriendlyName()
-                                          + " is unreadable." );
+                    updateStatus( LocalizationManager.format( "editor.status.manifestUnreadable", pack.getFriendlyName() ) );
                     return;
                 }
                 final File backingFile = manifestUrl.startsWith( "file:" )
@@ -367,15 +364,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     populateFieldsFromDocument();
                     collectFieldsToDocument();
                     savedSnapshot = serializeDocument();
-                    updateStatus( "Loaded: " + pack.getFriendlyName() );
+                    updateStatus( LocalizationManager.format( "editor.status.loaded", pack.getFriendlyName() ) );
                 } );
             }
             catch ( Exception ex ) {
-                Logger.logError( "Failed to load manifest for "
-                                         + pack.getFriendlyName() + " into the editor." );
+                Logger.logError( LocalizationManager.format( "log.editor.manifestLoadFailed", pack.getFriendlyName() ) );
                 Logger.logThrowable( ex );
-                updateStatus( "Error loading "
-                                      + pack.getFriendlyName() + ": " + ex.getMessage() );
+                updateStatus( LocalizationManager.format( "editor.status.errorLoading", pack.getFriendlyName(), ex.getMessage() ) );
             }
         } );
     }
@@ -443,7 +438,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         currentFile = null;
         savedSnapshot = serializeDocument();
         populateFieldsFromDocument();
-        updateStatus( "New modpack created" );
+        updateStatus( LocalizationManager.get( "editor.status.newCreated" ) );
     }
 
     /**
@@ -476,12 +471,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                             collectFieldsToDocument();
                             savedSnapshot = serializeDocument();
                         } );
-                        updateStatus( "Loaded: " + file.getName() );
+                        updateStatus( LocalizationManager.format( "editor.status.loaded", file.getName() ) );
                     }
                     catch ( Exception ex ) {
-                        Logger.logError( "Failed to open modpack JSON file." );
+                        Logger.logError( LocalizationManager.get( "log.editor.openFileFailed" ) );
                         Logger.logThrowable( ex );
-                        updateStatus( "Error loading file: " + ex.getMessage() );
+                        updateStatus( LocalizationManager.format( "editor.status.errorLoadingFile", ex.getMessage() ) );
                     }
                 } );
             }
@@ -509,7 +504,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 dialog.setContentText( LocalizationManager.get( "dialog.editor.urlInput.contentLabel" ) );
                 dialog.showAndWait().ifPresent( url -> SystemUtilities.spawnNewTask( () -> {
                     try {
-                        updateStatus( "Downloading..." );
+                        updateStatus( LocalizationManager.get( "editor.status.downloading" ) );
                         String json = NetworkUtilities.downloadFileFromURL( url );
                         workingDocument = JSONUtilities.getGson().fromJson( json, JsonObject.class );
                         currentFile = null;
@@ -518,12 +513,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                             collectFieldsToDocument();
                             savedSnapshot = serializeDocument();
                         } );
-                        updateStatus( "Loaded from URL" );
+                        updateStatus( LocalizationManager.get( "editor.status.loadedFromUrl" ) );
                     }
                     catch ( Exception ex ) {
-                        Logger.logError( "Failed to download modpack JSON from URL." );
+                        Logger.logError( LocalizationManager.get( "log.editor.downloadUrlFailed" ) );
                         Logger.logThrowable( ex );
-                        updateStatus( "Error loading URL: " + ex.getMessage() );
+                        updateStatus( LocalizationManager.format( "editor.status.errorLoadingUrl", ex.getMessage() ) );
                     }
                 } ) );
             } );
@@ -566,12 +561,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         FileUtils.writeStringToFile( file, prettyJson, StandardCharsets.UTF_8 );
                         currentFile = file;
                         savedSnapshot = prettyJson;
-                        updateStatus( "Saved: " + file.getName() );
+                        updateStatus( LocalizationManager.format( "editor.status.saved", file.getName() ) );
                     }
                     catch ( Exception ex ) {
-                        Logger.logError( "Failed to save modpack JSON." );
+                        Logger.logError( LocalizationManager.get( "log.editor.saveFailed" ) );
                         Logger.logThrowable( ex );
-                        updateStatus( "Error saving: " + ex.getMessage() );
+                        updateStatus( LocalizationManager.format( "editor.status.errorSaving", ex.getMessage() ) );
                     }
                 } );
             }
@@ -608,17 +603,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     private static String hintForLoaderType( String label )
     {
         if ( "Fabric".equalsIgnoreCase( label ) ) {
-            return "Fabric: paste the meta.fabricmc.net profile JSON URL "
-                    + "(e.g. https://meta.fabricmc.net/v2/versions/loader/<mc>/<loader>/profile/json). "
-                    + "Hash is optional — Fabric's meta service doesn't pin SHA-1s.";
+            return LocalizationManager.get( "editor.loaderHint.fabric" );
         }
         if ( "NeoForge".equalsIgnoreCase( label ) ) {
-            return "NeoForge: paste the installer JAR URL from maven.neoforged.net "
-                    + "(e.g. https://maven.neoforged.net/releases/net/neoforged/neoforge/"
-                    + "<version>/neoforge-<version>-installer.jar).";
+            return LocalizationManager.get( "editor.loaderHint.neoforge" );
         }
-        return "Forge: paste the installer JAR URL or use the Pick Forge Version button "
-                + "to fetch the latest releases.";
+        return LocalizationManager.get( "editor.loaderHint.forge" );
     }
 
     /** Dispatcher for the picker button — routes to the right loader-
@@ -652,11 +642,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 tempFile.delete();
                 if ( sha1 != null ) {
                     GUIUtilities.JFXPlatformRun( () -> packForgeHashField.setText( sha1 ) );
-                    updateStatus( loaderLabel + " hash computed: " + sha1.substring( 0, 8 ) + "..." );
+                    updateStatus( LocalizationManager.format( "editor.status.hashComputedLoader", loaderLabel, sha1.substring( 0, 8 ) ) );
                 }
             }
             catch ( Exception ex ) {
-                updateStatus( "Failed to compute " + loaderLabel + " hash: " + ex.getMessage() );
+                updateStatus( LocalizationManager.format( "editor.status.hashComputeLoaderFailed", loaderLabel, ex.getMessage() ) );
             }
         } );
     }
@@ -673,7 +663,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         SystemUtilities.spawnNewTask( () -> {
             try {
-                updateStatus( "Fetching NeoForge versions..." );
+                updateStatus( LocalizationManager.get( "editor.status.fetchingNeoForge" ) );
                 String xml = NetworkUtilities.downloadFileFromURL(
                         "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml" );
 
@@ -717,16 +707,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         if ( url != null ) {
                             packForgeURLField.setText( url );
                             packForgeHashField.setText( "" );
-                            updateStatus( "NeoForge URL set. Computing hash..." );
+                            updateStatus( LocalizationManager.get( "editor.status.neoForgeUrlSet" ) );
                             computeAndPopulateHash( url, "NeoForge" );
                         }
                     } );
                 } );
             }
             catch ( Exception ex ) {
-                Logger.logError( "Failed to fetch NeoForge versions." );
+                Logger.logError( LocalizationManager.get( "log.editor.fetchNeoForgeFailed" ) );
                 Logger.logThrowable( ex );
-                updateStatus( "Failed to fetch NeoForge versions: " + ex.getMessage() );
+                updateStatus( LocalizationManager.format( "editor.status.fetchNeoForgeFailed", ex.getMessage() ) );
             }
         } );
     }
@@ -748,7 +738,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         SystemUtilities.spawnNewTask( () -> {
             try {
-                updateStatus( "Fetching Fabric versions..." );
+                updateStatus( LocalizationManager.get( "editor.status.fetchingFabric" ) );
                 String gameJson = NetworkUtilities.downloadFileFromURL(
                         "https://meta.fabricmc.net/v2/versions/game" );
                 String loaderJson = NetworkUtilities.downloadFileFromURL(
@@ -774,7 +764,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     latestLoader = loaders.get( 0 ).getAsJsonObject().get( "version" ).getAsString();
                 }
                 if ( latestLoader == null ) {
-                    updateStatus( "Fabric meta returned no loader versions." );
+                    updateStatus( LocalizationManager.get( "editor.status.fabricNoLoaders" ) );
                     return;
                 }
                 final String loaderVersion = latestLoader;
@@ -810,15 +800,15 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                             // the field blank so the launcher's "skip
                             // verification when hash empty" path kicks in.
                             packForgeHashField.setText( "" );
-                            updateStatus( "Fabric URL set (no hash pinning for meta JSONs)." );
+                            updateStatus( LocalizationManager.get( "editor.status.fabricUrlSet" ) );
                         }
                     } );
                 } );
             }
             catch ( Exception ex ) {
-                Logger.logError( "Failed to fetch Fabric versions." );
+                Logger.logError( LocalizationManager.get( "log.editor.fetchFabricFailed" ) );
                 Logger.logThrowable( ex );
-                updateStatus( "Failed to fetch Fabric versions: " + ex.getMessage() );
+                updateStatus( LocalizationManager.format( "editor.status.fetchFabricFailed", ex.getMessage() ) );
             }
         } );
     }
@@ -864,7 +854,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 ? "" : packMinecraftVersionField.getText();
         SystemUtilities.spawnNewTask( () -> {
             try {
-                updateStatus( "Fetching Forge versions..." );
+                updateStatus( LocalizationManager.get( "editor.status.fetchingForge" ) );
                 String json = NetworkUtilities.downloadFileFromURL(
                         "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json" );
                 JsonObject promos = JSONUtilities.getGson().fromJson( json, JsonObject.class )
@@ -941,16 +931,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         if ( url != null ) {
                             packForgeURLField.setText( url );
                             packForgeHashField.setText( "" );
-                            updateStatus( "Forge URL set. Computing hash..." );
+                            updateStatus( LocalizationManager.get( "editor.status.forgeUrlSet" ) );
                             computeAndPopulateHash( url, "Forge" );
                         }
                     } );
                 } );
             }
             catch ( Exception ex ) {
-                Logger.logError( "Failed to fetch Forge promotions." );
+                Logger.logError( LocalizationManager.get( "log.editor.fetchForgeFailed" ) );
                 Logger.logThrowable( ex );
-                updateStatus( "Failed to fetch Forge versions: " + ex.getMessage() );
+                updateStatus( LocalizationManager.format( "editor.status.fetchForgeFailed", ex.getMessage() ) );
             }
         } );
     }
@@ -1126,7 +1116,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     String projectSlug = project.has( "slug" ) ? project.get( "slug" ).getAsString() : null;
                     if ( projectSlug != null && !projectSlug.isEmpty() ) {
                         ContextMenu contextMenu = new ContextMenu();
-                        MenuItem openPageItem = new MenuItem( "Open Modrinth Page" );
+                        MenuItem openPageItem = new MenuItem( LocalizationManager.get( "editor.modSearch.openPage" ) );
                         openPageItem.setOnAction( ev -> {
                             try {
                                 java.awt.Desktop.getDesktop().browse(
@@ -1252,7 +1242,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                             for ( JsonElement hit : hits ) {
                                 resultsList.getItems().add( hit.getAsJsonObject() );
                             }
-                            infoLabel.setText( hits.size() + " results found. Select mods to add." );
+                            infoLabel.setText( LocalizationManager.format( "editor.modSearch.resultsFound", hits.size() ) );
                         } );
                     }
                     catch ( Exception ex ) {
@@ -1344,12 +1334,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                                 }
                             }
                             catch ( Exception ex ) {
-                                Logger.logWarningSilent( "Failed to fetch Modrinth version for " + slug );
+                                Logger.logWarningSilent( LocalizationManager.format( "log.editor.modrinthVersionFailed", slug ) );
                             }
                         }
                         GUIUtilities.JFXPlatformRun( () -> {
                             modsData.addAll( entries );
-                            updateStatus( "Added " + entries.size() + " mod(s) from Modrinth" );
+                            updateStatus( LocalizationManager.format( "editor.status.modsAdded", entries.size() ) );
                         } );
                     } );
                 }
@@ -1427,8 +1417,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             StringBuilder issues = new StringBuilder();
 
             // Check required fields
-            checkRequired( issues, "packName", "Pack Name" );
-            checkRequired( issues, "packVersion", "Pack Version" );
+            checkRequired( issues, "packName", LocalizationManager.get( "editor.validate.label.packName" ) );
+            checkRequired( issues, "packVersion", LocalizationManager.get( "editor.validate.label.packVersion" ) );
 
             // Check RAM is a valid number
             if ( workingDocument.has( "packMinRAMGB" ) ) {
@@ -1436,16 +1426,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     Double.parseDouble( workingDocument.get( "packMinRAMGB" ).getAsString() );
                 }
                 catch ( NumberFormatException e ) {
-                    issues.append( "- Minimum RAM is not a valid number\n" );
+                    issues.append( LocalizationManager.get( "editor.validate.invalidMinRam" ) );
                 }
             }
 
             // Validate file list entries
-            validateFileEntries( issues, "packMods", "Mods", true );
-            validateFileEntries( issues, "packConfigs", "Configs", false );
-            validateFileEntries( issues, "packResourcePacks", "Resource Packs", false );
-            validateFileEntries( issues, "packShaderPacks", "Shader Packs", false );
-            validateFileEntries( issues, "packInitialFiles", "Initial Files", false );
+            validateFileEntries( issues, "packMods", LocalizationManager.get( "editor.validate.label.mods" ), true );
+            validateFileEntries( issues, "packConfigs", LocalizationManager.get( "editor.validate.label.configs" ), false );
+            validateFileEntries( issues, "packResourcePacks", LocalizationManager.get( "editor.validate.label.resourcePacks" ), false );
+            validateFileEntries( issues, "packShaderPacks", LocalizationManager.get( "editor.validate.label.shaderPacks" ), false );
+            validateFileEntries( issues, "packInitialFiles", LocalizationManager.get( "editor.validate.label.initialFiles" ), false );
 
             // Round-trip test
             try {
@@ -1454,7 +1444,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         com.micatechnologies.minecraft.launcher.game.modpack.GameModPack.class );
             }
             catch ( Exception e ) {
-                issues.append( "- Round-trip deserialization failed: " ).append( e.getMessage() ).append( "\n" );
+                issues.append( LocalizationManager.format( "editor.validate.roundTripFailed", e.getMessage() ) ).append( "\n" );
             }
 
             String result = issues.length() == 0
@@ -1638,7 +1628,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
         // Columns -- URL/path columns grow with the window; small columns stay fixed
         if ( hasName ) {
-            TableColumn< ModPackEditorFileEntry, String > nameCol = new TableColumn<>( "Name" );
+            TableColumn< ModPackEditorFileEntry, String > nameCol = new TableColumn<>( LocalizationManager.get( "editor.column.name" ) );
             nameCol.setCellValueFactory( c -> c.getValue().nameProperty() );
             nameCol.setCellFactory( TextFieldTableCell.forTableColumn() );
             nameCol.setOnEditCommit( e -> e.getRowValue().setName( e.getNewValue() ) );
@@ -1648,7 +1638,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             table.getColumns().add( nameCol );
         }
 
-        TableColumn< ModPackEditorFileEntry, String > remoteCol = new TableColumn<>( "Remote URL" );
+        TableColumn< ModPackEditorFileEntry, String > remoteCol = new TableColumn<>( LocalizationManager.get( "editor.column.remoteUrl" ) );
         remoteCol.setCellValueFactory( c -> c.getValue().remoteProperty() );
         remoteCol.setCellFactory( TextFieldTableCell.forTableColumn() );
         remoteCol.setOnEditCommit( e -> e.getRowValue().setRemote( e.getNewValue() ) );
@@ -1657,7 +1647,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // No maxWidth -- this column absorbs most of the extra space
         table.getColumns().add( remoteCol );
 
-        TableColumn< ModPackEditorFileEntry, String > localCol = new TableColumn<>( "Local Path" );
+        TableColumn< ModPackEditorFileEntry, String > localCol = new TableColumn<>( LocalizationManager.get( "editor.column.localPath" ) );
         localCol.setCellValueFactory( c -> c.getValue().localProperty() );
         localCol.setCellFactory( TextFieldTableCell.forTableColumn() );
         localCol.setOnEditCommit( e -> e.getRowValue().setLocal( e.getNewValue() ) );
@@ -1666,7 +1656,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // No maxWidth -- grows with window, secondary to Remote URL
         table.getColumns().add( localCol );
 
-        TableColumn< ModPackEditorFileEntry, String > hashCol = new TableColumn<>( "Hash" );
+        TableColumn< ModPackEditorFileEntry, String > hashCol = new TableColumn<>( LocalizationManager.get( "editor.column.hash" ) );
         hashCol.setCellValueFactory( c -> c.getValue().hashProperty() );
         hashCol.setCellFactory( TextFieldTableCell.forTableColumn() );
         hashCol.setOnEditCommit( e -> e.getRowValue().setHash( e.getNewValue() ) );
@@ -1675,7 +1665,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // No maxWidth -- hash column can grow to show full SHA-1 (40 chars)
         table.getColumns().add( hashCol );
 
-        TableColumn< ModPackEditorFileEntry, String > hashTypeCol = new TableColumn<>( "Type" );
+        TableColumn< ModPackEditorFileEntry, String > hashTypeCol = new TableColumn<>( LocalizationManager.get( "editor.column.type" ) );
         hashTypeCol.setCellValueFactory( c -> c.getValue().hashTypeProperty() );
         hashTypeCol.setCellFactory( TextFieldTableCell.forTableColumn() );
         hashTypeCol.setOnEditCommit( e -> e.getRowValue().setHashType( e.getNewValue() ) );
@@ -1685,7 +1675,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         table.getColumns().add( hashTypeCol );
 
         if ( hasClientServerReq ) {
-            TableColumn< ModPackEditorFileEntry, Boolean > clientCol = new TableColumn<>( "Client" );
+            TableColumn< ModPackEditorFileEntry, Boolean > clientCol = new TableColumn<>( LocalizationManager.get( "editor.column.client" ) );
             clientCol.setCellValueFactory( c -> c.getValue().clientReqProperty() );
             clientCol.setCellFactory( CheckBoxTableCell.forTableColumn( clientCol ) );
             clientCol.setPrefWidth( 55 );
@@ -1693,7 +1683,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             clientCol.setMaxWidth( 60 );
             table.getColumns().add( clientCol );
 
-            TableColumn< ModPackEditorFileEntry, Boolean > serverCol = new TableColumn<>( "Server" );
+            TableColumn< ModPackEditorFileEntry, Boolean > serverCol = new TableColumn<>( LocalizationManager.get( "editor.column.server" ) );
             serverCol.setCellValueFactory( c -> c.getValue().serverReqProperty() );
             serverCol.setCellFactory( CheckBoxTableCell.forTableColumn( serverCol ) );
             serverCol.setPrefWidth( 55 );
@@ -1721,7 +1711,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     }
                     SystemUtilities.spawnNewTask( () -> {
                         try {
-                            updateStatus( "Computing hash for " + entry.getLocal() + "..." );
+                            updateStatus( LocalizationManager.format( "editor.status.computingHashFor", entry.getLocal() ) );
                             File tempFile = File.createTempFile( "mclauncher_hash_", ".tmp" );
                             tempFile.deleteOnExit();
                             NetworkUtilities.downloadFileFromURL( new URL( remoteUrl ), tempFile );
@@ -1733,15 +1723,15 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                                     entry.setHashType( "sha1" );
                                     table.refresh();
                                 } );
-                                updateStatus( "Hash computed: " + sha1.substring( 0, 8 ) + "..." );
+                                updateStatus( LocalizationManager.format( "editor.status.hashComputed", sha1.substring( 0, 8 ) ) );
                             }
                             else {
-                                updateStatus( "Hash computation returned null" );
+                                updateStatus( LocalizationManager.get( "editor.status.hashReturnedNull" ) );
                             }
                         }
                         catch ( Exception ex ) {
-                            Logger.logWarningSilent( "Hash calc failed: " + ex.getMessage() );
-                            updateStatus( "Hash calc failed: " + ex.getMessage() );
+                            Logger.logWarningSilent( LocalizationManager.format( "log.editor.hashCalcFailed", ex.getMessage() ) );
+                            updateStatus( LocalizationManager.format( "editor.status.hashCalcFailed", ex.getMessage() ) );
                         }
                     } );
                 } );
@@ -1789,7 +1779,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
         MFXButton checkUrlsBtn = new MFXButton( LocalizationManager.get( "editor.checkUrls" ) );
         checkUrlsBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
-            updateStatus( "Checking URLs for " + tabName + "..." );
+            updateStatus( LocalizationManager.format( "editor.status.checkingUrls", tabName ) );
             int broken = 0;
             int checked = 0;
             for ( ModPackEditorFileEntry entry : data ) {
@@ -1820,12 +1810,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             final int finalBroken = broken;
             final int finalChecked = checked;
             GUIUtilities.JFXPlatformRun( () -> table.refresh() );
-            updateStatus( "URL check: " + finalChecked + " checked, " + finalBroken + " broken" );
+            updateStatus( LocalizationManager.format( "editor.status.urlCheck", finalChecked, finalBroken ) );
         } ) );
 
-        Label countLabel = new Label( "0 entries" );
+        Label countLabel = new Label( LocalizationManager.format( "editor.entryCount", 0 ) );
         data.addListener( ( javafx.collections.ListChangeListener< ModPackEditorFileEntry > ) change ->
-                countLabel.setText( data.size() + " entries" ) );
+                countLabel.setText( LocalizationManager.format( "editor.entryCount", data.size() ) ) );
 
         HBox toolbar = new HBox( 8, filterField, addBtn, removeBtn, checkUrlsBtn, countLabel );
         toolbar.setAlignment( Pos.CENTER_LEFT );
@@ -2114,10 +2104,10 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 entryLabel = label + " \"" + entry.getName() + "\"";
             }
             if ( entry.getRemote().isBlank() ) {
-                issues.append( "- " ).append( entryLabel ).append( ": Remote URL is empty\n" );
+                issues.append( LocalizationManager.format( "editor.validate.remoteEmpty", entryLabel ) ).append( "\n" );
             }
             if ( entry.getLocal().isBlank() ) {
-                issues.append( "- " ).append( entryLabel ).append( ": Local path is empty\n" );
+                issues.append( LocalizationManager.format( "editor.validate.localEmpty", entryLabel ) ).append( "\n" );
             }
         }
     }
@@ -2125,7 +2115,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     private void checkRequired( StringBuilder issues, String key, String label )
     {
         if ( !workingDocument.has( key ) || workingDocument.get( key ).getAsString().isBlank() ) {
-            issues.append( "- " ).append( label ).append( " is required\n" );
+            issues.append( LocalizationManager.format( "editor.validate.required", label ) ).append( "\n" );
         }
     }
 
@@ -2163,7 +2153,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
         String newVersion = segments[ 0 ] + "." + segments[ 1 ] + "." + segments[ 2 ];
         packVersionField.setText( newVersion );
-        updateStatus( "Version bumped to " + newVersion );
+        updateStatus( LocalizationManager.format( "editor.status.versionBumped", newVersion ) );
     }
 
     /**

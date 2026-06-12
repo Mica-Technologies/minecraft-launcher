@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.rgb.backends.chroma;
 
 import com.google.gson.JsonObject;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.KeyboardKey;
 import com.micatechnologies.minecraft.launcher.rgb.RgbBackend;
@@ -161,7 +162,7 @@ public final class ChromaRestBackend implements RgbBackend
             throw new IOException( "Chroma init response missing 'uri': " + initResp.body() );
         }
         sessionUri = initJson.get( "uri" ).getAsString();
-        Logger.logStd( "Razer Chroma: session opened at " + sessionUri );
+        Logger.logStd( LocalizationManager.format( "log.rgb.chroma.sessionOpened", sessionUri ) );
 
         // Heartbeat — keeps the session alive during idle periods. The
         // thread is a daemon so JVM shutdown doesn't wait on it; the
@@ -243,9 +244,8 @@ public final class ChromaRestBackend implements RgbBackend
 
     private static void logEndpointFailure( String endpoint, Throwable t )
     {
-        Logger.logWarningSilent( "Chroma " + endpoint + " push failed: "
-                                         + t.getClass().getSimpleName()
-                                         + " — " + t.getMessage() );
+        Logger.logWarningSilent( LocalizationManager.format( "log.rgb.chroma.endpointPushFailed",
+                                         endpoint, t.getClass().getSimpleName(), t.getMessage() ) );
     }
 
     /** Push the keyboard's CHROMA_CUSTOM matrix. Razer Chroma's REST
@@ -317,7 +317,7 @@ public final class ChromaRestBackend implements RgbBackend
             // frame succeeded" line but devices stay dark, the gap is
             // Synapse-side (active profile override, game mode, etc.)
             // rather than something the launcher can fix.
-            Logger.logStd( "Chroma " + endpoint + ": first frame succeeded (result=0)" );
+            Logger.logStd( LocalizationManager.format( "log.rgb.chroma.endpointFirstFrameSucceeded", endpoint ) );
         }
     }
 
@@ -363,31 +363,29 @@ public final class ChromaRestBackend implements RgbBackend
     {
         if ( result != 126 || result126HintLogged ) return;
         result126HintLogged = true;
-        Logger.logStd( "Razer Chroma is rejecting frame pushes with result=126 "
-                               + "(MOD_NOT_FOUND)." );
-        Logger.logStd( "This is almost always a Synapse-side issue with the legacy "
-                               + "REST API rather than something the launcher can fix:" );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.rejecting" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.synapseIssue" ) );
         Logger.logStd( "" );
-        Logger.logStd( "Background: Razer ships two parallel Chroma SDK paths." );
-        Logger.logStd( "  * C++ SDK (native DLL)  — used by Fortnite, Overwatch, etc." );
-        Logger.logStd( "  * REST API (localhost:54235) — what the launcher uses." );
-        Logger.logStd( "Recent Synapse releases have effectively deprecated the REST" );
-        Logger.logStd( "API: init still succeeds, but the per-device dispatch behind it" );
-        Logger.logStd( "fails to find the device module (result=126). The C++ SDK path" );
-        Logger.logStd( "keeps working, which is why Razer-integrated games light up your" );
-        Logger.logStd( "hardware while the launcher doesn't." );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.background" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.cppSdk" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.restApi" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.deprecated1" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.deprecated2" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.deprecated3" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.deprecated4" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.deprecated5" ) );
         Logger.logStd( "" );
-        Logger.logStd( "Worth checking, but unlikely to fix it on a current Synapse:" );
-        Logger.logStd( "  * Synapse → Chroma → Apps / Connect → SDK access enabled" );
-        Logger.logStd( "  * Mica Minecraft Launcher visible in the connected-apps list" );
-        Logger.logStd( "  * Synapse fully restarted after toggling any of the above" );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.worthChecking" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.checkSdkAccess" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.checkAppVisible" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.checkRestart" ) );
         Logger.logStd( "" );
-        Logger.logStd( "Recommended fix: switch the RGB backend to OpenRGB in" );
-        Logger.logStd( "Settings → RGB. OpenRGB has its own Razer-device drivers and" );
-        Logger.logStd( "bypasses Chroma's REST surface entirely — covers the same fans," );
-        Logger.logStd( "mice, keyboards, etc. via a separate code path. You'll need" );
-        Logger.logStd( "OpenRGB Server installed and running (free / open-source / cross-" );
-        Logger.logStd( "platform — https://openrgb.org/)." );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.recommendedFix1" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.recommendedFix2" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.recommendedFix3" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.recommendedFix4" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.recommendedFix5" ) );
+        Logger.logStd( LocalizationManager.get( "log.rgb.chroma.hint126.recommendedFix6" ) );
     }
 
     /** Pulls the {@code result} integer out of a Chroma REST response
@@ -515,9 +513,8 @@ public final class ChromaRestBackend implements RgbBackend
                 // will fail too and that one IS routed through the
                 // breaker. Log silently here so the dev sees the
                 // pattern in launcher.log without spamming the user.
-                Logger.logWarningSilent( "Chroma heartbeat failed: "
-                                                 + t.getClass().getSimpleName()
-                                                 + " — " + t.getMessage() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.chroma.heartbeatFailed",
+                                                 t.getClass().getSimpleName(), t.getMessage() ) );
             }
         }
     }

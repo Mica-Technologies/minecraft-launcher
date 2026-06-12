@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
@@ -158,7 +159,7 @@ public class Lwjgl2ArmPatcher
     public static void patchNatives( String nativesFolderPath, String librariesFolder, String cacheFolder,
                                      GameModPackProgressProvider progressProvider )
     {
-        Logger.logStd( "LWJGL2 ARM64 patching: replacing x86_64 natives with ARM64 builds..." );
+        Logger.logStd( LocalizationManager.get( "log.lwjgl2Patcher.replacingNatives" ) );
 
         // Determine which URLs to use based on OS
         String lwjglUrl;
@@ -186,19 +187,19 @@ public class Lwjgl2ArmPatcher
         try {
             // Download LWJGL ARM64 natives
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Downloading ARM64 LWJGL natives...", 0 );
+                progressProvider.submitProgress( LocalizationManager.get( "lwjgl2Patcher.progress.downloadingLwjgl" ), 0 );
             }
             if ( !lwjglCacheFile.exists() ) {
-                Logger.logStd( "LWJGL2 ARM64 patching: downloading LWJGL natives from " + lwjglUrl );
+                Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.downloadingLwjglFrom", lwjglUrl ) );
                 NetworkUtilities.downloadFileFromURL( lwjglUrl, lwjglCacheFile );
             }
 
             // Download jinput ARM64 natives
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Downloading ARM64 jinput natives...", 0 );
+                progressProvider.submitProgress( LocalizationManager.get( "lwjgl2Patcher.progress.downloadingJinput" ), 0 );
             }
             if ( !jinputCacheFile.exists() ) {
-                Logger.logStd( "LWJGL2 ARM64 patching: downloading jinput natives from " + jinputUrl );
+                Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.downloadingJinputFrom", jinputUrl ) );
                 NetworkUtilities.downloadFileFromURL( jinputUrl, jinputCacheFile );
             }
 
@@ -207,16 +208,16 @@ public class Lwjgl2ArmPatcher
             File jnaCacheFile = new File( cacheFolder, JNA_ARM64_CACHE_NAME );
             if ( !jnaCacheFile.exists() ) {
                 if ( progressProvider != null ) {
-                    progressProvider.submitProgress( "Downloading ARM64-compatible JNA...", 0 );
+                    progressProvider.submitProgress( LocalizationManager.get( "lwjgl2Patcher.progress.downloadingJna" ), 0 );
                 }
-                Logger.logStd( "LWJGL2 ARM64 patching: downloading JNA from " + JNA_ARM64_URL );
+                Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.downloadingJnaFrom", JNA_ARM64_URL ) );
                 NetworkUtilities.downloadFileFromURL( JNA_ARM64_URL, jnaCacheFile );
             }
 
             // Replace native JARs in the libraries folder so that ANY extraction path
             // (LWJGL's own extractor, mods like MC Mouser, etc.) yields ARM64 binaries
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Replacing native JARs with ARM64 versions...", 0 );
+                progressProvider.submitProgress( LocalizationManager.get( "lwjgl2Patcher.progress.replacingNativeJars" ), 0 );
             }
             replaceNativeJars( new File( librariesFolder ), lwjglCacheFile, jinputCacheFile, jnaCacheFile,
                                nativeSuffix );
@@ -227,9 +228,9 @@ public class Lwjgl2ArmPatcher
 
             // Also extract ARM64 natives directly into the game's natives folder
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Extracting ARM64 natives...", 0 );
+                progressProvider.submitProgress( LocalizationManager.get( "lwjgl2Patcher.progress.extractingNatives" ), 0 );
             }
-            Logger.logStd( "LWJGL2 ARM64 patching: extracting natives to " + nativesFolderPath );
+            Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.extractingNativesTo", nativesFolderPath ) );
             // try-with-resources so the file handle releases even if the extract
             // throws — extractJarFile doesn't close the source itself.
             try ( JarFile lwjglNativesJar = new JarFile( lwjglCacheFile.getAbsolutePath() ) ) {
@@ -252,10 +253,10 @@ public class Lwjgl2ArmPatcher
                 }
             }
 
-            Logger.logStd( "LWJGL2 ARM64 patching: completed successfully." );
+            Logger.logStd( LocalizationManager.get( "log.lwjgl2Patcher.completedSuccessfully" ) );
         }
         catch ( IOException e ) {
-            Logger.logError( "LWJGL2 ARM64 patching failed: " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.lwjgl2Patcher.patchingFailed", e.getMessage() ) );
             Logger.logThrowable( e );
             // Clean up cached files on failure so they'll be re-downloaded next time
             if ( lwjglCacheFile.exists() ) {
@@ -266,7 +267,7 @@ public class Lwjgl2ArmPatcher
             }
         }
         catch ( Exception e ) {
-            Logger.logError( "LWJGL2 ARM64 patching failed unexpectedly: " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.lwjgl2Patcher.patchingFailedUnexpectedly", e.getMessage() ) );
             Logger.logThrowable( e );
         }
     }
@@ -303,23 +304,23 @@ public class Lwjgl2ArmPatcher
                 try {
                     if ( name.endsWith( nativeSuffix ) ) {
                         if ( name.contains( "lwjgl-platform" ) ) {
-                            Logger.logStd( "LWJGL2 ARM64 patching: replacing " + child.getAbsolutePath() );
+                            Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.replacingFile", child.getAbsolutePath() ) );
                             org.apache.commons.io.FileUtils.copyFile( lwjglArm64Jar, child );
                         }
                         else if ( name.contains( "jinput-platform" ) ) {
-                            Logger.logStd( "LWJGL2 ARM64 patching: replacing " + child.getAbsolutePath() );
+                            Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.replacingFile", child.getAbsolutePath() ) );
                             org.apache.commons.io.FileUtils.copyFile( jinputArm64Jar, child );
                         }
                     }
                     else if ( name.startsWith( "jna-" ) && name.endsWith( ".jar" ) &&
                             !name.contains( "platform" ) ) {
-                        Logger.logStd( "LWJGL2 ARM64 patching: replacing " + child.getAbsolutePath() );
+                        Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.replacingFile", child.getAbsolutePath() ) );
                         org.apache.commons.io.FileUtils.copyFile( jnaArm64Jar, child );
                     }
                 }
                 catch ( IOException e ) {
-                    Logger.logError( "LWJGL2 ARM64 patching: failed to replace " + child.getAbsolutePath() +
-                                             ": " + e.getMessage() );
+                    Logger.logError( LocalizationManager.format( "log.lwjgl2Patcher.failedToReplace", child.getAbsolutePath(),
+                                             e.getMessage() ) );
                 }
             }
         }
@@ -348,13 +349,13 @@ public class Lwjgl2ArmPatcher
             byte[] stubJarBytes = buildText2SpeechStubJar();
 
             for ( File jar : text2speechJars ) {
-                Logger.logStd( "LWJGL2 ARM64 patching: replacing text2speech with no-op stub: " +
-                                       jar.getAbsolutePath() );
+                Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.replacingText2speech",
+                                       jar.getAbsolutePath() ) );
                 org.apache.commons.io.FileUtils.writeByteArrayToFile( jar, stubJarBytes );
             }
         }
         catch ( Exception e ) {
-            Logger.logError( "LWJGL2 ARM64 patching: failed to create text2speech stub: " + e.getMessage() );
+            Logger.logError( LocalizationManager.format( "log.lwjgl2Patcher.failedToCreateText2speechStub", e.getMessage() ) );
             Logger.logThrowable( e );
         }
     }
@@ -511,7 +512,7 @@ public class Lwjgl2ArmPatcher
             }
         }
         catch ( NumberFormatException e ) {
-            Logger.logWarningSilent( "Could not parse Minecraft version for LWJGL2 detection: " + mcVersion );
+            Logger.logWarningSilent( LocalizationManager.format( "log.lwjgl2Patcher.couldNotParseMcVersion", mcVersion ) );
         }
         return false;
     }
@@ -547,11 +548,11 @@ public class Lwjgl2ArmPatcher
             if ( modFile.exists() ) {
                 File disabledFile = new File( modsFolder, modFileName + ".arm64disabled" );
                 if ( modFile.renameTo( disabledFile ) ) {
-                    Logger.logStd( "LWJGL2 ARM64 patching: disabled incompatible mod " + modFileName +
-                                           " (renamed to " + disabledFile.getName() + ")" );
+                    Logger.logStd( LocalizationManager.format( "log.lwjgl2Patcher.disabledIncompatibleMod", modFileName,
+                                           disabledFile.getName() ) );
                 }
                 else {
-                    Logger.logError( "LWJGL2 ARM64 patching: failed to disable incompatible mod " + modFileName );
+                    Logger.logError( LocalizationManager.format( "log.lwjgl2Patcher.failedToDisableIncompatibleMod", modFileName ) );
                 }
             }
         }

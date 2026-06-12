@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -208,11 +209,11 @@ public final class WindowsCustomChromeManager
         // still lives, and is a harmless no-op once it's destroyed), which also clears
         // `active`, then fall through to subclass the new window.
         if ( active && boundStage != stage ) {
-            Logger.logStd( "WindowsCustomChrome: rebinding to new window after in-process restart." );
+            Logger.logStd( LocalizationManager.get( "log.customChrome.rebinding" ) );
             uninstall();
         }
         if ( Native.POINTER_SIZE != 8 ) {
-            Logger.logWarningSilent( "WindowsCustomChrome: skipping — not a 64-bit JVM." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.customChrome.notSixtyFourBit" ) );
             return;
         }
         if ( !stage.isShowing() ) {
@@ -230,14 +231,14 @@ public final class WindowsCustomChromeManager
         try {
             HWND hwnd = WindowChromeManager.resolveHwnd( stage );
             if ( hwnd == null ) {
-                Logger.logWarningSilent( "WindowsCustomChrome: could not resolve HWND; standard title bar kept." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.customChrome.resolveHwndFailed" ) );
                 return;
             }
             User32Ex u = User32Ex.INSTANCE;
             subclassProc = WindowsCustomChromeManager::wndProc;
             originalProc = u.SetWindowLongPtrW( hwnd, GWLP_WNDPROC, subclassProc );
             if ( originalProc == null ) {
-                Logger.logWarningSilent( "WindowsCustomChrome: SetWindowLongPtrW returned null; aborting." );
+                Logger.logWarningSilent( LocalizationManager.get( "log.customChrome.setWndProcNull" ) );
                 subclassProc = null;
                 return;
             }
@@ -258,18 +259,18 @@ public final class WindowsCustomChromeManager
                 u.SetWindowLongW( hwnd, GWL_STYLE, custom );
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "WindowsCustomChrome: could not drop WS_CAPTION ("
-                                                 + t.getMessage() + "); native buttons may remain." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.customChrome.dropCaptionFailed",
+                                                                     t.getMessage() ) );
             }
             // Trigger a non-client recalc so the title bar is removed immediately.
             u.SetWindowPos( hwnd, null, 0, 0, 0, 0,
                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED );
-            Logger.logStd( "WindowsCustomChrome: custom title bar active (DPI " + currentDpi + ")." );
+            Logger.logStd( LocalizationManager.format( "log.customChrome.active", currentDpi ) );
         }
         catch ( Throwable t ) {
             active = false;
-            Logger.logWarningSilent( "WindowsCustomChrome: install failed (" + t.getClass().getSimpleName()
-                                             + ": " + t.getMessage() + "); standard title bar kept." );
+            Logger.logWarningSilent( LocalizationManager.format( "log.customChrome.installFailed",
+                                                                 t.getClass().getSimpleName(), t.getMessage() ) );
         }
     }
 
@@ -288,7 +289,7 @@ public final class WindowsCustomChromeManager
                                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "WindowsCustomChrome: uninstall failed: " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.customChrome.uninstallFailed", t.getMessage() ) );
         }
         active = false;
     }
@@ -342,8 +343,9 @@ public final class WindowsCustomChromeManager
             }
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "WindowsCustomChrome: WndProc msg 0x" + Integer.toHexString( uMsg )
-                                             + " threw " + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.customChrome.wndProcThrew",
+                                                                 Integer.toHexString( uMsg ),
+                                                                 t.getClass().getSimpleName() ) );
         }
         return User32Ex.INSTANCE.CallWindowProcW( originalProc, hwnd, uMsg, wParam, lParam );
     }

@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.pixelduke.window.WindowUtils;
 import com.sun.jna.NativeLong;
@@ -127,11 +128,11 @@ public final class MacOsTitleBarManager
             Foundation.invoke( nsWindow, "setStyleMask:",
                                styleMask | NS_WINDOW_STYLE_MASK_FULL_SIZE_CONTENT_VIEW );
 
-            Logger.logDebug( "MacOsTitleBar: hidden-inset applied to \"" + stage.getTitle() + "\"" );
+            Logger.logDebug( LocalizationManager.format( "log.macTitleBar.hiddenInsetApplied", stage.getTitle() ) );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "MacOsTitleBar: applyHiddenInset failed — "
-                                             + t.getClass().getSimpleName() + ": " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macTitleBar.applyHiddenInsetFailed",
+                                             t.getClass().getSimpleName(), t.getMessage() ) );
         }
     }
 
@@ -244,8 +245,8 @@ public final class MacOsTitleBarManager
             Foundation.invoke( nsWindow, "performWindowDragWithEvent:", currentEvent );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "MacOsTitleBar: native window drag failed — "
-                                             + t.getClass().getSimpleName() + ": " + t.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.macTitleBar.nativeWindowDragFailed",
+                                             t.getClass().getSimpleName(), t.getMessage() ) );
         }
     }
 

@@ -668,9 +668,10 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 forgeAsset.setLocalPathPrefix( localPathPrefix );
                 forgeAsset.updateLocalFile( gameAppMode );
                 if ( progressProvider != null ) {
-                    progressProvider.submitProgress( "Verified asset " +
-                                                             SynchronizedFileManager.getSynchronizedFile(
-                                                                     forgeAsset.getFullLocalFilePath() ).getName(),
+                    progressProvider.submitProgress( LocalizationManager.format(
+                            "forgeLoader.verifiedAsset",
+                            SynchronizedFileManager.getSynchronizedFile(
+                                    forgeAsset.getFullLocalFilePath() ).getName() ),
                                                      ( 60.0 / ( double ) forgeAssetsList.size() ) );
                 }
                 return null;
@@ -727,7 +728,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         try ( JarFile forgeJar = getForgeJarFile() ) {
             JarEntry profileEntry = forgeJar.getJarEntry( "install_profile.json" );
             if ( profileEntry == null ) {
-                Logger.logDebug( "No install_profile.json found -- legacy Forge, skipping processors." );
+                Logger.logDebug( LocalizationManager.get( "log.forgeLoader.noInstallProfileLegacy" ) );
                 return;
             }
             try ( InputStream is = forgeJar.getInputStream( profileEntry );
@@ -740,7 +741,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         }
 
         if ( !installProfile.has( "processors" ) || !installProfile.has( "data" ) ) {
-            Logger.logDebug( "install_profile.json has no processors -- skipping." );
+            Logger.logDebug( LocalizationManager.get( "log.forgeLoader.noProcessorsSkipping" ) );
             return;
         }
 
@@ -753,13 +754,13 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 String patchedPath = mavenCoordToPath( patchedCoord );
                 File patchedFile = new File( libsFolder, patchedPath );
                 if ( patchedFile.exists() && patchedFile.length() > 0 ) {
-                    Logger.logStd( "Forge patched client already exists, skipping processors." );
+                    Logger.logStd( LocalizationManager.get( "log.forgeLoader.patchedClientExists" ) );
                     return;
                 }
             }
         }
 
-        Logger.logStd( "Running Forge install processors for " + side + "..." );
+        Logger.logStd( LocalizationManager.format( "log.forgeLoader.runningProcessors", side ) );
 
         // Download install_profile libraries. These JARs are about to be
         // executed as child JVMs (processor pipeline below), so any SHA-1 the
@@ -788,8 +789,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 declaredLibSha1ByPath.put( path, sha1 );
             }
             else {
-                Logger.logWarningSilent(
-                        "Forge processor library declares no hash; it will be used unverified: " + path );
+                Logger.logWarningSilent( LocalizationManager.format(
+                        "log.forgeLoader.libraryNoHash", path ) );
             }
 
             // The Forge installer's library descriptors contribute both a relative
@@ -821,8 +822,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 }
                 // Existing file no longer matches the profile's declared hash —
                 // fall through and re-acquire it instead of executing it as-is.
-                Logger.logWarningSilent(
-                        "Existing processor library failed hash verification, re-acquiring: " + path );
+                Logger.logWarningSilent( LocalizationManager.format(
+                        "log.forgeLoader.existingLibraryFailedHash", path ) );
                 //noinspection ResultOfMethodCallIgnored
                 localFile.delete();
             }
@@ -873,9 +874,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 if ( !downloadAccepted ) {
                     //noinspection ResultOfMethodCallIgnored
                     localFile.delete();
-                    Logger.logWarningSilent(
-                            "Processor library failed hash verification (attempt " + attempt + " of " +
-                                    maxAttempts + "): " + path );
+                    Logger.logWarningSilent( LocalizationManager.format(
+                            "log.forgeLoader.libraryFailedHashAttempt", attempt, maxAttempts, path ) );
                 }
             }
             if ( !downloadAccepted ) {
@@ -888,7 +888,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             }
 
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Downloaded processor lib: " + localFile.getName(), 1.0 );
+                progressProvider.submitProgress( LocalizationManager.format(
+                        "forgeLoader.downloadedProcessorLib", localFile.getName() ), 1.0 );
             }
         }
 
@@ -920,7 +921,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             }
 
             String processorJar = JsonHelper.getRequiredString( proc, "jar" );
-            Logger.logStd( "Running Forge processor " + ( i + 1 ) + "/" + processors.size() + ": " + processorJar );
+            Logger.logStd( LocalizationManager.format( "log.forgeLoader.runningProcessor",
+                                                       ( i + 1 ), processors.size(), processorJar ) );
 
             // Build classpath for this processor, verifying each JAR against the
             // profile's declared hash right before it gets executed. Artifacts
@@ -995,12 +997,13 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             }
 
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Completed processor: " + processorJar,
+                progressProvider.submitProgress( LocalizationManager.format(
+                        "forgeLoader.completedProcessor", processorJar ),
                                                  10.0 / processors.size() );
             }
         }
 
-        Logger.logStd( "Forge install processors completed successfully." );
+        Logger.logStd( LocalizationManager.get( "log.forgeLoader.processorsCompleted" ) );
     }
 
     /**
@@ -1107,9 +1110,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                     // instead of silently passing the literal "{FOO}" to
                     // the processor and producing a cryptic downstream
                     // error.
-                    Logger.logWarningSilent(
-                            "Unrecognized Forge processor token: " + arg
-                                    + " (passing through literally; processor may fail)" );
+                    Logger.logWarningSilent( LocalizationManager.format(
+                            "log.forgeLoader.unrecognizedProcessorToken", arg ) );
                     return arg;
             }
         }
@@ -1186,7 +1188,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         ArrayList< GameAsset > forgeAssetsList = getForgeLibrariesList();
         // Update progress provider if present
         if ( progressProvider != null ) {
-            progressProvider.submitProgress( "Got Forge asset list", 20.0 );
+            progressProvider.submitProgress( LocalizationManager.get( "forgeLoader.gotAssetList" ), 20.0 );
         }
 
         // Download the assets
@@ -1203,7 +1205,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
 
             // Update progress provider if present
             if ( progressProvider != null ) {
-                progressProvider.submitProgress( "Added to classpath: " + forgeAsset.getLocalFilePath(),
+                progressProvider.submitProgress( LocalizationManager.format(
+                        "forgeLoader.addedToClasspath", forgeAsset.getLocalFilePath() ),
                                                  ( 20.0 / ( double ) forgeAssetsList.size() ) );
             }
         }
@@ -1228,7 +1231,8 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                         File patchedFile = new File( libsFolder, patchedPath );
                         if ( patchedFile.exists() ) {
                             classpathEntries.add( patchedFile.getAbsolutePath() );
-                            Logger.logDebug( "Added patched Forge client to classpath: " + patchedFile.getName() );
+                            Logger.logDebug( LocalizationManager.format(
+                                    "log.forgeLoader.addedPatchedClient", patchedFile.getName() ) );
                         }
                     }
                     // Also add MC_EXTRA (contains resources split from the vanilla JAR)
@@ -1238,14 +1242,16 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                         File extraFile = new File( libsFolder, extraPath );
                         if ( extraFile.exists() ) {
                             classpathEntries.add( extraFile.getAbsolutePath() );
-                            Logger.logDebug( "Added MC extra to classpath: " + extraFile.getName() );
+                            Logger.logDebug( LocalizationManager.format(
+                                    "log.forgeLoader.addedMcExtra", extraFile.getName() ) );
                         }
                     }
                 }
             }
         }
         catch ( IOException e ) {
-            Logger.logWarningSilent( "Could not check for Forge patched client: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format(
+                    "log.forgeLoader.couldNotCheckPatchedClient", e.getMessage() ) );
         }
 
         for ( String cpEntry : classpathEntries ) {

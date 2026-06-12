@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 
@@ -135,7 +136,7 @@ public final class FxAsyncTask
                 }
             }
             catch ( Throwable t ) {
-                Logger.logError( "Background task failed: " + t.getMessage() );
+                Logger.logError( LocalizationManager.format( "log.fxAsyncTask.taskFailed", t.getMessage() ) );
                 Logger.logThrowable( t );
                 if ( onErrorFx != null ) {
                     GUIUtilities.JFXPlatformRun( () -> onErrorFx.accept( t ) );
@@ -162,7 +163,7 @@ public final class FxAsyncTask
                 background.run();
             }
             catch ( Throwable t ) {
-                Logger.logError( "Background task failed: " + t.getMessage() );
+                Logger.logError( LocalizationManager.format( "log.fxAsyncTask.taskFailed", t.getMessage() ) );
                 Logger.logThrowable( t );
             }
             finally {

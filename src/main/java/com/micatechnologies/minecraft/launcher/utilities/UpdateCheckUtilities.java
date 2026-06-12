@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.UpdateCheckConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
@@ -64,8 +65,7 @@ public class UpdateCheckUtilities
             latestReleaseURL = releaseInfoObject.get( UpdateCheckConstants.UPDATE_CHECK_LATEST_URL_KEY ).getAsString();
         }
         else {
-            Logger.logStd( "Unable to check for an available launcher update because the releases API " +
-                                   "did not return a populated response." );
+            Logger.logStd( LocalizationManager.get( "log.updateCheck.emptyApiResponse" ) );
         }
     }
 }

@@ -168,7 +168,7 @@ public class SystemUtilities
             int dot = basename.lastIndexOf( '.' );
             String stem = dot >= 0 ? basename.substring( 0, dot ) : basename;
             if ( WINDOWS_RESERVED_NAMES.contains( stem.toLowerCase( Locale.ROOT ) ) ) {
-                Logger.logWarningSilent( "Skipping reserved-name JAR entry: " + entryName );
+                Logger.logWarningSilent( LocalizationManager.format( "log.systemUtil.skippingReservedNameEntry", entryName ) );
                 continue;
             }
 
@@ -300,7 +300,7 @@ public class SystemUtilities
             // vanishingly rare — but rather than silently drop the work, run it inline
             // as a last resort. Worst case is the caller's thread blocks for the task's
             // duration instead of fanning out.
-            Logger.logWarningSilent( "Background executor rejected a task; running it inline as a fallback." );
+            Logger.logWarningSilent( LocalizationManager.get( "log.systemUtil.bgExecutorRejected" ) );
             try {
                 runnable.run();
             }
@@ -382,8 +382,7 @@ public class SystemUtilities
         try {
             if ( !pool.awaitTermination( awaitMillis,
                                          java.util.concurrent.TimeUnit.MILLISECONDS ) ) {
-                Logger.logWarningSilent( "Background executor did not drain within "
-                                                 + awaitMillis + "ms — proceeding with shutdown anyway." );
+                Logger.logWarningSilent( LocalizationManager.format( "log.systemUtil.bgExecutorNoDrain", awaitMillis ) );
                 pool.shutdownNow();
             }
         }

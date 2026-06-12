@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import javafx.geometry.HPos;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
@@ -157,14 +158,14 @@ public final class WindowsTitleBarControls
         final Stage stage = resolveStage( root );
 
         // Help "?" — a text glyph (blue hover), to the left of the window controls.
-        Button help = captionButton( "Help", "winCaptionBtn-help" );
+        Button help = captionButton( LocalizationManager.get( "titleBarControls.help" ), "winCaptionBtn-help" );
         help.setText( "?" );
         if ( helpAction != null ) {
             help.setOnAction( e -> helpAction.run() );
         }
 
         // Minimize — JavaFX-handled (HTCLIENT).
-        Button min = captionButton( "Minimize", "winCaptionBtn-min" );
+        Button min = captionButton( LocalizationManager.get( "titleBarControls.minimize" ), "winCaptionBtn-min" );
         min.setGraphic( glyph( GLYPH_MIN ) );
         min.setOnAction( e -> {
             if ( stage != null ) {
@@ -175,7 +176,7 @@ public final class WindowsTitleBarControls
         // Maximize / restore — the OS owns the click + snap-layouts flyout via HTMAXBUTTON, so the
         // JavaFX handler is only a harmless fallback. The glyph follows the maximized state.
         SVGPath maxGlyph = glyph( GLYPH_MAX );
-        Button max = captionButton( "Maximize", "winCaptionBtn-max" );
+        Button max = captionButton( LocalizationManager.get( "titleBarControls.maximize" ), "winCaptionBtn-max" );
         max.setGraphic( maxGlyph );
         max.setOnAction( e -> {
             if ( stage != null ) {
@@ -204,7 +205,7 @@ public final class WindowsTitleBarControls
         // Close — JavaFX-handled (HTCLIENT). Fire WINDOW_CLOSE_REQUEST so each screen's own
         // close handler (e.g. the main menu's Exit → LauncherCore.closeApp) runs, matching the
         // behaviour of the OS close button it replaces.
-        Button close = captionButton( "Close", "winCaptionBtn-close" );
+        Button close = captionButton( LocalizationManager.get( "titleBarControls.close" ), "winCaptionBtn-close" );
         close.setGraphic( glyph( GLYPH_CLOSE ) );
         close.setOnAction( e -> {
             if ( stage != null ) {

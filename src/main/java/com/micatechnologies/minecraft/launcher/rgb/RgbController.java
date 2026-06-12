@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.rgb;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.rgb.backends.NoOpBackend;
 
@@ -212,8 +213,7 @@ public final class RgbController
         // session churn — this is defense in depth on top of the
         // Settings UI's idempotent listeners.
         if ( running && sameRequestAndAllSlotsHealthy( real ) ) {
-            Logger.logDebug( "RGB: same backend set already requested ("
-                                     + describeSlots() + ") — no-op restart." );
+            Logger.logDebug( LocalizationManager.format( "log.rgb.controller.sameBackendNoOp", describeSlots() ) );
             return;
         }
 
@@ -237,13 +237,11 @@ public final class RgbController
                 available = backend.isAvailable();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "RGB backend " + safeName( backend )
-                                                 + " isAvailable() threw — skipping", t );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.controller.backendIsAvailableThrew", safeName( backend ) ), t );
                 continue;
             }
             if ( !available ) {
-                Logger.logDebug( "RGB backend " + safeName( backend )
-                                         + " not available on this system; skipping." );
+                Logger.logDebug( LocalizationManager.format( "log.rgb.controller.backendNotAvailable", safeName( backend ) ) );
                 continue;
             }
 
@@ -251,8 +249,7 @@ public final class RgbController
                 backend.start();
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "RGB backend " + safeName( backend )
-                                                 + " start() threw — skipping", t );
+                Logger.logWarningSilent( LocalizationManager.format( "log.rgb.controller.backendStartThrew", safeName( backend ) ), t );
                 continue;
             }
 
@@ -260,7 +257,7 @@ public final class RgbController
         }
 
         if ( slots.isEmpty() ) {
-            Logger.logDebug( "RGB subsystem: no backends started — controller idle." );
+            Logger.logDebug( LocalizationManager.get( "log.rgb.controller.noBackendsStarted" ) );
             running = false;
             return;
         }
@@ -269,7 +266,7 @@ public final class RgbController
         worker = new Thread( this::workerLoop, "mica-rgb" );
         worker.setDaemon( true );
         worker.start();
-        Logger.logStd( "RGB subsystem started on backend(s): " + describeSlots() );
+        Logger.logStd( LocalizationManager.format( "log.rgb.controller.subsystemStarted", describeSlots() ) );
     }
 
     /**
@@ -404,7 +401,7 @@ public final class RgbController
 
     private void workerLoop()
     {
-        Logger.logDebug( "mica-rgb worker thread started." );
+        Logger.logDebug( LocalizationManager.get( "log.rgb.controller.workerStarted" ) );
         while ( running ) {
             RgbFrame frame;
             try {
@@ -423,7 +420,7 @@ public final class RgbController
                 renderTo( slot, frame );
             }
         }
-        Logger.logDebug( "mica-rgb worker thread exiting." );
+        Logger.logDebug( LocalizationManager.get( "log.rgb.controller.workerExiting" ) );
     }
 
     /** Render the frame to a single slot under its own circuit
@@ -439,18 +436,16 @@ public final class RgbController
             long now = System.currentTimeMillis();
             slot.health.recordFailure( now );
             RgbBackendHealth.State newState = slot.health.state();
-            Logger.logWarningSilent( "RGB renderFrame on " + safeName( slot.backend )
-                                             + " threw (health=" + newState + ", failures="
-                                             + slot.health.consecutiveFailures() + ")", t );
+            Logger.logWarningSilent( LocalizationManager.format( "log.rgb.controller.renderFrameThrew",
+                                             safeName( slot.backend ), newState, slot.health.consecutiveFailures() ), t );
             if ( newState == RgbBackendHealth.State.DEAD ) {
                 // Permanent for the rest of the session. Drop this slot
                 // so its siblings keep running unaffected.
-                Logger.logError( "RGB backend " + safeName( slot.backend )
-                                         + " marked DEAD after repeated failures — dropping from active set." );
+                Logger.logError( LocalizationManager.format( "log.rgb.controller.backendMarkedDead", safeName( slot.backend ) ) );
                 safelyShutdown( slot.backend );
                 slots.remove( slot );
                 if ( slots.isEmpty() ) {
-                    Logger.logStd( "RGB: every active backend has failed — controller will idle." );
+                    Logger.logStd( LocalizationManager.get( "log.rgb.controller.allBackendsFailed" ) );
                 }
             }
         }
@@ -465,7 +460,7 @@ public final class RgbController
             body.run();
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "RGB " + op + " threw — ignoring", t );
+            Logger.logWarningSilent( LocalizationManager.format( "log.rgb.controller.opThrew", op ), t );
         }
     }
 

@@ -19,6 +19,7 @@ package com.micatechnologies.minecraft.launcher.config;
 
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher;
 
@@ -81,8 +82,8 @@ public final class AuthTokenStore
             return MachineSecretCipher.decrypt( encoded );
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "CurseForge API key could not be decrypted on this machine: "
-                                             + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.authTokenStore.cfKeyDecryptFailed",
+                                                                 t.getClass().getSimpleName() ) );
             return null;
         }
     }
@@ -113,8 +114,8 @@ public final class AuthTokenStore
             ConfigStore.flushNow();
         }
         catch ( Throwable t ) {
-            Logger.logWarningSilent( "CurseForge API key could not be encrypted on this machine: "
-                                             + t.getClass().getSimpleName() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.authTokenStore.cfKeyEncryptFailed",
+                                                                 t.getClass().getSimpleName() ) );
         }
     }
 

@@ -20,6 +20,7 @@ package com.micatechnologies.minecraft.launcher.config;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
@@ -206,8 +207,8 @@ public final class ModPackConfig
             return map.get( packUrl ).getAsBoolean();
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Could not read alwaysVerifyOnLaunch for "
-                                             + packUrl + ", defaulting." );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modPackConfig.alwaysVerifyReadFailed",
+                                                                 packUrl ) );
             return ConfigConstants.ALWAYS_VERIFY_ON_LAUNCH_DEFAULT;
         }
     }
@@ -277,8 +278,8 @@ public final class ModPackConfig
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Could not read scanFrequency for "
-                                             + packUrl + ", falling back to default." );
+            Logger.logWarningSilent( LocalizationManager.format( "log.modPackConfig.scanFrequencyReadFailed",
+                                                                 packUrl ) );
             return null;
         }
     }

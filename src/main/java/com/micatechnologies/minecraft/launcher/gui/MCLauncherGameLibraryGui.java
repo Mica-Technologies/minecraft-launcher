@@ -400,7 +400,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         editorBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             try { MCLauncherGuiController.goToModPackEditorGui(); }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to open modpack editor." );
+                Logger.logError( LocalizationManager.get( "log.gameLibrary.openEditorFailed" ) );
                 Logger.logThrowable( ex );
             }
         } ) );
@@ -454,13 +454,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                 }
                 catch ( com.micatechnologies.minecraft.launcher.game.modpack.import_
                                 .ModpackZipImporter.ImportException ie ) {
-                    Logger.logWarningSilent( "ZIP import failed: " + ie.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.gameLibrary.zipImportFailed", ie.getMessage() ) );
                     NotificationManager.error(
                             LocalizationManager.get( "notification.import.failed.title" ),
                             ie.getMessage() );
                 }
                 catch ( Throwable t ) {
-                    Logger.logErrorSilent( "ZIP import unexpected failure: " + t.getMessage() );
+                    Logger.logErrorSilent( LocalizationManager.format( "log.gameLibrary.zipImportUnexpected", t.getMessage() ) );
                     Logger.logThrowable( t );
                     NotificationManager.error(
                             LocalizationManager.get( "notification.import.unexpected.title" ),
@@ -507,8 +507,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                             ie.getMessage() );
                 }
                 catch ( Throwable t ) {
-                    Logger.logErrorSilent( "Unexpected error during Prism import: "
-                                                   + t.getClass().getSimpleName() + " — " + t.getMessage() );
+                    Logger.logErrorSilent( LocalizationManager.format( "log.gameLibrary.prismImportUnexpected",
+                                                   t.getClass().getSimpleName(), t.getMessage() ) );
                     NotificationManager.warn(
                             LocalizationManager.get( "notification.import.prism.failed.title" ),
                             LocalizationManager.get( "notification.import.unexpected.body" ) );
@@ -556,7 +556,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     } );
                 }
                 catch ( Exception ex ) {
-                    Logger.logError( "Failed to generate hosting manifest: " + ex.getMessage() );
+                    Logger.logError( LocalizationManager.format( "log.gameLibrary.hostingManifestFailed", ex.getMessage() ) );
                 }
             } );
         } );
@@ -565,7 +565,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         returnBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
             try { MCLauncherGuiController.goToMainGui(); }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to return to main GUI." );
+                Logger.logError( LocalizationManager.get( "log.gameLibrary.returnMainFailed" ) );
                 Logger.logThrowable( ex );
             }
         } ) );
@@ -665,14 +665,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             String packTitle = summary.title() != null
                     ? summary.title()
                     : LocalizationManager.get( "dialog.importConfirm.fallbackName" );
-            Logger.logStd( "Modrinth import: user confirmed preview for slug=" + slug
-                                   + " title=\"" + packTitle + "\"" );
+            Logger.logStd( LocalizationManager.format( "log.gameLibrary.modrinthConfirmedPreview", slug, packTitle ) );
             beginImport( packTitle );
             try {
                 runModrinthImportFlow( summary, slug );
             }
             finally {
-                Logger.logStd( "Modrinth import: flow ended for slug=" + slug );
+                Logger.logStd( LocalizationManager.format( "log.gameLibrary.modrinthFlowEnded", slug ) );
                 endImport();
             }
         } );
@@ -746,7 +745,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             return;
         }
 
-        updateImportStatus( "Waiting for confirmation…" );
+        updateImportStatus( LocalizationManager.get( "library.import.waitingConfirmation" ) );
 
         // Step-2 confirmation on the FX thread — shows the actual mod list
         // pulled from the .mrpack so the user confirms against authoritative
@@ -774,7 +773,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             confirmed = dialogResult.get();
         }
         catch ( Exception ex ) {
-            Logger.logWarningSilent( "Import confirm dialog failed: " + ex.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameLibrary.importConfirmFailed", ex.getMessage() ) );
             return;
         }
         if ( !confirmed ) {
@@ -787,16 +786,17 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         }
 
         // Confirmed — hand the file:// URL to the standard installer.
-        Logger.logStd( "Modrinth import: user confirmed mod list — installing "
-                               + finalResult.localManifestUrl() );
+        Logger.logStd( LocalizationManager.format( "log.gameLibrary.modrinthConfirmedModList",
+                               finalResult.localManifestUrl() ) );
         NotificationManager.info(
                 LocalizationManager.get( "notification.browse.importStarting.title" ),
                 LocalizationManager.get( "notification.browse.importStarting.body" ) );
-        updateImportStatus( "Adding to your library…" );
+        updateImportStatus( LocalizationManager.get( "library.import.addingToLibrary" ) );
         try {
             com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager
                     .installModPackByURL( finalResult.localManifestUrl() );
-            Logger.logStd( "Modrinth import: installModPackByURL returned for " + finalResult.localManifestUrl() );
+            Logger.logStd( LocalizationManager.format( "log.gameLibrary.modrinthInstallReturned",
+                                                       finalResult.localManifestUrl() ) );
             GUIUtilities.JFXPlatformRun( () -> {
                 // rebuildCards happens automatically in endImport() — no need
                 // to call it here, since endImport will also clear the
@@ -808,7 +808,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             } );
         }
         catch ( Throwable t ) {
-            Logger.logErrorSilent( "Modrinth import install step failed: " + t.getMessage() );
+            Logger.logErrorSilent( LocalizationManager.format( "log.gameLibrary.modrinthInstallFailed", t.getMessage() ) );
             Logger.logThrowable( t );
             NotificationManager.error(
                     LocalizationManager.get( "notification.browse.installFailed.title" ),
@@ -845,7 +845,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     java.awt.Desktop.getDesktop().browse( java.net.URI.create( originalUrl ) );
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "Could not open CurseForge URL: " + t.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.gameLibrary.curseforgeOpenFailed", t.getMessage() ) );
                 }
             }
         } );
@@ -889,7 +889,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     java.awt.Desktop.getDesktop().browse( java.net.URI.create( websiteUrl ) );
                 }
                 catch ( Throwable t ) {
-                    Logger.logWarningSilent( "Could not open Technic URL: " + t.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.gameLibrary.technicOpenFailed", t.getMessage() ) );
                 }
             }
         } );
@@ -1199,7 +1199,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             VBox.setVgrow( info, Priority.ALWAYS );
 
             Label nameLabel = new Label( packName == null || packName.isBlank()
-                    ? "Importing modpack…" : packName );
+                    ? LocalizationManager.get( "library.import.defaultName" ) : packName );
             nameLabel.getStyleClass().addAll( "heading-h2", "heroCardTitle" );
             nameLabel.setWrapText( true );
             nameLabel.setAlignment( Pos.CENTER );
@@ -1634,17 +1634,19 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         {
             String name = pack.getFriendlyName() != null ? pack.getFriendlyName() : pack.getPackName();
             List< String > chips = new ArrayList<>();
-            chips.add( "Modpack" );
+            chips.add( LocalizationManager.get( "library.chip.modpack" ) );
             try {
                 String mc = pack.getMinecraftVersion();
-                if ( mc != null && !mc.isBlank() ) chips.add( "Minecraft " + mc );
+                if ( mc != null && !mc.isBlank() ) chips.add( LocalizationManager.format( "library.chip.minecraft", mc ) );
             }
             catch ( Exception ignored ) { /* leave off if not resolvable */ }
             // Packs auto-update on launch and there's no manual update path, so "Update
              // available" was misleading. When the local on-disk pack differs from the
              // hosted manifest we surface that as "Recently updated" to indicate the
              // launcher has fresh metadata cached for the next launch.
-            String status = pack.isUpdateAvailable() ? "Recently updated" : "Installed";
+            String status = pack.isUpdateAvailable()
+                    ? LocalizationManager.get( "library.status.recentlyUpdated" )
+                    : LocalizationManager.get( "library.status.installed" );
             return new LibraryEntry( Kind.MODPACK_INSTALLED, name, chips, status, pack, null, null, null,
                                      Long.MIN_VALUE );
         }
@@ -1653,13 +1655,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         {
             String name = pack.getFriendlyName() != null ? pack.getFriendlyName() : pack.getPackName();
             List< String > chips = new ArrayList<>();
-            chips.add( "Modpack" );
+            chips.add( LocalizationManager.get( "library.chip.modpack" ) );
             try {
                 String mc = pack.getMinecraftVersion();
-                if ( mc != null && !mc.isBlank() ) chips.add( "Minecraft " + mc );
+                if ( mc != null && !mc.isBlank() ) chips.add( LocalizationManager.format( "library.chip.minecraft", mc ) );
             }
             catch ( Exception ignored ) { /* leave off if not resolvable */ }
-            return new LibraryEntry( Kind.MODPACK_AVAILABLE, name, chips, "From manifest",
+            return new LibraryEntry( Kind.MODPACK_AVAILABLE, name, chips, LocalizationManager.get( "library.status.fromManifest" ),
                                      pack, null, null, null, Long.MIN_VALUE );
         }
 
@@ -1667,10 +1669,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         {
             String typeStr = info.has( "type" ) ? info.get( "type" ).getAsString() : "release";
             List< String > chips = new ArrayList<>();
-            chips.add( "Vanilla" );
+            chips.add( LocalizationManager.get( "library.chip.vanilla" ) );
             chips.add( prettyVanillaType( typeStr ) );
-            return new LibraryEntry( Kind.VANILLA_INSTALLED, "Minecraft " + versionId,
-                                     chips, "Installed", null, versionId, info, null,
+            return new LibraryEntry( Kind.VANILLA_INSTALLED,
+                                     LocalizationManager.format( "library.entry.minecraftVersion", versionId ),
+                                     chips, LocalizationManager.get( "library.status.installed" ), null, versionId, info, null,
                                      parseReleaseTime( info ) );
         }
 
@@ -1678,13 +1681,16 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         {
             String typeStr = info.has( "type" ) ? info.get( "type" ).getAsString() : "release";
             List< String > chips = new ArrayList<>();
-            chips.add( "Vanilla" );
+            chips.add( LocalizationManager.get( "library.chip.vanilla" ) );
             chips.add( prettyVanillaType( typeStr ) );
             String date = info.has( "releaseTime" ) && info.get( "releaseTime" ).getAsString().length() >= 10
                           ? info.get( "releaseTime" ).getAsString().substring( 0, 10 )
                           : "";
-            String status = date.isEmpty() ? "Available" : "Released " + date;
-            return new LibraryEntry( Kind.VANILLA_AVAILABLE, "Minecraft " + versionId,
+            String status = date.isEmpty()
+                    ? LocalizationManager.get( "library.status.available" )
+                    : LocalizationManager.format( "library.status.released", date );
+            return new LibraryEntry( Kind.VANILLA_AVAILABLE,
+                                     LocalizationManager.format( "library.entry.minecraftVersion", versionId ),
                                      chips, status, null, versionId, info, null,
                                      parseReleaseTime( info ) );
         }
@@ -1707,7 +1713,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             };
             List< String > chips = new ArrayList<>();
             chips.add( loaderPretty );
-            chips.add( "Minecraft " + v.mcVersion() );
+            chips.add( LocalizationManager.format( "library.chip.minecraft", v.mcVersion() ) );
             // Synthesise a release timestamp from the catalog position. Step by
             // ~1 day per slot so the synthetic dates spread over a reasonable
             // range; anchored at "now" so newest entries sort alongside truly
@@ -1717,7 +1723,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             long synthetic = System.currentTimeMillis() - ( catalogIndex * 86_400_000L );
             return new LibraryEntry( Kind.LOADER_AVAILABLE,
                                      loaderPretty + " " + v.loaderVersion(),
-                                     chips, "Installs as empty modpack",
+                                     chips, LocalizationManager.get( "library.status.installsAsEmpty" ),
                                      null, null, null, v, synthetic );
         }
 
@@ -1989,11 +1995,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         {
             return switch ( entry.kind ) {
                 case MODPACK_INSTALLED  -> ( entry.pack != null && entry.pack.isUpdateAvailable() )
-                                           ? "Recently updated" : "Installed";
-                case VANILLA_INSTALLED  -> "Installed";
-                case MODPACK_AVAILABLE  -> "Available";
+                                           ? LocalizationManager.get( "library.status.recentlyUpdated" )
+                                           : LocalizationManager.get( "library.status.installed" );
+                case VANILLA_INSTALLED  -> LocalizationManager.get( "library.status.installed" );
+                case MODPACK_AVAILABLE  -> LocalizationManager.get( "library.status.available" );
                 case VANILLA_AVAILABLE  -> null;  // Status row text already says "Available" / "Released ..."
-                case LOADER_AVAILABLE   -> "Available";
+                case LOADER_AVAILABLE   -> LocalizationManager.get( "library.status.available" );
             };
         }
 
@@ -2016,25 +2023,25 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             List< javafx.scene.Node > out = new ArrayList<>();
             switch ( entry.kind ) {
                 case MODPACK_INSTALLED -> {
-                    MFXButton uninstall = primaryAction( "Uninstall", "dangerZone", () -> uninstallInstalledModpack( entry ) );
-                    MFXButton edit = secondaryAction( "Edit", () -> openModpackEditor( entry.pack ) );
+                    MFXButton uninstall = primaryAction( LocalizationManager.get( "library.action.uninstall" ), "dangerZone", () -> uninstallInstalledModpack( entry ) );
+                    MFXButton edit = secondaryAction( LocalizationManager.get( "library.action.edit" ), () -> openModpackEditor( entry.pack ) );
                     out.add( uninstall );
                     out.add( edit );
                 }
                 case MODPACK_AVAILABLE -> {
-                    MFXButton install = primaryAction( "Install", "primary", () -> installAvailableModpack( entry ) );
+                    MFXButton install = primaryAction( LocalizationManager.get( "library.action.install" ), "primary", () -> installAvailableModpack( entry ) );
                     out.add( install );
                 }
                 case VANILLA_INSTALLED -> {
-                    MFXButton uninstall = primaryAction( "Uninstall", "dangerZone", () -> uninstallInstalledVanilla( entry ) );
+                    MFXButton uninstall = primaryAction( LocalizationManager.get( "library.action.uninstall" ), "dangerZone", () -> uninstallInstalledVanilla( entry ) );
                     out.add( uninstall );
                 }
                 case VANILLA_AVAILABLE -> {
-                    MFXButton install = primaryAction( "Install", "primary", () -> installAvailableVanilla( entry ) );
+                    MFXButton install = primaryAction( LocalizationManager.get( "library.action.install" ), "primary", () -> installAvailableVanilla( entry ) );
                     out.add( install );
                 }
                 case LOADER_AVAILABLE -> {
-                    MFXButton install = primaryAction( "Install", "primary", () -> installAvailableLoader( entry ) );
+                    MFXButton install = primaryAction( LocalizationManager.get( "library.action.install" ), "primary", () -> installAvailableLoader( entry ) );
                     out.add( install );
                 }
             }
@@ -2144,7 +2151,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                         }
                     }
                     catch ( Exception e ) {
-                        Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
+                        Logger.logWarningSilent( LocalizationManager.format( "log.gameLibrary.deleteFolderFailed", e.getMessage() ) );
                     }
                 }
                 GameModPackManager.uninstallModPack( pack );
@@ -2198,7 +2205,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                     }
                 }
                 catch ( Exception e ) {
-                    Logger.logWarningSilent( "Could not fully delete install folder: " + e.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.gameLibrary.deleteFolderFailed", e.getMessage() ) );
                 }
             }
             VanillaVersionManager.uninstallVersion( id );
@@ -2210,7 +2217,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     {
         if ( entry.vanillaVersionId == null ) return;
         String id = entry.vanillaVersionId;
-        showBackgroundStatus( "Installing Minecraft " + id + "…" );
+        showBackgroundStatus( LocalizationManager.format( "library.status.installingMc", id ) );
         com.micatechnologies.minecraft.launcher.utilities.FxAsyncTask.runWithFinally( () -> {
             if ( VanillaVersionManager.isInstalled( id ) ) {
                 return;
@@ -2233,7 +2240,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         var v = entry.loaderVersion;
         if ( v == null ) return;
         String label = v.displayName();
-        showBackgroundStatus( "Installing " + label + "…" );
+        showBackgroundStatus( LocalizationManager.format( "library.status.installingLabel", label ) );
         // Keeps explicit catch(IOException) form here because the
         // failure path surfaces a NotificationManager.error to the
         // user with the loader-specific failed-install body; the
@@ -2250,7 +2257,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                         LocalizationManager.format( "notification.install.loaderSuccess.body", label ) );
             }
             catch ( IOException ex ) {
-                Logger.logError( "Failed to install loader version " + label );
+                Logger.logError( LocalizationManager.format( "log.gameLibrary.loaderInstallFailed", label ) );
                 Logger.logThrowable( ex );
                 NotificationManager.error(
                         LocalizationManager.get( "notification.install.failed.title" ),
@@ -2267,7 +2274,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         SystemUtilities.spawnNewTask( () -> {
             try { MCLauncherGuiController.goToModPackEditorGui( initialPack ); }
             catch ( IOException ex ) {
-                Logger.logError( "Unable to open modpack editor." );
+                Logger.logError( LocalizationManager.get( "log.gameLibrary.openEditorFailed" ) );
                 Logger.logThrowable( ex );
             }
         } );

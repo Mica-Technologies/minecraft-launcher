@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.utilities;
 
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -116,7 +117,8 @@ public class NetworkUtilities
         java.util.function.Consumer< String > l = retryNoticeListener;
         if ( l == null ) return;
         try {
-            l.accept( "Retrying (" + attempt + "/" + maxRetries + ") " + urlFileName( source ) );
+            l.accept( LocalizationManager.format( "network.download.retrying", attempt, maxRetries,
+                                                  urlFileName( source ) ) );
         }
         catch ( Throwable ignored ) { /* listener faults shouldn't poison the retry path */ }
     }
@@ -177,7 +179,8 @@ public class NetworkUtilities
                 if ( host != null && !host.isEmpty() ) {
                     Proxy.Type proxyType = "SOCKS".equalsIgnoreCase( type ) ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
                     configuredProxy = new Proxy( proxyType, new InetSocketAddress( host, port ) );
-                    Logger.logStd( "Proxy configured: " + proxyType + " " + host + ":" + port );
+                    Logger.logStd( LocalizationManager.format( "log.network.proxyConfigured", proxyType.toString(),
+                                                               host, port ) );
                 }
                 else {
                     configuredProxy = Proxy.NO_PROXY;
@@ -188,7 +191,7 @@ public class NetworkUtilities
             }
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Failed to configure proxy, using direct connection" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.network.proxyConfigFailed" ) );
             configuredProxy = Proxy.NO_PROXY;
         }
         proxyInitialized = true;
@@ -258,7 +261,7 @@ public class NetworkUtilities
             return true;
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Network connectivity check failed, entering offline mode" );
+            Logger.logWarningSilent( LocalizationManager.get( "log.network.connectivityCheckFailed" ) );
             offlineMode = true;
             return false;
         }
@@ -304,8 +307,9 @@ public class NetworkUtilities
                 catch ( IOException e ) {
                     lastException = e;
                     if ( attempt < MAX_RETRIES ) {
-                        Logger.logWarningSilent( "Download attempt " + attempt + " failed for " + source +
-                                                         ", retrying in " + ( RETRY_BASE_DELAY_MS * attempt ) + "ms" );
+                        Logger.logWarningSilent( LocalizationManager.format( "log.network.downloadAttemptFailed",
+                                                                             attempt, source.toString(),
+                                                                             RETRY_BASE_DELAY_MS * attempt ) );
                         notifyRetry( source, attempt + 1, MAX_RETRIES );
                         try {
                             Thread.sleep( RETRY_BASE_DELAY_MS * attempt );
@@ -374,8 +378,9 @@ public class NetworkUtilities
                 catch ( IOException e ) {
                     lastException = e;
                     if ( attempt < MAX_RETRIES ) {
-                        Logger.logWarningSilent( "Download attempt " + attempt + " failed for " + source +
-                                                         ", retrying in " + ( RETRY_BASE_DELAY_MS * attempt ) + "ms" );
+                        Logger.logWarningSilent( LocalizationManager.format( "log.network.downloadAttemptFailed",
+                                                                             attempt, source.toString(),
+                                                                             RETRY_BASE_DELAY_MS * attempt ) );
                         notifyRetry( source, attempt + 1, MAX_RETRIES );
                         try {
                             Thread.sleep( RETRY_BASE_DELAY_MS * attempt );

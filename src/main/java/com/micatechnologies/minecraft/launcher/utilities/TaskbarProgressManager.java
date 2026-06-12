@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.utilities;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
 import com.nativejavafx.taskbar.TaskbarProgressbar;
@@ -107,7 +108,7 @@ public final class TaskbarProgressManager
             attachedStage = stage;
         }
         catch ( Exception | Error e ) {
-            Logger.logWarningSilent( "Unable to initialize taskbar progress bar: " + e.getMessage() );
+            Logger.logWarningSilent( LocalizationManager.format( "log.taskbar.initFailed", e.getMessage() ) );
             instance = null;
             attachedStage = null;
         }
@@ -133,7 +134,7 @@ public final class TaskbarProgressManager
                     }
                 }
                 catch ( Exception | Error e ) {
-                    Logger.logWarningSilent( "Failed to update taskbar progress: " + e.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.taskbar.updateFailed", e.getMessage() ) );
                 }
             }
         } );
@@ -154,7 +155,7 @@ public final class TaskbarProgressManager
                     instance.stopProgress();
                 }
                 catch ( Exception | Error e ) {
-                    Logger.logWarningSilent( "Failed to stop taskbar progress: " + e.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.taskbar.stopFailed", e.getMessage() ) );
                 }
             }
         } );
@@ -174,7 +175,7 @@ public final class TaskbarProgressManager
                     instance.showFullErrorProgress();
                 }
                 catch ( Exception | Error e ) {
-                    Logger.logWarningSilent( "Failed to set taskbar error overlay: " + e.getMessage() );
+                    Logger.logWarningSilent( LocalizationManager.format( "log.taskbar.errorOverlayFailed", e.getMessage() ) );
                 }
             }
         } );

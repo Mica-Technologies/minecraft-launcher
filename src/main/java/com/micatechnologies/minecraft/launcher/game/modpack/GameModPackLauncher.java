@@ -26,6 +26,7 @@ import java.util.List;
 import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.config.GameModeManager;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.RuntimeManager;
@@ -161,7 +162,7 @@ class GameModPackLauncher
     String buildClasspath() throws ModpackException
     {
         if ( progressProvider != null ) {
-            progressProvider.setCurrText( "Preparing modpack..." );
+            progressProvider.setCurrText( LocalizationManager.get( "gameModPackLauncher.progress.preparingModpack" ) );
         }
 
         // Decide and install the verify mode for this launch. The mode is read
@@ -179,7 +180,7 @@ class GameModPackLauncher
         // in step 4; for now both inputs are hardcoded false so the decision
         // is driven entirely by manifest-hash + TTL + sidecar presence.
         final LaunchVerifyMode chosenMode = decideLaunchVerifyMode();
-        Logger.logDebug( "Launch verify mode for " + pack.getPackName() + ": " + chosenMode );
+        Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.verifyMode", pack.getPackName(), chosenMode ) );
         LaunchVerifyMode prevMode = ManagedGameFile.getCurrentVerifyMode();
         ManagedGameFile.setCurrentVerifyMode( chosenMode );
         try {
@@ -199,8 +200,8 @@ class GameModPackLauncher
                 VerifyState fresh = VerifyState.successfulVerify(
                         existing, pack.getManifestContentSha256() );
                 VerifyState.saveForPack( pack, fresh );
-                Logger.logDebug( "Wrote verify state for " + pack.getPackName()
-                                         + " at " + fresh.verifiedAt );
+                Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.wroteVerifyState",
+                                         pack.getPackName(), fresh.verifiedAt ) );
             }
             return classpath;
         }
@@ -260,7 +261,7 @@ class GameModPackLauncher
      */
     private void buildClasspathForceFull() throws ModpackException
     {
-        Logger.logDebug( "Force-full-verify run for " + pack.getPackName() );
+        Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.forceFullVerify", pack.getPackName() ) );
         LaunchVerifyMode prevMode = ManagedGameFile.getCurrentVerifyMode();
         ManagedGameFile.setCurrentVerifyMode( LaunchVerifyMode.FULL );
         try {
@@ -620,7 +621,7 @@ class GameModPackLauncher
             GameModPackFileSync fileSync = new GameModPackFileSync( pack,
                     handle != null ? handle : progressProvider );
             if ( handle != null ) {
-                handle.startProgressSection( "Downloading mods...", 15.0 );
+                handle.startProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.downloadingMods" ), 15.0 );
             }
             fileSync.fetchLatestMods();
             checkCancelled();
@@ -629,8 +630,8 @@ class GameModPackLauncher
                         pack.getPackRootFolder() + File.separator + "mods" );
             }
             if ( handle != null ) {
-                handle.endProgressSection( "Mods ready" );
-                handle.startProgressSection( "Downloading configs and resources...", 5.0 );
+                handle.endProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.modsReady" ) );
+                handle.startProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.downloadingConfigs" ), 5.0 );
             }
             fileSync.fetchLatestConfigs();
             checkCancelled();
@@ -642,7 +643,7 @@ class GameModPackLauncher
             checkCancelled();
             pack.cacheImages();
             if ( handle != null ) {
-                handle.endProgressSection( "Configs and resources ready" );
+                handle.endProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.configsReady" ) );
                 handle.markDone();
             }
         }
@@ -662,14 +663,14 @@ class GameModPackLauncher
             GameModLoader loader = pack.getModLoader();
             String loaderName = loader.getName();
             if ( handle != null ) {
-                handle.startProgressSection( "Downloading " + loaderName + " libraries...", 15.0 );
+                handle.startProgressSection( LocalizationManager.format( "gameModPackLauncher.progress.downloadingLoaderLibs", loaderName ), 15.0 );
             }
             String cp = loader.buildClasspath(
                     GameModeManager.getCurrentGameMode(),
                     handle != null ? handle : progressProvider );
             checkCancelled();
             if ( handle != null ) {
-                handle.endProgressSection( loaderName + " libraries ready" );
+                handle.endProgressSection( LocalizationManager.format( "gameModPackLauncher.progress.loaderLibsReady", loaderName ) );
                 handle.markDone();
             }
             return cp;
@@ -693,7 +694,7 @@ class GameModPackLauncher
             checkCancelled();
             if ( mcHandle != null ) {
                 mcHandle.startProgressSection(
-                        "Downloading Minecraft libraries and assets...",
+                        LocalizationManager.get( "gameModPackLauncher.progress.downloadingMcLibs" ),
                         pack.isVanillaVersion() ? 40.0 : 20.0 );
             }
             libraryManifest = GameVersionManifest.getMinecraftLibraryManifest(
@@ -704,7 +705,7 @@ class GameModPackLauncher
                     mcHandle != null ? mcHandle : progressProvider );
             checkCancelled();
             if ( mcHandle != null ) {
-                mcHandle.endProgressSection( "Minecraft libraries and assets ready" );
+                mcHandle.endProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.mcLibsReady" ) );
                 mcHandle.markDone();
             }
         }
@@ -721,15 +722,15 @@ class GameModPackLauncher
         try {
             if ( jreHandle != null ) {
                 jreHandle.startProgressSection(
-                        "Installing Java runtime (" + procRuntimeComponent + ")...",
+                        LocalizationManager.format( "gameModPackLauncher.progress.installingRuntime", procRuntimeComponent ),
                         pack.isVanillaVersion() ? 20.0 : 15.0 );
             }
             RuntimeManager.verifyRuntime( procRuntimeComponent, false,
                     jreHandle != null ? jreHandle::setCurrText
                                        : ( progressProvider != null ? progressProvider::setCurrText : null ) );
             if ( jreHandle != null ) {
-                jreHandle.submitProgress( "Java runtime ready", 100.0 );
-                jreHandle.endProgressSection( "Java runtime ready" );
+                jreHandle.submitProgress( LocalizationManager.get( "gameModPackLauncher.progress.runtimeReady" ), 100.0 );
+                jreHandle.endProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.runtimeReady" ) );
                 jreHandle.markDone();
             }
         }
@@ -749,13 +750,13 @@ class GameModPackLauncher
         if ( handle != null ) handle.markRunning();
         try {
             if ( handle != null ) {
-                handle.startProgressSection( "Patching game files...", 10.0 );
+                handle.startProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.patchingFiles" ), 10.0 );
             }
             pack.getModLoader().runPostInstallSteps( GameModeManager.getCurrentGameMode(),
                     handle != null ? handle : progressProvider,
                     procRuntimeComponent );
             if ( handle != null ) {
-                handle.endProgressSection( "Game files patched" );
+                handle.endProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.filesPatched" ) );
                 handle.markDone();
             }
         }
@@ -782,15 +783,15 @@ class GameModPackLauncher
         final String currentManifestSha256 = pack.getManifestContentSha256();
         if ( !com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency.shouldScan(
                 effective, lastState, currentManifestSha256 ) ) {
-            Logger.logDebug( "Skipping security scan for " + pack.getPackName()
-                                     + " — policy=" + effective.name() );
+            Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.skippingScan",
+                                     pack.getPackName(), effective.name() ) );
             if ( handle != null ) {
                 String reason;
                 switch ( effective ) {
-                    case DISABLED:        reason = "Scan disabled in settings"; break;
-                    case ON_CHANGES_ONLY: reason = "No manifest change since last scan"; break;
-                    case DAILY:           reason = "Scanned recently — next scan due tomorrow"; break;
-                    default:              reason = "Scan not due this launch"; break;
+                    case DISABLED:        reason = LocalizationManager.get( "gameModPackLauncher.scanSkip.disabled" ); break;
+                    case ON_CHANGES_ONLY: reason = LocalizationManager.get( "gameModPackLauncher.scanSkip.noChange" ); break;
+                    case DAILY:           reason = LocalizationManager.get( "gameModPackLauncher.scanSkip.recent" ); break;
+                    default:              reason = LocalizationManager.get( "gameModPackLauncher.scanSkip.notDue" ); break;
                 }
                 handle.markSkipped( reason );
             }
@@ -815,7 +816,7 @@ class GameModPackLauncher
             // post-startGame getLastLaunchedProcess() call and leave the
             // launcher stuck on the progress screen even after the game starts.
             pack.swapProgressProviderTransiently( handle );
-            handle.startProgressSection( "Scanning for malware...", 10.0 );
+            handle.startProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.scanningMalware" ), 10.0 );
         }
         try {
             pack.scanModPackRootFolder();
@@ -831,12 +832,11 @@ class GameModPackLauncher
                 com.micatechnologies.minecraft.launcher.game.modpack.VerifyState.saveForPack( pack, fresh );
             }
             catch ( Throwable t ) {
-                Logger.logWarningSilent( "Could not persist scan state for "
-                                                 + pack.getPackName() + ": "
-                                                 + t.getClass().getSimpleName() );
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackLauncher.persistScanStateFailed",
+                                                 pack.getPackName(), t.getClass().getSimpleName() ) );
             }
             if ( handle != null ) {
-                handle.endProgressSection( "Security scan complete" );
+                handle.endProgressSection( LocalizationManager.get( "gameModPackLauncher.progress.scanComplete" ) );
                 handle.markDone();
             }
         }
@@ -865,7 +865,7 @@ class GameModPackLauncher
      *  sub-text on the launch progress GUI. */
     private static String extractMessage( Throwable t )
     {
-        if ( t == null ) return "Unknown failure";
+        if ( t == null ) return LocalizationManager.get( "gameModPackLauncher.error.unknownFailure" );
         if ( t.getMessage() != null && !t.getMessage().isEmpty() ) return t.getMessage();
         return t.getClass().getSimpleName();
     }
@@ -997,15 +997,15 @@ class GameModPackLauncher
         }
         String runtimeComponent = libraryManifest.getRequiredRuntimeComponent();
         int requiredJavaMajorVersion = libraryManifest.getRequiredJavaMajorVersion();
-        Logger.logStd( "Minecraft version " + pack.getMinecraftVersion() + " requires runtime " + runtimeComponent +
-                               " (Java " + requiredJavaMajorVersion + ")" );
+        Logger.logStd( LocalizationManager.format( "log.gameModPackLauncher.versionRequiresRuntime",
+                               pack.getMinecraftVersion(), runtimeComponent, requiredJavaMajorVersion ) );
 
         // Ensure the required Java runtime is available (should already be verified by buildClasspath,
         // but this call is cheap if already cached)
         RuntimeManager.verifyRuntime( runtimeComponent, false );
 
         if ( progressProvider != null ) {
-            progressProvider.setCurrText( "Preparing launch command..." );
+            progressProvider.setCurrText( LocalizationManager.get( "gameModPackLauncher.progress.preparingLaunchCommand" ) );
         }
 
         // Build the argv list, one element per actual JVM/game argument.
@@ -1051,11 +1051,11 @@ class GameModPackLauncher
             for ( String s : aList ) {
                 if ( s.contains( "Xms" ) ) {
                     minRAMMB = Integer.parseInt( s.replaceAll( "\\D+", "" ) );
-                    Logger.logDebug( "Configuring min RAM from provided " + s );
+                    Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.configMinRam", s ) );
                 }
                 if ( s.contains( "Xmx" ) ) {
                     maxRAMMB = Integer.parseInt( s.replaceAll( "\\D+", "" ) );
-                    Logger.logDebug( "Configuring max RAM from provided " + s );
+                    Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.configMaxRam", s ) );
                 }
             }
         }
@@ -1246,7 +1246,7 @@ class GameModPackLauncher
 
         // Signal completion to trigger the progress window hide
         if ( progressProvider != null ) {
-            progressProvider.signalComplete( "Starting Minecraft..." );
+            progressProvider.signalComplete( LocalizationManager.get( "gameModPackLauncher.progress.startingMinecraft" ) );
         }
 
         // Start game (always non-blocking -- LauncherCore.play() handles the process lifecycle).
@@ -1287,9 +1287,9 @@ class GameModPackLauncher
             // logging — the launcher command line carries the live MS access token, and
             // this log line gets teed into the persistent launcher.log + the game console
             // window. Without redaction, a forum-pasted log = account takeover.
-            Logger.logDebug( "Launching game with command: "
-                                     + com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
-                                                .redact( String.join( " ", argv ) ) );
+            Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.launchingGame",
+                                     com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor
+                                                .redact( String.join( " ", argv ) ) ) );
             lastLaunchedProcess = ProcessUtilities.launchCommand( argv, pack.getPackRootFolder(), ioMode );
         }
         catch ( IOException e ) {
@@ -1351,7 +1351,7 @@ class GameModPackLauncher
             }
         }
         catch ( NumberFormatException e ) {
-            Logger.logWarningSilent( "Could not parse Minecraft version for log4j config: " + mcVersion );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackLauncher.log4jVersionParseFailed", mcVersion ) );
         }
 
         // Always add the safety flag as a baseline (no-op if the config file is also applied)
@@ -1359,8 +1359,7 @@ class GameModPackLauncher
 
         if ( minor >= 17 ) {
             // MC 1.17+: The JVM flag above is sufficient, no config file needed
-            Logger.logDebug( "MC " + mcVersion +
-                                     ": Using log4j2.formatMsgNoLookups=true (1.17+ built-in support)" );
+            Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.log4jBuiltin", mcVersion ) );
         }
         else if ( minor >= 12 ) {
             // MC 1.12 - 1.16.5: Download and apply the security-patched config
@@ -1407,11 +1406,10 @@ class GameModPackLauncher
                                                                  ManagedGameFile.ManagedGameFileHashType.SHA1 );
             logConfigFile.updateLocalFile();
             argv.add( "-Dlog4j.configurationFile=" + logConfigPath );
-            Logger.logDebug( "Applied Mojang security log4j config: " + fileName );
+            Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.appliedLog4jConfig", fileName ) );
         }
         catch ( Exception e ) {
-            Logger.logWarningSilent( "Failed to download Mojang log4j config " + fileName +
-                                             ", relying on formatMsgNoLookups flag." );
+            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackLauncher.log4jConfigDownloadFailed", fileName ) );
         }
     }
 }
