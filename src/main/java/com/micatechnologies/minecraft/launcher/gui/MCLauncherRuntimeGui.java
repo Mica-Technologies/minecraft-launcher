@@ -88,9 +88,12 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
     MFXButton returnBtn;
 
     /**
-     * The currently loaded list of runtime info maps.
+     * The currently loaded list of runtime info maps. Reassigned by
+     * {@link #refreshRuntimeList()} which can run on background threads, and read by
+     * the delete handlers, so it is {@code volatile} and is snapshotted into a local
+     * before being indexed to avoid a refresh swapping it mid-operation.
      */
-    private List< Map< String, String > > currentRuntimes;
+    private volatile List< Map< String, String > > currentRuntimes;
 
     public MCLauncherRuntimeGui( Stage stage ) throws IOException {
         super( stage );
@@ -141,17 +144,21 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
         refreshBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( this::refreshRuntimeList ) );
 
         // Delete selected runtime
-        deleteBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
+        deleteBtn.setOnAction( actionEvent -> {
+            // Resolve the selection on the FX thread (where the action fires) against a
+            // single snapshot of currentRuntimes, so a concurrent refreshRuntimeList()
+            // can't reassign the list between reading the selected index and indexing it
+            // -- which would otherwise delete the wrong runtime.
             int selectedIndex = runtimeListView.getSelectionModel().getSelectedIndex();
-            if ( selectedIndex < 0 || currentRuntimes == null || selectedIndex >= currentRuntimes.size() ) {
-                GUIUtilities.JFXPlatformRun(
-                        () -> statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.noneSelected" ) ) );
+            List< Map< String, String > > snapshot = currentRuntimes;
+            if ( selectedIndex < 0 || snapshot == null || selectedIndex >= snapshot.size() ) {
+                statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.noneSelected" ) );
                 return;
             }
 
-            Map< String, String > selected = currentRuntimes.get( selectedIndex );
-            String component = selected.get( "component" );
+            String component = snapshot.get( selectedIndex ).get( "component" );
 
+            SystemUtilities.spawnNewTask( () -> {
             int response = GUIUtilities.showQuestionMessage(
                     LocalizationManager.get( "dialog.runtime.delete.title" ),
                     LocalizationManager.format( "dialog.runtime.delete.header", component ),
@@ -175,11 +182,15 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
             }
 
             refreshRuntimeList();
-        } ) );
+            } );
+        } );
 
         // Delete all runtimes
         deleteAllBtn.setOnAction( actionEvent -> SystemUtilities.spawnNewTask( () -> {
-            if ( currentRuntimes == null || currentRuntimes.isEmpty() ) {
+            // Snapshot once so the iteration below can't be disturbed by a concurrent
+            // refreshRuntimeList() reassigning currentRuntimes.
+            List< Map< String, String > > snapshot = currentRuntimes;
+            if ( snapshot == null || snapshot.isEmpty() ) {
                 GUIUtilities.JFXPlatformRun(
                         () -> statusLabel.setText( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "runtime.status.noneInstalled" ) ) );
                 return;
@@ -195,7 +206,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
                 return;
             }
 
-            for ( Map< String, String > rt : currentRuntimes ) {
+            for ( Map< String, String > rt : snapshot ) {
                 try {
                     RuntimeManager.clearRuntime( rt.get( "component" ) );
                 }
