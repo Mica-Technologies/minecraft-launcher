@@ -1778,40 +1778,55 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         } );
 
         MFXButton checkUrlsBtn = new MFXButton( LocalizationManager.get( "editor.checkUrls" ) );
-        checkUrlsBtn.setOnAction( e -> SystemUtilities.spawnNewTask( () -> {
-            updateStatus( LocalizationManager.format( "editor.status.checkingUrls", tabName ) );
-            int broken = 0;
-            int checked = 0;
-            for ( ModPackEditorFileEntry entry : data ) {
-                String remoteUrl = entry.getRemote();
-                if ( remoteUrl == null || remoteUrl.isBlank() ) {
-                    continue;
-                }
-                checked++;
-                try {
-                    java.net.HttpURLConnection conn =
-                            ( java.net.HttpURLConnection ) new URL( remoteUrl ).openConnection();
-                    conn.setRequestMethod( "HEAD" );
-                    conn.setConnectTimeout( 5000 );
-                    conn.setReadTimeout( 5000 );
-                    conn.setRequestProperty( "User-Agent", "MicaMinecraftLauncher" );
-                    int code = conn.getResponseCode();
-                    conn.disconnect();
-                    if ( code < 200 || code >= 400 ) {
-                        entry.setHash( "[URL " + code + "] " + entry.getHash() );
-                        broken++;
+        checkUrlsBtn.setOnAction( e -> {
+            // Snapshot the entries on the FX thread. The check runs off-thread, so
+            // iterating the live ObservableList there would risk a
+            // ConcurrentModificationException, and the entries' properties are bound
+            // into table cells, so they must not be mutated off the FX thread.
+            List< ModPackEditorFileEntry > snapshot = new ArrayList<>( data );
+            SystemUtilities.spawnNewTask( () -> {
+                updateStatus( LocalizationManager.format( "editor.status.checkingUrls", tabName ) );
+                int checked = 0;
+                List< ModPackEditorFileEntry > brokenEntries = new ArrayList<>();
+                for ( ModPackEditorFileEntry entry : snapshot ) {
+                    String remoteUrl = entry.getRemote();
+                    if ( remoteUrl == null || remoteUrl.isBlank() ) {
+                        continue;
+                    }
+                    checked++;
+                    try {
+                        java.net.HttpURLConnection conn =
+                                ( java.net.HttpURLConnection ) new URL( remoteUrl ).openConnection();
+                        conn.setRequestMethod( "HEAD" );
+                        conn.setConnectTimeout( 5000 );
+                        conn.setReadTimeout( 5000 );
+                        conn.setRequestProperty( "User-Agent", "MicaMinecraftLauncher" );
+                        int code = conn.getResponseCode();
+                        conn.disconnect();
+                        if ( code < 200 || code >= 400 ) {
+                            brokenEntries.add( entry );
+                        }
+                    }
+                    catch ( Exception ex ) {
+                        brokenEntries.add( entry );
                     }
                 }
-                catch ( Exception ex ) {
-                    entry.setHash( "[URL ERR] " + entry.getHash() );
-                    broken++;
-                }
-            }
-            final int finalBroken = broken;
-            final int finalChecked = checked;
-            GUIUtilities.JFXPlatformRun( () -> table.refresh() );
-            updateStatus( LocalizationManager.format( "editor.status.urlCheck", finalChecked, finalBroken ) );
-        } ) );
+                final int finalChecked = checked;
+                // Surface broken entries by selecting them in the table rather than
+                // mutating (and corrupting) their persisted hash field.
+                GUIUtilities.JFXPlatformRun( () -> {
+                    table.getSelectionModel().clearSelection();
+                    for ( ModPackEditorFileEntry broken : brokenEntries ) {
+                        table.getSelectionModel().select( broken );
+                    }
+                    if ( !brokenEntries.isEmpty() ) {
+                        table.scrollTo( brokenEntries.get( 0 ) );
+                    }
+                } );
+                updateStatus( LocalizationManager.format( "editor.status.urlCheck", finalChecked,
+                                                          brokenEntries.size() ) );
+            } );
+        } );
 
         Label countLabel = new Label( LocalizationManager.format( "editor.entryCount", 0 ) );
         data.addListener( ( javafx.collections.ListChangeListener< ModPackEditorFileEntry > ) change ->
