@@ -1198,6 +1198,12 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         StringBuilder classpath = new StringBuilder();
         LinkedHashSet< String > classpathEntries = new LinkedHashSet<>();
         for ( GameAsset forgeAsset : forgeAssetsList ) {
+            // Skip assets not required for the active side: downloadForgeAssets() never
+            // fetched them, so adding their path here would put a non-existent file on the
+            // classpath (tolerated today only because the JVM ignores missing -cp entries).
+            if ( !forgeAsset.isRequiredFor( gameAppMode ) ) {
+                continue;
+            }
             String localPathPrefix = SystemUtilities.buildFilePath( parentModPack.getPackRootFolder(),
                                                                     ModPackConstants.MODPACK_FORGE_LIBS_LOCAL_FOLDER );
             forgeAsset.setLocalPathPrefix( localPathPrefix );

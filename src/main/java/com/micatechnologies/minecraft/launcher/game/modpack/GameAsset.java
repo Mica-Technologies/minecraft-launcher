@@ -80,8 +80,22 @@ class GameAsset extends ManagedGameFile
      * @throws ModpackException if update fails
      */
     void updateLocalFile( GameMode gameAppMode ) throws ModpackException {
-        if ( ( gameAppMode == GameMode.CLIENT && clientReq ) || ( gameAppMode == GameMode.SERVER && serverReq ) ) {
+        if ( isRequiredFor( gameAppMode ) ) {
             super.updateLocalFile();
         }
+    }
+
+    /**
+     * Indicates whether this asset is required for the given side (client/server).
+     * Assets that aren't required for the active side are never downloaded by
+     * {@link #updateLocalFile(GameMode)} and so must also be excluded from the
+     * classpath rather than contributing a path to a file that was never fetched.
+     *
+     * @param gameAppMode client/server
+     *
+     * @return true if this asset applies to the given side
+     */
+    boolean isRequiredFor( GameMode gameAppMode ) {
+        return ( gameAppMode == GameMode.CLIENT && clientReq ) || ( gameAppMode == GameMode.SERVER && serverReq );
     }
 }
