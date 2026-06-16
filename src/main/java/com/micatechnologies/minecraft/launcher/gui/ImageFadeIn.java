@@ -18,6 +18,7 @@
 package com.micatechnologies.minecraft.launcher.gui;
 
 import javafx.animation.FadeTransition;
+import javafx.beans.value.ChangeListener;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.util.Duration;
@@ -75,22 +76,41 @@ final class ImageFadeIn
             return;
         }
         view.setOpacity( 0.0 );
-        image.progressProperty().addListener( ( obs, oldVal, newVal ) -> {
+        // Both listeners self-remove (and remove each other) once the load reaches a
+        // terminal state — fired or errored — so the fade can't double-fire on a second
+        // progress==1.0 notification and neither lambda's captured ImageView is pinned in
+        // a (potentially shared/cached) Image's listener list for longer than needed.
+        // Boxed in single-element arrays so each listener can reference the pair.
+        final ChangeListener< Number >[] progressListener = new ChangeListener[ 1 ];
+        final ChangeListener< Boolean >[] errorListener = new ChangeListener[ 1 ];
+        final Runnable detach = () -> {
+            if ( progressListener[ 0 ] != null ) {
+                image.progressProperty().removeListener( progressListener[ 0 ] );
+            }
+            if ( errorListener[ 0 ] != null ) {
+                image.errorProperty().removeListener( errorListener[ 0 ] );
+            }
+        };
+        progressListener[ 0 ] = ( obs, oldVal, newVal ) -> {
             if ( newVal.doubleValue() >= 1.0 ) {
+                detach.run();
                 FadeTransition fade = new FadeTransition( Duration.millis( FADE_MS ), view );
                 fade.setFromValue( 0.0 );
                 fade.setToValue( 1.0 );
                 fade.play();
             }
-        } );
+        };
         // Failure path: image errored before reaching 1.0 progress. Snap back to
         // visible so the (now-broken) ImageView still shows whatever fallback the
         // caller had wired (placeholder pixels, null bitmap, etc.) rather than
         // staying invisible forever.
-        image.errorProperty().addListener( ( obs, oldVal, errored ) -> {
+        errorListener[ 0 ] = ( obs, oldVal, errored ) -> {
             if ( Boolean.TRUE.equals( errored ) ) {
+                detach.run();
                 view.setOpacity( 1.0 );
             }
-        } );
+        };
+        image.progressProperty().addListener( progressListener[ 0 ] );
+        image.errorProperty().addListener( errorListener[ 0 ] );
     }
 }
