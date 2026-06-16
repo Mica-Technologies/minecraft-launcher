@@ -143,6 +143,18 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     @FunctionalInterface
     public interface GameExitCallback
     {
+        /**
+         * Invoked when the attached game process exits.
+         *
+         * <p><b>Threading:</b> this runs on the process-monitor background thread, not the
+         * JavaFX Application Thread. Implementations must marshal any JavaFX scene-graph
+         * access onto the FX thread themselves (e.g. via {@code GUIUtilities.JFXPlatformRun}
+         * or a method like {@link MCLauncherGameConsoleGui#showCrashReport} that already
+         * does so). It is invoked off-thread deliberately so callbacks can do blocking work
+         * (file I/O, session bookkeeping) without stalling the UI.</p>
+         *
+         * @param exitCode the process exit code (0 indicates a clean exit)
+         */
         void onGameExit( int exitCode );
     }
 
@@ -498,6 +510,9 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                 } );
 
                 if ( exitCallback != null ) {
+                    // Invoked on this monitor thread by contract (see GameExitCallback) so the
+                    // callback can do blocking work without stalling the FX thread; the callback
+                    // is responsible for marshaling its own UI access.
                     exitCallback.onGameExit( exitCode );
                 }
             }
