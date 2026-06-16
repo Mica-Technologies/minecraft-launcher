@@ -407,9 +407,16 @@ public final class MCLauncherQuickStartWizard
         Runnable updateLabel = () -> {
             int gb = ( int ) Math.round( slider.getValue() );
             currentValue.setText( LocalizationManager.format( "quickStart.ram.value", gb ) );
-            ConfigManager.setMaxRam( gb * 1024L );
         };
-        slider.valueProperty().addListener( ( obs, oldV, newV ) -> updateLabel.run() );
+        // Persist only on actual user interaction, not at build time. Every wizard step is
+        // built eagerly in buildStage(), so writing config from the initial updateLabel.run()
+        // overwrote the user's existing RAM allocation just by opening the wizard -- even if
+        // they Skip without ever visiting this step. This mirrors the other steps (e.g. the
+        // Discord toggle), which persist only when the control actually changes.
+        slider.valueProperty().addListener( ( obs, oldV, newV ) -> {
+            updateLabel.run();
+            ConfigManager.setMaxRam( ( int ) Math.round( slider.getValue() ) * 1024L );
+        } );
         updateLabel.run();
 
         step.getChildren().addAll(
