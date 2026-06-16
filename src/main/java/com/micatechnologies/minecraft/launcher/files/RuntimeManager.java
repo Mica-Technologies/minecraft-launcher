@@ -60,6 +60,26 @@ public class RuntimeManager
     private static final Map< String, String > verifiedVersions = new ConcurrentHashMap<>();
 
     /**
+     * Per-component lock objects used to serialize verification/installation of a
+     * given runtime. Two concurrent requests for the same component must not both
+     * download and extract into the same runtime folder; distinct components still
+     * install in parallel.
+     */
+    private static final Map< String, Object > runtimeLocks = new ConcurrentHashMap<>();
+
+    /**
+     * Returns the lock object guarding installation of the given runtime component,
+     * creating it on first use.
+     *
+     * @param component the runtime component name
+     *
+     * @return a stable lock object for that component
+     */
+    private static Object runtimeLockFor( String component ) {
+        return runtimeLocks.computeIfAbsent( component, k -> new Object() );
+    }
+
+    /**
      * Cached Mojang runtime index JSON.
      */
     private static JsonObject runtimeIndex = null;
@@ -99,6 +119,16 @@ public class RuntimeManager
      * @param progressCallback optional callback for status text updates (used when embedded in another progress flow)
      */
     public static void verifyRuntime( String component, boolean showProgress, RuntimeProgressCallback progressCallback ) {
+        // Serialize installation per component so two concurrent requests for the same
+        // runtime can't both fall through the check-then-act and download/extract into
+        // the same folder at once (interleaved writes -> corrupt install). Distinct
+        // components still install concurrently.
+        synchronized ( runtimeLockFor( component ) ) {
+            verifyRuntimeImpl( component, showProgress, progressCallback );
+        }
+    }
+
+    private static void verifyRuntimeImpl( String component, boolean showProgress, RuntimeProgressCallback progressCallback ) {
         // Mojang's jre-legacy is Java 8u51, which is too old for Forge (needs 8u121+ for sun.misc.ObjectInputFilter).
         // Use Bell-SW Liberica 8u392 instead, which is the last known-good JRE 8 for Minecraft + Forge.
         if ( "jre-legacy".equals( component ) ) {
@@ -708,6 +738,15 @@ public class RuntimeManager
                                 LocalizationManager.get( "runtime.status.downloadingJre8" ), -1 );
                 NetworkUtilities.downloadFileFromURL( JsonHelper.getRequiredString( info, "downloadUrl" ),
                                                       archiveFile );
+                // Re-verify the freshly downloaded archive before extraction. A corrupt,
+                // truncated, or substituted (MITM) download must never be extracted and
+                // executed as the game's Java runtime. Mirrors the integrity gate on the
+                // Mojang-runtime path; without this the legacy/Liberica path had none.
+                if ( !HashUtilities.verifySHA1( archiveFile, archiveHash ) ) {
+                    archiveFile.delete();
+                    throw new IOException( "Downloaded JRE archive failed SHA-1 verification: "
+                                                   + archiveFile.getName() );
+                }
             }
 
             // Extract
