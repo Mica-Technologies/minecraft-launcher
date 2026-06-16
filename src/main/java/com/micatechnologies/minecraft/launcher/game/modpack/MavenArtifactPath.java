@@ -110,19 +110,30 @@ public final class MavenArtifactPath
         String version = parts[ 2 ];
         String classifier = parts.length > 3 ? parts[ 3 ] : null;
 
-        if ( group.contains( ".." ) || artifact.contains( ".." ) || version.contains( ".." ) ) {
+        // Reject "..", "/" and "\" in every component (group's dots are translated to
+        // path separators downstream, but a literal slash/backslash in any component
+        // could still inject an extra path segment), matching the classifier/ext checks.
+        if ( hasTraversalChars( group ) || hasTraversalChars( artifact ) || hasTraversalChars( version ) ) {
             throw new ModpackException( "Path traversal detected in Maven coordinate: " + coord );
         }
-        if ( classifier != null
-                && ( classifier.contains( ".." )
-                        || classifier.indexOf( '/' ) >= 0
-                        || classifier.indexOf( '\\' ) >= 0 ) ) {
+        if ( classifier != null && hasTraversalChars( classifier ) ) {
             throw new ModpackException( "Path traversal detected in Maven classifier: " + coord );
         }
-        if ( ext.contains( ".." ) || ext.indexOf( '/' ) >= 0 || ext.indexOf( '\\' ) >= 0 ) {
+        if ( hasTraversalChars( ext ) ) {
             throw new ModpackException( "Path traversal detected in Maven extension: " + coord );
         }
         return new Coord( group, artifact, version, classifier, ext );
+    }
+
+    /**
+     * Returns true if the given coordinate component contains characters that could
+     * escape or extend the libraries root: {@code ".."}, {@code "/"}, or {@code "\"}.
+     */
+    private static boolean hasTraversalChars( String component )
+    {
+        return component.contains( ".." )
+                || component.indexOf( '/' ) >= 0
+                || component.indexOf( '\\' ) >= 0;
     }
 
     /**
