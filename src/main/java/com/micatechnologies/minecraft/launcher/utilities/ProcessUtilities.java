@@ -60,10 +60,18 @@ public class ProcessUtilities
             retry = false;
 
             // Build process call directly to avoid cmd.exe line-length limits on Windows.
-            ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) ).inheritIO()
-                                                                                              .directory(
-                                                                                                      SynchronizedFileManager.getSynchronizedFile(
-                                                                                                              workingDirectory ) );
+            boolean enhancedLogging = ConfigManager.getEnhancedLogging();
+            ProcessBuilder processBuilder = new ProcessBuilder( splitCommandLine( command ) ).directory(
+                    SynchronizedFileManager.getSynchronizedFile( workingDirectory ) );
+            // Only inherit the parent's stdio when enhanced logging is off. inheritIO()
+            // wires the child's streams straight to the JVM's file descriptors, which makes
+            // getInputStream()/getErrorStream() return immediate EOF — so leaving it on while
+            // enhanced logging is enabled made the StreamGobblers below a silent no-op. When
+            // enhanced logging is on we keep the default PIPE streams so the gobblers can read
+            // and tee the child's output.
+            if ( !enhancedLogging ) {
+                processBuilder.inheritIO();
+            }
 
             // Start process and wait for finish — redact auth tokens before logging.
             String redacted = SensitiveDataRedactor.redact( command );
@@ -78,7 +86,7 @@ public class ProcessUtilities
             // Read output stream
             StreamGobbler outGobbler = null;
             StreamGobbler errGobbler = null;
-            if ( ConfigManager.getEnhancedLogging() ) {
+            if ( enhancedLogging ) {
                 outGobbler = new StreamGobbler( mcProcess.getInputStream(), System.out );
                 outGobbler.start();
                 errGobbler = new StreamGobbler( mcProcess.getErrorStream(), System.err );
