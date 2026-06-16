@@ -1920,7 +1920,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     public void scanSelectedFolder() throws ModpackException, IOException, InterruptedException {
         int halfCoreCount = Runtime.getRuntime().availableProcessors() / 2;
-        int scanCoreCount = Math.min( 1, halfCoreCount );
+        int scanCoreCount = Math.max( 1, halfCoreCount );
         boolean emitWalkErrors = true;
         Function< String, String > logOutput = ( out ) -> {
             String processedOut = out.replace( Constants.ANSI_RED, "" )
