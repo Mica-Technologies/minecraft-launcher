@@ -258,9 +258,11 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
             if ( !waitingOnWebViewResponse.get() ) {
                 return;
             }
-            // Check if page is on callback/redirect URI
+            // Check if page is on callback/redirect URI. getLocation() is null before the
+            // first load completes and during some transitional states, so guard against it
+            // to avoid an NPE on the FX thread.
             String location = authWebView.getEngine().getLocation();
-            if ( !location.startsWith( Constants.MICROSOFT_OAUTH_REDIRECT_URL ) ) {
+            if ( location == null || !location.startsWith( Constants.MICROSOFT_OAUTH_REDIRECT_URL ) ) {
                 return;
             }
             // Set waiting on web view response flag to false
