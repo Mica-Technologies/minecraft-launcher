@@ -32,7 +32,7 @@ public class MCLauncherGuiController
     private static       MCLauncherGuiWindow guiWindow    = null;
 
     public static Stage getTopStageOrNull() {
-        return startSuccess.get() ? guiWindow.getStage() : null;
+        return startSuccess.get() && guiWindow != null ? guiWindow.getStage() : null;
     }
 
     /** Best-effort check for whether the launcher window currently has OS focus — i.e. the user
@@ -50,7 +50,7 @@ public class MCLauncherGuiController
      *  callers make screen-aware decisions without reaching into {@link MCLauncherGuiWindow}
      *  directly. */
     public static MCLauncherAbstractGui getCurrentGuiOrNull() {
-        return startSuccess.get() ? guiWindow.getCurrentGui() : null;
+        return startSuccess.get() && guiWindow != null ? guiWindow.getCurrentGui() : null;
     }
 
     public static void requestFocus() {
@@ -404,6 +404,12 @@ public class MCLauncherGuiController
             }
             guiWindow = null;
         }
+        // Mark the GUI as torn down so off-thread callers (notification / tray /
+        // Discord-RPC threads) don't dereference the now-null guiWindow during the
+        // restart window before the next session repopulates it. Must be reset in
+        // lockstep with nulling guiWindow above to avoid a startSuccess/guiWindow
+        // desync NPE in getTopStageOrNull()/getCurrentGuiOrNull().
+        startSuccess.set( false );
     }
 
     /**
