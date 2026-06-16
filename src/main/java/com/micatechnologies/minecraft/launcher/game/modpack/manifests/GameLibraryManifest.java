@@ -144,7 +144,8 @@ public class GameLibraryManifest extends ManagedGameFile
 
                     // Check for and process windows native libraries
                     String windowsNativeKey = resolveNativeClassifierKey( libManifestLibObj, "windows" );
-                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS &&
+                    if ( libraryAllowed &&
+                            org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS &&
                             windowsNativeKey != null &&
                             classifiersObj.has( windowsNativeKey ) ) {
                         // Create list to store applicable OSes for native
@@ -170,7 +171,8 @@ public class GameLibraryManifest extends ManagedGameFile
 
                     // Check for and process macOS native libraries
                     String macNativeKey = resolveNativeClassifierKey( libManifestLibObj, "osx" );
-                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC &&
+                    if ( libraryAllowed &&
+                            org.apache.commons.lang3.SystemUtils.IS_OS_MAC &&
                             macNativeKey != null &&
                             classifiersObj.has( macNativeKey ) ) {
                         // Create list to store applicable OSes for native
@@ -196,7 +198,8 @@ public class GameLibraryManifest extends ManagedGameFile
 
                     // Check for and process Linux native libraries if on Linux
                     String linuxNativeKey = resolveNativeClassifierKey( libManifestLibObj, "linux" );
-                    if ( org.apache.commons.lang3.SystemUtils.IS_OS_LINUX &&
+                    if ( libraryAllowed &&
+                            org.apache.commons.lang3.SystemUtils.IS_OS_LINUX &&
                             linuxNativeKey != null &&
                             classifiersObj.has( linuxNativeKey ) ) {
                         // Create list to store applicable OSes for native
