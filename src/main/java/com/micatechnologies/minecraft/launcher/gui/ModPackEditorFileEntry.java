@@ -42,6 +42,14 @@ public class ModPackEditorFileEntry
     private final StringProperty modrinthSlug = new SimpleStringProperty( "" );
 
     /**
+     * Transient, UI-only result of the editor's "Check URLs" action (e.g. "OK",
+     * "404", "ERR"). NOT part of the persisted modpack document: it is never read by
+     * the editor's collectFieldsToDocument() and is reset on each check. Empty when
+     * the entry's URL has not been checked.
+     */
+    private final StringProperty urlStatus = new SimpleStringProperty( "" );
+
+    /**
      * Round-trip preservation for the OTHER hash types (i.e. the ones not currently
      * shown in the Hash column). Editor reads can populate the entry from a JSON
      * object that carries multiple hashes; the visible hash + hashType render the
@@ -102,6 +110,10 @@ public class ModPackEditorFileEntry
     public StringProperty modrinthSlugProperty() { return modrinthSlug; }
     public String getModrinthSlug() { return modrinthSlug.get(); }
     public void setModrinthSlug( String value ) { modrinthSlug.set( value != null ? value : "" ); }
+
+    public StringProperty urlStatusProperty() { return urlStatus; }
+    public String getUrlStatus() { return urlStatus.get(); }
+    public void setUrlStatus( String value ) { urlStatus.set( value != null ? value : "" ); }
 
     /** Stores a non-primary hash for round-trip preservation. {@code algo} is
      *  one of {@code "sha1"} / {@code "md5"} / {@code "sha256"}; passing

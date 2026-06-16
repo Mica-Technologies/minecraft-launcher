@@ -1692,6 +1692,35 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             table.getColumns().add( serverCol );
         }
 
+        // URL-check status column (read-only, transient). Populated by the "Check URLs"
+        // toolbar action; blank until a check is run. Never persisted to the document.
+        TableColumn< ModPackEditorFileEntry, String > urlStatusCol =
+                new TableColumn<>( LocalizationManager.get( "editor.column.urlStatus" ) );
+        urlStatusCol.setCellValueFactory( c -> c.getValue().urlStatusProperty() );
+        urlStatusCol.setEditable( false );
+        urlStatusCol.setPrefWidth( 70 );
+        urlStatusCol.setMinWidth( 55 );
+        urlStatusCol.setMaxWidth( 90 );
+        urlStatusCol.setCellFactory( col -> new TableCell<>()
+        {
+            @Override
+            protected void updateItem( String value, boolean empty )
+            {
+                super.updateItem( value, empty );
+                if ( empty || value == null || value.isBlank() ) {
+                    setText( null );
+                    setStyle( "" );
+                }
+                else {
+                    setText( value );
+                    // Green when the URL is reachable, red otherwise.
+                    boolean ok = LocalizationManager.get( "editor.urlStatus.ok" ).equals( value );
+                    setStyle( "-fx-text-fill: " + ( ok ? "#2e7d32" : "#c62828" ) + "; -fx-font-weight: bold;" );
+                }
+            }
+        } );
+        table.getColumns().add( urlStatusCol );
+
         // Hash calc button column
         TableColumn< ModPackEditorFileEntry, Void > calcCol = new TableColumn<>( "" );
         calcCol.setPrefWidth( 50 );
@@ -1784,6 +1813,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             // ConcurrentModificationException, and the entries' properties are bound
             // into table cells, so they must not be mutated off the FX thread.
             List< ModPackEditorFileEntry > snapshot = new ArrayList<>( data );
+            // Clear any prior status markers on the FX thread before re-checking.
+            GUIUtilities.JFXPlatformRun( () -> {
+                for ( ModPackEditorFileEntry entry : snapshot ) {
+                    entry.setUrlStatus( "" );
+                }
+            } );
             SystemUtilities.spawnNewTask( () -> {
                 updateStatus( LocalizationManager.format( "editor.status.checkingUrls", tabName ) );
                 int checked = 0;
@@ -1794,6 +1829,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         continue;
                     }
                     checked++;
+                    String status;
+                    boolean broken;
                     try {
                         java.net.HttpURLConnection conn =
                                 ( java.net.HttpURLConnection ) new URL( remoteUrl ).openConnection();
@@ -1803,17 +1840,24 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                         conn.setRequestProperty( "User-Agent", "MicaMinecraftLauncher" );
                         int code = conn.getResponseCode();
                         conn.disconnect();
-                        if ( code < 200 || code >= 400 ) {
-                            brokenEntries.add( entry );
-                        }
+                        broken = code < 200 || code >= 400;
+                        status = broken ? String.valueOf( code ) : LocalizationManager.get( "editor.urlStatus.ok" );
                     }
                     catch ( Exception ex ) {
+                        broken = true;
+                        status = LocalizationManager.get( "editor.urlStatus.error" );
+                    }
+                    if ( broken ) {
                         brokenEntries.add( entry );
                     }
+                    // Record the per-entry result in the transient status column on the FX
+                    // thread; the property is bound into a table cell so must not be set
+                    // off-thread.
+                    final String entryStatus = status;
+                    GUIUtilities.JFXPlatformRun( () -> entry.setUrlStatus( entryStatus ) );
                 }
                 final int finalChecked = checked;
-                // Surface broken entries by selecting them in the table rather than
-                // mutating (and corrupting) their persisted hash field.
+                // Also surface broken entries by selecting them in the table.
                 GUIUtilities.JFXPlatformRun( () -> {
                     table.getSelectionModel().clearSelection();
                     for ( ModPackEditorFileEntry broken : brokenEntries ) {
