@@ -154,14 +154,17 @@ public class ProcessUtilities
         DISCARD,
 
         /**
-         * Wire the child's stdout / stderr to
+         * Wire the child's stdin / stdout / stderr to
          * {@link ProcessBuilder.Redirect#INHERIT} — the child JVM is
-         * handed the launcher's own stdout / stderr file descriptors and
+         * handed the launcher's own standard file descriptors and reads /
          * writes directly to whatever the operator's launcher is attached
-         * to (typically an SSH terminal). Zero userspace copying, zero
-         * Java reader threads, kernel-managed line ordering. Used in
-         * server mode where the launcher itself has nothing useful to do
-         * with the game's log stream beyond surfacing it to the operator.
+         * to (typically an SSH terminal, or a systemd socket FIFO). Zero
+         * userspace copying, zero Java reader threads, kernel-managed line
+         * ordering. Used in server mode where the launcher itself has
+         * nothing useful to do with the game's log stream beyond surfacing
+         * it to the operator, and where the operator drives the live
+         * Minecraft server console by writing commands to the launcher's
+         * inherited stdin.
          */
         INHERIT
     }
@@ -220,6 +223,14 @@ public class ProcessUtilities
                 processBuilder.redirectError( ProcessBuilder.Redirect.DISCARD );
             }
             case INHERIT -> {
+                // Hand the launcher's own stdin/stdout/stderr fds straight to the child JVM
+                // (Redirect.INHERIT = dup2), matching the pre-refactor inheritIO() behavior.
+                // stdin matters for headless server mode: systemd's `StandardInput=socket`
+                // wires a FIFO to the launcher's stdin, and operators drive the running
+                // Minecraft server console by writing commands ("stop", "say ...", "save-all")
+                // into that FIFO. Without inheriting stdin here, those commands reach the
+                // launcher but never the game server, leaving the console uncontrollable.
+                processBuilder.redirectInput( ProcessBuilder.Redirect.INHERIT );
                 processBuilder.redirectOutput( ProcessBuilder.Redirect.INHERIT );
                 processBuilder.redirectError( ProcessBuilder.Redirect.INHERIT );
             }
