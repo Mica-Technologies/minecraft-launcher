@@ -32,6 +32,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
@@ -294,9 +295,10 @@ public class NetworkUtilities
         synchronized ( getPathLock( destination ) ) {
             IOException lastException = null;
             for ( int attempt = 1; attempt <= MAX_RETRIES; attempt++ ) {
+                File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
+                URLConnection connection = null;
                 try {
-                    File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
-                    URLConnection connection = openConnection( source );
+                    connection = openConnection( source );
                     applyDefaults( connection );
                     try ( InputStream is = connection.getInputStream() ) {
                         FileUtils.copyInputStreamToFile( is, tempFile );
@@ -306,6 +308,9 @@ public class NetworkUtilities
                 }
                 catch ( IOException e ) {
                     lastException = e;
+                    // Drop the partial download so a failed attempt can't be mistaken for a
+                    // complete file on a later run and isn't left orphaned on disk.
+                    tempFile.delete();
                     if ( attempt < MAX_RETRIES ) {
                         Logger.logWarningSilent( LocalizationManager.format( "log.network.downloadAttemptFailed",
                                                                              attempt, source.toString(),
@@ -318,6 +323,15 @@ public class NetworkUtilities
                             Thread.currentThread().interrupt();
                             throw new IOException( "Download interrupted", ie );
                         }
+                    }
+                }
+                finally {
+                    // Release the connection promptly. On the legacy HttpURLConnection stack a
+                    // connection left undisconnected lingers until keep-alive timeout/GC, so a
+                    // burst of failed concurrent downloads can exhaust the per-host pool and
+                    // stall sibling downloads.
+                    if ( connection instanceof HttpURLConnection httpConnection ) {
+                        httpConnection.disconnect();
                     }
                 }
             }
@@ -346,9 +360,10 @@ public class NetworkUtilities
         synchronized ( getPathLock( destination ) ) {
             IOException lastException = null;
             for ( int attempt = 1; attempt <= MAX_RETRIES; attempt++ ) {
+                File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
+                URLConnection connection = null;
                 try {
-                    File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
-                    URLConnection connection = openConnection( source );
+                    connection = openConnection( source );
                     applyDefaults( connection );
                     long contentLength = connection.getContentLengthLong();
                     if ( tracker != null ) {
@@ -377,6 +392,9 @@ public class NetworkUtilities
                 }
                 catch ( IOException e ) {
                     lastException = e;
+                    // Drop the partial download so a failed attempt can't be mistaken for a
+                    // complete file on a later run and isn't left orphaned on disk.
+                    tempFile.delete();
                     if ( attempt < MAX_RETRIES ) {
                         Logger.logWarningSilent( LocalizationManager.format( "log.network.downloadAttemptFailed",
                                                                              attempt, source.toString(),
@@ -389,6 +407,15 @@ public class NetworkUtilities
                             Thread.currentThread().interrupt();
                             throw new IOException( "Download interrupted", ie );
                         }
+                    }
+                }
+                finally {
+                    // Release the connection promptly. On the legacy HttpURLConnection stack a
+                    // connection left undisconnected lingers until keep-alive timeout/GC, so a
+                    // burst of failed concurrent downloads can exhaust the per-host pool and
+                    // stall sibling downloads.
+                    if ( connection instanceof HttpURLConnection httpConnection ) {
+                        httpConnection.disconnect();
                     }
                 }
             }
