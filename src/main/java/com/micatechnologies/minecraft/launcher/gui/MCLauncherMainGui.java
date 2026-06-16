@@ -992,13 +992,19 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
                         ( ( wanted     != null && wanted.equals( card.pack.getFriendlyName() ) )
                        || ( wantedName != null && wantedName.equals( card.pack.getPackName() ) ) ) ) {
                     card.requestFocus();
-                    // Best-effort scroll-into-view via the parent ScrollPane.
+                    // Best-effort scroll-into-view via the parent ScrollPane. Deferred a
+                    // pulse because rebuildCards() just repopulated the list and the new
+                    // cards aren't laid out yet — reading bounds in this pulse yields stale
+                    // (often zero) values, so the scroll wouldn't land on the right card.
                     if ( modpackScrollPane != null ) {
-                        double cardY = card.getBoundsInParent().getMinY();
-                        double total = modpackCardList.getBoundsInLocal().getHeight();
-                        if ( total > 0 ) {
-                            modpackScrollPane.setVvalue( Math.min( 1.0, cardY / total ) );
-                        }
+                        final ModpackHeroCard target = card;
+                        Platform.runLater( () -> {
+                            double cardY = target.getBoundsInParent().getMinY();
+                            double total = modpackCardList.getBoundsInLocal().getHeight();
+                            if ( total > 0 ) {
+                                modpackScrollPane.setVvalue( Math.min( 1.0, cardY / total ) );
+                            }
+                        } );
                     }
                     return;
                 }
