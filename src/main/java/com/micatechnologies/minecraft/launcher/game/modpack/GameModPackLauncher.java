@@ -924,6 +924,47 @@ class GameModPackLauncher
     }
 
     /**
+     * Parses an inherited {@code -Xms}/{@code -Xmx} JVM argument into a heap size in
+     * megabytes, honoring the {@code g}/{@code m}/{@code k} unit suffix (case-insensitive).
+     * A bare numeric value with no suffix is interpreted as bytes per the JVM convention.
+     * <p>
+     * This exists because the prior implementation stripped all non-digits and treated the
+     * remaining number as MB, so {@code -Xmx4g} became {@code -Xmx4m} (4&nbsp;MB) — a heap
+     * small enough to OOM the server immediately — and any digit-less token threw
+     * {@link NumberFormatException}.
+     *
+     * @param arg the raw JVM argument (e.g. {@code -Xmx4g})
+     *
+     * @return the heap size in MB, or {@code 0} if the argument could not be parsed
+     */
+    private static long parseHeapArgToMb( String arg )
+    {
+        if ( arg == null ) {
+            return 0L;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile( "(?i)-Xm[sx](\\d+)([gmk]?)" )
+                .matcher( arg );
+        if ( !m.find() ) {
+            return 0L;
+        }
+        try {
+            long value = Long.parseLong( m.group( 1 ) );
+            String unit = m.group( 2 ).toLowerCase( java.util.Locale.ROOT );
+            return switch ( unit ) {
+                case "g" -> value * 1024L;
+                case "m" -> value;
+                case "k" -> value / 1024L;
+                // No suffix: the JVM treats the value as bytes.
+                default -> value / ( 1024L * 1024L );
+            };
+        }
+        catch ( NumberFormatException e ) {
+            return 0L;
+        }
+    }
+
+    /**
      * Builds the full launch command, replaces all placeholders, and starts the game process.
      *
      * @throws ModpackException if unable to launch the game
@@ -1050,11 +1091,17 @@ class GameModPackLauncher
             List< String > aList = bean.getInputArguments();
             for ( String s : aList ) {
                 if ( s.contains( "Xms" ) ) {
-                    minRAMMB = Integer.parseInt( s.replaceAll( "\\D+", "" ) );
+                    long parsed = parseHeapArgToMb( s );
+                    if ( parsed > 0 ) {
+                        minRAMMB = parsed;
+                    }
                     Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.configMinRam", s ) );
                 }
                 if ( s.contains( "Xmx" ) ) {
-                    maxRAMMB = Integer.parseInt( s.replaceAll( "\\D+", "" ) );
+                    long parsed = parseHeapArgToMb( s );
+                    if ( parsed > 0 ) {
+                        maxRAMMB = parsed;
+                    }
                     Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.configMaxRam", s ) );
                 }
             }
