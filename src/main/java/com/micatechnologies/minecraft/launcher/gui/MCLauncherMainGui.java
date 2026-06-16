@@ -1344,6 +1344,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
          */
         void bind( GameModPack newPack )
         {
+            // Cancel any pending single-click modal open from the previous binding.
+            // The timer captures the card, not a pack, so a click followed by a
+            // rebuildCards() (filter / page / sort change) within the 130 ms window
+            // would otherwise open the detail modal for the newly-bound pack.
+            singleClickTimer.stop();
             this.pack = newPack;
             // Reset the per-bind prefetch guard so a newly-bound pack can warm its
             // not-yet-cached cycle images exactly once.
