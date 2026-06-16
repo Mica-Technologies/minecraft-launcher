@@ -183,6 +183,10 @@ public class Lwjgl2ArmPatcher
 
         File lwjglCacheFile = new File( cacheFolder, LWJGL_ARM64_NATIVES_CACHE_NAME );
         File jinputCacheFile = new File( cacheFolder, JINPUT_ARM64_NATIVES_CACHE_NAME );
+        // Declared out here (not inside the try) so the failure cleanup below can delete a
+        // partially-downloaded JNA jar too -- these caches are validated by existence only,
+        // so a truncated jna-arm64.jar would otherwise be reused indefinitely.
+        File jnaCacheFile = new File( cacheFolder, JNA_ARM64_CACHE_NAME );
 
         try {
             // Download LWJGL ARM64 natives
@@ -205,7 +209,6 @@ public class Lwjgl2ArmPatcher
 
             // Download ARM64-compatible JNA to replace the x86_64-only JNA 4.4.0 bundled with MC 1.12.2
             // (used by narrator/text2speech and mods via java-objc-bridge)
-            File jnaCacheFile = new File( cacheFolder, JNA_ARM64_CACHE_NAME );
             if ( !jnaCacheFile.exists() ) {
                 if ( progressProvider != null ) {
                     progressProvider.submitProgress( LocalizationManager.get( "lwjgl2Patcher.progress.downloadingJna" ), 0 );
@@ -264,6 +267,9 @@ public class Lwjgl2ArmPatcher
             }
             if ( jinputCacheFile.exists() ) {
                 jinputCacheFile.delete();
+            }
+            if ( jnaCacheFile.exists() ) {
+                jnaCacheFile.delete();
             }
         }
         catch ( Exception e ) {
