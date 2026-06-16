@@ -405,11 +405,36 @@ public class MCLauncherAuthManager
     /**
      * Records a successful auth attempt (resets failure counter).
      */
-    private static void recordAuthSuccess() {
+    private static void recordAuthSuccess( boolean save ) {
         consecutiveFailures = 0;
-        recordSuccessfulRenewal();
-        if ( loggedIn != null ) {
-            saveCachedUser( loggedIn );
+        if ( save ) {
+            recordSuccessfulRenewal();
+            if ( loggedIn != null ) {
+                saveCachedUser( loggedIn );
+            }
+        }
+        else {
+            // The user opted out of remembering this account. handleAuthFile already
+            // deleted the saved login file; mirror that here by NOT persisting the
+            // cached user (which carries the access token) or the renewal timestamp,
+            // and clearing any stale copies left by a previous "remember me" session
+            // so the account can't be silently resurrected on next launch.
+            clearPersistedSessionFiles();
+        }
+    }
+
+    /**
+     * Deletes the on-disk cached-user and renewal-timestamp files, if present. Used
+     * when the user signs in without "remember me" so no session state survives at rest.
+     */
+    private static void clearPersistedSessionFiles() {
+        try {
+            Files.deleteIfExists( resolveSiblingPath( CACHED_USER_FILE ) );
+            Files.deleteIfExists( resolveSiblingPath( RENEWAL_TIMESTAMP_FILE ) );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( LocalizationManager.UNABLE_REMOVE_USER_FROM_DISK_TEXT );
+            Logger.logThrowable( e );
         }
     }
 
@@ -803,7 +828,8 @@ public class MCLauncherAuthManager
             Logger.logStd( LocalizationManager.get( "log.authManager.signInComplete" ) );
             reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
                           LocalizationManager.get( "authManager.status.signedIn" ) );
-            recordAuthSuccess();
+            // Token renewal only runs for an already-remembered account, so persist.
+            recordAuthSuccess( true );
             result = new MCLauncherAuthResult( loggedIn );
         }
 
@@ -863,7 +889,7 @@ public class MCLauncherAuthManager
             result = MCLauncherAuthResult.ERROR_BAD_USERNAME_PASSWORD;
         }
         else {
-            recordAuthSuccess();
+            recordAuthSuccess( save );
             result = new MCLauncherAuthResult( loggedIn );
         }
 
