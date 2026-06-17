@@ -30,6 +30,7 @@ import com.micatechnologies.minecraft.launcher.utilities.DiscordRpcUtility;
 import com.micatechnologies.minecraft.launcher.utilities.NotificationManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import javafx.animation.AnimationTimer;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -456,15 +457,27 @@ public class MCLauncherModpackDetailModal extends StackPane
      * running, bail — {@code currentBody} would point at a different
      * pack's body or be null.</p>
      */
+    /** How many body sections to construct + mount per animation frame in
+     *  {@link #populateBodyContent}. Small enough that one frame's work stays
+     *  inside the ~16 ms budget so the open fade can't stutter; large enough
+     *  that the whole body still streams in within the fade's duration. */
+    private static final int SECTIONS_PER_FRAME = 2;
+
     private void populateBodyContent( GameModPack pack )
     {
-        VBox body = currentBody;
+        final VBox body = currentBody;
         if ( body == null || !visibleState ) return;
 
-        body.getChildren().add( buildChipsRow( pack ) );
-        body.getChildren().add( buildQuickActionsSection( pack ) );
-        body.getChildren().add( buildStatsSection( pack ) );
-        body.getChildren().add( buildUpdateLogSection( pack ) );
+        // Each builder is cheap on its own (heavy data loads happen off-thread
+        // behind placeholders), but adding all ~13 sections in one pulse forces a
+        // single large layout + CSS pass that lands mid-fade and visibly janks the
+        // open animation. Build + mount them a couple per frame instead so no single
+        // frame blows the budget; the body still fully streams in during the fade.
+        final java.util.List< java.util.function.Supplier< Node > > builders = new java.util.ArrayList<>();
+        builders.add( () -> buildChipsRow( pack ) );
+        builders.add( () -> buildQuickActionsSection( pack ) );
+        builders.add( () -> buildStatsSection( pack ) );
+        builders.add( () -> buildUpdateLogSection( pack ) );
         // Content browser sections — Worlds / Screenshots / Shader Packs /
         // Resource Packs. Each reads from <packRoot>/saves|screenshots|
         // shaderpacks|resourcepacks and shows an empty-state when the
@@ -472,22 +485,45 @@ public class MCLauncherModpackDetailModal extends StackPane
         // failed-load placeholder packs since there's no real install
         // folder to browse.
         if ( pack.getPackRootFolder() != null ) {
-            Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
-            body.getChildren().add( ModpackContentBrowser.buildWorldsSection( pack, this::buildSectionBox, ownerStage ) );
-            body.getChildren().add( ModpackContentBrowser.buildServersSection( pack, this::buildSectionBox ) );
-            body.getChildren().add( ModpackContentBrowser.buildModsSection( pack, this::buildSectionBox, body, ownerStage ) );
-            body.getChildren().add( ModpackContentBrowser.buildScreenshotsSection( pack, this::buildSectionBox, this ) );
-            body.getChildren().add( ModpackContentBrowser.buildShaderPacksSection( pack, this::buildSectionBox ) );
-            body.getChildren().add( ModpackContentBrowser.buildResourcePacksSection( pack, this::buildSectionBox ) );
-            body.getChildren().add( ModpackContentBrowser.buildCrashHistorySection( pack, this::buildSectionBox, this ) );
+            final Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+            builders.add( () -> ModpackContentBrowser.buildWorldsSection( pack, this::buildSectionBox, ownerStage ) );
+            builders.add( () -> ModpackContentBrowser.buildServersSection( pack, this::buildSectionBox ) );
+            builders.add( () -> ModpackContentBrowser.buildModsSection( pack, this::buildSectionBox, body, ownerStage ) );
+            builders.add( () -> ModpackContentBrowser.buildScreenshotsSection( pack, this::buildSectionBox, this ) );
+            builders.add( () -> ModpackContentBrowser.buildShaderPacksSection( pack, this::buildSectionBox ) );
+            builders.add( () -> ModpackContentBrowser.buildResourcePacksSection( pack, this::buildSectionBox ) );
+            builders.add( () -> ModpackContentBrowser.buildCrashHistorySection( pack, this::buildSectionBox, this ) );
         }
         // Advanced section: per-pack verify toggle + "Verify this pack now" button.
         // Skipped for failed-load placeholder packs since there's no real manifest
         // to verify against.
         if ( pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
-            body.getChildren().add( buildAdvancedSection( pack ) );
+            builders.add( () -> buildAdvancedSection( pack ) );
         }
-        body.getChildren().add( buildComingSoonSection() );
+        builders.add( this::buildComingSoonSection );
+
+        final int[] next = { 0 };
+        new AnimationTimer()
+        {
+            @Override
+            public void handle( long now )
+            {
+                // Abandon the build if the modal was closed or re-shown for another
+                // pack between frames (currentBody is swapped on every rebuildSkeleton).
+                if ( body != currentBody || !visibleState ) {
+                    stop();
+                    return;
+                }
+                int end = Math.min( next[ 0 ] + SECTIONS_PER_FRAME, builders.size() );
+                while ( next[ 0 ] < end ) {
+                    body.getChildren().add( builders.get( next[ 0 ] ).get() );
+                    next[ 0 ]++;
+                }
+                if ( next[ 0 ] >= builders.size() ) {
+                    stop();
+                }
+            }
+        }.start();
     }
 
     private Node buildHeroSection( GameModPack pack )
