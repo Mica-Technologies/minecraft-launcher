@@ -461,7 +461,7 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  {@link #populateBodyContent}. Small enough that one frame's work stays
      *  inside the ~16 ms budget so the open fade can't stutter; large enough
      *  that the whole body still streams in within the fade's duration. */
-    private static final int SECTIONS_PER_FRAME = 2;
+    private static final int SECTIONS_PER_FRAME = 3;
 
     private void populateBodyContent( GameModPack pack )
     {
