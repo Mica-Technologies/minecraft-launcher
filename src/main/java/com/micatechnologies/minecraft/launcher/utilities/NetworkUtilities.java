@@ -247,8 +247,46 @@ public class NetworkUtilities
     }
 
     /**
-     * Checks network connectivity by attempting a quick HEAD request to a reliable host. Sets {@link #offlineMode}
-     * accordingly and returns the result.
+     * Reliable, high-availability hosts probed by {@link #checkNetworkAvailability()},
+     * in order. The first entry is the launcher's actual hard dependency (Mojang's
+     * manifest host); the rest are independent global anchors (Cloudflare / Google /
+     * Quad9 DNS-over-TLS endpoints) so a single host having a bad moment — Mojang
+     * geo-throttling, a CDN edge hiccup, a captive-portal that blocks one IP — can't
+     * by itself declare the whole launcher offline. {@code {host, port}} pairs.
+     *
+     * <p>History: this used to be a single socket-connect to
+     * {@code launchermeta.mojang.com:443}. That one probe was the sole gate on
+     * {@link #offlineMode}, so any transient miss against that single host latched
+     * the launcher into offline-mode (cache-only manifests, skipped refreshes) for
+     * the rest of the session even though the network and the modpack API were
+     * perfectly reachable. Probing several independent hosts and only going offline
+     * when ALL of them fail makes the signal reflect genuine connectivity loss
+     * rather than one flaky endpoint.</p>
+     */
+    private static final String[][] CONNECTIVITY_PROBE_HOSTS = {
+            { "launchermeta.mojang.com", "443" },
+            { "1.1.1.1", "443" },          // Cloudflare DNS-over-TLS
+            { "8.8.8.8", "443" },          // Google DNS-over-TLS
+            { "9.9.9.9", "443" }           // Quad9 DNS-over-TLS
+    };
+
+    /**
+     * Per-host connect timeout for the connectivity probe. Kept short because we try
+     * several hosts and stop at the first success — in the common online case the
+     * first host answers well under a second, and even a total outage resolves in
+     * roughly {@code hosts * timeout} worst case.
+     */
+    private static final int CONNECTIVITY_PROBE_TIMEOUT_MS = 3_000;
+
+    /**
+     * Checks network connectivity by attempting a quick socket connect to each of a
+     * small set of independent, high-availability hosts ({@link #CONNECTIVITY_PROBE_HOSTS}),
+     * stopping at the first that answers. Sets {@link #offlineMode} accordingly and
+     * returns the result.
+     *
+     * <p>Only declares the launcher offline when EVERY probe host fails — a single
+     * flaky or throttled endpoint is no longer enough to latch offline-mode, which
+     * previously stranded the session on cache-only manifests until a restart.</p>
      *
      * @return true if the network is reachable
      *
@@ -256,16 +294,22 @@ public class NetworkUtilities
      */
     public static boolean checkNetworkAvailability()
     {
-        try ( java.net.Socket socket = new java.net.Socket() ) {
-            socket.connect( new java.net.InetSocketAddress( "launchermeta.mojang.com", 443 ), 5_000 );
-            offlineMode = false;
-            return true;
+        for ( String[] hostPort : CONNECTIVITY_PROBE_HOSTS ) {
+            String host = hostPort[ 0 ];
+            int port = Integer.parseInt( hostPort[ 1 ] );
+            try ( java.net.Socket socket = new java.net.Socket() ) {
+                socket.connect( new java.net.InetSocketAddress( host, port ), CONNECTIVITY_PROBE_TIMEOUT_MS );
+                offlineMode = false;
+                return true;
+            }
+            catch ( Exception e ) {
+                // This host didn't answer — fall through and try the next anchor before
+                // concluding anything. Only an all-hosts failure means offline.
+            }
         }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( LocalizationManager.get( "log.network.connectivityCheckFailed" ) );
-            offlineMode = true;
-            return false;
-        }
+        Logger.logWarningSilent( LocalizationManager.get( "log.network.connectivityCheckFailed" ) );
+        offlineMode = true;
+        return false;
     }
 
     /**
