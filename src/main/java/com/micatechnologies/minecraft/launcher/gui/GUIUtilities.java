@@ -547,15 +547,42 @@ public class GUIUtilities
                     }
                 } );
             }
-            catch ( Exception e ) {
-                Platform.startup( () -> {
-                    try {
-                        r.run();
-                    }
-                    finally {
-                        doneLatch.countDown();
-                    }
-                } );
+            catch ( IllegalStateException toolkitNotStarted ) {
+                // Platform.runLater throws "Toolkit not initialized" when the JavaFX
+                // toolkit was never started this session. That's the normal case in
+                // server mode and TUI mode, where no JavaFX GUI is ever brought up
+                // (see the likelyClient gate in LauncherCore.main). Tearing those
+                // sessions down still routes some best-effort GUI/desktop-integration
+                // cleanup through here, so the runnable arrives even though there's no
+                // FX thread to run it on.
+                //
+                // The old fallback unconditionally called Platform.startup() to spin a
+                // toolkit up on the fly. On a headless Linux server with no display,
+                // that call BLOCKS forever initializing GTK — hanging app shutdown at
+                // "Performing application cleanup..." (the reported server hang). Only
+                // bootstrap a toolkit when a GUI was actually intended this session; in
+                // the no-GUI modes there is nothing meaningful to do on an FX thread, so
+                // skip the runnable entirely rather than risk the deadlock.
+                if ( !fxGuiIntendedThisSession() ) {
+                    Logger.logWarningSilent(
+                            "Skipping FX task; JavaFX toolkit not started (headless/server/TUI session)." );
+                    return;
+                }
+                try {
+                    Platform.startup( () -> {
+                        try {
+                            r.run();
+                        }
+                        finally {
+                            doneLatch.countDown();
+                        }
+                    } );
+                }
+                catch ( Exception startupFailed ) {
+                    Logger.logWarningSilent( "Could not bootstrap JavaFX toolkit for FX task; skipping.",
+                                             startupFailed );
+                    return;
+                }
             }
 
             // Wait for completion of runnable on JavaFX thread
@@ -575,6 +602,24 @@ public class GUIUtilities
                         "Interrupted while awaiting FX task; continuing without blocking." );
             }
         }
+    }
+
+    /**
+     * Reports whether a JavaFX GUI was actually intended to be brought up this
+     * session, mirroring the {@code likelyClient} gate in
+     * {@link com.micatechnologies.minecraft.launcher.LauncherCore#main} that
+     * decides whether to start the toolkit at all. Server mode never starts the
+     * toolkit, and the TUI is a client that renders no JavaFX — in both, the FX
+     * toolkit is absent and must NOT be bootstrapped on demand during teardown
+     * (a headless {@code Platform.startup} blocks initializing GTK and hangs
+     * shutdown). Used by {@link #JFXPlatformRun} to decide whether the
+     * "toolkit not started" fallback may safely start one.
+     *
+     * @return {@code true} only when this is a non-TUI client session
+     */
+    private static boolean fxGuiIntendedThisSession() {
+        return !com.micatechnologies.minecraft.launcher.config.GameModeManager.isServer()
+                && !com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled();
     }
 
     /**
