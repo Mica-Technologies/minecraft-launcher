@@ -1082,6 +1082,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         SystemUtilities.spawnNewTask( () -> {
             try {
+                // Re-probe connectivity BEFORE trusting the offline flag. offlineMode is
+                // a sticky volatile latched by the startup connectivity check
+                // (LauncherSession) — a single transient miss there (slow DNS, the 5s
+                // socket-connect timeout tripping on a cold network) pins it true for the
+                // rest of the session. Without re-probing here, a manual Refresh would
+                // honor that stale flag forever: skip the available-packs fetch, fall
+                // through to cache-only on installed packs (fetchInstalledModPacks also
+                // gates its revalidate on !isOffline()), and never recover until the user
+                // restarts the launcher. A Refresh click is precisely the moment to re-ask
+                // the network, so prime a fresh signal first — same side-effect-only call
+                // fetchModPackInfo() makes before its own isOffline() guard.
+                NetworkUtilities.checkNetworkAvailability();
                 AnnouncementManager.checkAnnouncements();
                 // Direct calls with a null progress window skip the screen-takeover
                 // progress GUI that fetchModPackInfo() opens — these methods do their
