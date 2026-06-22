@@ -187,6 +187,15 @@ public final class LibraryViewModel
         fire();
     }
 
+    /** Jumps directly to {@code page} (clamped to {@code >= 1}) WITHOUT firing
+     *  the state-changed callback. For "reveal this item" flows that compute the
+     *  target page themselves and then trigger their own rebuild (which clamps the
+     *  page to the valid range via {@link #clampAndSlice}). */
+    public void setCurrentPage( int page )
+    {
+        currentPage = Math.max( 1, page );
+    }
+
     public void prevPage()
     {
         if ( currentPage > 1 ) {
@@ -250,6 +259,20 @@ public final class LibraryViewModel
             searchDebounce.setOnFinished( e -> fire() );
         }
         searchDebounce.playFromStart();
+    }
+
+    /** Releases the search-debounce timer and detaches the state-changed
+     *  callback. Call from the owning controller's teardown so a debounce armed
+     *  by a last-instant keystroke can't fire {@code rebuildCards()} on a
+     *  torn-down controller, and so the callback stops pinning the controller
+     *  for the length of the debounce window. Idempotent. */
+    public void dispose()
+    {
+        if ( searchDebounce != null ) {
+            searchDebounce.stop();
+            searchDebounce = null;
+        }
+        onStateChanged = () -> {};
     }
 
     /** Pagination bounds returned by {@link #clampAndSlice}. {@code totalItems}
