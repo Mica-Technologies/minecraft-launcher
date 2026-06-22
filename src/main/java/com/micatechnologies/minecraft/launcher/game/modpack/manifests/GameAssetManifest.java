@@ -27,6 +27,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.game.modpack.ManagedGameFile;
+import com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor;
 import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 
@@ -334,15 +335,12 @@ public class GameAssetManifest extends ManagedGameFile
             return;
         }
 
-        // Build list of asset download threads. Assets are thousands of tiny,
-        // latency-bound files (a modern index is ~3,500-4,500 objects), so the
-        // cold-install download is bound by per-request round-trip latency, not
-        // CPU or bandwidth. Allow more concurrency than core count (min 12) so a
-        // low-core machine doesn't leave CDN bandwidth idle; cap at the asset
-        // count so we never over-allocate threads.
-        int maxThreads = Math.max( 12, Runtime.getRuntime().availableProcessors() );
-        int threadCount = Math.max( 1, Math.min( assets.size(), maxThreads ) );
-        ExecutorService threadPool = Executors.newFixedThreadPool( threadCount );
+        // Build list of asset download tasks on the shared bounded download pool.
+        // Assets are thousands of tiny, latency-bound files (a modern index is
+        // ~3,500-4,500 objects), so the cold-install download is bound by per-request
+        // round-trip latency, not CPU or bandwidth. The shared pool (sized
+        // max(16, cores*2)) keeps that latency-hiding concurrency while capping total
+        // download threads when this stage runs alongside the Forge/MC-libs stages.
         List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
         for ( ManagedGameFile asset : assets ) {
             Callable< Boolean > updateFileCallable = () -> {
@@ -356,27 +354,17 @@ public class GameAssetManifest extends ManagedGameFile
                 }
                 return ret;
             };
-            Future< Boolean > future = threadPool.submit( updateFileCallable );
+            Future< Boolean > future = DownloadExecutor.submit( updateFileCallable );
             threadPoolFutures.add( future );
         }
-        threadPool.shutdown();
+        // Drain the futures on the shared pool, bounded at 30 minutes. awaitAll cancels
+        // any still-pending siblings on interrupt/timeout/failure and restores the
+        // interrupt flag, so we never leak in-flight downloads against the shared pool.
         try {
-            if ( !threadPool.awaitTermination( 30, TimeUnit.MINUTES ) ) {
-                threadPool.shutdownNow();
-                throw new ModpackException( "Asset downloads did not complete within 30 minutes." );
-            }
-
-            // Parse list of futures
-            for (Future< Boolean > threadPoolFuture : threadPoolFutures ) {
-                threadPoolFuture.get();
-            }
+            DownloadExecutor.awaitAll( threadPoolFutures, 30 * 60 * 1000L );
         }
-        catch ( InterruptedException e ) {
-            // Don't leak the worker threads (and their in-flight downloads) if we're
-            // interrupted mid-wait — cancel them and restore the interrupt flag.
-            threadPool.shutdownNow();
-            Thread.currentThread().interrupt();
-            throw e;
+        catch ( TimeoutException e ) {
+            throw new ModpackException( "Asset downloads did not complete within 30 minutes." );
         }
     }
 }

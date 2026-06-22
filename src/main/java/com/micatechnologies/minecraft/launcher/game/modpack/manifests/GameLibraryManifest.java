@@ -32,6 +32,7 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.game.modpack.Lwjgl2ArmPatcher;
 import com.micatechnologies.minecraft.launcher.game.modpack.ManagedGameFile;
+import com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor;
 import com.micatechnologies.minecraft.launcher.utilities.JsonHelper;
 import com.micatechnologies.minecraft.launcher.utilities.objects.GameMode;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
@@ -281,10 +282,7 @@ public class GameLibraryManifest extends ManagedGameFile
             return;
         }
 
-        // Build list of library download threads
-        int maxThreads = Math.max( 1, Runtime.getRuntime().availableProcessors() );
-        int threadCount = Math.min( libraries.size(), maxThreads );
-        ExecutorService threadPool = Executors.newFixedThreadPool( threadCount );
+        // Build list of library download tasks on the shared bounded download pool.
         List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
         for ( GameLibrary library : libraries ) {
             Callable< Boolean > updateFileCallable = () -> {
@@ -313,27 +311,17 @@ public class GameLibraryManifest extends ManagedGameFile
                 }
                 return didChange;
             };
-            Future< Boolean > future = threadPool.submit( updateFileCallable );
+            Future< Boolean > future = DownloadExecutor.submit( updateFileCallable );
             threadPoolFutures.add( future );
         }
-        threadPool.shutdown();
+        // Drain the futures on the shared pool, bounded at 30 minutes. awaitAll cancels
+        // any still-pending siblings on interrupt/timeout/failure and restores the
+        // interrupt flag, so we never leak in-flight downloads against the shared pool.
         try {
-            if ( !threadPool.awaitTermination( 30, TimeUnit.MINUTES ) ) {
-                threadPool.shutdownNow();
-                throw new ModpackException( "Library downloads did not complete within 30 minutes." );
-            }
-
-            // Parse list of futures
-            for ( Future< Boolean > threadPoolFuture : threadPoolFutures ) {
-                threadPoolFuture.get();
-            }
+            DownloadExecutor.awaitAll( threadPoolFutures, 30 * 60 * 1000L );
         }
-        catch ( InterruptedException e ) {
-            // Don't leak the worker threads (and their in-flight downloads) if we're
-            // interrupted mid-wait — cancel them and restore the interrupt flag.
-            threadPool.shutdownNow();
-            Thread.currentThread().interrupt();
-            throw e;
+        catch ( TimeoutException e ) {
+            throw new ModpackException( "Library downloads did not complete within 30 minutes." );
         }
     }
 

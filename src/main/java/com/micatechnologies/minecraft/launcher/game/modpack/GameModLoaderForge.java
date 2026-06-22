@@ -658,13 +658,10 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         // warm-launch SHA-1 hashing onto one core. ManagedGameFile's per-path
         // locks + verify cache are concurrent and each asset writes a distinct
         // path, so this is safe. Mirrors GameLibraryManifest.downloadVerifyLibraries.
-        int maxThreads = Math.max( 4, Runtime.getRuntime().availableProcessors() );
-        int threadCount = Math.max( 1, Math.min( forgeAssetsList.size(), maxThreads ) );
-        java.util.concurrent.ExecutorService threadPool =
-                java.util.concurrent.Executors.newFixedThreadPool( threadCount );
         List< java.util.concurrent.Future< ? > > futures = new ArrayList<>();
         for ( GameAsset forgeAsset : forgeAssetsList ) {
-            futures.add( threadPool.submit( ( java.util.concurrent.Callable< Void > ) () -> {
+            futures.add( com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor.submit(
+                    ( java.util.concurrent.Callable< Void > ) () -> {
                 forgeAsset.setLocalPathPrefix( localPathPrefix );
                 forgeAsset.updateLocalFile( gameAppMode );
                 if ( progressProvider != null ) {
@@ -677,19 +674,16 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                 return null;
             } ) );
         }
-        threadPool.shutdown();
+        // Drain the futures on the shared bounded download pool, bounded at 30 minutes.
+        // awaitAll cancels still-pending siblings on interrupt/timeout/failure.
         try {
-            if ( !threadPool.awaitTermination( 30, java.util.concurrent.TimeUnit.MINUTES ) ) {
-                threadPool.shutdownNow();
-                throw new ModpackException( "Forge library downloads did not complete within 30 minutes." );
-            }
-            // Surface any per-asset failure (download / hash) from the workers.
-            for ( java.util.concurrent.Future< ? > future : futures ) {
-                future.get();
-            }
+            com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor.awaitAll(
+                    futures, 30 * 60 * 1000L );
+        }
+        catch ( java.util.concurrent.TimeoutException e ) {
+            throw new ModpackException( "Forge library downloads did not complete within 30 minutes." );
         }
         catch ( InterruptedException e ) {
-            threadPool.shutdownNow();
             Thread.currentThread().interrupt();
             throw new ModpackException( "Interrupted while downloading Forge libraries.", e );
         }
