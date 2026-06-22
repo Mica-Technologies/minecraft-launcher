@@ -30,9 +30,11 @@ import java.util.ResourceBundle;
  *   <li><b>Dynamic key lookup</b> — {@link #get(String)} / {@link #getOr(String, String)} /
  *       {@link #format(String, Object...)} for callers that don't have a compile-time
  *       constant to point at;</li>
- *   <li><b>OS-locale autodetect</b> — {@link #detectOsLocale()} returns
- *       {@link Locale#getDefault()} with a sanity check that falls back to
- *       English when the platform reports {@code POSIX} or {@code C};</li>
+ *   <li><b>OS-locale autodetect</b> — {@link LocaleBootstrap#detectOsLocale()}
+ *       returns {@link Locale#getDefault()} with a sanity check that falls back
+ *       to English when the platform reports {@code POSIX} or {@code C}. It lives
+ *       in {@link LocaleBootstrap} (off the pristine OS snapshot) rather than
+ *       here, so re-detecting can't pick up an already-applied override;</li>
  *   <li><b>Settings override</b> — {@link #applyFromConfig(String)} resolves
  *       a user-supplied BCP-47 locale tag (e.g. {@code fr-FR}) against the
  *       OS detection and switches the active bundle;</li>
@@ -195,26 +197,6 @@ public class LocalizationManager
         active = loadActiveBundle( target );
     }
 
-    /**
-     * Returns the OS default locale with a sanity-check fallback. Some
-     * Unix-y systems report {@code POSIX} or {@code C} as their locale
-     * when no user-level setting is configured; both are nonsense for our
-     * UI bundles and would surface as a missing-translation cascade. We
-     * fall those cases back to {@code en-US}.
-     */
-    public static Locale detectOsLocale()
-    {
-        Locale def = Locale.getDefault();
-        if ( def == null ) return Locale.US;
-        String tag = def.toLanguageTag();
-        if ( tag == null || tag.isBlank()
-                || "und".equalsIgnoreCase( tag )
-                || "POSIX".equalsIgnoreCase( tag )
-                || "C".equalsIgnoreCase( tag ) ) {
-            return Locale.US;
-        }
-        return def;
-    }
 
     // Note: startup-time locale resolution (OS detect + override resolution)
     // lives in a separate LocaleBootstrap class so it can run BEFORE this
