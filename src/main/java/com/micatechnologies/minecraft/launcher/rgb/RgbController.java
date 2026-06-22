@@ -317,6 +317,13 @@ public final class RgbController
         if ( !running && effect != null ) return;
         RgbEffectEngine eng;
         synchronized ( this ) {
+            // Stopping an effect when no engine exists is a no-op — don't lazily
+            // spin one up just to idle it. Doing so would leak the engine's
+            // scheduler thread, since stop() early-returns while !running and
+            // never tears a stray engine down.
+            if ( effectEngine == null && effect == null ) {
+                return;
+            }
             if ( effectEngine == null ) {
                 effectEngine = new RgbEffectEngine( this );
             }
