@@ -20,67 +20,40 @@ package com.micatechnologies.minecraft.launcher.utilities;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Locks in the {@link MachineSecretCipher} key-fingerprint format. Two
- * properties matter for security + backwards compatibility:
+ * Locks in the {@link MachineSecretCipher} key-fingerprint format
+ * ({@code user|os|uuid|install:secret}). The per-install secret is always mixed
+ * in, so the key can't be reconstructed from the locally-readable
+ * username / OS / hardware-UUID alone.
  *
- * <ul>
- *   <li>The <b>current</b> fingerprint always mixes in the per-install secret
- *       (so the key can't be reconstructed from the locally-readable
- *       username / OS / hardware-UUID alone).</li>
- *   <li>The <b>legacy</b> fingerprint is byte-for-byte the pre-2026.6 format
- *       (UUID-only, or the install secret when no UUID) so the decrypt fallback
- *       still unlocks blobs written before the change.</li>
- * </ul>
+ * <p>The pre-2026.6 UUID-only fingerprint and its decrypt fallback were removed
+ * (the fallback cost a second PBKDF2 derivation on every failed decrypt); blobs
+ * written by those builds no longer decrypt and the user re-acquires the secret
+ * (re-login / re-enter the CF key).</p>
  *
- * Pure — exercises the package-private {@code assembleFingerprint} seam with no
- * filesystem / hardware coupling.
+ * <p>Pure — exercises the package-private {@code assembleFingerprint} seam with
+ * no filesystem / hardware coupling.</p>
  */
 class MachineSecretCipherFingerprintTest
 {
     @Test
-    void legacyFingerprintMatchesPre2026_6FormatWithUuid()
-    {
-        // Old format with a hardware UUID present: user|os|uuid, secret unused.
-        assertEquals( "alice|Windows 11|UUID-1234",
-                MachineSecretCipher.assembleFingerprint( "alice", "Windows 11", "UUID-1234", "", true ) );
-    }
-
-    @Test
-    void legacyFingerprintMatchesPre2026_6FormatWithoutUuid()
-    {
-        // Old format with no UUID fell back to the install secret.
-        assertEquals( "alice|Linux|install:SECRET",
-                MachineSecretCipher.assembleFingerprint( "alice", "Linux", "", "SECRET", true ) );
-    }
-
-    @Test
-    void currentFingerprintAlwaysAppendsTheInstallSecret()
+    void fingerprintAlwaysAppendsTheInstallSecret()
     {
         assertEquals( "alice|Windows 11|UUID-1234|install:SECRET",
-                MachineSecretCipher.assembleFingerprint( "alice", "Windows 11", "UUID-1234", "SECRET", false ) );
+                MachineSecretCipher.assembleFingerprint( "alice", "Windows 11", "UUID-1234", "SECRET" ) );
         // No UUID → empty UUID slot, but the secret is still mixed in.
         assertEquals( "alice|Linux||install:SECRET",
-                MachineSecretCipher.assembleFingerprint( "alice", "Linux", "", "SECRET", false ) );
+                MachineSecretCipher.assembleFingerprint( "alice", "Linux", "", "SECRET" ) );
     }
 
     @Test
-    void currentFingerprintIncludesSecretWhereLegacyWithUuidDidNot()
+    void fingerprintIncludesTheInstallSecret()
     {
-        String legacy = MachineSecretCipher.assembleFingerprint( "alice", "Windows 11", "UUID-1234", "SECRET", true );
-        String current = MachineSecretCipher.assembleFingerprint( "alice", "Windows 11", "UUID-1234", "SECRET", false );
-
-        // Legacy-with-UUID must NOT carry the secret (that's the weakness fixed);
-        // current always must — and the two derive different keys.
-        assertFalse( legacy.contains( "SECRET" ),
-                "legacy UUID fingerprint must not include the install secret" );
-        assertTrue( current.contains( "install:SECRET" ),
-                "current fingerprint must always include the install secret" );
-        assertNotEquals( legacy, current );
+        String fp = MachineSecretCipher.assembleFingerprint( "alice", "Windows 11", "UUID-1234", "SECRET" );
+        assertTrue( fp.contains( "install:SECRET" ),
+                "fingerprint must always include the install secret" );
     }
 
     @Test
@@ -88,6 +61,6 @@ class MachineSecretCipherFingerprintTest
     {
         // Empty user, empty os, empty uuid → three separators, then the secret.
         assertEquals( "|||install:SECRET",
-                MachineSecretCipher.assembleFingerprint( null, null, null, "SECRET", false ) );
+                MachineSecretCipher.assembleFingerprint( null, null, null, "SECRET" ) );
     }
 }

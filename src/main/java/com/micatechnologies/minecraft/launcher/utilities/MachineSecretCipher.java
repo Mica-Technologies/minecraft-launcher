@@ -149,7 +149,7 @@ public final class MachineSecretCipher
         byte[] iv = new byte[ 12 ];
         random.nextBytes( iv );
 
-        SecretKey key = deriveMachineKey( salt, false );
+        SecretKey key = deriveMachineKey( salt );
         Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
         cipher.init( Cipher.ENCRYPT_MODE, key, new GCMParameterSpec( 128, iv ) );
         byte[] ciphertext = cipher.doFinal( plaintext );
@@ -176,36 +176,21 @@ public final class MachineSecretCipher
         System.arraycopy( combined, 16, iv, 0, 12 );
         System.arraycopy( combined, 28, ciphertext, 0, ciphertext.length );
 
-        try {
-            // Current fingerprint always mixes in the per-install random secret.
-            return doDecrypt( salt, iv, ciphertext, false );
-        }
-        catch ( javax.crypto.AEADBadTagException newFingerprintFailed ) {
-            // The blob may predate the always-mix-install-secret change (its key
-            // was derived from the legacy UUID-only fingerprint). Retry with the
-            // legacy fingerprint so existing auth tokens / CF keys keep
-            // decrypting. A successful legacy decrypt is transparently upgraded:
-            // the next time the caller re-encrypts the value (token renewal,
-            // settings re-save) it is written under the new fingerprint. If the
-            // legacy attempt also fails, this is a genuine wrong-machine /
-            // tampered blob — surface the primary failure.
-            try {
-                return doDecrypt( salt, iv, ciphertext, true );
-            }
-            catch ( javax.crypto.AEADBadTagException legacyAlsoFailed ) {
-                throw newFingerprintFailed;
-            }
-        }
+        // Single derivation against the current fingerprint. A GCM tag mismatch
+        // (AEADBadTagException) propagates so the caller can treat it as
+        // wrong-machine / tampered and re-acquire the secret (re-login, re-enter
+        // the CF key). We intentionally do NOT fall back to the pre-2026.6
+        // UUID-only fingerprint — supporting it cost a second 65536-iteration
+        // PBKDF2 on every failed decrypt, and re-signing in is a fine one-time
+        // cost for the rare user upgrading across that boundary.
+        return doDecrypt( salt, iv, ciphertext );
     }
 
-    /** Single decrypt attempt against the machine key for the given fingerprint
-     *  mode ({@code legacy} = pre-2026.6 UUID-only). Separated so
-     *  {@link #decryptBytes} can try the current fingerprint then fall back to
-     *  the legacy one for transparent migration. */
-    private static byte[] doDecrypt( byte[] salt, byte[] iv, byte[] ciphertext, boolean legacy )
+    /** Single decrypt attempt against the current machine-key fingerprint. */
+    private static byte[] doDecrypt( byte[] salt, byte[] iv, byte[] ciphertext )
             throws Exception
     {
-        SecretKey key = deriveMachineKey( salt, legacy );
+        SecretKey key = deriveMachineKey( salt );
         Cipher cipher = Cipher.getInstance( "AES/GCM/NoPadding" );
         cipher.init( Cipher.DECRYPT_MODE, key, new GCMParameterSpec( 128, iv ) );
         return cipher.doFinal( ciphertext );
@@ -219,18 +204,13 @@ public final class MachineSecretCipher
      * gets a fresh key).
      *
      * <p>The per-install random secret ({@code machine-key.bin}, owner-only) is
-     * <b>always</b> mixed in (mode {@code legacy == false}). Without it the key
-     * derived purely from {@code username | os.name | hardwareUUID} — all values
-     * any local process can read — so a sibling user could reconstruct the key
-     * and decrypt the tokens whenever the best-effort owner-only ACL on the
-     * config files failed (FAT32/exFAT data partitions, network homes, some WSL
-     * mounts). Mixing the secret in means an attacker also needs to read
-     * {@code machine-key.bin}, which carries the same owner-only protection.</p>
-     *
-     * <p>{@code legacy == true} reproduces the pre-2026.6 fingerprint (hardware
-     * UUID when present, else the install secret — never both) so blobs written
-     * before this change still decrypt via the fallback in
-     * {@link #decryptBytes}.</p>
+     * <b>always</b> mixed in. Without it the key derived purely from
+     * {@code username | os.name | hardwareUUID} — all values any local process
+     * can read — so a sibling user could reconstruct the key and decrypt the
+     * tokens whenever the best-effort owner-only ACL on the config files failed
+     * (FAT32/exFAT data partitions, network homes, some WSL mounts). Mixing the
+     * secret in means an attacker also needs to read {@code machine-key.bin},
+     * which carries the same owner-only protection.</p>
      *
      * <p>Note: a network MAC address was previously mixed in too, but modern
      * macOS randomizes every interface's MAC, which rotated the key
@@ -238,18 +218,14 @@ public final class MachineSecretCipher
      * launches). The hardware UUID already provides machine binding, so the
      * volatile MAC is gone.</p>
      */
-    private static SecretKey deriveMachineKey( byte[] salt, boolean legacy ) throws Exception
+    private static SecretKey deriveMachineKey( byte[] salt ) throws Exception
     {
         String user = resolveOsUsername();
         String osName = System.getProperty( "os.name", "" );
         String hwUuid = resolveHardwareUuid();
-        // Legacy only consulted the install secret when the UUID was missing;
-        // the current fingerprint always needs it. Avoid creating the secret
-        // file in the legacy-with-UUID case so the legacy fingerprint is a
-        // byte-for-byte match of what old blobs were encrypted under.
-        String installSecret = ( legacy && !hwUuid.isBlank() ) ? "" : getOrCreateInstallSecret();
+        String installSecret = getOrCreateInstallSecret();
 
-        String fingerprint = assembleFingerprint( user, osName, hwUuid, installSecret, legacy );
+        String fingerprint = assembleFingerprint( user, osName, hwUuid, installSecret );
 
         KeySpec spec = new PBEKeySpec(
                 fingerprint.toCharArray(), salt,
@@ -260,35 +236,20 @@ public final class MachineSecretCipher
     }
 
     /**
-     * Assembles the PBKDF2 passphrase from its components. Pure +
-     * package-private so the format — and crucially the legacy-vs-current
-     * compatibility the decrypt fallback depends on — can be unit-tested
-     * without filesystem / hardware coupling.
-     *
-     * @param legacy when true, reproduce the pre-2026.6 format exactly
-     *               ({@code user|os|uuid} or, with no uuid, {@code user|os|install:secret});
-     *               when false, always append the install secret
-     *               ({@code user|os|uuid|install:secret}).
+     * Assembles the PBKDF2 passphrase from its components:
+     * {@code user|os|uuid|install:secret}. Pure + package-private so the format
+     * can be unit-tested without filesystem / hardware coupling. The install
+     * secret is always appended (see {@link #deriveMachineKey}).
      */
     static String assembleFingerprint( String user, String osName, String hwUuid,
-                                       String installSecret, boolean legacy )
+                                       String installSecret )
     {
         StringBuilder fingerprint = new StringBuilder();
         fingerprint.append( user == null ? "" : user ).append( '|' );
         fingerprint.append( osName == null ? "" : osName ).append( '|' );
         String uuid = hwUuid == null ? "" : hwUuid;
-        if ( legacy ) {
-            if ( uuid.isBlank() ) {
-                fingerprint.append( "install:" ).append( installSecret );
-            }
-            else {
-                fingerprint.append( uuid );
-            }
-        }
-        else {
-            fingerprint.append( uuid ).append( '|' );
-            fingerprint.append( "install:" ).append( installSecret );
-        }
+        fingerprint.append( uuid ).append( '|' );
+        fingerprint.append( "install:" ).append( installSecret );
         return fingerprint.toString();
     }
 
