@@ -141,6 +141,21 @@ public final class ConfigStore
     }
 
     /**
+     * Returns a deep-copy snapshot of the live config JSON, taken under the
+     * {@code ConfigStore} monitor with the same retrying-copy defense as the
+     * serializer. Callers can serialize the result off-monitor without racing
+     * concurrent setters that mutate the live object under other monitors.
+     *
+     * @return a detached deep copy of the current config
+     *
+     * @since 2026.6
+     */
+    public static synchronized JsonObject snapshot() {
+        ensureLoaded();
+        return snapshotJson();
+    }
+
+    /**
      * Returns a deep copy of the live config JSON for serialization, retrying the
      * copy if a setter mutating under a different monitor structurally modifies
      * the backing map mid-copy ({@link java.util.ConcurrentModificationException}).

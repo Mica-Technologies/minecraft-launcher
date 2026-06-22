@@ -539,7 +539,10 @@ public class ConfigManager
             configObject = ConfigStore.ensureLoaded();
         }
         try {
-            FileUtilities.writeFromJson( configObject, destination );
+            // Serialize a monitor-held deep-copy snapshot, not the live object:
+            // typed setters mutate it under their own class monitors, so handing
+            // the live JsonObject to Gson can throw ConcurrentModificationException.
+            FileUtilities.writeFromJson( ConfigStore.snapshot(), destination );
             return true;
         }
         catch ( Exception e ) {
