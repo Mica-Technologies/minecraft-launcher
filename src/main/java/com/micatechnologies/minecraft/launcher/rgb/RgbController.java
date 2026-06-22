@@ -259,6 +259,14 @@ public final class RgbController
         if ( slots.isEmpty() ) {
             Logger.logDebug( LocalizationManager.get( "log.rgb.controller.noBackendsStarted" ) );
             running = false;
+            // No backends came up on this (re)start — tear down any stray effect
+            // engine left from a prior run so its scheduler thread doesn't tick
+            // forever against a stopped controller (submitFrame would just drop
+            // every frame). Mirrors stop()'s engine teardown.
+            if ( effectEngine != null ) {
+                effectEngine.shutdown();
+                effectEngine = null;
+            }
             return;
         }
 
@@ -446,12 +454,16 @@ public final class RgbController
             Logger.logWarningSilent( LocalizationManager.format( "log.rgb.controller.renderFrameThrew",
                                              safeName( slot.backend ), newState, slot.health.consecutiveFailures() ), t );
             if ( newState == RgbBackendHealth.State.DEAD ) {
-                // Permanent for the rest of the session. Drop this slot
-                // so its siblings keep running unaffected.
+                // Permanent for the rest of the session. Shut the backend down to
+                // release its resources, but KEEP the slot (marked DEAD) in the list:
+                // the worker skips it via canCall()==false so siblings keep running,
+                // while status()/worstHealth() and the start() short-circuit — all of
+                // which already test for DEAD — can finally see it. Dropping the slot
+                // here is what made those DEAD checks unreachable and let a dead
+                // backend silently vanish from the status chip.
                 Logger.logError( LocalizationManager.format( "log.rgb.controller.backendMarkedDead", safeName( slot.backend ) ) );
                 safelyShutdown( slot.backend );
-                slots.remove( slot );
-                if ( slots.isEmpty() ) {
+                if ( slots.stream().allMatch( s -> s.health.state() == RgbBackendHealth.State.DEAD ) ) {
                     Logger.logStd( LocalizationManager.get( "log.rgb.controller.allBackendsFailed" ) );
                 }
             }
