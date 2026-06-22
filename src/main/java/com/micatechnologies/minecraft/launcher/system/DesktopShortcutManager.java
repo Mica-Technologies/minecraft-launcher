@@ -372,6 +372,7 @@ public class DesktopShortcutManager
      */
     private static boolean convertPngToIcns( String pngPath, String icnsPath )
     {
+        Path iconsetDir = null;
         try {
             BufferedImage original = ImageIO.read( new File( pngPath ) );
             if ( original == null ) {
@@ -379,7 +380,7 @@ public class DesktopShortcutManager
             }
 
             // Create temporary .iconset directory
-            Path iconsetDir = Files.createTempDirectory( "modpack_icon" );
+            iconsetDir = Files.createTempDirectory( "modpack_icon" );
             File iconsetFile = new File( iconsetDir.toFile(), "icon.iconset" );
             iconsetFile.mkdirs();
 
@@ -406,15 +407,19 @@ public class DesktopShortcutManager
             Process process = pb.start();
             int exitCode = process.waitFor();
 
-            // Clean up temp directory
-            deleteRecursively( iconsetDir.toFile() );
-
             return exitCode == 0;
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( LocalizationManager.format( "log.desktopShortcut.iconutilFailed",
                                                                  e.getMessage() ) );
             return false;
+        }
+        finally {
+            // Always clean up the temp iconset dir, even if scaling / iconutil threw
+            // partway through — otherwise each failure leaks a temp directory.
+            if ( iconsetDir != null ) {
+                deleteRecursively( iconsetDir.toFile() );
+            }
         }
     }
 
@@ -483,14 +488,48 @@ public class DesktopShortcutManager
                                                  "-Command", ps.toString() );
         pb.redirectErrorStream( true );
         Process process = pb.start();
+
+        // Drain stdout on a background thread so a chatty PowerShell can't fill the
+        // OS pipe buffer and deadlock against waitFor (redirectErrorStream folds
+        // stderr in too). The drained text feeds the failure message below.
+        StringBuilder outputBuf = new StringBuilder();
+        Thread drain = new Thread( () -> {
+            try ( java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader( process.getInputStream(), StandardCharsets.UTF_8 ) ) ) {
+                char[] chunk = new char[ 1024 ];
+                int n;
+                while ( ( n = reader.read( chunk ) ) != -1 ) {
+                    synchronized ( outputBuf ) {
+                        outputBuf.append( chunk, 0, n );
+                    }
+                }
+            }
+            catch ( IOException ignored ) {
+                // Stream closes on process exit — nothing actionable.
+            }
+        }, "win-shortcut-drain" );
+        drain.setDaemon( true );
+        drain.start();
+
         try {
-            int exitCode = process.waitFor();
+            // Bound the wait so a hung PowerShell can't stall shortcut creation forever.
+            if ( !process.waitFor( 30, java.util.concurrent.TimeUnit.SECONDS ) ) {
+                process.destroyForcibly();
+                throw new IOException( "PowerShell shortcut creation timed out." );
+            }
+            drain.join( 1000 );
+            int exitCode = process.exitValue();
             if ( exitCode != 0 ) {
-                String output = new String( process.getInputStream().readAllBytes(), StandardCharsets.UTF_8 );
-                throw new IOException( "PowerShell shortcut creation failed (exit " + exitCode + "): " + output );
+                String output;
+                synchronized ( outputBuf ) {
+                    output = outputBuf.toString();
+                }
+                throw new IOException( "PowerShell shortcut creation failed (exit " + exitCode + "): "
+                                               + output.trim() );
             }
         }
         catch ( InterruptedException e ) {
+            process.destroyForcibly();
             Thread.currentThread().interrupt();
             throw new IOException( "Shortcut creation was interrupted.", e );
         }
