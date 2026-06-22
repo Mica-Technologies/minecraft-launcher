@@ -469,14 +469,24 @@ public class NetworkUtilities
     throws IOException
     {
         URLConnection connection = openConnection( source );
-        applyDefaults( connection );
-        connection.setDoInput( true );
-        connection.setRequestProperty( "Accept", responseContentType );
-        File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
-        try ( InputStream is = connection.getInputStream() ) {
-            FileUtils.copyInputStreamToFile( is, tempFile );
+        try {
+            applyDefaults( connection );
+            connection.setDoInput( true );
+            connection.setRequestProperty( "Accept", responseContentType );
+            File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
+            try ( InputStream is = connection.getInputStream() ) {
+                FileUtils.copyInputStreamToFile( is, tempFile );
+            }
+            Files.move( tempFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING );
         }
-        Files.move( tempFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING );
+        finally {
+            // Release the connection promptly — on the legacy HttpURLConnection
+            // stack an undisconnected connection lingers on the keep-alive pool
+            // until timeout/GC, so a burst can exhaust the per-host pool.
+            if ( connection instanceof HttpURLConnection httpConnection ) {
+                httpConnection.disconnect();
+            }
+        }
     }
 
     /**
@@ -521,9 +531,19 @@ public class NetworkUtilities
      */
     public static String downloadFileFromURL( URL source ) throws IOException {
         URLConnection connection = openConnection( source );
-        applyDefaults( connection );
-        try ( InputStream is = connection.getInputStream() ) {
-            return IOUtils.toString( is, StandardCharsets.UTF_8 );
+        try {
+            applyDefaults( connection );
+            try ( InputStream is = connection.getInputStream() ) {
+                return IOUtils.toString( is, StandardCharsets.UTF_8 );
+            }
+        }
+        finally {
+            // Release the connection promptly — on the legacy HttpURLConnection
+            // stack an undisconnected connection lingers on the keep-alive pool
+            // until timeout/GC, so a burst can exhaust the per-host pool.
+            if ( connection instanceof HttpURLConnection httpConnection ) {
+                httpConnection.disconnect();
+            }
         }
     }
 
@@ -541,11 +561,21 @@ public class NetworkUtilities
     public static String downloadFileFromURL( URL source, String responseContentType ) throws IOException
     {
         URLConnection connection = openConnection( source );
-        applyDefaults( connection );
-        connection.setDoInput( true );
-        connection.setRequestProperty( "Accept", responseContentType );
-        try ( InputStream is = connection.getInputStream() ) {
-            return IOUtils.toString( is, StandardCharsets.UTF_8 );
+        try {
+            applyDefaults( connection );
+            connection.setDoInput( true );
+            connection.setRequestProperty( "Accept", responseContentType );
+            try ( InputStream is = connection.getInputStream() ) {
+                return IOUtils.toString( is, StandardCharsets.UTF_8 );
+            }
+        }
+        finally {
+            // Release the connection promptly — on the legacy HttpURLConnection
+            // stack an undisconnected connection lingers on the keep-alive pool
+            // until timeout/GC, so a burst can exhaust the per-host pool.
+            if ( connection instanceof HttpURLConnection httpConnection ) {
+                httpConnection.disconnect();
+            }
         }
     }
 
