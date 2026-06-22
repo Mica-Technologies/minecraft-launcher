@@ -347,26 +347,35 @@ public class ProcessUtilities
         List< String > args = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean inQuotes = false;
+        // Tracks whether the current token has been opened — by a quote or a real
+        // character — so an explicitly-empty quoted argument ("") is preserved as
+        // an empty string rather than silently dropped (the length-only check did
+        // the latter). Backslash handling is intentionally left literal so Windows
+        // paths like "C:\dir\" aren't reinterpreted.
+        boolean tokenStarted = false;
 
         for ( int i = 0; i < commandLine.length(); i++ ) {
             char c = commandLine.charAt( i );
             if ( c == '"' ) {
                 inQuotes = !inQuotes;
+                tokenStarted = true;
                 continue;
             }
 
             if ( Character.isWhitespace( c ) && !inQuotes ) {
-                if ( current.length() > 0 ) {
+                if ( tokenStarted ) {
                     args.add( current.toString() );
                     current.setLength( 0 );
+                    tokenStarted = false;
                 }
             }
             else {
                 current.append( c );
+                tokenStarted = true;
             }
         }
 
-        if ( current.length() > 0 ) {
+        if ( tokenStarted ) {
             args.add( current.toString() );
         }
         return args;
