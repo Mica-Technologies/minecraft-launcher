@@ -54,10 +54,11 @@ import javafx.stage.Stage;
 
 import java.awt.Desktop;
 import java.io.File;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Date;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Builds the per-pack content-browser sections (Worlds, Screenshots,
@@ -99,7 +100,11 @@ public final class ModpackContentBrowser
 
     private static final double THUMB_SIZE = 100;
     private static final double THUMB_GAP  = 8;
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat( "yyyy-MM-dd HH:mm" );
+    // Immutable + thread-safe: formatMeta runs both on the FX thread and on the
+    // FxAsyncTask pool, so a shared SimpleDateFormat (not thread-safe) could
+    // corrupt output or throw under concurrent formatting.
+    private static final DateTimeFormatter DATE_FORMAT =
+            DateTimeFormatter.ofPattern( "yyyy-MM-dd HH:mm" ).withZone( ZoneId.systemDefault() );
 
     // ====================================================================
     // Public section builders
@@ -772,7 +777,7 @@ public final class ModpackContentBrowser
         name.setMaxWidth( Double.MAX_VALUE );
 
         Label meta = new Label( LocalizationManager.format( "detailModal.content.lastModified",
-                DATE_FORMAT.format( new Date( report.lastModified() ) ) ) );
+                DATE_FORMAT.format( Instant.ofEpochMilli( report.lastModified() ) ) ) );
         meta.getStyleClass().add( "muted" );
 
         MFXButton viewBtn = new MFXButton( LocalizationManager.get( "detailModal.crash.viewBtn" ) );
@@ -1096,7 +1101,7 @@ public final class ModpackContentBrowser
         }
         else if ( computeSizeAsync ) {
             meta.setText( LocalizationManager.format( "detailModal.content.lastModified",
-                                                       DATE_FORMAT.format( new Date( f.lastModified() ) ) ) );
+                                                       DATE_FORMAT.format( Instant.ofEpochMilli( f.lastModified() ) ) ) );
             FxAsyncTask.run( () -> {
                 long size = directorySize( f );
                 javafx.application.Platform.runLater( () -> meta.setText( formatMeta( f, size ) ) );
@@ -1104,7 +1109,7 @@ public final class ModpackContentBrowser
         }
         else {
             meta.setText( LocalizationManager.format( "detailModal.content.lastModified",
-                                                       DATE_FORMAT.format( new Date( f.lastModified() ) ) ) );
+                                                       DATE_FORMAT.format( Instant.ofEpochMilli( f.lastModified() ) ) ) );
         }
 
         MFXButton openBtn = new MFXButton( LocalizationManager.get( "detailModal.content.openFolder" ) );
@@ -1128,7 +1133,7 @@ public final class ModpackContentBrowser
     private static String formatMeta( File f, long sizeBytes )
     {
         String size = humanSize( sizeBytes );
-        String mtime = DATE_FORMAT.format( new Date( f.lastModified() ) );
+        String mtime = DATE_FORMAT.format( Instant.ofEpochMilli( f.lastModified() ) );
         return size + " · " + LocalizationManager.format( "detailModal.content.lastModified", mtime );
     }
 
