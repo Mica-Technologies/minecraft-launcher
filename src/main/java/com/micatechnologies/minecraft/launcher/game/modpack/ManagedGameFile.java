@@ -398,6 +398,35 @@ public class ManagedGameFile
         return true;
     }
 
+    /** Name of the strongest declared hash algorithm ({@code sha256}/{@code sha1}/{@code md5}),
+     *  or {@code null} when none is declared. Used to hash before/after an audited re-download
+     *  with the same algorithm the manifest declares, so the values are comparable. */
+    private String declaredAlgoName() {
+        if ( hasUsableHash( sha256 ) ) return "sha256";
+        if ( hasUsableHash( sha1 ) ) return "sha1";
+        if ( hasUsableHash( md5 ) ) return "md5";
+        return null;
+    }
+
+    /** The strongest declared expected hash, or {@code null} when none is declared. */
+    private String declaredExpectedHash() {
+        if ( hasUsableHash( sha256 ) ) return sha256;
+        if ( hasUsableHash( sha1 ) ) return sha1;
+        if ( hasUsableHash( md5 ) ) return md5;
+        return null;
+    }
+
+    /** Hashes {@code file} with the named algorithm (matching {@link #declaredAlgoName()}). */
+    private static String hashFileWithAlgo( File file, String algo ) {
+        if ( algo == null ) return null;
+        return switch ( algo ) {
+            case "sha256" -> HashUtilities.getFileSHA256( file );
+            case "sha1"   -> HashUtilities.getFileSHA1( file );
+            case "md5"    -> HashUtilities.getFileMD5( file );
+            default       -> null;
+        };
+    }
+
     /**
      * Download a copy of the remote file to the configured local file path
      *
@@ -530,7 +559,25 @@ public class ManagedGameFile
                 throw new ModpackException( "Offline mode: missing required file: " + getFullLocalFilePath() );
             }
             Logger.logWarningSilent( "FILE FAILED VERIFICATION, RE-DOWNLOADING: " + getFullLocalFilePath() );
+
+            // Audit: when an existing file is being re-downloaded, capture its hash before and
+            // after so the per-pack audit log can spot files that re-download every launch
+            // (typically a manifest hash that doesn't match the served bytes). Only fires for a
+            // genuine re-download of an existing file while a launch context is active, so cold
+            // installs and healthy launches pay nothing.
+            File auditFile = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
+            boolean auditExisted = ModPackAuditLog.isRecording() && auditFile.exists() && auditFile.isFile();
+            String auditAlgo = auditExisted ? declaredAlgoName() : null;
+            String auditOldHash = ( auditAlgo != null ) ? hashFileWithAlgo( auditFile, auditAlgo ) : null;
+
             downloadLocalFile();
+
+            if ( auditExisted ) {
+                String auditNewHash = ( auditAlgo != null ) ? hashFileWithAlgo( auditFile, auditAlgo ) : null;
+                ModPackAuditLog.recordRedownload( getFullLocalFilePath(), auditOldHash, auditNewHash,
+                                                  declaredExpectedHash(), auditAlgo );
+            }
+
             sessionVerified = true;
             return true;
         }

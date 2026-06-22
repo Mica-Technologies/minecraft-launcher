@@ -23,6 +23,7 @@ import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackAuditLog;
 import com.micatechnologies.minecraft.launcher.game.modpack.ModPackUpdateLog;
 import com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager;
 import com.micatechnologies.minecraft.launcher.utilities.AnnouncementManager;
@@ -476,6 +477,17 @@ public class MCLauncherModpackDetailModal extends StackPane
         final java.util.List< java.util.function.Supplier< Node > > builders = new java.util.ArrayList<>();
         builders.add( () -> buildChipsRow( pack ) );
         builders.add( () -> buildQuickActionsSection( pack ) );
+        // Problems section — only when the audit log flags files that re-download every
+        // launch (typically a manifest hash that doesn't match the served file). Surfaced
+        // near the top so a genuinely-broken pack is obvious. Computed once here; the
+        // builder just renders the result.
+        if ( pack.getPackRootFolder() != null ) {
+            java.util.List< ModPackAuditLog.Problem > problems =
+                    ModPackAuditLog.analyzeProblems( pack.getPackRootFolder(), pack.getLaunchCount() );
+            if ( !problems.isEmpty() ) {
+                builders.add( () -> buildProblemsSection( problems ) );
+            }
+        }
         builders.add( () -> buildStatsSection( pack ) );
         builders.add( () -> buildUpdateLogSection( pack ) );
         // Content browser sections — Worlds / Screenshots / Shader Packs /
@@ -1752,6 +1764,37 @@ public class MCLauncherModpackDetailModal extends StackPane
             return;
         }
         list.add( action );
+    }
+
+    /**
+     * Builds the "Problems" section listing files the audit log flags as re-downloading on
+     * every recent launch. Only constructed when {@code problems} is non-empty (see
+     * {@link #populateBodyContent}). Each row names the file and explains the likely cause —
+     * an identical re-fetch points at a manifest hash that doesn't match the served bytes.
+     */
+    private VBox buildProblemsSection( java.util.List< ModPackAuditLog.Problem > problems )
+    {
+        VBox section = buildSectionBox( LocalizationManager.get( "detailModal.section.problems" ), true );
+        for ( ModPackAuditLog.Problem p : problems ) {
+            VBox row = new VBox( 2 );
+            row.getStyleClass().add( "modpackDetailProblemRow" );
+
+            Label head = new Label( LocalizationManager.format( "detailModal.problems.redownload",
+                                                                p.file(), p.consecutiveLaunches() ) );
+            head.getStyleClass().add( "modpackDetailProblemTitle" );
+            head.setStyle( "-fx-font-weight: bold;" );
+            head.setWrapText( true );
+
+            Label detail = new Label( LocalizationManager.get(
+                    p.contentUnchanged() ? "detailModal.problems.unchanged" : "detailModal.problems.changed" ) );
+            detail.getStyleClass().add( "modpackDetailProblemDetail" );
+            detail.setWrapText( true );
+            detail.setOpacity( 0.85 );
+
+            row.getChildren().addAll( head, detail );
+            section.getChildren().add( row );
+        }
+        return section;
     }
 
     private VBox buildSectionBox( String heading, boolean defaultExpanded )
