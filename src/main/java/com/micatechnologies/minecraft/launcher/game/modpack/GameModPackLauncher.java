@@ -183,6 +183,10 @@ class GameModPackLauncher
         Logger.logDebug( LocalizationManager.format( "log.gameModPackLauncher.verifyMode", pack.getPackName(), chosenMode ) );
         LaunchVerifyMode prevMode = ManagedGameFile.getCurrentVerifyMode();
         ManagedGameFile.setCurrentVerifyMode( chosenMode );
+        // Open the audit-log context for this launch's download phase. getLaunchCount() + 1 is
+        // the launch number recordLaunchStart will commit once this launch succeeds, so audit
+        // entries line up with the official launch count the detail modal reads back.
+        ModPackAuditLog.beginLaunch( pack.getPackRootFolder(), pack.getLaunchCount() + 1 );
         try {
             String classpath = buildClasspathInner();
             // Persist the sidecar ONLY after a successful FULL verify. A FAST_PATH
@@ -209,6 +213,7 @@ class GameModPackLauncher
             // Always restore so a subsequent launch starts from a known state
             // regardless of how this one ended.
             ManagedGameFile.setCurrentVerifyMode( prevMode );
+            ModPackAuditLog.endLaunch();
         }
     }
 
