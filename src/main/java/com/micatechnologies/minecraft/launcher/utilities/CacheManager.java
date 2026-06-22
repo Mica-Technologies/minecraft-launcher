@@ -180,6 +180,16 @@ public class CacheManager
 
         NetworkUtilities.downloadFileFromURL( new URL( url ), cacheFile );
 
+        // The atomic-rename download path can't tell a cleanly-closed-but-short
+        // response from a complete one, so a 0-byte body would otherwise be cached
+        // and served for the whole TTL (e.g. a broken image icon that won't refresh
+        // for 24h). Reject the empty result so the caller can retry.
+        if ( cacheFile.length() == 0 ) {
+            //noinspection ResultOfMethodCallIgnored
+            cacheFile.delete();
+            throw new java.io.IOException( "Cached download was empty: " + url );
+        }
+
         return cacheFile;
     }
 
