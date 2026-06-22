@@ -100,6 +100,17 @@ public final class MacOsToolbarManager
     private static volatile String  updateUrl       = null;
     private static volatile Stage   toolbarStage    = null;
 
+    // Whether the navigation/account items (Browse / Settings / Update / Account) are clickable.
+    // Disabled on screens that must not be bypassed — notably the login screen, where the toolbar
+    // would otherwise let the user reach the main menu without signing in. The items stay visible
+    // (greyed) either way. Read when items are vended so a toolbar rebuild reflects the latest
+    // state; toggled via setNavigationEnabled on every screen change.
+    private static volatile boolean navEnabled = true;
+
+    /** Item identifiers gated by {@link #navEnabled}. Help is intentionally excluded — it opens a
+     *  separate help window and is safe (and useful) to reach from any screen, including login. */
+    private static final Set< String > GATED_ITEMS = Set.of( ID_BROWSE, ID_SETTINGS, ID_UPDATE, ID_ACCOUNT );
+
     // Retained for the JVM lifetime — if these Callback instances are GC'd, the native method
     // trampolines they back are freed and the next delegate call crashes the process.
     private static Callback identifiersCallback;
@@ -138,6 +149,40 @@ public final class MacOsToolbarManager
         }
         // Rebuild the toolbar so the item list picks up (or drops) the update item. install() is
         // idempotent and re-reads updateAvailable when it vends identifiers.
+        if ( installed && toolbarStage != null ) {
+            final Stage s = toolbarStage;
+            Platform.runLater( () -> install( s ) );
+        }
+    }
+
+    /**
+     * Enables or disables the toolbar's navigation/account items (Browse / Settings / Update /
+     * Account) — Help is always left enabled. Disabled items stay visible but are greyed and
+     * non-clickable. Called on every screen change with the screen's
+     * {@code allowsToolbarNavigation()} value, so the login + progress screens can't be bypassed
+     * via the native title-bar toolbar.
+     *
+     * <p>No-op off macOS / when nothing changed. When the state flips and the toolbar is installed,
+     * the toolbar is rebuilt (idempotent) so the items are re-vended with the new enabled state —
+     * the same mechanism {@link #setUpdateAvailable} uses.</p>
+     *
+     * @param enabled whether the gated items should be clickable
+     * @param stage   the owning stage (remembered for the rebuild)
+     *
+     * @since 3.7
+     */
+    public static void setNavigationEnabled( boolean enabled, Stage stage )
+    {
+        if ( !SystemUtils.IS_OS_MAC ) {
+            return;
+        }
+        if ( stage != null ) {
+            toolbarStage = stage;
+        }
+        if ( enabled == navEnabled ) {
+            return;
+        }
+        navEnabled = enabled;
         if ( installed && toolbarStage != null ) {
             final Stage s = toolbarStage;
             Platform.runLater( () -> install( s ) );
@@ -333,6 +378,15 @@ public final class MacOsToolbarManager
                 }
                 Foundation.invoke( item, "setTarget:", delegateRef );
                 Foundation.invoke( item, "setAction:", Foundation.createSelector( "onMicaToolbarItem:" ) );
+
+                // Gate the navigation/account items by the current nav-enabled state. Turn off
+                // autovalidation first — otherwise AppKit re-enables any item whose target responds
+                // to its action, undoing setEnabled:NO on the next validation pass.
+                if ( GATED_ITEMS.contains( id ) ) {
+                    Foundation.invoke( item, "setAutovalidates:", false );
+                    Foundation.invoke( item, "setEnabled:", navEnabled );
+                }
+
                 Foundation.invoke( item, "autorelease" );
 
                 if ( ID_ACCOUNT.equals( id ) ) {
@@ -358,6 +412,11 @@ public final class MacOsToolbarManager
         {
             try {
                 String id = Foundation.toStringViaUTF8( Foundation.invoke( new ID( sender ), "itemIdentifier" ) );
+                // Defense in depth: even if a gated item somehow fires while navigation is
+                // disabled (validation race, etc.), don't perform the action.
+                if ( !navEnabled && GATED_ITEMS.contains( id ) ) {
+                    return;
+                }
                 if ( ID_BROWSE.equals( id ) ) {
                     LauncherActions.openBrowse();
                 }

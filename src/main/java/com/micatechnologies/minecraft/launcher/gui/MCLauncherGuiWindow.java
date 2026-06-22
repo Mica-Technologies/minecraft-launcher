@@ -532,6 +532,12 @@ public class MCLauncherGuiWindow extends Application
             // the elegant fallback leaves the JavaFX navbar fully intact and clickable.
             com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
                     .hideReplacedControls( gui.scene.getRoot() );
+            // Disable the native toolbar's Browse / Settings / Account items on screens that must
+            // not be bypassed (login, mid-operation progress screens) — otherwise the title-bar
+            // toolbar lets the user skip sign-in and reach the app. They stay visible (greyed).
+            // No-op off macOS / when the state is unchanged.
+            com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
+                    .setNavigationEnabled( gui.allowsToolbarNavigation(), stage );
 
             // Windows title-bar inset: the OS draws min/max/close at the top-right; place a
             // matching help button just left of them, hide the in-window help, and shift the

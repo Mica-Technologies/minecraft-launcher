@@ -237,6 +237,10 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.RUNTIME_MANAGEMENT; }
 
+    /** Disable toolbar navigation while the runtime is being installed/verified. */
+    @Override
+    boolean allowsToolbarNavigation() { return false; }
+
     /**
      * Refreshes the runtime list view with current installed runtimes.
      */

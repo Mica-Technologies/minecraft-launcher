@@ -107,6 +107,11 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.GETTING_STARTED; }
 
+    /** Disable toolbar navigation mid-launch — the user shouldn't jump to Browse /
+     *  Settings while a game is being prepared. */
+    @Override
+    boolean allowsToolbarNavigation() { return false; }
+
     @Override
     void setup()
     {
