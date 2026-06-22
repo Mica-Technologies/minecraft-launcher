@@ -92,6 +92,7 @@ public class Logger
         if ( fileBufferedOutputStream != null ) {
             fileBufferedOutputStream.flush();
             fileBufferedOutputStream.close();
+            fileBufferedOutputStream = null;
         }
     }
 
@@ -114,6 +115,19 @@ public class Logger
     private static final int MAX_LOG_BACKUPS = 3;
 
     public static void initLogSys( File logFile ) throws IOException {
+        // Re-init must be idempotent: LauncherCore.main() loops on restartFlag and
+        // can call this again without a JVM restart. Tear down any prior buffered
+        // stream + flush scheduler first, otherwise each restart leaks the old file
+        // handle and orphans a scheduler task. Closing first also releases the file
+        // handle before rotation tries to move it (which fails on Windows while open).
+        try {
+            shutdownLogSys();
+        }
+        catch ( IOException e ) {
+            // Best-effort — a broken prior stream must not block re-initialization.
+            System.err.println( "Unable to cleanly shut down prior log system: " + e.getMessage() );
+        }
+
         // Create parent directory(ies) if necessary
         final var mkdirs = logFile.getParentFile().mkdirs();
         if ( !mkdirs && !logFile.getParentFile().exists() ) {
