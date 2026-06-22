@@ -1085,6 +1085,10 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     if ( !iconUrl.isEmpty() || ( projectSlugForIcon != null && !projectSlugForIcon.isEmpty() ) ) {
                         final String finalIconUrl = iconUrl;
                         final String finalSlug = projectSlugForIcon;
+                        // Capture the item this async load is for. ListView recycles cells, so by
+                        // the time the icon arrives this cell may have been rebound to another
+                        // project — only paint if it's still showing the one we loaded.
+                        final JsonObject cellItem = project;
                         SystemUtilities.spawnNewTask( () -> {
                             try {
                                 String resolvedUrl = finalIconUrl;
@@ -1103,7 +1107,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                                     File cachedIcon = CacheManager.downloadAndCache( resolvedUrl );
                                     Image img = new Image( cachedIcon.toURI().toString(), 40, 40, true, true );
                                     if ( !img.isError() ) {
-                                        GUIUtilities.JFXPlatformRun( () -> icon.setImage( img ) );
+                                        GUIUtilities.JFXPlatformRun( () -> {
+                                            if ( getItem() == cellItem ) {
+                                                icon.setImage( img );
+                                            }
+                                        } );
                                     }
                                 }
                             }
