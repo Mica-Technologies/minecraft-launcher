@@ -222,6 +222,11 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.LOGIN; }
 
+    /** Block the macOS title-bar toolbar's Browse / Settings / Account items here —
+     *  leaving them clickable would let the user skip sign-in and reach the app. */
+    @Override
+    boolean allowsToolbarNavigation() { return false; }
+
     /**
      * Loads (or reloads) the Microsoft OAuth sign-in page into the embedded
      * WebView. Must run on the FX application thread — callers from background

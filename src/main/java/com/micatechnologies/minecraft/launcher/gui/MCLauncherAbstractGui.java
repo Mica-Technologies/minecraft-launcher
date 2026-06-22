@@ -200,5 +200,23 @@ public abstract class MCLauncherAbstractGui
     {
         return HelpTopic.GETTING_STARTED;
     }
+
+    /**
+     * Whether this screen permits the launcher's primary navigation (Browse / Settings /
+     * Account) to be invoked. On macOS those controls live in the native title-bar toolbar,
+     * which is attached to the window for <em>every</em> screen — including the login screen,
+     * where leaving them clickable lets the user bypass sign-in and reach the main menu. The
+     * default allows navigation; screens that must block it (login, and the mid-operation
+     * progress screens) override this to return {@code false}, and the toolbar items are
+     * disabled (greyed, non-clickable) but remain visible while it is.
+     *
+     * @return {@code true} to keep the toolbar navigation enabled, {@code false} to disable it
+     *
+     * @since 3.7
+     */
+    boolean allowsToolbarNavigation()
+    {
+        return true;
+    }
 }
 

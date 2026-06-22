@@ -196,6 +196,10 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.GETTING_STARTED; }
 
+    /** Disable toolbar navigation while a blocking operation is in progress. */
+    @Override
+    boolean allowsToolbarNavigation() { return false; }
+
     /**
      * Sets the overall task title (top line). E.g. "Launching: Forge 1.15.2" or "Signing In".
      */
