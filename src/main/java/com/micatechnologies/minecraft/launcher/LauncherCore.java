@@ -736,6 +736,11 @@ public class LauncherCore
                     // notices into a torn-down GUI.
                     com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities
                             .setRetryNoticeListener( null );
+                    // Release the launch progress provider (and the progress-window
+                    // labels it captures) now that progress reporting is done. Swap
+                    // rather than set(null) so the cached launcher — and its
+                    // lastLaunchedProcess, read below — survives.
+                    gameModPack.swapProgressProviderTransiently( null );
                 }
 
                 // Late cancellation: if the user clicked Cancel after the JVM was already
