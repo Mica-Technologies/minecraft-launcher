@@ -120,6 +120,12 @@ public final class SmoothScroll
             @Override
             public void handle( long now )
             {
+                // Pane detached (e.g. its modal closed mid-glide): stop now so an
+                // in-flight chase doesn't keep the pane reachable until it snaps.
+                if ( scrollPane.getScene() == null ) {
+                    stop();
+                    return;
+                }
                 double current = scrollPane.getVvalue();
                 double diff = target[ 0 ] - current;
                 if ( Math.abs( diff ) < SNAP_THRESHOLD ) {
@@ -216,21 +222,30 @@ public final class SmoothScroll
             @Override
             public void handle( long now )
             {
+                // WebView detached (e.g. its window closed mid-glide): stop now so the
+                // chase doesn't keep ticking against a dead engine.
+                if ( webView.getScene() == null ) {
+                    timerActive[ 0 ] = false;
+                    stop();
+                    return;
+                }
                 try {
-                    Object curObj = webView.getEngine().executeScript( "window.pageYOffset" );
+                    // Single round-trip per frame: read pageYOffset, advance toward the
+                    // target, and scroll — all in one executeScript. The prior version
+                    // made two synchronous WebKit calls (read + write) every frame, and
+                    // executeScript blocks the FX thread on each. Returns the pre-move
+                    // offset so we can detect the snap and stop the ticker.
+                    Object curObj = webView.getEngine().executeScript(
+                            "(function(t,r){var c=window.pageYOffset;var d=t-c;"
+                                    + "if(Math.abs(d)<1.0){window.scrollTo(0,Math.round(t));return c;}"
+                                    + "window.scrollTo(0,Math.round(c+d*r));return c;})("
+                                    + target[ 0 ] + "," + FOLLOW_RATE + ")" );
                     if ( curObj == null ) { timerActive[ 0 ] = false; stop(); return; }
                     double current = ( ( Number ) curObj ).doubleValue();
-                    double diff = target[ 0 ] - current;
-                    if ( Math.abs( diff ) < 1.0 ) {
-                        webView.getEngine().executeScript(
-                                "window.scrollTo(0, " + Math.round( target[ 0 ] ) + ")" );
+                    if ( Math.abs( target[ 0 ] - current ) < 1.0 ) {
                         timerActive[ 0 ] = false;
                         stop();
-                        return;
                     }
-                    double next = current + diff * FOLLOW_RATE;
-                    webView.getEngine().executeScript(
-                            "window.scrollTo(0, " + Math.round( next ) + ")" );
                 }
                 catch ( Throwable t ) {
                     timerActive[ 0 ] = false;
