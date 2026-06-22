@@ -1786,6 +1786,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  to the gradient once the logo's progress listener fired.</p> */
     static void applyDynamicBackground( Region bgLayer, GameModPack pack, Image logoImage )
     {
+        // Stamp this layer with the logo it's now bound to. A late async palette
+        // listener from a prior bind of this pooled card compares against this
+        // stamp and bails if it no longer matches, so it can't repaint the layer
+        // with a stale pack's gradient. Updated on every call (incl. cache-hit and
+        // logo-less paths) so any rebind invalidates a pending listener.
+        bgLayer.getProperties().put( DYN_BG_TOKEN_KEY, logoImage != null ? logoImage : NULL_LOGO_TOKEN );
+
         if ( pack.isVanillaVersion() ) {
             // Vanilla cards adopt the launcher's own logo palette so the
             // gradient stays on-brand instead of stuck on the hardcoded
@@ -1858,20 +1865,37 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         if ( cached2 == null ) {
             bgLayer.getStyleClass().add( "heroBackgroundDefaultForge" );
         }
-        logoImage.progressProperty().addListener( ( obs, oldVal, newVal ) -> {
-            if ( newVal.doubleValue() < 1.0 || logoImage.isError() ) {
-                return;
-            }
-            Color[] fresh = computeDominantColorPalette( logoImage, PALETTE_TARGET );
-            if ( fresh != null && fresh.length > 0 ) {
-                if ( cacheKey != null ) {
-                    DOMINANT_PALETTE_CACHE.put( cacheKey, fresh );
-                    Color sec = fresh.length >= 2 ? fresh[ 1 ] : null;
-                    DOMINANT_COLOR_CACHE.putIfAbsent( cacheKey,
-                                                      new DominantColors( fresh[ 0 ], sec ) );
+        final Object boundToken = logoImage;
+        logoImage.progressProperty().addListener( new javafx.beans.value.ChangeListener<>()
+        {
+            @Override
+            public void changed( javafx.beans.value.ObservableValue< ? extends Number > obs,
+                                 Number oldVal, Number newVal )
+            {
+                // Wait for a terminal state — fully loaded or errored.
+                if ( newVal.doubleValue() < 1.0 && !logoImage.isError() ) {
+                    return;
                 }
-                bgLayer.getStyleClass().remove( "heroBackgroundDefaultForge" );
-                setBgLayerGradientFromPalette( bgLayer, fresh );
+                // One-shot: detach on any terminal outcome so we never leak the
+                // listener (and the captured bgLayer / Image) for the session.
+                logoImage.progressProperty().removeListener( this );
+                // Stale-guard: if this pooled card rebound to a different pack/logo
+                // while we were loading, don't repaint the new pack's gradient.
+                if ( logoImage.isError()
+                        || bgLayer.getProperties().get( DYN_BG_TOKEN_KEY ) != boundToken ) {
+                    return;
+                }
+                Color[] fresh = computeDominantColorPalette( logoImage, PALETTE_TARGET );
+                if ( fresh != null && fresh.length > 0 ) {
+                    if ( cacheKey != null ) {
+                        DOMINANT_PALETTE_CACHE.put( cacheKey, fresh );
+                        Color sec = fresh.length >= 2 ? fresh[ 1 ] : null;
+                        DOMINANT_COLOR_CACHE.putIfAbsent( cacheKey,
+                                                          new DominantColors( fresh[ 0 ], sec ) );
+                    }
+                    bgLayer.getStyleClass().remove( "heroBackgroundDefaultForge" );
+                    setBgLayerGradientFromPalette( bgLayer, fresh );
+                }
             }
         } );
     }
@@ -1933,6 +1957,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  key — typically the pack's logo URL. */
     private static final java.util.concurrent.ConcurrentHashMap< String, Color[] >
             DOMINANT_PALETTE_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Node-properties key under which {@link #applyDynamicBackground} stamps the
+     *  logo a {@code bgLayer} is currently bound to. The async logo-progress
+     *  listener checks this stamp before repainting: a pooled hero card can rebind
+     *  to another pack before the old logo finishes loading, and the stale listener
+     *  must not overwrite the new pack's gradient. */
+    private static final String DYN_BG_TOKEN_KEY = "micaDynBgLogoToken";
+
+    /** Stamp value used when a bound pack has no logo image, so a pending listener
+     *  from a prior modded bind is still invalidated on rebind to a logo-less pack. */
+    private static final Object NULL_LOGO_TOKEN = new Object();
 
     /** Cache-key stand-in for the bundled launcher logo, used by the
      *  vanilla-version dynamic gradient. The logo is a single bundled
