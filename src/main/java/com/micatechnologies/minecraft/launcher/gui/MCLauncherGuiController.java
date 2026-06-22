@@ -106,8 +106,11 @@ public class MCLauncherGuiController
                     // inset (WindowsCustomChromeManager, invoked post-show): it keeps the real OS
                     // min/max/close buttons while extending content to the top edge.
                     stage.initStyle( javafx.stage.StageStyle.UNIFIED );
+                    // start() already shows the stage (with all the first-show chrome
+                    // setup). A second show() here just no-ops against the now-visible
+                    // stage — drop it to avoid the latent double-init trap if first-show
+                    // logic is ever added.
                     guiWindow.start( stage );
-                    guiWindow.show();
                     startSuccess.set( true );
                 }
                 catch ( Exception e ) {
