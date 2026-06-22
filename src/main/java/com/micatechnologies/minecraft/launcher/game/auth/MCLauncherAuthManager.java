@@ -33,6 +33,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class MCLauncherAuthManager
 {
@@ -47,7 +49,7 @@ public class MCLauncherAuthManager
     /**
      * Tracks the timestamp of the last auth API call to enforce rate limiting.
      */
-    private static long lastAuthAttemptTimeMs = 0;
+    private static final AtomicLong lastAuthAttemptTimeMs = new AtomicLong( 0 );
 
     /**
      * Minimum interval between auth API calls (in milliseconds). Prevents rapid-fire requests that could
@@ -58,7 +60,7 @@ public class MCLauncherAuthManager
     /**
      * Number of consecutive auth failures. Used for exponential backoff.
      */
-    private static int consecutiveFailures = 0;
+    private static final AtomicInteger consecutiveFailures = new AtomicInteger( 0 );
 
     /**
      * Maximum backoff delay in milliseconds (2 minutes).
@@ -379,19 +381,23 @@ public class MCLauncherAuthManager
      * Applies exponential backoff if there have been consecutive failures.
      */
     private static void enforceRateLimit() {
+        // Snapshot the failure count once so the backoff math + status text are
+        // computed against a single consistent value even if another auth path
+        // mutates it concurrently.
+        int failures = consecutiveFailures.get();
         long backoffMs = 0;
-        if ( consecutiveFailures > 0 ) {
-            backoffMs = Math.min( MIN_AUTH_INTERVAL_MS * ( 1L << Math.min( consecutiveFailures, 10 ) ), MAX_BACKOFF_MS );
-            Logger.logStd( LocalizationManager.format( "log.authManager.authBackoff", ( backoffMs / 1000 ), consecutiveFailures ) );
+        if ( failures > 0 ) {
+            backoffMs = Math.min( MIN_AUTH_INTERVAL_MS * ( 1L << Math.min( failures, 10 ) ), MAX_BACKOFF_MS );
+            Logger.logStd( LocalizationManager.format( "log.authManager.authBackoff", ( backoffMs / 1000 ), failures ) );
         }
 
-        long elapsed = System.currentTimeMillis() - lastAuthAttemptTimeMs;
+        long elapsed = System.currentTimeMillis() - lastAuthAttemptTimeMs.get();
         long waitMs = Math.max( MIN_AUTH_INTERVAL_MS - elapsed, backoffMs - elapsed );
         if ( waitMs > 0 ) {
-            if ( consecutiveFailures > 0 ) {
+            if ( failures > 0 ) {
                 reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
                               LocalizationManager.format( "authManager.status.waitingRetry", ( waitMs / 1000 ),
-                                      ( consecutiveFailures + 1 ) ) );
+                                      ( failures + 1 ) ) );
             }
             try {
                 Thread.sleep( waitMs );
@@ -399,14 +405,14 @@ public class MCLauncherAuthManager
             catch ( InterruptedException ignored ) {
             }
         }
-        lastAuthAttemptTimeMs = System.currentTimeMillis();
+        lastAuthAttemptTimeMs.set( System.currentTimeMillis() );
     }
 
     /**
      * Records a successful auth attempt (resets failure counter).
      */
     private static void recordAuthSuccess( boolean save ) {
-        consecutiveFailures = 0;
+        consecutiveFailures.set( 0 );
         if ( save ) {
             recordSuccessfulRenewal();
             if ( loggedIn != null ) {
@@ -442,7 +448,7 @@ public class MCLauncherAuthManager
      * Records a failed auth attempt (increments failure counter).
      */
     private static void recordAuthFailure() {
-        consecutiveFailures++;
+        consecutiveFailures.incrementAndGet();
     }
 
     public static boolean hasExistingLogin() {
@@ -738,7 +744,7 @@ public class MCLauncherAuthManager
                 Logger.logStd( LocalizationManager.format( "log.authManager.loadedSessionFromDisk", hoursAgo, minutesAgo ) );
                 reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
                               LocalizationManager.get( "authManager.status.restoredSession" ) );
-                consecutiveFailures = 0;
+                consecutiveFailures.set( 0 );
                 return new MCLauncherAuthResult( loggedIn );
             }
             else {
