@@ -1174,12 +1174,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         // Run scan
                         scanning = true;
                         try {
-                            scanProgressBar.setProgress( 0.0 );
+                            GUIUtilities.JFXPlatformRun( () -> scanProgressBar.setProgress( 0.0 ) );
                             scanSelectedFolder();
-                            scanProgressBar.setProgress( 1.0 );
+                            GUIUtilities.JFXPlatformRun( () -> scanProgressBar.setProgress( 1.0 ) );
                         }
                         catch ( Exception e ) {
-                            scanOutputLabel.setText( LocalizationManager.get( "settings.scanOutputLabel.failed" ) );
+                            GUIUtilities.JFXPlatformRun( () -> scanOutputLabel.setText(
+                                    LocalizationManager.get( "settings.scanOutputLabel.failed" ) ) );
                             Logger.logError( LocalizationManager.get( "log.settings.scanFailed" ) );
                             Logger.logThrowable( e );
                         }
