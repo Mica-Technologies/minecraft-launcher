@@ -875,12 +875,27 @@ public final class SupplementalScanner
         return base.startsWith( "lib" ) || base.endsWith( ".dll" );
     }
 
+    /** Hard ceiling on how many bytes a single scanned JAR entry may inflate to
+     *  before {@link #readAll} aborts. The scanner inspects attacker-supplied mod
+     *  JARs, so an entry whose compressed size is tiny but inflates to gigabytes
+     *  (a zip bomb) could OOM the launcher mid-scan — and {@code scanFolder}
+     *  inflates several entries in parallel. No legitimate class or bundled native
+     *  approaches this; entries that exceed it degrade gracefully (the class is
+     *  skipped / the inner hash comes back null) rather than exhausting the heap. */
+    private static final long MAX_SCAN_ENTRY_BYTES = 256L * 1024L * 1024L;
+
     private static byte[] readAll( InputStream in ) throws IOException
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] buf = new byte[16384];
         int n;
+        long total = 0L;
         while ( ( n = in.read( buf ) ) != -1 ) {
+            total += n;
+            if ( total > MAX_SCAN_ENTRY_BYTES ) {
+                throw new IOException( "Scanned JAR entry exceeds the " + MAX_SCAN_ENTRY_BYTES
+                                               + "-byte read ceiling (possible zip bomb); aborting read." );
+            }
             out.write( buf, 0, n );
         }
         return out.toByteArray();
