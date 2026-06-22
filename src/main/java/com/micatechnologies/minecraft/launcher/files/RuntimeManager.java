@@ -85,6 +85,20 @@ public class RuntimeManager
     private static JsonObject runtimeIndex = null;
 
     /**
+     * When {@link #runtimeIndex} was last fetched (epoch ms), so the cache can
+     * expire instead of pinning a stale index for the whole JVM lifetime. The
+     * launcher's in-JVM restart loop means a single process can span many hours;
+     * the background update-check that consults this index expects reasonably
+     * fresh data.
+     */
+    private static long runtimeIndexFetchedMs = 0L;
+
+    /**
+     * How long a fetched {@link #runtimeIndex} stays valid before a re-fetch.
+     */
+    private static final long RUNTIME_INDEX_TTL_MS = 10L * 60L * 1000L;
+
+    /**
      * Verifies the Mojang runtime for the given component name, downloading files as needed.
      *
      * @param component  the Mojang runtime component name (e.g. "jre-legacy", "java-runtime-gamma")
@@ -793,10 +807,13 @@ public class RuntimeManager
                 // extracted java binary lands non-executable on macOS/Linux.
                 // Restore the execute bit on every launcher binary.
                 markJavaBinariesExecutable( new File( newJavaPath ) );
-            }
 
-            // Write version marker
-            org.apache.commons.io.FileUtils.writeStringToFile( versionFile, newJavaVersion, "UTF-8" );
+                // Write the version marker ONLY when a real extracted executable was
+                // resolved. Writing the "Unknown (System Java)" sentinel here would
+                // make the next launch's version check mismatch the real Liberica
+                // version and pointlessly re-download + re-extract the whole archive.
+                org.apache.commons.io.FileUtils.writeStringToFile( versionFile, newJavaVersion, "UTF-8" );
+            }
 
             Logger.logStd( LocalizationManager.format( "log.runtimeManager.jre8InstalledSuccess",
                                                        newJavaVersion ) );
@@ -890,7 +907,8 @@ public class RuntimeManager
      * Fetches and caches the Mojang runtime index.
      */
     private static synchronized JsonObject getMojangRuntimeIndex() throws Exception {
-        if ( runtimeIndex != null ) {
+        if ( runtimeIndex != null
+                && System.currentTimeMillis() - runtimeIndexFetchedMs < RUNTIME_INDEX_TTL_MS ) {
             return runtimeIndex;
         }
 
@@ -912,6 +930,7 @@ public class RuntimeManager
         }
 
         runtimeIndex = FileUtilities.readAsJsonObject( indexFile );
+        runtimeIndexFetchedMs = System.currentTimeMillis();
         return runtimeIndex;
     }
 
