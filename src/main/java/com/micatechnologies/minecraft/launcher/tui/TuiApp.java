@@ -410,6 +410,13 @@ public final class TuiApp
                                                      MessageDialogButton.OK );
                 } );
             }
+            finally {
+                // Release the progress provider (and the TUI progress labels it
+                // captures) now the launch is done. Swap rather than set(null) so the
+                // cached launcher's lastLaunchedProcess stays intact for the running
+                // game; getLastLaunchedProcess() above already ran.
+                pack.swapProgressProviderTransiently( null );
+            }
         }, "tui-launch-" + pack.getPackSanitizedName() );
         launcher.setDaemon( true );
         launcher.start();
