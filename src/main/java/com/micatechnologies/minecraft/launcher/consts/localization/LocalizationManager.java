@@ -67,19 +67,34 @@ public class LocalizationManager
     private static final String localResourceBundleDisplayStringsBaseName = "lang.DisplayStrings";
 
     /**
-     * The active resource bundle. Mutable — {@link #setLocale} swaps it.
-     * Initialised against the JVM default locale, which is itself set at
-     * launch time via {@link #applyFromConfig} so the first bundle load
-     * already reflects the user's preferred language (or the OS default
-     * when no override is configured).
+     * Immutable (bundle, locale) pair. Holding both behind a single
+     * {@code volatile} reference means a reader can never observe a torn
+     * combination — a freshly-swapped bundle paired with the previous
+     * locale — which the old two-field design briefly exposed between the
+     * sequential writes in {@link #setLocale}.
+     */
+    private record ActiveBundle( ResourceBundle bundle, Locale locale ) {}
+
+    /** Loads a bundle for {@code target} (or the JVM default when null) and
+     *  captures the locale it actually resolved to. */
+    private static ActiveBundle loadActiveBundle( Locale target )
+    {
+        ResourceBundle bundle = target == null
+                ? ResourceBundle.getBundle( localResourceBundleDisplayStringsBaseName )
+                : ResourceBundle.getBundle( localResourceBundleDisplayStringsBaseName, target );
+        return new ActiveBundle( bundle, bundle.getLocale() );
+    }
+
+    /**
+     * The active bundle and the locale it was loaded against. Mutable —
+     * {@link #setLocale} swaps the whole holder atomically. Initialised
+     * against the JVM default locale, which is itself set at launch time so
+     * the first bundle load already reflects the user's preferred language
+     * (or the OS default when no override is configured).
      *
      * @since 1.0
      */
-    private static volatile ResourceBundle localResourceBundle = ResourceBundle.getBundle(
-            localResourceBundleDisplayStringsBaseName );
-
-    /** The locale the active bundle was loaded against. */
-    private static volatile Locale currentLocale = localResourceBundle.getLocale();
+    private static volatile ActiveBundle active = loadActiveBundle( null );
 
     // ====================================================================
     // Dynamic API — prefer this over the static-final fields below.
@@ -99,7 +114,7 @@ public class LocalizationManager
     {
         if ( key == null ) return "";
         try {
-            return localResourceBundle.getString( key );
+            return active.bundle().getString( key );
         }
         catch ( MissingResourceException ex ) {
             return key;
@@ -113,7 +128,7 @@ public class LocalizationManager
     {
         if ( key == null ) return fallback;
         try {
-            return localResourceBundle.getString( key );
+            return active.bundle().getString( key );
         }
         catch ( MissingResourceException ex ) {
             return fallback;
@@ -152,13 +167,13 @@ public class LocalizationManager
      *  {@code text="%key"} syntax to bind to localized strings. */
     public static ResourceBundle currentBundle()
     {
-        return localResourceBundle;
+        return active.bundle();
     }
 
     /** Returns the locale of the currently active bundle. */
     public static Locale currentLocale()
     {
-        return currentLocale;
+        return active.locale();
     }
 
     /**
@@ -177,9 +192,7 @@ public class LocalizationManager
     {
         Locale target = locale == null ? Locale.getDefault() : locale;
         Locale.setDefault( target );
-        localResourceBundle = ResourceBundle.getBundle(
-                localResourceBundleDisplayStringsBaseName, target );
-        currentLocale = localResourceBundle.getLocale();
+        active = loadActiveBundle( target );
     }
 
     /**
@@ -219,7 +232,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String MODPACK_INSTALL_FETCH_UPPER_LABEL = localResourceBundle.getString(
+    public static final String MODPACK_INSTALL_FETCH_UPPER_LABEL = active.bundle().getString(
             "MODPACK_INSTALL_FETCH_UPPER_LABEL" );
 
     /**
@@ -227,7 +240,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String MODPACK_INSTALL_FETCH_LOWER_LABEL = localResourceBundle.getString(
+    public static final String MODPACK_INSTALL_FETCH_LOWER_LABEL = active.bundle().getString(
             "MODPACK_INSTALL_FETCH_LOWER_LABEL" );
 
     /**
@@ -235,7 +248,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String RUNTIME_INSTALL_PROGRESS_UPPER_LABEL = localResourceBundle.getString(
+    public static final String RUNTIME_INSTALL_PROGRESS_UPPER_LABEL = active.bundle().getString(
             "RUNTIME_INSTALL_PROGRESS_UPPER_LABEL" );
 
     /**
@@ -243,7 +256,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String RUNTIME_INSTALL_PROGRESS_LOWER_LABEL = localResourceBundle.getString(
+    public static final String RUNTIME_INSTALL_PROGRESS_LOWER_LABEL = active.bundle().getString(
             "RUNTIME_INSTALL_PROGRESS_LOWER_LABEL" );
 
     /**
@@ -251,7 +264,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String VERIFIED_ASSET_PROGRESS_TEXT = localResourceBundle.getString(
+    public static final String VERIFIED_ASSET_PROGRESS_TEXT = active.bundle().getString(
             "VERIFIED_ASSET_PROGRESS_TEXT" );
 
     /**
@@ -259,7 +272,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT = localResourceBundle.getString(
+    public static final String CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT = active.bundle().getString(
             "CONFIG_EXISTS_CORRUPT_RESET_ERROR_TEXT" );
 
     /**
@@ -267,14 +280,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String CONFIG_RESET_SUCCESS_TEXT = localResourceBundle.getString( "CONFIG_RESET_SUCCESS_TEXT" );
+    public static final String CONFIG_RESET_SUCCESS_TEXT = active.bundle().getString( "CONFIG_RESET_SUCCESS_TEXT" );
 
     /**
      * The message shown when the configuration cannot be saved because it has not been loaded.
      *
      * @since 1.0
      */
-    public static final String CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT = localResourceBundle.getString(
+    public static final String CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT = active.bundle().getString(
             "CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT" );
 
     /**
@@ -282,14 +295,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String CONFIG_SAVE_ERROR_TEXT = localResourceBundle.getString( "CONFIG_SAVE_ERROR_TEXT" );
+    public static final String CONFIG_SAVE_ERROR_TEXT = active.bundle().getString( "CONFIG_SAVE_ERROR_TEXT" );
 
     /**
      * The prefix of the message shown when the game mode is being set.
      *
      * @since 1.0
      */
-    public static final String GAME_MODE_BEING_SET_TO_TEXT = localResourceBundle.getString(
+    public static final String GAME_MODE_BEING_SET_TO_TEXT = active.bundle().getString(
             "GAME_MODE_BEING_SET_TO_TEXT" );
 
     /**
@@ -297,7 +310,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String GAME_MODE_INFERRED_SET_TO_TEXT = localResourceBundle.getString(
+    public static final String GAME_MODE_INFERRED_SET_TO_TEXT = active.bundle().getString(
             "GAME_MODE_INFERRED_SET_TO_TEXT" );
 
     /**
@@ -305,35 +318,35 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String LOG_ERROR_PREFIX = localResourceBundle.getString( "LOG_ERROR_PREFIX" );
+    public static final String LOG_ERROR_PREFIX = active.bundle().getString( "LOG_ERROR_PREFIX" );
 
     /**
      * The prefix of all warning logs that are submitted via {@link com.micatechnologies.minecraft.launcher.files.Logger#logWarning(String)}.
      *
      * @since 1.0
      */
-    public static final String LOG_WARNING_PREFIX = localResourceBundle.getString( "LOG_WARNING_PREFIX" );
+    public static final String LOG_WARNING_PREFIX = active.bundle().getString( "LOG_WARNING_PREFIX" );
 
     /**
      * The prefix of all standard logs that are submitted via {@link com.micatechnologies.minecraft.launcher.files.Logger#logStd(String)}.
      *
      * @since 1.0
      */
-    public static final String LOG_STANDARD_PREFIX = localResourceBundle.getString( "LOG_STANDARD_PREFIX" );
+    public static final String LOG_STANDARD_PREFIX = active.bundle().getString( "LOG_STANDARD_PREFIX" );
 
     /**
      * The prefix of all debug logs that are submitted via {@link com.micatechnologies.minecraft.launcher.files.Logger#logDebug(String)}.
      *
      * @since 1.0
      */
-    public static final String LOG_DEBUG_PREFIX = localResourceBundle.getString( "LOG_DEBUG_PREFIX" );
+    public static final String LOG_DEBUG_PREFIX = active.bundle().getString( "LOG_DEBUG_PREFIX" );
 
     /**
      * The message shown when the log file directory was not created by the logging subsystem.
      *
      * @since 1.0
      */
-    public static final String LOG_FILE_DIR_NOT_CREATED_TEXT = localResourceBundle.getString(
+    public static final String LOG_FILE_DIR_NOT_CREATED_TEXT = active.bundle().getString(
             "LOG_FILE_DIR_NOT_CREATED_TEXT" );
 
     /**
@@ -341,14 +354,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String LOG_FILE_NOT_CREATED_TEXT = localResourceBundle.getString( "LOG_FILE_NOT_CREATED_TEXT" );
+    public static final String LOG_FILE_NOT_CREATED_TEXT = active.bundle().getString( "LOG_FILE_NOT_CREATED_TEXT" );
 
     /**
      * The message shown when the logging subsystem has been initialized.
      *
      * @since 1.0
      */
-    public static final String LOG_SYSTEM_INITIALIZED_TEXT = localResourceBundle.getString(
+    public static final String LOG_SYSTEM_INITIALIZED_TEXT = active.bundle().getString(
             "LOG_SYSTEM_INITIALIZED_TEXT" );
 
     /**
@@ -356,7 +369,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String VERIFYING_RUNTIME_INSTALL_FOLDER_TEXT = localResourceBundle.getString(
+    public static final String VERIFYING_RUNTIME_INSTALL_FOLDER_TEXT = active.bundle().getString(
             "VERIFYING_RUNTIME_INSTALL_FOLDER_TEXT" );
 
     /**
@@ -364,7 +377,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String CREATED_FOLDER_RUNTIME_TEXT = localResourceBundle.getString(
+    public static final String CREATED_FOLDER_RUNTIME_TEXT = active.bundle().getString(
             "CREATED_FOLDER_RUNTIME_TEXT" );
 
     /**
@@ -372,7 +385,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DID_NOT_CREATE_FOLDER_RUNTIME_TEXT = localResourceBundle.getString(
+    public static final String DID_NOT_CREATE_FOLDER_RUNTIME_TEXT = active.bundle().getString(
             "DID_NOT_CREATE_FOLDER_RUNTIME_TEXT" );
 
     /**
@@ -380,7 +393,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String RUNTIME_FOLDER_SET_READABLE_TEXT = localResourceBundle.getString(
+    public static final String RUNTIME_FOLDER_SET_READABLE_TEXT = active.bundle().getString(
             "RUNTIME_FOLDER_SET_READABLE_TEXT" );
 
     /**
@@ -388,7 +401,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DID_NOT_SET_RUNTIME_FOLDER_READABLE_TEXT = localResourceBundle.getString(
+    public static final String DID_NOT_SET_RUNTIME_FOLDER_READABLE_TEXT = active.bundle().getString(
             "DID_NOT_SET_RUNTIME_FOLDER_READABLE_TEXT" );
 
     /**
@@ -396,7 +409,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String RUNTIME_FOLDER_SET_WRITABLE_TEXT = localResourceBundle.getString(
+    public static final String RUNTIME_FOLDER_SET_WRITABLE_TEXT = active.bundle().getString(
             "RUNTIME_FOLDER_SET_WRITABLE_TEXT" );
 
     /**
@@ -404,7 +417,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DID_NOT_SET_RUNTIME_FOLDER_WRITABLE_TEXT = localResourceBundle.getString(
+    public static final String DID_NOT_SET_RUNTIME_FOLDER_WRITABLE_TEXT = active.bundle().getString(
             "DID_NOT_SET_RUNTIME_FOLDER_WRITABLE_TEXT" );
 
     /**
@@ -412,7 +425,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String GATHERING_RUNTIME_INFO_TEXT = localResourceBundle.getString(
+    public static final String GATHERING_RUNTIME_INFO_TEXT = active.bundle().getString(
             "GATHERING_RUNTIME_INFO_TEXT" );
 
     /**
@@ -420,7 +433,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNIDENTIFIED_OS_RUNTIME_TEXT = localResourceBundle.getString(
+    public static final String UNIDENTIFIED_OS_RUNTIME_TEXT = active.bundle().getString(
             "UNIDENTIFIED_OS_RUNTIME_TEXT" );
 
     /**
@@ -428,7 +441,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DOWNLOADING_RUNTIME_CHECKSUM_TEXT = localResourceBundle.getString(
+    public static final String DOWNLOADING_RUNTIME_CHECKSUM_TEXT = active.bundle().getString(
             "DOWNLOADING_RUNTIME_CHECKSUM_TEXT" );
 
     /**
@@ -436,7 +449,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String RUNTIME_CHECKSUM_DOWNLOAD_FAIL_TEXT = localResourceBundle.getString(
+    public static final String RUNTIME_CHECKSUM_DOWNLOAD_FAIL_TEXT = active.bundle().getString(
             "RUNTIME_CHECKSUM_DOWNLOAD_FAIL_TEXT" );
 
     /**
@@ -444,7 +457,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String VERIFYING_LOCAL_RUNTIME_TEXT = localResourceBundle.getString(
+    public static final String VERIFYING_LOCAL_RUNTIME_TEXT = active.bundle().getString(
             "VERIFYING_LOCAL_RUNTIME_TEXT" );
 
     /**
@@ -452,14 +465,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DOWNLOADING_RUNTIME_TEXT = localResourceBundle.getString( "DOWNLOADING_RUNTIME_TEXT" );
+    public static final String DOWNLOADING_RUNTIME_TEXT = active.bundle().getString( "DOWNLOADING_RUNTIME_TEXT" );
 
     /**
      * Message shown when the local runtime has been downloaded successfully.
      *
      * @since 1.0
      */
-    public static final String DOWNLOADED_RUNTIME_SUCCESS_TEXT = localResourceBundle.getString(
+    public static final String DOWNLOADED_RUNTIME_SUCCESS_TEXT = active.bundle().getString(
             "DOWNLOADED_RUNTIME_SUCCESS_TEXT" );
 
     /**
@@ -467,14 +480,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String CLEANING_RUNTIME_ENV_TEXT = localResourceBundle.getString( "CLEANING_RUNTIME_ENV_TEXT" );
+    public static final String CLEANING_RUNTIME_ENV_TEXT = active.bundle().getString( "CLEANING_RUNTIME_ENV_TEXT" );
 
     /**
      * Message shown when the local runtime is being extracted to the runtime environment.
      *
      * @since 1.0
      */
-    public static final String EXTRACTING_RUNTIME_TO_ENV_TEXT = localResourceBundle.getString(
+    public static final String EXTRACTING_RUNTIME_TO_ENV_TEXT = active.bundle().getString(
             "EXTRACTING_RUNTIME_TO_ENV_TEXT" );
 
     /**
@@ -482,7 +495,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_DOWNLOAD_RUNTIME_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_DOWNLOAD_RUNTIME_TEXT = active.bundle().getString(
             "UNABLE_DOWNLOAD_RUNTIME_TEXT" );
 
     /**
@@ -490,14 +503,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String COMPLETED_TEXT = localResourceBundle.getString( "COMPLETED_TEXT" );
+    public static final String COMPLETED_TEXT = active.bundle().getString( "COMPLETED_TEXT" );
 
     /**
      * Message prefix shown when a user account was loaded from persistent storage.
      *
      * @since 1.0
      */
-    public static final String REMEMBERED_USER_LOADED_TEXT = localResourceBundle.getString(
+    public static final String REMEMBERED_USER_LOADED_TEXT = active.bundle().getString(
             "REMEMBERED_USER_LOADED_TEXT" );
 
     /**
@@ -505,7 +518,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String REMEMBERED_USER_WRITING_TEXT = localResourceBundle.getString(
+    public static final String REMEMBERED_USER_WRITING_TEXT = active.bundle().getString(
             "REMEMBERED_USER_WRITING_TEXT" );
 
     /**
@@ -513,7 +526,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String REMEMBERED_USER_WRITE_FINISHED_TEXT = localResourceBundle.getString(
+    public static final String REMEMBERED_USER_WRITE_FINISHED_TEXT = active.bundle().getString(
             "REMEMBERED_USER_WRITE_FINISHED_TEXT" );
 
     /**
@@ -521,7 +534,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_REMOVE_USER_FROM_DISK_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_REMOVE_USER_FROM_DISK_TEXT = active.bundle().getString(
             "UNABLE_REMOVE_USER_FROM_DISK_TEXT" );
 
     /**
@@ -529,7 +542,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT = localResourceBundle.getString(
+    public static final String PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT = active.bundle().getString(
             "PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT" );
 
     /**
@@ -537,7 +550,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String PROBLEM_WRITING_ACCOUNT_TO_DISK_TEXT = localResourceBundle.getString(
+    public static final String PROBLEM_WRITING_ACCOUNT_TO_DISK_TEXT = active.bundle().getString(
             "PROBLEM_WRITING_ACCOUNT_TO_DISK_TEXT" );
 
     /**
@@ -545,7 +558,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String CLIENT_TOKEN_CHECKING_TEXT = localResourceBundle.getString(
+    public static final String CLIENT_TOKEN_CHECKING_TEXT = active.bundle().getString(
             "CLIENT_TOKEN_CHECKING_TEXT" );
 
     /**
@@ -553,7 +566,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_READ_STORED_CLIENT_TOKEN_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_READ_STORED_CLIENT_TOKEN_TEXT = active.bundle().getString(
             "UNABLE_READ_STORED_CLIENT_TOKEN_TEXT" );
 
     /**
@@ -561,21 +574,21 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String NEW_CLIENT_TOKEN_TEXT = localResourceBundle.getString( "NEW_CLIENT_TOKEN_TEXT" );
+    public static final String NEW_CLIENT_TOKEN_TEXT = active.bundle().getString( "NEW_CLIENT_TOKEN_TEXT" );
 
     /**
      * Message shown when the client token has been written to file.
      *
      * @since 1.0
      */
-    public static final String STORED_CLIENT_TOKEN_TEXT = localResourceBundle.getString( "STORED_CLIENT_TOKEN_TEXT" );
+    public static final String STORED_CLIENT_TOKEN_TEXT = active.bundle().getString( "STORED_CLIENT_TOKEN_TEXT" );
 
     /**
      * Message shown when the client token could not be saved to file.
      *
      * @since 1.0
      */
-    public static final String UNABLE_SAVE_CLIENT_TOKEN_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_SAVE_CLIENT_TOKEN_TEXT = active.bundle().getString(
             "UNABLE_SAVE_CLIENT_TOKEN_TEXT" );
 
     /**
@@ -583,21 +596,21 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String LOADED_CLIENT_TOKEN_TEXT = localResourceBundle.getString( "LOADED_CLIENT_TOKEN_TEXT" );
+    public static final String LOADED_CLIENT_TOKEN_TEXT = active.bundle().getString( "LOADED_CLIENT_TOKEN_TEXT" );
 
     /**
      * Message shown when unable to install the specified item.
      *
      * @since 1.0
      */
-    public static final String UNABLE_TO_INSTALL_TEXT = localResourceBundle.getString( "UNABLE_TO_INSTALL_TEXT" );
+    public static final String UNABLE_TO_INSTALL_TEXT = active.bundle().getString( "UNABLE_TO_INSTALL_TEXT" );
 
     /**
      * Message shown to describe that a reason is because it is not an available mod pack.
      *
      * @since 1.0
      */
-    public static final String BECAUSE_NOT_AVAILABLE_MOD_PACK_TEXT = localResourceBundle.getString(
+    public static final String BECAUSE_NOT_AVAILABLE_MOD_PACK_TEXT = active.bundle().getString(
             "BECAUSE_NOT_AVAILABLE_MOD_PACK_TEXT" );
 
     /**
@@ -605,7 +618,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_TO_UNINSTALL_MOD_PACK_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_TO_UNINSTALL_MOD_PACK_TEXT = active.bundle().getString(
             "UNABLE_TO_UNINSTALL_MOD_PACK_TEXT" );
 
     /**
@@ -613,7 +626,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT = active.bundle().getString(
             "UNABLE_CREATE_OBJ_FOR_INSTALLED_MOD_PACK_FROM_TEXT" );
 
     /**
@@ -621,7 +634,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT = localResourceBundle.getString(
+    public static final String DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT = active.bundle().getString(
             "DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT" );
 
     /**
@@ -629,7 +642,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String GOT_LATEST_VERSION_OF_TEXT = localResourceBundle.getString(
+    public static final String GOT_LATEST_VERSION_OF_TEXT = active.bundle().getString(
             "GOT_LATEST_VERSION_OF_TEXT" );
 
     /**
@@ -637,7 +650,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UPDATING_LIST_APPLICABLE_MOD_PACKS_TEXT = localResourceBundle.getString(
+    public static final String UPDATING_LIST_APPLICABLE_MOD_PACKS_TEXT = active.bundle().getString(
             "UPDATING_LIST_APPLICABLE_MOD_PACKS_TEXT" );
 
     /**
@@ -645,7 +658,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT = localResourceBundle.getString(
+    public static final String DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT = active.bundle().getString(
             "DOWNLOADING_AVAILABLE_MOD_PACKS_LIST_TEXT" );
 
     /**
@@ -653,14 +666,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String CONTACTING_SERVER_TEXT = localResourceBundle.getString( "CONTACTING_SERVER_TEXT" );
+    public static final String CONTACTING_SERVER_TEXT = active.bundle().getString( "CONTACTING_SERVER_TEXT" );
 
     /**
      * Message shown when unable to download information about installable mod packs.
      *
      * @since 1.0
      */
-    public static final String UNABLE_FETCH_INFO_INSTALLABLE_MOD_PACKS_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_FETCH_INFO_INSTALLABLE_MOD_PACKS_TEXT = active.bundle().getString(
             "UNABLE_FETCH_INFO_INSTALLABLE_MOD_PACKS_TEXT" );
 
     /**
@@ -668,21 +681,21 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String ALREADY_INSTALLED_TEXT = localResourceBundle.getString( "ALREADY_INSTALLED_TEXT" );
+    public static final String ALREADY_INSTALLED_TEXT = active.bundle().getString( "ALREADY_INSTALLED_TEXT" );
 
     /**
      * Message shown when a specified item has been added.
      *
      * @since 1.0
      */
-    public static final String ADDED_TEXT = localResourceBundle.getString( "ADDED_TEXT" );
+    public static final String ADDED_TEXT = active.bundle().getString( "ADDED_TEXT" );
 
     /**
      * Partial message used to reference adding something to the list of available mod packs.
      *
      * @since 1.0
      */
-    public static final String TO_AVAILABLE_MOD_PACKS_TEXT = localResourceBundle.getString(
+    public static final String TO_AVAILABLE_MOD_PACKS_TEXT = active.bundle().getString(
             "TO_AVAILABLE_MOD_PACKS_TEXT" );
 
     /**
@@ -690,7 +703,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT = localResourceBundle.getString(
+    public static final String NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT = active.bundle().getString(
             "NOT_MARKING_INSTALLABLE_ALREADY_INSTALLED_TEXT" );
 
     /**
@@ -698,7 +711,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_DOWNLOAD_FILE_LOCALLY_TO_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_DOWNLOAD_FILE_LOCALLY_TO_TEXT = active.bundle().getString(
             "UNABLE_DOWNLOAD_FILE_LOCALLY_TO_TEXT" );
 
     /**
@@ -706,7 +719,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_READ_LOCAL_FILE_TO_JSON_EXCEPTION_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_READ_LOCAL_FILE_TO_JSON_EXCEPTION_TEXT = active.bundle().getString(
             "UNABLE_READ_LOCAL_FILE_TO_JSON_EXCEPTION_TEXT" );
 
     /**
@@ -714,7 +727,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_FIND_FORGE_VERSION_FILE_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_FIND_FORGE_VERSION_FILE_TEXT = active.bundle().getString(
             "UNABLE_FIND_FORGE_VERSION_FILE_TEXT" );
 
     /**
@@ -722,14 +735,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_CLOSE_STREAMS_TEXT = localResourceBundle.getString( "UNABLE_CLOSE_STREAMS_TEXT" );
+    public static final String UNABLE_CLOSE_STREAMS_TEXT = active.bundle().getString( "UNABLE_CLOSE_STREAMS_TEXT" );
 
     /**
      * Message shown when unable to open the Forge version manifest for parsing.
      *
      * @since 1.0
      */
-    public static final String UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT = active.bundle().getString(
             "UNABLE_OPEN_FORGE_VERSION_MANIFEST_PARSING_TEXT" );
 
     /**
@@ -737,7 +750,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_ACCESS_FORGE_JAR_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_ACCESS_FORGE_JAR_TEXT = active.bundle().getString(
             "UNABLE_ACCESS_FORGE_JAR_TEXT" );
 
     /**
@@ -745,7 +758,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_TO_REACH_MOJANG_CANT_START_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_TO_REACH_MOJANG_CANT_START_TEXT = active.bundle().getString(
             "UNABLE_TO_REACH_MOJANG_CANT_START_TEXT" );
 
     /**
@@ -753,7 +766,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String LAUNCHER_CLIENT_MODE_STARTING_LOGIN_TEXT = localResourceBundle.getString(
+    public static final String LAUNCHER_CLIENT_MODE_STARTING_LOGIN_TEXT = active.bundle().getString(
             "LAUNCHER_CLIENT_MODE_STARTING_LOGIN_TEXT" );
 
     /**
@@ -761,7 +774,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String LOGIN_PROCESS_FINISHED_TEXT = localResourceBundle.getString(
+    public static final String LOGIN_PROCESS_FINISHED_TEXT = active.bundle().getString(
             "LOGIN_PROCESS_FINISHED_TEXT" );
 
     /**
@@ -769,7 +782,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT = localResourceBundle.getString(
+    public static final String LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT = active.bundle().getString(
             "LAUNCHER_NOT_CLIENT_MODE_SKIPPING_LOGIN_TEXT" );
 
     /**
@@ -777,14 +790,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String LAUNCHING_MOD_PACK_TEXT = localResourceBundle.getString( "LAUNCHING_MOD_PACK_TEXT" );
+    public static final String LAUNCHING_MOD_PACK_TEXT = active.bundle().getString( "LAUNCHING_MOD_PACK_TEXT" );
 
     /**
      * Message shown when unable to start the game due to an exception.
      *
      * @since 1.0
      */
-    public static final String UNABLE_START_GAME_EXCEPTION_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_START_GAME_EXCEPTION_TEXT = active.bundle().getString(
             "UNABLE_START_GAME_EXCEPTION_TEXT" );
 
     /**
@@ -793,21 +806,21 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String REQUIRES_MIN_OF_TEXT = localResourceBundle.getString( "REQUIRES_MIN_OF_TEXT" );
+    public static final String REQUIRES_MIN_OF_TEXT = active.bundle().getString( "REQUIRES_MIN_OF_TEXT" );
 
     /**
      * Text string for labeling a value as 'GB of RAM'.
      *
      * @since 1.0
      */
-    public static final String GB_OF_RAM_TEXT = localResourceBundle.getString( "GB_OF_RAM_TEXT" );
+    public static final String GB_OF_RAM_TEXT = active.bundle().getString( "GB_OF_RAM_TEXT" );
 
     /**
      * Message shown when the maximum configured RAM must be increased.
      *
      * @since 1.0
      */
-    public static final String MAX_RAM_SETTING_MUST_INCREASE_TEXT = localResourceBundle.getString(
+    public static final String MAX_RAM_SETTING_MUST_INCREASE_TEXT = active.bundle().getString(
             "MAX_RAM_SETTING_MUST_INCREASE_TEXT" );
 
     /**
@@ -816,7 +829,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT = localResourceBundle.getString(
+    public static final String PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT = active.bundle().getString(
             "PACK_NOT_INSTALLED_WILL_DEFAULT_TO_FIRST_TEXT" );
 
     /**
@@ -824,7 +837,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT = localResourceBundle.getString(
+    public static final String NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT = active.bundle().getString(
             "NO_MOD_PACKS_INSTALLED_CANT_LAUNCH_SERVER_TEXT" );
 
     /**
@@ -832,7 +845,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN = localResourceBundle.getString(
+    public static final String REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN = active.bundle().getString(
             "REMEMBERED_ACCOUNT_NOT_FOUND_SHOWING_LOGIN" );
 
     /**
@@ -840,14 +853,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String SEE_YOU_SOON_TEXT = localResourceBundle.getString( "SEE_YOU_SOON_TEXT" );
+    public static final String SEE_YOU_SOON_TEXT = active.bundle().getString( "SEE_YOU_SOON_TEXT" );
 
     /**
      * Message shown when the application is performing cleanup.
      *
      * @since 1.0
      */
-    public static final String PERFORMING_APP_CLEANUP_TEXT = localResourceBundle.getString(
+    public static final String PERFORMING_APP_CLEANUP_TEXT = active.bundle().getString(
             "PERFORMING_APP_CLEANUP_TEXT" );
 
     /**
@@ -855,14 +868,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String FINISHED_APP_CLEANUP_TEXT = localResourceBundle.getString( "FINISHED_APP_CLEANUP_TEXT" );
+    public static final String FINISHED_APP_CLEANUP_TEXT = active.bundle().getString( "FINISHED_APP_CLEANUP_TEXT" );
 
     /**
      * Message shown when an error occurred while configuring the application logging system.
      *
      * @since 1.0
      */
-    public static final String ERROR_CONFIGURING_LOG_SYSTEM_TEXT = localResourceBundle.getString(
+    public static final String ERROR_CONFIGURING_LOG_SYSTEM_TEXT = active.bundle().getString(
             "ERROR_CONFIGURING_LOG_SYSTEM_TEXT" );
 
     /**
@@ -870,7 +883,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String WAS_LOGGED_IN_TO_LAUNCHER_TEXT = localResourceBundle.getString(
+    public static final String WAS_LOGGED_IN_TO_LAUNCHER_TEXT = active.bundle().getString(
             "WAS_LOGGED_IN_TO_LAUNCHER_TEXT" );
 
     /**
@@ -878,14 +891,14 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String USAGE_TEXT = localResourceBundle.getString( "USAGE_TEXT" );
+    public static final String USAGE_TEXT = active.bundle().getString( "USAGE_TEXT" );
 
     /**
      * Message shown when invalid program arguments have been specified.
      *
      * @since 1.0
      */
-    public static final String INVALID_ARGS_SPECIFIED_TEXT = localResourceBundle.getString(
+    public static final String INVALID_ARGS_SPECIFIED_TEXT = active.bundle().getString(
             "INVALID_ARGS_SPECIFIED_TEXT" );
 
     /**
@@ -893,7 +906,7 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String UNABLE_WAIT_PENDING_LOGIN_TEXT = localResourceBundle.getString(
+    public static final String UNABLE_WAIT_PENDING_LOGIN_TEXT = active.bundle().getString(
             "UNABLE_WAIT_PENDING_LOGIN_TEXT" );
 
     /**
@@ -901,6 +914,6 @@ public class LocalizationManager
      *
      * @since 1.0
      */
-    public static final String AUTH_UNABLE_TO_REFRESH_TEXT = localResourceBundle.getString(
+    public static final String AUTH_UNABLE_TO_REFRESH_TEXT = active.bundle().getString(
             "AUTH_UNABLE_TO_REFRESH_TEXT" );
 }
