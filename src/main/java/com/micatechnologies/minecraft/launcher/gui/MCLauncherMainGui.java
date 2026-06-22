@@ -642,6 +642,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             if ( detailModal != null ) {
                 detailModal.dispose();
             }
+
+            // Release the VM's search-debounce timer + rebuild callback so a
+            // last-instant keystroke can't fire rebuildCards() on this torn-down
+            // screen (and the callback stops pinning this controller).
+            vm.dispose();
         } );
     }
 
@@ -724,7 +729,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * <p>Must run on the FX thread — touches FXML-injected controls and mutates
      * the FlowPane's child list.
      */
-    private void rebuildCards()
+    /**
+     * Builds the full filtered + sorted pack list for the current VM state
+     * (type / updates-only / search / sort), <em>before</em> pagination. Shared
+     * by {@link #rebuildCards()} (which slices it to the current page) and
+     * {@link #selectModpack(GameModPack)} (which finds a pack's index to compute
+     * its page), so the two can never disagree on ordering.
+     */
+    private List< GameModPack > buildFilteredSortedPacks()
     {
         // Step 1 — collect the union of installed modpacks + vanilla versions.
         List< GameModPack > all = new ArrayList<>( GameModPackManager.getInstalledModPacks() );
@@ -762,8 +774,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Step 5 — sort
         String sortSel = vm.getSortKey().isEmpty() ? SORT_LAST_PLAYED : vm.getSortKey();
         sortPacks( all, sortSel );
+        return all;
+    }
 
-        // Step 6 — paginate + render
+    private void rebuildCards()
+    {
+        List< GameModPack > all = buildFilteredSortedPacks();
+
+        // Paginate + render
         LibraryViewModel.PageBounds bounds = vm.clampAndSlice( all.size() );
 
         updatePaginationControls( bounds );
@@ -776,6 +794,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         modpackCardList.getChildren().clear();
 
         if ( bounds.totalItems() == 0 ) {
+            String typeSel = vm.getStringFilter( FILTER_TYPE, TYPE_ALL );
             String searchForEmptyState = vm.getSearchQuery().trim().toLowerCase( Locale.ROOT );
             modpackCardList.getChildren().add( buildEmptyState( typeSel, searchForEmptyState ) );
             return;
@@ -983,10 +1002,24 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // Programmatically reset the type filter in the VM since
             // typeFilter.selectItem(...) above doesn't fire setOnAction.
             vm.setFilter( FILTER_TYPE, TYPE_ALL );
-            rebuildCards();
 
             String wanted = modPack.getFriendlyName();
             String wantedName = modPack.getPackName();
+
+            // Jump to the page that actually contains the requested pack — without
+            // this, a pack past the first page never appears in modpackCardList and
+            // the scroll-into-view loop below silently finds nothing.
+            List< GameModPack > ordered = buildFilteredSortedPacks();
+            for ( int i = 0; i < ordered.size(); i++ ) {
+                GameModPack p = ordered.get( i );
+                if ( ( wanted != null && wanted.equals( p.getFriendlyName() ) )
+                        || ( wantedName != null && wantedName.equals( p.getPackName() ) ) ) {
+                    vm.setCurrentPage( i / vm.getPageSize() + 1 );
+                    break;
+                }
+            }
+            rebuildCards();
+
             for ( Node n : modpackCardList.getChildren() ) {
                 if ( n instanceof ModpackHeroCard card &&
                         ( ( wanted     != null && wanted.equals( card.pack.getFriendlyName() ) )

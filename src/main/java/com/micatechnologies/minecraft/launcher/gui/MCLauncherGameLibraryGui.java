@@ -617,7 +617,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     }
 
     @Override
-    void cleanup() { /* nothing to tear down — filter listeners die with the scene */ }
+    void cleanup() {
+        // Filter listeners die with the scene, but the VM's search-debounce timer
+        // doesn't — dispose it so a last-instant keystroke can't fire a rebuild on
+        // this torn-down controller.
+        vm.dispose();
+    }
 
     // =========================================================================================
     //  Add-by-URL platform-import helpers (Modrinth / CurseForge)
