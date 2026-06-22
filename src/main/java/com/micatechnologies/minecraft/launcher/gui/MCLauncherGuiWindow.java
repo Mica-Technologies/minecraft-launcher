@@ -703,6 +703,20 @@ public class MCLauncherGuiWindow extends Application
                 .applyHiddenInset( stage );
         com.micatechnologies.minecraft.launcher.utilities.MacOsToolbarManager
                 .install( stage );
+        // Re-apply the window's dark/light NSAppearance on every (re)show. Returning from a
+        // game hides + re-shows the stage and can rebuild the NSWindow peer, which drops the
+        // appearance set on first show — leaving the title-bar title and toolbar-button text
+        // black even in dark mode. Re-setting it here keeps the chrome text legible after a
+        // game return. macOS-gated so it never re-fires the Windows DWM dark-mode attribute,
+        // which the first-show path deliberately avoids re-running (it stutters on focus regain).
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+            String tokenSheet = currentTokenSheet();
+            boolean lightTheme = tokenSheet != null
+                              && ( tokenSheet.endsWith( "ui-tokens-light.css" )
+                                || tokenSheet.endsWith( "ui-tokens-native-light.css" ) );
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                    .applyTitleBarDarkMode( stage, !lightTheme );
+        }
     }
 
     /** Returns the currently-loaded ui-tokens-*.css path (one of {@link #UI_TOKENS_DARK} et al.)
