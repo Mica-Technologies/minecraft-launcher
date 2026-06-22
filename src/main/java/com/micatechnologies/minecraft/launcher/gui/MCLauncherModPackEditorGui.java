@@ -70,6 +70,23 @@ import java.util.Map;
  */
 public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 {
+    /** Bounded LRU cache of decoded Modrinth project icons (40×40), keyed by project
+     *  slug. Re-scrolling through search results otherwise re-fetched the project-detail
+     *  JSON and re-decoded the image every time a cell was rebound; a cache hit paints the
+     *  already-decoded {@link Image} instantly with no network or disk work. Access-ordered
+     *  so the least-recently-shown icon is evicted past the cap. */
+    private static final int MODRINTH_ICON_CACHE_MAX = 128;
+    private static final java.util.Map< String, Image > MODRINTH_ICON_CACHE =
+            java.util.Collections.synchronizedMap(
+                    new java.util.LinkedHashMap< String, Image >( 16, 0.75f, true )
+                    {
+                        @Override
+                        protected boolean removeEldestEntry( java.util.Map.Entry< String, Image > eldest )
+                        {
+                            return size() > MODRINTH_ICON_CACHE_MAX;
+                        }
+                    } );
+
     // region FXML fields
 
     @FXML MFXButton newBtn;
@@ -1082,7 +1099,15 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     String projectSlugForIcon = project.has( "slug" ) ?
                             project.get( "slug" ).getAsString() : null;
                     icon.setImage( null );
-                    if ( !iconUrl.isEmpty() || ( projectSlugForIcon != null && !projectSlugForIcon.isEmpty() ) ) {
+                    // Cache hit: paint the already-decoded icon immediately and skip the
+                    // network/disk round-trip entirely.
+                    Image cachedIconImg = ( projectSlugForIcon != null && !projectSlugForIcon.isEmpty() )
+                            ? MODRINTH_ICON_CACHE.get( projectSlugForIcon ) : null;
+                    if ( cachedIconImg != null ) {
+                        icon.setImage( cachedIconImg );
+                    }
+                    else if ( !iconUrl.isEmpty()
+                            || ( projectSlugForIcon != null && !projectSlugForIcon.isEmpty() ) ) {
                         final String finalIconUrl = iconUrl;
                         final String finalSlug = projectSlugForIcon;
                         // Capture the item this async load is for. ListView recycles cells, so by
@@ -1107,6 +1132,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                                     File cachedIcon = CacheManager.downloadAndCache( resolvedUrl );
                                     Image img = new Image( cachedIcon.toURI().toString(), 40, 40, true, true );
                                     if ( !img.isError() ) {
+                                        // Cache the decoded image (off the FX thread is fine — the map
+                                        // is synchronized) so a scroll-back is an instant hit.
+                                        if ( finalSlug != null && !finalSlug.isEmpty() ) {
+                                            MODRINTH_ICON_CACHE.put( finalSlug, img );
+                                        }
                                         GUIUtilities.JFXPlatformRun( () -> {
                                             if ( getItem() == cellItem ) {
                                                 icon.setImage( img );
