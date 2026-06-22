@@ -536,7 +536,10 @@ public class MCLauncherAuthManager
      *
      * @since 3.6
      */
-    public static CompletableFuture< MCLauncherAuthResult > renewExistingLoginAsync() {
+    public static synchronized CompletableFuture< MCLauncherAuthResult > renewExistingLoginAsync() {
+        // synchronized so the check-and-set of pendingRefresh is atomic: two callers
+        // racing this (e.g. the cold-start GUI path and tryPreemptiveBackgroundRenewal)
+        // must not both pass the in-flight check and submit two concurrent renewals.
         CompletableFuture< MCLauncherAuthResult > existing = pendingRefresh;
         if ( existing != null && !existing.isDone() ) {
             return existing;
@@ -689,16 +692,17 @@ public class MCLauncherAuthManager
                 return;
             }
             Logger.logStd( LocalizationManager.get( "log.authManager.softRefreshKickoff" ) );
-            java.util.concurrent.CompletableFuture.runAsync( () -> {
-                try {
-                    renewExistingLogin();
-                }
-                catch ( Throwable t ) {
-                    // Best-effort: any failure here is invisible to the user — they'll
-                    // hit the sync renewal next launch if this one didn't take.
-                    Logger.logWarningSilent( LocalizationManager.format( "log.authManager.preemptiveRenewalFailed",
-                                                     t.getClass().getSimpleName() ) );
-                }
+            // Route through the single-flight async path (dedicated REFRESH_EXECUTOR +
+            // pendingRefresh dedup) rather than the common ForkJoinPool, so this
+            // preemptive renewal can't run concurrently with a GUI/TUI-triggered one —
+            // which would double-fire network calls and race the shared auth state and
+            // token files (player.mica / cached_user.json / renewal.timestamp).
+            renewExistingLoginAsync().exceptionally( t -> {
+                // Best-effort: any failure here is invisible to the user — they'll
+                // hit the sync renewal next launch if this one didn't take.
+                Logger.logWarningSilent( LocalizationManager.format( "log.authManager.preemptiveRenewalFailed",
+                                                 t.getClass().getSimpleName() ) );
+                return null;
             } );
         }
         catch ( Throwable t ) {
