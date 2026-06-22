@@ -170,16 +170,17 @@ public class DesktopShortcutManager
                 String lower = name.toLowerCase();
                 return lower.endsWith( ".exe" ) && !lower.equals( "java.exe" ) && !lower.equals( "javaw.exe" );
             } );
-            if ( exeFiles != null && exeFiles.length > 0 ) {
-                return exeFiles[ 0 ].getAbsolutePath();
+            File chosen = pickBestExecutable( exeFiles );
+            if ( chosen != null ) {
+                return chosen.getAbsolutePath();
             }
         }
         else if ( SystemUtils.IS_OS_MAC ) {
             File macosDir = new File( installDir, "Contents" + File.separator + "MacOS" );
             if ( macosDir.isDirectory() ) {
-                File[] files = macosDir.listFiles( f -> f.isFile() && f.canExecute() );
-                if ( files != null && files.length > 0 ) {
-                    return files[ 0 ].getAbsolutePath();
+                File chosen = pickBestExecutable( macosDir.listFiles( f -> f.isFile() && f.canExecute() ) );
+                if ( chosen != null ) {
+                    return chosen.getAbsolutePath();
                 }
             }
         }
@@ -189,18 +190,53 @@ public class DesktopShortcutManager
                 String name = f.getName().toLowerCase();
                 return f.isFile() && f.canExecute() && !name.equals( "java" ) && !name.endsWith( ".jar" );
             } );
-            if ( files != null && files.length > 0 ) {
-                return files[ 0 ].getAbsolutePath();
+            File chosen = pickBestExecutable( files );
+            if ( chosen != null ) {
+                return chosen.getAbsolutePath();
             }
             File binDir = new File( installDir, "bin" );
             if ( binDir.isDirectory() ) {
-                File[] binFiles = binDir.listFiles( f -> f.isFile() && f.canExecute() );
-                if ( binFiles != null && binFiles.length > 0 ) {
-                    return binFiles[ 0 ].getAbsolutePath();
+                File chosenBin = pickBestExecutable( binDir.listFiles( f -> f.isFile() && f.canExecute() ) );
+                if ( chosenBin != null ) {
+                    return chosenBin.getAbsolutePath();
                 }
             }
         }
         return null;
+    }
+
+    /**
+     * Picks a deterministic, best-guess executable from {@code candidates}.
+     * Prefers one whose filename matches the launcher's application name; failing
+     * that, returns the alphabetically-first so the choice is stable across runs.
+     * Raw {@link File#listFiles()} order is unspecified, so {@code [0]} could pick
+     * the wrong binary when more than one matches.
+     *
+     * @return the chosen file, or {@code null} when {@code candidates} is null/empty
+     */
+    private static File pickBestExecutable( File[] candidates )
+    {
+        if ( candidates == null || candidates.length == 0 ) {
+            return null;
+        }
+        String appName = LauncherConstants.LAUNCHER_APPLICATION_NAME_TRIMMED.toLowerCase( java.util.Locale.ROOT );
+        File best = null;
+        for ( File f : candidates ) {
+            // Compare on the extension-stripped base name so "MicaLauncher.exe" matches.
+            String base = f.getName().toLowerCase( java.util.Locale.ROOT );
+            int dot = base.lastIndexOf( '.' );
+            if ( dot > 0 ) {
+                base = base.substring( 0, dot );
+            }
+            if ( !appName.isEmpty()
+                    && ( base.equals( appName ) || base.contains( appName ) || appName.contains( base ) ) ) {
+                return f;
+            }
+            if ( best == null || f.getName().compareToIgnoreCase( best.getName() ) < 0 ) {
+                best = f;
+            }
+        }
+        return best;
     }
 
     /**
