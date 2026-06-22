@@ -227,7 +227,13 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
 
         crashReportBtn.setOnAction( event -> {
             if ( showingCrashReport ) {
-                logArea.setText( getDisplayLog() );
+                String displayLog = getDisplayLog();
+                logArea.setText( displayLog );
+                // Resync the line count to the text we just installed. While the crash
+                // report was showing, flushPendingLines early-returned without
+                // incrementing displayLineCount, so it's stale — leaving it would make
+                // the next trimDisplayIfNeeded drop the wrong number of leading lines.
+                displayLineCount = countNewlines( displayLog );
                 logArea.positionCaret( logArea.getText().length() );
                 crashReportBtn.setText( LocalizationManager.get( "console.crashReportBtn.crashReport" ) );
                 showingCrashReport = false;
@@ -841,6 +847,19 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     /**
      * Returns the current full log content as a String for display when switching from crash report view.
      */
+    /** Counts newline characters in {@code text}. The display appends every line
+     *  with a trailing '\n', so this equals the displayed line count that
+     *  {@link #displayLineCount} tracks. */
+    private static int countNewlines( String text ) {
+        int count = 0;
+        for ( int i = 0; i < text.length(); i++ ) {
+            if ( text.charAt( i ) == '\n' ) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private String getDisplayLog() {
         synchronized ( fullLogContent ) {
             String full = fullLogContent.toString();
