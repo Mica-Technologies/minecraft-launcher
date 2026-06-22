@@ -360,14 +360,23 @@ public class GameAssetManifest extends ManagedGameFile
             threadPoolFutures.add( future );
         }
         threadPool.shutdown();
-        if ( !threadPool.awaitTermination( 30, TimeUnit.MINUTES ) ) {
-            threadPool.shutdownNow();
-            throw new ModpackException( "Asset downloads did not complete within 30 minutes." );
-        }
+        try {
+            if ( !threadPool.awaitTermination( 30, TimeUnit.MINUTES ) ) {
+                threadPool.shutdownNow();
+                throw new ModpackException( "Asset downloads did not complete within 30 minutes." );
+            }
 
-        // Parse list of futures
-        for (Future< Boolean > threadPoolFuture : threadPoolFutures ) {
-            threadPoolFuture.get();
+            // Parse list of futures
+            for (Future< Boolean > threadPoolFuture : threadPoolFutures ) {
+                threadPoolFuture.get();
+            }
+        }
+        catch ( InterruptedException e ) {
+            // Don't leak the worker threads (and their in-flight downloads) if we're
+            // interrupted mid-wait — cancel them and restore the interrupt flag.
+            threadPool.shutdownNow();
+            Thread.currentThread().interrupt();
+            throw e;
         }
     }
 }
