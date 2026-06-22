@@ -119,6 +119,9 @@ public class GUIUtilities
             waitForResponse.await();
         }
         catch ( InterruptedException e ) {
+            // Preserve the interrupt so callers up the stack can still detect
+            // cancellation — showing a dialog here must not swallow the signal.
+            Thread.currentThread().interrupt();
             // Show error for unable to wait for error acknowledge
             JFXPlatformRun( () -> {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
@@ -253,6 +256,9 @@ public class GUIUtilities
             waitForError.await();
         }
         catch ( InterruptedException e ) {
+            // Preserve the interrupt so callers up the stack can still detect
+            // cancellation — showing a dialog here must not swallow the signal.
+            Thread.currentThread().interrupt();
             // Show error for unable to wait for error acknowledge
             JFXPlatformRun( () -> {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
@@ -441,6 +447,9 @@ public class GUIUtilities
             waitForError.await();
         }
         catch ( InterruptedException e ) {
+            // Preserve the interrupt so callers up the stack can still detect
+            // cancellation — showing a dialog here must not swallow the signal.
+            Thread.currentThread().interrupt();
             // Show error for unable to wait for error acknowledge
             JFXPlatformRun( () -> {
                 Alert errorAlert = new Alert( Alert.AlertType.ERROR );
@@ -491,6 +500,9 @@ public class GUIUtilities
             waitForWarning.await();
         }
         catch ( InterruptedException e ) {
+            // Preserve the interrupt so callers up the stack can still detect
+            // cancellation — showing a dialog here must not swallow the signal.
+            Thread.currentThread().interrupt();
             // Show error for unable to wait for error acknowledge
             JFXPlatformRun( () -> {
                 Alert warningAlert = new Alert( Alert.AlertType.ERROR );
