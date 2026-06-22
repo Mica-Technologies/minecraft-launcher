@@ -87,11 +87,19 @@ public record CrashDiagnosis(
     /** Fallback when no detector matches. Generic prompt to use the raw report. */
     public static CrashDiagnosis unknown( int exitCode )
     {
+        return unknownWithSuggestions( exitCode, List.of() );
+    }
+
+    /** Like {@link #unknown(int)} but carries one or more suggested actions — used by
+     *  {@link CrashReportAnalyzer} to attach a "search the web" hint when it has crash
+     *  text but no specific diagnosis. */
+    public static CrashDiagnosis unknownWithSuggestions( int exitCode, List< Suggestion > suggestions )
+    {
         return new CrashDiagnosis(
                 Category.UNKNOWN,
                 Severity.CRITICAL,
                 LocalizationManager.get( "crash.unknown.title" ),
                 LocalizationManager.format( "crash.unknown.summary", exitCode ),
-                List.of() );
+                suggestions );
     }
 }

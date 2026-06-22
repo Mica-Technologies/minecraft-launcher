@@ -135,7 +135,47 @@ public final class CrashReportAnalyzer
                 Logger.logWarningSilent( LocalizationManager.format( "log.crashAnalyzer.detectorThrew", e.getMessage() ) );
             }
         }
+        // No detector matched, but we have crash text — offer a web search on the most
+        // salient exception as a last-resort hint, so an un-diagnosed crash still has an
+        // actionable next step instead of a dead end.
+        Suggestion search = searchDocumentationSuggestion( pack, extractCrashSearchPhrase( crashText ) );
+        if ( search != null ) {
+            return CrashDiagnosis.unknownWithSuggestions( exitCode, List.of( search ) );
+        }
         return CrashDiagnosis.unknown( exitCode );
+    }
+
+    /** Matches a fully-qualified Java exception/error type and its (optional) message. */
+    private static final Pattern EXCEPTION_PHRASE_PATTERN = Pattern.compile(
+            "((?:[a-zA-Z_$][\\w$]*\\.)+[A-Z][\\w$]*(?:Exception|Error))(?::\\s*([^\\r\\n]+))?" );
+
+    /**
+     * Extracts a concise, searchable phrase from a crash report — the first
+     * fully-qualified exception, with its message truncated — for use as a web-search
+     * query when no detector could diagnose the crash. Returns {@code null} when nothing
+     * usable is found (the caller then shows the plain unknown diagnosis with no search).
+     */
+    static String extractCrashSearchPhrase( String crashText )
+    {
+        if ( crashText == null || crashText.isBlank() ) {
+            return null;
+        }
+        Matcher m = EXCEPTION_PHRASE_PATTERN.matcher( crashText );
+        if ( !m.find() ) {
+            return null;
+        }
+        String type = m.group( 1 );
+        String message = m.group( 2 );
+        if ( message == null || message.isBlank() ) {
+            return type;
+        }
+        String trimmed = message.trim();
+        // Cap the message so the query stays a focused search term (and a long message
+        // carrying a user-specific path can't bloat the URL).
+        if ( trimmed.length() > 120 ) {
+            trimmed = trimmed.substring( 0, 120 ).trim();
+        }
+        return type + ": " + trimmed;
     }
 
     // =========================================================================================

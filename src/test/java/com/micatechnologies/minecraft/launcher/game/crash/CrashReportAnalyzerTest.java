@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -327,5 +328,54 @@ class CrashReportAnalyzerTest
         CrashDiagnosis diag = CrashReportAnalyzer.analyze( null, null, FAKE_EXIT_CODE );
         assertNotNull( diag );
         assertEquals( CrashDiagnosis.Category.UNKNOWN, diag.category() );
+    }
+
+    // ===== extractCrashSearchPhrase (web-search hint on un-diagnosed crashes) =====
+
+    @Test
+    void searchPhraseCapturesFullyQualifiedExceptionAndMessage()
+    {
+        String text = "Some preamble\n"
+                + "com.example.cursed.WidgetException: Cannot bake widget for biome plains\n"
+                + "\tat com.example.cursed.Widget.bake(Widget.java:42)\n";
+        assertEquals( "com.example.cursed.WidgetException: Cannot bake widget for biome plains",
+                      CrashReportAnalyzer.extractCrashSearchPhrase( text ) );
+    }
+
+    @Test
+    void searchPhraseFallsBackToTypeWhenNoMessage()
+    {
+        assertEquals( "com.example.mod.LoaderError",
+                      CrashReportAnalyzer.extractCrashSearchPhrase( "boom com.example.mod.LoaderError\n more" ) );
+    }
+
+    @Test
+    void searchPhraseTruncatesLongMessages()
+    {
+        String prefix = "com.example.FooException: ";
+        String phrase = CrashReportAnalyzer.extractCrashSearchPhrase( prefix + "x".repeat( 300 ) );
+        assertNotNull( phrase );
+        // type + ": " + at most 120 message chars.
+        assertTrue( phrase.length() <= prefix.length() + 120,
+                    "phrase should be truncated, was " + phrase.length() );
+    }
+
+    @Test
+    void searchPhraseReturnsNullWhenNoExceptionPresent()
+    {
+        assertNull( CrashReportAnalyzer.extractCrashSearchPhrase( "just some plain log output, no stack trace" ) );
+        assertNull( CrashReportAnalyzer.extractCrashSearchPhrase( "" ) );
+        assertNull( CrashReportAnalyzer.extractCrashSearchPhrase( null ) );
+    }
+
+    @Test
+    void unmatchedCrashGetsWebSearchSuggestion()
+    {
+        // Text with an exception that no specific detector recognizes → UNKNOWN, but with a
+        // "search the web" suggestion attached rather than an empty action list.
+        CrashDiagnosis diag = CrashReportAnalyzer.analyze(
+                "com.unknownmod.GremlinException: the gremlins won", null, FAKE_EXIT_CODE );
+        assertEquals( CrashDiagnosis.Category.UNKNOWN, diag.category() );
+        assertTrue( diag.suggestions().size() >= 1, "un-diagnosed crash should carry a search suggestion" );
     }
 }
