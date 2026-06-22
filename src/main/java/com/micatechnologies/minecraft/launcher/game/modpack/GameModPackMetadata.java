@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.VersionUtilities;
 
@@ -633,38 +634,43 @@ public abstract class GameModPackMetadata
         long totalPlayTime = 0;
         int launchCount = 0;
 
-        // Read existing history
-        if ( Files.exists( historyFile ) ) {
+        // Serialize the whole read-modify-write on the canonical per-path monitor so a
+        // concurrent recordSessionEnd / second launch of the same pack can't lose
+        // accumulated play time or launch count (both touch this .launch_history file).
+        synchronized ( SynchronizedFileManager.getSynchronizedFile( historyFile ) ) {
+            // Read existing history
+            if ( Files.exists( historyFile ) ) {
+                try {
+                    String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
+                    String[] parts = content.trim().split( "\n" );
+                    if ( parts.length >= 2 ) {
+                        totalPlayTime = Long.parseLong( parts[1].trim() );
+                    }
+                    if ( parts.length >= 3 ) {
+                        launchCount = Integer.parseInt( parts[2].trim() );
+                    }
+                }
+                catch ( Exception e ) {
+                    Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadLaunchHistory", getPackName() ) );
+                }
+            }
+
+            // Write updated history (last played, total play time, launch count)
             try {
-                String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
-                String[] parts = content.trim().split( "\n" );
-                if ( parts.length >= 2 ) {
-                    totalPlayTime = Long.parseLong( parts[1].trim() );
-                }
-                if ( parts.length >= 3 ) {
-                    launchCount = Integer.parseInt( parts[2].trim() );
-                }
+                //noinspection ResultOfMethodCallIgnored
+                historyFile.getParent().toFile().mkdirs();
+                String content = now + "\n" + totalPlayTime + "\n" + ( launchCount + 1 ) + "\n";
+                Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
             }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadLaunchHistory", getPackName() ) );
+            catch ( IOException e ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveLaunchHistory", getPackName() ) );
             }
-        }
 
-        // Write updated history (last played, total play time, launch count)
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            historyFile.getParent().toFile().mkdirs();
-            String content = now + "\n" + totalPlayTime + "\n" + ( launchCount + 1 ) + "\n";
-            Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
+            // Update cache
+            cachedLastPlayedMs = now;
+            cachedTotalPlayTimeMs = totalPlayTime;
+            cachedLaunchCount = launchCount + 1;
         }
-        catch ( IOException e ) {
-            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveLaunchHistory", getPackName() ) );
-        }
-
-        // Update cache
-        cachedLastPlayedMs = now;
-        cachedTotalPlayTimeMs = totalPlayTime;
-        cachedLaunchCount = launchCount + 1;
     }
 
     /**
@@ -681,39 +687,44 @@ public abstract class GameModPackMetadata
         long totalPlayTime = sessionDurationMs;
         int launchCount = 1;
 
-        // Read existing history
-        if ( Files.exists( historyFile ) ) {
+        // Serialize the whole read-modify-write on the canonical per-path monitor so a
+        // concurrent recordLaunchStart / second session of the same pack can't lose
+        // accumulated play time or launch count (both touch this .launch_history file).
+        synchronized ( SynchronizedFileManager.getSynchronizedFile( historyFile ) ) {
+            // Read existing history
+            if ( Files.exists( historyFile ) ) {
+                try {
+                    String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
+                    String[] parts = content.trim().split( "\n" );
+                    if ( parts.length >= 1 ) {
+                        lastPlayed = Long.parseLong( parts[0].trim() );
+                    }
+                    if ( parts.length >= 2 ) {
+                        totalPlayTime += Long.parseLong( parts[1].trim() );
+                    }
+                    if ( parts.length >= 3 ) {
+                        launchCount = Integer.parseInt( parts[2].trim() );
+                    }
+                }
+                catch ( Exception e ) {
+                    Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadLaunchHistory", getPackName() ) );
+                }
+            }
+
+            // Write updated history with accumulated play time
             try {
-                String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
-                String[] parts = content.trim().split( "\n" );
-                if ( parts.length >= 1 ) {
-                    lastPlayed = Long.parseLong( parts[0].trim() );
-                }
-                if ( parts.length >= 2 ) {
-                    totalPlayTime += Long.parseLong( parts[1].trim() );
-                }
-                if ( parts.length >= 3 ) {
-                    launchCount = Integer.parseInt( parts[2].trim() );
-                }
+                String content = lastPlayed + "\n" + totalPlayTime + "\n" + launchCount + "\n";
+                Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
             }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadLaunchHistory", getPackName() ) );
+            catch ( IOException e ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveLaunchHistory", getPackName() ) );
             }
-        }
 
-        // Write updated history with accumulated play time
-        try {
-            String content = lastPlayed + "\n" + totalPlayTime + "\n" + launchCount + "\n";
-            Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
+            // Update cache
+            cachedLastPlayedMs = lastPlayed;
+            cachedTotalPlayTimeMs = totalPlayTime;
+            cachedLaunchCount = launchCount;
         }
-        catch ( IOException e ) {
-            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveLaunchHistory", getPackName() ) );
-        }
-
-        // Update cache
-        cachedLastPlayedMs = lastPlayed;
-        cachedTotalPlayTimeMs = totalPlayTime;
-        cachedLaunchCount = launchCount;
     }
 
     /**
@@ -725,24 +736,28 @@ public abstract class GameModPackMetadata
             return;
         }
         Path historyFile = Path.of( getPackRootFolder(), LAUNCH_HISTORY_FILE );
-        if ( Files.exists( historyFile ) ) {
-            try {
-                String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
-                String[] parts = content.trim().split( "\n" );
-                cachedLastPlayedMs = parts.length >= 1 ? Long.parseLong( parts[0].trim() ) : 0;
-                cachedTotalPlayTimeMs = parts.length >= 2 ? Long.parseLong( parts[1].trim() ) : 0;
-                cachedLaunchCount = parts.length >= 3 ? Integer.parseInt( parts[2].trim() ) : 0;
+        // Read under the same per-path monitor the record* writers use so we never
+        // parse a half-written file mid-update.
+        synchronized ( SynchronizedFileManager.getSynchronizedFile( historyFile ) ) {
+            if ( Files.exists( historyFile ) ) {
+                try {
+                    String content = Files.readString( historyFile, StandardCharsets.UTF_8 );
+                    String[] parts = content.trim().split( "\n" );
+                    cachedLastPlayedMs = parts.length >= 1 ? Long.parseLong( parts[0].trim() ) : 0;
+                    cachedTotalPlayTimeMs = parts.length >= 2 ? Long.parseLong( parts[1].trim() ) : 0;
+                    cachedLaunchCount = parts.length >= 3 ? Integer.parseInt( parts[2].trim() ) : 0;
+                }
+                catch ( Exception e ) {
+                    cachedLastPlayedMs = 0;
+                    cachedTotalPlayTimeMs = 0;
+                    cachedLaunchCount = 0;
+                }
             }
-            catch ( Exception e ) {
+            else {
                 cachedLastPlayedMs = 0;
                 cachedTotalPlayTimeMs = 0;
                 cachedLaunchCount = 0;
             }
-        }
-        else {
-            cachedLastPlayedMs = 0;
-            cachedTotalPlayTimeMs = 0;
-            cachedLaunchCount = 0;
         }
     }
 
