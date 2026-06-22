@@ -50,7 +50,7 @@ public class GameVersionManifest
      *
      * @since 2.0
      */
-    private static JsonObject versionManifest = null;
+    private static volatile JsonObject versionManifest = null;
 
     /**
      * Cache of downloaded and parsed client.json objects keyed by Minecraft version ID.
@@ -89,16 +89,23 @@ public class GameVersionManifest
      * @since 3.0
      */
     public static void ensureManifestDownloaded() throws ModpackException {
+        // Double-checked locking over the volatile field: concurrent launch
+        // threads (LAUNCH_IO_POOL workers, background revalidation) could
+        // otherwise both download and one clobber the other's result.
         if ( versionManifest == null ) {
-            try {
-                Logger.logDebug( LocalizationManager.get( "log.versionManifest.notDownloadedGettingNow" ) );
-                download();
-                Logger.logDebug( LocalizationManager.get( "log.versionManifest.downloaded" ) );
-            }
-            catch ( IOException e ) {
-                Logger.logError( LocalizationManager.get( "log.versionManifest.downloadReadFailed" ) );
-                Logger.logThrowable( e );
-                throw new ModpackException( "Unable to download Minecraft version manifest.", e );
+            synchronized ( GameVersionManifest.class ) {
+                if ( versionManifest == null ) {
+                    try {
+                        Logger.logDebug( LocalizationManager.get( "log.versionManifest.notDownloadedGettingNow" ) );
+                        download();
+                        Logger.logDebug( LocalizationManager.get( "log.versionManifest.downloaded" ) );
+                    }
+                    catch ( IOException e ) {
+                        Logger.logError( LocalizationManager.get( "log.versionManifest.downloadReadFailed" ) );
+                        Logger.logThrowable( e );
+                        throw new ModpackException( "Unable to download Minecraft version manifest.", e );
+                    }
+                }
             }
         }
     }
@@ -141,23 +148,43 @@ public class GameVersionManifest
      * @since 3.0
      */
     public static JsonObject getClientJson( String minecraftVersion ) throws ModpackException {
-        JsonObject cached = clientJsonCache.get( minecraftVersion );
-        if ( cached != null ) {
-            return cached;
-        }
-
-        String url = getMinecraftLibraryManifestURL( minecraftVersion );
+        // computeIfAbsent guarantees the download/parse happens once per version
+        // even under concurrent launches; checked exceptions from the mapping
+        // function are tunnelled through an unchecked wrapper and unwrapped below.
         try {
-            String localPath = LocalPathManager.getLauncherMetadataFolderPath() + File.separator +
-                    "client-" + minecraftVersion + ".json";
-            File localFile = SynchronizedFileManager.getSynchronizedFile( localPath );
-            NetworkUtilities.downloadFileFromURL( url, localFile );
-            JsonObject clientJson = FileUtilities.readAsJsonObject( localFile );
-            clientJsonCache.put( minecraftVersion, clientJson );
-            return clientJson;
+            return clientJsonCache.computeIfAbsent( minecraftVersion, version -> {
+                try {
+                    String url = getMinecraftLibraryManifestURL( version );
+                    String localPath = LocalPathManager.getLauncherMetadataFolderPath() + File.separator +
+                            "client-" + version + ".json";
+                    File localFile = SynchronizedFileManager.getSynchronizedFile( localPath );
+                    NetworkUtilities.downloadFileFromURL( url, localFile );
+                    return FileUtilities.readAsJsonObject( localFile );
+                }
+                catch ( ModpackException | IOException e ) {
+                    throw new ClientJsonFetchException( e );
+                }
+            } );
         }
-        catch ( IOException e ) {
-            throw new ModpackException( "Unable to download client.json for Minecraft " + minecraftVersion, e );
+        catch ( ClientJsonFetchException e ) {
+            if ( e.getCause() instanceof ModpackException modpackException ) {
+                throw modpackException;
+            }
+            throw new ModpackException( "Unable to download client.json for Minecraft " + minecraftVersion,
+                                        e.getCause() );
+        }
+    }
+
+    /**
+     * Unchecked carrier used to tunnel checked exceptions out of the
+     * {@link #getClientJson(String)} {@code computeIfAbsent} mapping function.
+     *
+     * @since 3.0
+     */
+    private static final class ClientJsonFetchException extends RuntimeException
+    {
+        private ClientJsonFetchException( Throwable cause ) {
+            super( cause );
         }
     }
 
