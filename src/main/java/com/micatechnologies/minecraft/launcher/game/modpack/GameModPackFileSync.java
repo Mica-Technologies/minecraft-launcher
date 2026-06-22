@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
+import com.micatechnologies.minecraft.launcher.utilities.DownloadExecutor;
 import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
 import org.apache.commons.io.FilenameUtils;
 
@@ -41,11 +42,6 @@ import java.util.concurrent.*;
  */
 class GameModPackFileSync
 {
-    /**
-     * Maximum number of concurrent download threads for mod files.
-     */
-    private static final int MAX_DOWNLOAD_THREADS = 8;
-
     private final GameModPackMetadata         metadata;
     private final GameModPackProgressProvider  progressProvider;
     private final DownloadTracker              downloadTracker;
@@ -117,10 +113,8 @@ class GameModPackFileSync
                 File.separator +
                 ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
-        // Build list of mod download threads
+        // Build list of mod download tasks on the shared bounded download pool.
         if ( metadata.packMods.size() > 1 ) {
-            ExecutorService threadPool = Executors.newFixedThreadPool(
-                    Math.min( metadata.packMods.size(), MAX_DOWNLOAD_THREADS ) );
             List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
             for ( GameMod mod : metadata.packMods ) {
                 Callable< Boolean > updateFileCallable = () -> {
@@ -144,34 +138,24 @@ class GameModPackFileSync
                     }
                     return ret;
                 };
-                Future< Boolean > future = threadPool.submit( updateFileCallable );
+                Future< Boolean > future = DownloadExecutor.submit( updateFileCallable );
                 threadPoolFutures.add( future );
             }
-            threadPool.shutdown();
+            // Drain the futures on the shared pool, bounded at 30 minutes. awaitAll
+            // cancels still-pending siblings on interrupt/timeout/failure.
             try {
-                if ( !threadPool.awaitTermination( 30, TimeUnit.MINUTES ) ) {
-                    threadPool.shutdownNow();
-                    throw new ModpackException(
-                            "Mod downloads did not complete within 30 minutes. Check your network connection." );
-                }
+                DownloadExecutor.awaitAll( threadPoolFutures, 30 * 60 * 1000L );
+            }
+            catch ( TimeoutException e ) {
+                throw new ModpackException(
+                        "Mod downloads did not complete within 30 minutes. Check your network connection." );
             }
             catch ( InterruptedException e ) {
-                threadPool.shutdownNow();
+                Thread.currentThread().interrupt();
                 throw new ModpackException( "The download of Minecraft mods was interrupted before completion!", e );
             }
-
-            // Parse list of futures
-            for ( Future< Boolean > threadPoolFuture : threadPoolFutures ) {
-                try {
-                    threadPoolFuture.get();
-                }
-                catch ( InterruptedException e ) {
-                    throw new ModpackException( "The download of Minecraft mods was interrupted before completion!",
-                                                e );
-                }
-                catch ( ExecutionException e ) {
-                    throw new ModpackException( "Unable to execute runner to retrieve Minecraft mods!", e );
-                }
+            catch ( ExecutionException e ) {
+                throw new ModpackException( "Unable to execute runner to retrieve Minecraft mods!", e );
             }
         }
     }
