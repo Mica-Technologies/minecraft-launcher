@@ -475,6 +475,12 @@ public final class RgbController
         }
     }
 
+    /**
+     * Returns a snapshot of the controller's current state — the active backend
+     * slots with their health, and whether the render worker is running.
+     *
+     * @return a {@link Status} describing the live backends and run state
+     */
     public Status status()
     {
         if ( slots.isEmpty() ) {
@@ -568,6 +574,10 @@ public final class RgbController
         void run() throws Throwable;
     }
 
+    /**
+     * Stops the render worker (interrupt + bounded join), shuts down every active
+     * backend slot, and clears the pending frame queue. Used on stop/restart.
+     */
     private void stopWorkerAndShutdownSlots()
     {
         running = false;
@@ -584,6 +594,12 @@ public final class RgbController
         frameQueue.clear();
     }
 
+    /**
+     * Shuts down a single backend, swallowing any error so one misbehaving
+     * vendor SDK can't break teardown of the others.
+     *
+     * @param backend the backend to shut down
+     */
     private void safelyShutdown( RgbBackend backend )
     {
         safelyInvoke( "shutdown on " + safeName( backend ), backend::shutdown );
@@ -614,6 +630,12 @@ public final class RgbController
         return true;
     }
 
+    /**
+     * Returns a comma-separated list of the active backend names for log output,
+     * or {@code "<none>"} when no slots are active.
+     *
+     * @return a human-readable summary of active backends
+     */
     private String describeSlots()
     {
         if ( slots.isEmpty() ) return "<none>";
@@ -622,6 +644,14 @@ public final class RgbController
         return String.join( ", ", names );
     }
 
+    /**
+     * Returns a backend's name defensively — {@code "<null>"} for a null backend,
+     * and the class simple name if {@link RgbBackend#name()} itself throws.
+     *
+     * @param b the backend to name (may be {@code null})
+     *
+     * @return a non-null display name, never throwing
+     */
     private static String safeName( RgbBackend b )
     {
         if ( b == null ) return "<null>";
