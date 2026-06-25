@@ -1998,6 +1998,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             }
         }
 
+        /**
+         * Returns a human-readable label for a vanilla version type (e.g. release,
+         * snapshot, old_beta).
+         *
+         * @param t the raw version-type string
+         *
+         * @return the display label
+         */
         private static String prettyVanillaType( String t )
         {
             return switch ( t ) {
@@ -2258,6 +2266,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             };
         }
 
+        /**
+         * Returns the CSS style class for the entry's top-corner status badge.
+         *
+         * @param entry the library entry
+         *
+         * @return the badge style class
+         */
         private String topBadgeStyleFor( LibraryEntry entry )
         {
             return switch ( entry.kind ) {
@@ -2302,6 +2317,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             return out;
         }
 
+        /**
+         * Builds a primary action button for a library card.
+         *
+         * @param label      the button text
+         * @param styleClass an extra CSS style class
+         * @param onClick    the click handler
+         *
+         * @return the configured button
+         */
         private MFXButton primaryAction( String label, String styleClass, Runnable onClick )
         {
             MFXButton btn = new MFXButton( label );
@@ -2313,6 +2337,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             return btn;
         }
 
+        /**
+         * Builds a secondary action button for a library card.
+         *
+         * @param label   the button text
+         * @param onClick the click handler
+         *
+         * @return the configured button
+         */
         private MFXButton secondaryAction( String label, Runnable onClick )
         {
             MFXButton btn = new MFXButton( label );
@@ -2323,6 +2355,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             return btn;
         }
 
+        /**
+         * Builds a stat chip with the base style.
+         *
+         * @param text the chip text
+         *
+         * @return the chip label
+         */
         private Label buildChip( String text )
         {
             Label chip = new Label( text );
@@ -2330,6 +2369,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             return chip;
         }
 
+        /**
+         * Builds a stat chip with an additional style class.
+         *
+         * @param text       the chip text
+         * @param extraClass an extra CSS style class
+         *
+         * @return the chip label
+         */
         private Label buildChip( String text, String extraClass )
         {
             Label chip = new Label( text );
@@ -2417,6 +2464,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * Installs the available modpack backing the given library entry.
+     *
+     * @param entry the available-modpack entry
+     */
     private void installAvailableModpack( LibraryEntry entry )
     {
         if ( entry.pack == null ) return;
@@ -2435,6 +2487,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         }, this::hideBackgroundStatus );
     }
 
+    /**
+     * Uninstalls the installed vanilla version backing the given entry.
+     *
+     * @param entry the installed-vanilla entry
+     */
     private void uninstallInstalledVanilla( LibraryEntry entry )
     {
         if ( entry.vanillaVersionId == null ) return;
@@ -2467,6 +2524,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         }, this::hideBackgroundStatus );
     }
 
+    /**
+     * Installs the available vanilla version backing the given entry.
+     *
+     * @param entry the available-vanilla entry
+     */
     private void installAvailableVanilla( LibraryEntry entry )
     {
         if ( entry.vanillaVersionId == null ) return;
@@ -2523,6 +2585,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * Opens the modpack editor, optionally pre-loaded with the given pack.
+     *
+     * @param initialPack the pack to pre-load, or {@code null} for a blank editor
+     */
     private void openModpackEditor( GameModPack initialPack )
     {
         SystemUtilities.spawnNewTask( () -> {

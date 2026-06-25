@@ -1362,6 +1362,15 @@ public final class ModpackContentBrowser
         return row;
     }
 
+    /**
+     * Formats a file's metadata line (human-readable size + last-modified) for a
+     * content-browser row.
+     *
+     * @param f         the file
+     * @param sizeBytes the file size in bytes
+     *
+     * @return the formatted metadata string
+     */
     private static String formatMeta( File f, long sizeBytes )
     {
         String size = humanSize( sizeBytes );
@@ -1369,6 +1378,13 @@ public final class ModpackContentBrowser
         return size + " · " + LocalizationManager.format( "detailModal.content.lastModified", mtime );
     }
 
+    /**
+     * Formats a byte count as a human-readable size (e.g. {@code 4.2 MB}).
+     *
+     * @param bytes the size in bytes
+     *
+     * @return the human-readable size string
+     */
     private static String humanSize( long bytes )
     {
         if ( bytes < 1024 ) return bytes + " B";
@@ -1543,6 +1559,14 @@ public final class ModpackContentBrowser
         } );
     }
 
+    /**
+     * Prompts for confirmation and, if accepted, deletes the file and rebuilds the
+     * owning section.
+     *
+     * @param f                the file to delete
+     * @param owner            the owning stage for the confirm dialog
+     * @param sectionToRebuild  the section UI to refresh after deletion
+     */
     private static void confirmDelete( File f, Stage owner, VBox sectionToRebuild )
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -1581,6 +1605,12 @@ public final class ModpackContentBrowser
         } );
     }
 
+    /**
+     * Creates the muted "empty" placeholder label shown when a content section has
+     * no items.
+     *
+     * @return the styled empty-state label
+     */
     private static Label emptyLabel()
     {
         Label l = new Label( LocalizationManager.get( "detailModal.content.empty" ) );

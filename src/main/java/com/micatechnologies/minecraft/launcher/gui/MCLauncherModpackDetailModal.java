@@ -507,6 +507,13 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  that the whole body still streams in within the fade's duration. */
     private static final int SECTIONS_PER_FRAME = 3;
 
+    /**
+     * Builds the modal's body sections for the pack (hero, stat chips, quick
+     * actions, stats, update log, content browsers, news, links) and appends them
+     * incrementally on the FX thread to keep modal-open responsive.
+     *
+     * @param pack the pack whose detail content is rendered
+     */
     private void populateBodyContent( GameModPack pack )
     {
         final VBox body = currentBody;
@@ -592,6 +599,12 @@ public class MCLauncherModpackDetailModal extends StackPane
         new AnimationTimer()
         {
             @Override
+            /**
+             * AnimationTimer tick that appends the next batch of deferred section builders
+             * each frame, stopping once all sections are rendered (or the modal closed).
+             *
+             * @param now the frame timestamp in nanoseconds
+             */
             public void handle( long now )
             {
                 // Abandon the build if the modal was closed or re-shown for another
@@ -2353,6 +2366,14 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
     }
 
+    /**
+     * Resolves the hero background image URL for the pack, or {@code null} when the
+     * pack has no custom background.
+     *
+     * @param pack the pack
+     *
+     * @return a usable background URL, or {@code null}
+     */
     private static String resolveBackgroundUrl( GameModPack pack )
     {
         try {
@@ -2367,6 +2388,13 @@ public class MCLauncherModpackDetailModal extends StackPane
         return null;
     }
 
+    /**
+     * Returns the pack's display name for the modal header.
+     *
+     * @param pack the pack
+     *
+     * @return the display name
+     */
     private static String resolveDisplayName( GameModPack pack )
     {
         if ( pack.isVanillaVersion() ) {
@@ -2405,18 +2433,39 @@ public class MCLauncherModpackDetailModal extends StackPane
         catch ( Exception ignored ) { return null; }
     }
 
+    /**
+     * Returns the pack's Minecraft version, or {@code null} if it can't be resolved.
+     *
+     * @param pack the pack
+     *
+     * @return the Minecraft version, or {@code null}
+     */
     private static String safeMinecraftVersion( GameModPack pack )
     {
         try { return pack.getMinecraftVersion(); }
         catch ( Exception ignored ) { return null; }
     }
 
+    /**
+     * Returns the pack's modloader name, or {@code null} if it can't be resolved.
+     *
+     * @param pack the pack
+     *
+     * @return the loader name, or {@code null}
+     */
     private static String safeLoaderName( GameModPack pack )
     {
         try { return pack.getLoaderName(); }
         catch ( Exception ignored ) { return null; }
     }
 
+    /**
+     * Returns the pack's modloader version, or {@code null} if it can't be resolved.
+     *
+     * @param pack the pack
+     *
+     * @return the loader version, or {@code null}
+     */
     private static String safeLoaderVersion( GameModPack pack )
     {
         try { return pack.getLoaderVersion(); }
@@ -2450,11 +2499,24 @@ public class MCLauncherModpackDetailModal extends StackPane
         } );
     }
 
+    /**
+     * Opens the pack's website in the browser via
+     * {@link GUIUtilities#openModpackWebsite(GameModPack)}.
+     *
+     * @param pack the pack whose website to open
+     */
     private static void openModpackWebsite( GameModPack pack )
     {
         GUIUtilities.openModpackWebsite( pack );
     }
 
+    /**
+     * Opens the given subfolder of the pack's install directory in the OS file
+     * browser.
+     *
+     * @param pack      the pack
+     * @param subfolder the subfolder name relative to the pack root
+     */
     private static void openPackSubfolder( GameModPack pack, String subfolder )
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -2476,6 +2538,11 @@ public class MCLauncherModpackDetailModal extends StackPane
         } );
     }
 
+    /**
+     * Creates a desktop shortcut that launches the given pack directly.
+     *
+     * @param pack the pack to create a shortcut for
+     */
     private static void createDesktopShortcut( GameModPack pack )
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -2511,6 +2578,12 @@ public class MCLauncherModpackDetailModal extends StackPane
         } );
     }
 
+    /**
+     * Copies an {@code mmcl://} invite/deep-link for the pack to the system
+     * clipboard.
+     *
+     * @param pack the pack to build an invite link for
+     */
     private static void copyInviteLinkToClipboard( GameModPack pack )
     {
         String invite = DiscordRpcUtility.buildInviteLinkFromPack( pack );
