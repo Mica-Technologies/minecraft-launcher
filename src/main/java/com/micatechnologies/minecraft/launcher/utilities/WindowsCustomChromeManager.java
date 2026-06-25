@@ -243,13 +243,13 @@ public final class WindowsCustomChromeManager
         if ( !stage.isShowing() ) {
             stage.addEventHandler( WindowEvent.WINDOW_SHOWN, new javafx.event.EventHandler<>()
             {
-                @Override
                 /**
                  * Installs the custom window chrome once the stage is shown, then detaches
                  * itself.
                  *
                  * @param event the {@code WINDOW_SHOWN} event
                  */
+                @Override
                 public void handle( WindowEvent event )
                 {
                     stage.removeEventHandler( WindowEvent.WINDOW_SHOWN, this );

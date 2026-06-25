@@ -598,13 +598,13 @@ public class MCLauncherModpackDetailModal extends StackPane
         final int[] next = { 0 };
         new AnimationTimer()
         {
-            @Override
             /**
              * AnimationTimer tick that appends the next batch of deferred section builders
              * each frame, stopping once all sections are rendered (or the modal closed).
              *
              * @param now the frame timestamp in nanoseconds
              */
+            @Override
             public void handle( long now )
             {
                 // Abandon the build if the modal was closed or re-shown for another

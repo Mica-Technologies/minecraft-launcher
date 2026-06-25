@@ -292,6 +292,13 @@ public final class ChromaRestBackend implements RgbBackend
         }
     }
 
+    /**
+     * Logs a Chroma REST endpoint push failure (silent/rate-limited) so a flaky
+     * server can't spam the log.
+     *
+     * @param endpoint the REST endpoint that failed
+     * @param t        the failure cause
+     */
     private static void logEndpointFailure( String endpoint, Throwable t )
     {
         Logger.logWarningSilent( LocalizationManager.format( "log.rgb.chroma.endpointPushFailed",
@@ -463,6 +470,10 @@ public final class ChromaRestBackend implements RgbBackend
         }
     }
 
+    /**
+     * Shuts down the backend: pushes a best-effort all-black frame, clears the
+     * Chroma effect, stops the heartbeat, and releases the REST session.
+     */
     @Override
     public void shutdown()
     {
@@ -538,6 +549,10 @@ public final class ChromaRestBackend implements RgbBackend
         return sb.toString();
     }
 
+    /**
+     * Background loop that periodically pings the Chroma REST server to keep the
+     * session alive — the SDK times sessions out without a heartbeat.
+     */
     private void heartbeatLoop()
     {
         while ( heartbeatRunning ) {

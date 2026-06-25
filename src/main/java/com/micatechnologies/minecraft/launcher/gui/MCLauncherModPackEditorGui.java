@@ -1165,7 +1165,6 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     javafx.scene.layout.HBox.setHgrow( textBox, javafx.scene.layout.Priority.ALWAYS );
                 }
 
-                @Override
                 /**
                  * Renders a Modrinth search-result cell (project name/metadata), clearing it
                  * when empty.
@@ -1173,6 +1172,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                  * @param project the project for this cell, or {@code null}
                  * @param empty   whether this is an empty cell
                  */
+                @Override
                 protected void updateItem( JsonObject project, boolean empty )
                 {
                     super.updateItem( project, empty );
@@ -1842,13 +1842,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         urlStatusCol.setMaxWidth( 90 );
         urlStatusCol.setCellFactory( col -> new TableCell<>()
         {
-            @Override
             /**
              * Renders a string list cell, clearing it when empty.
              *
              * @param value the cell value, or {@code null}
              * @param empty whether this is an empty cell
              */
+            @Override
             protected void updateItem( String value, boolean empty )
             {
                 super.updateItem( value, empty );
@@ -1912,13 +1912,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 btn.setStyle( "-fx-font-size: 10;" );
             }
 
-            @Override
             /**
              * Renders an action-button table cell, clearing it when empty.
              *
              * @param item  unused row marker
              * @param empty whether this is an empty cell
              */
+            @Override
             protected void updateItem( Void item, boolean empty )
             {
                 super.updateItem( item, empty );

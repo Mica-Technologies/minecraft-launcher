@@ -200,7 +200,6 @@ public final class TuiApp
         window.setComponent( root );
         window.addWindowListener( new WindowListenerAdapter()
         {
-            @Override
             /**
              * Global key handler for the main window; intercepts navigation/quit keys
              * before they reach focused components.
@@ -209,6 +208,7 @@ public final class TuiApp
              * @param key          the key stroke
              * @param deliverEvent  set to {@code false} to consume the key
              */
+            @Override
             public void onInput( Window base, KeyStroke key, AtomicBoolean deliverEvent )
             {
                 // Handle the global navigation keys BEFORE the focused component sees them.
@@ -221,7 +221,6 @@ public final class TuiApp
                 }
             }
 
-            @Override
             /**
              * Re-renders size-dependent content (e.g. the header) when the terminal is
              * resized.
@@ -230,6 +229,7 @@ public final class TuiApp
              * @param oldSize the previous terminal size
              * @param newSize the new terminal size
              */
+            @Override
             public void onResized( Window base, TerminalSize oldSize, TerminalSize newSize )
             {
                 // Re-pick the header density for the new width so hints never truncate mid-word.
