@@ -19,10 +19,12 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Computes a human-readable "what will this update change?" summary for a modpack with a pending
@@ -31,10 +33,18 @@ import java.util.Map;
  * in the detail modal so the user can see roughly what applying the update will do before launching.
  *
  * <p>Mods are grouped by a version-stripped base key so a version bump of the same mod reads as
- * <i>updated</i> rather than one removed + one added. The diff is a best-effort approximation: it's
- * derived from filenames, and mods the user added by hand (outside the manifest) can appear under
- * "removed". It's intended as an at-a-glance hint, not an exact transaction log — which is why the
- * UI only surfaces it when an update is actually pending.</p>
+ * <i>updated</i> rather than one removed + one added. Crucially, "updated" is decided by
+ * <b>content hash</b> — the new manifest's declared SHA against the bytes already on disk — not by
+ * comparing filenames. Many manifests reuse a stable, version-less filename per mod (e.g.
+ * {@code jei.jar}) and express a new release purely through a changed download URL + hash, so a
+ * filename comparison would (a) miss every real update and (b) report spurious add/remove churn the
+ * moment an installed jar's name diverges from the manifest's (load-order prefixes, hand renames,
+ * a different install origin). Hashing sidesteps both: a mod is "updated" iff its installed bytes
+ * differ from what the new manifest declares.</p>
+ *
+ * <p>The diff is still a best-effort approximation: mods the user added by hand (outside the
+ * manifest) can appear under "removed". It's intended as an at-a-glance hint, not an exact
+ * transaction log — which is why the UI only surfaces it when an update is actually pending.</p>
  *
  * @since 2026.6
  */
@@ -62,7 +72,10 @@ public final class PendingUpdateDiff
 
     /**
      * Computes the pending-change summary for {@code pack}. Compares the manifest's {@code packMods}
-     * (new) to the jars currently in {@code <packRoot>/mods/} (installed). Returns an empty result
+     * (new) to the jars currently in {@code <packRoot>/mods/} (installed): a mod is <i>added</i>
+     * when the manifest declares it but no installed jar matches its key, <i>removed</i> when an
+     * installed jar's key is absent from the manifest, and <i>updated</i> when both sides share a
+     * key but the installed bytes don't match the manifest's declared hash. Returns an empty result
      * if the pack is vanilla, has no manifest mods, or the diff is empty.
      */
     public static Result compute( GameModPack pack )
@@ -71,21 +84,10 @@ public final class PendingUpdateDiff
             return empty();
         }
 
-        // New = manifest-declared mod filenames; Old = installed jars on disk.
-        Map< String, String > newByKey = new LinkedHashMap<>();   // key -> display base name
-        Map< String, String > newExactByKey = new LinkedHashMap<>(); // key -> exact filename
-        for ( GameMod mod : pack.packMods ) {
-            String filename = safeFileName( mod );
-            if ( filename == null ) {
-                continue;
-            }
-            String key = modKey( filename );
-            newByKey.putIfAbsent( key, baseName( filename ) );
-            newExactByKey.putIfAbsent( key, normalizeJar( filename ) );
-        }
-
-        Map< String, String > oldByKey = new LinkedHashMap<>();
-        Map< String, String > oldExactByKey = new LinkedHashMap<>();
+        // Installed jars on disk, grouped by a stable, version-stripped key so a version bump of the
+        // same mod groups with its manifest entry instead of reading as a remove + add pair.
+        Map< String, File >   oldFileByKey    = new LinkedHashMap<>();   // key -> on-disk file
+        Map< String, String > oldDisplayByKey = new LinkedHashMap<>();   // key -> display base name
         File modsDir = new File( pack.getPackRootFolder(), "mods" );
         File[] onDisk = modsDir.listFiles( f -> {
             if ( !f.isFile() ) {
@@ -97,29 +99,62 @@ public final class PendingUpdateDiff
         if ( onDisk != null ) {
             for ( File f : onDisk ) {
                 String key = modKey( f.getName() );
-                oldByKey.putIfAbsent( key, baseName( f.getName() ) );
-                oldExactByKey.putIfAbsent( key, normalizeJar( f.getName() ) );
+                oldFileByKey.putIfAbsent( key, f );
+                oldDisplayByKey.putIfAbsent( key, baseName( f.getName() ) );
             }
         }
 
         List< String > added = new ArrayList<>();
-        List< String > removed = new ArrayList<>();
         List< String > updated = new ArrayList<>();
-        for ( var e : newByKey.entrySet() ) {
-            String key = e.getKey();
-            if ( !oldByKey.containsKey( key ) ) {
-                added.add( e.getValue() );
+        // Track which installed keys the manifest accounts for; whatever's left over is "removed".
+        Set< String > newKeys = new HashSet<>();
+        for ( GameMod mod : pack.packMods ) {
+            String filename = safeFileName( mod );
+            if ( filename == null ) {
+                continue;
             }
-            else if ( !normalizeJar( newExactByKey.get( key ) ).equals( oldExactByKey.get( key ) ) ) {
-                updated.add( e.getValue() );
+            String key = modKey( filename );
+            newKeys.add( key );
+
+            // Server-only mods are never installed on a client, so they'd otherwise masquerade as a
+            // perpetual "added" entry the user can't act on. Skip them in the client-facing summary.
+            if ( !mod.clientReq ) {
+                continue;
+            }
+
+            File installed = oldFileByKey.get( key );
+            if ( installed == null ) {
+                added.add( baseName( filename ) );
+            }
+            // Content-based change detection. matchesDeclaredHash hashes the installed bytes against
+            // the new manifest's declared hash; a mismatch is the only reliable "this mod actually
+            // changed" signal when filenames are stable across versions. It returns true (= no
+            // change reported) when the mod declares no usable hash, so we never cry wolf.
+            else if ( !safeMatchesDeclaredHash( mod, installed ) ) {
+                updated.add( baseName( filename ) );
             }
         }
-        for ( var e : oldByKey.entrySet() ) {
-            if ( !newByKey.containsKey( e.getKey() ) ) {
-                removed.add( e.getValue() );
+
+        List< String > removed = new ArrayList<>();
+        for ( var e : oldFileByKey.entrySet() ) {
+            if ( !newKeys.contains( e.getKey() ) ) {
+                removed.add( oldDisplayByKey.get( e.getKey() ) );
             }
         }
         return new Result( added.size(), removed.size(), updated.size(), added, removed, updated );
+    }
+
+    /** Hashes {@code installed} against {@code mod}'s declared manifest hash, treating any failure
+     *  (unreadable file, hashing error) as "unchanged" so a transient I/O hiccup can't spam the
+     *  summary with false "updated" entries. */
+    private static boolean safeMatchesDeclaredHash( GameMod mod, File installed )
+    {
+        try {
+            return mod.matchesDeclaredHash( installed );
+        }
+        catch ( Throwable t ) {
+            return true;
+        }
     }
 
     private static Result empty()
@@ -135,16 +170,6 @@ public final class PendingUpdateDiff
         catch ( Throwable t ) {
             return null;
         }
-    }
-
-    /** Strips the {@code .jar} / {@code .jar.disabled} suffix, lower-cased. */
-    private static String normalizeJar( String filename )
-    {
-        String n = filename.toLowerCase( Locale.ROOT );
-        if ( n.endsWith( ".jar.disabled" ) ) {
-            n = n.substring( 0, n.length() - ".disabled".length() );
-        }
-        return n;
     }
 
     /** Display base name: the version-stripped mod key in its original-ish form (no extension). */
