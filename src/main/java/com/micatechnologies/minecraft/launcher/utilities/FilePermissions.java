@@ -49,12 +49,17 @@ import java.util.EnumSet;
  */
 public final class FilePermissions
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private FilePermissions() { /* static-only */ }
 
     /**
      * Restricts the given file's permissions to owner-only. POSIX 0600 if
      * supported, else a single owner-FULL_CONTROL ACL entry. Idempotent —
      * calling on a file whose ACL is already owner-only is harmless.
+     *
+     * @param path the path of the file to restrict permissions for
      */
     public static void applyOwnerOnly( Path path )
     {

@@ -67,6 +67,9 @@ public final class LogoTransparencyDetector
      *  the user navigates back to a screen. */
     private static final ConcurrentHashMap< String, Boolean > CACHE = new ConcurrentHashMap<>();
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private LogoTransparencyDetector() { /* static-only */ }
 
     /**
@@ -142,6 +145,9 @@ public final class LogoTransparencyDetector
      * <p>Inset the sample points by a few pixels from the literal corner so
      * a 1-pixel anti-aliased halo on an otherwise-square logo doesn't trip
      * the detector. Larger logos get a bigger inset.
+     *
+     * @param image the image to sample
+     * @return true if the majority of perimeter samples are transparent, false otherwise
      */
     private static boolean sample( Image image )
     {

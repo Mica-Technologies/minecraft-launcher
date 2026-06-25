@@ -39,6 +39,9 @@ package com.micatechnologies.minecraft.launcher.utilities;
  */
 public final class JvmArgsValidator
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private JvmArgsValidator() { /* static-only */ }
 
     /** The {@code ${...}} placeholder opener the launch templating expands. */
@@ -49,6 +52,10 @@ public final class JvmArgsValidator
      * {@link IllegalArgumentException} otherwise. {@code null} normalises to the
      * empty string. Use on the write path so invalid input is rejected at the
      * source with a clear message.
+     *
+     * @param jvmArgs the JVM arguments string to validate
+     * @return the original JVM arguments string if it is clean
+     * @throws IllegalArgumentException if the JVM arguments contain control characters or placeholder syntax
      */
     public static String requireClean( String jvmArgs )
     {
@@ -71,6 +78,9 @@ public final class JvmArgsValidator
      * Pure predicate form of {@link #requireClean} for the read path, which
      * wants to silently fall back to a default rather than throw. {@code null} /
      * empty is clean.
+     *
+     * @param jvmArgs the JVM arguments string to validate
+     * @return true if the JVM arguments are clean, false otherwise
      */
     public static boolean isClean( String jvmArgs )
     {
@@ -80,7 +90,12 @@ public final class JvmArgsValidator
         return firstControlCharIndex( jvmArgs ) < 0 && !jvmArgs.contains( PLACEHOLDER_OPEN );
     }
 
-    /** Index of the first control / DEL character, or {@code -1} if none. */
+    /**
+     * Index of the first control / DEL character, or {@code -1} if none.
+     *
+     * @param s the string to search for control characters
+     * @return the index of the first control character, or -1 if no control characters are found
+     */
     private static int firstControlCharIndex( String s )
     {
         for ( int i = 0; i < s.length(); i++ ) {

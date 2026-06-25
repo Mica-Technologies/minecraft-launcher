@@ -48,6 +48,9 @@ final class ImageFadeIn
      *  feeling like a deliberate animation on a slow one. */
     private static final int FADE_MS = 220;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ImageFadeIn() { /* static-only */ }
 
     /**

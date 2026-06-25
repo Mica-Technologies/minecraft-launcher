@@ -89,6 +89,13 @@ public class VersionUtilities
         catch ( NumberFormatException e ) { return 0; }
     }
 
+    /**
+     * Strips pre-release suffixes and build metadata from a version string.
+     *
+     * @param version the version string to strip
+     *
+     * @return the stripped version string
+     */
     private static String stripSuffixes( String version )
     {
         int dash = version.indexOf( '-' );

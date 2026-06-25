@@ -45,6 +45,9 @@ import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
  */
 public final class MavenArtifactPath
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private MavenArtifactPath() { /* static-only */ }
 
     /**

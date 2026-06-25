@@ -79,6 +79,9 @@ import java.util.Base64;
  */
 public final class MachineSecretCipher
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private MachineSecretCipher() { /* static-only */ }
 
     /** Filename of the per-install random fallback secret. Lives alongside the
@@ -115,6 +118,10 @@ public final class MachineSecretCipher
      * shell variable / etc. Throws on cipher / key-derivation failure —
      * unexpected enough that callers should let the exception propagate
      * rather than retry.
+     *
+     * @param plaintext the plaintext to encrypt
+     * @return Base64 encoded encrypted string
+     * @throws Exception if an error occurs during encryption
      */
     public static String encrypt( String plaintext ) throws Exception
     {
@@ -128,6 +135,10 @@ public final class MachineSecretCipher
      * {@code null} when the envelope is too short to be valid; throws when
      * the GCM auth tag mismatches (wrong machine, tampered data) so callers
      * can distinguish "missing" from "corrupted / wrong host."
+     *
+     * @param encoded Base64 encoded encrypted string
+     * @return decrypted plaintext or null if envelope is too short
+     * @throws Exception if an error occurs during decryption
      */
     public static String decrypt( String encoded ) throws Exception
     {
@@ -139,6 +150,10 @@ public final class MachineSecretCipher
     /**
      * Raw-bytes variant of {@link #encrypt}. Output layout:
      * {@code salt[16] | iv[12] | ciphertext+tag}.
+     *
+     * @param plaintext the plaintext bytes to encrypt
+     * @return encrypted bytes including salt, IV, and ciphertext
+     * @throws Exception if an error occurs during encryption
      */
     public static byte[] encryptBytes( byte[] plaintext ) throws Exception
     {
@@ -165,6 +180,10 @@ public final class MachineSecretCipher
      * Raw-bytes variant of {@link #decrypt}. Returns {@code null} for
      * envelopes too short to contain salt+iv+tag; throws on GCM
      * authentication failure.
+     *
+     * @param combined the combined bytes containing salt, IV, and ciphertext
+     * @return decrypted plaintext or null if envelope is too short
+     * @throws Exception if an error occurs during decryption
      */
     public static byte[] decryptBytes( byte[] combined ) throws Exception
     {
@@ -217,6 +236,10 @@ public final class MachineSecretCipher
      * intermittently and broke decryption ({@code AEADBadTagException} on ~90% of
      * launches). The hardware UUID already provides machine binding, so the
      * volatile MAC is gone.</p>
+     *
+     * @param salt the salt used for PBKDF2 key derivation
+     * @return derived AES-256 secret key
+     * @throws Exception if an error occurs during key derivation
      */
     private static SecretKey deriveMachineKey( byte[] salt ) throws Exception
     {
@@ -240,6 +263,12 @@ public final class MachineSecretCipher
      * {@code user|os|uuid|install:secret}. Pure + package-private so the format
      * can be unit-tested without filesystem / hardware coupling. The install
      * secret is always appended (see {@link #deriveMachineKey}).
+     *
+     * @param user the OS username
+     * @param osName the operating system name
+     * @param hwUuid the hardware UUID
+     * @param installSecret the per-install secret
+     * @return assembled fingerprint string
      */
     static String assembleFingerprint( String user, String osName, String hwUuid,
                                        String installSecret )
@@ -273,6 +302,8 @@ public final class MachineSecretCipher
      * users can't read it. Failure to persist falls back to an ephemeral
      * in-memory secret — every encrypted blob from that process is unreadable
      * after restart, which is no worse than losing the data outright.
+     *
+     * @return hex-encoded per-install secret
      */
     private static String getOrCreateInstallSecret()
     {
@@ -310,10 +341,14 @@ public final class MachineSecretCipher
         }
     }
 
-    /** OS username from env first, system property as fallback. {@code USER}
+    /**
+     * OS username from env first, system property as fallback. {@code USER}
      *  is the POSIX shell convention, {@code USERNAME} is the Windows
      *  convention, {@code user.name} system property is the last resort
-     *  (some sandboxed JVMs clear env but still populate the property). */
+     *  (some sandboxed JVMs clear env but still populate the property).
+     *
+     * @return OS username
+     */
     private static String resolveOsUsername()
     {
         String user = System.getenv( "USER" );
@@ -323,6 +358,12 @@ public final class MachineSecretCipher
         return System.getProperty( "user.name", "" );
     }
 
+    /**
+     * Converts a byte array to a hex string.
+     *
+     * @param bytes the byte array to convert
+     * @return hex-encoded string
+     */
     private static String bytesToHex( byte[] bytes )
     {
         StringBuilder sb = new StringBuilder( bytes.length * 2 );

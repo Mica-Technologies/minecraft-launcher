@@ -59,6 +59,9 @@ import java.util.List;
  */
 public final class VerifyAction
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private VerifyAction() { /* static-only */ }
 
     /**
@@ -111,6 +114,12 @@ public final class VerifyAction
         SystemUtilities.spawnNewTask( () -> runForPacksOnWorker( packs, onAllSucceeded ) );
     }
 
+    /**
+     * Executes the verify process for a list of game mod packs on a worker thread.
+     *
+     * @param packs          the list of game mod packs to verify
+     * @param onAllSucceeded the continuation task to run if all packs verify successfully
+     */
     private static void runForPacksOnWorker( List< GameModPack > packs, Runnable onAllSucceeded )
     {
         MCLauncherLaunchProgressGui progressGui;
@@ -230,6 +239,12 @@ public final class VerifyAction
         } );
     }
 
+    /**
+     * Retrieves a safe name for the given game mod pack.
+     *
+     * @param pack the game mod pack
+     * @return the safe name of the pack, or a fallback if the pack is null or has no valid name
+     */
     private static String safePackName( GameModPack pack )
     {
         if ( pack == null ) return LocalizationManager.get( "verify.packName.fallback" );

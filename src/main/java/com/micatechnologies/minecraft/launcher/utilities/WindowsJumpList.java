@@ -78,29 +78,60 @@ import java.util.List;
  */
 final class WindowsJumpList
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private WindowsJumpList() { /* static-only */ }
 
     // =========================================================================================
     //  GUIDs
     // =========================================================================================
 
+    /**
+     * CLSID for {@code ICustomDestinationList}.
+     */
     private static final Guid.CLSID CLSID_DESTINATION_LIST =
             new Guid.CLSID( "{77f10cf0-3db5-4966-b520-b7c54fd35ed6}" );
+
+    /**
+     * IID for {@code ICustomDestinationList}.
+     */
     private static final Guid.IID IID_ICUSTOM_DESTINATION_LIST =
             new Guid.IID( "{6332debf-87b5-4670-90c0-5e57b408a49e}" );
 
+    /**
+     * CLSID for {@code IObjectCollection}.
+     */
     private static final Guid.CLSID CLSID_ENUMERABLE_OBJECT_COLLECTION =
             new Guid.CLSID( "{2d3468c1-36a7-43b6-ac24-d3f02fd9607a}" );
+
+    /**
+     * IID for {@code IObjectCollection}.
+     */
     private static final Guid.IID IID_IOBJECT_COLLECTION =
             new Guid.IID( "{5632b1a4-e38a-400a-928a-d4cd63230295}" );
+
+    /**
+     * IID for {@code IObjectArray}.
+     */
     private static final Guid.IID IID_IOBJECT_ARRAY =
             new Guid.IID( "{92ca9dcd-5622-4bba-a805-5e9f541bd8c9}" );
 
+    /**
+     * CLSID for {@code IShellLinkW}.
+     */
     private static final Guid.CLSID CLSID_SHELL_LINK =
             new Guid.CLSID( "{00021401-0000-0000-c000-000000000046}" );
+
+    /**
+     * IID for {@code IShellLinkW}.
+     */
     private static final Guid.IID IID_ISHELL_LINK_W =
             new Guid.IID( "{000214f9-0000-0000-c000-000000000046}" );
 
+    /**
+     * IID for {@code IPropertyStore}.
+     */
     private static final Guid.IID IID_IPROPERTY_STORE =
             new Guid.IID( "{886d8eeb-8cf2-4446-8d02-cdba1dbdcf99}" );
 
@@ -109,6 +140,10 @@ final class WindowsJumpList
      *  reference; verified against {@code propkey.h}. */
     private static final Guid.GUID PKEY_TITLE_FMTID =
             new Guid.GUID( "{F29F85E0-4FF9-1068-AB91-08002B27B3D9}" );
+
+    /**
+     * Property ID for {@code PKEY_Title}.
+     */
     private static final int PKEY_TITLE_PID = 2;
 
     /** {@code VARTYPE} value for a wide-string {@code PROPVARIANT}. */
@@ -118,39 +153,95 @@ final class WindowsJumpList
     //  Vtable indices
     // =========================================================================================
 
+    /**
+     * Index for {@code IUnknown::QueryInterface}.
+     */
     private static final int IUNKNOWN_QUERY_INTERFACE = 0;
+
+    /**
+     * Index for {@code IUnknown::Release}.
+     */
     private static final int IUNKNOWN_RELEASE = 2;
 
     // ICustomDestinationList : IUnknown
+    /**
+     * Index for {@code ICustomDestinationList::BeginList}.
+     */
     private static final int ICDL_BEGIN_LIST = 4;
+
+    /**
+     * Index for {@code ICustomDestinationList::AppendCategory}.
+     */
     private static final int ICDL_APPEND_CATEGORY = 5;
+
+    /**
+     * Index for {@code ICustomDestinationList::CommitList}.
+     */
     private static final int ICDL_COMMIT_LIST = 8;
+
+    /**
+     * Index for {@code ICustomDestinationList::AbortList}.
+     */
     private static final int ICDL_ABORT_LIST = 11;
 
     // IObjectCollection : IObjectArray : IUnknown
+    /**
+     * Index for {@code IObjectCollection::AddObject}.
+     */
     private static final int IOC_ADD_OBJECT = 5;
+
+    /**
+     * Index for {@code IObjectCollection::Clear}.
+     */
     private static final int IOC_CLEAR = 8;
 
     // IShellLinkW : IUnknown
+    /**
+     * Index for {@code IShellLinkW::SetDescription}.
+     */
     private static final int ISL_SET_DESCRIPTION = 7;
+
+    /**
+     * Index for {@code IShellLinkW::SetArguments}.
+     */
     private static final int ISL_SET_ARGUMENTS = 11;
+
+    /**
+     * Index for {@code IShellLinkW::SetIconLocation}.
+     */
     private static final int ISL_SET_ICON_LOCATION = 17;
+
+    /**
+     * Index for {@code IShellLinkW::SetPath}.
+     */
     private static final int ISL_SET_PATH = 20;
 
     // IPropertyStore : IUnknown
+    /**
+     * Index for {@code IPropertyStore::SetValue}.
+     */
     private static final int IPS_SET_VALUE = 6;
+
+    /**
+     * Index for {@code IPropertyStore::Commit}.
+     */
     private static final int IPS_COMMIT = 7;
 
     // =========================================================================================
     //  Configuration
     // =========================================================================================
 
-    /** Number of recently-played packs surfaced in the jump list. Windows
-     *  caps the visible category at ~10 entries and starts hiding older
-     *  ones; 5 matches the Linux {@code .desktop Actions=} count for
-     *  parity. */
+    /**
+     * Maximum number of recently-played packs surfaced in the jump list.
+     * Windows caps the visible category at ~10 entries and starts hiding older
+     * ones; 5 matches the Linux {@code .desktop Actions=} count for
+     * parity.
+     */
     private static final int MAX_PACKS_IN_JUMP_LIST = 5;
 
+    /**
+     * Title of the jump list category for recent modpacks.
+     */
     private static final String CATEGORY_TITLE = LocalizationManager.get( "jumpList.category.recentModpacks" );
 
     // =========================================================================================
@@ -190,6 +281,12 @@ final class WindowsJumpList
     //  COM dance
     // =========================================================================================
 
+    /**
+     * Builds and commits the jump list with the given executable path and recent modpacks.
+     *
+     * @param exePath The path to the launcher executable.
+     * @param recent  The list of recently played modpacks.
+     */
     private static void buildAndCommit( String exePath, List< GameModPack > recent )
     {
         // Single-thread apartment is sufficient — we don't make concurrent COM
@@ -284,8 +381,14 @@ final class WindowsJumpList
         }
     }
 
-    /** Builds + populates a single IShellLinkW for one pack. Returns an
-     *  AddRef'd pointer the caller must {@link #release(Pointer)}. */
+    /**
+     * Builds + populates a single IShellLinkW for one pack. Returns an
+     * AddRef'd pointer the caller must {@link #release(Pointer)}.
+     *
+     * @param exePath The path to the launcher executable.
+     * @param pack    The modpack for which to create the shell link.
+     * @return A pointer to the created shell link, or null if an error occurred.
+     */
     private static Pointer buildShellLink( String exePath, GameModPack pack )
     {
         String packName = pack.getPackName();
@@ -353,6 +456,10 @@ final class WindowsJumpList
      * </pre>
      * <p>Total 24 bytes (8 for header padding + 16 for the union, of which
      * only the first 8 bytes hold the string pointer here).</p>
+     *
+     * @param propStore The property store interface.
+     * @param title     The title to set via the property store.
+     * @return true if the operation was successful, false otherwise.
      */
     private static boolean setTitleViaPropertyStore( Pointer propStore, String title )
     {
@@ -407,8 +514,14 @@ final class WindowsJumpList
     //  Helpers
     // =========================================================================================
 
-    /** {@code CoCreateInstance(CLSCTX_INPROC_SERVER)}. Returns the raw interface
-     *  pointer on success, or {@code null} on failure (with a warning logged). */
+    /**
+     * {@code CoCreateInstance(CLSCTX_INPROC_SERVER)}. Returns the raw interface
+     * pointer on success, or {@code null} on failure (with a warning logged).
+     *
+     * @param clsid The CLSID of the COM object to create.
+     * @param iid   The IID of the interface to query for.
+     * @return A pointer to the created COM object, or null if an error occurred.
+     */
     private static Pointer coCreate( Guid.CLSID clsid, Guid.IID iid )
     {
         final int CLSCTX_INPROC_SERVER = 1;
@@ -424,8 +537,14 @@ final class WindowsJumpList
         return ppv.getValue();
     }
 
-    /** {@code IUnknown::QueryInterface}. Returns the resolved interface pointer
-     *  or {@code null} on failure. */
+    /**
+     * {@code IUnknown::QueryInterface}. Returns the resolved interface pointer
+     * or {@code null} on failure.
+     *
+     * @param iface The COM object to query.
+     * @param iid   The IID of the interface to query for.
+     * @return A pointer to the queried interface, or null if an error occurred.
+     */
     private static Pointer queryInterface( Pointer iface, Guid.IID iid )
     {
         if ( iface == null ) return null;
@@ -439,16 +558,21 @@ final class WindowsJumpList
         return ppv.getValue();
     }
 
-    /** Serialize an {@link Guid.IID} into a JNA-managed native struct + return
-     *  it as a {@code ByReference}. JNA passes a Structure.ByReference as a
-     *  pointer to its native memory, which is exactly what COM expects for
-     *  a {@code REFIID} ({@code const GUID *}).
+    /**
+     * Serialize an {@link Guid.IID} into a JNA-managed native struct + return
+     * it as a {@code ByReference}. JNA passes a Structure.ByReference as a
+     * pointer to its native memory, which is exactly what COM expects for
+     * a {@code REFIID} ({@code const GUID *}).
      *
      *  <p>We earlier tried hand-rolling this via Memory + {@code toByteArray}
      *  but that hit {@code E_NOINTERFACE} on {@code BeginList} — the field-
      *  layout produced by toByteArray didn't quite match what COM's QI
      *  expects in some edge of the alignment. Mirroring the existing
-     *  {@code WinRt.asIidRef} pattern is the safe path.</p> */
+     *  {@code WinRt.asIidRef} pattern is the safe path.</p>
+     *
+     * @param iid The IID to serialize.
+     * @return A reference to the serialized IID.
+     */
     private static Guid.IID.ByReference asIidRef( Guid.IID iid )
     {
         Guid.IID.ByReference ref = new Guid.IID.ByReference();
@@ -460,8 +584,12 @@ final class WindowsJumpList
         return ref;
     }
 
-    /** {@code IUnknown::Release}. Decrements the ref count; the object frees
-     *  itself at refcount 0. No-op when {@code iface} is null. */
+    /**
+     * {@code IUnknown::Release}. Decrements the ref count; the object frees
+     * itself at refcount 0. No-op when {@code iface} is null.
+     *
+     * @param iface The COM object to release.
+     */
     private static void release( Pointer iface )
     {
         if ( iface == null || Pointer.nativeValue( iface ) == 0L ) return;
@@ -473,12 +601,23 @@ final class WindowsJumpList
         }
     }
 
+    /**
+     * Releases the COM object and returns null.
+     *
+     * @param iface The COM object to release.
+     * @return Always returns null.
+     */
     private static Pointer releaseAndNull( Pointer iface )
     {
         release( iface );
         return null;
     }
 
+    /**
+     * Aborts the current COM transaction.
+     *
+     * @param cdl The ICustomDestinationList interface pointer.
+     */
     private static void abort( Pointer cdl )
     {
         try {
@@ -488,6 +627,13 @@ final class WindowsJumpList
         }
     }
 
+    /**
+     * Checks if the HRESULT indicates a failure.
+     *
+     * @param hr  The HRESULT value to check.
+     * @param where The location where the error occurred.
+     * @return true if the HRESULT indicates a failure, false otherwise.
+     */
     private static boolean failed( int hr, String where )
     {
         if ( hr == 0 ) return false;
@@ -496,6 +642,14 @@ final class WindowsJumpList
         return true;
     }
 
+    /**
+     * Invokes a COM method that returns an HRESULT.
+     *
+     * @param iface The COM object to invoke the method on.
+     * @param vtableIndex The index of the method in the vtable.
+     * @param args The arguments to pass to the method.
+     * @return The HRESULT value returned by the method.
+     */
     private static int invokeHr( Pointer iface, int vtableIndex, Object... args )
     {
         Function fn = methodAt( iface, vtableIndex );
@@ -506,6 +660,13 @@ final class WindowsJumpList
         return ( (Integer) res ).intValue();
     }
 
+    /**
+     * Invokes a COM method that returns an unsigned long.
+     *
+     * @param iface The COM object to invoke the method on.
+     * @param vtableIndex The index of the method in the vtable.
+     * @param args The arguments to pass to the method.
+     */
     private static void invokeUlong( Pointer iface, int vtableIndex, Object... args )
     {
         Function fn = methodAt( iface, vtableIndex );
@@ -515,6 +676,13 @@ final class WindowsJumpList
         fn.invoke( Integer.class, all );
     }
 
+    /**
+     * Retrieves the function pointer for a COM method at the specified index.
+     *
+     * @param iface The COM object to retrieve the method from.
+     * @param index The index of the method in the vtable.
+     * @return The function pointer for the specified method.
+     */
     private static Function methodAt( Pointer iface, int index )
     {
         // COM interface pointer → struct { vtable*, ... }. Read vtable at
@@ -524,8 +692,13 @@ final class WindowsJumpList
         return Function.getFunction( fnPtr );
     }
 
-    /** Minimal percent-encoder for the mmcl:// query value. Mirrors the
-     *  one used by SchemeRegistrar's .desktop writer. */
+    /**
+     * Minimal percent-encoder for the mmcl:// query value. Mirrors the
+     * one used by SchemeRegistrar's .desktop writer.
+     *
+     * @param value The string to encode.
+     * @return The encoded string.
+     */
     private static String urlEncode( String value )
     {
         StringBuilder sb = new StringBuilder( value.length() );

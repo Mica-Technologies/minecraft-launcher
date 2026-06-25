@@ -69,6 +69,9 @@ import java.util.List;
  */
 public final class RgbBackendRegistry
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private RgbBackendRegistry() { /* static-only */ }
 
     /**

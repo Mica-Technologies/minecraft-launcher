@@ -53,6 +53,9 @@ public final class LauncherActions
     /** Max packs listed in the dock "Play Recent" submenu. */
     private static final int RECENT_MAX = 8;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private LauncherActions() { /* static-only */ }
 
     // =========================================================================================
@@ -64,6 +67,8 @@ public final class LauncherActions
      * Show / Play Last / Open Last Mods Folder / Quit. Each call returns a new menu instance;
      * AWT's API requires a distinct menu per attachment point (one for the tray icon, one
      * for the dock).
+     *
+     * @return a new {@link PopupMenu} with standard launcher actions
      */
     public static PopupMenu buildSharedMenu()
     {
@@ -98,6 +103,8 @@ public final class LauncherActions
      * (newest first, capped at {@value #RECENT_MAX}) and adds quick navigation to Browse and
      * Settings. {@link JumpListManager#refresh()} rebuilds + reinstalls this on each launch so
      * the recents stay current — AWT's {@link PopupMenu} has no on-show hook to refresh lazily.
+     *
+     * @return a new {@link PopupMenu} with macOS dock specific actions
      */
     public static PopupMenu buildDockMenu()
     {
@@ -151,15 +158,19 @@ public final class LauncherActions
     //  Actions
     // =========================================================================================
 
-    /** Bring the launcher window to focus. Click-through from tray double-click, dock click,
-     *  and the "Show launcher" menu item. */
+    /**
+     * Bring the launcher window to focus. Click-through from tray double-click, dock click,
+     * and the "Show launcher" menu item.
+     */
     public static void showLauncher()
     {
         GUIUtilities.JFXPlatformRun( MCLauncherGuiController::requestFocus );
     }
 
-    /** Launch the user's most recent modpack with the same flow as the in-window hero card's
-     *  Play button. Warns via toast if no last-played pack is known. */
+    /**
+     * Launch the user's most recent modpack with the same flow as the in-window hero card's
+     * Play button. Warns via toast if no last-played pack is known.
+     */
     public static void playLastModpack()
     {
         GameModPack pack = lastPlayedModpack();
@@ -171,9 +182,13 @@ public final class LauncherActions
         playModpack( pack );
     }
 
-    /** Launches a specific modpack with the same flow as {@link #playLastModpack()} — used by
-     *  the dock "Play Recent" submenu. Records it as the last-selected pack, sets Discord
-     *  presence, and returns focus to the main GUI when the launch hands off. No-op for null. */
+    /**
+     * Launches a specific modpack with the same flow as {@link #playLastModpack()} — used by
+     * the dock "Play Recent" submenu. Records it as the last-selected pack, sets Discord
+     * presence, and returns focus to the main GUI when the launch hands off. No-op for null.
+     *
+     * @param pack the modpack to play
+     */
     public static void playModpack( GameModPack pack )
     {
         if ( pack == null ) {
@@ -197,7 +212,9 @@ public final class LauncherActions
         } );
     }
 
-    /** Opens the Browse (install / manage) screen. Used by the dock menu. */
+    /**
+     * Opens the Browse (install / manage) screen. Used by the dock menu.
+     */
     public static void openBrowse()
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -211,7 +228,9 @@ public final class LauncherActions
         } );
     }
 
-    /** Opens the Settings screen. Used by the dock menu. */
+    /**
+     * Opens the Settings screen. Used by the dock menu.
+     */
     public static void openSettings()
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -225,7 +244,9 @@ public final class LauncherActions
         } );
     }
 
-    /** Opens the help window at the getting-started topic. Used by the macOS native toolbar. */
+    /**
+     * Opens the help window at the getting-started topic. Used by the macOS native toolbar.
+     */
     public static void openHelp()
     {
         GUIUtilities.JFXPlatformRun( () -> {
@@ -239,9 +260,11 @@ public final class LauncherActions
         } );
     }
 
-    /** Open the last-played modpack's mods folder in the OS file manager. Creates the
-     *  folder if it doesn't exist (consistent with the in-window context-menu equivalent).
-     *  Warns via toast if no last-played pack is known. */
+    /**
+     * Open the last-played modpack's mods folder in the OS file manager. Creates the
+     * folder if it doesn't exist (consistent with the in-window context-menu equivalent).
+     * Warns via toast if no last-played pack is known.
+     */
     public static void openLastModsFolder()
     {
         GameModPack pack = lastPlayedModpack();
@@ -268,12 +291,13 @@ public final class LauncherActions
     //  Helpers
     // =========================================================================================
 
-    /** Resolves the {@link GameModPack} for {@link ConfigManager#getLastModPackSelected()} —
-     *  tries pack name first, then friendly name. Returns {@code null} if the user hasn't
-     *  played anything yet or the saved pack is no longer installed. */
-    /** Installed packs that have been played at least once, newest first, capped at
-     *  {@link #RECENT_MAX} — the dock "Play Recent" submenu source. getLastPlayedMs caches
-     *  its history read, so this is cheap on the worker thread JumpListManager runs it on. */
+    /**
+     * Installed packs that have been played at least once, newest first, capped at
+     * {@link #RECENT_MAX} — the dock "Play Recent" submenu source. getLastPlayedMs caches
+     * its history read, so this is cheap on the worker thread JumpListManager runs it on.
+     *
+     * @return a list of recently played modpacks
+     */
     private static List< GameModPack > recentModpacks()
     {
         return GameModPackManager.getInstalledModPacks().stream()
@@ -283,6 +307,13 @@ public final class LauncherActions
                 .collect( Collectors.toList() );
     }
 
+    /**
+     * Resolves the {@link GameModPack} for {@link ConfigManager#getLastModPackSelected()} —
+     * tries pack name first, then friendly name. Returns {@code null} if the user hasn't
+     * played anything yet or the saved pack is no longer installed.
+     *
+     * @return the last played modpack, or null if none found
+     */
     private static GameModPack lastPlayedModpack()
     {
         String lastName = ConfigManager.getLastModPackSelected();

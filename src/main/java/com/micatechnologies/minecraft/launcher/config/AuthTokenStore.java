@@ -49,6 +49,9 @@ import com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher;
  */
 public final class AuthTokenStore
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private AuthTokenStore() { /* static-only */ }
 
     // ====================================================================

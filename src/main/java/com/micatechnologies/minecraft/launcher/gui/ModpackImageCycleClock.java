@@ -52,6 +52,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public final class ModpackImageCycleClock
 {
+    /**
+     * The singleton instance of the {@link ModpackImageCycleClock}.
+     */
     private static final ModpackImageCycleClock INSTANCE = new ModpackImageCycleClock();
 
     /**
@@ -66,11 +69,15 @@ public final class ModpackImageCycleClock
         return INSTANCE;
     }
 
-    /** Tick callbacks. Copy-on-write so a callback can unregister itself (or another)
-     *  during a tick without a {@link java.util.ConcurrentModificationException}. */
+    /**
+     * List of tick callbacks. Copy-on-write so a callback can unregister itself (or another)
+     * during a tick without a {@link java.util.ConcurrentModificationException}.
+     */
     private final List< Runnable > listeners = new CopyOnWriteArrayList<>();
 
-    /** The running timeline, or {@code null} when stopped (no listeners, or "never"). */
+    /**
+     * The running timeline, or {@code null} when stopped (no listeners, or "never").
+     */
     private Timeline timeline;
 
     /**
@@ -124,7 +131,9 @@ public final class ModpackImageCycleClock
         ensureRunning();
     }
 
-    /** (Re)starts the timeline if there are listeners and the interval isn't "never". */
+    /**
+     * (Re)starts the timeline if there are listeners and the interval isn't "never".
+     */
     private void ensureRunning()
     {
         if ( timeline != null || listeners.isEmpty() ) {

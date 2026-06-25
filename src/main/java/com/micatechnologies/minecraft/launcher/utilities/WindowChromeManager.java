@@ -73,6 +73,9 @@ public final class WindowChromeManager
     /** DWMSBT_TABBEDWINDOW — Mica Alt (tabbed look). */
     public static final int BACKDROP_MICA_ALT = 4;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private WindowChromeManager() { /* static-only */ }
 
     /** JNA binding for the two {@code dwmapi.dll} entry points we care about. */
@@ -82,6 +85,15 @@ public final class WindowChromeManager
                           ? Native.load( "dwmapi", Dwmapi.class )
                           : null;
 
+        /**
+         * Sets a window attribute using the DWM API.
+         *
+         * @param hwnd          the handle to the window
+         * @param dwAttribute   the attribute identifier
+         * @param pvAttribute   the value of the attribute
+         * @param cbAttribute   the size of the attribute value in bytes
+         * @return              a result code indicating success or failure
+         */
         int DwmSetWindowAttribute( HWND hwnd, int dwAttribute, IntByReference pvAttribute, int cbAttribute );
     }
 
@@ -160,6 +172,9 @@ public final class WindowChromeManager
      * Sets the title-bar text color. Pair with {@link #applyCaptionColor} on themes whose
      * caption color contrasts poorly with the default (e.g. setting a light caption needs
      * a darker text color).
+     *
+     * @param stage the Stage whose caption text color to set
+     * @param color the JavaFX color to apply, or {@code null} for system default
      */
     public static void applyCaptionTextColor( Stage stage, javafx.scene.paint.Color color )
     {
@@ -171,27 +186,45 @@ public final class WindowChromeManager
      * client area instead of being painted a flat colour. Use on the native (Mica) theme, whose
      * client area is transparent — a solid caption colour there shows as a band against the
      * backdrop. Win11 22H2+; older builds silently ignore.
+     *
+     * @param stage the Stage whose caption fill to clear
      */
     public static void clearCaptionColor( Stage stage )
     {
         setColorRefRaw( stage, DWMWA_CAPTION_COLOR, COLOR_NONE );
     }
 
-    /** Clears DWM's window border fill ({@link #COLOR_NONE}). Pairs with {@link #clearCaptionColor}
-     *  on the native theme so neither the caption nor the frame paints a flat colour. */
+    /**
+     * Clears DWM's window border fill ({@link #COLOR_NONE}). Pairs with {@link #clearCaptionColor}
+     * on the native theme so neither the caption nor the frame paints a flat colour.
+     *
+     * @param stage the Stage whose border fill to clear
+     */
     public static void clearBorderColor( Stage stage )
     {
         setColorRefRaw( stage, DWMWA_BORDER_COLOR, COLOR_NONE );
     }
 
-    /** Shared helper — encodes a JavaFX Color as a Windows COLORREF and forwards to DWM. */
+    /**
+     * Shared helper — encodes a JavaFX Color as a Windows COLORREF and forwards to DWM.
+     *
+     * @param stage the Stage whose color attribute to set
+     * @param dwmAttribute the DWM attribute identifier
+     * @param color the JavaFX color to apply, or {@code null} for system default
+     */
     private static void setColorRef( Stage stage, int dwmAttribute, javafx.scene.paint.Color color )
     {
         setColorRefRaw( stage, dwmAttribute,
                         ( color == null ) ? COLOR_DEFAULT : encodeColorRef( color ) );
     }
 
-    /** Shared helper — forwards a raw DWM COLORREF / sentinel (e.g. {@link #COLOR_NONE}) to DWM. */
+    /**
+     * Shared helper — forwards a raw DWM COLORREF / sentinel (e.g. {@link #COLOR_NONE}) to DWM.
+     *
+     * @param stage the Stage whose color attribute to set
+     * @param dwmAttribute the DWM attribute identifier
+     * @param colorRef the raw COLORREF value or sentinel
+     */
     private static void setColorRefRaw( Stage stage, int dwmAttribute, int colorRef )
     {
         if ( !SystemUtils.IS_OS_WINDOWS || stage == null ) {
@@ -211,7 +244,12 @@ public final class WindowChromeManager
         }
     }
 
-    /** Encodes a JavaFX Color (sRGB) into Windows' COLORREF format: 0x00BBGGRR. */
+    /**
+     * Encodes a JavaFX Color (sRGB) into Windows' COLORREF format: 0x00BBGGRR.
+     *
+     * @param color the JavaFX color to encode
+     * @return the encoded COLORREF value
+     */
     private static int encodeColorRef( javafx.scene.paint.Color color )
     {
         int r = (int) Math.round( color.getRed()   * 255.0 ) & 0xFF;
@@ -229,6 +267,8 @@ public final class WindowChromeManager
      * <p>Uses {@code RedrawWindow(RDW_INVALIDATE | RDW_ERASE | RDW_FRAME |
      * RDW_ALLCHILDREN | RDW_UPDATENOW)} — the "throw out everything you've got and
      * redraw from scratch" combination. Safe to call from the FX thread.</p>
+     *
+     * @param stage the Stage to repaint
      */
     public static void forceFullRepaint( Stage stage )
     {
@@ -292,6 +332,9 @@ public final class WindowChromeManager
      * <p>Package-private so sibling Windows-chrome managers (e.g.
      * {@link WindowsCustomChromeManager}) can reuse the one HWND-resolution path rather
      * than duplicating it.</p>
+     *
+     * @param stage the Stage to resolve
+     * @return the native HWND of the Stage, or null if resolution fails
      */
     static HWND resolveHwnd( Stage stage )
     {

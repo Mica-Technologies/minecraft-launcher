@@ -69,6 +69,9 @@ import com.micatechnologies.minecraft.launcher.gui.GUIUtilities;
  */
 public final class FxAsyncTask
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private FxAsyncTask() { /* static-only */ }
 
     /** A worker-thread step that may throw — captures the launcher's
@@ -78,6 +81,11 @@ public final class FxAsyncTask
     @FunctionalInterface
     public interface ThrowingRunnable
     {
+        /**
+         * Runs the task which may throw an exception.
+         *
+         * @throws Exception if any error occurs during execution
+         */
         void run() throws Exception;
     }
 
@@ -90,6 +98,8 @@ public final class FxAsyncTask
      * <p>Equivalent to wrapping {@link SystemUtilities#spawnNewTask}
      * in a try/catch — but consistent. New code should prefer this
      * over the bare {@code spawnNewTask} when the work can fail.</p>
+     *
+     * @param background the task to run on the worker thread
      */
     public static void run( ThrowingRunnable background )
     {
@@ -100,6 +110,9 @@ public final class FxAsyncTask
      * Worker + FX-thread success callback. Errors are logged but no
      * error callback is invoked — use the three-argument overload
      * when the UI needs to react to a failure.
+     *
+     * @param background  the task to run on the worker thread
+     * @param onSuccessFx the task to run on the FX thread upon successful completion
      */
     public static void run( ThrowingRunnable background, Runnable onSuccessFx )
     {
@@ -155,6 +168,9 @@ public final class FxAsyncTask
      * <p>Uncaught exceptions in {@code background} are still routed
      * through {@link Logger}, so silent failures are visible in the
      * logs even when the caller skipped explicit error handling.</p>
+     *
+     * @param background the task to run on the worker thread
+     * @param finallyFx  the task to run on the FX thread after completion or failure
      */
     public static void runWithFinally( ThrowingRunnable background, Runnable finallyFx )
     {

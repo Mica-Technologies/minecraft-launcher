@@ -42,6 +42,9 @@ import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
  */
 public final class RuntimeConfig
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private RuntimeConfig() { /* static-only */ }
 
     // ====================================================================

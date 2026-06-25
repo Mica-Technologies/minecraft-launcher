@@ -67,11 +67,17 @@ import java.util.zip.ZipOutputStream;
  */
 public final class ModpackBackupManager
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModpackBackupManager() { /* static-only */ }
 
     /** Name of the subfolder where the launcher writes pack backups. */
     public static final String BACKUPS_DIR = ".backups";
 
+    /**
+     * SimpleDateFormat instance used for timestamping backup files.
+     */
     private static final SimpleDateFormat TS_FORMAT =
             new SimpleDateFormat( "yyyy-MM-dd--HH-mm-ss" );
 
@@ -197,9 +203,16 @@ public final class ModpackBackupManager
     //  Internal helpers
     // -----------------------------------------------------------------------
 
-    /** Recursively adds the contents of {@code dir} to {@code zip} under the
-     *  given relative path prefix. Symlinks aren't followed (best-effort —
-     *  Files.isSymbolicLink check filters them). */
+    /**
+     * Recursively adds the contents of {@code dir} to {@code zip} under the
+     * given relative path prefix. Symlinks aren't followed (best-effort —
+     * Files.isSymbolicLink check filters them).
+     *
+     * @param zip   the ZipOutputStream to add files to
+     * @param dir   the directory whose contents are added to the zip
+     * @param prefix the relative path prefix for entries in the zip
+     * @throws IOException if an I/O error occurs while adding files to the zip
+     */
     private static void addDirectoryToZip( ZipOutputStream zip, File dir, String prefix )
             throws IOException
     {
@@ -225,6 +238,12 @@ public final class ModpackBackupManager
         }
     }
 
+    /**
+     * Converts a byte count to a human-readable string representation.
+     *
+     * @param bytes the number of bytes
+     * @return a string representing the size in B, KB, MB, or GB
+     */
     private static String humanSize( long bytes )
     {
         if ( bytes < 1024 ) return bytes + " B";

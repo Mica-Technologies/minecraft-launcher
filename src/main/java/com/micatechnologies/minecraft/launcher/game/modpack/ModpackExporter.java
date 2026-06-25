@@ -67,6 +67,9 @@ import java.util.zip.ZipOutputStream;
  */
 public final class ModpackExporter
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModpackExporter() { /* static-only */ }
 
     /** Marker file embedded at the root of every Mica modpack export. The
@@ -155,6 +158,12 @@ public final class ModpackExporter
         return GameModPackFetcher.loadManifestText( pack.getManifestUrl() );
     }
 
+    /**
+     * Checks if all mods in the given manifest JSON have remote URLs that start with "http://" or "https://".
+     *
+     * @param manifestJson the JSON string of the pack's manifest
+     * @return true if all mods have remote URLs starting with "http://" or "https://", false otherwise
+     */
     private static boolean allPackModsRemoteHttp( String manifestJson )
     {
         try {
@@ -359,6 +368,12 @@ public final class ModpackExporter
         zip.closeEntry();
     }
 
+    /**
+     * Escapes special characters in a string to make it safe for JSON.
+     *
+     * @param s the string to escape
+     * @return the escaped string
+     */
     private static String jsonString( String s )
     {
         if ( s == null ) return "null";
@@ -377,6 +392,13 @@ public final class ModpackExporter
         return out.append( "\"" ).toString();
     }
 
+    /**
+     * Returns the union of two sets.
+     *
+     * @param a the first set
+     * @param b the second set
+     * @return a new set containing all elements from both sets
+     */
     private static Set< String > union( Set< String > a, Set< String > b )
     {
         java.util.HashSet< String > merged = new java.util.HashSet<>( a );

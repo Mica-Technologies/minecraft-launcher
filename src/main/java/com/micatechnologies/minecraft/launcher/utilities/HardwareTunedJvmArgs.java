@@ -57,6 +57,9 @@ import oshi.SystemInfo;
  */
 public final class HardwareTunedJvmArgs
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private HardwareTunedJvmArgs() { /* static-only */ }
 
     /**
@@ -147,6 +150,9 @@ public final class HardwareTunedJvmArgs
      * Returns a one-line summary of the host hardware the recommender saw.
      * Used by the Settings UI as a label under the "Generate" button so
      * the user can sanity-check the inputs without opening Task Manager.
+     *
+     * @param maxRamGB the maximum RAM setting in GB
+     * @return a summary string containing the number of cores, total system RAM, and max heap size
      */
     public static String summary( int maxRamGB )
     {
@@ -157,6 +163,11 @@ public final class HardwareTunedJvmArgs
                 + maxRamGB + " GB max heap";
     }
 
+    /**
+     * Retrieves the total RAM in bytes of the host machine.
+     *
+     * @return the total RAM in bytes
+     */
     private static long getTotalRamBytes()
     {
         Long cached = cachedTotalRamBytes;

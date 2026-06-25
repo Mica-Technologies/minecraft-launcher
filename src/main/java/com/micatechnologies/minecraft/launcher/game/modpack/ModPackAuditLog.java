@@ -63,6 +63,9 @@ import java.util.TreeSet;
  */
 public final class ModPackAuditLog
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModPackAuditLog() { /* static-only */ }
 
     /** Audit log filename, in each pack's root folder. */
@@ -164,6 +167,14 @@ public final class ModPackAuditLog
         }
     }
 
+    /**
+     * Appends a line to the audit log file.
+     *
+     * @param packRoot the pack's root folder
+     * @param line     the line to append
+     *
+     * @throws IOException if an I/O error occurs
+     */
     private static void appendLine( String packRoot, String line ) throws IOException
     {
         Path auditPath = Path.of( packRoot, AUDIT_FILE );
@@ -178,7 +189,11 @@ public final class ModPackAuditLog
         }
     }
 
-    /** Drops the oldest lines so the log stays bounded. Best-effort. */
+    /**
+     * Drops the oldest lines so the log stays bounded. Best-effort.
+     *
+     * @param auditPath the path to the audit log file
+     */
     private static void trim( Path auditPath )
     {
         try {
@@ -195,6 +210,14 @@ public final class ModPackAuditLog
         }
     }
 
+    /**
+     * Relativizes a full local path against the pack root.
+     *
+     * @param packRoot      the pack's root folder
+     * @param fullLocalPath the file's full local path
+     *
+     * @return the relativized path, or the original path if relativization fails
+     */
     private static String relativize( String packRoot, String fullLocalPath )
     {
         try {

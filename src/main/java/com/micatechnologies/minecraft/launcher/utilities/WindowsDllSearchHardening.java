@@ -54,25 +54,37 @@ import org.apache.commons.lang3.SystemUtils;
  */
 public final class WindowsDllSearchHardening
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private WindowsDllSearchHardening() { /* static-only */ }
 
     /** Minimal kernel32 binding. kernel32.dll is a System32 KnownDLL, so loading
      *  it by name is itself safe from planting. */
     public interface Kernel32Dll extends StdCallLibrary
     {
+        /**
+         * Singleton instance of the {@link Kernel32Dll} interface.
+         * Only initialized if running on Windows.
+         */
         Kernel32Dll INSTANCE = SystemUtils.IS_OS_WINDOWS
                                ? Native.load( "kernel32", Kernel32Dll.class )
                                : null;
 
-        /** {@code BOOL SetDllDirectoryW(LPCWSTR)}. An empty string removes the
-         *  current directory from the search path; {@code null} would restore the
-         *  default (current-directory-included) order. */
+        /**
+         * Sets the DLL directory for the current process.
+         *
+         * @param lpPathName The path to set as the new DLL directory. An empty string removes the current directory from the search path; {@code null} would restore the default (current-directory-included) order.
+         * @return {@code true} if the operation was successful, {@code false} otherwise.
+         */
         boolean SetDllDirectoryW( WString lpPathName );
     }
 
     /**
      * Removes the current working directory from this process's DLL search order.
      * No-op off Windows.
+     *
+     * @since 2026.6
      */
     public static void removeCurrentDirectoryFromSearchPath()
     {

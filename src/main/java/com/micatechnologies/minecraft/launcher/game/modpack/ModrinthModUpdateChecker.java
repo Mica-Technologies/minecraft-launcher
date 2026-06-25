@@ -50,20 +50,48 @@ import java.util.Map;
  */
 public final class ModrinthModUpdateChecker
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModrinthModUpdateChecker() { /* static-only */ }
 
+    /**
+     * Base URL for the Modrinth API.
+     */
     private static final String API_BASE = "https://api.modrinth.com/v2";
+
+    /**
+     * Maximum response size in bytes allowed for network requests.
+     */
     private static final long MAX_RESPONSE_BYTES = 5L * 1024 * 1024;
 
-    /** Status of a single mod jar's update check. */
+    /**
+     * Status of a single mod jar's update check.
+     *
+     * @since 2026.5
+     */
     public enum Status
     {
-        /** The jar's SHA-1 didn't resolve to any Modrinth version, or a failure
-         *  (network / parse / hash) prevented identification. */
+        /**
+         * The jar's SHA-1 didn't resolve to any Modrinth version, or a failure
+         * (network / parse / hash) prevented identification.
+         *
+         * @since 2026.5
+         */
         NOT_ON_MODRINTH,
-        /** The installed jar matches Modrinth's newest version for its project. */
+
+        /**
+         * The installed jar matches Modrinth's newest version for its project.
+         *
+         * @since 2026.5
+         */
         UP_TO_DATE,
-        /** Modrinth has a newer version than the installed jar. */
+
+        /**
+         * Modrinth has a newer version than the installed jar.
+         *
+         * @since 2026.5
+         */
         UPDATE_AVAILABLE
     }
 
@@ -78,6 +106,8 @@ public final class ModrinthModUpdateChecker
      * @param latestDownloadUrl URL of the latest version's primary file — for
      *                          a future "click to update" action
      * @param projectName       human-readable project name from Modrinth
+     *
+     * @since 2026.5
      */
     public record ModUpdate(
             Status status,
@@ -91,6 +121,8 @@ public final class ModrinthModUpdateChecker
          * Modrinth or whose check failed.
          *
          * @return a {@link ModUpdate} with {@link Status#NOT_ON_MODRINTH} and no version data
+         *
+         * @since 2026.5
          */
         public static ModUpdate notOnModrinth() {
             return new ModUpdate( Status.NOT_ON_MODRINTH, null, null, null, null );
@@ -112,9 +144,12 @@ public final class ModrinthModUpdateChecker
      *
      * @param modsDir the pack's {@code mods/} folder; may be {@code null} or
      *                non-existent, in which case an empty map is returned
+     *
      * @return a map of jar filename to its {@link ModUpdate} result; values are
      *         never {@code null}, and the map is empty when {@code modsDir} is
      *         missing or contains no jars
+     *
+     * @since 2026.5
      */
     public static Map< String, ModUpdate > scan( File modsDir )
     {
@@ -136,6 +171,17 @@ public final class ModrinthModUpdateChecker
         return out;
     }
 
+    /**
+     * Checks a single mod jar file to determine its update status.
+     *
+     * @param jar the mod jar file to check
+     *
+     * @return the {@link ModUpdate} result for the given jar
+     *
+     * @throws Exception if an error occurs during the check process
+     *
+     * @since 2026.5
+     */
     private static ModUpdate checkOne( File jar ) throws Exception
     {
         String sha1 = sha1Hex( jar );
@@ -185,6 +231,17 @@ public final class ModrinthModUpdateChecker
     //  HTTP / JSON helpers (small subset of ModrinthClient's pattern)
     // -------------------------------------------------------------------
 
+    /**
+     * Fetches a JSON object from the specified URL.
+     *
+     * @param url the URL to fetch the JSON from
+     *
+     * @return the fetched JSON object, or null if an error occurs
+     *
+     * @throws Exception if an error occurs during the fetch process
+     *
+     * @since 2026.5
+     */
     private static JsonObject fetchJson( String url ) throws Exception
     {
         String body = NetworkUtilities.downloadFileFromURLBounded( url, MAX_RESPONSE_BYTES );
@@ -193,6 +250,16 @@ public final class ModrinthModUpdateChecker
         return parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
     }
 
+    /**
+     * Retrieves a string value from the specified JSON object.
+     *
+     * @param obj the JSON object to retrieve the value from
+     * @param key the key of the value to retrieve
+     *
+     * @return the retrieved string value, or null if the key is not present or the value is not a string
+     *
+     * @since 2026.5
+     */
     private static String optString( JsonObject obj, String key )
     {
         if ( obj == null || !obj.has( key ) ) return null;
@@ -201,6 +268,15 @@ public final class ModrinthModUpdateChecker
         return e.getAsString();
     }
 
+    /**
+     * Retrieves the primary file URL from the specified version JSON object.
+     *
+     * @param version the version JSON object to retrieve the URL from
+     *
+     * @return the primary file URL, or the first file URL if no primary flag is present, or null if no files are available
+     *
+     * @since 2026.5
+     */
     private static String primaryFileUrl( JsonObject version )
     {
         if ( !version.has( "files" ) || !version.get( "files" ).isJsonArray() ) return null;
@@ -218,6 +294,15 @@ public final class ModrinthModUpdateChecker
         return fallback;
     }
 
+    /**
+     * Computes the SHA-1 hash of the specified file.
+     *
+     * @param f the file to compute the hash for
+     *
+     * @return the hexadecimal representation of the SHA-1 hash, or null if an error occurs
+     *
+     * @since 2026.5
+     */
     private static String sha1Hex( File f )
     {
         try ( var in = new java.io.FileInputStream( f ) ) {

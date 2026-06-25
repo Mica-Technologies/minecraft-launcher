@@ -70,6 +70,9 @@ public final class ScanExclusionPolicy
             "kubejs",
             "defaultconfigs" );
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ScanExclusionPolicy() {
     }
 

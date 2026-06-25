@@ -38,33 +38,48 @@ import java.util.List;
  */
 public final class LibrarySortKeys
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private LibrarySortKeys() { /* static-only */ }
 
-    /** Last-played timestamp in epoch millis, or {@link Long#MIN_VALUE}
-     *  when the pack is null or has never been launched. */
+    /**
+     * Retrieves the last-played timestamp in epoch milliseconds for a given game mod pack.
+     *
+     * @param pack the game mod pack to retrieve the last-played timestamp for
+     * @return the last-played timestamp in epoch milliseconds, or {@link Long#MIN_VALUE}
+     *         if the pack is null or has never been launched
+     */
     public static long lastPlayed( GameModPack pack )
     {
         if ( pack == null ) return Long.MIN_VALUE;
         return pack.getLastPlayedMs();
     }
 
-    /** Total play time in milliseconds, or {@link Long#MIN_VALUE}
-     *  when the pack is null. Zero-play packs sort below ones with
-     *  any history but above the no-pack sentinel. */
+    /**
+     * Retrieves the total play time in milliseconds for a given game mod pack.
+     *
+     * @param pack the game mod pack to retrieve the total play time for
+     * @return the total play time in milliseconds, or {@link Long#MIN_VALUE}
+     *         if the pack is null. Zero-play packs sort below ones with any history
+     *         but above the no-pack sentinel.
+     */
     public static long totalPlayed( GameModPack pack )
     {
         if ( pack == null ) return Long.MIN_VALUE;
         return pack.getTotalPlayTimeMs();
     }
 
-    /** Newest update-log entry's timestamp in epoch millis, or
-     *  {@link Long#MIN_VALUE} when the pack is null, the update log
-     *  is empty, or reading the log threw. Useful for "Recently
-     *  Updated" sorts.
+    /**
+     * Retrieves the timestamp of the newest update-log entry for a given game mod pack.
      *
-     *  <p>Reads the update log lazily on each call — fine for sort
-     *  comparators which call the key function O(n log n) times in
-     *  practice. Cache externally if a hotter use case needs it.</p>
+     * @param pack the game mod pack to retrieve the last update timestamp for
+     * @return the timestamp in epoch milliseconds of the newest update-log entry, or
+     *         {@link Long#MIN_VALUE} if the pack is null, the update log is empty,
+     *         or reading the log threw. Useful for "Recently Updated" sorts.
+     *
+     * <p>Reads the update log lazily on each call — fine for sort comparators which call
+     * the key function O(n log n) times in practice. Cache externally if a hotter use case needs it.</p>
      */
     public static long lastUpdate( GameModPack pack )
     {

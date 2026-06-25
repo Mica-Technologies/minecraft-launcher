@@ -55,6 +55,9 @@ import java.util.List;
  */
 public final class RgbIntegration
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private RgbIntegration() { /* static-only */ }
 
     /**
@@ -340,6 +343,12 @@ public final class RgbIntegration
     //  Helpers
     // =========================================================================
 
+    /**
+     * Converts a JavaFX {@link Color} to an {@link RgbColor}.
+     *
+     * @param c the JavaFX color to convert
+     * @return the corresponding RGB color
+     */
     private static RgbColor fromFxColor( Color c )
     {
         return new RgbColor(
@@ -348,6 +357,12 @@ public final class RgbIntegration
                 clamp255( (int) Math.round( c.getBlue() * 255.0 ) ) );
     }
 
+    /**
+     * Clamps an integer value to the range [0, 255].
+     *
+     * @param v the value to clamp
+     * @return the clamped value
+     */
     private static int clamp255( int v )
     {
         return v < 0 ? 0 : ( v > 255 ? 255 : v );

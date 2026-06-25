@@ -50,6 +50,9 @@ import java.util.Set;
  */
 public final class PendingUpdateDiff
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private PendingUpdateDiff() { /* static-only */ }
 
     /**
@@ -166,9 +169,15 @@ public final class PendingUpdateDiff
         return new Result( added.size(), removed.size(), updated.size(), added, removed, updated );
     }
 
-    /** Hashes {@code installed} against {@code mod}'s declared manifest hash, treating any failure
-     *  (unreadable file, hashing error) as "unchanged" so a transient I/O hiccup can't spam the
-     *  summary with false "updated" entries. */
+    /**
+     * Hashes {@code installed} against {@code mod}'s declared manifest hash, treating any failure
+     * (unreadable file, hashing error) as "unchanged" so a transient I/O hiccup can't spam the
+     * summary with false "updated" entries.
+     *
+     * @param mod       the game mod to check
+     * @param installed the installed file of the mod
+     * @return {@code true} if the installed file matches the declared hash, {@code false} otherwise
+     */
     private static boolean safeMatchesDeclaredHash( GameMod mod, File installed )
     {
         try {
@@ -179,11 +188,22 @@ public final class PendingUpdateDiff
         }
     }
 
+    /**
+     * Returns an empty result instance.
+     *
+     * @return an empty {@link Result} instance
+     */
     private static Result empty()
     {
         return new Result( 0, 0, 0, List.of(), List.of(), List.of() );
     }
 
+    /**
+     * Safely retrieves the file name of a game mod.
+     *
+     * @param mod the game mod to get the file name from
+     * @return the file name of the mod, or {@code null} if an exception occurs
+     */
     private static String safeFileName( GameMod mod )
     {
         try {
@@ -194,7 +214,12 @@ public final class PendingUpdateDiff
         }
     }
 
-    /** Display base name: the version-stripped mod key in its original-ish form (no extension). */
+    /**
+     * Extracts the base name from a file name by removing version tokens and extensions.
+     *
+     * @param filename the file name to process
+     * @return the base name of the file
+     */
     private static String baseName( String filename )
     {
         String n = filename;
@@ -208,8 +233,13 @@ public final class PendingUpdateDiff
         return stripped.isBlank() ? n : stripped;
     }
 
-    /** Version-grouping key: lower-cased base name with the trailing version token removed, so
-     *  {@code jei-1.20.1-11.5.0.jar} and {@code jei-1.20.1-11.6.0.jar} share a key. */
+    /**
+     * Generates a version-grouping key for a file name by removing the trailing version token and
+     * converting to lower case.
+     *
+     * @param filename the file name to process
+     * @return the version-grouping key of the file
+     */
     private static String modKey( String filename )
     {
         return baseName( filename ).toLowerCase( Locale.ROOT );

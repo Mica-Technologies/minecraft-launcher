@@ -42,22 +42,43 @@ import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
  */
 public final class ThemeAccentColors
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ThemeAccentColors() { /* static-only */ }
 
     // Values mirror the -color-primary entries in each
     // src/main/resources/ui/ui-tokens-*.css file. Hex codes copied
     // verbatim and converted to decimal channels here so the linkage
     // is grep-able both ways.
+    /**
+     * The primary accent color for the dark theme.
+     */
     private static final RgbColor DARK_PRIMARY         = new RgbColor( 0x6F, 0xCF, 0x3D );
+    /**
+     * The primary accent color for the light theme.
+     */
     private static final RgbColor LIGHT_PRIMARY        = new RgbColor( 0x3C, 0x85, 0x27 );
+    /**
+     * The primary accent color for the blue gray theme.
+     */
     private static final RgbColor BLUEGRAY_PRIMARY     = new RgbColor( 0x06, 0x68, 0xE1 );
+    /**
+     * The primary accent color for the creeper theme.
+     */
     private static final RgbColor CREEPER_PRIMARY      = new RgbColor( 0x43, 0xD2, 0x2D );
+    /**
+     * The primary accent color for the orange purple theme.
+     */
     private static final RgbColor ORANGEPURPLE_PRIMARY = new RgbColor( 0xD2, 0x57, 0xDB );
 
     /** Used as the safe fallback when the configured theme name doesn't
      *  match any known token file — picking the brand wordmark green
      *  rather than (say) plain white so the keyboard still feels on-
      *  brand even if a stale config picks an unknown theme. */
+    /**
+     * The fallback primary accent color.
+     */
     private static final RgbColor FALLBACK_PRIMARY = DARK_PRIMARY;
 
     /**
@@ -65,6 +86,8 @@ public final class ThemeAccentColors
      * selected in {@link ConfigManager}. Theme name lookups are
      * case-sensitive (the constants in {@link ConfigConstants} are the
      * authoritative values).
+     *
+     * @return the accent color for the current theme
      */
     public static RgbColor accentForCurrentTheme()
     {
@@ -75,6 +98,12 @@ public final class ThemeAccentColors
     /** Theme-by-name lookup, exposed so callers (notably a test or a
      *  preview-of-a-different-theme path) can resolve without going
      *  through {@link ConfigManager}. */
+    /**
+     * Returns the accent color for a given theme.
+     *
+     * @param theme the name of the theme
+     * @return the accent color for the specified theme
+     */
     public static RgbColor accentForTheme( String theme )
     {
         if ( theme == null ) return FALLBACK_PRIMARY;
@@ -97,6 +126,11 @@ public final class ThemeAccentColors
     /** OS dark-mode probe. Delegates to the shared NULL-safe helper, which
      *  defaults to dark when the detector isn't usable on this platform —
      *  matching the launcher's "when in doubt, assume dark" default. */
+    /**
+     * Checks if the operating system is in dark mode.
+     *
+     * @return true if the OS is in dark mode, false otherwise
+     */
     private static boolean osIsDark()
     {
         return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
@@ -115,6 +149,10 @@ public final class ThemeAccentColors
      * accent's neighbourhood rather than jarring jumps across the
      * color wheel. {@code count = 1} returns just the primary;
      * {@code count = 2} is the primary plus one neighbour; etc.</p>
+     *
+     * @param primary the primary accent color
+     * @param count the number of colors in the palette
+     * @return a list containing the derived palette of colors
      */
     public static java.util.List< RgbColor > derivePalette( RgbColor primary, int count )
     {
@@ -147,6 +185,12 @@ public final class ThemeAccentColors
 
     /** Returns {@code { hue°, saturation, lightness }} in HSL space.
      *  Hue ∈ [0, 360); saturation, lightness ∈ [0, 1]. */
+    /**
+     * Converts an RGB color to its corresponding HSL values.
+     *
+     * @param c the RGB color
+     * @return an array containing the hue, saturation, and lightness values
+     */
     static double[] rgbToHsl( RgbColor c )
     {
         double r = c.r() / 255.0;
@@ -172,6 +216,14 @@ public final class ThemeAccentColors
     }
 
     /** HSL → RGB. Hue in degrees, saturation + lightness in [0, 1]. */
+    /**
+     * Converts HSL values to an RGB color.
+     *
+     * @param hueDeg the hue value in degrees
+     * @param s the saturation value
+     * @param l the lightness value
+     * @return the corresponding RGB color
+     */
     static RgbColor hslToRgb( double hueDeg, double s, double l )
     {
         double h = ( ( hueDeg % 360.0 ) + 360.0 ) % 360.0;
@@ -191,6 +243,12 @@ public final class ThemeAccentColors
         return new RgbColor( r, g, b );
     }
 
+    /**
+     * Clamps a value to the range [0, 255].
+     *
+     * @param v the value to clamp
+     * @return the clamped value
+     */
     private static int clamp255( int v )
     {
         return v < 0 ? 0 : ( v > 255 ? 255 : v );

@@ -50,8 +50,19 @@ public final class PowerStateManager
      *  trivial, short enough that "I just plugged in" registers within a couple progress-bar pulses. */
     private static final long CACHE_TTL_NANOS = 5L * 1_000_000_000L;
 
+    /**
+     * Cached flag indicating whether the host is currently on battery power.
+     */
     private static volatile boolean cachedOnBattery   = false;
+
+    /**
+     * Cached battery percentage of the first detected internal battery.
+     */
     private static volatile int     cachedBatteryPct  = -1;
+
+    /**
+     * Expiry time for the cached power state in nanoseconds.
+     */
     private static volatile long    cacheExpiryNanos  = 0L;
 
     /** Latches to "true" once we've engaged battery throttling at least once in this session.
@@ -77,12 +88,17 @@ public final class PowerStateManager
     private static final ThreadLocal< long[] > THROTTLE_STATE =
             ThreadLocal.withInitial( () -> new long[]{ 0L, 0L } );
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private PowerStateManager() { /* static-only */ }
 
     /**
      * Returns true if the host is currently running on battery power. False when:
      * desktop with no battery; AC plugged in; oshi probe failed (safe-default to "not on battery"
      * so downloads don't get throttled because the probe blew up).
+     *
+     * @return true if the host is on battery, false otherwise
      */
     public static boolean isOnBattery()
     {
@@ -232,6 +248,9 @@ public final class PowerStateManager
         return sleepNanos;
     }
 
+    /**
+     * Refreshes the cached power state if it has expired.
+     */
     private static void refreshCacheIfStale()
     {
         long now = System.nanoTime();
@@ -242,6 +261,9 @@ public final class PowerStateManager
         cacheExpiryNanos = now + CACHE_TTL_NANOS;
     }
 
+    /**
+     * Probes the system for power sources and caches the results.
+     */
     private static void probeAndCache()
     {
         boolean onBattery = false;
@@ -290,12 +312,12 @@ public final class PowerStateManager
         cachedBatteryPct = pct;
     }
 
-    /** True iff this source looks like an internal laptop battery — i.e. not a UPS or some
-     *  other non-laptop power-source entry oshi happens to enumerate. oshi 6.3.1 doesn't
-     *  expose a power-source type enum, so we fall back to a name-based check against the
-     *  Windows-reported device name / display name and manufacturer. The check is fuzzy by
-     *  design: false-negatives (a real laptop battery filtered out) just disable throttling,
-     *  which is the safe direction. */
+    /**
+     * Determines if a power source is an internal laptop battery.
+     *
+     * @param ps the power source to check
+     * @return true if the power source is an internal battery, false otherwise
+     */
     private static boolean isInternalBattery( PowerSource ps )
     {
         try {
@@ -317,10 +339,12 @@ public final class PowerStateManager
         }
     }
 
-    /** Case-insensitive substring match for tokens that strongly indicate a UPS rather than
-     *  an internal laptop battery. Names like "APC UPS" / "Back-UPS" / "CyberPower UPS" all
-     *  trip the "UPS" check; the manufacturer-only entries cover units whose display name is
-     *  just a model code. */
+    /**
+     * Checks if the given string contains any UPS-related signals.
+     *
+     * @param s the string to check
+     * @return true if the string contains UPS signals, false otherwise
+     */
     private static boolean containsUpsSignal( String s )
     {
         if ( s == null || s.isEmpty() ) {

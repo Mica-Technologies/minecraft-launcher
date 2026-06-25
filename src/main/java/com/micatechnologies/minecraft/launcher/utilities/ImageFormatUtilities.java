@@ -52,6 +52,9 @@ import java.nio.file.StandardCopyOption;
  */
 public final class ImageFormatUtilities
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ImageFormatUtilities() { /* static-only */ }
 
     /**
@@ -67,6 +70,9 @@ public final class ImageFormatUtilities
      * URLs use {@code .webp} but our content-addressed cache stores
      * everything under {@code .png}, so the on-disk extension tells you
      * what the cache wants to call it, not what it actually is.
+     *
+     * @param file the file to check
+     * @return true if the file's format is JavaFX-decodable, false otherwise
      */
     public static boolean isJavaFxDecodable( File file )
     {
@@ -90,6 +96,9 @@ public final class ImageFormatUtilities
      * any ImageIO reader (corrupt download, unsupported format), in which
      * case the file is left untouched so the caller can inspect / delete
      * it as needed.
+     *
+     * @param file the file to ensure is JavaFX-decodable
+     * @return true if the file is JavaFX-decodable after ensuring, false otherwise
      */
     public static boolean ensureJavaFxDecodable( File file )
     {
@@ -140,6 +149,13 @@ public final class ImageFormatUtilities
 
     // ===== internals =====
 
+    /**
+     * Reads the first {@code n} bytes from the specified file.
+     *
+     * @param file the file to read from
+     * @param n the number of bytes to read
+     * @return an array containing the first {@code n} bytes, or null if an I/O error occurs
+     */
     private static byte[] readHead( File file, int n )
     {
         byte[] buf = new byte[n];
@@ -157,6 +173,12 @@ public final class ImageFormatUtilities
         }
     }
 
+    /**
+     * Checks if the given byte array matches the magic bytes of any JavaFX-native image format.
+     *
+     * @param head the byte array to check
+     * @return true if the byte array matches a JavaFX-native image format, false otherwise
+     */
     private static boolean matchesJavaFxNativeMagic( byte[] head )
     {
         // PNG: 89 50 4E 47 0D 0A 1A 0A

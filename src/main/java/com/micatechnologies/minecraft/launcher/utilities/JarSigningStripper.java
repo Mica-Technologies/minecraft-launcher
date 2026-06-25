@@ -68,17 +68,16 @@ public final class JarSigningStripper
      *  treated as "modern" (no strip). */
     private static final Pattern RELEASE_MINOR = Pattern.compile( "^1\\.(\\d+)" );
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private JarSigningStripper() { /* static-only */ }
 
     /**
-     * True iff the strip is needed for the given Minecraft version — i.e. {@code 1.0}–{@code 1.5.x},
-     * the era where launchwrapper's class transformer trips JarVerifier and breaks
-     * StringTranslate's lang lookups. For {@code 1.6+} (Forge's {@code FMLSanityChecker} era)
-     * and for anything that doesn't parse as a normal release version, returns false — those
-     * either don't need it or would actively crash if we stripped.
+     * Determines if the signing stripping is required for a given Minecraft version.
      *
-     * @param mcVersion Minecraft version string (e.g. {@code "1.5.2"}, {@code "1.12.2"})
-     * @return true if signing should be stripped for this version
+     * @param mcVersion the Minecraft version string (e.g., "1.5.2", "1.12.2")
+     * @return true if signing should be stripped for this version, false otherwise
      */
     public static boolean isStripRequiredFor( String mcVersion )
     {
@@ -98,13 +97,11 @@ public final class JarSigningStripper
     }
 
     /**
-     * Rewrites {@code jarFile} in place with all signature entries removed and per-entry
-     * digest attributes stripped from the manifest. Idempotent: if the jar isn't signed,
-     * returns {@code false} without touching the file.
+     * Strips the signing from a given JAR file in place.
      *
-     * @param jarFile the jar to strip
-     * @return true if the jar was rewritten, false if no signing was found
-     * @throws IOException if reading or writing fails
+     * @param jarFile the JAR file to strip
+     * @return true if the JAR was rewritten, false if no signing was found
+     * @throws IOException if an I/O error occurs during reading or writing
      */
     public static boolean stripSigning( File jarFile ) throws IOException
     {
@@ -159,6 +156,12 @@ public final class JarSigningStripper
         return true;
     }
 
+    /**
+     * Checks if the JAR file contains any signature files.
+     *
+     * @param jf the JAR file to check
+     * @return true if signature files are present, false otherwise
+     */
     private static boolean hasSignatureFiles( JarFile jf )
     {
         Enumeration< JarEntry > e = jf.entries();
@@ -170,6 +173,12 @@ public final class JarSigningStripper
         return false;
     }
 
+    /**
+     * Determines if a given file name is a signature file.
+     *
+     * @param name the file name to check
+     * @return true if the file is a signature file, false otherwise
+     */
     private static boolean isSignatureFile( String name )
     {
         if ( name == null ) return false;
@@ -185,9 +194,13 @@ public final class JarSigningStripper
         return false;
     }
 
-    /** Reads MANIFEST.MF, removes per-entry sections (which hold the now-meaningless digest
-     *  attributes), and writes the result. The main attributes — {@code Manifest-Version},
-     *  {@code Created-By}, {@code Main-Class}, etc. — are preserved unchanged. */
+    /**
+     * Reads the MANIFEST.MF file, removes per-entry sections, and writes the result.
+     *
+     * @param in  the input JAR file
+     * @param out the output JAR stream
+     * @throws IOException if an I/O error occurs during reading or writing
+     */
     private static void writeStrippedManifest( JarFile in, JarOutputStream out ) throws IOException
     {
         JarEntry manifestEntry = in.getJarEntry( "META-INF/MANIFEST.MF" );

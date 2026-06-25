@@ -53,12 +53,48 @@ public final class RgbEffectEngine
      *  produce. */
     private static final long TICK_INTERVAL_MS = 33L;
 
+    /**
+     * The controller this engine pushes rendered frames into via
+     * {@link RgbController#submitFrame(RgbFrame)}.
+     *
+     * @since 2026.5
+     */
     private final RgbController controller;
+
+    /**
+     * The dedicated {@code mica-rgb-effects} daemon scheduler used to
+     * schedule ticks for the active effect.
+     *
+     * @since 2026.5
+     */
     private final ScheduledExecutorService scheduler;
 
+    /**
+     * Lock object used to synchronize access to shared state.
+     *
+     * @since 2026.5
+     */
     private final Object lock = new Object();
+
+    /**
+     * The currently active effect being driven by the engine.
+     *
+     * @since 2026.5
+     */
     private RgbEffect activeEffect;
+
+    /**
+     * The timestamp in milliseconds when the current effect was started.
+     *
+     * @since 2026.5
+     */
     private long effectStartMs;
+
+    /**
+     * The future representing the scheduled tick task.
+     *
+     * @since 2026.5
+     */
     private ScheduledFuture< ? > tickFuture;
 
     /**
@@ -168,6 +204,11 @@ public final class RgbEffectEngine
     //  Internals
     // =========================================================================
 
+    /**
+     * Cancels the current tick future if it is not already cancelled.
+     *
+     * @since 2026.5
+     */
     private void cancelTickFuture()
     {
         if ( tickFuture != null ) {
@@ -176,6 +217,12 @@ public final class RgbEffectEngine
         }
     }
 
+    /**
+     * Performs a single tick of the active effect, generating and
+     * submitting a frame to the controller.
+     *
+     * @since 2026.5
+     */
     private void tick()
     {
         RgbEffect effect;
@@ -204,6 +251,16 @@ public final class RgbEffectEngine
         }
     }
 
+    /**
+     * Returns a safe name for the given {@link RgbEffect}. If the
+     * effect is null, returns "<null>". Otherwise, attempts to get
+     * the effect's name; if that fails, returns the simple class name.
+     *
+     * @param e the effect to get the name of
+     * @return a safe name for the effect
+     *
+     * @since 2026.5
+     */
     private static String safeName( RgbEffect e )
     {
         if ( e == null ) return "<null>";

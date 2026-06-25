@@ -71,6 +71,9 @@ public final class WindowsTitleBarControls
     private static final String GLYPH_RESTORE = "M0,2 H8 V10 H0 Z M2,2 V0 H10 V8 H8";
     private static final String GLYPH_CLOSE   = "M0,0 L10,10 M10,0 L0,10";
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private WindowsTitleBarControls() { /* static-only */ }
 
     /**

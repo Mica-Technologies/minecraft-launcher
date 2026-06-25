@@ -52,6 +52,9 @@ import java.util.Locale;
  */
 public final class LocaleBootstrap
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private LocaleBootstrap() { /* static-only */ }
 
     /**
@@ -86,9 +89,16 @@ public final class LocaleBootstrap
         Locale.setDefault( resolve( overrideTag ) );
     }
 
-    /** Resolves the effective locale without mutating any JVM state.
-     *  Exposed for tests + the Settings dropdown's "current detection
-     *  shows up here when override is blank" preview. */
+    /**
+     * Resolves the effective locale without mutating any JVM state.
+     * Exposed for tests + the Settings dropdown's "current detection
+     * shows up here when override is blank" preview.
+     *
+     * @param overrideTag a BCP-47 locale tag from the user's settings
+     *                    (e.g. {@code "fr-FR"}); null / empty falls back to
+     *                    {@link #detectOsLocale()}
+     * @return the resolved locale
+     */
     public static Locale resolve( String overrideTag )
     {
         if ( overrideTag == null || overrideTag.isBlank() ) {
@@ -113,6 +123,8 @@ public final class LocaleBootstrap
      * when no user-level setting is configured; both are nonsense for our
      * UI bundles and would surface as a missing-translation cascade. Those
      * cases fall back to {@code en-US}.
+     *
+     * @return the OS default locale with a fallback if necessary
      */
     public static Locale detectOsLocale()
     {

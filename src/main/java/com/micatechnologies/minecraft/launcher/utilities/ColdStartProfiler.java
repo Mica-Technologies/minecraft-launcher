@@ -71,10 +71,26 @@ public final class ColdStartProfiler
     /** Order-preserving map of phase name → ns offset from {@link #ANCHOR_NS}. */
     private static final Map< String, Long > MARKS = new LinkedHashMap<>();
 
+    /**
+     * Flag indicating whether the profiler is enabled based on environment
+     * variables or system properties.
+     */
     private static final boolean ENABLED;
+    /**
+     * Flag indicating whether the JVM should exit after profiling data is written,
+     * based on environment variables or system properties.
+     */
     private static final boolean EXIT_AFTER_PAINT;
+    /**
+     * Path to the output file where profiling data will be written, if enabled.
+     */
     private static final Path OUTPUT_PATH;
 
+    /**
+     * Atomic flag indicating whether the profiling data has been flushed to the
+     * output file. Ensures that only the first call to {@link #writeAndMaybeExit()}
+     * actually writes data.
+     */
     private static final AtomicBoolean FLUSHED = new AtomicBoolean( false );
 
     static {
@@ -89,6 +105,9 @@ public final class ColdStartProfiler
                 ( "true".equalsIgnoreCase( exit ) || "1".equals( exit ) );
     }
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ColdStartProfiler() { }
 
     /**
@@ -164,6 +183,11 @@ public final class ColdStartProfiler
         }
     }
 
+    /**
+     * Flushes the captured profiling data to the CSV output file.
+     *
+     * @throws IOException if an I/O error occurs while writing to the file
+     */
     private static void flushCsv() throws IOException
     {
         List< Map.Entry< String, Long > > snapshot;
@@ -208,11 +232,22 @@ public final class ColdStartProfiler
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND );
     }
 
+    /**
+     * Converts a time duration from nanoseconds to milliseconds.
+     *
+     * @param ns the duration in nanoseconds
+     * @return the duration in milliseconds
+     */
     private static long nsToMs( long ns )
     {
         return ( ns + 500_000L ) / 1_000_000L;
     }
 
+    /**
+     * Detects whether Class Data Sharing (CDS) is enabled for the JVM.
+     *
+     * @return true if CDS is enabled, false otherwise
+     */
     private static boolean detectCdsEnabled()
     {
         try {
@@ -227,6 +262,12 @@ public final class ColdStartProfiler
         return false;
     }
 
+    /**
+     * Returns the first non-blank value from the provided array of strings.
+     *
+     * @param values the array of strings to check
+     * @return the first non-blank string, or null if all are blank
+     */
     private static String firstNonBlank( String... values )
     {
         for ( String v : values ) {
@@ -237,6 +278,12 @@ public final class ColdStartProfiler
         return null;
     }
 
+    /**
+     * Escapes a string to be safely included in a CSV file.
+     *
+     * @param s the string to escape
+     * @return the escaped string
+     */
     private static String escape( String s )
     {
         if ( s.indexOf( ',' ) < 0 && s.indexOf( '"' ) < 0 && s.indexOf( '\n' ) < 0 ) {

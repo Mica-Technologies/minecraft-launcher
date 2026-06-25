@@ -52,14 +52,32 @@ public final class WindowsShellRefresh
 {
     // SetWindowPos flag constants — duplicated here rather than depending on JNA's WinUser
     // (which doesn't surface all of them as Java constants).
+    /**
+     * Flag indicating that the window size should not be changed.
+     */
     private static final int SWP_NOSIZE        = 0x0001;
+    /**
+     * Flag indicating that the window position should not be changed.
+     */
     private static final int SWP_NOMOVE        = 0x0002;
+    /**
+     * Flag indicating that the window's Z-order should not be changed.
+     */
     private static final int SWP_NOZORDER      = 0x0004;
+    /**
+     * Flag indicating that the window should not be activated.
+     */
     private static final int SWP_NOACTIVATE    = 0x0010;
+    /**
+     * Flag indicating that the frame of the window has changed.
+     */
     private static final int SWP_FRAMECHANGED  = 0x0020;
 
     /** Mask: refresh the frame without moving / resizing / restacking. Fallback when we
      *  can't read the window's current bounds. */
+    /**
+     * Refresh flags for no operation, which includes changing the frame but not moving or resizing.
+     */
     private static final int REFRESH_FLAGS_NOOP =
             SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER;
 
@@ -67,9 +85,15 @@ public final class WindowsShellRefresh
      *  real position turns the call into a "real move" event from the shell's perspective —
      *  more attention-grabbing than the NOMOVE variant, which Win11's per-monitor taskbar
      *  appears to debounce. */
+    /**
+     * Refresh flags for moving, which includes changing the frame and reasserting the current position and size.
+     */
     private static final int REFRESH_FLAGS_MOVE =
             SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOACTIVATE;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private WindowsShellRefresh() { /* static-only */ }
 
     /**
@@ -79,6 +103,8 @@ public final class WindowsShellRefresh
      *
      * <p>Safe to call from the FX thread — JNA's {@code SetWindowPos} doesn't block on the
      * UI message pump from a remote thread, and we're not changing visible state.</p>
+     *
+     * @param stage the JavaFX stage for which to refresh the frame
      */
     public static void forceFrameRefresh( Stage stage )
     {
@@ -116,6 +142,12 @@ public final class WindowsShellRefresh
 
     /** Looks up the native window handle for {@code stage}. Returns 0 on failure; callers
      *  should treat that as "skip the operation, don't fail the caller's flow". */
+    /**
+     * Resolves the native window handle for the given JavaFX stage.
+     *
+     * @param stage the JavaFX stage to resolve the HWND for
+     * @return the native window handle (HWND) or 0 if resolution fails
+     */
     private static long resolveHwnd( Stage stage )
     {
         try {

@@ -110,6 +110,14 @@ public final class RainbowEffect implements RgbEffect
      * lightness in [0, 1]. Implementation follows the standard piecewise
      * formula (see https://en.wikipedia.org/wiki/HSL_and_HSV). Outputs
      * are clamped to [0, 255] before construction in case of float drift.
+     *
+     * @param hueDeg hue angle in degrees
+     * @param s      saturation value
+     * @param l      lightness value
+     *
+     * @return the RGB color corresponding to the given HSL values
+     *
+     * @since 2026.5
      */
     static RgbColor hslToRgb( double hueDeg, double s, double l )
     {
@@ -132,6 +140,15 @@ public final class RainbowEffect implements RgbEffect
         return new RgbColor( r, g, b );
     }
 
+    /**
+     * Clamps a value to the range [0, 255].
+     *
+     * @param v the value to clamp
+     *
+     * @return the clamped value
+     *
+     * @since 2026.5
+     */
     private static int clamp255( int v )
     {
         return v < 0 ? 0 : ( v > 255 ? 255 : v );

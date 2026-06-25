@@ -43,6 +43,9 @@ import javafx.scene.control.Label;
  */
 public final class OfflineIndicator
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private OfflineIndicator() { /* static-only */ }
 
     /**

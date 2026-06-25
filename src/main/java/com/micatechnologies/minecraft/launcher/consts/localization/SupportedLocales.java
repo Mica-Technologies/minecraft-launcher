@@ -39,6 +39,11 @@ import java.util.Locale;
  */
 public final class SupportedLocales
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     *
+     * @since 2026.5
+     */
     private SupportedLocales() { /* static-only */ }
 
     /** One supported UI language. {@code tag} is the BCP-47 form used in
@@ -74,6 +79,8 @@ public final class SupportedLocales
      * the target language so the dropdown reads correctly even when the
      * user can't read the launcher's current UI language (i.e. a Spanish
      * speaker looking at an English UI sees "Español" not "Spanish").
+     *
+     * @since 2026.5
      */
     public static final List< Entry > ENTRIES = List.of(
             new Entry( "es",    "Español" ),
@@ -94,7 +101,11 @@ public final class SupportedLocales
             new Entry( "sv",    "Svenska" )
     );
 
-    /** Sentinel display label for the "no override — use OS detection"
-     *  Settings-dropdown option. */
+    /**
+     * Sentinel display label for the "no override — use OS detection"
+     *  Settings-dropdown option.
+     *
+     * @since 2026.5
+     */
     public static final String OS_DEFAULT_LABEL_PREFIX = "Use OS Language";
 }
