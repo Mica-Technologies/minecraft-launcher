@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
@@ -63,12 +62,7 @@ public final class AppConfig
 
     /** Active launcher theme identifier. */
     public static synchronized String getTheme() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.THEME_KEY ) ) {
-            json.addProperty( ConfigConstants.THEME_KEY, ConfigConstants.THEME_DEFAULT );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.THEME_KEY ).getAsString();
+        return ConfigStore.getOrInitString( ConfigConstants.THEME_KEY, ConfigConstants.THEME_DEFAULT );
     }
 
     /**
@@ -90,13 +84,9 @@ public final class AppConfig
      *  the canonical "use OS detection" signal and writing a concrete
      *  locale here would override the OS detection silently.</p> */
     public static synchronized String getLocaleOverride() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.LOCALE_OVERRIDE_KEY ) ) {
-            return "";
-        }
-        JsonElement el = json.get( ConfigConstants.LOCALE_OVERRIDE_KEY );
-        if ( el == null || el.isJsonNull() ) return "";
-        return el.getAsString();
+        // No default written: a blank value is the "use OS detection" signal, so
+        // getString (no-write) returns "" for absent / JSON-null without persisting.
+        return ConfigStore.getString( ConfigConstants.LOCALE_OVERRIDE_KEY, "" );
     }
 
     /**
@@ -120,13 +110,9 @@ public final class AppConfig
      *  short-circuit lives in the getter so the on-disk value remains
      *  the user's actual preference). */
     public static synchronized boolean getDebugLogging() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.LOG_DEBUG_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.LOG_DEBUG_ENABLE_KEY,
-                              ConfigConstants.LOG_DEBUG_ENABLE_DEFAULT );
-        }
         return LauncherConstants.LAUNCHER_IS_DEV
-                || json.get( ConfigConstants.LOG_DEBUG_ENABLE_KEY ).getAsBoolean();
+                || ConfigStore.getOrInitBoolean( ConfigConstants.LOG_DEBUG_ENABLE_KEY,
+                                                 ConfigConstants.LOG_DEBUG_ENABLE_DEFAULT );
     }
 
     /**
@@ -142,12 +128,7 @@ public final class AppConfig
 
     /** Whether enhanced (more verbose) logging is enabled. */
     public static synchronized boolean getEnhancedLogging() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.LOG_ENHANCED_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.LOG_ENHANCED_ENABLE_KEY, true );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.LOG_ENHANCED_ENABLE_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.LOG_ENHANCED_ENABLE_KEY, true );
     }
 
     /**
@@ -166,17 +147,13 @@ public final class AppConfig
 
     /** Whether Discord rich-presence is enabled. */
     public static synchronized boolean getDiscordRpcEnable() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.DISCORD_RPC_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.DISCORD_RPC_ENABLE_KEY,
-                              ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
-        }
         // The historical "force-disable in dev" path was removed
         // intentionally — dev builds need to validate the RPC + invite
         // surface end-to-end. The user's choice is now honoured in all
         // environments; the matching dev-mode setDisable on the
         // Settings checkbox is gone too.
-        return json.get( ConfigConstants.DISCORD_RPC_ENABLE_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.DISCORD_RPC_ENABLE_KEY,
+                                             ConfigConstants.DISCORD_RPC_ENABLE_DEFAULT );
     }
 
     /**
@@ -193,12 +170,8 @@ public final class AppConfig
      *  of {@link #getDiscordRpcEnable} so a user can have presence on
      *  but invites off (e.g. doesn't want strangers joining). */
     public static synchronized boolean getDiscordInvitesEnable() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.DISCORD_INVITES_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.DISCORD_INVITES_ENABLE_KEY,
-                              ConfigConstants.DISCORD_INVITES_ENABLE_DEFAULT );
-        }
-        return json.get( ConfigConstants.DISCORD_INVITES_ENABLE_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.DISCORD_INVITES_ENABLE_KEY,
+                                             ConfigConstants.DISCORD_INVITES_ENABLE_DEFAULT );
     }
 
     /**
@@ -217,12 +190,8 @@ public final class AppConfig
 
     /** Whether launcher windows can be resized. */
     public static synchronized boolean getResizableWindows() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY,
-                              ConfigConstants.RESIZE_WINDOWS_ENABLE_DEFAULT );
-        }
-        return json.get( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY,
+                                             ConfigConstants.RESIZE_WINDOWS_ENABLE_DEFAULT );
     }
 
     /**
@@ -238,12 +207,8 @@ public final class AppConfig
     /** Whether the in-game console window is enabled when launching
      *  a modpack. */
     public static synchronized boolean getInGameConsoleEnable() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY,
-                              ConfigConstants.INGAME_CONSOLE_ENABLE_DEFAULT );
-        }
-        return json.get( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY,
+                                             ConfigConstants.INGAME_CONSOLE_ENABLE_DEFAULT );
     }
 
     /**
@@ -260,11 +225,8 @@ public final class AppConfig
      *  unlimited (no trimming). Read on each line-batch flush so the
      *  user can change the setting mid-session without restarting. */
     public static synchronized int getConsoleLogMaxLines() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.CONSOLE_LOG_MAX_LINES_KEY ) ) {
-            return ConfigConstants.CONSOLE_LOG_MAX_LINES_DEFAULT;
-        }
-        return json.get( ConfigConstants.CONSOLE_LOG_MAX_LINES_KEY ).getAsInt();
+        return ConfigStore.getInt( ConfigConstants.CONSOLE_LOG_MAX_LINES_KEY,
+                                   ConfigConstants.CONSOLE_LOG_MAX_LINES_DEFAULT );
     }
 
     /**
@@ -285,12 +247,7 @@ public final class AppConfig
 
     /** Whether the launcher should check for its own updates on startup. */
     public static synchronized boolean getLauncherUpdateCheckEnabled() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY ) ) {
-            json.addProperty( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY, true );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY, true );
     }
 
     /**
@@ -307,13 +264,8 @@ public final class AppConfig
      *  neither cold-start argv-delivered URIs nor runtime IPC-delivered
      *  URIs are dispatched. */
     public static synchronized boolean getUriHandlerEnabled() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.URI_HANDLER_ENABLED_KEY ) ) {
-            json.addProperty( ConfigConstants.URI_HANDLER_ENABLED_KEY,
-                              ConfigConstants.URI_HANDLER_ENABLED_DEFAULT );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.URI_HANDLER_ENABLED_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.URI_HANDLER_ENABLED_KEY,
+                                             ConfigConstants.URI_HANDLER_ENABLED_DEFAULT );
     }
 
     /**
@@ -331,12 +283,7 @@ public final class AppConfig
      *  quick-start wizard. Defaults to false so the wizard fires once
      *  for existing installs that upgrade. */
     public static synchronized boolean getQuickStartCompleted() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.QUICK_START_COMPLETED_KEY ) ) {
-            json.addProperty( ConfigConstants.QUICK_START_COMPLETED_KEY, false );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.QUICK_START_COMPLETED_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.QUICK_START_COMPLETED_KEY, false );
     }
 
     /**
@@ -354,12 +301,8 @@ public final class AppConfig
      *  power. Dormant on desktops where the battery probe always
      *  returns false. */
     public static synchronized boolean getBatteryThrottleEnable() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY,
-                              ConfigConstants.BATTERY_THROTTLE_ENABLE_DEFAULT );
-        }
-        return json.get( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY,
+                                             ConfigConstants.BATTERY_THROTTLE_ENABLE_DEFAULT );
     }
 
     /**
@@ -381,12 +324,8 @@ public final class AppConfig
      *  ARM64-compatible builds for older Minecraft versions on
      *  ARM64 macOS / Linux. */
     public static synchronized boolean getLwjglArmPatchEnable() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY,
-                              ConfigConstants.LWJGL_ARM_PATCH_ENABLE_DEFAULT );
-        }
-        return json.get( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY,
+                                             ConfigConstants.LWJGL_ARM_PATCH_ENABLE_DEFAULT );
     }
 
     /**
@@ -417,9 +356,7 @@ public final class AppConfig
      *         back to a centered default)
      */
     public static synchronized double getWindowX() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.WINDOW_X_KEY ) ) return Double.NaN;
-        return json.get( ConfigConstants.WINDOW_X_KEY ).getAsDouble();
+        return ConfigStore.getDouble( ConfigConstants.WINDOW_X_KEY, Double.NaN );
     }
 
     /**
@@ -429,9 +366,7 @@ public final class AppConfig
      *         back to a centered default)
      */
     public static synchronized double getWindowY() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.WINDOW_Y_KEY ) ) return Double.NaN;
-        return json.get( ConfigConstants.WINDOW_Y_KEY ).getAsDouble();
+        return ConfigStore.getDouble( ConfigConstants.WINDOW_Y_KEY, Double.NaN );
     }
 
     /**
@@ -441,9 +376,7 @@ public final class AppConfig
      *         default size)
      */
     public static synchronized double getWindowWidth() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.WINDOW_WIDTH_KEY ) ) return Double.NaN;
-        return json.get( ConfigConstants.WINDOW_WIDTH_KEY ).getAsDouble();
+        return ConfigStore.getDouble( ConfigConstants.WINDOW_WIDTH_KEY, Double.NaN );
     }
 
     /**
@@ -453,9 +386,7 @@ public final class AppConfig
      *         default size)
      */
     public static synchronized double getWindowHeight() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.WINDOW_HEIGHT_KEY ) ) return Double.NaN;
-        return json.get( ConfigConstants.WINDOW_HEIGHT_KEY ).getAsDouble();
+        return ConfigStore.getDouble( ConfigConstants.WINDOW_HEIGHT_KEY, Double.NaN );
     }
 
     /**
@@ -465,11 +396,8 @@ public final class AppConfig
      *         persisted
      */
     public static synchronized boolean getWindowMaximized() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.WINDOW_MAXIMIZED_KEY ) ) {
-            return ConfigConstants.WINDOW_MAXIMIZED_DEFAULT;
-        }
-        return json.get( ConfigConstants.WINDOW_MAXIMIZED_KEY ).getAsBoolean();
+        return ConfigStore.getBoolean( ConfigConstants.WINDOW_MAXIMIZED_KEY,
+                                       ConfigConstants.WINDOW_MAXIMIZED_DEFAULT );
     }
 
     /**

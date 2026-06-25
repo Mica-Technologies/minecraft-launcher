@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
-import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 
 /**
@@ -53,12 +52,8 @@ public final class RuntimeConfig
 
     /** Minimum heap size in megabytes (the {@code -Xms} value). */
     public static synchronized long getMinRam() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.MIN_RAM_KEY ) ) {
-            json.addProperty( ConfigConstants.MIN_RAM_KEY,
-                              ConfigConstants.MIN_RAM_MEGABYTES_DEFAULT );
-        }
-        return json.get( ConfigConstants.MIN_RAM_KEY ).getAsLong();
+        return ConfigStore.getOrInitLong( ConfigConstants.MIN_RAM_KEY,
+                                          ConfigConstants.MIN_RAM_MEGABYTES_DEFAULT );
     }
 
     /**
@@ -75,12 +70,8 @@ public final class RuntimeConfig
 
     /** Maximum heap size in megabytes (the {@code -Xmx} value). */
     public static synchronized long getMaxRam() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.MAX_RAM_KEY ) ) {
-            json.addProperty( ConfigConstants.MAX_RAM_KEY,
-                              ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT );
-        }
-        return json.get( ConfigConstants.MAX_RAM_KEY ).getAsLong();
+        return ConfigStore.getOrInitLong( ConfigConstants.MAX_RAM_KEY,
+                                          ConfigConstants.MAX_RAM_MEGABYTES_DEFAULT );
     }
 
     /**
@@ -114,13 +105,8 @@ public final class RuntimeConfig
      *  Defaults to the Performance preset (Aikar's flags) when no
      *  value is stored yet. */
     public static synchronized String getCustomJvmArgs() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.JVM_ARGS_KEY ) ) {
-            json.addProperty( ConfigConstants.JVM_ARGS_KEY,
-                              ConfigConstants.JVM_ARGS_VALUE_DEFAULT );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.JVM_ARGS_KEY ).getAsString();
+        return ConfigStore.getOrInitString( ConfigConstants.JVM_ARGS_KEY,
+                                            ConfigConstants.JVM_ARGS_VALUE_DEFAULT );
     }
 
     /**

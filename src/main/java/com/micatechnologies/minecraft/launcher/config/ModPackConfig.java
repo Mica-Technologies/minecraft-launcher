@@ -91,11 +91,8 @@ public final class ModPackConfig
     /** Whether the launcher auto-snapshots a pack's config (and optionally
      *  saves) before applying an update. Default on. */
     public static synchronized boolean getAutoBackupBeforeUpdate() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.BACKUP_AUTO_KEY ) ) {
-            return ConfigConstants.BACKUP_AUTO_DEFAULT;
-        }
-        return json.get( ConfigConstants.BACKUP_AUTO_KEY ).getAsBoolean();
+        return ConfigStore.getBoolean( ConfigConstants.BACKUP_AUTO_KEY,
+                                       ConfigConstants.BACKUP_AUTO_DEFAULT );
     }
 
     /**
@@ -114,11 +111,8 @@ public final class ModPackConfig
     /** Maximum number of backup zips retained per pack. 0 disables the
      *  count cap (age cap still applies). */
     public static synchronized int getMaxBackupsPerPack() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.BACKUP_MAX_COUNT_KEY ) ) {
-            return ConfigConstants.BACKUP_MAX_COUNT_DEFAULT;
-        }
-        return json.get( ConfigConstants.BACKUP_MAX_COUNT_KEY ).getAsInt();
+        return ConfigStore.getInt( ConfigConstants.BACKUP_MAX_COUNT_KEY,
+                                   ConfigConstants.BACKUP_MAX_COUNT_DEFAULT );
     }
 
     /**
@@ -139,11 +133,8 @@ public final class ModPackConfig
     /** Maximum age in days for retained backup zips. 0 disables the age
      *  cap (count cap still applies). */
     public static synchronized int getMaxBackupAgeDays() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.BACKUP_MAX_AGE_DAYS_KEY ) ) {
-            return ConfigConstants.BACKUP_MAX_AGE_DAYS_DEFAULT;
-        }
-        return json.get( ConfigConstants.BACKUP_MAX_AGE_DAYS_KEY ).getAsInt();
+        return ConfigStore.getInt( ConfigConstants.BACKUP_MAX_AGE_DAYS_KEY,
+                                   ConfigConstants.BACKUP_MAX_AGE_DAYS_DEFAULT );
     }
 
     /**
@@ -164,11 +155,8 @@ public final class ModPackConfig
     /** Whether saves/ is included in the backup zip. Off by default
      *  because save folders can be several GB. */
     public static synchronized boolean getBackupIncludeSaves() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.BACKUP_INCLUDE_SAVES_KEY ) ) {
-            return ConfigConstants.BACKUP_INCLUDE_SAVES_DEFAULT;
-        }
-        return json.get( ConfigConstants.BACKUP_INCLUDE_SAVES_KEY ).getAsBoolean();
+        return ConfigStore.getBoolean( ConfigConstants.BACKUP_INCLUDE_SAVES_KEY,
+                                       ConfigConstants.BACKUP_INCLUDE_SAVES_DEFAULT );
     }
 
     /**
@@ -223,12 +211,7 @@ public final class ModPackConfig
      *  last-played pack to the top of the home-screen carousel and as
      *  the cold-start auto-select target. */
     public static synchronized String getLastModPackSelected() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.LAST_MP_KEY ) ) {
-            json.addProperty( ConfigConstants.LAST_MP_KEY, "" );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.LAST_MP_KEY ).getAsString();
+        return ConfigStore.getOrInitString( ConfigConstants.LAST_MP_KEY, "" );
     }
 
     /**
