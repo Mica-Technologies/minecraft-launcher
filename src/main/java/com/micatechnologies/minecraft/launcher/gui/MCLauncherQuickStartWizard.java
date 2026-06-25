@@ -295,28 +295,11 @@ public final class MCLauncherQuickStartWizard
         // macOS, no-op on Linux); applyTitleBarAppearance defers via
         // WINDOW_SHOWN if the stage isn't realized yet, so calling here
         // pre-showAndWait is safe.
-        String theme = ConfigManager.getTheme();
-        boolean lightChrome = ConfigConstants.THEME_LIGHT.equals( theme )
-                              || ( ConfigConstants.THEME_NATIVE.equals( theme ) && !isOsDark() );
+        boolean lightChrome = GUIUtilities.isLightChrome( ConfigManager.getTheme() );
         com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
                 .applyTitleBarDarkMode( stage, !lightChrome );
 
         goToStep( 0 );
-    }
-
-    /**
-     * Cheap wrapper around OsThemeDetector for the wizard's pre-show theme
-     * resolution. Mirrors the pattern in MCLauncherHelpWindow so the OS-state
-     * query has a single failure mode regardless of detector availability.
-     *
-     * @return {@code true} if the operating system is currently in dark mode,
-     *         {@code false} otherwise (including when detection is unavailable)
-     *
-     * @since 3.4
-     */
-    private static boolean isOsDark()
-    {
-        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
     }
 
     /**
