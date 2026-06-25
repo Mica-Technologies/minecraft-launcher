@@ -59,8 +59,8 @@ import java.nio.charset.StandardCharsets;
  *
  * <p>Confirmed against the SDK headers at
  * {@code C:/Program Files (x86)/Windows Kits/10/Include/.../winrt/}.
- * Index 0 = {@code QueryInterface}, 1 = {@code AddRef},
- * 2 = {@code Release}, 3-5 = {@code IInspectable} methods, 6+ =
+ * Index 0 = {@code IUnknown::QueryInterface}, 1 = {@code IUnknown::AddRef},
+ * 2 = {@code IUnknown::Release}, 3-5 = {@code IInspectable} methods, 6+ =
  * interface-specific.</p>
  *
  * @since 2026.5
@@ -407,12 +407,23 @@ public final class WinRt
     {
         private final int hresult;
 
+        /**
+         * Constructs a new {@code WinRtException} with the specified detail message and HRESULT.
+         *
+         * @param message the detail message (which is saved for later retrieval by the {@link #getMessage()} method).
+         * @param hresult the HRESULT value associated with this exception.
+         */
         public WinRtException( String message, int hresult )
         {
             super( message );
             this.hresult = hresult;
         }
 
+        /**
+         * Returns the HRESULT value associated with this exception.
+         *
+         * @return the HRESULT value.
+         */
         public int hresult() { return hresult; }
     }
 

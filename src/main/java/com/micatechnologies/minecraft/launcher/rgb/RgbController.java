@@ -134,6 +134,11 @@ public final class RgbController
         final RgbBackend backend;
         final RgbBackendHealth health;
 
+        /**
+         * Constructs a new {@link BackendSlot} with the specified backend and its associated health.
+         *
+         * @param backend the RGB backend to be paired with a circuit breaker
+         */
         BackendSlot( RgbBackend backend )
         {
             this.backend = backend;
@@ -146,7 +151,7 @@ public final class RgbController
      *  {@link #safelyInvoke}'s DEAD-state demotion swaps entries. */
     private final CopyOnWriteArrayList< BackendSlot > slots = new CopyOnWriteArrayList<>();
 
-    /** Backend types most recently asked for via {@link #start(List)}.
+    /** Backend types most recently asked for via {@link #start(List)}. 
      *  Compared against the next start() call to decide whether to
      *  no-op or rebuild. This list is what the CALLER requested — not
      *  the subset that actually started — so a transient backend
@@ -165,6 +170,9 @@ public final class RgbController
      *  {@link #stop} so a subsequent restart gets a fresh scheduler. */
     private RgbEffectEngine effectEngine;
 
+    /**
+     * Private constructor for the singleton pattern.
+     */
     private RgbController() { /* singleton */ }
 
     /**

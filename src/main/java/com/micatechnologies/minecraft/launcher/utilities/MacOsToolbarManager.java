@@ -117,6 +117,9 @@ public final class MacOsToolbarManager
     private static Callback itemForIdentifierCallback;
     private static Callback actionCallback;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private MacOsToolbarManager() { /* static-only */ }
 
     /** @return true once the native toolbar has been attached successfully. */

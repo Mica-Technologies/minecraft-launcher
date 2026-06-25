@@ -36,6 +36,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/**
+ * Utility class for managing Discord Rich Presence (RPC) functionality within the Minecraft launcher.
+ */
 public class DiscordRpcUtility
 {
     /**
@@ -55,6 +58,9 @@ public class DiscordRpcUtility
      */
     private static final int DISCORD_SECRET_MAX_BYTES = 128;
 
+    /**
+     * The Discord IPC client instance used for managing RPC connections.
+     */
     private static IPCClient discordRpcClient = null;
 
     /**
@@ -74,6 +80,9 @@ public class DiscordRpcUtility
     private static volatile int    currentPartySize  = 0;
     private static volatile int    currentPartyMax   = 0;
 
+    /**
+     * Initializes the Discord RPC client if it is enabled in the configuration.
+     */
     private static void init() {
         if ( ConfigManager.getDiscordRpcEnable() ) {
             try {
@@ -160,6 +169,17 @@ public class DiscordRpcUtility
         }
     }
 
+    /**
+     * Sets the rich presence for the Discord client.
+     *
+     * @param state          the state to display in the rich presence
+     * @param details        the details to display in the rich presence
+     * @param startTimestamp the start timestamp of the activity
+     * @param largeImageKey  the key for the large image to display
+     * @param largeImageText the text for the large image
+     * @param smallImageKey  the key for the small image to display
+     * @param smallImageText the text for the small image
+     */
     public static void setRichPresence( String state,
                                         String details,
                                         OffsetDateTime startTimestamp,
@@ -212,8 +232,6 @@ public class DiscordRpcUtility
      * for a user who's just sitting in the launcher menus.
      *
      * @param screenName the screen name to display (e.g., "Selecting a Mod Pack", "Settings")
-     *
-     * @since 2.0
      */
     public static void setMenuPresence( String screenName )
     {
@@ -229,8 +247,6 @@ public class DiscordRpcUtility
      *
      * @param packName        the modpack name
      * @param customDiscordRpc true if the modpack provides its own Discord RPC
-     *
-     * @since 2.0
      */
     public static void setGamePresence( String packName, boolean customDiscordRpc )
     {
@@ -252,8 +268,6 @@ public class DiscordRpcUtility
      * @param customDiscordRpc true if the modpack provides its own Discord RPC
      * @param manifestUrl      the modpack's manifest URL, used to build the join invite — pass
      *                         {@code null} to disable the join button for this presence
-     *
-     * @since 3.4
      */
     public static void setGamePresence( String packName, boolean customDiscordRpc, String manifestUrl )
     {
@@ -306,6 +320,9 @@ public class DiscordRpcUtility
      * Discord client). The 96-char cap stays well under Discord's 128-byte
      * details limit even after the {@code "Mod Pack: "} prefix is added by
      * the caller.
+     *
+     * @param value the string to sanitize
+     * @return the sanitized string
      */
     private static String sanitizePresenceField( String value )
     {
@@ -327,7 +344,7 @@ public class DiscordRpcUtility
     /**
      * Convenience overload that pulls the manifest URL straight off a {@link GameModPack}.
      *
-     * @since 3.4
+     * @param pack the modpack to set the presence for
      */
     public static void setGamePresence( GameModPack pack )
     {
@@ -347,6 +364,9 @@ public class DiscordRpcUtility
     /**
      * Builds the {@code mmcl://join?url=...} join secret for a modpack manifest URL, returning
      * {@code null} if the resulting secret would exceed Discord's 128-byte joinSecret limit.
+     *
+     * @param manifestUrl the modpack's manifest URL
+     * @return the join secret or null if it exceeds the limit
      */
     private static String buildJoinSecret( String manifestUrl )
     {
@@ -365,10 +385,7 @@ public class DiscordRpcUtility
      * non-Discord channels don't have that restriction.
      *
      * @param manifestUrl the modpack's manifest URL
-     *
      * @return the invite URL, or {@code null} if the manifest URL is null/blank
-     *
-     * @since 3.4
      */
     public static String buildInviteLink( String manifestUrl )
     {
@@ -384,11 +401,8 @@ public class DiscordRpcUtility
      * the matching Mojang version on demand).
      *
      * @param pack the pack to build the invite for
-     *
      * @return the invite URL, or {@code null} if the pack has neither a manifest URL nor a
      *         vanilla version ID (e.g. a failed-load placeholder pack)
-     *
-     * @since 3.4
      */
     public static String buildInviteLinkFromPack( GameModPack pack )
     {
@@ -411,6 +425,9 @@ public class DiscordRpcUtility
         return buildInviteLink( pack.getManifestUrl() );
     }
 
+    /**
+     * Exits the Discord RPC connection and clears any cached party data.
+     */
     public static void exit() {
         if ( discordRpcClient != null ) {
             try {
