@@ -856,8 +856,10 @@ class GameModPackLauncher
                         LocalizationManager.get( "gameModPackLauncher.progress.downloadingMcLibs" ),
                         pack.isVanillaVersion() ? 40.0 : 20.0 );
             }
-            libraryManifest = GameVersionManifest.getMinecraftLibraryManifest(
-                    pack.getMinecraftVersion(), pack );
+            // Route through the pack's memoized accessor so the version's
+            // 2-4 MB client.json is parsed once and shared with the later
+            // launch() call (and any UI renders), instead of re-parsed per call.
+            libraryManifest = pack.getMinecraftLibraryManifest();
             checkCancelled();
             classpath = libraryManifest.buildMinecraftClasspath(
                     GameModeManager.getCurrentGameMode(),
