@@ -139,21 +139,36 @@ public final class WindowsCustomChromeManager
     private static volatile boolean maxButtonHovered = false;
     private static volatile int currentDpi = 96;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private WindowsCustomChromeManager() { /* static-only */ }
 
-    /** @return true once the WndProc subclass installed successfully. */
+    /**
+     * Checks if the custom chrome is currently active.
+     *
+     * @return {@code true} if the WndProc subclass installed successfully, otherwise {@code false}.
+     */
     public static boolean isActive() { return active; }
 
-    /** Registers a sink notified (on the FX thread) on maximize-button hover enter/leave. The OS
-     *  owns that button (HTMAXBUTTON) so it never gets JavaFX hover events; this lets the launcher
-     *  paint a matching hover state itself. Pass {@code null} to clear. */
+    /**
+     * Registers a sink notified (on the FX thread) on maximize-button hover enter/leave. The OS
+     * owns that button (HTMAXBUTTON) so it never gets JavaFX hover events; this lets the launcher
+     * paint a matching hover state itself.
+     *
+     * @param sink the consumer to be notified of maximize button hover events, or {@code null} to clear.
+     */
     public static void setMaxButtonHoverSink( java.util.function.Consumer< Boolean > sink )
     {
         maxHoverSink = sink;
     }
 
-    /** Requests a one-shot WM_NCMOUSELEAVE so the maximize hover clears reliably when the pointer
-     *  leaves the non-client area (e.g. moves up into the snap-layouts flyout or off the window). */
+    /**
+     * Requests a one-shot WM_NCMOUSELEAVE so the maximize hover clears reliably when the pointer
+     * leaves the non-client area (e.g. moves up into the snap-layouts flyout or off the window).
+     *
+     * @param hwnd the handle to the window.
+     */
     private static void armNcLeaveTracking( HWND hwnd )
     {
         try {
@@ -169,7 +184,11 @@ public final class WindowsCustomChromeManager
         }
     }
 
-    /** Fires the hover sink only on a real enter/leave transition. */
+    /**
+     * Fires the hover sink only on a real enter/leave transition.
+     *
+     * @param hovered {@code true} if the pointer has entered the maximize button, otherwise {@code false}.
+     */
     private static void setMaxHover( boolean hovered )
     {
         if ( maxButtonHovered == hovered ) {
@@ -182,13 +201,18 @@ public final class WindowsCustomChromeManager
         }
     }
 
-    /** Width (logical px) the native caption buttons occupy at the top-right — used by the
-     *  Windows top-bar layout so the launcher's own controls clear them. */
+    /**
+     * Gets the width (logical px) that the native caption buttons occupy at the top-right.
+     *
+     * @return the reserved width for the buttons in logical pixels.
+     */
     public static double reservedButtonsWidthLogical() { return (double) BUTTON_WIDTH * BUTTON_COUNT; }
 
     /**
      * Installs the chrome on the stage's native window. No-op off Windows. Safe to call before
      * the window is shown (defers to {@code WINDOW_SHOWN}). Idempotent.
+     *
+     * @param stage the JavaFX stage to install the custom chrome on.
      */
     public static void install( Stage stage )
     {
@@ -274,7 +298,9 @@ public final class WindowsCustomChromeManager
         }
     }
 
-    /** Restores the original window procedure. Defensive only — normal teardown is process exit. */
+    /**
+     * Restores the original window procedure. Defensive only — normal teardown is process exit.
+     */
     public static void uninstall()
     {
         if ( !active || boundHwnd == null || originalProc == null ) {
@@ -298,6 +324,15 @@ public final class WindowsCustomChromeManager
     //  Window procedure (runs on the Glass/JavaFX message-pump thread)
     // =========================================================================================
 
+    /**
+     * The window procedure that handles various Windows messages.
+     *
+     * @param hwnd   the handle to the window.
+     * @param uMsg   the message identifier.
+     * @param wParam the first message parameter.
+     * @param lParam the second message parameter.
+     * @return the result of the message processing.
+     */
     private static LRESULT wndProc( HWND hwnd, int uMsg, WPARAM wParam, LPARAM lParam )
     {
         try {
@@ -350,7 +385,13 @@ public final class WindowsCustomChromeManager
         return User32Ex.INSTANCE.CallWindowProcW( originalProc, hwnd, uMsg, wParam, lParam );
     }
 
-    /** WM_NCCALCSIZE: reclaim the title bar so the client rect reaches the top. */
+    /**
+     * Handles the WM_NCCALCSIZE message to reclaim the title bar so the client rect reaches the top.
+     *
+     * @param hwnd   the handle to the window.
+     * @param lParam the second message parameter containing the NCCALCSIZE_PARAMS structure.
+     * @return the result of the message processing.
+     */
     private static LRESULT onNcCalcSize( HWND hwnd, LPARAM lParam )
     {
         // lParam -> NCCALCSIZE_PARAMS; rgrc[0] is the proposed client RECT (4 ints at offset 0).
@@ -368,7 +409,14 @@ public final class WindowsCustomChromeManager
         return new LRESULT( 0 );
     }
 
-    /** WM_NCHITTEST: resize borders, native caption buttons, and interactive-aware drag strip. */
+    /**
+     * Handles the WM_NCHITTEST message to determine the resize borders, native caption buttons,
+     * and interactive-aware drag strip.
+     *
+     * @param hwnd   the handle to the window.
+     * @param lParam the second message parameter containing the mouse coordinates.
+     * @return the result of the hit test.
+     */
     private static LRESULT onNcHitTest( HWND hwnd, LPARAM lParam )
     {
         RECT wr = new RECT();
@@ -450,6 +498,10 @@ public final class WindowsCustomChromeManager
      * JavaFX control. Runs the pick on the FX thread (the WndProc executes there); if for any
      * reason it isn't the FX thread, conservatively returns {@code false} (treat as drag) rather
      * than touch the scene graph off-thread.
+     *
+     * @param sceneX the x-coordinate in scene space.
+     * @param sceneY the y-coordinate in scene space.
+     * @return {@code true} if the point is over an interactive control, otherwise {@code false}.
      */
     private static boolean isOverInteractiveControl( double sceneX, double sceneY )
     {
@@ -471,7 +523,14 @@ public final class WindowsCustomChromeManager
         return false;
     }
 
-    /** Returns the topmost visible node containing the scene-space point, or null. */
+    /**
+     * Returns the topmost visible node containing the scene-space point, or null.
+     *
+     * @param node   the node to start the search from.
+     * @param sceneX the x-coordinate in scene space.
+     * @param sceneY the y-coordinate in scene space.
+     * @return the topmost visible node containing the point, or null if none found.
+     */
     private static Node pick( Node node, double sceneX, double sceneY )
     {
         if ( node == null || !node.isVisible() || node.isMouseTransparent() ) {
@@ -493,7 +552,12 @@ public final class WindowsCustomChromeManager
         return node;
     }
 
-    /** Heuristic for "the user expects to click this, not drag the window." */
+    /**
+     * Heuristic for "the user expects to click this, not drag the window."
+     *
+     * @param n the node to check.
+     * @return {@code true} if the node is interactive, otherwise {@code false}.
+     */
     private static boolean isInteractive( Node n )
     {
         if ( n instanceof Control || n instanceof ButtonBase ) {
@@ -509,6 +573,12 @@ public final class WindowsCustomChromeManager
 
     // ---- helpers -----------------------------------------------------------------------------
 
+    /**
+     * Checks if the window is currently maximized.
+     *
+     * @param hwnd the handle to the window.
+     * @return {@code true} if the window is maximized, otherwise {@code false}.
+     */
     private static boolean isMaximized( HWND hwnd )
     {
         try {
@@ -519,6 +589,11 @@ public final class WindowsCustomChromeManager
         }
     }
 
+    /**
+     * Gets the frame thickness in the x-direction.
+     *
+     * @return the frame thickness in pixels.
+     */
     private static int frameThicknessX()
     {
         try {
@@ -530,6 +605,11 @@ public final class WindowsCustomChromeManager
         }
     }
 
+    /**
+     * Gets the frame thickness in the y-direction.
+     *
+     * @return the frame thickness in pixels.
+     */
     private static int frameThicknessY()
     {
         try {
@@ -541,10 +621,27 @@ public final class WindowsCustomChromeManager
         }
     }
 
+    /**
+     * Calculates the DPI scale factor.
+     *
+     * @return the DPI scale factor as a float.
+     */
     private static float dpiScale() { return currentDpi / 96f; }
 
+    /**
+     * Scales a logical value to physical pixels based on the current DPI.
+     *
+     * @param logical the logical value to scale.
+     * @return the scaled value in physical pixels.
+     */
     private static int scale( int logical ) { return Math.round( logical * dpiScale() ); }
 
+    /**
+     * Queries the DPI for a given window.
+     *
+     * @param hwnd the handle to the window.
+     * @return the DPI of the window, or 96 if an error occurs.
+     */
     private static int queryDpi( HWND hwnd )
     {
         try {
@@ -562,23 +659,115 @@ public final class WindowsCustomChromeManager
     //  "W" to functions like SetWindowPos that have no wide variant.
     // =========================================================================================
 
+    /**
+     * Interface for accessing Windows API functions using JNA.
+     */
     private interface User32Ex extends StdCallLibrary
     {
         User32Ex INSTANCE = Native.load( "user32", User32Ex.class );
 
+        /**
+         * Retrieves the specified window style bits.
+         *
+         * @param hWnd the handle to the window.
+         * @param nIndex the index of the value to retrieve.
+         * @return the window style bits.
+         */
         int      GetWindowLongW( HWND hWnd, int nIndex );
+
+        /**
+         * Sets new extended window styles for the specified window.
+         *
+         * @param hWnd the handle to the window.
+         * @param nIndex the index of the value to set.
+         * @param dwNewLong the new style bits.
+         * @return the previous style bits.
+         */
         int      SetWindowLongW( HWND hWnd, int nIndex, int dwNewLong );
+
+        /**
+         * Sets a new window procedure for the specified window.
+         *
+         * @param hWnd the handle to the window.
+         * @param nIndex the index of the value to set.
+         * @param proc the new window procedure.
+         * @return the previous window procedure.
+         */
         LONG_PTR SetWindowLongPtrW( HWND hWnd, int nIndex, WindowProc proc );
+
+        /**
+         * Sets a new window procedure for the specified window using a pointer.
+         *
+         * @param hWnd the handle to the window.
+         * @param nIndex the index of the value to set.
+         * @param dwNewLong the new style bits as a pointer.
+         * @return the previous style bits.
+         */
         LONG_PTR SetWindowLongPtrW( HWND hWnd, int nIndex, LONG_PTR dwNewLong );
+
+        /**
+         * Calls the previous window procedure for the specified window.
+         *
+         * @param lpPrevWndFunc the address of the previous window procedure.
+         * @param hWnd the handle to the window.
+         * @param msg the message identifier.
+         * @param wParam the first message parameter.
+         * @param lParam the second message parameter.
+         * @return the result of the message processing.
+         */
         LRESULT  CallWindowProcW( LONG_PTR lpPrevWndFunc, HWND hWnd, int msg, WPARAM wParam, LPARAM lParam );
+
+        /**
+         * Changes the size, position, and Z order of a window.
+         *
+         * @param hWnd the handle to the window.
+         * @param hWndInsertAfter the handle to the window that precedes the positioned window in the Z order.
+         * @param X the new position of the left side of the window.
+         * @param Y the new position of the top of the window.
+         * @param cx the new width of the window.
+         * @param cy the new height of the window.
+         * @param uFlags the window sizing and positioning flags.
+         * @return {@code true} if the function succeeds, otherwise {@code false}.
+         */
         boolean  SetWindowPos( HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, int uFlags );
+
+        /**
+         * Retrieves the dimensions of the bounding rectangle of the specified window.
+         *
+         * @param hWnd the handle to the window.
+         * @param rect a pointer to a RECT structure that receives the screen coordinates of the upper-left and lower-right corners of the window.
+         * @return {@code true} if the function succeeds, otherwise {@code false}.
+         */
         boolean  GetWindowRect( HWND hWnd, RECT rect );
+
+        /**
+         * Retrieves various system metrics or configuration settings.
+         *
+         * @param nIndex the system metric or configuration setting to retrieve.
+         * @return the value of the specified system metric or configuration setting.
+         */
         int      GetSystemMetrics( int nIndex );
+
+        /**
+         * Retrieves the DPI associated with a window.
+         *
+         * @param hWnd the handle to the window.
+         * @return the DPI of the window.
+         */
         int      GetDpiForWindow( HWND hWnd );
+
+        /**
+         * Tracks mouse events for a specified window.
+         *
+         * @param lpEventTrack a pointer to a TRACKMOUSEEVENT structure that contains information about the tracking request.
+         * @return {@code true} if the function succeeds, otherwise {@code false}.
+         */
         boolean  TrackMouseEvent( TRACKMOUSEEVENT lpEventTrack );
     }
 
-    /** Win32 TRACKMOUSEEVENT — used to request a one-shot non-client mouse-leave notification. */
+    /**
+     * Win32 TRACKMOUSEEVENT — used to request a one-shot non-client mouse-leave notification.
+     */
     @com.sun.jna.Structure.FieldOrder( { "cbSize", "dwFlags", "hwndTrack", "dwHoverTime" } )
     public static class TRACKMOUSEEVENT extends com.sun.jna.Structure
     {

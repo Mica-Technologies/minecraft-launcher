@@ -99,6 +99,11 @@ public final class OpenRgbBackend implements RgbBackend
     @Override
     public String name() { return "OpenRGB"; }
 
+    /**
+     * Checks if the OpenRGB server is available by attempting to connect to it.
+     *
+     * @return true if the connection is successful, false otherwise
+     */
     @Override
     public boolean isAvailable()
     {
@@ -118,6 +123,11 @@ public final class OpenRgbBackend implements RgbBackend
         }
     }
 
+    /**
+     * Starts the connection to the OpenRGB server and initializes the devices.
+     *
+     * @throws Exception if an error occurs during the start process
+     */
     @Override
     public void start() throws Exception
     {
@@ -204,6 +214,12 @@ public final class OpenRgbBackend implements RgbBackend
         }
     }
 
+    /**
+     * Renders a frame of RGB colors to the connected devices.
+     *
+     * @param frame the RGB frame to render
+     * @throws Exception if an error occurs during rendering
+     */
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {
@@ -235,6 +251,9 @@ public final class OpenRgbBackend implements RgbBackend
         }
     }
 
+    /**
+     * Shuts down the connection to the OpenRGB server and clears device data.
+     */
     @Override
     public void shutdown()
     {
@@ -273,11 +292,12 @@ public final class OpenRgbBackend implements RgbBackend
     private record Device( int deviceIndex, int deviceType, int numLeds,
                             Map< KeyboardKey, Integer > keyMap, String displayName ) {}
 
-    /** Human label for an OpenRGB device-type code — used in the
-     *  "registered ..." log line so the user can see what the launcher
-     *  enumerated. The codes come straight from the OpenRGB
-     *  server's RGBController.h enum; unknown values fall through to
-     *  a generic "device" label. */
+    /**
+     * Returns a human-readable label for an OpenRGB device type code.
+     *
+     * @param type the device type code
+     * @return the human-readable label for the device type
+     */
     private static String deviceTypeName( int type )
     {
         return switch ( type ) {
@@ -360,6 +380,12 @@ public final class OpenRgbBackend implements RgbBackend
         return out;
     }
 
+    /**
+     * Normalizes an OpenRGB LED name by uppercasing and stripping specific tokens.
+     *
+     * @param name the original LED name
+     * @return the normalized LED name
+     */
     private static String normalizeLedName( String name )
     {
         if ( name == null ) return "";

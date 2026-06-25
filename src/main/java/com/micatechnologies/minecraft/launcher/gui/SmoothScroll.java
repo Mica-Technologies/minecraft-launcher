@@ -94,6 +94,9 @@ public final class SmoothScroll
      */
     private static final double SNAP_THRESHOLD = 0.0005;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private SmoothScroll() { /* static-only */ }
 
     /**
@@ -178,6 +181,14 @@ public final class SmoothScroll
         } );
     }
 
+    /**
+     * Clamps a value within a specified range.
+     *
+     * @param v  the value to clamp
+     * @param lo the lower bound of the range
+     * @param hi the upper bound of the range
+     * @return the clamped value
+     */
     private static double clamp( double v, double lo, double hi )
     {
         return Math.max( lo, Math.min( hi, v ) );

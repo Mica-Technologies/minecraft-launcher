@@ -84,7 +84,14 @@ import java.util.Set;
  */
 public final class LauncherUriHandler
 {
+    /**
+     * The URI scheme used for deep-linking into the launcher.
+     */
     public static final  String SCHEME        = "mmcl";
+
+    /**
+     * The prefix for URIs with the {@link #SCHEME}.
+     */
     private static final String SCHEME_PREFIX = SCHEME + "://";
 
     /** Hosts whose modpack manifests we install without an extra confirmation prompt.
@@ -106,9 +113,17 @@ public final class LauncherUriHandler
         REJECT
     }
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private LauncherUriHandler() { /* static-only */ }
 
-    /** True if the string looks like a launcher URI (case-insensitive). */
+    /**
+     * Checks if the given string is a valid launcher URI.
+     *
+     * @param s the string to check
+     * @return true if the string is a launcher URI, false otherwise
+     */
     public static boolean isLauncherUri( String s )
     {
         return s != null && s.regionMatches( true, 0, SCHEME_PREFIX, 0, SCHEME_PREFIX.length() );
@@ -119,6 +134,8 @@ public final class LauncherUriHandler
      * each action handler routes through {@link SystemUtilities#spawnNewTask} or the FX
      * thread as appropriate. Errors are logged and never propagated; a malformed URI from
      * an external link should never crash the launcher.
+     *
+     * @param uriString the URI string to handle
      */
     public static void handle( String uriString )
     {
