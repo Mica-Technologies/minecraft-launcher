@@ -216,6 +216,17 @@ public class LauncherConstants
     public static final String PROGRAM_ARG_SERVER_MODE = "-s";
 
     /**
+     * Headless diagnostic argument: {@code --diag-manifest <manifestUrlOrFileUrl>}.
+     * Resolves the given pack's Minecraft library manifest twice and reports
+     * whether the second resolution is memoized (i.e. the version's client.json
+     * is parsed once, not twice) — exercising the real download/parse path
+     * without authentication or launching the game. Exits the process when done.
+     *
+     * @since 2026.6
+     */
+    public static final String PROGRAM_ARG_DIAG_MANIFEST = "--diag-manifest";
+
+    /**
      * The minimum value allowed for the minimum RAM configuration in settings.
      *
      * @since 1.1
