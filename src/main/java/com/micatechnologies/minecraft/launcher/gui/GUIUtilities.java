@@ -21,8 +21,17 @@ import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
+import com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.SensitiveDataRedactor;
+import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
+import com.micatechnologies.minecraft.launcher.utilities.UrlValidation;
 import javafx.application.Platform;
+
+import java.awt.Desktop;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -657,10 +666,7 @@ public class GUIUtilities
 
                 javafx.stage.Window w = dialogRoot.getScene().getWindow();
                 if ( w instanceof Stage st ) {
-                    String theme = ConfigManager.getTheme();
-                    boolean lightChrome = ConfigConstants.THEME_LIGHT.equals( theme )
-                            || ( ConfigConstants.THEME_NATIVE.equals( theme )
-                                 && !isOsDarkSafe() );
+                    boolean lightChrome = isLightChrome( ConfigManager.getTheme() );
                     com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
                             .applyTitleBarDarkMode( st, !lightChrome );
                 }
@@ -671,12 +677,108 @@ public class GUIUtilities
         } );
     }
 
-    /** Cheap wrapper around OsThemeDetector for the alert-chrome decision; same
-     *  shape as the helper in MCLauncherHelpWindow / MCLauncherQuickStartWizard
-     *  so a detector failure on a weird platform never blocks an alert from
-     *  showing. */
-    private static boolean isOsDarkSafe()
+    /**
+     * Returns whether the OS reports a dark appearance, via the shared
+     * {@link OsThemeUtilities#isOsDark()} detector. Thin convenience so GUI code
+     * can read the OS theme without importing the utilities package directly;
+     * never throws (the underlying detector is failure-tolerant).
+     *
+     * @return {@code true} when the OS appearance is dark
+     *
+     * @since 2026.6
+     */
+    public static boolean isOsDark()
     {
-        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
+        return OsThemeUtilities.isOsDark();
+    }
+
+    /**
+     * Resolves whether the launcher should paint <em>light</em> window chrome
+     * for the given configured theme: explicitly light, or "native" while the OS
+     * is in light mode. Centralizes the
+     * {@code THEME_LIGHT || (THEME_NATIVE && !osDark)} decision that several
+     * dialogs and windows previously inlined.
+     *
+     * @param theme the configured theme key (see {@link ConfigConstants})
+     *
+     * @return {@code true} if light chrome should be used
+     *
+     * @since 2026.6
+     */
+    public static boolean isLightChrome( String theme )
+    {
+        return ConfigConstants.THEME_LIGHT.equals( theme )
+                || ( ConfigConstants.THEME_NATIVE.equals( theme ) && !isOsDark() );
+    }
+
+    /**
+     * Opens a manifest/user-supplied URL in the user's default browser, off the
+     * FX thread. The URL is validated as {@code http}/{@code https} via
+     * {@link UrlValidation#sanitizedHttpUrl(String)} first, so a hostile or
+     * malformed value can never reach {@code Desktop.browse(...)} and open a
+     * local resource. Non-http(s) input is logged and ignored.
+     *
+     * @param url candidate URL (may be {@code null}/blank/malformed)
+     *
+     * @since 2026.6
+     */
+    public static void openExternalUrl( String url )
+    {
+        final String safe = UrlValidation.sanitizedHttpUrl( url );
+        if ( safe == null ) {
+            Logger.logWarning( LocalizationManager.format( "log.modpack.refuseNonHttpUrl", url ) );
+            return;
+        }
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                if ( Desktop.isDesktopSupported() ) {
+                    Desktop.getDesktop().browse( URI.create( safe ) );
+                }
+            }
+            catch ( IOException e ) {
+                Logger.logError( LocalizationManager.format( "log.modpack.openBrowserFailed", safe ) );
+                Logger.logThrowable( e );
+            }
+        } );
+    }
+
+    /**
+     * Opens a mod pack's website ({@link GameModPack#getPackURL()}) in the
+     * browser via {@link #openExternalUrl(String)}. Shared by the main menu and
+     * the detail modal so the "View Website" action behaves identically in both.
+     *
+     * @param pack the pack whose website to open
+     *
+     * @since 2026.6
+     */
+    public static void openModpackWebsite( GameModPack pack )
+    {
+        if ( pack == null ) return;
+        openExternalUrl( pack.getPackURL() );
+    }
+
+    /**
+     * Opens a folder in the OS file browser, off the FX thread. No-op when the
+     * folder is {@code null} or does not exist.
+     *
+     * @param folder directory to reveal
+     *
+     * @since 2026.6
+     */
+    public static void openFolder( File folder )
+    {
+        if ( folder == null || !folder.exists() ) return;
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                if ( Desktop.isDesktopSupported() ) {
+                    Desktop.getDesktop().open( folder );
+                }
+            }
+            catch ( IOException e ) {
+                Logger.logError( LocalizationManager.format( "log.modpack.openBrowserFailed",
+                                                             folder.getAbsolutePath() ) );
+                Logger.logThrowable( e );
+            }
+        } );
     }
 }
