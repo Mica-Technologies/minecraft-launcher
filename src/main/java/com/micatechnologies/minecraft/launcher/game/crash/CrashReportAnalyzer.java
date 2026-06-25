@@ -185,6 +185,16 @@ public final class CrashReportAnalyzer
     private static final Pattern OOM_PATTERN = Pattern.compile(
             "java\\.lang\\.OutOfMemoryError(?::\\s*([^\\r\\n]+))?" );
 
+    /**
+     * Detects an {@code OutOfMemoryError} in the crash log and suggests raising the
+     * RAM allocation (capped to leave OS headroom).
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis} with a summary and remediation {@link Suggestion}s,
+     *         or {@code null} if no out-of-memory error is present
+     */
     private static CrashDiagnosis detectOutOfMemory( String text, GameModPack pack )
     {
         Matcher m = OOM_PATTERN.matcher( text );
@@ -232,6 +242,15 @@ public final class CrashReportAnalyzer
                     + "|has been compiled by a more recent version of the Java Runtime"
                     + "|class file version (\\d+)\\.\\d+)" );
 
+    /**
+     * Detects an unsupported-Java / unsupported class-file-version crash and points
+     * the user at the runtime settings.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectJavaVersion( String text, GameModPack pack )
     {
         if ( !JAVA_VERSION_PATTERN.matcher( text ).find() ) {
@@ -261,6 +280,14 @@ public final class CrashReportAnalyzer
     private static final Pattern DISK_FULL_PATTERN = Pattern.compile(
             "(No space left on device|There is not enough space on the disk|Disk full)" );
 
+    /**
+     * Detects a disk-full / no-space-left-on-device condition.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectDiskFull( String text, GameModPack pack )
     {
         if ( !DISK_FULL_PATTERN.matcher( text ).find() ) {
@@ -277,6 +304,14 @@ public final class CrashReportAnalyzer
     private static final Pattern NATIVE_LIB_PATTERN = Pattern.compile(
             "java\\.lang\\.UnsatisfiedLinkError|Could not (?:locate|load) the native library" );
 
+    /**
+     * Detects a failure loading a native (JNI/LWJGL) library.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectNativeLibrary( String text, GameModPack pack )
     {
         if ( !NATIVE_LIB_PATTERN.matcher( text ).find() ) {
@@ -307,6 +342,14 @@ public final class CrashReportAnalyzer
     private static final Pattern MIXIN_OWNER_PATTERN = Pattern.compile(
             "mixins?\\.([a-z0-9_\\-]+)\\.json|@Mixin\\(([^\\)]+)\\)" );
 
+    /**
+     * Detects a Mixin apply/injection conflict between mods.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectMixinConflict( String text, GameModPack pack )
     {
         if ( !MIXIN_PATTERN.matcher( text ).find() ) {
@@ -380,6 +423,14 @@ public final class CrashReportAnalyzer
                     + "|java\\.lang\\.NoClassDefFoundError"
                     + "|java\\.lang\\.ClassNotFoundException" );
 
+    /**
+     * Detects a generic mod construction / loading failure.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectModLoading( String text, GameModPack pack )
     {
         if ( !MOD_LOADING_PATTERN.matcher( text ).find() ) {
@@ -414,6 +465,14 @@ public final class CrashReportAnalyzer
                     + "|Could not (?:create|initialize) display"
                     + "|GL_OUT_OF_MEMORY)" );
 
+    /**
+     * Detects a GPU / OpenGL / graphics-driver failure.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectGpuOpenGL( String text, GameModPack pack )
     {
         if ( !GPU_PATTERN.matcher( text ).find() ) {
@@ -437,6 +496,14 @@ public final class CrashReportAnalyzer
                     + "|Invalid level format"
                     + "|Could not load level" );
 
+    /**
+     * Detects save / world data corruption.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectWorldCorruption( String text, GameModPack pack )
     {
         if ( !WORLD_PATTERN.matcher( text ).find() ) {
@@ -453,6 +520,14 @@ public final class CrashReportAnalyzer
     private static final Pattern AUTH_PATTERN = Pattern.compile(
             "Could not authenticate against|Bad login|Invalid session ID|Authentication error" );
 
+    /**
+     * Detects an authentication or multiplayer-session failure.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectAuth( String text, GameModPack pack )
     {
         if ( !AUTH_PATTERN.matcher( text ).find() ) {
@@ -480,6 +555,14 @@ public final class CrashReportAnalyzer
                     + "|paInternalError|ALSA lib"
                     + "|No default audio device" );
 
+    /**
+     * Detects a failure initializing the audio subsystem (OpenAL).
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectAudioInit( String text, GameModPack pack )
     {
         if ( !AUDIO_PATTERN.matcher( text ).find() ) {
@@ -504,6 +587,15 @@ public final class CrashReportAnalyzer
                     + "|java\\.nio\\.file\\.AccessDeniedException"
                     + "|Sharing violation" );
 
+    /**
+     * Detects a locked / in-use file blocking the game (often another running
+     * instance or antivirus holding a handle).
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectFileLock( String text, GameModPack pack )
     {
         if ( !FILE_LOCK_PATTERN.matcher( text ).find() ) {
@@ -534,6 +626,14 @@ public final class CrashReportAnalyzer
     private static final Pattern SODIUM_PATTERN = Pattern.compile(
             "(?i)\\bsodium\\b|me\\.jellysquid\\.mods\\.sodium" );
 
+    /**
+     * Detects OptiFine running alongside Sodium, which are mutually incompatible.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectOptiFineSodiumConflict( String text, GameModPack pack )
     {
         if ( !OPTIFINE_PATTERN.matcher( text ).find()
@@ -582,6 +682,14 @@ public final class CrashReportAnalyzer
                     + "\\s+(?:but(?: you have| we have| this version is)?|but is being loaded by)\\s+"
                     + "(?:Minecraft\\s+)?(?:version\\s+)?([\\d]+\\.[\\d]+(?:\\.[\\d]+)?)" );
 
+    /**
+     * Detects a mod built for a different Minecraft version than the pack targets.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectModMinecraftVersionMismatch( String text, GameModPack pack )
     {
         Matcher m = MOD_MC_VERSION_PATTERN.matcher( text );
@@ -616,6 +724,14 @@ public final class CrashReportAnalyzer
                     + "|(?:me\\.shedaniel\\.rei|roughly enough items|rei-\\d).*?(?:mezz\\.jei|jei-\\d|just enough items)",
             Pattern.DOTALL | Pattern.CASE_INSENSITIVE );
 
+    /**
+     * Detects a recipe-viewer conflict between JEI and REI.
+     *
+     * @param text the crash report / log text to scan
+     * @param pack the modpack that crashed
+     *
+     * @return a {@link CrashDiagnosis}, or {@code null} if not detected
+     */
     private static CrashDiagnosis detectJeiReiRecipeConflict( String text, GameModPack pack )
     {
         boolean dup = JEI_REI_DUP_PATTERN.matcher( text ).find();
@@ -812,6 +928,9 @@ public final class CrashReportAnalyzer
         } );
     }
 
+    /**
+     * Navigates to the Settings screen from a crash-remediation suggestion.
+     */
     private static void openSettings()
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -824,6 +943,9 @@ public final class CrashReportAnalyzer
         } );
     }
 
+    /**
+     * Navigates to the Java runtime management screen from a crash-remediation suggestion.
+     */
     private static void openRuntime()
     {
         SystemUtilities.spawnNewTask( () -> {
