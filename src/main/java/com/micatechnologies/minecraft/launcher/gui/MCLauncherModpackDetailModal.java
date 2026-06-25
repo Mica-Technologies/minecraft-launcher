@@ -85,29 +85,31 @@ import java.util.function.Supplier;
  *   <li>Clicking Play (which transitions to the progress screen anyway)</li>
  * </ul>
  *
- * <p>Sections rendered top-down, mirroring the hierarchy of "what does the user need
- * about this pack right now":
+ * <p>Layout (top to bottom). A persistent header + footer frame a tabbed body so
+ * the modal's many sections are grouped instead of stacked into one long scroll:
  * <ol>
- *   <li><b>Hero image</b> — large pack background (or procedural gradient when none),
- *       overlaid with the pack logo, friendly name, badges (Beta / Updated), and the
- *       close button.</li>
- *   <li><b>Stat chips</b> — Minecraft version, Forge version, pack version, RAM
- *       requirement, mod count. Read-at-a-glance metadata.</li>
- *   <li><b>Quick Actions</b> — the right-click context menu surfaced as a button grid:
- *       Open Folder / Mods / Screenshots / Resource Packs / Shaders / Config /
- *       Create Shortcut / Copy Invite Link.</li>
- *   <li><b>Stats</b> — Last played, total play time, launch count.</li>
- *   <li><b>Update Log</b> — Chronological per-pack record of manifest packVersion
- *       changes (see {@link ModPackUpdateLog}).</li>
- *   <li><b>News</b> — manifest-authored {@code packNews} entries, shown only when
- *       the pack ships them (see {@link com.micatechnologies.minecraft.launcher.game.modpack.NewsItem}).</li>
- *   <li><b>Links</b> — manifest-authored {@code packLinks} (wiki, Discord, etc.),
- *       shown only when the pack ships them (see {@link com.micatechnologies.minecraft.launcher.game.modpack.LinkItem}).</li>
+ *   <li><b>Hero image</b> (persistent) — large pack background (or procedural
+ *       gradient when none), overlaid with the pack logo, friendly name, badges
+ *       (Beta / Updated), and the close button.</li>
+ *   <li><b>Meta header</b> (persistent) — the stat-chip row (Minecraft / loader /
+ *       pack version, RAM, mod count) and, when the audit flags issues, the
+ *       Problems banner — so identity and a broken-pack warning are always visible.</li>
+ *   <li><b>Tab bar</b> — a segmented control switching the scrollable body between:
+ *     <ul>
+ *       <li><b>Overview</b> (default) — News, Links, Quick Actions, Stats.</li>
+ *       <li><b>Content</b> — Worlds / Servers / Mods / Screenshots / Shader Packs /
+ *           Resource Packs file browsers (only when the pack has an install folder).</li>
+ *       <li><b>Activity</b> — Update Log and Crash History.</li>
+ *       <li><b>Advanced</b> — per-pack verify controls (only when there's a manifest).</li>
+ *     </ul>
+ *     Each tab's body is built lazily on first activation and cached. See
+ *     {@code packNews}/{@code packLinks} in
+ *     {@link com.micatechnologies.minecraft.launcher.game.modpack.NewsItem} /
+ *     {@link com.micatechnologies.minecraft.launcher.game.modpack.LinkItem}.</li>
  * </ol>
  *
  * <p>The Play and Website buttons live in a sticky action row pinned below the
- * scrollable body so the primary actions remain reachable regardless of how far the
- * user has scrolled the metadata.
+ * tabbed body so the primary actions remain reachable from any tab.
  *
  * @since 3.4
  */
@@ -121,20 +123,21 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  + sticky action row all fit without the scroll pane being collapsed to zero. */
     private static final double MODAL_MIN_HEIGHT = 480;
 
-    /** Hard upper cap on the modal card's width. Past this point the modal stops
-     *  growing even on extra-wide / 4K windows — a 1100-wide modal already gives the
-     *  hero image and the section grid plenty of room, and going wider just makes
-     *  long lines of body text harder to scan. */
-    private static final double MODAL_MAX_WIDTH  = 1100;
-    /** Hard upper cap on the modal card's height. Mirrors the width cap: the body is
-     *  scrollable so a taller modal mostly just adds whitespace. */
-    private static final double MODAL_MAX_HEIGHT = 950;
+    /** Hard upper cap on the modal card's width. The tabbed layout splits the
+     *  former single scroll across Overview / Content / Activity / Advanced, so a
+     *  wider modal now buys genuinely-more usable width (the file-browser grids,
+     *  side-by-side content) rather than just longer text lines — hence the raise
+     *  from the pre-tab 1100. */
+    private static final double MODAL_MAX_WIDTH  = 1400;
+    /** Hard upper cap on the modal card's height. Raised alongside the width so a
+     *  large window gets a roomy modal; each tab's body is still scrollable. */
+    private static final double MODAL_MAX_HEIGHT = 1000;
 
-    /** Fraction of the parent layout's width/height the modal card targets. ~85/88%
-     *  leaves the dim backdrop visible as a frame around the modal so the user
-     *  always sees there's content behind it. */
-    private static final double MODAL_WIDTH_FRACTION  = 0.86;
-    private static final double MODAL_HEIGHT_FRACTION = 0.88;
+    /** Fraction of the parent layout's width/height the modal card targets. ~90%
+     *  leaves a thin dim backdrop frame so the user still sees there's content
+     *  behind it, while letting the modal grow with the window. */
+    private static final double MODAL_WIDTH_FRACTION  = 0.90;
+    private static final double MODAL_HEIGHT_FRACTION = 0.90;
 
     /** Height of the hero image section at the top of the modal. ~2× the hero-card
      *  image height (150 → 320) so background art is genuinely "viewed bigger" rather
@@ -450,11 +453,24 @@ public class MCLauncherModpackDetailModal extends StackPane
     //  Content construction
     // =============================================================================
 
-    /** Body VBox currently mounted in the modal card. Kept as a field
-     *  so {@link #populateBodyContent} (which runs on the next FX pulse,
-     *  after the skeleton has rendered) can append section children
-     *  into it without rebuilding the scroll pane. */
-    private VBox currentBody;
+    /** Tab identifiers for the detail modal's segmented tab bar. */
+    private static final String TAB_OVERVIEW = "overview";
+    private static final String TAB_CONTENT  = "content";
+    private static final String TAB_ACTIVITY = "activity";
+    private static final String TAB_ADVANCED = "advanced";
+
+    /** Scroll pane hosting the active tab's body; its content is swapped on tab
+     *  switch (the body itself never moves, so the sticky header/footer stay put). */
+    private ScrollPane bodyScroll;
+    /** Lazily-built body VBox for each tab, keyed by tab id. Built on first
+     *  activation (rendered incrementally) and cached so re-selecting is instant.
+     *  Cleared on every {@link #show(GameModPack)}. */
+    private final java.util.Map< String, VBox > tabBodies = new java.util.HashMap<>();
+    /** Tab-bar buttons keyed by tab id, for toggling the {@code active} style. */
+    private final java.util.Map< String, Label > tabButtons = new java.util.LinkedHashMap<>();
+    /** Bumped on every {@link #show(GameModPack)} so a deferred per-tab render
+     *  started for an earlier pack abandons itself once the modal is re-shown. */
+    private int packGeneration = 0;
 
     /**
      * Builds the cheap modal chrome — hero, an empty body scroll-pane,
@@ -466,15 +482,41 @@ public class MCLauncherModpackDetailModal extends StackPane
     private void rebuildModalSkeleton( GameModPack pack )
     {
         modalCard.getChildren().clear();
+        tabBodies.clear();
+        tabButtons.clear();
+        final int gen = ++packGeneration;
 
         Node hero = buildHeroSection( pack );
 
-        VBox body = new VBox( 16 );
-        body.setPadding( new Insets( 20, 24, 20, 24 ) );
-        body.getStyleClass().add( "modpackDetailBody" );
-        currentBody = body;
+        // Persistent meta header under the hero: the chip row plus, when the audit
+        // flags issues, the Problems banner — so pack identity and a broken-pack
+        // warning stay visible regardless of which tab is active.
+        VBox headerMeta = new VBox( 10 );
+        headerMeta.setPadding( new Insets( 14, 24, 0, 24 ) );
+        headerMeta.getStyleClass().add( "modpackDetailHeaderMeta" );
+        headerMeta.getChildren().add( buildChipsRow( pack ) );
+        if ( pack.getPackRootFolder() != null ) {
+            java.util.List< ModPackAuditLog.Problem > problems =
+                    ModPackAuditLog.analyzeProblems( pack.getPackRootFolder(), pack.getLaunchCount() );
+            if ( !problems.isEmpty() ) {
+                headerMeta.getChildren().add( buildProblemsSection( problems ) );
+            }
+        }
 
-        ScrollPane bodyScroll = new ScrollPane( body );
+        // Which tabs apply: Overview always; Content/Activity need an install folder
+        // to browse / report on; Advanced needs a manifest to verify against.
+        java.util.List< String > tabs = new java.util.ArrayList<>();
+        tabs.add( TAB_OVERVIEW );
+        if ( pack.getPackRootFolder() != null ) {
+            tabs.add( TAB_CONTENT );
+            tabs.add( TAB_ACTIVITY );
+        }
+        if ( pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
+            tabs.add( TAB_ADVANCED );
+        }
+        HBox tabBar = buildTabBar( pack, tabs, gen );
+
+        bodyScroll = new ScrollPane();
         bodyScroll.setFitToWidth( true );
         bodyScroll.setHbarPolicy( ScrollPane.ScrollBarPolicy.NEVER );
         bodyScroll.setVbarPolicy( ScrollPane.ScrollBarPolicy.AS_NEEDED );
@@ -484,7 +526,188 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         HBox actions = buildActionRow( pack );
 
-        modalCard.getChildren().addAll( hero, bodyScroll, actions );
+        modalCard.getChildren().addAll( hero, headerMeta, tabBar, bodyScroll, actions );
+    }
+
+    /**
+     * Builds the segmented tab bar. Each tab is a clickable {@link Label} styled
+     * as a segmented-control button; clicking activates that tab via
+     * {@link #selectTab}.
+     *
+     * @param pack the pack being shown (passed to the section builders on activation)
+     * @param tabs the ordered tab ids that apply to this pack
+     * @param gen  the show generation, so stale clicks abandon themselves
+     *
+     * @return the populated tab-bar row
+     */
+    private HBox buildTabBar( GameModPack pack, java.util.List< String > tabs, int gen )
+    {
+        HBox bar = new HBox( 6 );
+        bar.getStyleClass().add( "modpackDetailTabBar" );
+        bar.setPadding( new Insets( 12, 24, 12, 24 ) );
+        bar.setAlignment( Pos.CENTER_LEFT );
+        for ( String tab : tabs ) {
+            Label btn = new Label( tabLabel( tab ) );
+            btn.getStyleClass().add( "modpackDetailTab" );
+            btn.setCursor( Cursor.HAND );
+            btn.setOnMouseClicked( e -> selectTab( tab, pack, gen ) );
+            tabButtons.put( tab, btn );
+            bar.getChildren().add( btn );
+        }
+        return bar;
+    }
+
+    /** Returns the localized label for a tab id. */
+    private static String tabLabel( String tabId )
+    {
+        return switch ( tabId ) {
+            case TAB_CONTENT  -> LocalizationManager.get( "detailModal.tab.content" );
+            case TAB_ACTIVITY -> LocalizationManager.get( "detailModal.tab.activity" );
+            case TAB_ADVANCED -> LocalizationManager.get( "detailModal.tab.advanced" );
+            default           -> LocalizationManager.get( "detailModal.tab.overview" );
+        };
+    }
+
+    /**
+     * Activates a tab: toggles the tab-bar {@code active} style, lazily builds the
+     * tab's body on first activation (rendered incrementally), and swaps it into
+     * the scroll area scrolled to the top.
+     *
+     * @param tabId the tab to activate
+     * @param pack  the pack being shown
+     * @param gen   the show generation; a mismatch (modal re-shown) is a no-op
+     */
+    private void selectTab( String tabId, GameModPack pack, int gen )
+    {
+        if ( gen != packGeneration || bodyScroll == null ) return;
+        for ( var entry : tabButtons.entrySet() ) {
+            Label btn = entry.getValue();
+            if ( entry.getKey().equals( tabId ) ) {
+                if ( !btn.getStyleClass().contains( "active" ) ) {
+                    btn.getStyleClass().add( "active" );
+                }
+            }
+            else {
+                btn.getStyleClass().remove( "active" );
+            }
+        }
+        VBox tabBody = tabBodies.get( tabId );
+        if ( tabBody == null ) {
+            tabBody = new VBox( 16 );
+            tabBody.setPadding( new Insets( 16, 24, 20, 24 ) );
+            tabBody.getStyleClass().add( "modpackDetailBody" );
+            tabBodies.put( tabId, tabBody );
+            renderSectionsIncrementally( tabBody, tabSectionBuilders( tabId, pack, tabBody ), gen );
+        }
+        bodyScroll.setContent( tabBody );
+        bodyScroll.setVvalue( 0.0 );
+    }
+
+    /**
+     * Returns the ordered section builders for a tab, reusing the existing
+     * {@code build*Section} methods. None are removed from the modal — they are
+     * regrouped here: Overview = News / Links / Quick Actions / Stats; Content =
+     * the file browsers; Activity = Update Log / Crash History; Advanced = the
+     * verify controls. An empty tab gets a muted empty-state.
+     *
+     * @param tabId   the tab whose sections to assemble
+     * @param pack    the pack being shown
+     * @param tabBody the tab's body VBox (passed to section builders that need it)
+     *
+     * @return the ordered, non-empty list of section suppliers
+     */
+    private java.util.List< java.util.function.Supplier< Node > > tabSectionBuilders(
+            String tabId, GameModPack pack, VBox tabBody )
+    {
+        java.util.List< java.util.function.Supplier< Node > > b = new java.util.ArrayList<>();
+        switch ( tabId ) {
+            case TAB_OVERVIEW -> {
+                // News + Links lead (manifest-authored, the freshest "why I'm here"
+                // info), then quick actions and the at-a-glance stats.
+                java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.NewsItem > news;
+                try { news = pack.getVisibleNews(); }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( LocalizationManager.format(
+                            "log.modpackDetail.newsReadFailed", t.getClass().getSimpleName() ) );
+                    news = java.util.Collections.emptyList();
+                }
+                if ( !news.isEmpty() ) {
+                    final java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.NewsItem > fn = news;
+                    b.add( () -> buildNewsSection( pack, fn ) );
+                }
+                java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LinkItem > links;
+                try { links = pack.getVisibleLinks(); }
+                catch ( Throwable t ) {
+                    Logger.logWarningSilent( LocalizationManager.format(
+                            "log.modpackDetail.linksReadFailed", t.getClass().getSimpleName() ) );
+                    links = java.util.Collections.emptyList();
+                }
+                if ( !links.isEmpty() ) {
+                    final java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LinkItem > fl = links;
+                    b.add( () -> buildLinksSection( fl ) );
+                }
+                b.add( () -> buildQuickActionsSection( pack ) );
+                b.add( () -> buildStatsSection( pack ) );
+            }
+            case TAB_CONTENT -> {
+                final Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
+                b.add( () -> ModpackContentBrowser.buildWorldsSection( pack, this::buildSectionBox, ownerStage ) );
+                b.add( () -> ModpackContentBrowser.buildServersSection( pack, this::buildSectionBox ) );
+                b.add( () -> ModpackContentBrowser.buildModsSection( pack, this::buildSectionBox, tabBody, ownerStage ) );
+                b.add( () -> ModpackContentBrowser.buildScreenshotsSection( pack, this::buildSectionBox, this ) );
+                b.add( () -> ModpackContentBrowser.buildShaderPacksSection( pack, this::buildSectionBox ) );
+                b.add( () -> ModpackContentBrowser.buildResourcePacksSection( pack, this::buildSectionBox ) );
+            }
+            case TAB_ACTIVITY -> {
+                b.add( () -> buildUpdateLogSection( pack ) );
+                b.add( () -> ModpackContentBrowser.buildCrashHistorySection( pack, this::buildSectionBox, this ) );
+            }
+            case TAB_ADVANCED -> b.add( () -> buildAdvancedSection( pack ) );
+            default -> { }
+        }
+        if ( b.isEmpty() ) {
+            b.add( () -> {
+                Label empty = new Label( LocalizationManager.get( "detailModal.tab.empty" ) );
+                empty.getStyleClass().add( "muted" );
+                empty.setWrapText( true );
+                return empty;
+            } );
+        }
+        return b;
+    }
+
+    /**
+     * Appends a tab's section builders into its body a few per frame (so a heavy
+     * tab can't jank the open/switch), abandoning if the modal closed or was
+     * re-shown for a different pack.
+     *
+     * @param tabBody  the tab body to append into
+     * @param builders the ordered section suppliers
+     * @param gen      the show generation guarding against a stale render
+     */
+    private void renderSectionsIncrementally(
+            VBox tabBody, java.util.List< java.util.function.Supplier< Node > > builders, int gen )
+    {
+        final int[] next = { 0 };
+        new AnimationTimer()
+        {
+            @Override
+            public void handle( long now )
+            {
+                if ( gen != packGeneration || !visibleState ) {
+                    stop();
+                    return;
+                }
+                int end = Math.min( next[ 0 ] + SECTIONS_PER_FRAME, builders.size() );
+                while ( next[ 0 ] < end ) {
+                    tabBody.getChildren().add( builders.get( next[ 0 ] ).get() );
+                    next[ 0 ]++;
+                }
+                if ( next[ 0 ] >= builders.size() ) {
+                    stop();
+                }
+            }
+        }.start();
     }
 
     /**
@@ -508,121 +731,16 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static final int SECTIONS_PER_FRAME = 3;
 
     /**
-     * Builds the modal's body sections for the pack (hero, stat chips, quick
-     * actions, stats, update log, content browsers, news, links) and appends them
-     * incrementally on the FX thread to keep modal-open responsive.
+     * Deferred entry point (fired ~32 ms after {@link #show} so the empty
+     * skeleton paints first): activates the default Overview tab, which lazily
+     * builds and streams in its sections. The other tabs build on first click.
      *
      * @param pack the pack whose detail content is rendered
      */
     private void populateBodyContent( GameModPack pack )
     {
-        final VBox body = currentBody;
-        if ( body == null || !visibleState ) return;
-
-        // Each builder is cheap on its own (heavy data loads happen off-thread
-        // behind placeholders), but adding all ~13 sections in one pulse forces a
-        // single large layout + CSS pass that lands mid-fade and visibly janks the
-        // open animation. Build + mount them a couple per frame instead so no single
-        // frame blows the budget; the body still fully streams in during the fade.
-        final java.util.List< java.util.function.Supplier< Node > > builders = new java.util.ArrayList<>();
-        builders.add( () -> buildChipsRow( pack ) );
-        builders.add( () -> buildQuickActionsSection( pack ) );
-        // Problems section — only when the audit log flags files that re-download every
-        // launch (typically a manifest hash that doesn't match the served file). Surfaced
-        // near the top so a genuinely-broken pack is obvious. Computed once here; the
-        // builder just renders the result.
-        if ( pack.getPackRootFolder() != null ) {
-            java.util.List< ModPackAuditLog.Problem > problems =
-                    ModPackAuditLog.analyzeProblems( pack.getPackRootFolder(), pack.getLaunchCount() );
-            if ( !problems.isEmpty() ) {
-                builders.add( () -> buildProblemsSection( problems ) );
-            }
-        }
-        builders.add( () -> buildStatsSection( pack ) );
-        builders.add( () -> buildUpdateLogSection( pack ) );
-        // Content browser sections — Worlds / Screenshots / Shader Packs /
-        // Resource Packs. Each reads from <packRoot>/saves|screenshots|
-        // shaderpacks|resourcepacks and shows an empty-state when the
-        // corresponding folder is missing or empty. Skipped entirely for
-        // failed-load placeholder packs since there's no real install
-        // folder to browse.
-        if ( pack.getPackRootFolder() != null ) {
-            final Stage ownerStage = MCLauncherGuiController.getTopStageOrNull();
-            builders.add( () -> ModpackContentBrowser.buildWorldsSection( pack, this::buildSectionBox, ownerStage ) );
-            builders.add( () -> ModpackContentBrowser.buildServersSection( pack, this::buildSectionBox ) );
-            builders.add( () -> ModpackContentBrowser.buildModsSection( pack, this::buildSectionBox, body, ownerStage ) );
-            builders.add( () -> ModpackContentBrowser.buildScreenshotsSection( pack, this::buildSectionBox, this ) );
-            builders.add( () -> ModpackContentBrowser.buildShaderPacksSection( pack, this::buildSectionBox ) );
-            builders.add( () -> ModpackContentBrowser.buildResourcePacksSection( pack, this::buildSectionBox ) );
-            builders.add( () -> ModpackContentBrowser.buildCrashHistorySection( pack, this::buildSectionBox, this ) );
-        }
-        // Advanced section: per-pack verify toggle + "Verify this pack now" button.
-        // Skipped for failed-load placeholder packs since there's no real manifest
-        // to verify against.
-        if ( pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
-            builders.add( () -> buildAdvancedSection( pack ) );
-        }
-        // News + Links — manifest-authored. Each section is added only when the
-        // pack actually ships that content; packs with neither show nothing here
-        // (the old always-present "Coming Soon" placeholder was removed). Both
-        // getVisible* calls are pure in-memory reads over the parsed manifest, so
-        // gating at assembly time is cheap.
-        java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.NewsItem > news;
-        try {
-            news = pack.getVisibleNews();
-        }
-        catch ( Throwable t ) {
-            Logger.logWarningSilent( LocalizationManager.format(
-                    "log.modpackDetail.newsReadFailed", t.getClass().getSimpleName() ) );
-            news = java.util.Collections.emptyList();
-        }
-        if ( !news.isEmpty() ) {
-            final java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.NewsItem > finalNews = news;
-            builders.add( () -> buildNewsSection( pack, finalNews ) );
-        }
-
-        java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LinkItem > links;
-        try {
-            links = pack.getVisibleLinks();
-        }
-        catch ( Throwable t ) {
-            Logger.logWarningSilent( LocalizationManager.format(
-                    "log.modpackDetail.linksReadFailed", t.getClass().getSimpleName() ) );
-            links = java.util.Collections.emptyList();
-        }
-        if ( !links.isEmpty() ) {
-            final java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LinkItem > finalLinks = links;
-            builders.add( () -> buildLinksSection( finalLinks ) );
-        }
-
-        final int[] next = { 0 };
-        new AnimationTimer()
-        {
-            /**
-             * AnimationTimer tick that appends the next batch of deferred section builders
-             * each frame, stopping once all sections are rendered (or the modal closed).
-             *
-             * @param now the frame timestamp in nanoseconds
-             */
-            @Override
-            public void handle( long now )
-            {
-                // Abandon the build if the modal was closed or re-shown for another
-                // pack between frames (currentBody is swapped on every rebuildSkeleton).
-                if ( body != currentBody || !visibleState ) {
-                    stop();
-                    return;
-                }
-                int end = Math.min( next[ 0 ] + SECTIONS_PER_FRAME, builders.size() );
-                while ( next[ 0 ] < end ) {
-                    body.getChildren().add( builders.get( next[ 0 ] ).get() );
-                    next[ 0 ]++;
-                }
-                if ( next[ 0 ] >= builders.size() ) {
-                    stop();
-                }
-            }
-        }.start();
+        if ( !visibleState || bodyScroll == null ) return;
+        selectTab( TAB_OVERVIEW, pack, packGeneration );
     }
 
     /**
