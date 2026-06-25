@@ -82,8 +82,6 @@ public final class RainbowEffect implements RgbEffect
      *
      * @since 2026.5
      */
-    @Override public String name() { return name; }
-
     /**
      * {@inheritDoc}
      *
@@ -98,6 +96,7 @@ public final class RainbowEffect implements RgbEffect
      *
      * @since 2026.5
      */
+    @Override public String name() { return name; }
     @Override
     public RgbFrame frameAt( long elapsedMs )
     {

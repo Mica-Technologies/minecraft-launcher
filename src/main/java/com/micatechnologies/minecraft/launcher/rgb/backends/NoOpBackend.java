@@ -42,18 +42,52 @@ import com.micatechnologies.minecraft.launcher.rgb.RgbFrame;
  */
 public final class NoOpBackend implements RgbBackend
 {
+    /**
+     * Returns the name of the backend.
+     *
+     * @return the name "None"
+     * @since 2026.5
+     */
     @Override
     public String name() { return "None"; }
 
+    /**
+     * Checks if the backend is available.
+     *
+     * @return always returns true, indicating that this backend is always available
+     * @since 2026.5
+     */
     @Override
     public boolean isAvailable() { return true; }
 
+    /**
+     * Starts the backend.
+     *
+     * <p>This method does nothing as there is no state or resources to initialize.</p>
+     *
+     * @since 2026.5
+     */
     @Override
     public void start() { /* nothing to start */ }
 
+    /**
+     * Renders a frame by discarding it.
+     *
+     * <p>This method does nothing with the provided frame, effectively discarding it.</p>
+     *
+     * @param frame the RGB frame to render (discard)
+     * @since 2026.5
+     */
     @Override
     public void renderFrame( RgbFrame frame ) { /* discard */ }
 
+    /**
+     * Shuts down the backend.
+     *
+     * <p>This method does nothing as there is no state or resources to release.</p>
+     *
+     * @since 2026.5
+     */
     @Override
     public void shutdown() { /* nothing to release */ }
 }

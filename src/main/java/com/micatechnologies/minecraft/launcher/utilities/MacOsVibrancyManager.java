@@ -80,6 +80,9 @@ public final class MacOsVibrancyManager
      *  presence) so we still rebuild on a dark↔light flip. */
     private static final Map< Stage, Boolean > currentDark = new WeakHashMap<>();
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private MacOsVibrancyManager() { /* static-only */ }
 
     /**

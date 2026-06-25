@@ -33,16 +33,37 @@ public final class TuiProgressProvider extends GameModPackProgressProvider
     @FunctionalInterface
     public interface Listener
     {
+        /**
+         * Notifies the listener of a progress update.
+         *
+         * @param percent       The percentage of completion.
+         * @param section       The current section being processed.
+         * @param detail        Detailed information about the current operation.
+         * @param downloadStatus The status of the download process.
+         */
         void onProgress( double percent, String section, String detail, String downloadStatus );
     }
 
     private final Listener listener;
 
+    /**
+     * Constructs a new {@link TuiProgressProvider} with the specified listener.
+     *
+     * @param listener The listener to receive progress updates.
+     */
     public TuiProgressProvider( Listener listener )
     {
         this.listener = listener;
     }
 
+    /**
+     * Updates the progress handler with the given parameters.
+     *
+     * @param percent       The percentage of completion.
+     * @param sectionTitle  The title of the current section being processed.
+     * @param detailText    Detailed information about the current operation.
+     * @param downloadStatus The status of the download process.
+     */
     @Override
     public void updateProgressHandler( double percent, String sectionTitle, String detailText,
                                        String downloadStatus )

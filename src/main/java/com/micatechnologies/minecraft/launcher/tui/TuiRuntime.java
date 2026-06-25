@@ -38,10 +38,18 @@ public final class TuiRuntime
 {
     private TuiRuntime() { /* static-only */ }
 
+    /**
+     * A map of currently-running games, keyed by manifest URL.
+     */
     private static final Map< String, RunningGame > RUNNING = new ConcurrentHashMap<>();
 
-    /** Registers a freshly-launched game and starts its readers/watcher. When it exits it removes
-     *  itself and runs {@code onChange} so the UI can refresh. */
+    /**
+     * Registers a freshly-launched game and starts its readers/watcher. When it exits it removes
+     * itself and runs {@code onChange} so the UI can refresh.
+     *
+     * @param game the running game to register
+     * @param onChange the runnable to execute when the game exits
+     */
     static void register( RunningGame game, Runnable onChange )
     {
         String key = key( game.pack() );
@@ -54,29 +62,53 @@ public final class TuiRuntime
         } );
     }
 
+    /**
+     * Returns the count of currently running games.
+     *
+     * @return the number of running games
+     */
     public static int runningCount()
     {
         return RUNNING.size();
     }
 
+    /**
+     * Checks if a specific game mod pack is currently running.
+     *
+     * @param pack the game mod pack to check
+     * @return true if the game mod pack is running, false otherwise
+     */
     public static boolean isRunning( GameModPack pack )
     {
         return pack != null && RUNNING.containsKey( key( pack ) );
     }
 
+    /**
+     * Retrieves the running game for a specific game mod pack.
+     *
+     * @param pack the game mod pack to retrieve the running game for
+     * @return the running game, or null if the game mod pack is not running
+     */
     public static RunningGame runningFor( GameModPack pack )
     {
         return pack == null ? null : RUNNING.get( key( pack ) );
     }
 
-    /** Snapshot of currently-running games. */
+    /**
+     * Returns a snapshot of currently-running games.
+     *
+     * @return a collection of running games
+     */
     public static Collection< RunningGame > running()
     {
         return new ArrayList<>( RUNNING.values() );
     }
 
-    /** Total playtime across all installed packs plus the live elapsed time of running sessions
-     *  (which aren't folded into a pack's stored total until they end). */
+    /**
+     * Calculates the total playtime across all installed packs plus the live elapsed time of running sessions.
+     *
+     * @return the total playtime in milliseconds
+     */
     public static long liveTotalPlaytimeMs()
     {
         long total = 0;
@@ -90,6 +122,12 @@ public final class TuiRuntime
         return total;
     }
 
+    /**
+     * Generates a key for a game mod pack based on its manifest URL or pack name.
+     *
+     * @param pack the game mod pack to generate the key for
+     * @return the generated key
+     */
     private static String key( GameModPack pack )
     {
         String url = pack.getManifestUrl();
