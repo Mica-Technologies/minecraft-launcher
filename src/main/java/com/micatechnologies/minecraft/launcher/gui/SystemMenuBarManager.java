@@ -256,6 +256,11 @@ public final class SystemMenuBarManager
         return bar;
     }
 
+    /**
+     * Builds the "Modpacks" top-level menu (library, editor, refresh actions).
+     *
+     * @return the populated {@link Menu}
+     */
     private static Menu buildModpacksMenu()
     {
         Menu menu = new Menu( LocalizationManager.get( "menu.modpacks.title" ) );
@@ -284,6 +289,11 @@ public final class SystemMenuBarManager
         return menu;
     }
 
+    /**
+     * Builds the "Game" top-level menu.
+     *
+     * @return the populated {@link Menu}
+     */
     private static Menu buildGameMenu()
     {
         Menu menu = new Menu( LocalizationManager.get( "menu.game.title" ) );
@@ -298,6 +308,11 @@ public final class SystemMenuBarManager
         return menu;
     }
 
+    /**
+     * Builds the "View" top-level menu.
+     *
+     * @return the populated {@link Menu}
+     */
     private static Menu buildViewMenu()
     {
         Menu menu = new Menu( LocalizationManager.get( "menu.view.title" ) );
@@ -335,6 +350,11 @@ public final class SystemMenuBarManager
         return menu;
     }
 
+    /**
+     * Builds the "Window" top-level menu.
+     *
+     * @return the populated {@link Menu}
+     */
     private static Menu buildWindowMenu()
     {
         Menu menu = new Menu( LocalizationManager.get( "menu.window.title" ) );
@@ -350,6 +370,11 @@ public final class SystemMenuBarManager
         return menu;
     }
 
+    /**
+     * Builds the "Help" top-level menu (help window, about dialog).
+     *
+     * @return the populated {@link Menu}
+     */
     private static Menu buildHelpMenu()
     {
         Menu menu = new Menu( LocalizationManager.get( "menu.help.title" ) );
@@ -452,6 +477,9 @@ public final class SystemMenuBarManager
         } );
     }
 
+    /**
+     * Menu action: navigates to the Game Library screen.
+     */
     private static void openLibrary()
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -465,6 +493,9 @@ public final class SystemMenuBarManager
         } );
     }
 
+    /**
+     * Menu action: navigates to the Java runtime management screen.
+     */
     private static void openRuntime()
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -478,6 +509,9 @@ public final class SystemMenuBarManager
         } );
     }
 
+    /**
+     * Menu action: triggers a refresh of the main-menu modpack list.
+     */
     private static void refreshMain()
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -493,6 +527,9 @@ public final class SystemMenuBarManager
         } );
     }
 
+    /**
+     * Menu action: navigates back to the main menu.
+     */
     private static void goHome()
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -506,6 +543,9 @@ public final class SystemMenuBarManager
         } );
     }
 
+    /**
+     * Menu action: opens the modpack editor.
+     */
     private static void openEditor()
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -565,6 +605,12 @@ public final class SystemMenuBarManager
         GUIUtilities.JFXPlatformRun( () -> action.accept( top ) );
     }
 
+    /**
+     * Opens a URL in the user's default browser, guarded by
+     * {@link java.awt.Desktop#isDesktopSupported()}.
+     *
+     * @param url the http(s) URL to open
+     */
     private static void openUrl( String url )
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -631,6 +677,9 @@ public final class SystemMenuBarManager
         }
     }
 
+    /**
+     * Menu action: shows the application "About" dialog.
+     */
     private static void showAboutDialog()
     {
         GUIUtilities.JFXPlatformRun( () -> {
