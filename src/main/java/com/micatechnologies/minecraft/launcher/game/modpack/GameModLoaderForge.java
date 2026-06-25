@@ -708,10 +708,27 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return names;
     }
 
+    /**
+     * Returns whether the Forge installer JAR bundles the given Maven artifact
+     * as an embedded {@code maven/<repoPath>} entry.
+     *
+     * @param repoPath the Maven repository-relative artifact path
+     *
+     * @return {@code true} if the installer contains that embedded entry
+     */
     private boolean hasEmbeddedMavenEntry( String repoPath ) {
         return jarEntryNames().contains( "maven/" + repoPath );
     }
 
+    /**
+     * Builds a {@code jar:} URL pointing at an artifact embedded inside the Forge
+     * installer JAR's {@code maven/} folder, for extraction without a network
+     * fetch.
+     *
+     * @param repoPath the Maven repository-relative artifact path
+     *
+     * @return a {@code jar:file:...!/maven/<repoPath>} URL string
+     */
     private String getEmbeddedMavenEntryURL( String repoPath ) {
         File forgeInstaller = SynchronizedFileManager.getSynchronizedFile( getFullLocalFilePath() );
         return "jar:" + forgeInstaller.toURI() + "!/maven/" + repoPath;

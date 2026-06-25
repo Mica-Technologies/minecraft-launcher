@@ -764,6 +764,16 @@ public final class SupplementalScanner
         }
     }
 
+    /**
+     * Returns whether a regex match of a dotted-quad looks like a real IPv4
+     * address — i.e. all four captured octets parse and fall in {@code 0..255}.
+     * Filters out version strings and other dotted numbers that merely resemble
+     * an IP.
+     *
+     * @param m a {@link Matcher} positioned on a dotted-quad with four numeric groups
+     *
+     * @return {@code true} if every octet is a valid {@code 0..255} value
+     */
     private static boolean looksLikeRealIp( Matcher m )
     {
         try {
@@ -907,6 +917,15 @@ public final class SupplementalScanner
         return false;
     }
 
+    /**
+     * Returns whether a JAR entry path sits under a known-legitimate native
+     * library location, used to suppress false-positive findings on bundled
+     * native binaries shipped by reputable libraries.
+     *
+     * @param normalizedName the lower-cased, forward-slash-normalized entry name
+     *
+     * @return {@code true} if the name contains a recognized native-path prefix
+     */
     private static boolean isInLegitNativePath( String normalizedName )
     {
         for ( String prefix : LEGIT_NATIVE_PATH_PREFIXES ) {
@@ -957,6 +976,17 @@ public final class SupplementalScanner
      *  skipped / the inner hash comes back null) rather than exhausting the heap. */
     private static final long MAX_SCAN_ENTRY_BYTES = 256L * 1024L * 1024L;
 
+    /**
+     * Reads an input stream fully into a byte array, aborting if it exceeds
+     * {@link #MAX_SCAN_ENTRY_BYTES} — a zip-bomb guard so a maliciously-inflating
+     * JAR entry can't exhaust the heap during scanning.
+     *
+     * @param in the stream to read (not closed by this method)
+     *
+     * @return the stream's contents as a byte array
+     *
+     * @throws IOException on read failure, or if the read ceiling is exceeded
+     */
     private static byte[] readAll( InputStream in ) throws IOException
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -974,6 +1004,16 @@ public final class SupplementalScanner
         return out.toByteArray();
     }
 
+    /**
+     * Normalizes a list of user-supplied scan-exclusion paths: trims, strips
+     * leading/trailing slashes, lower-cases, converts backslashes to forward
+     * slashes, and drops blanks — so they can be matched uniformly against
+     * relativized entry paths in {@link #isExcluded}.
+     *
+     * @param raw the raw exclusion strings (may be {@code null})
+     *
+     * @return a normalized, blank-free exclusion list (never {@code null})
+     */
     private static List< String > normalizeExclusions( List< String > raw )
     {
         if ( raw == null || raw.isEmpty() ) {
@@ -995,6 +1035,16 @@ public final class SupplementalScanner
         return out;
     }
 
+    /**
+     * Returns whether a target path is covered by any normalized exclusion,
+     * matching either the exact relative path or a directory prefix of it.
+     *
+     * @param root       the scan root the target is relativized against
+     * @param target     the file/dir being considered
+     * @param exclusions normalized exclusions from {@link #normalizeExclusions}
+     *
+     * @return {@code true} if {@code target} is excluded from scanning
+     */
     private static boolean isExcluded( Path root, Path target, List< String > exclusions )
     {
         if ( exclusions.isEmpty() || root.equals( target ) ) {

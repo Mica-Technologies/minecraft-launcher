@@ -629,6 +629,13 @@ public final class MCLauncherQuickStartWizard
         return step;
     }
 
+    /**
+     * Creates a fixed-height vertical spacer region for wizard step layouts.
+     *
+     * @param h the exact height in pixels (min, pref, and max are all pinned to it)
+     *
+     * @return a {@link Region} fixed to the given height
+     */
     private static Region spacer( double h )
     {
         Region r = new Region();
@@ -638,6 +645,14 @@ public final class MCLauncherQuickStartWizard
         return r;
     }
 
+    /**
+     * Formats a JavaFX {@link Color} as a {@code #RRGGBB} hex string for use in
+     * inline CSS.
+     *
+     * @param c the color to format (alpha is ignored)
+     *
+     * @return the {@code #RRGGBB} hex representation
+     */
     private static String toCssColor( Color c )
     {
         return String.format( "#%02X%02X%02X",
