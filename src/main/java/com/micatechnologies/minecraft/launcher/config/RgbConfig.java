@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
-import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 
 /**
@@ -78,12 +77,8 @@ public final class RgbConfig
      *  {@code _WINDOWS_DL}, {@code _NONE}. Unknown values fall back
      *  to the default ({@code "auto"}). */
     public static synchronized String getRgbBackend() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.RGB_BACKEND_KEY ) ) {
-            json.addProperty( ConfigConstants.RGB_BACKEND_KEY,
-                              ConfigConstants.RGB_BACKEND_DEFAULT );
-        }
-        String value = json.get( ConfigConstants.RGB_BACKEND_KEY ).getAsString();
+        String value = ConfigStore.getOrInitString( ConfigConstants.RGB_BACKEND_KEY,
+                                                    ConfigConstants.RGB_BACKEND_DEFAULT );
         return switch ( value ) {
             case ConfigConstants.RGB_BACKEND_AUTO,
                  ConfigConstants.RGB_BACKEND_OPENRGB,
@@ -362,13 +357,8 @@ public final class RgbConfig
      *  dropped a style + got rolled back) falls back to the default
      *  rather than crashing the RGB subsystem. */
     public static synchronized String getRgbEffectStyle() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.RGB_EFFECT_STYLE_KEY ) ) {
-            json.addProperty( ConfigConstants.RGB_EFFECT_STYLE_KEY,
-                              ConfigConstants.RGB_EFFECT_STYLE_DEFAULT );
-            ConfigStore.scheduleWrite();
-        }
-        String value = json.get( ConfigConstants.RGB_EFFECT_STYLE_KEY ).getAsString();
+        String value = ConfigStore.getOrInitString( ConfigConstants.RGB_EFFECT_STYLE_KEY,
+                                                    ConfigConstants.RGB_EFFECT_STYLE_DEFAULT );
         if ( !ConfigConstants.RGB_EFFECT_STYLES.contains( value ) ) {
             return ConfigConstants.RGB_EFFECT_STYLE_DEFAULT;
         }
@@ -411,11 +401,7 @@ public final class RgbConfig
      * @since 2026.5
      */
     private static boolean readBooleanWithDefault( String key, boolean dflt ) {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( key ) ) {
-            json.addProperty( key, dflt );
-        }
-        return json.get( key ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( key, dflt );
     }
 
     /**

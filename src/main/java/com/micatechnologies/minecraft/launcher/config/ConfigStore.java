@@ -201,6 +201,181 @@ public final class ConfigStore
     }
 
     // ====================================================================
+    // Typed get-or-default helpers
+    //
+    // Collapse the per-key "ensureLoaded(); if(!has){addProperty(default);
+    // [scheduleWrite();]} return get().getAsX()" boilerplate the typed config
+    // slices repeated dozens of times. Two families:
+    //   - get*(key, default)        — read-only; returns the default when the key
+    //                                 is absent / JSON-null, never mutating state.
+    //   - getOrInit*(key, default)  — writes the default + schedules a flush on the
+    //                                 first miss, then returns it (first-read
+    //                                 defaulting, the common case).
+    // Both run under the ConfigStore monitor, so the addProperty in getOrInit is
+    // serialized against writeNow rather than relying on the defensive snapshot.
+    // ====================================================================
+
+    /**
+     * Reads a string config value, returning {@code def} when the key is absent
+     * or JSON-null. Does not mutate or persist anything.
+     *
+     * @param key the config key
+     * @param def the default to return when absent
+     *
+     * @return the stored string, or {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized String getString( String key, String def ) {
+        JsonObject j = ensureLoaded();
+        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsString() : def;
+    }
+
+    /**
+     * Reads a boolean config value, returning {@code def} when the key is absent
+     * or JSON-null. Does not mutate or persist anything.
+     *
+     * @param key the config key
+     * @param def the default to return when absent
+     *
+     * @return the stored boolean, or {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized boolean getBoolean( String key, boolean def ) {
+        JsonObject j = ensureLoaded();
+        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsBoolean() : def;
+    }
+
+    /**
+     * Reads an int config value, returning {@code def} when the key is absent or
+     * JSON-null. Does not mutate or persist anything.
+     *
+     * @param key the config key
+     * @param def the default to return when absent
+     *
+     * @return the stored int, or {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized int getInt( String key, int def ) {
+        JsonObject j = ensureLoaded();
+        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsInt() : def;
+    }
+
+    /**
+     * Reads a long config value, returning {@code def} when the key is absent or
+     * JSON-null. Does not mutate or persist anything.
+     *
+     * @param key the config key
+     * @param def the default to return when absent
+     *
+     * @return the stored long, or {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized long getLong( String key, long def ) {
+        JsonObject j = ensureLoaded();
+        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsLong() : def;
+    }
+
+    /**
+     * Reads a double config value, returning {@code def} when the key is absent
+     * or JSON-null. Does not mutate or persist anything.
+     *
+     * @param key the config key
+     * @param def the default to return when absent
+     *
+     * @return the stored double, or {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized double getDouble( String key, double def ) {
+        JsonObject j = ensureLoaded();
+        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsDouble() : def;
+    }
+
+    /**
+     * Reads a string value, writing {@code def} and scheduling a flush on the
+     * first miss, then returning it.
+     *
+     * @param key the config key
+     * @param def the default to write + return when absent
+     *
+     * @return the stored value, or the now-persisted {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized String getOrInitString( String key, String def ) {
+        JsonObject j = ensureLoaded();
+        if ( !j.has( key ) ) {
+            j.addProperty( key, def );
+            scheduleWrite();
+        }
+        return j.get( key ).getAsString();
+    }
+
+    /**
+     * Reads a boolean value, writing {@code def} and scheduling a flush on the
+     * first miss, then returning it.
+     *
+     * @param key the config key
+     * @param def the default to write + return when absent
+     *
+     * @return the stored value, or the now-persisted {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized boolean getOrInitBoolean( String key, boolean def ) {
+        JsonObject j = ensureLoaded();
+        if ( !j.has( key ) ) {
+            j.addProperty( key, def );
+            scheduleWrite();
+        }
+        return j.get( key ).getAsBoolean();
+    }
+
+    /**
+     * Reads an int value, writing {@code def} and scheduling a flush on the first
+     * miss, then returning it.
+     *
+     * @param key the config key
+     * @param def the default to write + return when absent
+     *
+     * @return the stored value, or the now-persisted {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized int getOrInitInt( String key, int def ) {
+        JsonObject j = ensureLoaded();
+        if ( !j.has( key ) ) {
+            j.addProperty( key, def );
+            scheduleWrite();
+        }
+        return j.get( key ).getAsInt();
+    }
+
+    /**
+     * Reads a long value, writing {@code def} and scheduling a flush on the first
+     * miss, then returning it.
+     *
+     * @param key the config key
+     * @param def the default to write + return when absent
+     *
+     * @return the stored value, or the now-persisted {@code def}
+     *
+     * @since 2026.6
+     */
+    public static synchronized long getOrInitLong( String key, long def ) {
+        JsonObject j = ensureLoaded();
+        if ( !j.has( key ) ) {
+            j.addProperty( key, def );
+            scheduleWrite();
+        }
+        return j.get( key ).getAsLong();
+    }
+
+    // ====================================================================
     // Persistence
     // ====================================================================
 

@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
-import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 
 /**
@@ -45,12 +44,8 @@ public final class NetworkConfig
      *  the launcher uses the JVM-default proxy resolver (typically system
      *  proxy or "no proxy"). */
     public static synchronized boolean getProxyEnable() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.PROXY_ENABLE_KEY ) ) {
-            json.addProperty( ConfigConstants.PROXY_ENABLE_KEY, ConfigConstants.PROXY_ENABLE_DEFAULT );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.PROXY_ENABLE_KEY ).getAsBoolean();
+        return ConfigStore.getOrInitBoolean( ConfigConstants.PROXY_ENABLE_KEY,
+                                             ConfigConstants.PROXY_ENABLE_DEFAULT );
     }
 
     /**
@@ -70,12 +65,8 @@ public final class NetworkConfig
     /** Proxy host (FQDN or IP). Read together with {@link #getProxyPort}
      *  / {@link #getProxyType} when {@link #getProxyEnable} is true. */
     public static synchronized String getProxyHost() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.PROXY_HOST_KEY ) ) {
-            json.addProperty( ConfigConstants.PROXY_HOST_KEY, ConfigConstants.PROXY_HOST_DEFAULT );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.PROXY_HOST_KEY ).getAsString();
+        return ConfigStore.getOrInitString( ConfigConstants.PROXY_HOST_KEY,
+                                            ConfigConstants.PROXY_HOST_DEFAULT );
     }
 
     /**
@@ -95,12 +86,8 @@ public final class NetworkConfig
     /** Proxy port. Range validation belongs at the UI / consumer layer —
      *  the store is intentionally schema-loose. */
     public static synchronized int getProxyPort() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.PROXY_PORT_KEY ) ) {
-            json.addProperty( ConfigConstants.PROXY_PORT_KEY, ConfigConstants.PROXY_PORT_DEFAULT );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.PROXY_PORT_KEY ).getAsInt();
+        return ConfigStore.getOrInitInt( ConfigConstants.PROXY_PORT_KEY,
+                                         ConfigConstants.PROXY_PORT_DEFAULT );
     }
 
     /**
@@ -120,12 +107,8 @@ public final class NetworkConfig
      *  when null is passed to {@link #setProxyType}; the launcher's
      *  proxy resolver maps the string to {@link java.net.Proxy.Type}. */
     public static synchronized String getProxyType() {
-        JsonObject json = ConfigStore.ensureLoaded();
-        if ( !json.has( ConfigConstants.PROXY_TYPE_KEY ) ) {
-            json.addProperty( ConfigConstants.PROXY_TYPE_KEY, ConfigConstants.PROXY_TYPE_DEFAULT );
-            ConfigStore.scheduleWrite();
-        }
-        return json.get( ConfigConstants.PROXY_TYPE_KEY ).getAsString();
+        return ConfigStore.getOrInitString( ConfigConstants.PROXY_TYPE_KEY,
+                                            ConfigConstants.PROXY_TYPE_DEFAULT );
     }
 
     /**
