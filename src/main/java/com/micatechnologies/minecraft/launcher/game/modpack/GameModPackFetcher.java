@@ -327,21 +327,11 @@ public class GameModPackFetcher
 
     private static String sha256Hex( String input )
     {
-        try {
-            byte[] hash = java.security.MessageDigest.getInstance( "SHA-256" )
-                    .digest( input.getBytes( java.nio.charset.StandardCharsets.UTF_8 ) );
-            StringBuilder sb = new StringBuilder( hash.length * 2 );
-            for ( byte b : hash ) {
-                sb.append( String.format( "%02x", b ) );
-            }
-            return sb.toString();
-        }
-        catch ( java.security.NoSuchAlgorithmException e ) {
-            // SHA-256 is mandatory in every JRE we support; this branch is unreachable
-            // in practice. Fall back to the legacy hashCode form to keep caching working
-            // rather than throwing in a hot path.
-            return Integer.toHexString( input.hashCode() );
-        }
+        // SHA-256 is mandatory in every JRE we support, so the null branch is
+        // unreachable in practice; fall back to the legacy hashCode form to keep
+        // caching working rather than producing a null filename.
+        String hex = com.micatechnologies.minecraft.launcher.utilities.HashUtilities.sha256Hex( input );
+        return hex != null ? hex : Integer.toHexString( input.hashCode() );
     }
 
     /**
