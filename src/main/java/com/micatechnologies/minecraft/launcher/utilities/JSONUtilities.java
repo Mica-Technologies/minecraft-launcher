@@ -40,6 +40,16 @@ public class JSONUtilities
             .create();
 
     /**
+     * Shared pretty-printing Gson instance. Same configuration as {@link #GSON}
+     * (incl. the {@link StringOrArray} adapter) but with indentation enabled,
+     * for human-readable output (exported manifests, hosting-manifest files).
+     */
+    private static final Gson PRETTY_GSON = new GsonBuilder()
+            .registerTypeAdapter( StringOrArray.class, new StringOrArray.Adapter() )
+            .setPrettyPrinting()
+            .create();
+
+    /**
      * Returns the shared {@link Gson} instance. Gson is thread-safe, so a single instance can be used across the
      * entire application without synchronization.
      *
@@ -50,6 +60,20 @@ public class JSONUtilities
     public static Gson getGson()
     {
         return GSON;
+    }
+
+    /**
+     * Returns the shared pretty-printing {@link Gson} instance. Thread-safe and
+     * cached; use instead of constructing a {@code new GsonBuilder().setPrettyPrinting()}
+     * per call.
+     *
+     * @return the shared pretty-printing Gson instance
+     *
+     * @since 2026.6
+     */
+    public static Gson getPrettyGson()
+    {
+        return PRETTY_GSON;
     }
 
     /**
