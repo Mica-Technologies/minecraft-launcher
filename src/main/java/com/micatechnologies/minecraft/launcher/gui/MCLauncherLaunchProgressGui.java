@@ -343,6 +343,14 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Builds the widgets (status icon, label, detail text) for a single
+     * launch-progress step row.
+     *
+     * @param step the step to build a row for
+     *
+     * @return the assembled row widgets
+     */
     private RowWidgets buildRow( Step step )
     {
         Label statusIcon = new Label( iconFor( step.state() ) );
@@ -385,6 +393,13 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         return new RowWidgets( row, statusIcon, titleLabel, subText, bar );
     }
 
+    /**
+     * Updates an existing row's widgets to reflect the step's current state and
+     * progress.
+     *
+     * @param row  the row widgets to update
+     * @param step the step whose state is rendered
+     */
     private void renderRow( RowWidgets row, Step step )
     {
         State state = step.state();
@@ -464,6 +479,14 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Returns the status-icon glyph for a step state (pending / active / done /
+     * failed).
+     *
+     * @param state the step state
+     *
+     * @return the icon glyph
+     */
     private static String iconFor( State state )
     {
         return switch ( state ) {
@@ -475,6 +498,13 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         };
     }
 
+    /**
+     * Returns the CSS style class for a step state's status icon.
+     *
+     * @param state the step state
+     *
+     * @return the icon style class
+     */
     private static String iconStyleClassFor( State state )
     {
         return switch ( state ) {
