@@ -98,6 +98,12 @@ public final class TuiApp
         new TuiApp().start();
     }
 
+    /**
+     * Initializes the terminal screen and Lanterna GUI, builds the main window,
+     * and runs the TUI event loop until exit.
+     *
+     * @throws Exception if the terminal screen or GUI cannot be initialized
+     */
     private void start() throws Exception
     {
         DefaultTerminalFactory factory =
@@ -169,6 +175,10 @@ public final class TuiApp
         }
     }
 
+    /**
+     * Builds the main TUI window: header bar, content panel, and key/resize
+     * listeners.
+     */
     private void buildWindow()
     {
         window = new BasicWindow();
@@ -191,6 +201,14 @@ public final class TuiApp
         window.addWindowListener( new WindowListenerAdapter()
         {
             @Override
+            /**
+             * Global key handler for the main window; intercepts navigation/quit keys
+             * before they reach focused components.
+             *
+             * @param base         the window receiving the input
+             * @param key          the key stroke
+             * @param deliverEvent  set to {@code false} to consume the key
+             */
             public void onInput( Window base, KeyStroke key, AtomicBoolean deliverEvent )
             {
                 // Handle the global navigation keys BEFORE the focused component sees them.
@@ -204,6 +222,14 @@ public final class TuiApp
             }
 
             @Override
+            /**
+             * Re-renders size-dependent content (e.g. the header) when the terminal is
+             * resized.
+             *
+             * @param base    the window being resized
+             * @param oldSize the previous terminal size
+             * @param newSize the new terminal size
+             */
             public void onResized( Window base, TerminalSize oldSize, TerminalSize newSize )
             {
                 // Re-pick the header density for the new width so hints never truncate mid-word.
@@ -253,6 +279,11 @@ public final class TuiApp
         }
     }
 
+    /**
+     * Builds the top nav-bar header string (app name + current screen/context).
+     *
+     * @return the header text for the current state
+     */
     private String headerText()
     {
         return headerText( currentColumns() );
@@ -345,6 +376,11 @@ public final class TuiApp
         b.build().showDialog( gui );
     }
 
+    /**
+     * Prompts for confirmation and, if accepted, uninstalls the given pack.
+     *
+     * @param pack the pack to uninstall
+     */
     private void confirmUninstall( GameModPack pack )
     {
         MessageDialogButton r = MessageDialog.showMessageDialog( gui, loc( "tui.uninstall.title" ),
@@ -358,6 +394,12 @@ public final class TuiApp
                         this::showLibrary );
     }
 
+    /**
+     * Launches the given pack from the TUI, routing progress through the
+     * TUI progress provider.
+     *
+     * @param pack the pack to launch
+     */
     private void launch( GameModPack pack )
     {
         if ( TuiRuntime.isRunning( pack ) ) {
@@ -464,6 +506,11 @@ public final class TuiApp
         window.setFocusedInteractable( list );
     }
 
+    /**
+     * Prompts for confirmation and, if accepted, installs the given available pack.
+     *
+     * @param pack the pack to install
+     */
     private void confirmInstall( GameModPack pack )
     {
         MessageDialogButton r = MessageDialog.showMessageDialog( gui, loc( "tui.install.title" ),
@@ -477,6 +524,9 @@ public final class TuiApp
                         this::showBrowse );
     }
 
+    /**
+     * Prompts for a manifest URL and adds/installs the pack it points to.
+     */
     private void installByUrl()
     {
         String url = new com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder()
@@ -493,6 +543,13 @@ public final class TuiApp
                         this::showBrowse );
     }
 
+    /**
+     * Formats a single available-pack row (name + version) for the list view.
+     *
+     * @param pack the pack to format
+     *
+     * @return the display row text
+     */
     private static String formatAvailableRow( GameModPack pack )
     {
         String name = safe( pack::getFriendlyName, pack.getPackName() );
@@ -679,6 +736,11 @@ public final class TuiApp
         showSettings();
     }
 
+    /**
+     * Returns the display label for the currently-selected locale.
+     *
+     * @return the current locale's label
+     */
     private static String currentLocaleLabel()
     {
         String tag = ConfigManager.getLocaleOverride();
@@ -694,6 +756,14 @@ public final class TuiApp
         return tag;   // e.g. en-US
     }
 
+    /**
+     * Shows a modal single-line text-input dialog.
+     *
+     * @param title   the dialog title / prompt
+     * @param initial the initial field value
+     *
+     * @return the entered string, or {@code null} if cancelled
+     */
     private String prompt( String title, String initial )
     {
         return new com.googlecode.lanterna.gui2.dialogs.TextInputDialogBuilder()
@@ -703,6 +773,11 @@ public final class TuiApp
                 .showDialog( gui );
     }
 
+    /**
+     * Shows a modal error message dialog.
+     *
+     * @param msg the error message to display
+     */
     private void error( String msg )
     {
         MessageDialog.showMessageDialog( gui, loc( "tui.error.invalid.title" ),
@@ -900,6 +975,10 @@ public final class TuiApp
         t.start();
     }
 
+    /**
+     * Starts the ~1 Hz background refresher that re-renders running-game state
+     * and logs.
+     */
     private void startRefresh()
     {
         refresher = Executors.newSingleThreadScheduledExecutor( r -> {
@@ -923,6 +1002,9 @@ public final class TuiApp
         }, 1, 1, TimeUnit.SECONDS );
     }
 
+    /**
+     * Stops the background refresher started by {@link #startRefresh()}.
+     */
     private void stopRefresh()
     {
         ScheduledExecutorService r = refresher;
@@ -972,6 +1054,15 @@ public final class TuiApp
         return "<1m";
     }
 
+    /**
+     * Truncates a string to at most {@code max} characters (with an ellipsis when
+     * shortened).
+     *
+     * @param s   the string to truncate (may be {@code null})
+     * @param max the maximum length
+     *
+     * @return the truncated string
+     */
     private static String truncate( String s, int max )
     {
         if ( s == null ) {
@@ -980,6 +1071,15 @@ public final class TuiApp
         return s.length() <= max ? s : s.substring( 0, Math.max( 0, max - 1 ) ) + "…";
     }
 
+    /**
+     * Invokes a value supplier, returning {@code fallback} if it throws — so a
+     * single failing accessor can't break a row render.
+     *
+     * @param getter   the value supplier
+     * @param fallback the value to return on failure
+     *
+     * @return the supplied value, or {@code fallback} on error
+     */
     private static String safe( ThrowingSupplier getter, String fallback )
     {
         try {
