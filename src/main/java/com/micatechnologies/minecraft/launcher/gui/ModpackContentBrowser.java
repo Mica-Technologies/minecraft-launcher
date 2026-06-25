@@ -199,7 +199,7 @@ public final class ModpackContentBrowser
         // hundreds of screenshot files doesn't bloat the modal scroll.
         // Population is gated on first-expand: a user who never opens
         // this section never pays the FS scan + tile construction cost.
-        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.screenshots" ), false );
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.screenshots" ), true );
         MCLauncherModpackDetailModal.registerOnFirstExpand( section, () -> populateAsync( section,
                        () -> scanSortedFiles( pack, "screenshots",
                                               f -> {
@@ -255,7 +255,7 @@ public final class ModpackContentBrowser
         // (each with label + toggle button) constructed at modal open
         // would dominate the FX-thread render storm right when the
         // user wants to see the modal. Gated on first-expand instead.
-        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.mods" ), false );
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.mods" ), true );
         MCLauncherModpackDetailModal.registerOnFirstExpand( section, () -> populateAsync( section,
                        () -> scanSortedFiles( pack, "mods",
                                               f -> {
@@ -966,7 +966,7 @@ public final class ModpackContentBrowser
         // + lazy-populate so a pack with a long crash log doesn't pay
         // the FS scan + row construction cost until the user asks for
         // it.
-        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.crashHistory" ), false );
+        VBox section = sectionBox.build( LocalizationManager.get( "detailModal.section.crashHistory" ), true );
         MCLauncherModpackDetailModal.registerOnFirstExpand( section, () -> populateAsync( section,
                        () -> scanSortedFiles( pack, "crash-reports",
                                               f -> f.isFile() && f.getName().endsWith( ".txt" ),
