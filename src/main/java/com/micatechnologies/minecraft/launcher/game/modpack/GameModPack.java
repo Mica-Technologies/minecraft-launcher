@@ -158,6 +158,19 @@ public class GameModPack extends GameModPackMetadata
     private transient GameModLoader cachedModLoader;
 
     /**
+     * Cached Minecraft library manifest for this pack's MC version. Building a
+     * {@link GameLibraryManifest} downloads + GSON-parses the version's
+     * client.json (2-4 MB), and the launch path asks for it more than once (the
+     * MC-libs stage and again in the main {@code launch()}), so without this the
+     * big manifest was read + parsed twice per launch. Memoized so the parse
+     * happens once per pack instance. {@code transient}, so a re-fetch of the
+     * modpack list re-parses against the fresh instance.
+     *
+     * @since 2026.6
+     */
+    private transient GameLibraryManifest cachedLibraryManifest;
+
+    /**
      * The modloader type identifier for this pack — one of
      * {@link com.micatechnologies.minecraft.launcher.consts.ModPackConstants#MOD_LOADER_FORGE},
      * {@code MOD_LOADER_NEOFORGE}, or {@code MOD_LOADER_FABRIC}. Vanilla
@@ -331,7 +344,13 @@ public class GameModPack extends GameModPackMetadata
      * @throws ModpackException if unable to get manifest
      */
     public GameLibraryManifest getMinecraftLibraryManifest() throws ModpackException {
-        return GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(), this );
+        // Memoize: both the MC-libs launch stage and the main launch() ask for
+        // this, as do repeated UI card renders. The instance parses the version's
+        // 2-4 MB client.json once; sharing it avoids a redundant re-parse.
+        if ( cachedLibraryManifest == null ) {
+            cachedLibraryManifest = GameVersionManifest.getMinecraftLibraryManifest( getMinecraftVersion(), this );
+        }
+        return cachedLibraryManifest;
     }
 
     /**
