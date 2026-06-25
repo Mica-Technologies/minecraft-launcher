@@ -127,11 +127,33 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
      *  pushes keeps the worker thread idle when nothing is moving. */
     private int lastSentColor = Integer.MIN_VALUE;
 
+    /** Whether {@link #start()} has completed successfully and the cached
+     *  {@link #lampArrays} are ready to receive frames. Reset to
+     *  {@code false} by {@link #shutdown}. Volatile because it is written
+     *  on the start thread and read on the mica-rgb worker thread. */
     private volatile boolean started = false;
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the human-readable backend name {@code "Windows Dynamic Lighting"}.
+     * @since 2026.5
+     */
     @Override
     public String name() { return "Windows Dynamic Lighting"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation performs only a cheap, side-effect-free probe:
+     * the host must be Windows and {@code combase.dll} must be loadable. No
+     * WinRT activation or device enumeration happens here, so the call is
+     * safe to invoke repeatedly from the controller's auto-probe.</p>
+     *
+     * @return {@code true} when running on Windows with a loadable
+     *         {@code combase.dll}; {@code false} otherwise.
+     * @since 2026.5
+     */
     @Override
     public boolean isAvailable()
     {
@@ -142,6 +164,30 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
         return SystemUtils.IS_OS_WINDOWS && Combase.isLoadable();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Initialises the WinRT MTA on the calling thread, obtains the
+     * {@code ILampArrayStatics} and {@code IDeviceInformationStatics}
+     * activation factories, resolves the LampArray AQS device selector,
+     * enumerates matching devices via {@code FindAllAsyncAqsFilter}, and
+     * opens each device through {@code LampArray.FromIdAsync}. Every opened
+     * {@code ILampArray} pointer is cached in {@link #lampArrays} for use
+     * by {@link #renderFrame}. The transient per-start interfaces
+     * (factories, selector HSTRING, async ops, collection) are always
+     * released before returning.</p>
+     *
+     * <p>On any failure the partially-opened LampArrays are released so no
+     * COM refcounts leak.</p>
+     *
+     * @throws IllegalStateException if the backend is not available on this
+     *         host, if device enumeration does not complete within
+     *         {@link #ASYNC_TIMEOUT_MS}, or if enumeration reports devices
+     *         but none could be opened (typically because Dynamic Lighting
+     *         is disabled in Windows Settings).
+     * @throws Exception if any underlying WinRT call fails.
+     * @since 2026.5
+     */
     @Override
     public void start() throws Exception
     {
@@ -247,6 +293,27 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Packs the frame's background color into the byte order Win64
+     * expects for a by-value {@code Windows.UI.Color} (see
+     * {@link WinRt#packWinUiColor}) and pushes it to every cached
+     * LampArray via {@code SetColor}. The call is skipped entirely when the
+     * packed color matches the last one sent (frame deduplication). WinRT
+     * is initialised lazily on the calling thread, since the mica-rgb
+     * worker is not the thread that ran {@link #start()}. A device failing
+     * does not abort the others — only when every device fails is an
+     * exception raised.</p>
+     *
+     * @param frame the frame to render; its {@link RgbFrame#background()}
+     *              color is applied to all lamps (alpha is forced to
+     *              {@code 0xFF}).
+     * @throws IllegalStateException if {@code SetColor} fails on every
+     *         cached device.
+     * @throws Exception if WinRT thread initialisation fails.
+     * @since 2026.5
+     */
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {
@@ -289,6 +356,18 @@ public final class WindowsDynamicLightingBackend implements RgbBackend
         lastSentColor = packed;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Releases every cached LampArray pointer and clears the cache.
+     * COM/WinRT refcount decrements are thread-safe, so this is safe to
+     * call from any thread. The WinRT apartment is deliberately left
+     * initialised — {@code RoUninitialize} is not called per thread because
+     * the worker may still hold other references and the launcher only
+     * exits WinRT at process termination.</p>
+     *
+     * @since 2026.5
+     */
     @Override
     public void shutdown()
     {

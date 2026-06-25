@@ -65,6 +65,15 @@ public final class ModPackConfig
         return JSONUtilities.getGson().fromJson( arr, ConfigConstants.modPacksListType );
     }
 
+    /**
+     * Persists the user's installed modpack manifest URL list, scheduling a
+     * debounced disk write.
+     *
+     * @param installedModPacks the manifest URLs to store as the installed-pack
+     *                          list
+     *
+     * @since 2026.5
+     */
     public static synchronized void setInstalledModPacks( List< String > installedModPacks ) {
         JsonArray arr = ( JsonArray ) JSONUtilities.getGson().toJsonTree(
                 installedModPacks, ConfigConstants.modPacksListType );
@@ -86,6 +95,14 @@ public final class ModPackConfig
         return json.get( ConfigConstants.BACKUP_AUTO_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether the launcher auto-snapshots a pack's config (and optionally
+     * saves) before applying an update.
+     *
+     * @param enable {@code true} to enable the pre-update backup snapshot
+     *
+     * @since 2026.5
+     */
     public static synchronized void setAutoBackupBeforeUpdate( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.BACKUP_AUTO_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -101,6 +118,15 @@ public final class ModPackConfig
         return json.get( ConfigConstants.BACKUP_MAX_COUNT_KEY ).getAsInt();
     }
 
+    /**
+     * Sets the maximum number of backup zips retained per pack. Negative values
+     * are clamped to {@code 0} (which disables the count cap; the age cap still
+     * applies).
+     *
+     * @param max the retained-backup count cap, or {@code 0} to disable it
+     *
+     * @since 2026.5
+     */
     public static synchronized void setMaxBackupsPerPack( int max ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.BACKUP_MAX_COUNT_KEY,
                                                   Math.max( 0, max ) );
@@ -117,6 +143,15 @@ public final class ModPackConfig
         return json.get( ConfigConstants.BACKUP_MAX_AGE_DAYS_KEY ).getAsInt();
     }
 
+    /**
+     * Sets the maximum age in days for retained backup zips. Negative values are
+     * clamped to {@code 0} (which disables the age cap; the count cap still
+     * applies).
+     *
+     * @param days the retained-backup age cap in days, or {@code 0} to disable it
+     *
+     * @since 2026.5
+     */
     public static synchronized void setMaxBackupAgeDays( int days ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.BACKUP_MAX_AGE_DAYS_KEY,
                                                   Math.max( 0, days ) );
@@ -133,6 +168,13 @@ public final class ModPackConfig
         return json.get( ConfigConstants.BACKUP_INCLUDE_SAVES_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether the {@code saves/} directory is included in the backup zip.
+     *
+     * @param include {@code true} to bundle save folders into the backup
+     *
+     * @since 2026.5
+     */
     public static synchronized void setBackupIncludeSaves( boolean include ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.BACKUP_INCLUDE_SAVES_KEY, include );
         ConfigStore.scheduleWrite();
@@ -154,6 +196,14 @@ public final class ModPackConfig
         return JSONUtilities.getGson().fromJson( arr, ConfigConstants.modPacksListType );
     }
 
+    /**
+     * Persists the user's installed Mojang vanilla version ID list, scheduling a
+     * debounced disk write.
+     *
+     * @param versions the vanilla version IDs to store as the installed list
+     *
+     * @since 2026.5
+     */
     public static synchronized void setInstalledVanillaVersions( List< String > versions ) {
         ConfigStore.ensureLoaded().add( ConfigConstants.VANILLA_VERSIONS_INSTALLED_KEY,
                                           JSONUtilities.getGson().toJsonTree(
@@ -178,6 +228,13 @@ public final class ModPackConfig
         return json.get( ConfigConstants.LAST_MP_KEY ).getAsString();
     }
 
+    /**
+     * Records the manifest URL of the most recently launched pack.
+     *
+     * @param lastModPackSelected the manifest URL of the last-selected pack
+     *
+     * @since 2026.5
+     */
     public static synchronized void setLastModPackSelected( String lastModPackSelected ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.LAST_MP_KEY, lastModPackSelected );
         ConfigStore.scheduleWrite();
@@ -213,6 +270,16 @@ public final class ModPackConfig
         }
     }
 
+    /**
+     * Sets the per-pack "always verify game files on launch" opt-out toggle. A
+     * {@code null} or blank {@code packUrl} is ignored.
+     *
+     * @param packUrl the modpack manifest URL keying the per-pack entry
+     * @param value   {@code true} to force verification on every launch for this
+     *                pack
+     *
+     * @since 2026.5
+     */
     public static synchronized void setAlwaysVerifyOnLaunch( String packUrl, boolean value ) {
         if ( packUrl == null || packUrl.isBlank() ) return;
         JsonObject json = ConfigStore.ensureLoaded();
@@ -246,6 +313,14 @@ public final class ModPackConfig
         }
     }
 
+    /**
+     * Sets the launcher-wide default security-scan frequency. A {@code null}
+     * value is coerced to {@link ScanFrequency#DEFAULT}.
+     *
+     * @param frequency the new launcher-wide default scan frequency
+     *
+     * @since 2026.5
+     */
     public static synchronized void setDefaultScanFrequency( ScanFrequency frequency ) {
         if ( frequency == null ) frequency = ScanFrequency.DEFAULT;
         ConfigStore.ensureLoaded().addProperty(
@@ -284,6 +359,17 @@ public final class ModPackConfig
         }
     }
 
+    /**
+     * Sets (or clears) the per-pack scan-frequency override. A {@code null} or
+     * blank {@code packUrl} is ignored; passing a {@code null} {@code frequency}
+     * removes the override so the pack falls back to the launcher-wide default.
+     *
+     * @param packUrl   the modpack manifest URL keying the per-pack entry
+     * @param frequency the override frequency, or {@code null} to clear the
+     *                  override
+     *
+     * @since 2026.5
+     */
     public static synchronized void setScanFrequencyForPack( String packUrl, ScanFrequency frequency ) {
         if ( packUrl == null || packUrl.isBlank() ) return;
         JsonObject json = ConfigStore.ensureLoaded();
@@ -330,6 +416,14 @@ public final class ModPackConfig
         }
     }
 
+    /**
+     * Sets whether modpack / version cards overlay the pack's real background
+     * image on top of the procedural gradient.
+     *
+     * @param show {@code true} to overlay the real background image
+     *
+     * @since 2026.5
+     */
     public static synchronized void setShowPackBackgrounds( boolean show ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.SHOW_PACK_BACKGROUNDS_KEY, show );
         ConfigStore.scheduleWrite();
@@ -361,6 +455,15 @@ public final class ModPackConfig
         }
     }
 
+    /**
+     * Sets how often a pack's logo + background cycle advances. Expected to be
+     * one of {@link ConfigConstants#IMAGE_CYCLE_INTERVAL_OPTIONS}; the value is
+     * validated on read rather than here.
+     *
+     * @param interval the cycle-interval option to store
+     *
+     * @since 2026.5
+     */
     public static synchronized void setImageCycleInterval( String interval ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.IMAGE_CYCLE_INTERVAL_KEY, interval );
         ConfigStore.scheduleWrite();
@@ -381,6 +484,14 @@ public final class ModPackConfig
         }
     }
 
+    /**
+     * Sets whether the per-pack image cycle visits images in a one-time shuffled
+     * order rather than manifest order.
+     *
+     * @param shuffle {@code true} to shuffle the cycle order
+     *
+     * @since 2026.5
+     */
     public static synchronized void setImageCycleShuffle( boolean shuffle ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.IMAGE_CYCLE_SHUFFLE_KEY, shuffle );
         ConfigStore.scheduleWrite();

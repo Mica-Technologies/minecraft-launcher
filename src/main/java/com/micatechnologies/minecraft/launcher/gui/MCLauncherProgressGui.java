@@ -92,24 +92,63 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      *  on scene transition rather than leaking timeline state across scene changes. */
     private final List< TranslateTransition > voxelAnimations = new ArrayList<>();
 
+    /**
+     * Constructs the progress GUI bound to the given stage, using the abstract
+     * GUI's default scene dimensions.
+     *
+     * @param stage the JavaFX stage that hosts this screen
+     *
+     * @throws IOException if the backing FXML resource fails to load
+     */
     public MCLauncherProgressGui( Stage stage ) throws IOException {
         super( stage );
     }
 
+    /**
+     * Constructs the progress GUI bound to the given stage with an explicit
+     * initial scene size.
+     *
+     * @param stage  the JavaFX stage that hosts this screen
+     * @param width  the initial scene width, in pixels
+     * @param height the initial scene height, in pixels
+     *
+     * @throws IOException if the backing FXML resource fails to load
+     */
     public MCLauncherProgressGui( Stage stage, double width, double height ) throws IOException {
         super( stage, width, height );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the classpath-relative path to this screen's FXML layout
+     *         ({@code gui/progressGUI.fxml})
+     */
     @Override
     String getSceneFxmlPath() {
         return "gui/progressGUI.fxml";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the human-readable scene name shown in the window title
+     *         ({@code "Loading"})
+     */
     @Override
     String getSceneName() {
         return "Loading";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Wires the OS close button (X) to close the entire application, since
+     * this screen represents a blocking operation that shouldn't be dismissed
+     * in isolation. The taskbar progress overlay is intentionally not attached
+     * here — that happens in {@link #afterShow()} once the stage is visible, to
+     * avoid native access violations from uninitialized window handles.</p>
+     */
     @Override
     void setup() {
         stage.setOnCloseRequest( windowEvent -> {
@@ -120,6 +159,13 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         // to avoid native access violations from uninitialized window handles.
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Starts the voxel bounce animation, resets all labels and the progress
+     * bar to their initial empty/zero state, and attaches the shared taskbar
+     * progress wrapper now that the stage is realized.</p>
+     */
     @Override
     void afterShow() {
         startVoxelBounceAnimation();
@@ -137,6 +183,15 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         setProgress( 0.0 );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Clears the OS-level taskbar progress overlay and stops the voxel bounce
+     * timelines so they don't keep ticking on a hidden or disposed scene. The
+     * taskbar wrapper itself is not closed here — {@code TaskbarProgressManager}
+     * keeps it alive for the application lifetime so scene transitions never race
+     * a release against a fresh init.</p>
+     */
     @Override
     void cleanup() {
         // Always clear the OS-level overlay before the next scene takes over. We don't
@@ -166,6 +221,16 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         startBounceOn( voxelCube3, 300 );
     }
 
+    /**
+     * Starts an indefinite, auto-reversing vertical bounce on a single voxel cube,
+     * offset by a start delay so the three cubes animate as a staggered wave.
+     * No-ops if the cube node is {@code null} (e.g. absent from the FXML). The
+     * created transition is registered in {@link #voxelAnimations} so
+     * {@link #stopVoxelBounceAnimation()} can later stop it.
+     *
+     * @param cube    the cube node to animate; ignored when {@code null}
+     * @param delayMs the start delay before this cube begins bouncing, in milliseconds
+     */
     private void startBounceOn( Group cube, int delayMs ) {
         if ( cube == null ) {
             return;
@@ -193,6 +258,12 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
         voxelAnimations.clear();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@link HelpTopic#GETTING_STARTED}, the help topic shown for the
+     *         progress screen
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.GETTING_STARTED; }
 
@@ -202,6 +273,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
 
     /**
      * Sets the overall task title (top line). E.g. "Launching: Forge 1.15.2" or "Signing In".
+     *
+     * @param text the title text to display
      */
     public void setUpperLabelText( String text ) {
         GUIUtilities.JFXPlatformRun( () -> upperLabel.setText( text ) );
@@ -209,6 +282,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
 
     /**
      * Sets the current section heading (between title and progress bar). E.g. "Downloading mods..."
+     *
+     * @param text the section heading text to display
      */
     public void setSectionText( String text ) {
         GUIUtilities.JFXPlatformRun( () -> sectionLabel.setText( text ) );
@@ -216,6 +291,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
 
     /**
      * Sets the detail text below the progress bar. E.g. "Verified library jna-4.4.0.jar"
+     *
+     * @param text the file-level detail text to display
      */
     public void setDetailText( String text ) {
         GUIUtilities.JFXPlatformRun( () -> detailLabel.setText( text ) );
@@ -223,6 +300,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
 
     /**
      * Sets the speed/ETA info text. E.g. "2.4 MB/s -- 3:42 remaining -- 12/150 files"
+     *
+     * @param text the speed/ETA info text to display
      */
     public void setSpeedText( String text ) {
         GUIUtilities.JFXPlatformRun( () -> speedLabel.setText( text ) );
@@ -231,6 +310,8 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     /**
      * Sets the lower label text. For backward compatibility, this updates the section label.
      * Direct callers should prefer {@link #setSectionText(String)} or {@link #setDetailText(String)}.
+     *
+     * @param text the lower label text to display (routed to the section label)
      */
     public void setLowerLabelText( String text ) {
         setSectionText( text );
@@ -238,6 +319,9 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
 
     /**
      * Sets both upper and section labels. For backward compatibility with existing callers.
+     *
+     * @param upper the overall task title (top line)
+     * @param lower the section heading (routed to the section label)
      */
     public void setLabelTexts( String upper, String lower ) {
         setUpperLabelText( upper );
@@ -295,7 +379,14 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Sets the progress bar value (0-100 scale, or INDETERMINATE_PROGRESS).
+     * Sets the progress bar value, also mirroring it onto the OS taskbar progress
+     * overlay. The value is on a 0-100 scale (normalized internally against
+     * {@link GameModPackProgressProvider#PROGRESS_PERCENT_BASE} to the 0.0-1.0
+     * range the bar expects), or {@link MFXProgressBar#INDETERMINATE_PROGRESS} to
+     * show an indeterminate animation.
+     *
+     * @param progress the progress value on a 0-100 scale, or
+     *                 {@link MFXProgressBar#INDETERMINATE_PROGRESS}
      */
     public void setProgress( double progress ) {
         final double baseProgValue = ( progress == MFXProgressBar.INDETERMINATE_PROGRESS ) ?

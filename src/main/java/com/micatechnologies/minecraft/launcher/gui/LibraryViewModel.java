@@ -93,14 +93,24 @@ public final class LibraryViewModel
     private PauseTransition searchDebounce;
 
     /** Constructs a VM with the given initial page size and the default
-     *  search-debounce window. */
+     *  search-debounce window.
+     *
+     *  @param defaultPageSize the initial page size; must be {@code > 0}
+     *
+     *  @throws IllegalArgumentException if {@code defaultPageSize <= 0} */
     public LibraryViewModel( int defaultPageSize )
     {
         this( defaultPageSize, DEFAULT_SEARCH_DEBOUNCE_MS );
     }
 
     /** Constructs a VM with the given initial page size and an explicit
-     *  search-debounce window in milliseconds. */
+     *  search-debounce window in milliseconds.
+     *
+     *  @param defaultPageSize  the initial page size; must be {@code > 0}
+     *  @param searchDebounceMs the search-debounce window in milliseconds;
+     *                          negative values are clamped to 0
+     *
+     *  @throws IllegalArgumentException if {@code defaultPageSize <= 0} */
     public LibraryViewModel( int defaultPageSize, int searchDebounceMs )
     {
         if ( defaultPageSize <= 0 ) {
@@ -111,7 +121,10 @@ public final class LibraryViewModel
     }
 
     /** Replaces the rebuild callback. Pass {@code null} to clear (the VM
-     *  retains a no-op default so internal {@code fire()} calls never NPE). */
+     *  retains a no-op default so internal {@code fire()} calls never NPE).
+     *
+     *  @param callback the rebuild callback to invoke on state changes, or
+     *                  {@code null} to install the no-op default */
     public void setOnStateChanged( Runnable callback )
     {
         this.onStateChanged = callback == null ? () -> {} : callback;
@@ -119,13 +132,22 @@ public final class LibraryViewModel
 
     // ===== Read accessors =====
 
+    /** @return the current page size (items shown per page) */
     public int getPageSize()      { return pageSize; }
+    /** @return the current 1-based page index */
     public int getCurrentPage()   { return currentPage; }
+    /** @return the current search query text (never {@code null}) */
     public String getSearchQuery(){ return searchQuery; }
+    /** @return the current sort-key identifier (never {@code null}) */
     public String getSortKey()    { return sortKey; }
 
     /** Returns the filter value for {@code key} cast to {@link String}, or
-     *  {@code fallback} when the filter is unset or not a string. */
+     *  {@code fallback} when the filter is unset or not a string.
+     *
+     *  @param key      the filter dimension name
+     *  @param fallback value to return when the filter is unset or non-string
+     *
+     *  @return the string filter value, or {@code fallback} */
     public String getStringFilter( String key, String fallback )
     {
         Object v = filters.get( key );
@@ -133,7 +155,12 @@ public final class LibraryViewModel
     }
 
     /** Returns the filter value for {@code key} cast to {@link Boolean}, or
-     *  {@code fallback} when the filter is unset or not a boolean. */
+     *  {@code fallback} when the filter is unset or not a boolean.
+     *
+     *  @param key      the filter dimension name
+     *  @param fallback value to return when the filter is unset or non-boolean
+     *
+     *  @return the boolean filter value, or {@code fallback} */
     public boolean getBooleanFilter( String key, boolean fallback )
     {
         Object v = filters.get( key );
@@ -142,6 +169,10 @@ public final class LibraryViewModel
 
     // ===== Mutators (each fires onStateChanged when state actually changes) =====
 
+    /** Sets the page size and resets to page 1, firing the state-changed
+     *  callback. No-op when {@code sz} is non-positive or unchanged.
+     *
+     *  @param sz the new page size (items per page); must be {@code > 0} to take effect */
     public void setPageSize( int sz )
     {
         if ( sz <= 0 || sz == pageSize ) return;
@@ -150,6 +181,11 @@ public final class LibraryViewModel
         fire();
     }
 
+    /** Sets the sort key and resets to page 1, firing the state-changed
+     *  callback. A {@code null} key is treated as the empty string. No-op when
+     *  the (normalized) key is unchanged.
+     *
+     *  @param key the new sort-key identifier; {@code null} is treated as empty */
     public void setSortKey( String key )
     {
         String normalized = key == null ? "" : key;
@@ -165,7 +201,9 @@ public final class LibraryViewModel
     /** Updates the search query, debouncing the rebuild callback so a rapid
      *  burst of keystrokes coalesces into one rebuild rather than one per
      *  character. The page is reset to 1 immediately (before the debounce
-     *  fires) so the rebuild pass sees the right page. */
+     *  fires) so the rebuild pass sees the right page.
+     *
+     *  @param text the new search query; {@code null} is treated as empty */
     public void setSearchQuery( String text )
     {
         String q = text == null ? "" : text;
@@ -177,7 +215,10 @@ public final class LibraryViewModel
 
     /** Sets a generic filter dimension by name. {@code value} can be a
      *  String, Boolean, or anything the controller wants to read back via
-     *  {@link #getStringFilter} / {@link #getBooleanFilter}. */
+     *  {@link #getStringFilter} / {@link #getBooleanFilter}.
+     *
+     *  @param key   the filter dimension name; no-op when {@code null}
+     *  @param value the filter value (String, Boolean, or controller-defined) */
     public void setFilter( String key, Object value )
     {
         if ( key == null ) return;
@@ -190,12 +231,16 @@ public final class LibraryViewModel
     /** Jumps directly to {@code page} (clamped to {@code >= 1}) WITHOUT firing
      *  the state-changed callback. For "reveal this item" flows that compute the
      *  target page themselves and then trigger their own rebuild (which clamps the
-     *  page to the valid range via {@link #clampAndSlice}). */
+     *  page to the valid range via {@link #clampAndSlice}).
+     *
+     *  @param page the target 1-based page; values below 1 are clamped to 1 */
     public void setCurrentPage( int page )
     {
         currentPage = Math.max( 1, page );
     }
 
+    /** Moves to the previous page (if not already on page 1), firing the
+     *  state-changed callback. No-op on page 1. */
     public void prevPage()
     {
         if ( currentPage > 1 ) {
@@ -204,6 +249,9 @@ public final class LibraryViewModel
         }
     }
 
+    /** Advances to the next page and fires the state-changed callback.
+     *  Intentionally does not clamp against a maximum here — {@link #clampAndSlice}
+     *  corrects any overshoot on the rebuild pass triggered by the callback. */
     public void nextPage()
     {
         currentPage++;
@@ -222,6 +270,10 @@ public final class LibraryViewModel
      * page on out-of-range — call this once per rebuild pass to keep state
      * consistent. The caller reads {@code startIdx() / endIdx()} to slice
      * its own data list.
+     *
+     * @param totalItems the number of items currently matching the filters
+     *
+     * @return the clamped page bounds (total items, total pages, slice indices)
      */
     public PageBounds clampAndSlice( int totalItems )
     {
@@ -238,6 +290,8 @@ public final class LibraryViewModel
      * Returns an empty array when the query is null / blank — lets controllers
      * short-circuit the per-pack haystack iteration without a separate
      * {@code isEmpty()} check.
+     *
+     * @return the lowercased search tokens, or an empty array when the query is blank
      */
     public String[] searchTokens()
     {

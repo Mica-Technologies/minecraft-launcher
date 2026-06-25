@@ -47,8 +47,15 @@ import java.util.List;
  */
 public class GameModPack extends GameModPackMetadata
 {
+    /** Progress sink for verify / download / launch operations on this pack;
+     *  {@code null} until {@link #setProgressProvider} installs one. */
     private transient GameModPackProgressProvider progressProvider  = null;
+    /** Lazily-constructed environment handler (directories + image cache);
+     *  see {@link #getEnvironment()}. */
     private transient GameModPackEnvironment      environment       = null;
+    /** Lazily-constructed launcher (classpath build + game spawn), rebound
+     *  whenever {@link #setProgressProvider} changes the progress sink; see
+     *  {@link #getLauncher()}. */
     private transient GameModPackLauncher         launcher          = null;
 
     /**
@@ -63,6 +70,20 @@ public class GameModPack extends GameModPackMetadata
      */
     private transient ServerFavorite quickJoinServer = null;
 
+    /**
+     * Sets the explicit quick-join server target for the next
+     * {@link #startGame()} call. Pass the server the user clicked "Connect"
+     * on; the value is consumed (read-and-cleared) by
+     * {@link #consumeQuickJoinServer()} during launch, so it must be set again
+     * for each launch that should auto-join. Passing {@code null} clears any
+     * previously-set explicit target, falling back to the pack's
+     * manifest-declared default server.
+     *
+     * @param quickJoinServer the server to auto-join on next launch, or
+     *                         {@code null} to clear the explicit target
+     *
+     * @since 2026.5
+     */
     public void setQuickJoinServer( ServerFavorite quickJoinServer )
     {
         this.quickJoinServer = quickJoinServer;
@@ -76,6 +97,12 @@ public class GameModPack extends GameModPackMetadata
      * {@link ServerFavoritesStore}). This is the single place that
      * resolves "what server, if any, should the next launch auto-join?" —
      * both the Play button and the Connect button funnel through here.
+     *
+     * @return the server the next launch should auto-join, or {@code null}
+     *         when no explicit target is set and no (enabled) default server
+     *         is declared
+     *
+     * @since 2026.5
      */
     public ServerFavorite consumeQuickJoinServer()
     {
@@ -89,7 +116,10 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
-     * Returns the lazily-initialized environment handler for this modpack.
+     * Returns the lazily-initialized environment handler for this modpack,
+     * constructing it on first access.
+     *
+     * @return the per-pack {@link GameModPackEnvironment}; never {@code null}
      */
     private GameModPackEnvironment getEnvironment()
     {
@@ -100,7 +130,10 @@ public class GameModPack extends GameModPackMetadata
     }
 
     /**
-     * Returns the lazily-initialized launcher for this modpack.
+     * Returns the lazily-initialized launcher for this modpack, constructing
+     * it (bound to the current {@link #progressProvider}) on first access.
+     *
+     * @return the per-pack {@link GameModPackLauncher}; never {@code null}
      */
     private GameModPackLauncher getLauncher()
     {
@@ -131,6 +164,10 @@ public class GameModPack extends GameModPackMetadata
      * packs return {@code null}. Absent / blank in the manifest defaults
      * to Forge for back-compat with every modpack created before the
      * multi-loader work.
+     *
+     * @return the lower-cased loader type identifier (one of
+     *         {@code forge} / {@code neoforge} / {@code fabric}), or
+     *         {@code null} for vanilla packs
      */
     public String getModLoaderType() {
         if ( vanillaVersion ) return null;
@@ -142,7 +179,10 @@ public class GameModPack extends GameModPackMetadata
 
     /** Loader installer / profile URL — generalised replacement for
      *  {@code packForgeURL}. Falls back to {@code packForgeURL} when
-     *  the new field isn't present in the manifest. */
+     *  the new field isn't present in the manifest.
+     *
+     *  @return the loader meta-artifact URL, or the legacy
+     *          {@code packForgeURL} fallback */
     String getModLoaderURL() {
         if ( packModLoaderURL != null && !packModLoaderURL.isBlank() ) {
             return packModLoaderURL;
@@ -153,7 +193,11 @@ public class GameModPack extends GameModPackMetadata
     /** Loader installer / profile SHA-1 — generalised replacement for
      *  {@code packForgeHash}. Falls back to {@code packForgeHash}. May
      *  be null/empty for loaders that don't hash-verify their meta
-     *  artifact. */
+     *  artifact.
+     *
+     *  @return the loader meta-artifact SHA-1, the legacy
+     *          {@code packForgeHash} fallback, or {@code null}/empty when
+     *          the loader doesn't hash-verify */
     String getModLoaderHash() {
         if ( packModLoaderHash != null && !packModLoaderHash.isBlank() ) {
             return packModLoaderHash;
@@ -171,6 +215,9 @@ public class GameModPack extends GameModPackMetadata
      * (installer JAR for Forge / NeoForge, profile-JSON URL for
      * Fabric).</p>
      *
+     * @return the cached or freshly-constructed {@link GameModLoader} for
+     *         this pack, or {@code null} for vanilla packs
+     *
      * @throws ModpackException if the loader type is unknown or
      *                          construction (which validates the
      *                          installer artifact) fails.
@@ -183,6 +230,18 @@ public class GameModPack extends GameModPackMetadata
         return cachedModLoader;
     }
 
+    /**
+     * Constructs the concrete {@link GameModLoader} implementation for this
+     * pack's {@link #getModLoaderType() loader type}, passing it the loader
+     * URL and hash. Construction eagerly validates the on-disk meta artifact,
+     * so callers should prefer the cached {@link #getModLoader()}.
+     *
+     * @return a newly-constructed loader matching this pack's loader type
+     *
+     * @throws ModpackException if the loader type is unrecognized or the
+     *                          loader's own construction / artifact
+     *                          validation fails
+     */
     private GameModLoader createModLoader() throws ModpackException {
         String type = getModLoaderType();
         String url = getModLoaderURL();
@@ -219,7 +278,13 @@ public class GameModPack extends GameModPackMetadata
 
     /** Display name of this pack's modloader — {@code "Forge"},
      *  {@code "NeoForge"}, {@code "Fabric"}, or {@code null} for
-     *  vanilla packs. Used by the hero / detail UI chips. */
+     *  vanilla packs. Used by the hero / detail UI chips.
+     *
+     *  @return the loader's human-readable name, or {@code null} for
+     *          vanilla packs
+     *
+     *  @throws ModpackException if the loader can't be resolved /
+     *                          constructed */
     public String getLoaderName() throws ModpackException {
         if ( vanillaVersion ) return null;
         return getModLoader().getName();
@@ -234,6 +299,10 @@ public class GameModPack extends GameModPackMetadata
      * row). False for Fabric (runtime loader — no patching pipeline)
      * and vanilla. Doesn't construct the loader so this is safe to
      * call before launch / verify starts.
+     *
+     * @return {@code true} if the launch UI should show the post-install
+     *         (game-patching) step for this pack; {@code false} for Fabric
+     *         and vanilla
      */
     public boolean usesPostInstallSteps() {
         if ( vanillaVersion ) return false;
@@ -243,7 +312,12 @@ public class GameModPack extends GameModPackMetadata
 
     /** Loader-agnostic version string — Forge's
      *  {@code "14.23.5.2855"}, Fabric loader's {@code "0.16.10"},
-     *  NeoForge's {@code "21.1.95"}. {@code null} for vanilla. */
+     *  NeoForge's {@code "21.1.95"}. {@code null} for vanilla.
+     *
+     *  @return the loader version string, or {@code null} for vanilla packs
+     *
+     *  @throws ModpackException if the loader can't be resolved /
+     *                          constructed */
     public String getLoaderVersion() throws ModpackException {
         if ( vanillaVersion ) return null;
         return getModLoader().getLoaderVersion();
@@ -442,6 +516,10 @@ public class GameModPack extends GameModPackMetadata
      * they're stable across launcher versions — renaming the user-facing
      * message wording doesn't shift them, and the (kind, locator) pair is
      * tight enough that a different finding can't accidentally match.</p>
+     *
+     * @param f the supplemental-scanner finding to emit a silence hint for;
+     *          {@code null} and hash-less findings are handled gracefully
+     *          (no unmatchable snippet is produced)
      */
     private static void emitAcknowledgementHint( SupplementalScanner.Finding f )
     {
@@ -483,7 +561,10 @@ public class GameModPack extends GameModPackMetadata
      *  silenced via {@code packScanAcknowledgements} because they're
      *  signature-based malware detection, not heuristics. Surfaced after
      *  each Nekodetector finding so the maintainer isn't left wondering
-     *  why no JSON snippet appears. */
+     *  why no JSON snippet appears.
+     *
+     *  @return the localized "Nekodetector findings can't be acknowledged"
+     *          explanation line */
     private static String nekoCannotAckHint()
     {
         return LocalizationManager.get( "log.gameModPack.nekoCannotAckHint" );
@@ -492,7 +573,12 @@ public class GameModPack extends GameModPackMetadata
     /** Minimal JSON string-content escaper for the ack-hint log line.
      *  Handles the two characters that would actually break the literal
      *  ({@code \} and {@code "}); the launcher's finding strings don't
-     *  contain control chars worth escaping further. */
+     *  contain control chars worth escaping further.
+     *
+     *  @param s the raw string to escape; {@code null} yields {@code ""}
+     *
+     *  @return the input with backslashes and double-quotes escaped for
+     *          embedding in a JSON string literal */
     private static String jsonEscape( String s )
     {
         if ( s == null ) return "";
@@ -584,11 +670,25 @@ public class GameModPack extends GameModPackMetadata
 
 
 
+    /**
+     * Returns the on-disk path of this pack's primary logo image, triggering
+     * a synchronous cache download if it isn't already cached. Because this
+     * can hit the network, call it off the FX thread; use
+     * {@link #getPackLogoFilepathRaw()} for a side-effect-free path on the FX
+     * thread.
+     *
+     * @return absolute path to the cached primary logo image file
+     */
     public synchronized String getPackLogoFilepath()
     {
         return getEnvironment().getPackLogoFilepath();
     }
 
+    /**
+     * Background-image counterpart of {@link #getPackLogoFilepath()}.
+     *
+     * @return absolute path to the cached primary background image file
+     */
     public synchronized String getPackBackgroundFilepath()
     {
         return getEnvironment().getPackBackgroundFilepath();
@@ -747,6 +847,17 @@ public class GameModPack extends GameModPackMetadata
         return packBackgroundURL != null ? packBackgroundURL.first() : null;
     }
 
+    /**
+     * Sets the progress provider used to surface verify / download / launch
+     * progress for this pack, and invalidates the cached launcher so the next
+     * {@link #getLauncher()} call rebinds to the new provider. Call this once
+     * per launch session with a fresh tracker bridge; see
+     * {@link #swapProgressProviderTransiently} for the in-flight,
+     * cache-preserving variant.
+     *
+     * @param progressProvider the progress sink for this pack's operations
+     *                         (may be {@code null} to detach)
+     */
     public void setProgressProvider( GameModPackProgressProvider progressProvider )
     {
         this.progressProvider = progressProvider;
@@ -770,24 +881,46 @@ public class GameModPack extends GameModPackMetadata
      * {@code LauncherCore.play}'s post-spawn flow looking at a null process,
      * so the console-GUI swap is skipped and the launcher sits stuck on the
      * progress screen even though the game is running.
+     *
+     * @param progressProvider the progress sink to install for the duration
+     *                         of the in-flight operation
      */
     public void swapProgressProviderTransiently( GameModPackProgressProvider progressProvider )
     {
         this.progressProvider = progressProvider;
     }
 
+    /**
+     * Downloads and caches this pack's logo and background images. Performs
+     * network I/O, so call from a background thread (e.g. the async warm-up
+     * for the modpack cards). Delegates to
+     * {@link GameModPackEnvironment#cacheImages()}.
+     */
     public synchronized void cacheImages()
     {
         getEnvironment().cacheImages();
     }
 
+    /**
+     * Creates all on-disk directories this pack needs (bin, mods, config,
+     * natives, and — in client mode — resourcepacks and shaderpacks).
+     * Delegates to {@link GameModPackEnvironment#prepareEnvironment()}.
+     */
     public void prepareEnvironment()
     {
         getEnvironment().prepareEnvironment();
     }
 
+    /** URL of the manifest JSON this pack was loaded from. Package-visible
+     *  field populated by the fetch / factory paths. */
     String manifestUrl;
 
+    /**
+     * Returns the URL of the manifest JSON this pack was loaded from.
+     *
+     * @return the source manifest URL, or {@code null} for packs built via a
+     *         factory path that doesn't carry one
+     */
     public String getManifestUrl() {
         return manifestUrl;
     }
@@ -801,9 +934,20 @@ public class GameModPack extends GameModPackMetadata
      *  paths since those don't have a real manifest body. */
     private transient String manifestContentSha256;
 
+    /**
+     * Returns the hex SHA-256 fingerprint of the manifest JSON body captured
+     * when this pack was loaded.
+     *
+     * @return the manifest-body SHA-256, or {@code null} for factory-built
+     *         packs that have no real manifest body
+     */
     public String getManifestContentSha256() { return manifestContentSha256; }
 
-    /** Package-private setter — only {@link GameModPackFetcher} populates this. */
+    /**
+     * Package-private setter — only {@link GameModPackFetcher} populates this.
+     *
+     * @param sha256 the hex SHA-256 of the manifest body to record
+     */
     void setManifestContentSha256( String sha256 ) {
         this.manifestContentSha256 = sha256;
     }
@@ -820,6 +964,9 @@ public class GameModPack extends GameModPackMetadata
 
     /**
      * Returns true if this is a vanilla (non-Forge) Minecraft version.
+     *
+     * @return {@code true} when this pack is a plain Minecraft version with
+     *         no modloader
      */
     public boolean isVanillaVersion() {
         return vanillaVersion;
@@ -895,6 +1042,8 @@ public class GameModPack extends GameModPackMetadata
      *  background revalidate in {@link GameModPackManager}. */
     public boolean isStub() { return stub; }
 
+    /** Marks this pack as a stub (card-rendering subset only, full manifest
+     *  not yet loaded). See {@link #isStub()}. */
     void markAsStub() { this.stub = true; }
 
     /**
@@ -903,6 +1052,12 @@ public class GameModPack extends GameModPackMetadata
      * one index-file read instead of N per-manifest cache reads. The returned
      * pack carries only the card-rendering subset; {@link #isStub} returns
      * true until a real manifest fetch upgrades it.
+     *
+     * @param manifestUrl the manifest URL this stub stands in for
+     * @param entry       the persisted index entry supplying the
+     *                    card-rendering field subset
+     *
+     * @return a stub {@link GameModPack} populated from {@code entry}
      *
      * @since 2026.3
      */
@@ -924,6 +1079,14 @@ public class GameModPack extends GameModPackMetadata
         return pack;
     }
 
+    /**
+     * Returns a placeholder "no mod pack" {@link GameModPack} used as the
+     * empty / none selection in the UI. It carries a localized name and
+     * version plus the bundled "no mod pack" image, and is not backed by any
+     * real manifest.
+     *
+     * @return a sentinel placeholder pack representing "no selection"
+     */
     public static GameModPack NULL_MODPACK() {
         GameModPack nullModPack = new GameModPack();
         nullModPack.packName = LocalizationManager.get( "modpack.none.name" );

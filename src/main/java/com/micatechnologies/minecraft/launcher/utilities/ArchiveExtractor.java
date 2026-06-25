@@ -84,6 +84,10 @@ public final class ArchiveExtractor
             "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
             "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9" );
 
+    /**
+     * Private constructor — this is a static-only utility class and is never
+     * instantiated.
+     */
     private ArchiveExtractor() { /* static-only */ }
 
     /**
@@ -91,8 +95,14 @@ public final class ArchiveExtractor
      * target directory is treated as the containment root — entries are
      * rejected if their resolved path would escape it.
      *
+     * @param archive   the {@code .tar.gz} archive file to extract
+     * @param targetDir the destination directory (containment root); created if
+     *                  it does not already exist
+     *
      * @throws IOException on archive corruption, containment violation, or
      *                     size-cap breach
+     *
+     * @since 2026.2
      */
     public static void extractTarGz( Path archive, Path targetDir ) throws IOException
     {
@@ -106,6 +116,15 @@ public final class ArchiveExtractor
     /**
      * Extracts a ZIP archive into {@code targetDir}. Same containment + safety
      * guarantees as {@link #extractTarGz}.
+     *
+     * @param archive   the ZIP archive file to extract
+     * @param targetDir the destination directory (containment root); created if
+     *                  it does not already exist
+     *
+     * @throws IOException on archive corruption, containment violation, or
+     *                     size-cap breach
+     *
+     * @since 2026.2
      */
     public static void extractZip( Path archive, Path targetDir ) throws IOException
     {

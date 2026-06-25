@@ -81,16 +81,40 @@ public final class LoaderInstallerRunner
      *  artifacts can take longer. */
     private static final int INSTALLER_TIMEOUT_SECONDS = 180;
 
+    /** Non-instantiable; all entry points are static. */
     private LoaderInstallerRunner() { /* static-only */ }
 
-    /** Outcome of an install attempt. */
+    /**
+     * Outcome of an install attempt.
+     *
+     * @param success         {@code true} if the loader was installed (or no
+     *                        install was needed); {@code false} on any failure
+     * @param message         human-readable summary suitable for a toast / log
+     * @param installerStderr captured stderr from the installer process when
+     *                        relevant to a failure, otherwise {@code null}
+     */
     public record Result(
             boolean success,
             String message,
             String installerStderr
     ) {
+        /** Builds a success result with no captured stderr.
+         *
+         *  @param msg the success summary
+         *  @return a successful {@code Result} */
         public static Result success( String msg ) { return new Result( true, msg, null ); }
+
+        /** Builds a failure result with no captured stderr.
+         *
+         *  @param msg the failure summary
+         *  @return a failed {@code Result} */
         public static Result failure( String msg ) { return new Result( false, msg, null ); }
+
+        /** Builds a failure result carrying the installer's captured stderr.
+         *
+         *  @param msg    the failure summary
+         *  @param stderr the installer process stderr to surface for diagnosis
+         *  @return a failed {@code Result} */
         public static Result failure( String msg, String stderr ) {
             return new Result( false, msg, stderr );
         }
@@ -104,6 +128,8 @@ public final class LoaderInstallerRunner
      *
      * @param pack  the pack whose loader to install
      * @param dotMc the resolved Mojang launcher data folder
+     * @return a {@link Result} describing success (including the no-op vanilla
+     *         case) or the specific failure encountered
      */
     public static Result install( GameModPack pack, Path dotMc )
     {
@@ -139,6 +165,16 @@ public final class LoaderInstallerRunner
     // Forge / NeoForge — spawn the installer JAR with --installClient
     // ====================================================================
 
+    /** Spawns the Forge / NeoForge installer JAR headlessly with
+     *  {@code --installClient} pointed at the Mojang launcher data folder,
+     *  draining its stdout / stderr, enforcing {@link #INSTALLER_TIMEOUT_SECONDS},
+     *  and confirming the expected version directory was created before reporting
+     *  success.
+     *
+     *  @param pack  the pack whose loader installer to run
+     *  @param dotMc the Mojang launcher data folder to install into
+     *  @return a {@link Result} reflecting the install outcome (including
+     *          timeout, non-zero exit, or a missing version directory) */
     private static Result runInstallerJar( GameModPack pack, Path dotMc )
     {
         // Resolve a usable installer JAR. Mica's normal install flow
@@ -254,7 +290,12 @@ public final class LoaderInstallerRunner
     /** Returns the loader installer JAR file. Prefers the copy Mica's
      *  normal install pipeline downloaded under the pack folder; falls
      *  back to a fresh download into a per-launcher temp area if the
-     *  pack hasn't been launched yet. */
+     *  pack hasn't been launched yet.
+     *
+     *  @param pack the pack whose loader installer JAR to resolve
+     *  @return the local installer JAR file, ready to spawn
+     *  @throws Exception if the pack has no installer URL or the fallback
+     *                   download fails / produces an empty file */
     private static File resolveInstallerJar( GameModPack pack ) throws Exception
     {
         // Best path: Mica already has the installer locally because the
@@ -291,7 +332,9 @@ public final class LoaderInstallerRunner
 
     /** Resolves the {@code java} executable from the JVM Mica is running
      *  under. Same JVM as the launcher itself — guaranteed present, no
-     *  separate runtime install required. */
+     *  separate runtime install required.
+     *
+     *  @return the path to this JVM's {@code java}/{@code java.exe} binary */
     private static Path currentJavaExecutable()
     {
         String javaHome = System.getProperty( "java.home" );
@@ -312,7 +355,12 @@ public final class LoaderInstallerRunner
      *  <p>The {@code id} field inside the profile JSON is authoritative
      *  for the version folder name — Fabric meta currently emits
      *  {@code fabric-loader-<loader>-<mc>}, but if that ever changes we
-     *  honour what the JSON actually says rather than guessing.</p> */
+     *  honour what the JSON actually says rather than guessing.</p>
+     *
+     *  @param pack  the Fabric pack whose profile JSON to install
+     *  @param dotMc the Mojang launcher data folder to write the profile into
+     *  @return a {@link Result} reflecting the write outcome (failure on a
+     *          missing URL, empty body, absent {@code id} field, or I/O error) */
     private static Result writeFabricProfileJson( GameModPack pack, Path dotMc )
     {
         String url;

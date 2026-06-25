@@ -131,15 +131,58 @@ public final class ChromaNativeBackend implements RgbBackend
      *  of play. */
     private static final int FAMILY_FAILURE_DROP_THRESHOLD = 5;
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the fixed human-readable backend name
+     *         {@code "Razer Chroma (Native)"} used in log lines and the
+     *         RGB settings UI to distinguish this backend from the REST
+     *         Chroma variant
+     *
+     * @since 2026.5
+     */
     @Override
     public String name() { return "Razer Chroma (Native)"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation reports availability by attempting to load
+     * {@code RzChromaSDK64.dll} via JNA (see
+     * {@link RzChromaSdkLibrary#isLoadable()}). The probe is cheap and
+     * side-effect free — it returns {@code false} instantly on non-Windows
+     * hosts or when Synapse / the Razer Chroma SDK isn't installed.</p>
+     *
+     * @return {@code true} when the native Razer Chroma SDK DLL is
+     *         loadable on this host, {@code false} otherwise
+     *
+     * @since 2026.5
+     */
     @Override
     public boolean isAvailable()
     {
         return RzChromaSdkLibrary.isLoadable();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Builds the {@code APPINFOTYPE} struct describing the launcher
+     * (so it appears in Synapse's connected-apps list), declares every
+     * supported device-family bit, and calls {@code InitSDK}. On a
+     * non-zero result the cached {@link #appInfoMemory} is released and
+     * the result code is surfaced to the controller's circuit breaker as
+     * an exception.</p>
+     *
+     * @throws IllegalStateException if {@code RzChromaSDK64.dll} cannot be
+     *                               loaded (Synapse not installed)
+     * @throws Exception             if {@code InitSDK} returns a non-zero
+     *                               {@code RZRESULT} code; the message
+     *                               carries the raw code and its
+     *                               {@link #describeResult(int) label}
+     *
+     * @since 2026.5
+     */
     @Override
     public void start() throws Exception
     {
@@ -177,6 +220,34 @@ public final class ChromaNativeBackend implements RgbBackend
         Logger.logStd( LocalizationManager.format( "log.rgb.chroma.nativeSdkInitialized", APP_TITLE ) );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Translates the frame's background fill and per-key overrides
+     * into the per-device-family effect structs, then runs the
+     * create / apply / delete cycle for each family still in the active
+     * rotation (keyboard, mouse, mousepad, headset, keypad, ChromaLink).
+     * A no-op before {@link #start()} or after {@link #shutdown()}.</p>
+     *
+     * <p>The frame is treated as delivered if <em>any</em> family accepts
+     * it, so users with a partial Razer rig (e.g. ChromaLink ARGB fans
+     * but no Chroma keyboard) don't trip the controller's circuit
+     * breaker. When every still-rotating family has been permanently
+     * dropped the method returns cleanly (a "no hardware connected"
+     * no-op) rather than reporting a failure.</p>
+     *
+     * @param frame the frame to paint; its {@link RgbFrame#background()}
+     *              fills every LED and its {@link RgbFrame#overrides()}
+     *              recolor individual keyboard keys
+     *
+     * @throws java.io.IOException if at least one family was attempted but
+     *                             every attempt failed; the message
+     *                             carries the attempt count and the last
+     *                             {@code RZRESULT} code
+     * @throws Exception           per the {@link RgbBackend} contract
+     *
+     * @since 2026.5
+     */
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {
@@ -286,6 +357,20 @@ public final class ChromaNativeBackend implements RgbBackend
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Paints a final solid-black frame (best-effort) so devices don't
+     * remain stuck on the last effect's colors after the launcher exits,
+     * calls {@code UnInit} to tear down the SDK session, and clears all
+     * per-family bookkeeping ({@link #familySucceededOnce},
+     * {@link #familyFailureCount}, {@link #familyPermanentlyDropped},
+     * {@link #familyDropLoggedOnce}). Safe to call when never started —
+     * a no-op if {@link #initialized} is {@code false}. Both native calls
+     * swallow any throwable so shutdown always completes.</p>
+     *
+     * @since 2026.5
+     */
     @Override
     public void shutdown()
     {
@@ -315,9 +400,26 @@ public final class ChromaNativeBackend implements RgbBackend
      *  ever calls renderFrame. */
     private int lastResult;
 
+    /**
+     * Strategy for invoking one of the SDK's per-family
+     * {@code CreateXxxEffect} functions. {@link #tryFamily} supplies the
+     * out-parameter buffer and the lambda binds the concrete family call
+     * (e.g. {@code CreateKeyboardEffect}) plus its effect type and param
+     * struct.
+     *
+     * @since 2026.5
+     */
     @FunctionalInterface
     private interface CreateEffectFn
     {
+        /**
+         * Invokes the bound {@code CreateXxxEffect} call.
+         *
+         * @param effectIdOut a 16-byte buffer that receives the newly
+         *                    created effect's {@code RZEFFECTID} GUID
+         *
+         * @return the {@code RZRESULT} code; {@code 0} on success
+         */
         int apply( Pointer effectIdOut );
     }
 
@@ -327,8 +429,17 @@ public final class ChromaNativeBackend implements RgbBackend
      * success log on the first successful frame for the family in
      * the current session.
      *
+     * @param familyName the device-family key (e.g. {@code "keyboard"},
+     *                   {@code "chromalink"}) used for failure tracking
+     *                   and log lines
+     * @param createFn   the family-specific {@code CreateXxxEffect}
+     *                   invocation; receives the effect-ID out buffer and
+     *                   returns the {@code RZRESULT} code
+     *
      * @return true on success (effect created AND applied), false on
      *         any failure
+     *
+     * @since 2026.5
      */
     private boolean tryFamily( String familyName, CreateEffectFn createFn )
     {

@@ -214,19 +214,53 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  faster than this and never flash it; only genuinely slow gathers (cold manifest fetch) do. */
     private static final long REBUILD_SPINNER_DELAY_MS = 150;
 
+    /**
+     * Constructs the Game Library GUI bound to the supplied JavaFX {@link Stage}, loading its
+     * FXML scene via the {@link MCLauncherAbstractGui} base class.
+     *
+     * @param stage the JavaFX stage that hosts this screen
+     *
+     * @throws IOException if the FXML scene resource cannot be loaded
+     */
     public MCLauncherGameLibraryGui( Stage stage ) throws IOException {
         super( stage );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the classpath-relative path to this screen's FXML resource
+     */
     @Override
     String getSceneFxmlPath() { return "gui/gameLibraryGUI.fxml"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the short, user-facing scene name ("Browse") used for window-title / navigation
+     */
     @Override
     String getSceneName() { return "Browse"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the help topic anchored to this screen ({@link HelpTopic#BROWSE_LIBRARY})
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.BROWSE_LIBRARY; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Wires up every interactive control on the Browse screen: the type / status / sort
+     * filters and the free-text search field (all feeding {@link #vm}), the pagination controls,
+     * the add-by-URL / import / editor / hosting-manifest / return buttons, the announcement
+     * banner, and the help button. Also pre-warms the per-pack mod-filename cache on a worker so
+     * the first search keystroke stays responsive. The view-model's rebuild callback is wired
+     * last so the initial filter / sort seeding doesn't trigger a premature rebuild — the first
+     * paint is driven by {@link #afterShow()}.</p>
+     */
     @Override
     void setup()
     {
@@ -571,6 +605,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         } ) );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Builds the initial card grid (off-thread gather, FX-thread render), installs smooth
+     * scrolling, surfaces the "loading available packs" affordance and schedules a re-render if
+     * the startup background available-modpacks fetch is still in flight, and installs the
+     * cross-platform keyboard shortcuts plus the Cmd/Ctrl+F search-focus filter.</p>
+     */
     @Override
     void afterShow()
     {
@@ -616,6 +658,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Disposes the view-model's search-debounce timer so a last-instant keystroke can't fire a
+     * rebuild against this torn-down controller. Filter listeners die with the scene and need no
+     * explicit teardown.</p>
+     */
     @Override
     void cleanup() {
         // Filter listeners die with the scene, but the VM's search-debounce timer
@@ -634,6 +683,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      * import. v1 stubs the import action; the dialog itself, the API fetch,
      * and the URL classification scaffolding ship now so users get
      * recognizable feedback instead of a generic "not a manifest" error.
+     *
+     * @param originalUrl       the full URL the user pasted, echoed in the preview dialog
+     * @param slug              the Modrinth project slug parsed from the URL
+     * @param versionId         the specific Modrinth version id parsed from the URL, or
+     *                          {@code null} to fetch the project's latest version
+     * @param urlAddDefaultText the add-button's idle label, restored once the fetch settles
      */
     private void handleModrinthImport( String originalUrl,
                                         String slug,
@@ -695,6 +750,10 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      * user looked), so we make the second confirmation show the
      * authoritative file list from the archive itself. After that point
      * the user has explicitly approved every mod we're about to download.</p>
+     *
+     * @param summary the project summary fetched in step-1, carrying the latest version's file
+     *                references and project icon URL
+     * @param slug    the Modrinth project slug, used to name the translated local manifest
      */
     private void runModrinthImportFlow(
             com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient.ProjectSummary summary,
@@ -826,6 +885,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      * publicly distributable), so v1 can't fetch project metadata for the
      * preview — the dialog shows what we can derive from the URL alone and
      * tells the user the supported workaround.
+     *
+     * @param originalUrl       the full URL the user pasted, echoed in the preview dialog and
+     *                          opened in the browser on confirm
+     * @param slug              the CurseForge project slug parsed from the URL
+     * @param fileId            the specific CurseForge file id parsed from the URL, or
+     *                          {@code null} if the URL didn't carry one
+     * @param urlAddDefaultText the add-button's idle label, restored once the dialog dismisses
      */
     private void handleCurseForgeImport( String originalUrl,
                                           String slug,
@@ -869,6 +935,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      * author-hosted endpoints with no edge gating) or a user-supplied
      * Technic Platform API key, this handler is the place to swap out
      * the dialog for the real import flow.</p>
+     *
+     * @param originalUrl       the full URL the user pasted, echoed in the preview dialog
+     * @param slug              the Technic modpack slug parsed from the URL, used to build the
+     *                          website project URL opened on confirm
+     * @param urlAddDefaultText the add-button's idle label, restored once the dialog dismisses
      */
     private void handleTechnicImport( String originalUrl, String slug, String urlAddDefaultText )
     {
@@ -902,7 +973,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     /** Restores the urlAdd field + button to their idle state. Called from
      *  both platform-import paths since both need this cleanup regardless of
-     *  whether the user clicked Import or Cancel. */
+     *  whether the user clicked Import or Cancel.
+     *
+     *  @param urlAddDefaultText the add-button's idle label to restore */
     private void resetUrlControls( String urlAddDefaultText )
     {
         urlAddBtn.setText( urlAddDefaultText );
@@ -911,7 +984,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     }
 
     /** Renders the Modrinth project summary as the preview-dialog body text.
-     *  Multi-line on purpose — uses {@link GUIUtilities#showQuestionMessageMultiline}. */
+     *  Multi-line on purpose — uses {@link GUIUtilities#showQuestionMessageMultiline}.
+     *
+     *  @param originalUrl the full URL the user pasted, appended at the end of the preview
+     *  @param s           the fetched Modrinth project summary to describe
+     *  @return the assembled multi-line preview body */
     private String buildModrinthPreview( String originalUrl,
             com.micatechnologies.minecraft.launcher.game.modpack.import_.ModrinthClient.ProjectSummary s )
     {
@@ -955,7 +1032,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     /** CurseForge preview text. We can't fetch project metadata without an API
      *  key, so the dialog is purely advisory + a one-click out to the
-     *  project page on cfwidget / curseforge.com itself. */
+     *  project page on cfwidget / curseforge.com itself.
+     *
+     *  @param originalUrl the full URL the user pasted, appended at the end of the preview
+     *  @param slug        the CurseForge project slug, or {@code null} if unknown
+     *  @param fileId      the CurseForge file id, or {@code null}/blank if not present in the URL
+     *  @return the assembled multi-line preview body */
     private String buildCurseForgePreview( String originalUrl, String slug, String fileId )
     {
         StringBuilder sb = new StringBuilder();
@@ -979,7 +1061,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  fetch project metadata without either an API key or impersonating
      *  the official Technic Launcher, neither of which this launcher is
      *  willing to do, so the dialog is informational + a one-click out to
-     *  the project page on technicpack.net. */
+     *  the project page on technicpack.net.
+     *
+     *  @param originalUrl the full URL the user pasted, appended at the end of the preview
+     *  @param slug        the Technic modpack slug, or {@code null} if unknown
+     *  @return the assembled multi-line preview body */
     private String buildTechnicPreview( String originalUrl, String slug )
     {
         StringBuilder sb = new StringBuilder();
@@ -1077,7 +1163,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     /** FX-thread scene-graph mutation half of {@link #rebuildCards}: clamps pagination over the
      *  already-gathered {@code entries}, recycles the visible cards, and rebuilds the FlowPane's
-     *  current page. Must run on the FX thread. */
+     *  current page. Must run on the FX thread.
+     *
+     *  @param entries the gathered, filtered and sorted entries to page over
+     *  @param type    the active type filter, forwarded to {@link #buildEmptyState} when empty
+     *  @param status  the active status filter, forwarded to {@link #buildEmptyState} when empty
+     *  @param search  the active lowercased search needle, forwarded to {@link #buildEmptyState}
+     *                 when empty */
     private void renderEntries( List< LibraryEntry > entries, String type, String status, String search )
     {
         // Pagination math is owned by the VM — clamps currentPage in-range and
@@ -1121,7 +1213,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     /** Toggles the dedicated card-grid loading spinner + label in the bottom bar. Must run on the
      *  FX thread. Independent of {@link #backgroundFetchLabel} so install / uninstall status text
-     *  isn't clobbered by a concurrent grid rebuild. */
+     *  isn't clobbered by a concurrent grid rebuild.
+     *
+     *  @param visible {@code true} to show the spinner + label, {@code false} to hide them */
     private void setRebuildLoadingVisible( boolean visible )
     {
         if ( loadingIndicator == null ) {
@@ -1164,8 +1258,17 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         private static final double CARD_WIDTH  = 300;
         private static final double IMAGE_HEIGHT = 110;
 
+        /** Live status line under the pack name, updated as the import progresses through
+         *  download → translate → install via {@link #setStatus(String)}. */
         private final Label statusLabel;
 
+        /**
+         * Builds the placeholder card with a spinner over the themed gradient image area, the
+         * pack name as the heading, and an initial "preparing" status line.
+         *
+         * @param packName the in-flight pack's display name; a localized default is used when
+         *                 {@code null} or blank
+         */
         ImportProgressCard( String packName )
         {
             getStyleClass().add( "heroCardShell" );
@@ -1224,7 +1327,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
         /** Updates the status line. Must be called from the FX thread; the
          *  three {@code beginImport}/{@code updateImportStatus}/{@code endImport}
-         *  helpers below take care of that for the worker-thread callers. */
+         *  helpers below take care of that for the worker-thread callers.
+         *
+         *  @param text the new status text; ignored when {@code null} or blank */
         void setStatus( String text )
         {
             if ( text != null && !text.isBlank() ) {
@@ -1234,7 +1339,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     }
 
     /** Creates + inserts the import-in-progress card. Safe to call from
-     *  any thread; FX work is dispatched via JFXPlatformRun. */
+     *  any thread; FX work is dispatched via JFXPlatformRun.
+     *
+     *  @param packName the in-flight pack's display name shown on the placeholder card */
     private void beginImport( String packName )
     {
         GUIUtilities.JFXPlatformRun( () -> {
@@ -1244,7 +1351,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     }
 
     /** Updates the active import card's status line. No-op if no import is
-     *  currently in flight. */
+     *  currently in flight.
+     *
+     *  @param status the new status text to display on the active import card */
     private void updateImportStatus( String status )
     {
         GUIUtilities.JFXPlatformRun( () -> {
@@ -1267,7 +1376,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  (or call {@link #hideBackgroundStatus()}) to dismiss. Used by
      *  install / uninstall handlers so refresh work happens silently in the
      *  background instead of the launcher swapping to a full-screen
-     *  progress GUI. */
+     *  progress GUI.
+     *
+     *  @param text the status text to show; {@code null} is treated as an empty string */
     private void showBackgroundStatus( String text )
     {
         GUIUtilities.JFXPlatformRun( () -> {
@@ -1289,7 +1400,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     }
 
     /** Updates the pagination bar's text labels and button enable state for the current page
-     *  state. Called from {@link #rebuildCards} after the visible slice is computed. */
+     *  state. Called from {@link #rebuildCards} after the visible slice is computed.
+     *
+     *  @param bounds the computed page bounds (start / end indices, total items, total pages) */
     private void updatePaginationControls( LibraryViewModel.PageBounds bounds )
     {
         int currentPage = vm.getCurrentPage();
@@ -1309,7 +1422,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     /** Collects entries from the GameModPackManager + VanillaVersionManager according to the
      *  current type filter. Status filtering happens in here too so we don't allocate cards
-     *  we're just going to discard. */
+     *  we're just going to discard.
+     *
+     *  @param type   the active type filter (one of the {@code TYPE_*} constants)
+     *  @param status the active status filter (one of the {@code STATUS_*} constants)
+     *  @return the gathered, status-filtered entries in collection order (installed kinds first,
+     *          then available, with vanilla / loader catalogs in upstream order) */
     private List< LibraryEntry > collectEntries( String type, String status )
     {
         List< LibraryEntry > out = new ArrayList<>();
@@ -1427,7 +1545,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  <p>{@code SORT_LAST_PLAYED} / {@code SORT_MOST_PLAYED} / {@code SORT_RECENT_UPDATE}
      *  are well-defined only for {@link LibraryEntry.Kind#MODPACK_INSTALLED}; non-modpack
      *  kinds get a sentinel ({@code Long.MIN_VALUE}) so they sink to the bottom
-     *  rather than disrupting the intent.</p> */
+     *  rather than disrupting the intent.</p>
+     *
+     *  @param entries the entry list to sort in place
+     *  @param sortKey the active sort selection (one of the {@code SORT_*} constants);
+     *                 {@code SORT_DEFAULT} (or any unrecognized value) leaves the order intact */
     private static void sortEntries( List< LibraryEntry > entries, String sortKey )
     {
         switch ( sortKey ) {
@@ -1447,18 +1569,34 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         }
     }
 
+    /** Sort key for {@code SORT_LAST_PLAYED}: the pack's last-played timestamp in epoch millis,
+     *  or {@link Long#MIN_VALUE} for non-modpack entries so they sink to the bottom.
+     *
+     *  @param e the entry to derive a key from
+     *  @return the last-played epoch-millis key */
     private static long lastPlayedKey( LibraryEntry e )
     {
         if ( e.pack == null ) return Long.MIN_VALUE;
         return e.pack.getLastPlayedMs();
     }
 
+    /** Sort key for {@code SORT_MOST_PLAYED}: the pack's total play time in millis, or
+     *  {@link Long#MIN_VALUE} for non-modpack entries so they sink to the bottom.
+     *
+     *  @param e the entry to derive a key from
+     *  @return the total-play-time millis key */
     private static long totalPlayedKey( LibraryEntry e )
     {
         if ( e.pack == null ) return Long.MIN_VALUE;
         return e.pack.getTotalPlayTimeMs();
     }
 
+    /** Sort key for {@code SORT_RECENT_UPDATE}: the pack's newest update-log timestamp in epoch
+     *  millis (the log is read newest-first), or {@link Long#MIN_VALUE} for non-modpack entries,
+     *  packs with no update history, or on any read failure so they sink to the bottom.
+     *
+     *  @param e the entry to derive a key from
+     *  @return the most-recent-update epoch-millis key */
     private static long lastUpdateKey( LibraryEntry e )
     {
         if ( e.pack == null ) return Long.MIN_VALUE;
@@ -1494,7 +1632,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  does on first lookup. Extracted so it can run on a worker thread
      *  during library setup, ahead of the first search keystroke; the
      *  FX-thread search-filter path becomes a cache hit and avoids the
-     *  hitch a 100+ jar listFiles + iteration causes inline. */
+     *  hitch a 100+ jar listFiles + iteration causes inline.
+     *
+     *  @param root the pack root folder path to scan; {@code null} is a no-op */
     private static void prewarmModFilenameCache( String root )
     {
         if ( root == null ) return;
@@ -1511,7 +1651,12 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     }
 
     /** True iff the pack's {@code mods/} folder contains any file
-     *  whose lowercased name contains the lowercased search needle. */
+     *  whose lowercased name contains the lowercased search needle.
+     *
+     *  @param pack        the pack whose {@code mods/} folder to scan; {@code false} when
+     *                     {@code null} or its root folder is unknown
+     *  @param lowerNeedle the lowercased search needle to look for in mod filenames
+     *  @return {@code true} if any cached mod filename contains the needle */
     private static boolean packModsMatch( GameModPack pack, String lowerNeedle )
     {
         if ( pack == null ) return false;
@@ -1526,6 +1671,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         return false;
     }
 
+    /** Sort key for {@code SORT_RELEASE_DATE}. Uses the eagerly-populated
+     *  {@code releaseTimeMs} when available (vanilla + loader entries); for
+     *  modpacks the field is {@link Long#MIN_VALUE}, so we fall back to the
+     *  installed pack's newest update-log timestamp ({@link #lastUpdateKey}) as
+     *  the user's release-date proxy. Available manifest modpacks fall through
+     *  both paths and sink to the bottom.
+     *
+     *  @param e the entry to derive a key from
+     *  @return the release-date epoch-millis key */
     private static long releaseDateKey( LibraryEntry e )
     {
         if ( e.releaseTimeMs != Long.MIN_VALUE ) return e.releaseTimeMs;
@@ -1534,7 +1688,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     /** Maps a top-level type filter to the modloader identifier
      *  ({@code ModPackConstants.MOD_LOADER_*}) when one of the
-     *  loader-version filters is selected; null otherwise. */
+     *  loader-version filters is selected; null otherwise.
+     *
+     *  @param type the active type filter
+     *  @return the {@code ModPackConstants.MOD_LOADER_*} identifier, or {@code null} when the
+     *          filter isn't a loader-version filter */
     private static String loaderTypeFor( String type )
     {
         return switch ( type == null ? "" : type ) {
@@ -1547,7 +1705,11 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
 
     /** Maps a top-level type filter to the vanilla-type strings VanillaVersionManager
      *  recognizes. TYPE_ALL gets every type so "Installed" status pulls every installed
-     *  vanilla regardless of release / snapshot / beta / alpha. */
+     *  vanilla regardless of release / snapshot / beta / alpha.
+     *
+     *  @param type the active type filter
+     *  @return the Mojang vanilla-type strings to gather for that filter; empty when the filter
+     *          isn't a vanilla (or all) filter */
     private static List< String > vanillaTypesFor( String type )
     {
         return switch ( type ) {
@@ -1560,7 +1722,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         };
     }
 
-    /** Friendly empty-state shown when filter + search produced no matches. */
+    /** Friendly empty-state shown when filter + search produced no matches.
+     *
+     *  @param type   the active type filter, surfaced in the search-specific sub-message
+     *  @param status the active status filter, surfaced in the search-specific sub-message
+     *  @param search the active search needle; a non-empty value selects the search-specific
+     *                sub-message
+     *  @return the empty-state node to drop into the FlowPane */
     private static javafx.scene.Node buildEmptyState( String type, String status, String search )
     {
         VBox box = new VBox( 8 );
@@ -1584,26 +1752,54 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     //  LibraryEntry — unified data model for one card
     // =========================================================================================
 
+    /**
+     * Immutable view-model for a single Browse card. One {@code LibraryEntry} captures everything
+     * a {@link LibraryCard} needs to render and act on — its {@link Kind}, display name, chips,
+     * status text, the backing {@link GameModPack} / vanilla version / loader version (depending on
+     * kind), and a release-date sort key. Instances are produced by the static {@code installed*} /
+     * {@code available*} factory methods and never mutated after construction.
+     */
     private static final class LibraryEntry
     {
-        enum Kind { MODPACK_INSTALLED, MODPACK_AVAILABLE,
-                     VANILLA_INSTALLED, VANILLA_AVAILABLE,
+        /** Discriminates which kind of library item a {@link LibraryEntry} represents, driving the
+         *  card's chips, badge, action buttons, background, and logo resolution. */
+        enum Kind {
+                     /** An installed modpack — renders Uninstall + Edit actions and a right-click
+                      *  context menu, backed by a live {@link GameModPack}. */
+                     MODPACK_INSTALLED,
+                     /** A modpack present in the public manifest but not yet installed — renders an
+                      *  Install action, backed by the manifest's rich {@link GameModPack}. */
+                     MODPACK_AVAILABLE,
+                     /** An installed vanilla (Mojang) Minecraft version — renders an Uninstall
+                      *  action. */
+                     VANILLA_INSTALLED,
+                     /** A vanilla Minecraft version available from the Mojang manifest but not yet
+                      *  installed — renders an Install action. */
+                     VANILLA_AVAILABLE,
                      /** Forge / NeoForge / Fabric version that's available to install as an
                       *  empty modpack. There's no LOADER_INSTALLED counterpart — installed
                       *  loader packs surface through the existing MODPACK_INSTALLED path since
                       *  installation writes a real manifest. */
                      LOADER_AVAILABLE }
 
+        /** Discriminator selecting how the backing card renders + acts. */
         final Kind kind;
+        /** User-facing title shown as the card heading and used for name / search sorting. */
         final String displayName;
+        /** Short metadata chips (e.g. "Modpack", "Minecraft 1.21", loader name) rendered under
+         *  the card title. */
         final List< String > chips;
+        /** Status line shown below the chips (e.g. "Installed", "Available", "Released 2024-…"). */
         final String statusText;
         /** Carries the pack reference for BOTH installed and available modpacks now —
          *  available manifest packs are pulled via getAvailableModPacks() returning the rich
          *  GameModPack objects with logo / background URLs, so the card can render a logo
          *  without the friendly-name → URL → install detour. */
         final GameModPack pack;
+        /** Mojang version id (e.g. {@code "1.21"}); non-null for both {@code VANILLA_*} kinds. */
         final String vanillaVersionId;   // non-null for VANILLA_*
+        /** Raw Mojang manifest entry for the version, carrying {@code type} / {@code releaseTime};
+         *  non-null for {@code VANILLA_*} kinds. */
         final JsonObject vanillaInfo;    // non-null for VANILLA_AVAILABLE
         /** Non-null for LOADER_AVAILABLE — carries the (loaderType,
          *  mcVersion, loaderVersion, installerUrl) tuple the install
@@ -1619,6 +1815,24 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
          *  source so they sink to the bottom of release-date sorts. */
         final long releaseTimeMs;
 
+        /**
+         * Canonical all-args constructor. Use the {@code installed*} / {@code available*} static
+         * factory methods instead — they assemble the chips / status text appropriate to each kind.
+         *
+         * @param kind             the entry kind discriminator
+         * @param displayName      the card heading / sort name
+         * @param chips            the metadata chips rendered under the heading
+         * @param statusText       the status line shown below the chips
+         * @param pack             the backing modpack for {@code MODPACK_*} kinds, else {@code null}
+         * @param vanillaVersionId the Mojang version id for {@code VANILLA_*} kinds, else
+         *                         {@code null}
+         * @param vanillaInfo      the raw Mojang manifest entry for {@code VANILLA_*} kinds, else
+         *                         {@code null}
+         * @param loaderVersion    the loader-version tuple for {@code LOADER_AVAILABLE}, else
+         *                         {@code null}
+         * @param releaseTimeMs    the release date in epoch millis, or {@link Long#MIN_VALUE} when
+         *                         unknown
+         */
         private LibraryEntry( Kind kind, String displayName, List< String > chips, String statusText,
                               GameModPack pack, String vanillaVersionId, JsonObject vanillaInfo,
                               com.micatechnologies.minecraft.launcher.game.modpack.LoaderVersionManager.LoaderVersion loaderVersion,
@@ -1635,6 +1849,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
             this.releaseTimeMs = releaseTimeMs;
         }
 
+        /**
+         * Builds a {@link Kind#MODPACK_INSTALLED} entry for an installed modpack. Adds a "Modpack"
+         * chip plus a "Minecraft &lt;version&gt;" chip when the version resolves, and surfaces a
+         * "Recently updated" / "Installed" status depending on whether the local pack differs from
+         * its hosted manifest.
+         *
+         * @param pack the installed modpack to wrap
+         * @return the assembled installed-modpack entry
+         */
         static LibraryEntry installedModpack( GameModPack pack )
         {
             String name = pack.getFriendlyName() != null ? pack.getFriendlyName() : pack.getPackName();
@@ -1656,6 +1879,14 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                                      Long.MIN_VALUE );
         }
 
+        /**
+         * Builds a {@link Kind#MODPACK_AVAILABLE} entry for a manifest modpack that isn't installed
+         * yet. Same chips as {@link #installedModpack}, with a "from manifest" status line and no
+         * release-date key (available modpacks have no per-pack date source).
+         *
+         * @param pack the available (rich) modpack pulled from the public manifest
+         * @return the assembled available-modpack entry
+         */
         static LibraryEntry availableModpack( GameModPack pack )
         {
             String name = pack.getFriendlyName() != null ? pack.getFriendlyName() : pack.getPackName();
@@ -1670,6 +1901,15 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                                      pack, null, null, null, Long.MIN_VALUE );
         }
 
+        /**
+         * Builds a {@link Kind#VANILLA_INSTALLED} entry for an installed vanilla Minecraft version.
+         * Adds a "Vanilla" chip plus a prettified release-type chip and an "Installed" status, and
+         * eagerly parses the manifest's {@code releaseTime} into the release-date sort key.
+         *
+         * @param versionId the Mojang version id
+         * @param info      the raw Mojang manifest entry for the version
+         * @return the assembled installed-vanilla entry
+         */
         static LibraryEntry installedVanilla( String versionId, JsonObject info )
         {
             String typeStr = info.has( "type" ) ? info.get( "type" ).getAsString() : "release";
@@ -1682,6 +1922,16 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                                      parseReleaseTime( info ) );
         }
 
+        /**
+         * Builds a {@link Kind#VANILLA_AVAILABLE} entry for a vanilla version that's listed in the
+         * Mojang manifest but not installed. Same chips as {@link #installedVanilla}, with a status
+         * of "Released &lt;date&gt;" when a release date is present (else plain "Available") and the
+         * parsed release-date sort key.
+         *
+         * @param versionId the Mojang version id
+         * @param info      the raw Mojang manifest entry for the version
+         * @return the assembled available-vanilla entry
+         */
         static LibraryEntry availableVanilla( String versionId, JsonObject info )
         {
             String typeStr = info.has( "type" ) ? info.get( "type" ).getAsString() : "release";

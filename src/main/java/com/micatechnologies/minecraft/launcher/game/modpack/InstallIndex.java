@@ -62,6 +62,10 @@ public final class InstallIndex
     /** Filename of the index sidecar inside {@code modpacks/}. */
     private static final String INDEX_FILENAME = "install_index.json";
 
+    /** Schema version of this in-memory / on-disk index, defaulting to
+     *  {@link #CURRENT_SCHEMA_VERSION} for a freshly-constructed instance.
+     *  Persisted so {@link #load()} can reject a file written by a newer
+     *  launcher (see the future-version guard there). */
     public int version = CURRENT_SCHEMA_VERSION;
 
     /** Manifest URL → summary. LinkedHashMap preserves insertion / refresh order
@@ -79,18 +83,26 @@ public final class InstallIndex
      */
     public static final class Entry
     {
+        /** Display name of the pack, mirroring the manifest's {@code packName}. */
         public String packName;
+        /** Pack version string, mirroring the manifest's {@code packVersion}. */
         public String packVersion;
         /** Website URL ({@code packURL} in the manifest), not the manifest URL. */
         public String packURL;
         /** Logo URL(s) — string or array, mirroring the manifest. See {@link com.micatechnologies.minecraft.launcher.utilities.StringOrArray}. */
         public com.micatechnologies.minecraft.launcher.utilities.StringOrArray packLogoURL;
+        /** Expected SHA-1 of the logo image, used to validate / key the image cache. */
         public String packLogoSha1;
         /** Background URL(s) — string or array, mirroring the manifest. */
         public com.micatechnologies.minecraft.launcher.utilities.StringOrArray packBackgroundURL;
+        /** Expected SHA-1 of the background image, used to validate / key the image cache. */
         public String packBackgroundSha1;
+        /** Minimum RAM in GB, kept as the manifest's raw {@code String} (not a parsed
+         *  number) so the wire shape survives a round-trip; drives the RAM-too-low gate. */
         public String packMinRAMGB;
+        /** Whether the pack is flagged unstable in its manifest; surfaces a warning badge. */
         public boolean packUnstable;
+        /** Whether the pack supplies its own custom Discord Rich Presence configuration. */
         public boolean packCustomDiscordRpc;
         /** Epoch millis of the last successful refresh. Surfaces as a "refreshed
          *  X minutes ago" hint and lets us age out entries whose URL has long

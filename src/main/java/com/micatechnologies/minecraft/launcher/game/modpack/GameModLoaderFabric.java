@@ -82,21 +82,92 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
     /** Maven Central for everything else (asm, jansi, etc.). */
     private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
 
+    /**
+     * The modpack that owns this loader. Supplies the pack root folder
+     * used to resolve the on-disk locations of the profile JSON and the
+     * downloaded Fabric libraries.
+     *
+     * @since 2026.5
+     */
     private final GameModPack parentModPack;
 
-    /** Cached fields parsed once from the Fabric profile JSON at
-     *  construction time so the getters never re-read disk. */
+    /**
+     * Fabric loader version (e.g. {@code "0.16.10"}), derived from the
+     * profile JSON {@code id} field at construction time and cached so
+     * {@link #getLoaderVersion()} never re-reads disk.
+     *
+     * @since 2026.5
+     */
     private final String fabricLoaderVersion;
+
+    /**
+     * The Minecraft version this Fabric profile inherits from (the
+     * profile JSON {@code inheritsFrom} field), cached at construction
+     * time.
+     *
+     * @since 2026.5
+     */
     private final String minecraftVersion;
+
+    /**
+     * The client launch entry point named by the profile JSON
+     * {@code mainClass} field (Fabric's {@code KnotClient}), cached at
+     * construction time.
+     *
+     * @since 2026.5
+     */
     private final String minecraftMainClass;
+
+    /**
+     * The flattened, space-separated game argument string derived from
+     * the profile JSON {@code arguments.game} array (usually empty for
+     * Fabric), cached at construction time.
+     *
+     * @since 2026.5
+     */
     private final String minecraftArguments;
+
+    /**
+     * The flattened, space-separated JVM argument string derived from
+     * the profile JSON {@code arguments.jvm} array (usually empty for
+     * Fabric), cached at construction time.
+     *
+     * @since 2026.5
+     */
     private final String jvmArguments;
+
+    /**
+     * The raw {@code libraries} array from the profile JSON, cached at
+     * construction time so {@link #buildClasspath} can iterate it
+     * without re-reading and re-parsing the profile file from disk.
+     *
+     * @since 2026.5
+     */
     private final JsonArray librariesArray;
 
     /**
-     * @param remoteURL     URL of the Fabric profile JSON (meta service).
-     * @param sha1Hash      optional SHA-1 of the profile JSON; may be null.
-     * @param parentModPack owning pack.
+     * Construct a Fabric loader handle for a pack. Downloads (and, when
+     * a hash is supplied, verifies) the Fabric profile JSON, then parses
+     * and caches the fields the launcher needs at launch time
+     * (main class, inherited Minecraft version, derived loader version,
+     * flattened argument strings, and the raw libraries array).
+     *
+     * @param remoteURL     URL of the Fabric profile JSON served by the
+     *                      Fabric meta service.
+     * @param sha1Hash      optional SHA-1 of the profile JSON; may be
+     *                      {@code null} or blank, in which case
+     *                      verification falls back to a file-exists
+     *                      check (the Fabric meta service does not
+     *                      publish stable hashes for these JSONs).
+     * @param parentModPack the pack that owns this loader; provides the
+     *                      pack root folder for local file resolution.
+     *
+     * @throws ModpackException if the profile JSON cannot be downloaded,
+     *                          read, or parsed, or if it is missing a
+     *                          required field such as the
+     *                          {@code libraries} array.
+     *
+     * @since 2026.5
      */
     GameModLoaderFabric( String remoteURL, String sha1Hash, GameModPack parentModPack )
             throws ModpackException
@@ -133,21 +204,81 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
         this.librariesArray = profile.getAsJsonArray( "libraries" );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Always returns the literal {@code "Fabric"} for this loader
+     * implementation.</p>
+     *
+     * @return the loader display name, {@code "Fabric"}.
+     *
+     * @since 2026.5
+     */
     @Override
     public String getName() { return "Fabric"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the cached Minecraft version this profile inherits
+     * from (the profile JSON {@code inheritsFrom} field).</p>
+     *
+     * @return the inherited Minecraft version.
+     *
+     * @since 2026.5
+     */
     @Override
     public String getMinecraftVersion() { return minecraftVersion; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the Fabric loader version derived from the profile
+     * JSON {@code id} field at construction time.</p>
+     *
+     * @return the Fabric loader version (e.g. {@code "0.16.10"}).
+     *
+     * @since 2026.5
+     */
     @Override
     public String getLoaderVersion() { return fabricLoaderVersion; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the flattened game argument string; usually empty for
+     * Fabric, which negotiates its own launch target at runtime.</p>
+     *
+     * @return the space-separated game arguments, possibly empty.
+     *
+     * @since 2026.5
+     */
     @Override
     public String getMinecraftArguments() { return minecraftArguments; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the flattened JVM argument string; usually empty for
+     * Fabric.</p>
+     *
+     * @return the space-separated JVM arguments, possibly empty.
+     *
+     * @since 2026.5
+     */
     @Override
     public String getJvmArguments() { return jvmArguments; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the client launch entry point named by the profile
+     * JSON {@code mainClass} field (Fabric's {@code KnotClient}).</p>
+     *
+     * @return the client main class name.
+     *
+     * @since 2026.5
+     */
     @Override
     public String getMinecraftMainClass() { return minecraftMainClass; }
 
@@ -159,6 +290,10 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
      * we only fetch the client profile; hardcoding the canonical
      * server entry is safe across Fabric loader 0.13+ (the class
      * hasn't moved in years).
+     *
+     * @return the canonical Fabric server launcher class name.
+     *
+     * @since 2026.5
      */
     @Override
     public String getServerMainClass() {
@@ -172,6 +307,19 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
      * paths into a {@code File.pathSeparator}-joined string. The
      * launcher concatenates this with the vanilla MC classpath at
      * launch time.
+     *
+     * @param gameAppMode      the game mode (client / server) driving
+     *                         per-asset download behavior.
+     * @param progressProvider sink for download progress updates; may be
+     *                         {@code null}.
+     *
+     * @return a {@code File.pathSeparator}-joined string of local
+     *         library paths in profile-declaration order.
+     *
+     * @throws ModpackException if any required library fails to download
+     *                          or verify.
+     *
+     * @since 2026.5
      */
     @Override
     public String buildClasspath( GameMode gameAppMode, GameModPackProgressProvider progressProvider )
@@ -230,7 +378,16 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
     // Helpers
     // ====================================================================
 
-    /** Read + parse the cached profile JSON file from disk. */
+    /**
+     * Read and parse the cached Fabric profile JSON file from disk.
+     *
+     * @return the parsed profile JSON as a {@link JsonObject}.
+     *
+     * @throws ModpackException if the file cannot be read, does not parse
+     *                          to a JSON object, or is malformed JSON.
+     *
+     * @since 2026.5
+     */
     private JsonObject readProfileJson() throws ModpackException
     {
         File profileFile = new File( getFullLocalFilePath() );
@@ -251,9 +408,24 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
         }
     }
 
-    /** {@code "fabric-loader-0.16.10-1.21.5"} + {@code "1.21.5"}
-     *  → {@code "0.16.10"}. Falls back to the raw id when the prefix /
-     *  MC-suffix shape doesn't match. */
+    /**
+     * Derive the Fabric loader version from a profile {@code id}. For
+     * example {@code "fabric-loader-0.16.10-1.21.5"} with MC version
+     * {@code "1.21.5"} yields {@code "0.16.10"}. Strips the
+     * {@code fabric-loader-} prefix and the trailing MC-version suffix
+     * when present, and falls back to the raw id when the expected shape
+     * doesn't match.
+     *
+     * @param id        the profile JSON {@code id} field; may be
+     *                  {@code null} or blank.
+     * @param mcVersion the inherited Minecraft version used to strip the
+     *                  trailing suffix; may be {@code null} or blank.
+     *
+     * @return the derived loader version, the trimmed id, or an empty
+     *         string when {@code id} is {@code null}/blank.
+     *
+     * @since 2026.5
+     */
     private static String deriveLoaderVersion( String id, String mcVersion )
     {
         if ( id == null || id.isBlank() ) return "";
@@ -268,11 +440,23 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
         return working;
     }
 
-    /** Flatten an optional {@code arguments.<kind>} array into a single
-     *  space-separated string. Returns empty when the section is
-     *  missing or empty. Mirrors the same shape
-     *  {@code ManifestRuleUtilities.flattenArguments} produces for
-     *  vanilla / Forge manifests. */
+    /**
+     * Flatten an optional {@code arguments.<kind>} array from a profile
+     * JSON into a single space-separated string. Returns an empty string
+     * when the {@code arguments} object, the requested {@code kind}
+     * section, or its array form is absent. Mirrors the same shape
+     * {@link ManifestRuleUtilities#flattenArguments} produces for
+     * vanilla / Forge manifests.
+     *
+     * @param profile the profile JSON object to read from.
+     * @param kind    the argument section name, e.g. {@code "game"} or
+     *                {@code "jvm"}.
+     *
+     * @return the flattened, space-separated argument string, possibly
+     *         empty.
+     *
+     * @since 2026.5
+     */
     private static String flattenArgs( JsonObject profile, String kind )
     {
         if ( !profile.has( "arguments" ) ) return "";
@@ -281,19 +465,38 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
         return ManifestRuleUtilities.flattenArguments( argsObj.getAsJsonArray( kind ) );
     }
 
-    /** Maven coord ("group:artifact:version") → relative repo path.
-     *  Delegates to the shared {@link MavenArtifactPath} utility so
-     *  bad coordinates return null (Fabric's manifest-skip semantics)
-     *  but path-traversal attempts still throw. */
+    /**
+     * Convert a Maven coordinate
+     * ({@code "group:artifact:version"}) into its relative repository
+     * path. Delegates to the shared {@link MavenArtifactPath} utility so
+     * malformed coordinates return {@code null} (Fabric's manifest-skip
+     * semantics), while path-traversal attempts still throw.
+     *
+     * @param coord the Maven coordinate string.
+     *
+     * @return the relative repository path, or {@code null} when the
+     *         coordinate is malformed.
+     *
+     * @since 2026.5
+     */
     private static String mavenCoordToPath( String coord )
     {
         return MavenArtifactPath.toRelativePathOrNull( coord );
     }
 
-    /** Pick a sensible default Maven base URL for a coord whose
-     *  profile-JSON entry didn't include one. fabric-* go to Fabric's
-     *  own maven; net.minecraft:* fall back to Mojang's libraries
-     *  server; everything else lands on Maven Central. */
+    /**
+     * Pick a sensible default Maven base URL for a coordinate whose
+     * profile-JSON entry didn't supply one. {@code net.fabricmc:*}
+     * artifacts go to Fabric's own Maven; {@code net.minecraft:*} fall
+     * back to Mojang's libraries server; everything else lands on Maven
+     * Central.
+     *
+     * @param coord the Maven coordinate string.
+     *
+     * @return the default Maven base URL for the coordinate's group.
+     *
+     * @since 2026.5
+     */
     private static String defaultMavenForCoord( String coord )
     {
         if ( coord.startsWith( "net.fabricmc:" ) ) return DEFAULT_FABRIC_MAVEN;
@@ -301,11 +504,19 @@ class GameModLoaderFabric extends ManagedGameFile implements GameModLoader
         return MAVEN_CENTRAL;
     }
 
-    /** Defensive utility — make {@code librariesArray} a contiguous
-     *  ArrayList for the rare caller that wants concrete generics. Not
-     *  currently used inside this class but kept so a future iterator
-     *  (e.g. a "verify only" pass) doesn't have to re-iterate the raw
-     *  JsonArray. */
+    /**
+     * Defensive utility — materialize {@link #librariesArray} as a
+     * contiguous {@code ArrayList} for any caller that wants concrete
+     * generics rather than the raw {@link JsonArray}. Non-object
+     * elements are skipped. Not currently used inside this class but
+     * kept so a future iterator (e.g. a "verify only" pass) doesn't have
+     * to re-iterate the raw {@code JsonArray}.
+     *
+     * @return a new list containing only the JSON-object library
+     *         entries, in declaration order.
+     *
+     * @since 2026.5
+     */
     @SuppressWarnings( "unused" )
     private List< JsonObject > librariesAsList()
     {

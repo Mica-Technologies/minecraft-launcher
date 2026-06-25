@@ -114,6 +114,22 @@ public class Logger
      */
     private static final int MAX_LOG_BACKUPS = 3;
 
+    /**
+     * Initializes (or re-initializes) the logging system for the given log file.
+     *
+     * <p>The call is idempotent: any previously open buffered stream and flush scheduler are torn down first
+     * so that {@code LauncherCore.main()}'s restart loop can re-invoke it without leaking file handles or
+     * orphaning scheduler tasks. The target log file is rotated if it exceeds {@link #MAX_LOG_FILE_SIZE},
+     * created with owner-only permissions where the filesystem supports it, and {@link System#out} /
+     * {@link System#err} are replaced with tee'd streams that mirror output to both the console and the log
+     * file (file-only when the Lanterna TUI owns the terminal).</p>
+     *
+     * @param logFile log file to write to (parent directories are created if missing)
+     *
+     * @throws IOException           if unable to create, rotate, or open the log file
+     * @throws FileNotFoundException if the log file cannot be opened for writing
+     * @since 1.0
+     */
     public static void initLogSys( File logFile ) throws IOException {
         // Re-init must be idempotent: LauncherCore.main() loops on restartFlag and
         // can call this again without a JVM restart. Tear down any prior buffered
@@ -316,6 +332,8 @@ public class Logger
      * <p>File / stderr logging is unchanged; the structure is preserved
      * there as well so a debugger reads the same bullets the user sees.</p>
      *
+     * @param errorLog multi-line error message to log and display
+     *
      * @since 2026.3
      */
     public static void logErrorMultiline( String errorLog ) {
@@ -329,7 +347,8 @@ public class Logger
     /**
      * Log an error with its prefix and confirm for retry.
      *
-     * @param errorLog error to log
+     * @param errorLog  error to log
+     * @param retryText label/text for the retry confirmation prompt shown on the GUI
      *
      * @return true if retry, false otherwise
      *

@@ -19,19 +19,61 @@ package com.micatechnologies.minecraft.launcher.game.modpack;
 
 import com.micatechnologies.minecraft.launcher.utilities.DownloadTracker;
 
+/**
+ * Abstract progress sink for long-running mod pack operations (download, verification, Forge processing, launch).
+ * <p>
+ * The launch pipeline drives this provider as it works through a sequence of weighted <em>sections</em>. Each section is
+ * opened with {@link #startProgressSection(String, double)} (declaring its share of the overall 0&ndash;100 scale),
+ * advanced with {@link #submitProgress(String, double)}, and closed with {@link #endProgressSection(String)}. The
+ * provider tracks the cumulative completed percentage plus the in-flight section's progress, derives an overall
+ * percentage in {@link #getActualProgress()}, and forwards it to the subclass via the abstract
+ * {@link #updateProgressHandler(double, String, String, String)} hook. Concrete subclasses bind that hook to a GUI
+ * progress bar (or other UI), so this base class stays free of any presentation concern.
+ * <p>
+ * In addition to the percentage-based section model, the provider exposes step-aware lifecycle hooks
+ * ({@link #enterStep}, {@link #completeStep}, {@link #failStep}, {@link #onError}) used by the multi-row launch progress
+ * UI. These default to no-ops so legacy single-bar progress GUIs continue to work unchanged.
+ *
+ * @author Mica Technologies
+ */
 public abstract class GameModPackProgressProvider
 {
 
+    /**
+     * The full-scale value of the progress percentage range. All section sizes and progress values are expressed
+     * relative to this base (i.e. {@code 100.0} represents a fully complete task).
+     */
     public static final double PROGRESS_PERCENT_BASE = 100.0;
 
+    /**
+     * Cumulative percentage (0&ndash;{@link #PROGRESS_PERCENT_BASE}) contributed by sections that have already
+     * completed. The in-flight section's partial contribution is added on top in {@link #getActualProgress()}.
+     */
     private              double currPercent           = 0.0;
 
+    /**
+     * Heading text for the section currently in progress (e.g. "Downloading mods..."). Forwarded to the subclass as the
+     * {@code sectionTitle} argument of {@link #updateProgressHandler(double, String, String, String)}.
+     */
     private              String currSectionTitle      = "";
 
+    /**
+     * File-level detail text for the most recent progress update (e.g. "Verified library jna-4.4.0.jar"). Forwarded to
+     * the subclass as the {@code detailText} argument of {@link #updateProgressHandler(double, String, String, String)}.
+     */
     private              String currDetailText        = "";
 
+    /**
+     * The share of the overall 0&ndash;{@link #PROGRESS_PERCENT_BASE} scale allotted to the current section, as
+     * declared by {@link #startProgressSection(String, double)}. Used to weight {@link #currSectionProgress} when
+     * computing the overall percentage.
+     */
     private              double currSectionSize       = PROGRESS_PERCENT_BASE;
 
+    /**
+     * Progress within the current section, on a 0&ndash;{@link #PROGRESS_PERCENT_BASE} scale local to the section
+     * (independent of the section's weight). Scaled by {@link #currSectionSize} when rolled into the overall total.
+     */
     private              double currSectionProgress   = 0.0;
 
     /**
@@ -49,15 +91,39 @@ public abstract class GameModPackProgressProvider
         return downloadTracker;
     }
 
+    /**
+     * Computes the current overall progress and fans it out to the subclass's
+     * {@link #updateProgressHandler(double, String, String, String)} along with the current section title, detail text,
+     * and the download tracker's formatted speed/ETA status. This is the single funnel through which every progress
+     * notification reaches the UI.
+     */
     void triggerUpdateHandler() {
         updateProgressHandler( getActualProgress(), currSectionTitle, currDetailText,
                                downloadTracker.getFormattedStatus() );
     }
 
+    /**
+     * Computes the overall progress percentage by adding the in-flight section's weighted partial progress to the
+     * cumulative percentage of already-completed sections.
+     *
+     * @return the overall progress on a 0&ndash;{@link #PROGRESS_PERCENT_BASE} scale
+     */
     private double getActualProgress() {
         return currPercent + ( currSectionProgress * ( currSectionSize / PROGRESS_PERCENT_BASE ) );
     }
 
+    /**
+     * Advances the current section's progress by the given amount and updates the detail text, then (subject to the
+     * ~20&nbsp;fps throttle described below) fires a progress notification.
+     * <p>
+     * The added {@code sectionProgress} is clamped so the section never reports more than
+     * {@link #PROGRESS_PERCENT_BASE}. High-frequency per-file calls are coalesced to at most one handler fire every
+     * {@code SUBMIT_PROGRESS_THROTTLE_MS}, except that a call which completes the section always fires immediately.
+     *
+     * @param detailText      the file-level detail text to display for this update
+     * @param sectionProgress the amount of section-local progress to add (on a 0&ndash;{@link #PROGRESS_PERCENT_BASE}
+     *                        scale)
+     */
     public synchronized void submitProgress( String detailText, double sectionProgress ) {
         this.currDetailText = detailText;
 
@@ -92,11 +158,24 @@ public abstract class GameModPackProgressProvider
     private volatile long lastSubmitFireMs = 0;
     private static final long SUBMIT_PROGRESS_THROTTLE_MS = 50;
 
+    /**
+     * Updates the current detail text without changing any progress value, then fires a progress notification
+     * immediately (not throttled).
+     *
+     * @param detailText the new file-level detail text to display
+     */
     void setCurrText( String detailText ) {
         this.currDetailText = detailText;
         triggerUpdateHandler();
     }
 
+    /**
+     * Closes the current section: folds its full declared size into the cumulative completed percentage, resets the
+     * in-section progress and size, sets the given closing detail text, and fires a progress notification immediately
+     * (not throttled).
+     *
+     * @param text the detail text to display as the section closes
+     */
     void endProgressSection( String text ) {
         this.currPercent += currSectionSize;
         this.currSectionProgress = 0;
@@ -106,6 +185,14 @@ public abstract class GameModPackProgressProvider
         triggerUpdateHandler();
     }
 
+    /**
+     * Opens a new weighted progress section. Any in-flight section progress is first folded into the cumulative
+     * completed percentage, then the new section's title and size are stored, the detail text and in-section progress
+     * are reset, and a progress notification is fired immediately (not throttled).
+     *
+     * @param sectionTitle the heading to display for the new section (e.g. "Downloading mods...")
+     * @param size         the new section's share of the overall 0&ndash;{@link #PROGRESS_PERCENT_BASE} scale
+     */
     void startProgressSection( String sectionTitle, double size ) {
         // End open progress session (if exists)
         this.currPercent += this.currSectionProgress;
@@ -120,15 +207,11 @@ public abstract class GameModPackProgressProvider
     }
 
     /**
-     * Called when progress updates. Implementors receive the section title (heading) and detail text (file-level info)
-     * separately so they can be displayed in different UI positions.
+     * Forces overall progress to {@link #PROGRESS_PERCENT_BASE} (100%), clears any in-flight section state, sets the
+     * given closing section title, and fires a final progress notification immediately. Call this when the overall task
+     * has finished.
      *
-     * @param percent      overall progress percentage (0-100)
-     * @param sectionTitle the current section heading (e.g. "Downloading mods...")
-     * @param detailText   the current detail text (e.g. "Verified library jna-4.4.0.jar")
-     */
-    /**
-     * Forces progress to 100% and triggers the handler. Used when the overall task is complete.
+     * @param sectionTitle the heading to display alongside the completed state (e.g. "Done")
      */
     public void signalComplete( String sectionTitle ) {
         this.currPercent = PROGRESS_PERCENT_BASE;
@@ -161,14 +244,26 @@ public abstract class GameModPackProgressProvider
     // overrides them to drive its associated LaunchProgressTracker, which in
     // turn drives the multi-row launch progress GUI.
 
-    /** Called once when the named launch step begins. */
+    /**
+     * Called once when the named launch step begins. The base implementation is a no-op.
+     *
+     * @param id identifier of the launch step that is starting
+     */
     public void enterStep( LaunchProgressTracker.StepId id ) { /* no-op default */ }
 
-    /** Called once when the named launch step completes successfully. */
+    /**
+     * Called once when the named launch step completes successfully. The base implementation is a no-op.
+     *
+     * @param id identifier of the launch step that completed
+     */
     public void completeStep( LaunchProgressTracker.StepId id ) { /* no-op default */ }
 
-    /** Called once when the named launch step throws. {@code errorMessage} is
-     *  surfaced to the user in the failed-row sub-text. */
+    /**
+     * Called once when the named launch step throws. The base implementation is a no-op.
+     *
+     * @param id           identifier of the launch step that failed
+     * @param errorMessage human-readable failure message; surfaced to the user in the failed-row sub-text
+     */
     public void failStep( LaunchProgressTracker.StepId id, String errorMessage ) { /* no-op default */ }
 
     /**

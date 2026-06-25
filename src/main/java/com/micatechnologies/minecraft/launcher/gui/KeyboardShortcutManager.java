@@ -128,7 +128,9 @@ public final class KeyboardShortcutManager
     }
 
     /** Wraps the navigation call with the off-FX-thread bounce + error logging
-     *  that the rest of the launcher uses for screen transitions. */
+     *  that the rest of the launcher uses for screen transitions.
+     *
+     *  @param target the screen-transition action to run off the FX thread */
     private static void navigate( IOThrowingRunnable target )
     {
         SystemUtilities.spawnNewTask( () -> {
@@ -142,8 +144,19 @@ public final class KeyboardShortcutManager
         } );
     }
 
+    /**
+     * Runnable variant whose body may throw {@link IOException}, so navigation
+     * targets that propagate I/O failures (screen transitions read FXML /
+     * resources) can be passed to {@link #navigate(IOThrowingRunnable)} without
+     * each call site catching the checked exception itself.
+     */
     @FunctionalInterface
     private interface IOThrowingRunnable {
+        /**
+         * Runs the action.
+         *
+         * @throws IOException if the action fails with an I/O error
+         */
         void run() throws IOException;
     }
 }

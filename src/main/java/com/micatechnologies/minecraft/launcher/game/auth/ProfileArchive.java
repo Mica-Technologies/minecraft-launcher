@@ -64,9 +64,18 @@ import java.util.List;
  */
 public final class ProfileArchive
 {
+    /**
+     * Prevents instantiation; all members are static.
+     *
+     * @since 2026.5
+     */
     private ProfileArchive() { /* static-only */ }
 
-    /** Folder under {@code <config>/} that holds archived profiles. */
+    /**
+     * Folder under {@code <config>/} that holds archived profiles.
+     *
+     * @since 2026.5
+     */
     public static final String PROFILES_DIR = "profiles";
 
     /** Filename inside each profile folder that mirrors the in-place
@@ -86,8 +95,16 @@ public final class ProfileArchive
             "renewal.timestamp"
     };
 
-    /** A summary of one archived profile, suitable for rendering a
-     *  switcher menu. */
+    /**
+     * A summary of one archived profile, suitable for rendering a switcher menu.
+     *
+     * @param uuid        the account UUID, which also names the profile folder
+     * @param displayName the account's display name for the switcher UI, or an
+     *                    empty string if unknown
+     * @param lastUsedMs  epoch-millis timestamp of the last archive/activate of
+     *                    this profile; drives the most-recently-used sort order
+     * @since 2026.5
+     */
     public record ProfileEntry( String uuid, String displayName, long lastUsedMs ) { }
 
     /**
@@ -97,8 +114,13 @@ public final class ProfileArchive
      * it down via the existing logout path. The archived copy
      * shadows the active one — re-archiving the same UUID overwrites.
      *
-     * @return the archived profile entry, or null if archival failed
-     *         (no active account, IO error)
+     * @param uuid        the account UUID; names the profile folder and is
+     *                    written into the sidecar metadata
+     * @param displayName the account's display name for the switcher UI; may be
+     *                    {@code null} (stored as an empty string)
+     * @return the archived profile entry, or {@code null} if archival failed
+     *         (blank UUID, no active account, or IO error)
+     * @since 2026.5
      */
     public static ProfileEntry archiveActive( String uuid, String displayName )
     {
@@ -152,6 +174,10 @@ public final class ProfileArchive
      * switcher dropdown surfaces the most-recently-used account at
      * the top. Empty list when the profiles directory doesn't exist
      * or no archives have been written yet.
+     *
+     * @return a mutable, last-used-descending list of archived profiles; empty
+     *         (never {@code null}) when there are none or the directory is absent
+     * @since 2026.5
      */
     public static List< ProfileEntry > list()
     {
@@ -196,8 +222,10 @@ public final class ProfileArchive
      * renewal, GUI repaint). This utility only handles the file
      * shuffle.</p>
      *
-     * @return true on success, false when the profile doesn't exist
-     *         or an IO error occurred
+     * @param uuid the UUID of the archived profile to activate
+     * @return {@code true} on success, {@code false} when the UUID is blank, the
+     *         profile doesn't exist, or an IO error occurred
+     * @since 2026.5
      */
     public static boolean activate( String uuid )
     {
@@ -236,7 +264,15 @@ public final class ProfileArchive
         }
     }
 
-    /** Permanently removes an archived profile. */
+    /**
+     * Permanently removes an archived profile, deleting its folder and all
+     * contained files.
+     *
+     * @param uuid the UUID of the archived profile to delete
+     * @return {@code true} if the profile was removed, {@code false} when the UUID
+     *         is blank, no such profile exists, or an IO error occurred
+     * @since 2026.5
+     */
     public static boolean forget( String uuid )
     {
         if ( uuid == null || uuid.isBlank() ) return false;
@@ -257,17 +293,32 @@ public final class ProfileArchive
         }
     }
 
+    /**
+     * Resolves the root directory that holds all archived profile folders
+     * ({@code <config>/profiles}).
+     *
+     * @return the profiles root path (not guaranteed to exist on disk)
+     * @since 2026.5
+     */
     private static Path profilesRoot()
     {
         return Path.of( LocalPathManager.getLauncherConfigFolderPath(), PROFILES_DIR );
     }
 
-    /** Copies a (potentially credential-bearing) file and restricts the
-     *  destination to owner-only, matching how {@link MCLauncherAuthManager}
-     *  protects the in-place auth files. Without this, an archived
-     *  {@code player.mica} could land group/world-readable — on Windows it
-     *  inherits the parent directory ACL rather than the source file's
-     *  restrictive ACL. */
+    /**
+     * Copies a (potentially credential-bearing) file and restricts the
+     * destination to owner-only, matching how {@link MCLauncherAuthManager}
+     * protects the in-place auth files. Without this, an archived
+     * {@code player.mica} could land group/world-readable — on Windows it
+     * inherits the parent directory ACL rather than the source file's
+     * restrictive ACL. Replaces the destination if it already exists.
+     *
+     * @param src the source file to copy
+     * @param dst the destination path, replaced if present and then locked to
+     *            owner-only permissions
+     * @throws IOException if the copy or permission tightening fails
+     * @since 2026.5
+     */
     private static void copyOwnerOnly( Path src, Path dst ) throws IOException
     {
         Files.copy( src, dst, StandardCopyOption.REPLACE_EXISTING );

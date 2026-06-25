@@ -89,18 +89,34 @@ public class GameModPackManager
      */
     private static volatile java.util.function.BiConsumer< String, Throwable > backgroundErrorListener = null;
 
-    /** Sets (or clears with {@code null}) the listener invoked when a
-     *  background task hits a non-fatal error. Idempotent — last writer
-     *  wins. Wire this once from the launcher session right after the
-     *  GUI is up; clear it during shutdown. */
+    /**
+     * Sets (or clears with {@code null}) the listener invoked when a
+     * background task hits a non-fatal error. Idempotent — last writer
+     * wins. Wire this once from the launcher session right after the
+     * GUI is up; clear it during shutdown.
+     *
+     * @param listener the listener to receive {@code (message, cause)} pairs for
+     *                 background-task errors, or {@code null} to deregister the
+     *                 current listener
+     *
+     * @since 2026.5
+     */
     public static void setBackgroundErrorListener( java.util.function.BiConsumer< String, Throwable > listener ) {
         backgroundErrorListener = listener;
     }
 
-    /** Invokes {@link #backgroundErrorListener} with {@code message} +
-     *  {@code cause}, swallowing any exception the listener throws so a
-     *  bad UI handler can't crash the background task that called it.
-     *  No-op when no listener is registered. */
+    /**
+     * Invokes {@link #backgroundErrorListener} with {@code message} +
+     * {@code cause}, swallowing any exception the listener throws so a
+     * bad UI handler can't crash the background task that called it.
+     * No-op when no listener is registered.
+     *
+     * @param message a short, already-localized description of the failure,
+     *                suitable for surfacing in a UI toast
+     * @param cause   the throwable that triggered the failure, for logging/diagnostics
+     *
+     * @since 2026.5
+     */
     static void fireBackgroundError( String message, Throwable cause ) {
         java.util.function.BiConsumer< String, Throwable > listener = backgroundErrorListener;
         if ( listener == null ) return;
@@ -125,19 +141,37 @@ public class GameModPackManager
      */
     private static volatile CompletableFuture< Void > availableFetchFuture = null;
 
-    /** Dedicated pool for the manager's network-bound parallel manifest fetches,
-     *  so they don't run on (and block) the shared {@code ForkJoinPool.commonPool}
-     *  — which is sized {@code availableProcessors-1} for CPU-bound work and, on
-     *  a low-core machine, would serialize these I/O-bound fetches. Sized above
-     *  core count since the work is latency-bound, not CPU-bound. */
+    /**
+     * Dedicated pool for the manager's network-bound parallel manifest fetches,
+     * so they don't run on (and block) the shared {@code ForkJoinPool.commonPool}
+     * — which is sized {@code availableProcessors-1} for CPU-bound work and, on
+     * a low-core machine, would serialize these I/O-bound fetches. Sized above
+     * core count since the work is latency-bound, not CPU-bound.
+     *
+     * @since 2.0
+     */
     private static final java.util.concurrent.ForkJoinPool MANIFEST_FETCH_POOL =
             new java.util.concurrent.ForkJoinPool(
                     Math.max( 4, Runtime.getRuntime().availableProcessors() * 2 ) );
 
-    /** Runs a parallel-stream block on {@link #MANIFEST_FETCH_POOL} instead of the
-     *  common pool (a parallel stream uses the pool of the ForkJoinWorkerThread
-     *  that drives it). Unwraps and rethrows any unchecked failure from the block
-     *  so callers see the same exception they would from a bare parallelStream. */
+    /**
+     * Runs a parallel-stream block on {@link #MANIFEST_FETCH_POOL} instead of the
+     * common pool (a parallel stream uses the pool of the ForkJoinWorkerThread
+     * that drives it). Unwraps and rethrows any unchecked failure from the block
+     * so callers see the same exception they would from a bare parallelStream.
+     *
+     * <p>If the submitting thread is interrupted while awaiting completion, the
+     * interrupt status is restored and the method returns without rethrowing.</p>
+     *
+     * @param parallelWork the work (typically a {@code parallelStream().forEach(...)})
+     *                     to execute on the dedicated manifest-fetch pool
+     *
+     * @throws RuntimeException wrapping (or directly rethrowing) any unchecked
+     *                         exception thrown by {@code parallelWork}
+     * @throws Error           if {@code parallelWork} fails with an {@link Error}
+     *
+     * @since 2.0
+     */
     private static void runOnManifestFetchPool( Runnable parallelWork ) {
         try {
             MANIFEST_FETCH_POOL.submit( parallelWork ).get();
@@ -419,6 +453,8 @@ public class GameModPackManager
      * Returns the in-flight installed-modpack revalidation future, or {@code null} if
      * no revalidation has been started (offline run, no installed packs, etc.).
      *
+     * @return the background revalidation future, or {@code null} if none was started
+     *
      * @since 3.5
      */
     public static CompletableFuture< Void > getInstalledRevalidateFuture() {
@@ -427,6 +463,9 @@ public class GameModPackManager
 
     /**
      * Reports whether the background installed-modpack revalidation is still running.
+     *
+     * @return {@code true} if a revalidation is in flight, {@code false} if not
+     *         started or already completed
      *
      * @since 3.5
      */
@@ -441,6 +480,13 @@ public class GameModPackManager
      * list so external observers (the FlowPane, the recent-played sort) don't see
      * the slot move. Appends {@code fresh} if no entry matches. Used to upgrade
      * an index-stub into a fully-loaded pack without rebuilding the list.
+     *
+     * @param list        the (concurrent) list of installed packs to mutate; a
+     *                   {@code null} list is a no-op
+     * @param manifestUrl the manifest URL identifying the entry to replace; a
+     *                   {@code null} URL is a no-op
+     * @param fresh       the replacement pack to set in place (or append); a
+     *                   {@code null} value is a no-op
      *
      * @since 2026.3
      */
@@ -460,7 +506,14 @@ public class GameModPackManager
     /**
      * Kicks off the background revalidate pass. Each pack's manifest is re-fetched
      * in parallel; entries whose freshly-fetched version differs from the cache-loaded
-     * one are swapped into {@link #installedGameModPacks} in place.
+     * one are swapped into {@link #installedGameModPacks} in place. Per-pack failures
+     * are non-fatal (the cached version is kept and a silent warning logged); a
+     * failure of the overall pass is reported via {@link #fireBackgroundError}.
+     * Assigns {@link #installedRevalidateFuture} as a side effect.
+     *
+     * @param manifestUrls the manifest URLs of the installed packs to revalidate
+     *
+     * @since 3.5
      */
     private static void startInstalledRevalidateAsync( List< String > manifestUrls ) {
         installedRevalidateFuture = CompletableFuture.runAsync( () -> {
@@ -645,6 +698,12 @@ public class GameModPackManager
     /**
      * Synchronized inner accessor — kept separate from {@link #getAvailableModPacks()} so the
      * caller can safely wait on {@link #availableFetchFuture} before entering the lock.
+     * Lazily triggers a full {@link #fetchModPackInfo()} when the lists have never been
+     * populated (legacy fallback for callers that bypass the async startup path).
+     *
+     * @return the available mod packs list (may be {@code null} if a fetch failed to populate it)
+     *
+     * @since 3.4
      */
     private synchronized static List< GameModPack > getAvailableModPacksLocked() {
         // Populate lists if not already done (legacy fallback for callers that bypass the
@@ -661,6 +720,9 @@ public class GameModPackManager
      * if no fetch was ever started or the existing fetch has already completed. Must be called
      * outside any GameModPackManager.class synchronized block (the background fetch acquires
      * the same monitor — see {@link #getAvailableModPacks()} for the deadlock note).
+     * An interruption / failure while waiting is logged silently and otherwise ignored.
+     *
+     * @since 3.4
      */
     private static void waitForAvailableFetch() {
         CompletableFuture< Void > f = availableFetchFuture;
@@ -712,6 +774,16 @@ public class GameModPackManager
         return getAvailableModPackFriendlyNamesLocked();
     }
 
+    /**
+     * Synchronized inner accessor for {@link #getAvailableModPackFriendlyNames()} — kept
+     * separate so the caller can wait on {@link #availableFetchFuture} before entering the
+     * lock. Lazily triggers a full {@link #fetchModPackInfo()} when the lists have never been
+     * populated (legacy fallback for callers that bypass the async startup path).
+     *
+     * @return list of available mod pack friendly names
+     *
+     * @since 3.4
+     */
     private synchronized static List< String > getAvailableModPackFriendlyNamesLocked() {
         // Populate lists if not already done (legacy fallback for callers that bypass the
         // async startup path).

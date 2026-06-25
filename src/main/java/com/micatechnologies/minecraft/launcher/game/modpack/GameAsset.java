@@ -41,8 +41,10 @@ class GameAsset extends ManagedGameFile
     /**
      * Create an MCForgeAsset object using the specified remote URL and local file path.
      *
-     * @param remote remote file url
-     * @param local  local file path
+     * @param remote    remote file url
+     * @param local     local file path
+     * @param clientReq flag indicating whether this asset is required on the client side
+     * @param serverReq flag indicating whether this asset is required on the server side
      *
      * @since 1.0
      */
@@ -53,10 +55,15 @@ class GameAsset extends ManagedGameFile
     }
 
     /**
-     * Create an MCForgeAsset object using the specified remote URL and local file path.
+     * Create an MCForgeAsset object using the specified remote URL, local file path, and
+     * integrity hash to verify the downloaded copy against.
      *
-     * @param remote remote file url
-     * @param local  local file path
+     * @param remote    remote file url
+     * @param local     local file path
+     * @param hash      expected hash of the asset, used to verify the downloaded copy
+     * @param hashType  algorithm of {@code hash} (e.g. SHA-1)
+     * @param clientReq flag indicating whether this asset is required on the client side
+     * @param serverReq flag indicating whether this asset is required on the server side
      *
      * @since 1.0
      */

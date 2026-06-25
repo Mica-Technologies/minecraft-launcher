@@ -49,9 +49,23 @@ public final class RainbowEffect implements RgbEffect
      *  white, going lower toward black. */
     private static final double LIGHTNESS  = 0.5;
 
+    /** Human-readable effect name surfaced via {@link #name()}. */
     private final String name;
+
+    /** Duration in milliseconds of one full 360° hue sweep. */
     private final long periodMs;
 
+    /**
+     * Creates a rainbow hue-sweep effect.
+     *
+     * @param name     human-readable effect name (returned by {@link #name()})
+     * @param periodMs duration in milliseconds of one full hue rotation; must
+     *                 be strictly positive
+     *
+     * @throws IllegalArgumentException if {@code periodMs} is not positive
+     *
+     * @since 2026.5
+     */
     public RainbowEffect( String name, long periodMs )
     {
         if ( periodMs <= 0 ) {
@@ -61,8 +75,29 @@ public final class RainbowEffect implements RgbEffect
         this.periodMs = periodMs;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the effect name supplied at construction
+     *
+     * @since 2026.5
+     */
     @Override public String name() { return name; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Maps the elapsed time onto a hue angle in {@code [0, 360)} at fixed
+     * saturation and lightness, then returns the corresponding solid color
+     * frame.</p>
+     *
+     * @param elapsedMs milliseconds elapsed since the effect started; the hue
+     *                  phase wraps every {@code periodMs}
+     *
+     * @return the solid-color frame for this instant's hue
+     *
+     * @since 2026.5
+     */
     @Override
     public RgbFrame frameAt( long elapsedMs )
     {

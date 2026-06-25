@@ -56,7 +56,16 @@ public final class ModrinthModUpdateChecker
     private static final long MAX_RESPONSE_BYTES = 5L * 1024 * 1024;
 
     /** Status of a single mod jar's update check. */
-    public enum Status { NOT_ON_MODRINTH, UP_TO_DATE, UPDATE_AVAILABLE }
+    public enum Status
+    {
+        /** The jar's SHA-1 didn't resolve to any Modrinth version, or a failure
+         *  (network / parse / hash) prevented identification. */
+        NOT_ON_MODRINTH,
+        /** The installed jar matches Modrinth's newest version for its project. */
+        UP_TO_DATE,
+        /** Modrinth has a newer version than the installed jar. */
+        UPDATE_AVAILABLE
+    }
 
     /**
      * Result for one mod jar.
@@ -77,6 +86,12 @@ public final class ModrinthModUpdateChecker
             String latestDownloadUrl,
             String projectName )
     {
+        /**
+         * Builds the all-null sentinel result used for jars that aren't on
+         * Modrinth or whose check failed.
+         *
+         * @return a {@link ModUpdate} with {@link Status#NOT_ON_MODRINTH} and no version data
+         */
         public static ModUpdate notOnModrinth() {
             return new ModUpdate( Status.NOT_ON_MODRINTH, null, null, null, null );
         }
@@ -94,6 +109,12 @@ public final class ModrinthModUpdateChecker
      * Modrinth jar. Typical modpacks have 20-100 mods; a serial scan
      * over those completes in a few seconds. Don't call from the FX
      * thread.</p>
+     *
+     * @param modsDir the pack's {@code mods/} folder; may be {@code null} or
+     *                non-existent, in which case an empty map is returned
+     * @return a map of jar filename to its {@link ModUpdate} result; values are
+     *         never {@code null}, and the map is empty when {@code modsDir} is
+     *         missing or contains no jars
      */
     public static Map< String, ModUpdate > scan( File modsDir )
     {

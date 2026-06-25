@@ -54,5 +54,11 @@ public class GUIConstants
     public final static String URL_MINECRAFT_NO_MOD_PACK_IMAGE
             = "https://cdn.pixabay.com/photo/2016/11/11/14/49/minecraft-1816996_960_720.png";
 
+    /**
+     * Separator inserted between segments of a composed window title (e.g. between the launcher application name and a
+     * screen-specific subtitle).
+     *
+     * @since 1.0
+     */
     public final static String TITLE_SPLIT_CHAR = " | ";
 }

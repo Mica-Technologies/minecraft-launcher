@@ -49,9 +49,23 @@ import java.util.List;
  */
 class GameModPackEnvironment
 {
+    /** Metadata of the pack this environment serves (root folder, image
+     *  URLs / hashes, friendly name). */
     private final GameModPackMetadata metadata;
+
+    /** Whether {@link #cacheImages()} has successfully completed at least
+     *  once for this instance; gates the lazy on-demand download in the
+     *  {@code getPack*Filepath(s)} accessors. */
     private volatile boolean          didCacheImages = false;
 
+    /**
+     * Creates an environment handler bound to the given pack metadata.
+     *
+     * @param metadata the metadata of the pack to manage directories and
+     *                 cached images for
+     *
+     * @since 2.0
+     */
     GameModPackEnvironment( GameModPackMetadata metadata )
     {
         this.metadata = metadata;
@@ -237,6 +251,18 @@ class GameModPackEnvironment
      * declaration order, dropping any whose SHA-1 isn't known yet (i.e. not downloaded).
      * The primary image (index 0) honors a manifest-declared SHA-1; every other image is
      * content-addressed via the sidecar's recorded {@code url -> sha1} pairs.
+     *
+     * @param urls         the slot's declared URL(s); falls back to a
+     *                     single-element list of {@code defaultUrl} when
+     *                     {@code null} / empty
+     * @param declaredSha1 manifest-declared SHA-1 for the primary (index 0)
+     *                     image, or {@code null}
+     * @param defaultUrl   bundled-default URL used when no URLs are declared
+     * @param sidecar      the slot's recorded {@code url -> sha1} pairs from
+     *                     the {@code .image_cache} sidecar
+     *
+     * @return cached {@code <sha1>.png} paths in declaration order, omitting
+     *         any image whose SHA-1 isn't known yet; never {@code null}
      */
     private List< String > resolveSlotPaths( StringOrArray urls, String declaredSha1,
                                              String defaultUrl, List< ImageRef > sidecar )
@@ -258,6 +284,14 @@ class GameModPackEnvironment
         return paths;
     }
 
+    /**
+     * Caches every declared logo image for this pack into the shared
+     * content-addressed cache. Thin slot-specific wrapper over
+     * {@link #cacheAllSlotImages}.
+     *
+     * @throws ModpackException if no logo source (declared or bundled
+     *                          default) could be cached
+     */
     private synchronized void fetchLatestModpackLogo() throws ModpackException
     {
         cacheAllSlotImages( metadata.packLogoURL, metadata.packLogoSha1,
@@ -265,6 +299,12 @@ class GameModPackEnvironment
                             ".logo_download.tmp", true );
     }
 
+    /**
+     * Background-image counterpart of {@link #fetchLatestModpackLogo()}.
+     *
+     * @throws ModpackException if no background source (declared or bundled
+     *                          default) could be cached
+     */
     private synchronized void fetchLatestModpackBackground() throws ModpackException
     {
         cacheAllSlotImages( metadata.packBackgroundURL, metadata.packBackgroundSha1,
@@ -293,6 +333,9 @@ class GameModPackEnvironment
      * @param label        human-readable image label for logs / errors
      * @param tempFileName per-pack temp filename for the download-and-hash path
      * @param isLogo       {@code true} populates the logo slot, {@code false} the background slot
+     *
+     * @throws ModpackException if every source — all declared URLs and the
+     *                          bundled default — failed to cache
      */
     private synchronized void cacheAllSlotImages( StringOrArray urls, String declaredSha1,
                                                   String defaultUrl, String label,
@@ -405,12 +448,21 @@ class GameModPackEnvironment
     /** A single cached image: the source URL paired with the SHA-1 of its (transcoded) bytes. */
     private static final class ImageRef
     {
+        /** The source URL this image was downloaded from. */
         String url;
+        /** SHA-1 of the cached (transcoded) image bytes — also its cache-file name. */
         String sha1;
 
+        /** No-arg constructor for GSON deserialization only. */
         @SuppressWarnings( "unused" )
         ImageRef() { /* GSON */ }
 
+        /**
+         * Creates a reference pairing a source URL with its cached image hash.
+         *
+         * @param url  the source URL the image was downloaded from
+         * @param sha1 the SHA-1 of the transcoded image bytes
+         */
         ImageRef( String url, String sha1 )
         {
             this.url = url;
@@ -418,7 +470,13 @@ class GameModPackEnvironment
         }
     }
 
-    /** Looks up the cached SHA-1 for {@code url} in a slot list, or {@code null} if absent. */
+    /** Looks up the cached SHA-1 for {@code url} in a slot list, or {@code null} if absent.
+     *
+     *  @param list the slot's {@code url -> sha1} pairs (may be {@code null})
+     *  @param url  the source URL to look up (may be {@code null})
+     *
+     *  @return the recorded SHA-1 for {@code url}, or {@code null} if the list
+     *          or URL is {@code null} or no matching entry exists */
     private static String sidecarSha1( List< ImageRef > list, String url )
     {
         if ( list == null || url == null ) {
@@ -436,6 +494,8 @@ class GameModPackEnvironment
      * Folds the legacy single-image scalar fields into the {@code logos} / {@code backgrounds}
      * lists (a one-element list each) and clears the scalars, so old {@code .image_cache} files
      * keep working and re-save in the current list form. Idempotent.
+     *
+     * @param c the deserialized cache info to migrate in place
      */
     private static void migrateLegacyImageCache( ImageCacheInfo c )
     {
@@ -457,8 +517,19 @@ class GameModPackEnvironment
         c.backgroundSha1 = null;
     }
 
+    /** In-memory cache of the parsed {@code .image_cache} sidecar, populated
+     *  lazily by {@link #loadImageCacheSafe()} and kept in sync by
+     *  {@link #saveImageCache}. */
     private transient ImageCacheInfo imageCache;
 
+    /**
+     * Returns the parsed {@code .image_cache} sidecar for this pack, reading
+     * and migrating it from disk on first access. Never throws: a missing,
+     * unreadable, or malformed sidecar yields a fresh empty (migrated)
+     * {@link ImageCacheInfo}, with a silent warning logged.
+     *
+     * @return the (cached) image-cache info; never {@code null}
+     */
     private synchronized ImageCacheInfo loadImageCacheSafe()
     {
         if ( imageCache != null ) {
@@ -481,6 +552,14 @@ class GameModPackEnvironment
         return imageCache;
     }
 
+    /**
+     * Writes the given image-cache info to this pack's {@code .image_cache}
+     * sidecar (creating parent directories as needed) and updates the
+     * in-memory copy. Never throws: an I/O failure is logged silently and
+     * left for the next save to retry.
+     *
+     * @param cache the image-cache info to persist
+     */
     private synchronized void saveImageCache( ImageCacheInfo cache )
     {
         Path file = Path.of( metadata.getPackRootFolder(), IMAGE_CACHE_FILE );
@@ -495,6 +574,15 @@ class GameModPackEnvironment
         }
     }
 
+    /**
+     * Computes the absolute on-disk path of the shared content-addressed
+     * cache file for the given image hash ({@code <metadataFolder>/<sha1>.png}).
+     *
+     * @param sha1 the SHA-1 of the (transcoded) image bytes
+     *
+     * @return the absolute {@code <sha1>.png} path in the launcher metadata
+     *         folder
+     */
     private static String computedImageFile( String sha1 )
     {
         return LocalPathManager.getLauncherMetadataFolderPath() + File.separator + sha1 + ".png";
@@ -521,6 +609,13 @@ class GameModPackEnvironment
      *       and SHA-1 doesn't match: download from the URL + transcode if
      *       needed.</li>
      * </ul>
+     *
+     * @param destFile     the content-addressed destination file
+     *                     ({@code <declaredSha1>.png})
+     * @param declaredSha1 the manifest-declared SHA-1 the file should hash to
+     * @param effectiveUrl the source URL to download from on a genuine miss
+     *
+     * @throws IOException if downloading or transcoding the image fails
      */
     private static void resolveDeclaredImage( File destFile, String declaredSha1, String effectiveUrl ) throws IOException
     {
@@ -546,6 +641,15 @@ class GameModPackEnvironment
      * it, then atomically moves it to {@code metadata/<sha1>.png}. If a file with the same
      * SHA-1 already exists (i.e. another pack downloaded the identical bytes), the temp
      * file is deleted instead. Returns the computed SHA-1.
+     *
+     * @param url          the source URL to download the image from
+     * @param tempFileName the per-pack temp filename used during download +
+     *                     hashing
+     *
+     * @return the SHA-1 of the transcoded image bytes (which is also its
+     *         cache-file name)
+     *
+     * @throws IOException if the download, transcode, hash, or move fails
      */
     private String downloadAndHashToContentAddressedFile( String url, String tempFileName ) throws IOException
     {
@@ -603,6 +707,14 @@ class GameModPackEnvironment
      * value (it varies per install path / packaging mode) — exact-match on those
      * two constants is a safe whitelist that doesn't reopen the broader file://
      * arbitrary-read hole.
+     *
+     * @param url     the URL to validate
+     * @param purpose human-readable description of what the URL is for, used
+     *                in the rejection message
+     *
+     * @throws ModpackException if {@code url} is {@code null} / blank, or uses
+     *                          any scheme other than {@code https} (the two
+     *                          bundled-default URLs excepted)
      */
     private static void requireHttps( String url, String purpose ) throws ModpackException
     {

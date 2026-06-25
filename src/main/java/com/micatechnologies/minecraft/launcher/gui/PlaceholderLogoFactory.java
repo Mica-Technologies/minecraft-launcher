@@ -98,6 +98,13 @@ public final class PlaceholderLogoFactory
     @FunctionalInterface
     public interface ImageReadyCallback
     {
+        /**
+         * Invoked on the FX thread once a previously-missing official logo has
+         * finished downloading and been cached locally.
+         *
+         * @param image the freshly-loaded official logo, ready to drop into an
+         *              {@link javafx.scene.image.ImageView}
+         */
         void onReady( Image image );
     }
 
@@ -120,6 +127,9 @@ public final class PlaceholderLogoFactory
      *                          official logo is already cached (the call
      *                          returns it synchronously) or when the
      *                          fetch fails / errors out.
+     * @return the initial image to render right away: a cached official logo
+     *         when one is already on disk, otherwise the synchronous canvas
+     *         placeholder for {@code loaderType}
      */
     public static Image resolveLogo( String loaderType, ImageReadyCallback onOfficialReady )
     {
@@ -172,7 +182,13 @@ public final class PlaceholderLogoFactory
     // sampling, attribution-free preview thumbnails).
     // ====================================================================
 
-    /** Vanilla Minecraft placeholder — green gradient + "MC" wordmark. */
+    /**
+     * Returns the canvas-rendered vanilla Minecraft placeholder — a green
+     * gradient with a white {@code "MC"} wordmark. Rendered once per JVM and
+     * cached; subsequent calls return the same {@link Image}.
+     *
+     * @return the vanilla placeholder image
+     */
     public static Image getVanillaLogo()
     {
         if ( vanillaPlaceholder == null ) {
@@ -184,7 +200,13 @@ public final class PlaceholderLogoFactory
         return vanillaPlaceholder;
     }
 
-    /** Forge placeholder — dark steel gradient + orange "F" wordmark. */
+    /**
+     * Returns the canvas-rendered Forge placeholder — a dark steel gradient
+     * with an orange {@code "F"} wordmark. Rendered once per JVM and cached;
+     * subsequent calls return the same {@link Image}.
+     *
+     * @return the Forge placeholder image
+     */
     public static Image getForgePlaceholder()
     {
         if ( forgePlaceholder == null ) {
@@ -196,7 +218,13 @@ public final class PlaceholderLogoFactory
         return forgePlaceholder;
     }
 
-    /** NeoForge placeholder — deep orange gradient + white "N" wordmark. */
+    /**
+     * Returns the canvas-rendered NeoForge placeholder — a deep orange
+     * gradient with a white {@code "N"} wordmark. Rendered once per JVM and
+     * cached; subsequent calls return the same {@link Image}.
+     *
+     * @return the NeoForge placeholder image
+     */
     public static Image getNeoForgePlaceholder()
     {
         if ( neoForgePlaceholder == null ) {
@@ -208,7 +236,13 @@ public final class PlaceholderLogoFactory
         return neoForgePlaceholder;
     }
 
-    /** Fabric placeholder — tan / khaki gradient + dark brown "FAB" wordmark. */
+    /**
+     * Returns the canvas-rendered Fabric placeholder — a tan / khaki gradient
+     * with a dark brown {@code "FAB"} wordmark. Rendered once per JVM and
+     * cached; subsequent calls return the same {@link Image}.
+     *
+     * @return the Fabric placeholder image
+     */
     public static Image getFabricPlaceholder()
     {
         if ( fabricPlaceholder == null ) {
@@ -220,8 +254,17 @@ public final class PlaceholderLogoFactory
         return fabricPlaceholder;
     }
 
-    /** Synchronous placeholder for {@code loaderType}. Falls back to the
-     *  vanilla placeholder for null / unrecognised values. */
+    /**
+     * Returns the synchronous canvas placeholder for {@code loaderType}.
+     * Recognises the Forge, NeoForge, and Fabric loader-type identifiers and
+     * falls back to the vanilla placeholder for {@code null} / unrecognised
+     * values. Never performs I/O — the matching placeholder is rendered once
+     * and cached.
+     *
+     * @param loaderType the {@code ModPackConstants.MOD_LOADER_*} identifier;
+     *                   {@code null} or unrecognised yields the vanilla placeholder
+     * @return the placeholder image for the loader type, never {@code null}
+     */
     public static Image placeholderFor( String loaderType )
     {
         if ( loaderType == null ) return getVanillaLogo();

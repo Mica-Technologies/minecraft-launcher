@@ -52,6 +52,12 @@ import java.util.Locale;
  */
 public final class MCLauncherImportConfirmDialog
 {
+    /**
+     * Private constructor — this is a static-only utility class with no instance state and must not be
+     * instantiated.
+     *
+     * @since 2026.3
+     */
     private MCLauncherImportConfirmDialog() { /* static-only */ }
 
     /**
@@ -60,6 +66,17 @@ public final class MCLauncherImportConfirmDialog
      * {@code false} on Cancel / window close. Must be called from the FX
      * thread; the caller is expected to have just produced the mrpack
      * download URL + parsed index on a worker thread.
+     *
+     * @param owner       the owner stage the modal dialog is parented to; may be {@code null} for an
+     *                    un-owned dialog
+     * @param packName    the modpack's display name; a localized fallback is shown when {@code null} or
+     *                    blank
+     * @param packVersion the modpack version string for the subtitle line; omitted when {@code null} or
+     *                    blank
+     * @param index       the parsed {@code modrinth.index.json} providing the file list, dependency
+     *                    versions, and per-file sizes rendered in the dialog
+     * @return {@code true} if the user clicked Import; {@code false} on Cancel or window close
+     * @since 2026.3
      */
     public static boolean showAndAwait( Stage owner, String packName, String packVersion, ModrinthIndex index )
     {
@@ -210,7 +227,11 @@ public final class MCLauncherImportConfirmDialog
 
     /** Defensive wrapper around OsThemeDetector for the native-theme chrome
      *  decision; mirrors the helper pattern used elsewhere in the GUI so a
-     *  detector failure on an unusual platform never blocks the dialog. */
+     *  detector failure on an unusual platform never blocks the dialog.
+     *
+     * @return {@code true} if the OS is reporting dark mode
+     * @since 2026.3
+     */
     private static boolean isOsDarkSafe()
     {
         return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
@@ -218,6 +239,21 @@ public final class MCLauncherImportConfirmDialog
 
     // ===== helpers =====
 
+    /**
+     * Builds the localized, pluralized totals line shown above the mod list — e.g.
+     * "12 mods, 1 config, 2 resource packs  ·  847 MB". Category counts that are zero are omitted
+     * entirely, and the trailing size segment is dropped when {@code totalBytes} formats to
+     * {@code null} (non-positive).
+     *
+     * @param mods       number of {@code mods/} entries
+     * @param configs    number of {@code config/} entries
+     * @param rps        number of {@code resourcepacks/} entries
+     * @param sps        number of {@code shaderpacks/} entries
+     * @param other      number of entries in none of the above categories
+     * @param totalBytes the summed download size of all entries, in bytes
+     * @return the assembled, localized totals string
+     * @since 2026.3
+     */
     private static String buildTotalsText( int mods, int configs, int rps, int sps, int other, long totalBytes )
     {
         StringBuilder sb = new StringBuilder();
@@ -231,6 +267,15 @@ public final class MCLauncherImportConfirmDialog
         return sb.toString();
     }
 
+    /**
+     * Extracts the final path segment (filename) from a mod entry path, tolerating both forward and
+     * backslash separators.
+     *
+     * @param path the entry path (e.g. {@code "mods/jei-1.16.5.jar"}); may be {@code null}
+     * @return the filename portion, the whole input if it has no separator, or "" if {@code path} is
+     *         {@code null}
+     * @since 2026.3
+     */
     private static String fileBasename( String path )
     {
         if ( path == null ) return "";
@@ -241,7 +286,12 @@ public final class MCLauncherImportConfirmDialog
 
     /** Compact byte size formatter — "12.4 MB", "847 KB", "1.2 GB". Returns
      *  {@code null} for non-positive sizes so the caller skips the "[size]"
-     *  prefix entirely rather than show "[0 B]". */
+     *  prefix entirely rather than show "[0 B]".
+     *
+     * @param bytes the size in bytes to format
+     * @return a human-readable size string, or {@code null} if {@code bytes} is non-positive
+     * @since 2026.3
+     */
     private static String formatBytes( long bytes )
     {
         if ( bytes <= 0 ) return null;

@@ -53,6 +53,12 @@ import java.util.List;
  */
 public final class ModrinthClient
 {
+    /**
+     * Private no-op constructor — this is a static-only utility class and is
+     * never instantiated.
+     *
+     * @since 2026.3
+     */
     private ModrinthClient() { /* static-only */ }
 
     /** Modrinth API base. {@code api.modrinth.com} is the production host;
@@ -70,6 +76,18 @@ public final class ModrinthClient
      * Card-rendering subset of a Modrinth project + its latest version. Just
      * what the preview dialog needs; the deeper file-list / dependency
      * mapping happens in the import worker.
+     *
+     * @param projectId         Modrinth's opaque internal project identifier
+     * @param slug              the human-readable URL slug for the project
+     * @param title             the project's display name
+     * @param description       the project's short summary / description text
+     * @param iconUrl           CDN URL of the project icon, or {@code null}
+     * @param minecraftVersions Minecraft versions the project supports
+     * @param loaders           mod loaders the project supports
+     *                          (e.g. {@code forge}, {@code fabric})
+     * @param latestVersion     the resolved latest version of the project,
+     *                          or {@code null} if none could be fetched
+     * @since 2026.3
      */
     public record ProjectSummary(
             String projectId,
@@ -86,6 +104,15 @@ public final class ModrinthClient
      * Minimal slice of a {@code /v2/version/{id}} response. Carries the file
      * URLs + hashes so the eventual import worker can fetch the {@code .mrpack}
      * without an extra round-trip back through the project endpoint.
+     *
+     * @param versionId         Modrinth's opaque version identifier
+     * @param name              the version's display name
+     * @param versionNumber     the author-supplied version number string
+     * @param minecraftVersions Minecraft versions this version targets
+     * @param loaders           mod loaders this version targets
+     * @param files             downloadable files belonging to this version
+     *                          (the {@code .mrpack} is one of these)
+     * @since 2026.3
      */
     public record VersionSummary(
             String versionId,
@@ -96,7 +123,18 @@ public final class ModrinthClient
             List< FileRef > files )
     {}
 
-    /** One file inside a Modrinth version. The .mrpack is one of these. */
+    /**
+     * One file inside a Modrinth version. The {@code .mrpack} is one of these.
+     *
+     * @param filename the file's name as Modrinth reports it
+     * @param url      the CDN URL the file can be downloaded from
+     * @param sha1     the file's SHA-1 hash, or {@code null} if absent
+     * @param sha512   the file's SHA-512 hash, or {@code null} if absent
+     * @param size     the file's declared size in bytes
+     * @param primary  {@code true} if Modrinth marks this as the version's
+     *                 primary (canonical) file
+     * @since 2026.3
+     */
     public record FileRef(
             String filename,
             String url,
@@ -106,7 +144,19 @@ public final class ModrinthClient
             boolean primary )
     {}
 
-    /** One result row from a {@code /v2/search} query — enough to render a pick-list. */
+    /**
+     * One result row from a {@code /v2/search} query — enough to render a
+     * pick-list.
+     *
+     * @param projectId   Modrinth's opaque internal project identifier
+     * @param slug        the human-readable URL slug for the project
+     * @param title       the project's display name
+     * @param description the project's short summary / description text
+     * @param iconUrl     CDN URL of the project icon, or {@code null}
+     * @param author      the project's author / owner name
+     * @param downloads   the project's all-time download count
+     * @since 2026.3
+     */
     public record SearchHit(
             String projectId,
             String slug,
@@ -129,6 +179,7 @@ public final class ModrinthClient
      *                  or {@code null} for any
      * @param limit     max results (Modrinth caps at 100)
      * @return result rows (newest-relevance order), or an empty list on any failure
+     * @since 2026.3
      */
     public static List< SearchHit > search( String query, String mcVersion, String loader, int limit )
     {
@@ -178,7 +229,11 @@ public final class ModrinthClient
      * Resolves the latest version of a project compatible with the given Minecraft version + loader
      * and returns its primary downloadable file (the jar to drop into a pack's {@code mods/}).
      *
+     * @param projectId Modrinth slug or project ID to resolve a version for
+     * @param mcVersion Minecraft version to constrain to, or {@code null} for any
+     * @param loader    mod loader to constrain to (e.g. {@code "forge"}), or {@code null} for any
      * @return the primary {@link FileRef}, or {@code null} if no compatible version / file exists
+     * @since 2026.3
      */
     public static FileRef resolveLatestCompatibleFile( String projectId, String mcVersion, String loader )
     {
@@ -212,7 +267,16 @@ public final class ModrinthClient
         }
     }
 
-    /** Extracts the primary (or first) downloadable {@link FileRef} from a version JSON object. */
+    /**
+     * Extracts the primary (or first) downloadable {@link FileRef} from a
+     * version JSON object. Prefers the file flagged {@code primary}; if none
+     * is flagged, falls back to the first file carrying a usable URL.
+     *
+     * @param version a Modrinth version JSON object (may be {@code null})
+     * @return the primary or first {@link FileRef}, or {@code null} when the
+     *         object has no usable files
+     * @since 2026.3
+     */
     private static FileRef primaryFile( JsonObject version )
     {
         if ( version == null || !version.has( "files" ) || !version.get( "files" ).isJsonArray() ) {
@@ -240,6 +304,13 @@ public final class ModrinthClient
         return fallback;
     }
 
+    /**
+     * URL-encodes a query-string component using UTF-8.
+     *
+     * @param s the raw string to encode
+     * @return the percent-encoded form suitable for a query parameter value
+     * @since 2026.3
+     */
     private static String enc( String s )
     {
         return java.net.URLEncoder.encode( s, java.nio.charset.StandardCharsets.UTF_8 );
@@ -252,9 +323,14 @@ public final class ModrinthClient
      * accepts either at the {@code /project/{idOrSlug}} endpoint, so callers
      * don't need to know which they have.
      *
+     * @param slugOrId     the project slug or Modrinth project ID to fetch
+     * @param versionPinId an explicit version ID to resolve (e.g. pinned from
+     *                     the source URL), or {@code null} to use the project's
+     *                     latest version
      * @return summary, or {@code null} on any network / parse failure (logged
      *         silently — the preview dialog falls back to a generic "couldn't
      *         load details" message rather than blowing up)
+     * @since 2026.3
      */
     public static ProjectSummary fetchProject( String slugOrId, String versionPinId )
     {
@@ -300,6 +376,15 @@ public final class ModrinthClient
         }
     }
 
+    /**
+     * Fetches and parses a single Modrinth version by ID into a
+     * {@link VersionSummary}, including its file list.
+     *
+     * @param versionId the Modrinth version ID to fetch
+     * @return the parsed version summary, or {@code null} on any network /
+     *         parse failure (logged silently)
+     * @since 2026.3
+     */
     private static VersionSummary fetchVersion( String versionId )
     {
         if ( versionId == null || versionId.isBlank() ) return null;
@@ -343,6 +428,17 @@ public final class ModrinthClient
 
     // ===== JSON helpers =====
 
+    /**
+     * Performs a bounded HTTPS GET against {@code url} and parses the response
+     * body as a JSON object.
+     *
+     * @param url the absolute Modrinth API URL to fetch
+     * @return the parsed JSON object, or {@code null} when the body is empty or
+     *         isn't a JSON object
+     * @throws Exception if the bounded download fails (network error, size cap
+     *                   exceeded, non-HTTPS rejection, etc.)
+     * @since 2026.3
+     */
     private static JsonObject fetchJsonObject( String url ) throws Exception
     {
         String body = NetworkUtilities.downloadFileFromURLBounded( url, MAX_RESPONSE_BYTES );
@@ -351,6 +447,15 @@ public final class ModrinthClient
         return parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
     }
 
+    /**
+     * Safely reads a string-valued field from a JSON object.
+     *
+     * @param obj the JSON object to read from (may be {@code null})
+     * @param key the field name to read
+     * @return the string value, or {@code null} when absent, JSON-null, or not
+     *         a primitive
+     * @since 2026.3
+     */
     private static String optString( JsonObject obj, String key )
     {
         if ( obj == null || !obj.has( key ) ) return null;
@@ -359,6 +464,16 @@ public final class ModrinthClient
         return e.getAsString();
     }
 
+    /**
+     * Safely reads a string-array-valued field from a JSON object, skipping any
+     * non-primitive elements.
+     *
+     * @param obj the JSON object to read from (may be {@code null})
+     * @param key the field name to read
+     * @return the list of string values; never {@code null}, empty when the
+     *         field is absent or not an array
+     * @since 2026.3
+     */
     private static List< String > optStringArray( JsonObject obj, String key )
     {
         List< String > out = new ArrayList<>();

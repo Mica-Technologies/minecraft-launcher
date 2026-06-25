@@ -245,6 +245,22 @@ public class GameLibraryManifest extends ManagedGameFile
         return libraries;
     }
 
+    /**
+     * Resolves the classifier key used to look up a native sub-library for the given OS within a library entry's
+     * {@code downloads.classifiers} object.
+     * <p>
+     * When the library declares a {@code natives} mapping, the value for the requested OS is used directly, with any
+     * {@code ${arch}} placeholder substituted for the current process architecture ({@code "64"} or {@code "32"}). When
+     * no such mapping is present, the conventional {@code "natives-<osKey>"} key is returned as a fallback.
+     *
+     * @param libraryObject the library entry JSON object from the manifest
+     * @param osKey          the Mojang OS key to resolve a native classifier for (e.g. {@code "windows"}, {@code "osx"},
+     *                       {@code "linux"})
+     *
+     * @return the resolved classifier key for the requested OS
+     *
+     * @since 1.0
+     */
     private String resolveNativeClassifierKey( JsonObject libraryObject, String osKey ) {
         if ( libraryObject.has( "natives" ) ) {
             JsonObject nativesObject = libraryObject.getAsJsonObject( "natives" );
@@ -410,6 +426,20 @@ public class GameLibraryManifest extends ManagedGameFile
         return classpath.toString();
     }
 
+    /**
+     * Downloads and verifies all Minecraft game assets referenced by this manifest's asset index, then materializes a
+     * flat virtual asset tree for legacy index formats.
+     * <p>
+     * For pre-1.7 indexes ({@code virtual: true}) and 1.6.x indexes ({@code map_to_resources: true}), the game expects
+     * the assets laid out as a flat directory tree at the path passed via {@code --assetsDir}; this method performs that
+     * materialization. The materialization step is a no-op for modern (hashed) asset indexes.
+     *
+     * @param progressProvider progress provider to report asset verification progress to, or {@code null} for none
+     *
+     * @throws ModpackException     if asset download, verification, or materialization fails
+     * @throws InterruptedException if the asset download is interrupted before completion
+     * @throws ExecutionException   if an asset download task fails during execution
+     */
     void downloadMinecraftAssets( final GameModPackProgressProvider progressProvider )
     throws ModpackException, InterruptedException, ExecutionException
     {
@@ -433,6 +463,15 @@ public class GameLibraryManifest extends ManagedGameFile
         return JsonHelper.getRequiredString( assetIndex, "id" );
     }
 
+    /**
+     * Resolves and constructs the {@link GameAssetManifest} for this Minecraft version using the {@code assetIndex}
+     * entry of this library manifest. The returned manifest is bound to this manifest's parent mod pack and asset index
+     * version but has not yet been downloaded.
+     *
+     * @return the asset manifest for this Minecraft version
+     *
+     * @throws ModpackException if unable to read this manifest or its {@code assetIndex} entry
+     */
     public GameAssetManifest getAssetManifest() throws ModpackException {
         JsonObject manifest = readToJsonObject();
         JsonObject assetIndex = JsonHelper.getRequiredJsonObject( manifest, "assetIndex" );

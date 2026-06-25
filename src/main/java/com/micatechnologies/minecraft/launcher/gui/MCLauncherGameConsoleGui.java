@@ -55,70 +55,103 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
 {
+    /**
+     * Interval, in milliseconds, between successive UI flushes of buffered log lines and disk flushes of the
+     * log file. Batching at this cadence keeps the JavaFX thread responsive during heavy mod log output instead
+     * of updating the TextArea per line.
+     */
     private static final int FLUSH_INTERVAL_MS = 150;
 
+    /** Header label showing the modpack name, or the crash/complete title once the process exits. */
     @SuppressWarnings( "unused" )
     @FXML
     Label titleLabel;
 
+    /** Sub-header label showing the running/exit status (e.g. "Running", exit code, or play duration). */
     @SuppressWarnings( "unused" )
     @FXML
     Label statusLabel;
 
+    /** Label showing the live elapsed session time while the game is running. */
     @SuppressWarnings( "unused" )
     @FXML
     Label uptimeLabel;
 
+    /** Scrolling, read-only text area that displays the captured (redacted, batched) game log output. */
     @SuppressWarnings( "unused" )
     @FXML
     TextArea logArea;
 
+    /** Button that forcibly terminates the attached game process. Hidden once the process exits. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton killBtn;
 
+    /** Button that closes the console and returns to the main screen. Disabled while the process runs. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton closeBtn;
 
+    /** Button that copies the currently displayed log text to the system clipboard. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton copyBtn;
 
+    /** Button that toggles the log view between the live game log and the captured crash report. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton crashReportBtn;
 
+    /** Notice shown when the in-memory display buffer has been truncated past the configured max-lines. */
     @SuppressWarnings( "unused" )
     @FXML
     Label truncationLabel;
 
+    /** Hyperlink, shown alongside the truncation notice, that opens the full session log file in the OS editor. */
     @SuppressWarnings( "unused" )
     @FXML
     Hyperlink openLogLink;
 
     // ===== Crash diagnosis card =====
+    /** Container card for the crash diagnosis panel; hidden when there is no diagnosis to show. */
     @SuppressWarnings( "unused" ) @FXML VBox  diagnosisCard;
+    /** Title label within the diagnosis card (the diagnosis's short headline). */
     @SuppressWarnings( "unused" ) @FXML Label diagnosisTitleLabel;
+    /** Summary label within the diagnosis card (the diagnosis's longer explanation). */
     @SuppressWarnings( "unused" ) @FXML Label diagnosisSummaryLabel;
+    /** Horizontal box holding the per-suggestion action buttons / hint labels for the diagnosis. */
     @SuppressWarnings( "unused" ) @FXML HBox  diagnosisActionsBox;
 
+    /** Navbar help button that opens the contextual help window for this screen. */
     @SuppressWarnings( "unused" ) @FXML Label helpBtn;
 
     // ===== Search / filter / auto-pin toolbar =====
+    /** Text field for incremental case-insensitive search within the displayed log. */
     @SuppressWarnings( "unused" ) @FXML MFXTextField searchField;
+    /** Status label for the search toolbar (e.g. shows "no match" feedback). */
     @SuppressWarnings( "unused" ) @FXML Label searchStatusLabel;
+    /** Button that jumps to the previous search match. */
     @SuppressWarnings( "unused" ) @FXML MFXButton searchPrevBtn;
+    /** Button that jumps to the next search match. */
     @SuppressWarnings( "unused" ) @FXML MFXButton searchNextBtn;
+    /** Checkbox that, when selected (default), auto-scrolls the log to the latest line on every append. */
     @SuppressWarnings( "unused" ) @FXML CheckBox autoPinCheckBox;
 
+    /** The attached game process whose output is being captured, or {@code null} in crash-only mode. */
     private Process gameProcess;
+    /** Wall-clock start time of the session, in milliseconds, used to compute the live uptime/duration. */
     private long startTimeMs;
+    /** Whether the attached game process is currently running; toggled off when it exits or is killed. */
     private volatile boolean processRunning = false;
+    /** Full in-memory capture of the (redacted) log, bounded by {@link #FULL_LOG_TRIGGER_CHARS}. */
     private final StringBuilder fullLogContent = new StringBuilder();
+    /** Captured crash-report text, or {@code null} if no crash report is available. */
     private String crashReportContent = null;
+    /** Whether the log area is currently showing the crash report rather than the live log. */
     private boolean showingCrashReport = false;
+    /** The per-session log file on disk receiving the full output, or {@code null} if it could not be created. */
     private File logFile;
+    /** Buffered writer for {@link #logFile}; access is serialized via {@link #logFileLock}. */
     private BufferedWriter logFileWriter;
     /** Guards all access to {@link #logFileWriter} — written from both stream
      *  readers (stdout + stderr) and flushed from the UI flush thread, so the
@@ -133,8 +166,11 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     private static final int FULL_LOG_TRIGGER_CHARS = 5_000_000;
     private static final int FULL_LOG_RETAIN_CHARS = 4_000_000;
 
+    /** Thread-safe queue of log lines awaiting the next batched UI flush by the flush thread. */
     private final ConcurrentLinkedQueue< String > pendingLines = new ConcurrentLinkedQueue<>();
+    /** Number of lines currently shown in {@link #logArea}, tracked to drive display trimming. */
     private int displayLineCount = 0;
+    /** Whether the visible display buffer has been trimmed past the configured max-lines at least once. */
     private boolean truncated = false;
 
     /**
@@ -158,22 +194,47 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         void onGameExit( int exitCode );
     }
 
+    /** Optional callback invoked (on the process-monitor thread) when the attached game process exits. */
     private GameExitCallback exitCallback;
 
+    /**
+     * Constructs the game-console controller and loads its FXML scene onto the given stage.
+     *
+     * @param stage the JavaFX stage (window) that will host the console scene
+     *
+     * @throws IOException if the console FXML could not be loaded
+     */
     public MCLauncherGameConsoleGui( Stage stage ) throws IOException {
         super( stage );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the classpath resource path of the game-console FXML
+     */
     @Override
     String getSceneFxmlPath() {
         return "gui/gameConsoleGUI.fxml";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the human-readable name of this screen
+     */
     @Override
     String getSceneName() {
         return "Game Console";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation wires the window close-request handler (prompting before closing while the game is
+     * still running), the kill / close / copy / crash-report buttons, the search toolbar, the auto-pin behavior,
+     * and the log area's right-click context menu.</p>
+     */
     @Override
     void setup() {
         stage.setOnCloseRequest( windowEvent -> {
@@ -376,6 +437,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         Clipboard.getSystemClipboard().setContent( content );
     }
 
+    /** Copies the entire currently displayed log text to the system clipboard. No-op when empty. */
     private void copyAllToClipboard()
     {
         String text = logArea.getText();
@@ -385,16 +447,32 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         Clipboard.getSystemClipboard().setContent( content );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This screen requires no post-show work, so the implementation is intentionally empty.</p>
+     */
     @Override
     void afterShow() {
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation marks the process as no longer running and closes the on-disk log writer,
+     * flushing any buffered tail.</p>
+     */
     @Override
     void cleanup() {
         processRunning = false;
         closeLogFileWriter();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@link HelpTopic#GAME_CONSOLE}, the help topic specific to the game console screen
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.GAME_CONSOLE; }
 
@@ -529,7 +607,11 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Convenience overload without exit callback.
+     * Convenience overload of {@link #attachToProcess(Process, String, GameExitCallback)} that attaches without
+     * registering an exit callback.
+     *
+     * @param process  the running game process to capture output from
+     * @param packName the modpack name shown in the console title
      */
     public void attachToProcess( Process process, String packName ) {
         attachToProcess( process, packName, null );
@@ -550,7 +632,13 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
 
     /**
      * Shows a crash report and renders the pack-aware diagnosis. Used by the in-game-console
-     * exit handler in {@link LauncherCore#play}.
+     * exit handler in {@link LauncherCore#play}. Switches the log area to the crash-report view, reveals the
+     * toggle button, and populates the diagnosis card from {@link CrashReportAnalyzer#analyze}. Dispatches its
+     * UI work onto the JavaFX thread, so it may be called from any thread.
+     *
+     * @param crashReport the crash report text content
+     * @param pack        the modpack the crash belongs to, used to build pack-specific suggestions; may be {@code null}
+     * @param exitCode    the process exit code, passed to the analyzer for context
      */
     public void showCrashReport( String crashReport, GameModPack pack, int exitCode ) {
         this.crashReportContent = crashReport;
@@ -584,7 +672,15 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
     /**
      * Pack-aware crash-only mode. {@code pack} is used by {@link CrashReportAnalyzer} to build
      * suggestions that reference the pack's install folder. Pass {@code null} if the pack
-     * reference isn't available; the analyzer falls back to non-pack-specific suggestions.
+     * reference isn't available; the analyzer falls back to non-pack-specific suggestions. Diagnosis is derived
+     * from the crash report when available, otherwise from the game log, otherwise from a synthesized exit-code
+     * message. Dispatches its UI work onto the JavaFX thread.
+     *
+     * @param packName    the modpack name shown in the console title
+     * @param exitCode    the exit code from the process
+     * @param crashReport the crash report content (may be {@code null})
+     * @param gameLog     the captured game log (may be {@code null})
+     * @param pack        the modpack for pack-specific suggestions (may be {@code null})
      */
     public void showCrashOnly( String packName, int exitCode, String crashReport, String gameLog,
                                 GameModPack pack ) {
@@ -675,6 +771,14 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Maps a crash-diagnosis severity to the CSS style class (defined in {@code ui-base.css}) that colors the
+     * diagnosis card accordingly.
+     *
+     * @param severity the diagnosis severity
+     *
+     * @return the corresponding severity style-class name
+     */
     private static String severityStyleClass( CrashDiagnosis.Severity severity )
     {
         return switch ( severity ) {
@@ -860,6 +964,13 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         return count;
     }
 
+    /**
+     * Returns the log text to install in the display when switching back from the crash-report view to the live
+     * log. When the display has been truncated and a positive max-lines limit is configured, only the trailing
+     * max-lines of {@link #fullLogContent} are returned; otherwise the entire in-memory buffer is returned.
+     *
+     * @return the log text to show, never {@code null}
+     */
     private String getDisplayLog() {
         synchronized ( fullLogContent ) {
             String full = fullLogContent.toString();
@@ -883,6 +994,14 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Creates the per-session log file and its buffered writer under the launcher log folder. The file name
+     * combines a sanitized pack name with a timestamp, and the file is restricted to owner-only permissions
+     * (best-effort) since logs may contain PII. On failure both {@link #logFile} and {@link #logFileWriter}
+     * are left {@code null} and a warning is logged.
+     *
+     * @param packName the modpack name, sanitized into the log file name
+     */
     private void initLogFile( String packName ) {
         try {
             String logDir = LocalPathManager.getLauncherLogFolderPath();
@@ -909,6 +1028,13 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Writes a single (already-redacted) log line, followed by a newline, to the buffered log writer. The write
+     * is not flushed per line; the periodic flush thread and {@link #closeLogFileWriter()} handle flushing.
+     * No-op when no log file is open. I/O errors are swallowed to avoid impacting game performance.
+     *
+     * @param line the log line to write
+     */
     private void writeToLogFile( String line ) {
         synchronized ( logFileLock ) {
             if ( logFileWriter == null ) {
@@ -944,6 +1070,10 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Closes the buffered log writer, flushing any buffered tail to disk, and clears the reference. Safe to call
+     * more than once; subsequent calls are no-ops. Close failures are ignored.
+     */
     private void closeLogFileWriter() {
         synchronized ( logFileLock ) {
             if ( logFileWriter != null ) {
@@ -957,6 +1087,10 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Opens the full session log file in the operating system's default editor for {@code .log} files. The open
+     * runs on a background task to avoid blocking the FX thread. No-op if no log file exists; failures are logged.
+     */
     private void openLogFileInEditor() {
         if ( logFile != null && logFile.exists() ) {
             SystemUtilities.spawnNewTask( () -> {
@@ -970,6 +1104,11 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Forcibly terminates the attached game process if it is still alive, marks the session as stopped, and
+     * updates the console controls (status, kill/close buttons, a "killed" banner) on the FX thread. No-op when
+     * there is no live process.
+     */
     private void killGame() {
         if ( gameProcess != null && gameProcess.isAlive() ) {
             gameProcess.destroyForcibly();
@@ -983,6 +1122,9 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Navigates back to the main launcher screen. Any failure to switch screens is logged rather than propagated.
+     */
     private void returnToMain() {
         try {
             MCLauncherGuiController.goToMainGui();

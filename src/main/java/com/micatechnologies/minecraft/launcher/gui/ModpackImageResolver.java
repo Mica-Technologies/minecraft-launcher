@@ -69,6 +69,10 @@ public final class ModpackImageResolver
      * <p>Uses {@link GameModPack#getPackLogoFilepathRaw()} (side-effect-free)
      * rather than {@link GameModPack#getPackLogoFilepath()} so the FX thread
      * never blocks on a synchronous cache download.</p>
+     *
+     * @param pack the modpack whose logo to resolve; {@code null} yields {@code null}
+     * @return the cached logo as a JavaFX {@link Image}, or {@code null} when the
+     *         pack declares no logo path or the file is not yet on disk
      */
     public static Image resolveLogoFromDisk( GameModPack pack ) {
         if ( pack == null ) return null;
@@ -92,6 +96,9 @@ public final class ModpackImageResolver
      * disk are returned (side-effect-free, FX-thread-safe); a not-yet-cached image is
      * skipped. Returns an empty list when the pack has no cached logos yet — callers
      * fall back to {@link #resolveLogoOrDefault(GameModPack)} / a placeholder.
+     *
+     * @param pack the modpack whose logos to resolve; {@code null} yields an empty list
+     * @return the cached logos in declaration order, never {@code null} (possibly empty)
      */
     public static List< Image > resolveLogosFromDisk( GameModPack pack ) {
         List< Image > images = new ArrayList<>();
@@ -115,6 +122,10 @@ public final class ModpackImageResolver
      * {@code file:} URL strings — for the multi-image cycle (issue #43). Same gating as
      * {@link #resolveBackgroundUrlFromDisk(GameModPack)}: empty when the pack ships no
      * custom background, and only on-disk files are included.
+     *
+     * @param pack the modpack whose backgrounds to resolve; {@code null} yields an empty list
+     * @return the cached custom backgrounds as {@code file:} URL strings in declaration
+     *         order, never {@code null} (possibly empty)
      */
     public static List< String > resolveBackgroundUrlsFromDisk( GameModPack pack ) {
         List< String > urls = new ArrayList<>();
@@ -139,6 +150,10 @@ public final class ModpackImageResolver
      * that want SOME image to render even on cold start (the home hero cards)
      * vs. the Browse cards which prefer their own placeholder factory for
      * missing artwork.
+     *
+     * @param pack the modpack whose logo to resolve
+     * @return the cached logo when present, otherwise the bundled default-logo
+     *         image, or {@code null} if even the default fails to load
      */
     public static Image resolveLogoOrDefault( GameModPack pack ) {
         Image fromDisk = resolveLogoFromDisk( pack );
@@ -167,6 +182,11 @@ public final class ModpackImageResolver
      * into a local cache), so checking just file existence would wrongly point
      * at the cached-bundled-default and skip the procedural-background path —
      * the {@code hasCustomBackground} gate stops that.</p>
+     *
+     * @param pack the modpack whose background to resolve; {@code null} yields {@code null}
+     * @return the cached custom background as a {@code file:} URL string, or
+     *         {@code null} when the pack ships no custom background or the cached
+     *         file does not yet exist on disk
      */
     public static String resolveBackgroundUrlFromDisk( GameModPack pack ) {
         if ( pack == null ) return null;

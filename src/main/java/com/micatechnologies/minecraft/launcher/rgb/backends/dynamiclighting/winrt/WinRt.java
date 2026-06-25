@@ -73,8 +73,13 @@ public final class WinRt
     // Vtable indices (relative to start of the interface)
     // ====================================================================
 
+    /** Index 0 of every COM/WinRT interface — {@code IUnknown::QueryInterface}. */
     public static final int IUNKNOWN_QUERY_INTERFACE       = 0;
+
+    /** Index 1 of every COM/WinRT interface — {@code IUnknown::AddRef}. */
     public static final int IUNKNOWN_ADD_REF               = 1;
+
+    /** Index 2 of every COM/WinRT interface — {@code IUnknown::Release}. */
     public static final int IUNKNOWN_RELEASE               = 2;
 
     /** Index 7 of {@code IAsyncInfo} — {@code get_Status}. */
@@ -119,9 +124,17 @@ public final class WinRt
     // Async status codes (Windows.Foundation.AsyncStatus enum)
     // ====================================================================
 
+    /** {@code AsyncStatus.Started} — the async operation is still running. */
     public static final int ASYNC_STARTED   = 0;
+
+    /** {@code AsyncStatus.Completed} — the async operation finished successfully. */
     public static final int ASYNC_COMPLETED = 1;
+
+    /** {@code AsyncStatus.Canceled} — the async operation was cancelled. */
     public static final int ASYNC_CANCELED  = 2;
+
+    /** {@code AsyncStatus.Error} — the async operation faulted; inspect
+     *  {@code IAsyncInfo::get_ErrorCode} for the HRESULT. */
     public static final int ASYNC_ERROR     = 3;
 
     // ====================================================================
@@ -148,7 +161,14 @@ public final class WinRt
     // Runtime class names (passed as HSTRINGs to RoGetActivationFactory)
     // ====================================================================
 
+    /** Fully-qualified runtime class name for {@code LampArray}, passed
+     *  as an HSTRING to {@code RoGetActivationFactory} to reach
+     *  {@code ILampArrayStatics}. */
     public static final String CLASS_LAMP_ARRAY = "Windows.Devices.Lights.LampArray";
+
+    /** Fully-qualified runtime class name for {@code DeviceInformation},
+     *  passed as an HSTRING to {@code RoGetActivationFactory} to reach
+     *  {@code IDeviceInformationStatics}. */
     public static final String CLASS_DEVICE_INFORMATION =
             "Windows.Devices.Enumeration.DeviceInformation";
 
@@ -161,6 +181,12 @@ public final class WinRt
      * {@code iface}, passing {@code args} after the implicit
      * {@code this}-pointer first arg. The function is treated as
      * returning HRESULT (32-bit int).
+     *
+     * @param iface pointer to the COM/WinRT interface (the {@code this}
+     *              pointer prepended as the first native argument).
+     * @param index zero-based v-table slot of the method to invoke.
+     * @param args  the remaining native arguments, in IDL order.
+     * @return the HRESULT returned by the native method.
      */
     public static int invokeHr( Pointer iface, int index, Object... args )
     {
@@ -175,6 +201,13 @@ public final class WinRt
     /**
      * Invoke method {@code index} on {@code iface}, treating the return
      * as ULONG (used by {@code AddRef} / {@code Release}).
+     *
+     * @param iface pointer to the COM/WinRT interface (the {@code this}
+     *              pointer prepended as the first native argument).
+     * @param index zero-based v-table slot of the method to invoke.
+     * @param args  the remaining native arguments, in IDL order.
+     * @return the ULONG returned by the native method (typically the new
+     *         reference count).
      */
     public static int invokeUlong( Pointer iface, int index, Object... args )
     {
@@ -186,7 +219,13 @@ public final class WinRt
         return ( (Integer) res ).intValue();
     }
 
-    /** Call {@code IUnknown::Release} on {@code iface}. No-op when null. */
+    /**
+     * Call {@code IUnknown::Release} on {@code iface}. No-op when null or
+     * the null pointer. Best-effort — any thrown exception is swallowed so
+     * this is safe to use on shutdown / cleanup paths.
+     *
+     * @param iface the interface pointer to release; ignored when null.
+     */
     public static void release( Pointer iface )
     {
         if ( iface == null || Pointer.nativeValue( iface ) == 0L ) return;
@@ -212,6 +251,11 @@ public final class WinRt
      * Allocate an HSTRING from a Java string. Caller owns the returned
      * pointer and must release with
      * {@link Combase#WindowsDeleteString(Pointer)}.
+     *
+     * @param s the Java string to copy into a new HSTRING; a null value is
+     *          treated as the empty string.
+     * @return the newly allocated HSTRING handle, owned by the caller.
+     * @throws WinRtException if {@code WindowsCreateString} fails.
      */
     public static Pointer createHstring( String s ) throws WinRtException
     {
@@ -223,8 +267,13 @@ public final class WinRt
     }
 
     /**
-     * Read an HSTRING back into a Java string. Returns null on null
-     * input. Does NOT release the HSTRING — caller manages lifetime.
+     * Read an HSTRING back into a Java string. Does NOT release the
+     * HSTRING — the caller manages its lifetime.
+     *
+     * @param hstr the HSTRING handle to read; null / null-pointer / empty
+     *             handles yield the empty string.
+     * @return the decoded Java string, or the empty string when the handle
+     *         is null or carries no characters.
      */
     public static String readHstring( Pointer hstr )
     {

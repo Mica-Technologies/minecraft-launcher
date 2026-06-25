@@ -164,9 +164,21 @@ public final class ModPackUpdateLog
 
     /**
      * One row in the update log. Immutable, holds parsed fields for rendering.
+     *
+     * @param timestampMs epoch-millisecond timestamp of when the version change was observed
+     * @param oldVersion  the previously-seen {@code packVersion}
+     * @param newVersion  the {@code packVersion} the change moved to
      */
     public record Entry( long timestampMs, String oldVersion, String newVersion )
     {
+        /**
+         * Parses one {@code <epochMs>|<oldVersion>|<newVersion>} log line into an
+         * {@link Entry}.
+         *
+         * @param line a single raw log line; may be {@code null} or blank
+         * @return the parsed entry, or {@code null} when the line is blank, has
+         *         fewer than three fields, or carries an unparseable timestamp
+         */
         static Entry parse( String line )
         {
             if ( line == null ) return null;

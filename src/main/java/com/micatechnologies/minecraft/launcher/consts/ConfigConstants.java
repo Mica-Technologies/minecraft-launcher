@@ -365,12 +365,16 @@ public class ConfigConstants
 
     /** Default cap on console TextArea lines. Matches the historical
      *  hard-coded MAX_DISPLAY_LINES value so existing users see the
-     *  same behavior. */
+     *  same behavior.
+     *
+     * @since 2.0 */
     public static final int CONSOLE_LOG_MAX_LINES_DEFAULT = 10_000;
 
     /** Preset values offered in Settings → Game Console → Log buffer
      *  size. Zero is the "Unlimited" sentinel — the dropdown label
-     *  shows "Unlimited" and the console never trims. */
+     *  shows "Unlimited" and the console never trims.
+     *
+     * @since 2.0 */
     public static final int[] CONSOLE_LOG_MAX_LINES_PRESETS = { 1_000, 5_000, 10_000, 25_000, 50_000, 0 };
 
     // region RGB Integration
@@ -378,8 +382,15 @@ public class ConfigConstants
     /** Master enable for the RGB-integration subsystem. When false, the
      *  RgbController stays inert — no backend probes, no worker thread,
      *  no socket / DLL activity. Default off so users opt in deliberately
-     *  before the launcher touches any peripheral devices. */
+     *  before the launcher touches any peripheral devices.
+     *
+     * @since 2.0 */
     public static final String RGB_ENABLE_KEY = "rgbEnable";
+
+    /** Default for {@link #RGB_ENABLE_KEY} — false, so the RGB subsystem
+     *  stays off until the user opts in.
+     *
+     * @since 2.0 */
     public static final boolean RGB_ENABLE_DEFAULT = false;
 
     /** Selected RGB backend identifier. One of:
@@ -392,95 +403,233 @@ public class ConfigConstants
      *    <li>{@code "none"} — explicit no-op; same effect as disabling
      *        the master toggle but kept distinct for users who want the
      *        Settings tab visible without touching their keyboard.</li>
-     *  </ul> */
+     *  </ul>
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_KEY = "rgbBackend";
+
+    /** Default for {@link #RGB_BACKEND_KEY} — {@code "auto"}, which probes
+     *  each known backend in priority order and uses the first available one.
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_DEFAULT = "auto";
 
     /** Per-backend enable flags. When the master {@link #RGB_ENABLE_KEY}
      *  is on, the controller starts every backend whose enable flag is
      *  true AND whose {@code isAvailable} probe returns true. Lets a
      *  user with mixed-vendor hardware (e.g. Razer fans + a Logitech
-     *  Windows-Dynamic-Lighting keyboard) drive all of it at once. */
+     *  Windows-Dynamic-Lighting keyboard) drive all of it at once.
+     *
+     * @since 2.0 */
     public static final String RGB_ENABLE_OPENRGB_KEY        = "rgbEnableOpenRGB";
+
+    /** Default for {@link #RGB_ENABLE_OPENRGB_KEY} — true, so OpenRGB is
+     *  used whenever it probes as available.
+     *
+     * @since 2.0 */
     public static final boolean RGB_ENABLE_OPENRGB_DEFAULT    = true;
 
+    /** Per-backend enable flag for the native Razer Chroma backend
+     *  ({@code RzChromaSDK64.dll}). See {@link #RGB_ENABLE_OPENRGB_KEY} for
+     *  how per-backend flags combine with the master toggle.
+     *
+     * @since 2.0 */
     public static final String RGB_ENABLE_CHROMA_NATIVE_KEY  = "rgbEnableChromaNative";
+
+    /** Default for {@link #RGB_ENABLE_CHROMA_NATIVE_KEY} — true, so native
+     *  Chroma is used whenever a working Synapse install is detected.
+     *
+     * @since 2.0 */
     public static final boolean RGB_ENABLE_CHROMA_NATIVE_DEFAULT = true;
 
+    /** Per-backend enable flag for the deprecated Razer Chroma REST backend.
+     *  See {@link #RGB_ENABLE_OPENRGB_KEY} for how per-backend flags combine
+     *  with the master toggle.
+     *
+     * @since 2.0 */
     public static final String RGB_ENABLE_CHROMA_REST_KEY    = "rgbEnableChromaRest";
     /** REST backend defaults OFF — the native backend supersedes it on
      *  any working Synapse install, and the REST API is effectively
-     *  deprecated. Users who specifically want REST can flip this on. */
+     *  deprecated. Users who specifically want REST can flip this on.
+     *
+     * @since 2.0 */
     public static final boolean RGB_ENABLE_CHROMA_REST_DEFAULT = false;
 
+    /** Per-backend enable flag for the Windows 11 Dynamic Lighting backend.
+     *  See {@link #RGB_ENABLE_OPENRGB_KEY} for how per-backend flags combine
+     *  with the master toggle.
+     *
+     * @since 2.0 */
     public static final String RGB_ENABLE_WINDOWS_DL_KEY     = "rgbEnableWindowsDL";
+
+    /** Default for {@link #RGB_ENABLE_WINDOWS_DL_KEY} — true, so Windows
+     *  Dynamic Lighting is used whenever it probes as available.
+     *
+     * @since 2.0 */
     public static final boolean RGB_ENABLE_WINDOWS_DL_DEFAULT = true;
 
+    /** Per-backend enable flag for the Corsair iCUE backend. See
+     *  {@link #RGB_ENABLE_OPENRGB_KEY} for how per-backend flags combine with
+     *  the master toggle.
+     *
+     * @since 2.0 */
     public static final String RGB_ENABLE_CORSAIR_KEY     = "rgbEnableCorsair";
+
+    /** Default for {@link #RGB_ENABLE_CORSAIR_KEY} — true, so Corsair iCUE
+     *  is used whenever it probes as available.
+     *
+     * @since 2.0 */
     public static final boolean RGB_ENABLE_CORSAIR_DEFAULT = true;
 
+    /** Per-backend enable flag for the ASUS Aura backend. See
+     *  {@link #RGB_ENABLE_OPENRGB_KEY} for how per-backend flags combine with
+     *  the master toggle.
+     *
+     * @since 2.0 */
     public static final String RGB_ENABLE_ASUS_AURA_KEY     = "rgbEnableAsusAura";
+
+    /** Default for {@link #RGB_ENABLE_ASUS_AURA_KEY} — true, so ASUS Aura
+     *  is used whenever it probes as available.
+     *
+     * @since 2.0 */
     public static final boolean RGB_ENABLE_ASUS_AURA_DEFAULT = true;
 
     /** Master toggle for the idle "menu" effect — when on, the launcher
      *  paints a slow breathe in the current theme's accent color while
      *  the user is in the menus (between game launches). Off means
-     *  devices stay dark in menus, only lighting up during a game. */
+     *  devices stay dark in menus, only lighting up during a game.
+     *
+     * @since 2.0 */
     public static final String RGB_MENU_EFFECT_ENABLE_KEY     = "rgbMenuEffectEnable";
+
+    /** Default for {@link #RGB_MENU_EFFECT_ENABLE_KEY} — true, so the idle
+     *  menu breathe plays between game launches.
+     *
+     * @since 2.0 */
     public static final boolean RGB_MENU_EFFECT_ENABLE_DEFAULT = true;
 
     /** Animation style for the menu / detail-modal effect. Values are
      *  stable identifiers; the Settings dropdown maps them to user-
-     *  facing display names. */
+     *  facing display names.
+     *
+     * @since 2.0 */
     public static final String RGB_EFFECT_STYLE_KEY     = "rgbEffectStyle";
+
+    /** Effect-style identifier for a static, single solid color.
+     *
+     * @since 2.0 */
     public static final String RGB_EFFECT_STYLE_SOLID   = "solid";
+
+    /** Effect-style identifier for a slow fade in and out of the accent color.
+     *
+     * @since 2.0 */
     public static final String RGB_EFFECT_STYLE_BREATHE = "breathe";
+
+    /** Effect-style identifier for a sharper rhythmic pulse of the accent color.
+     *
+     * @since 2.0 */
     public static final String RGB_EFFECT_STYLE_PULSE   = "pulse";
+
+    /** Effect-style identifier for cycling through a set of related colors.
+     *
+     * @since 2.0 */
     public static final String RGB_EFFECT_STYLE_CYCLE   = "cycle";
+
+    /** Effect-style identifier for a continuous hue sweep across the full spectrum.
+     *
+     * @since 2.0 */
     public static final String RGB_EFFECT_STYLE_RAINBOW = "rainbow";
     /** Default = breathe = current behaviour, so existing users see no
-     *  change when the option ships. */
+     *  change when the option ships.
+     *
+     * @since 2.0 */
     public static final String RGB_EFFECT_STYLE_DEFAULT = RGB_EFFECT_STYLE_BREATHE;
 
+    /** Ordered list of selectable effect-style identifiers, used to populate
+     *  the Settings dropdown.
+     *
+     * @since 2.0 */
     public static final List< String > RGB_EFFECT_STYLES = Arrays.asList(
             RGB_EFFECT_STYLE_SOLID, RGB_EFFECT_STYLE_BREATHE, RGB_EFFECT_STYLE_PULSE,
             RGB_EFFECT_STYLE_CYCLE, RGB_EFFECT_STYLE_RAINBOW );
 
+    /** Backend identifier value for {@link #RGB_BACKEND_KEY} requesting
+     *  automatic priority-order probing.
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_AUTO = "auto";
+
+    /** Backend identifier value for {@link #RGB_BACKEND_KEY} forcing the
+     *  OpenRGB backend.
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_OPENRGB = "openrgb";
+
+    /** Backend identifier value for {@link #RGB_BACKEND_KEY} forcing the
+     *  deprecated Razer Chroma REST backend (localhost:54235).
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_CHROMA = "chroma";
     /** Razer Chroma via the native {@code RzChromaSDK64.dll} (the path
      *  Fortnite / Overwatch use). Distinct from RGB_BACKEND_CHROMA which
      *  speaks the deprecated REST API at localhost:54235 — kept as a
      *  separate option so users on older Synapse can fall back to the
-     *  REST one if needed. */
+     *  REST one if needed.
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_CHROMA_NATIVE = "chroma-native";
     /** Windows 11 Dynamic Lighting via the LampArray WinRT API. Windows-
      *  only, narrow device coverage today (specific Logitech / HP /
      *  Lenovo / ASUS hardware that implements the HID Lighting And
-     *  Illumination usage page). Razer hardware doesn't participate yet. */
+     *  Illumination usage page). Razer hardware doesn't participate yet.
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_WINDOWS_DL = "windows-dl";
     /** Corsair iCUE via the v3 SDK ({@code iCUESDK.x64_2017.dll} /
      *  {@code iCUESDK.x64_2019.dll}). Requires iCUE installed and its
-     *  service running. */
+     *  service running.
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_CORSAIR = "corsair";
     /** ASUS Aura via the legacy {@code AURA_SDK.dll}. Covers
      *  motherboard / GPU / RAM / Claymore-family keyboards. Users on
      *  newer Armoury Crate hardware should keep OpenRGB in the rotation
-     *  for broader ASUS coverage. */
+     *  for broader ASUS coverage.
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_ASUS_AURA = "asus-aura";
+
+    /** Backend identifier value for {@link #RGB_BACKEND_KEY} requesting an
+     *  explicit no-op backend (devices left untouched while the Settings tab
+     *  remains visible).
+     *
+     * @since 2.0 */
     public static final String RGB_BACKEND_NONE = "none";
 
     /** When true, in-game effects paint a gradient using the running
      *  modpack's logo dominant colors. When false, effects use the
      *  launcher theme's accent palette. Default true — the modpack tie-in
-     *  is the headline feature. */
+     *  is the headline feature.
+     *
+     * @since 2.0 */
     public static final String RGB_USE_PACK_COLORS_KEY = "rgbUsePackColors";
+
+    /** Default for {@link #RGB_USE_PACK_COLORS_KEY} — true, so in-game
+     *  effects use the modpack's logo colors.
+     *
+     * @since 2.0 */
     public static final boolean RGB_USE_PACK_COLORS_DEFAULT = true;
 
     /** When true, the in-game effect highlights WASD / E / Space / Shift
-     *  in a contrasting accent over the pack-color background. */
+     *  in a contrasting accent over the pack-color background.
+     *
+     * @since 2.0 */
     public static final String RGB_HIGHLIGHT_KEYS_KEY = "rgbHighlightKeys";
+
+    /** Default for {@link #RGB_HIGHLIGHT_KEYS_KEY} — true, so movement /
+     *  action keys are highlighted during gameplay.
+     *
+     * @since 2.0 */
     public static final boolean RGB_HIGHLIGHT_KEYS_DEFAULT = true;
 
     // region Proxy Configuration
@@ -678,11 +827,34 @@ public class ConfigConstants
      */
     public static final int BATTERY_THROTTLE_PCT_THRESHOLD = 30;
 
+    /** Theme identifier for the dark color scheme.
+     *
+     * @since 2.0 */
     public static final String THEME_DARK          = "Dark";
+
+    /** Theme identifier for the light color scheme.
+     *
+     * @since 2.0 */
     public static final String THEME_LIGHT         = "Light";
+
+    /** Theme identifier that follows the OS light/dark preference at runtime.
+     *
+     * @since 2.0 */
     public static final String THEME_AUTOMATIC     = "Automatic";
+
+    /** Theme identifier for the blue-and-gray accent variant.
+     *
+     * @since 2.0 */
     public static final String THEME_BLUE_GRAY     = "Blue+gray";
+
+    /** Theme identifier for the orange-and-purple accent variant.
+     *
+     * @since 2.0 */
     public static final String THEME_ORANGE_PURPLE = "Orange+purple";
+
+    /** Theme identifier for the Creeper (green) accent variant.
+     *
+     * @since 2.0 */
     public static final String THEME_CREEPER       = "Creeper";
     /** Lets the OS-native window material (Windows Mica) show through the app
      *  background. Falls back to a translucent dark look on macOS/Linux until
@@ -694,6 +866,10 @@ public class ConfigConstants
      *  intends rather than the more generic Automatic light/dark variant. */
     public static final String THEME_DEFAULT       = THEME_NATIVE;
 
+    /** Ordered list of selectable theme identifiers, used to validate the
+     *  persisted {@link #THEME_KEY} value and to populate the theme dropdown.
+     *
+     * @since 2.0 */
     public static final List< String > ALLOWED_THEMES = Arrays.asList( THEME_AUTOMATIC, THEME_DARK, THEME_LIGHT,
                                                                        THEME_BLUE_GRAY, THEME_ORANGE_PURPLE,
                                                                        THEME_CREEPER, THEME_NATIVE );

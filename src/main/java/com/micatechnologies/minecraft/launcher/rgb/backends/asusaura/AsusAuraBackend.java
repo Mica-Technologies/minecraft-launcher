@@ -81,19 +81,41 @@ public final class AsusAuraBackend implements RgbBackend
      *  permanently dropped for the session. */
     private static final int FAMILY_FAILURE_DROP_THRESHOLD = 5;
 
-    /** One initialised Aura controller (one device family). */
+    /**
+     * One initialised Aura controller (one device family). Bundles the
+     * opaque SDK controller pointer with the family's LED count, the
+     * closures that apply a color / release the controller, and the
+     * per-family failure-backoff bookkeeping.
+     */
     private static final class Family
     {
+        /** Human-readable family label (e.g. {@code "Motherboard"}) used in log lines. */
         final String name;
+        /** Opaque Aura SDK controller pointer owned by this family. */
         final Pointer controller;
+        /** Number of LEDs this device exposes; the color buffer is sized {@code 3 * ledCount}. */
         final int ledCount;
+        /** Applies a packed RGB byte buffer to the device, returning the SDK status code. */
         final Function< byte[], Integer > applyColor;
+        /** Restores default mode and releases the controller on shutdown. */
         final Runnable releaseHandler;
 
+        /** Consecutive render failures since the last success; resets to zero on any success. */
         final AtomicInteger consecutiveFailures = new AtomicInteger( 0 );
+        /** True once at least one color push has succeeded — protects against premature drop. */
         volatile boolean succeededOnce = false;
+        /** True once the family has been permanently dropped from the render rotation. */
         volatile boolean droppedFromRotation = false;
 
+        /**
+         * Creates a family record.
+         *
+         * @param name           human-readable family label
+         * @param controller     opaque Aura SDK controller pointer
+         * @param ledCount       number of LEDs on the device
+         * @param applyColor     closure that pushes a color buffer and returns the SDK status code
+         * @param releaseHandler closure that releases the controller on shutdown
+         */
         Family( String name, Pointer controller, int ledCount,
                 Function< byte[], Integer > applyColor,
                 Runnable releaseHandler )
@@ -106,7 +128,9 @@ public final class AsusAuraBackend implements RgbBackend
         }
     }
 
+    /** Successfully-initialised device families, in probe order. */
     private final List< Family > families = new ArrayList<>();
+    /** Whether {@link #start()} completed and at least one family is live. */
     private volatile boolean started = false;
 
     /** Frame dedup. The same color frame in / out is the static
@@ -114,15 +138,42 @@ public final class AsusAuraBackend implements RgbBackend
      *  identical pushes keeps the SDK quiet. */
     private int lastSentPackedRgb = Integer.MIN_VALUE;
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the fixed display name {@code "ASUS Aura"}
+     */
     @Override
     public String name() { return "ASUS Aura"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Maps directly to {@link AsusAuraSdkLibrary#isLoadable()} —
+     * availability is purely whether {@code AURA_SDK.dll} can be loaded
+     * on this host.</p>
+     *
+     * @return {@code true} if the Aura SDK DLL is loadable
+     */
     @Override
     public boolean isAvailable()
     {
         return AsusAuraSdkLibrary.isLoadable();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Loads the Aura SDK and probes each device family
+     * (motherboard, GPU, RAM, Claymore keyboard) independently, adding
+     * a {@link Family} for every one that reports a non-zero LED count.
+     * A family that fails to initialise is skipped without aborting the
+     * others.</p>
+     *
+     * @throws IllegalStateException if the Aura SDK DLL is not loadable,
+     *                               or if it loads but no device family
+     *                               reports any LEDs
+     */
     @Override
     public void start() throws Exception
     {
@@ -162,6 +213,18 @@ public final class AsusAuraBackend implements RgbBackend
                                families.size(), describeFamilies() ) );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Pushes the frame's background color to every active family.
+     * Identical consecutive frames are deduplicated (the common static-
+     * effect case). Per-family failures are tolerated and tracked for
+     * backoff; the call only fails if every active family failed.</p>
+     *
+     * @param frame the frame whose background color is applied to all families
+     * @throws IllegalStateException if at least one family was attempted
+     *                               and every attempt failed
+     */
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {
@@ -210,6 +273,14 @@ public final class AsusAuraBackend implements RgbBackend
         lastSentPackedRgb = packed;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Runs each family's release handler (restoring default mode and
+     * releasing the controller), clears all state, and resets frame
+     * deduplication so a subsequent {@link #start()} begins clean.
+     * Release failures are logged but never propagated.</p>
+     */
     @Override
     public void shutdown()
     {
@@ -228,11 +299,20 @@ public final class AsusAuraBackend implements RgbBackend
     // Helpers
     // =========================================================================
 
-    /** Initialise one device family. Pulls the controller pointer,
-     *  reads the LED count, sets software-control mode, and (on
-     *  success) appends a {@link Family} to {@link #families}.
-     *  Failures are silent — a user without (say) Aura RAM still wants
-     *  the rest of the backend up. */
+    /**
+     * Initialise one device family. Pulls the controller pointer,
+     * reads the LED count, sets software-control mode, and (on
+     * success) appends a {@link Family} to {@link #families}.
+     * Failures are silent — a user without (say) Aura RAM still wants
+     * the rest of the backend up.
+     *
+     * @param label      human-readable family label used in log lines
+     * @param createFn   {@code CreateXController} binding; populates the out-pointer
+     * @param ledCountFn {@code GetXLedCount} binding; returns the device LED count
+     * @param setModeFn  {@code SetXMode} binding; switches between software and default control
+     * @param setColorFn {@code SetXColor} binding; pushes a color buffer
+     * @param releaseFn  {@code ReleaseXController} binding; cleans up the controller
+     */
     private void tryInit( String label,
                            java.util.function.Function< PointerByReference, Integer > createFn,
                            java.util.function.Function< Pointer, Integer > ledCountFn,
@@ -287,10 +367,18 @@ public final class AsusAuraBackend implements RgbBackend
         Logger.logStd( LocalizationManager.format( "log.rgb.asusAura.familyConnected", label, ledCount ) );
     }
 
-    /** Build a {@code BYTE[3 * ledCount]} color buffer with the same
-     *  (r, g, b) triple repeated for every LED. RGB byte order per the
-     *  Aura SDK's documented signature; if a future build shows colors
-     *  swapped, flipping this to BGR is the first thing to try. */
+    /**
+     * Build a {@code BYTE[3 * ledCount]} color buffer with the same
+     * (r, g, b) triple repeated for every LED. RGB byte order per the
+     * Aura SDK's documented signature; if a future build shows colors
+     * swapped, flipping this to BGR is the first thing to try.
+     *
+     * @param ledCount number of LEDs on the device
+     * @param r        red channel byte
+     * @param g        green channel byte
+     * @param b        blue channel byte
+     * @return a freshly allocated {@code 3 * ledCount}-byte RGB buffer
+     */
     private static byte[] buildColorBuffer( int ledCount, byte r, byte g, byte b )
     {
         byte[] buf = new byte[ 3 * ledCount ];

@@ -57,6 +57,8 @@ public final class ModConflictDetector
      * @param description   multi-sentence explanation of why the combination breaks
      * @param firstJarName  filename of the first offending mod jar in {@code mods/}
      * @param secondJarName filename of the second offending mod jar in {@code mods/}
+     *
+     * @since 2026.5
      */
     public record Conflict( String title, String description,
                              String firstJarName, String secondJarName ) { }
@@ -102,6 +104,8 @@ public final class ModConflictDetector
      *
      * @param pack the modpack to scan; safe to pass a vanilla pack (returns empty)
      * @return non-null list, may be empty
+     *
+     * @since 2026.5
      */
     public static List< Conflict > scan( GameModPack pack )
     {
@@ -127,6 +131,7 @@ public final class ModConflictDetector
      *                     filenames ending in {@code .jar.disabled} should
      *                     not be included by the caller — the scan loop
      *                     already filters them out.
+     * @return non-null list of detected conflicts, may be empty
      */
     static List< Conflict > detectFromNames( List< String > jarFileNames )
     {
@@ -160,6 +165,14 @@ public final class ModConflictDetector
      * permission denied — caller falls back to "Open Mods Folder").
      *
      * <p>Atomic-move based, same primitive the in-modal toggle uses.</p>
+     *
+     * @param pack        the modpack whose {@code mods/} folder holds the jar
+     * @param jarFileName the jar filename (no path) to disable
+     * @return {@code true} if the jar was renamed to {@code <name>.jar.disabled};
+     *         {@code false} on any failure (bad arguments, missing file,
+     *         already-disabled target, locked file, or permission denied)
+     *
+     * @since 2026.5
      */
     public static boolean disableJar( GameModPack pack, String jarFileName )
     {

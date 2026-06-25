@@ -129,7 +129,18 @@ public final class ScanAcknowledgement
 
     /**
      * Returns {@code true} when this acknowledgement applies to the given
-     * supplemental-scanner finding.
+     * supplemental-scanner finding. Matching requires the {@code kind} to
+     * equal the finding's kind (case-insensitive) and at least one set hash
+     * field to match the corresponding finding hash; when both hashes are set
+     * both must match. An optional non-blank {@code locator} must also match
+     * the finding's locator.
+     *
+     * @param finding the supplemental-scanner finding to test; {@code null}
+     *                never matches
+     * @return {@code true} when this acknowledgement silences {@code finding},
+     *         {@code false} otherwise
+     *
+     * @since 2026.3
      */
     public boolean matches( SupplementalScanner.Finding finding )
     {

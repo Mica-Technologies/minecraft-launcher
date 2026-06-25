@@ -45,17 +45,54 @@ import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
  */
 final class GameModLoaderNeoForge extends GameModLoaderForge
 {
+    /**
+     * Constructs a {@link GameModLoaderNeoForge} for the supplied NeoForge
+     * installer JAR. Delegates entirely to {@link GameModLoaderForge}'s
+     * constructor, which downloads/verifies the installer and parses its
+     * embedded {@code version.json} — NeoForge installers share the modern
+     * Forge installer shape, so no NeoForge-specific construction is needed.
+     *
+     * @param remoteURL     URL of the NeoForge installer JAR (typically on
+     *                      {@code maven.neoforged.net})
+     * @param sha1Hash      expected SHA-1 hash of the installer JAR
+     * @param parentModPack mod pack this loader belongs to
+     *
+     * @throws ModpackException if the installer cannot be downloaded, verified,
+     *                          or its version manifest is missing required fields
+     * @since 2026.5
+     */
     GameModLoaderNeoForge( String remoteURL, String sha1Hash, GameModPack parentModPack )
             throws ModpackException
     {
         super( remoteURL, sha1Hash, parentModPack );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns {@code "NeoForge"}, distinguishing this loader from the
+     * {@code "Forge"} reported by the superclass in launcher and GUI
+     * displays.</p>
+     *
+     * @return the constant {@code "NeoForge"}
+     * @since 2026.5
+     */
     @Override
     public String getName() {
         return "NeoForge";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the NeoForge Maven coordinate prefix
+     * ({@code net.neoforged:neoforge:}) so the inherited universal-jar /
+     * install-jar detection in {@code getForgeAssets} keys on NeoForge's own
+     * library entries rather than upstream Forge's.</p>
+     *
+     * @return the constant {@code "net.neoforged:neoforge:"}
+     * @since 2026.5
+     */
     @Override
     protected String loaderCoordPrefix() {
         return "net.neoforged:neoforge:";

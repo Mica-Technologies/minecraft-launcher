@@ -94,6 +94,8 @@ public final class ModpackBackupManager
      * never block the in-progress update. The user can opt out in Settings
      * if backups become problematic.</p>
      *
+     * @param pack the pack whose user-editable state should be archived; a
+     *             {@code null} pack or one without an install folder is a no-op
      * @return the path to the created backup zip, or {@code null} when no
      *         backup was created
      */
@@ -152,6 +154,9 @@ public final class ModpackBackupManager
      * Removes backups beyond the configured count/age caps. Called automatically
      * after every successful backup; also safe to call standalone if a user
      * tightens the cap in Settings and wants old backups cleaned up immediately.
+     *
+     * @param pack the pack whose {@code .backups} folder should be pruned; a
+     *             {@code null} pack or one without an install folder is a no-op
      */
     public static void pruneOldBackups( GameModPack pack )
     {

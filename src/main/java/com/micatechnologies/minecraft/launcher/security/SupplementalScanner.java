@@ -105,6 +105,12 @@ import java.util.regex.Pattern;
  */
 public final class SupplementalScanner
 {
+    /**
+     * Private no-op constructor. This is a static-only utility class and is
+     * never instantiated.
+     *
+     * @since 2026.2
+     */
     private SupplementalScanner() { /* static-only */ }
 
     /** Per-entry filename suffixes (case-insensitive) that are not legitimate
@@ -272,14 +278,30 @@ public final class SupplementalScanner
             "runtime" );
 
     /** Severity label for a single finding. HIGH blocks launch; MEDIUM is
-     *  reported but launch proceeds. */
-    public enum Severity { HIGH, MEDIUM }
+     *  reported but launch proceeds.
+     *
+     *  @since 2026.2 */
+    public enum Severity {
+        /** High-confidence infection signal. A finding at this severity is
+         *  treated as malware and blocks the modpack from launching until the
+         *  pack manifest explicitly acknowledges it.
+         *
+         *  @since 2026.2 */
+        HIGH,
+        /** Suspicious-but-not-conclusive signal. A finding at this severity is
+         *  logged and surfaced in the scan report, but launch still proceeds.
+         *
+         *  @since 2026.2 */
+        MEDIUM
+    }
 
     /** Stable identifier for the rule that fired a finding. These names are
      *  part of the public manifest schema for {@code packScanAcknowledgements}
      *  — renaming or removing an entry is a breaking change for any modpack
      *  manifest that references it. Add new entries freely; never repurpose
-     *  an existing one. */
+     *  an existing one.
+     *
+     *  @since 2026.2 */
     public enum Kind {
         /** Entry filename matched a Windows-executable or script suffix
          *  ({@code .exe}, {@code .bat}, {@code .ps1}, etc.). */
@@ -342,10 +364,22 @@ public final class SupplementalScanner
      *                     acknowledgement matching — the message wording can
      *                     change between launcher versions, the (kind, locator)
      *                     identity stays the same.
+     *
+     * @since 2026.2
      */
     public record Finding(Severity severity, Kind kind, Path file, String fileSha256,
                            String innerSha256, String locator, String message)
     {
+        /**
+         * Renders a compact one-line, human-readable form of this finding
+         * suitable for log output, of the shape
+         * {@code [SEVERITY] <jar path> — <message>}.
+         *
+         * @return a single-line summary combining the severity, containing JAR
+         *         path, and human-readable message
+         *
+         * @since 2026.2
+         */
         @Override public String toString() {
             return "[" + severity + "] " + file + " — " + message;
         }
@@ -355,6 +389,27 @@ public final class SupplementalScanner
      * Scans every {@code .jar} file under {@code root}, returning a list of
      * findings. Excluded paths (modpack-supplied scan exclusions) are skipped
      * just like the upstream {@link me.cortex.jarscanner.Main}.
+     *
+     * <p>The caller-supplied {@code excludeFolders} are first run through
+     * {@link ScanExclusionPolicy#filterUntrusted} and then combined with the
+     * launcher's hard-coded {@link #BUILT_IN_EXCLUSIONS} ({@code libraries/},
+     * {@code bin/}, {@code runtime/}). The built-in list is appended last so a
+     * malicious manifest cannot countermand it by supplying an empty exclusion
+     * set. The directory tree is walked once; matching {@code .jar} files are
+     * queued and then scanned across a fixed thread pool. A JAR that fails to
+     * open is logged and skipped rather than aborting the scan.</p>
+     *
+     * @param root          pack root directory to walk; scanning is recursive
+     * @param excludeFolders pack-root-relative paths (modpack-supplied scan
+     *                       exclusions) to skip, in addition to the built-in
+     *                       exclusions; may be {@code null} or empty
+     * @param nThreads      desired worker-thread count; clamped to a minimum of
+     *                      one
+     * @return the aggregated findings across every scanned JAR; empty when
+     *         nothing was flagged
+     * @throws IOException if walking the directory tree under {@code root} fails
+     *
+     * @since 2026.2
      */
     public static List< Finding > scanFolder( Path root, List< String > excludeFolders, int nThreads )
             throws IOException
@@ -428,6 +483,24 @@ public final class SupplementalScanner
 
     /**
      * Scans a single JAR. Returns an empty list when nothing flagged.
+     *
+     * <p>The JAR's SHA-256 is computed once up front and stamped onto every
+     * {@link Finding} so it can be matched against a manifest acknowledgement.
+     * Each entry is visited a single time; filename-based checks
+     * (forbidden-executable suffix, native-binary-outside-known-path) and
+     * content-based checks (class constant-pool inspection) all run in that one
+     * pass. When the JAR's own filename matches {@link #NATIVES_JAR_FILENAME}
+     * the native-outside-known-path check is suppressed, since such JARs ship
+     * native binaries at their root by design. A parse failure on an individual
+     * class entry is swallowed and scanning continues with the next entry.</p>
+     *
+     * @param jar     the open JAR file to scan
+     * @param jarPath absolute path of the JAR on disk, used both for SHA-256
+     *                computation and as the {@code file} field of each finding;
+     *                may be {@code null}, in which case no file hash is computed
+     * @return the findings produced for this JAR; empty when nothing was flagged
+     *
+     * @since 2026.2
      */
     static List< Finding > scanJar( JarFile jar, Path jarPath )
     {

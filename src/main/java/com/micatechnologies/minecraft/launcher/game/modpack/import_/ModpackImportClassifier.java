@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
  */
 public final class ModpackImportClassifier
 {
+    /** Non-instantiable: this is a static-only utility holder. */
     private ModpackImportClassifier() { /* static-only */ }
 
     /**
@@ -50,9 +51,19 @@ public final class ModpackImportClassifier
      * <p>Both fields may be {@code null} when the user pasted a bare project
      * URL with no version specified; downstream consumers fall back to
      * "latest" in that case.</p>
+     *
+     * @param source    the detected origin platform of the pasted URL
+     * @param slug      the platform-specific project identifier, or
+     *                  {@code null} when not applicable / not present
+     * @param versionId the URL's optional version pin, or {@code null} when
+     *                  no version was specified
+     *
+     * @since 2026.3
      */
     public record Classification(ModpackImportSource source, String slug, String versionId)
     {
+        /** Shared sentinel for "no recognized platform" — callers fall
+         *  through to the legacy add-by-URL path on this value. */
         public static final Classification UNKNOWN =
                 new Classification( ModpackImportSource.UNKNOWN, null, null );
     }
@@ -113,6 +124,14 @@ public final class ModpackImportClassifier
      *
      * <p>{@code null} / blank input is treated as UNKNOWN; the caller is
      * expected to short-circuit on empty input before reaching here.</p>
+     *
+     * @param url the raw URL text the user pasted (leading / trailing
+     *            whitespace is tolerated)
+     *
+     * @return the {@link Classification} for the first matching platform
+     *         pattern, or {@link Classification#UNKNOWN} when nothing matches
+     *
+     * @since 2026.3
      */
     public static Classification classify( String url )
     {

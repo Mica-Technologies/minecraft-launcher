@@ -94,30 +94,147 @@ public interface AsusAuraSdkLibrary extends StdCallLibrary
     // Motherboard
     // ====================================================================
 
+    /**
+     * Initialise the motherboard ARGB controller.
+     *
+     * @param pCtrl out-parameter receiving the opaque controller pointer
+     * @return SDK status code; a non-negative value (some headers report
+     *         the LED count) indicates the controller was created
+     */
     int CreateMbController( PointerByReference pCtrl );
+
+    /**
+     * Release the motherboard ARGB controller and free its resources.
+     *
+     * @param pCtrl pointer reference to the controller to release
+     * @return SDK status code
+     */
     int ReleaseMbController( PointerByReference pCtrl );
+
+    /**
+     * Read the number of addressable LEDs on the motherboard controller.
+     *
+     * @param pCtrl the motherboard controller pointer
+     * @return the LED count; the color buffer must be {@code 3 * count} bytes
+     */
     int GetMbLedCount( Pointer pCtrl );
+
+    /**
+     * Push a packed RGB color buffer to the motherboard controller.
+     *
+     * @param pCtrl    the motherboard controller pointer
+     * @param colorBuf {@code 3 * ledCount}-byte buffer in RGB order
+     * @param bufSize  length of {@code colorBuf} in bytes
+     * @return SDK status code; treat a non-negative value as success
+     */
     int SetMbColor( Pointer pCtrl, byte[] colorBuf, int bufSize );
+
+    /**
+     * Set the motherboard controller's lighting mode.
+     *
+     * @param pCtrl the motherboard controller pointer
+     * @param mode  {@link #MODE_SOFTWARE} to take software control or
+     *              {@link #MODE_DEFAULT} to return control to Aura
+     * @return SDK status code
+     */
     int SetMbMode( Pointer pCtrl, int mode );
 
     // ====================================================================
     // GPU
     // ====================================================================
 
+    /**
+     * Initialise the GPU controller (ASUS ROG-branded cards).
+     *
+     * @param pCtrl out-parameter receiving the opaque controller pointer
+     * @return SDK status code; a non-negative value indicates the
+     *         controller was created
+     */
     int CreateGPUController( PointerByReference pCtrl );
+
+    /**
+     * Release the GPU controller and free its resources.
+     *
+     * @param pCtrl pointer reference to the controller to release
+     * @return SDK status code
+     */
     int ReleaseGPUController( PointerByReference pCtrl );
+
+    /**
+     * Read the number of addressable LEDs on the GPU controller.
+     *
+     * @param pCtrl the GPU controller pointer
+     * @return the LED count; the color buffer must be {@code 3 * count} bytes
+     */
     int GetGPULedCount( Pointer pCtrl );
+
+    /**
+     * Push a packed RGB color buffer to the GPU controller.
+     *
+     * @param pCtrl    the GPU controller pointer
+     * @param colorBuf {@code 3 * ledCount}-byte buffer in RGB order
+     * @param bufSize  length of {@code colorBuf} in bytes
+     * @return SDK status code; treat a non-negative value as success
+     */
     int SetGPUColor( Pointer pCtrl, byte[] colorBuf, int bufSize );
+
+    /**
+     * Set the GPU controller's lighting mode.
+     *
+     * @param pCtrl the GPU controller pointer
+     * @param mode  {@link #MODE_SOFTWARE} to take software control or
+     *              {@link #MODE_DEFAULT} to return control to Aura
+     * @return SDK status code
+     */
     int SetGPUMode( Pointer pCtrl, int mode );
 
     // ====================================================================
     // DRAM
     // ====================================================================
 
+    /**
+     * Initialise the DRAM controller (Aura-compatible memory modules).
+     *
+     * @param pCtrl out-parameter receiving the opaque controller pointer
+     * @return SDK status code; a non-negative value indicates the
+     *         controller was created
+     */
     int CreateRAMController( PointerByReference pCtrl );
+
+    /**
+     * Release the DRAM controller and free its resources.
+     *
+     * @param pCtrl pointer reference to the controller to release
+     * @return SDK status code
+     */
     int ReleaseRAMController( PointerByReference pCtrl );
+
+    /**
+     * Read the number of addressable LEDs across the DRAM modules.
+     *
+     * @param pCtrl the DRAM controller pointer
+     * @return the LED count; the color buffer must be {@code 3 * count} bytes
+     */
     int GetRAMLedCount( Pointer pCtrl );
+
+    /**
+     * Push a packed RGB color buffer to the DRAM controller.
+     *
+     * @param pCtrl    the DRAM controller pointer
+     * @param colorBuf {@code 3 * ledCount}-byte buffer in RGB order
+     * @param bufSize  length of {@code colorBuf} in bytes
+     * @return SDK status code; treat a non-negative value as success
+     */
     int SetRAMColor( Pointer pCtrl, byte[] colorBuf, int bufSize );
+
+    /**
+     * Set the DRAM controller's lighting mode.
+     *
+     * @param pCtrl the DRAM controller pointer
+     * @param mode  {@link #MODE_SOFTWARE} to take software control or
+     *              {@link #MODE_DEFAULT} to return control to Aura
+     * @return SDK status code
+     */
     int SetRAMMode( Pointer pCtrl, int mode );
 
     // ====================================================================
@@ -125,10 +242,50 @@ public interface AsusAuraSdkLibrary extends StdCallLibrary
     // ASUS keyboard line covered by this SDK)
     // ====================================================================
 
+    /**
+     * Initialise the Claymore keyboard controller (the original ASUS
+     * Aura keyboard family).
+     *
+     * @param pCtrl out-parameter receiving the opaque controller pointer
+     * @return SDK status code; a non-negative value indicates the
+     *         controller was created
+     */
     int CreateClaymoreKeyboard( PointerByReference pCtrl );
+
+    /**
+     * Release the Claymore keyboard controller and free its resources.
+     *
+     * @param pCtrl pointer reference to the controller to release
+     * @return SDK status code
+     */
     int ReleaseClaymoreKeyboard( PointerByReference pCtrl );
+
+    /**
+     * Read the number of addressable lights on the Claymore keyboard.
+     *
+     * @param pCtrl the Claymore keyboard controller pointer
+     * @return the light count; the color buffer must be {@code 3 * count} bytes
+     */
     int GetClaymoreKeyboardLightCount( Pointer pCtrl );
+
+    /**
+     * Push a packed RGB color buffer to the Claymore keyboard.
+     *
+     * @param pCtrl    the Claymore keyboard controller pointer
+     * @param colorBuf {@code 3 * lightCount}-byte buffer in RGB order
+     * @param bufSize  length of {@code colorBuf} in bytes
+     * @return SDK status code; treat a non-negative value as success
+     */
     int SetClaymoreKeyboardColor( Pointer pCtrl, byte[] colorBuf, int bufSize );
+
+    /**
+     * Set the Claymore keyboard controller's lighting mode.
+     *
+     * @param pCtrl the Claymore keyboard controller pointer
+     * @param mode  {@link #MODE_SOFTWARE} to take software control or
+     *              {@link #MODE_DEFAULT} to return control to Aura
+     * @return SDK status code
+     */
     int SetClaymoreKeyboardMode( Pointer pCtrl, int mode );
 
     /** True iff {@code AURA_SDK.dll} is loadable on this host. The

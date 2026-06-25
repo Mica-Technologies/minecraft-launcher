@@ -147,8 +147,19 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  the Open Folder action. */
     private static final int MAX_LOG_ENTRIES_SHOWN = 12;
 
+    /** Dim, full-overlay region that sits behind the modal card. Captures clicks
+     *  on the area outside the card and routes them to {@link #hide()} (the
+     *  click-outside-to-dismiss channel); the card itself consumes its own
+     *  clicks so they never reach this handler. */
     private final Region backdrop;
+    /** The centered modal card. Its content is torn down and rebuilt on every
+     *  {@link #show(GameModPack)} (so the overlay can be reused across packs),
+     *  and its pref/max size is bound to a clamped fraction of the overlay's
+     *  bounds — see the size constants and the binding wired in the constructor. */
     private final VBox modalCard;
+    /** The host layout this overlay was added to (the value passed to the
+     *  constructor). Retained for reference; the overlay pins itself to fill
+     *  this parent so the backdrop covers the whole window. */
     private final Pane parentRoot;
 
     /** Whether the modal is currently shown. Used to gate ESC handling so we don't
@@ -158,11 +169,29 @@ public class MCLauncherModpackDetailModal extends StackPane
     // === Hero multi-image cycle state (issue #43). Rebuilt by buildHeroSection on
     //     every show; the modal auto-cycles via the shared clock AND lets the user
     //     step manually with the ◀ ▶ buttons / by clicking the logo. ===
+    /** Unsubscribe callback returned by {@link ModpackImageCycleClock#register}
+     *  for this modal's auto-advance tick, or {@code null} when not subscribed.
+     *  Run-and-cleared on hide / dispose / re-wire so the modal never leaks a
+     *  registration into the app-wide clock. */
     private Runnable heroCycleUnsub;
+    /** The pack's resolved set of showcase logos for the current show, in cycle
+     *  order (post-shuffle when shuffle is enabled). Rebuilt by
+     *  {@link #setupHeroCycle}; a size of &gt;1 enables cycling/manual stepping. */
     private java.util.List< Image > heroLogos = java.util.List.of();
+    /** The pack's resolved set of showcase background URLs for the current show,
+     *  in cycle order. Empty when backgrounds are disabled in settings; a size of
+     *  &gt;1 enables cycling and surfaces the ◀ ▶ navigation overlay. */
     private java.util.List< String > heroBgUrls = java.util.List.of();
+    /** Current position within the hero cycle, shared by both the logo and the
+     *  background so the two advance in lockstep. Wrapped modulo the larger of the
+     *  two list sizes by {@link #advanceHero(int)}. */
     private int heroCycleIndex = 0;
+    /** The hero's background {@link Region} for the current show, retained so the
+     *  cycle / prefetch-rewire paths can repaint it via
+     *  {@link MCLauncherMainGui#setBackgroundImageInline}. */
     private Region heroBgLayer;
+    /** The hero's logo {@link ImageView} for the current show, retained so the
+     *  cycle path can swap its image without rebuilding the hero. */
     private ImageView heroLogoView;
     /** Guards the one-shot background prefetch of not-yet-cached hero images per show. */
     private boolean heroPrefetchStarted = false;
@@ -400,6 +429,18 @@ public class MCLauncherModpackDetailModal extends StackPane
         fade.play();
     }
 
+    /**
+     * Reports whether the modal is currently in its shown (visible, managed)
+     * state. Tracks {@link #visibleState}, which flips to {@code true} the
+     * instant {@link #show(GameModPack)} begins and back to {@code false} at
+     * the start of {@link #hide()} (i.e. before the fade-out animation
+     * finishes), so a caller polling this gets the logical state, not the
+     * mid-animation opacity.
+     *
+     * @return {@code true} while the modal is logically open, {@code false} otherwise
+     *
+     * @since 3.4
+     */
     public boolean isShown()
     {
         return visibleState;
@@ -571,6 +612,21 @@ public class MCLauncherModpackDetailModal extends StackPane
         }.start();
     }
 
+    /**
+     * Builds the hero section at the top of the modal: the background image
+     * (or procedural gradient fallback), a darkening veil, the Beta /
+     * Recently-updated badge row, the pack logo + name + last-played subtitle,
+     * the optional ◀ ▶ multi-image navigation overlay, and the close button.
+     *
+     * <p>Resets {@link #heroPrefetchStarted} so this show gets a fresh chance to
+     * prefetch declared-but-uncached showcase images, and wires the multi-image
+     * cycle via {@link #setupHeroCycle}. Children are added in deliberate z-order
+     * (close button last) so the close button's hit region is never overlapped by
+     * a wide title row — see the inline notes for the defensive measures.
+     *
+     * @param pack the pack whose art and metadata the hero displays
+     * @return the assembled hero {@link StackPane}
+     */
     private Node buildHeroSection( GameModPack pack )
     {
         // Fresh hero per show — allow its cycle images to be prefetched once.
@@ -742,6 +798,12 @@ public class MCLauncherModpackDetailModal extends StackPane
      * showcase images. Returns a ◀ ▶ navigation overlay when the pack ships more than one
      * background (so the user can step through them — backgrounds double as showcase art),
      * or {@code null} otherwise.
+     *
+     * @param pack        the pack whose showcase images drive the cycle
+     * @param primaryLogo the already-resolved primary logo, used as the sole cycle
+     *                    entry when no per-disk logos are found
+     * @return a ◀ ▶ navigation overlay {@link Node} when the pack has more than one
+     *         background, or {@code null} when no navigation control is warranted
      */
     private Node setupHeroCycle( GameModPack pack, Image primaryLogo )
     {
@@ -812,7 +874,11 @@ public class MCLauncherModpackDetailModal extends StackPane
     }
 
     /** Re-resolves the hero cycle after a prefetch lands and refreshes the displayed
-     *  image. Re-adds the ◀ ▶ nav overlay if backgrounds newly became multiple. */
+     *  image. Re-adds the ◀ ▶ nav overlay if backgrounds newly became multiple.
+     *
+     *  @param pack        the pack whose now-cached images should be re-resolved
+     *  @param primaryLogo the primary logo to fall back on, forwarded to
+     *                     {@link #setupHeroCycle} */
     private void rewireHeroAfterPrefetch( GameModPack pack, Image primaryLogo )
     {
         Node bgNav = setupHeroCycle( pack, primaryLogo );
@@ -830,7 +896,10 @@ public class MCLauncherModpackDetailModal extends StackPane
         applyHeroImages();
     }
 
-    /** Builds the ◀ ▶ overlay that steps through the pack's backgrounds. */
+    /** Builds the ◀ ▶ overlay that steps through the pack's backgrounds.
+     *
+     *  @return an {@link HBox} spanning the hero with left / right chevron labels
+     *          wired to {@link #advanceHero(int)} */
     private Node buildHeroNav()
     {
         Label prev = new Label( "‹" ); // ‹
@@ -861,7 +930,11 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     /** Steps the hero cycle by {@code delta} (wrapping) and repaints. Drives both the
      *  logo and background in sync (issue #43), independent of the auto-cycle clock so
-     *  manual stepping works even when the interval is set to "Never". */
+     *  manual stepping works even when the interval is set to "Never".
+     *
+     *  @param delta number of steps to move (positive forward, negative back); the
+     *               result wraps modulo the larger of the logo / background counts.
+     *               A no-op when there's nothing to cycle */
     private void advanceHero( int delta )
     {
         int span = Math.max( heroLogos.size(), heroBgUrls.size() );
@@ -883,6 +956,16 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
     }
 
+    /**
+     * Builds the at-a-glance metadata chip row: a Vanilla marker (vanilla packs
+     * only), Minecraft version, mod-loader name + short version, pack version
+     * (when it differs from the MC version), minimum RAM, and mod count. Each
+     * chip is added only when its underlying value is present and meaningful;
+     * resolution failures are swallowed so one bad field can't sink the row.
+     *
+     * @param pack the pack whose metadata populates the chips
+     * @return an {@link HBox} of {@code stat-chip} labels
+     */
     private Node buildChipsRow( GameModPack pack )
     {
         HBox chips = new HBox( 6 );
@@ -933,6 +1016,16 @@ public class MCLauncherModpackDetailModal extends StackPane
         return chips;
     }
 
+    /**
+     * Builds the Quick Actions section — the right-click context menu surfaced as
+     * a reflowing button grid: Open Folder plus (modded packs only) Mods / Config,
+     * then Screenshots / Resource Packs / Shaders, Create Desktop Shortcut, Export
+     * Pack, and Copy Invite Link. The invite button is disabled with an explanatory
+     * tooltip when the pack has no invitable target.
+     *
+     * @param pack the pack the actions operate on
+     * @return the assembled section {@link VBox} (header + button grid)
+     */
     private Node buildQuickActionsSection( GameModPack pack )
     {
         VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.quickActions" ) );
@@ -991,6 +1084,8 @@ public class MCLauncherModpackDetailModal extends StackPane
      *       and the embedded manifest. Always available; required when
      *       the pack has any local-file-reference mods.</li>
      * </ul>
+     *
+     * @param pack the pack to share / export; a {@code null} pack is a no-op
      */
     private void showSmartExportDialog( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
     {
@@ -1056,7 +1151,10 @@ public class MCLauncherModpackDetailModal extends StackPane
     }
 
     /** Copies the pack's manifest URL to the system clipboard and
-     *  surfaces a success notification. No file IO. */
+     *  surfaces a success notification. No file IO. Shows an error
+     *  notification instead when the pack has no manifest URL.
+     *
+     *  @param pack the pack whose manifest URL is copied */
     private void shareManifestUrlToClipboard( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
     {
         String url = pack.getManifestUrl();
@@ -1075,7 +1173,9 @@ public class MCLauncherModpackDetailModal extends StackPane
     /** Saves the pack's manifest JSON body to a user-chosen file via a
      *  FileChooser. Default filename is {@code <packName>-manifest.json}.
      *  The body comes from the on-disk manifest cache via
-     *  {@link com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter#loadManifestText}. */
+     *  {@link com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter#loadManifestText}.
+     *
+     *  @param pack the pack whose cached manifest JSON is saved */
     private void saveManifestJsonToFile( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
     {
         String body = com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter.loadManifestText( pack );
@@ -1115,7 +1215,12 @@ public class MCLauncherModpackDetailModal extends StackPane
     /** Pops a file chooser for the destination ZIP, then runs the
      *  export off the FX thread via FxAsyncTask. Shows a notification
      *  on completion (success path links the saved file; failure
-     *  path surfaces the exception message). */
+     *  path surfaces the exception message). Modded packs are verified
+     *  first (force-download of any not-yet-present content) so the ZIP
+     *  isn't sparse; vanilla packs skip verify and archive directly.
+     *
+     *  @param pack the pack to archive; a {@code null} pack or one with no
+     *              root folder is a no-op */
     private void exportPackAsZip( com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack )
     {
         if ( pack == null || pack.getPackRootFolder() == null ) return;
@@ -1190,6 +1295,16 @@ public class MCLauncherModpackDetailModal extends StackPane
         }
     }
 
+    /**
+     * Builds the Stats section: last played, total play time, launch count, the
+     * installed pack version (annotated with the available remote version when an
+     * update is pending), and the manifest URL. All of these involve disk / manifest
+     * reads, so the section mounts a spinner placeholder synchronously and replaces
+     * it with the real rows once the data is gathered off the FX thread.
+     *
+     * @param pack the pack whose play stats and version info are shown
+     * @return the section {@link VBox}, initially showing a loading placeholder
+     */
     private Node buildStatsSection( GameModPack pack )
     {
         VBox section = buildSectionBox(
@@ -1253,6 +1368,18 @@ public class MCLauncherModpackDetailModal extends StackPane
         return section;
     }
 
+    /**
+     * Builds the Update Log section: a "what's new" pending-changes card (when an
+     * update is available) atop a chronological list of the most recent
+     * {@link #MAX_LOG_ENTRIES_SHOWN} packVersion-change entries, with a "+N more"
+     * footer when the log is longer. Both the log read and the pending-update diff
+     * are file/manifest I/O, so the section mounts a spinner placeholder and fills
+     * in the rows off the FX thread. Empty logs show a vanilla- or modded-specific
+     * empty-state message.
+     *
+     * @param pack the pack whose update log is rendered
+     * @return the section {@link VBox}, initially showing a loading placeholder
+     */
     private Node buildUpdateLogSection( GameModPack pack )
     {
         VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.updateLog" ) );
@@ -1329,7 +1456,12 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     /** "What's new" summary card shown atop the update log when a manifest update is pending —
      *  a one-line add/update/remove count derived from {@link com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff},
-     *  with a few example mod names per category. */
+     *  with a few example mod names per category.
+     *
+     *  @param pack the pack whose pending update is being summarized (its
+     *              {@code packVersion} appears in the header)
+     *  @param diff the precomputed, non-empty add/update/remove diff to render
+     *  @return the summary card {@link Node} */
     private Node buildPendingChangesNode(
             GameModPack pack,
             com.micatechnologies.minecraft.launcher.game.modpack.PendingUpdateDiff.Result diff )
@@ -1374,7 +1506,11 @@ public class MCLauncherModpackDetailModal extends StackPane
     }
 
     /** Appends a muted "Added: a, b, c (+N more)" line for one diff category, capped to keep the
-     *  card compact. No-op for an empty list. */
+     *  card compact. No-op for an empty list.
+     *
+     *  @param box      the container the line is appended to
+     *  @param labelKey the localization key for the line template (takes the joined names)
+     *  @param names    the category's mod names; capped at 6 with a "+N more" suffix when longer */
     private void addExampleNames( VBox box, String labelKey, java.util.List< String > names )
     {
         if ( names == null || names.isEmpty() ) {
@@ -1400,6 +1536,13 @@ public class MCLauncherModpackDetailModal extends StackPane
      * files on launch" toggle and the "Verify this pack now" button. Designed
      * to grow over time as other per-pack power-user knobs (custom RAM,
      * custom JVM args, etc.) land.
+     *
+     * <p>Starts collapsed and lazy-populates via {@link #registerOnFirstExpand}
+     * so its (relatively heavy) controls are only constructed if the user opens
+     * the section.
+     *
+     * @param pack the pack the advanced controls operate on
+     * @return the collapsed section {@link VBox} (header only until first expand)
      */
     private Node buildAdvancedSection( GameModPack pack )
     {
@@ -1418,7 +1561,12 @@ public class MCLauncherModpackDetailModal extends StackPane
     /** Body of the Advanced section. Extracted so it can be deferred
      *  via {@link #registerOnFirstExpand} — the section header alone
      *  is what renders at modal open, content only loads if the user
-     *  clicks to expand. */
+     *  clicks to expand.
+     *
+     *  @param section the already-constructed Advanced section the controls are
+     *                 appended to
+     *  @param pack    the pack the controls read from and write back to via
+     *                 {@link ConfigManager} */
     private void buildAdvancedSectionBody( VBox section, GameModPack pack )
     {
         Label hint = new Label( LocalizationManager.get( "modal.advanced.hint" ) );
@@ -1821,6 +1969,17 @@ public class MCLauncherModpackDetailModal extends StackPane
         GUIUtilities.openExternalUrl( url );
     }
 
+    /**
+     * Builds the sticky action row pinned below the scrollable body: a flex-growing
+     * Play button (the primary action; disabled when {@link AnnouncementManager}
+     * reports gameplay is globally disabled) and a fixed-width Website button
+     * (disabled when the pack declares no {@code packURL}). Both buttons are pinned
+     * to an identical height so the Play button's heavier styling doesn't make it
+     * taller than its neighbour.
+     *
+     * @param pack the pack the Play / Website actions operate on
+     * @return the assembled action-row {@link HBox}
+     */
     private HBox buildActionRow( GameModPack pack )
     {
         HBox actions = new HBox( 10 );
@@ -1866,6 +2025,13 @@ public class MCLauncherModpackDetailModal extends StackPane
     //  Small builders / helpers
     // =============================================================================
 
+    /**
+     * Convenience overload that builds a section box which starts expanded. Equivalent
+     * to {@link #buildSectionBox(String, boolean)} with {@code defaultExpanded == true}.
+     *
+     * @param heading section title shown in the header
+     * @return the expanded section {@link VBox} (header plus room for content rows)
+     */
     private VBox buildSectionBox( String heading )
     {
         return buildSectionBox( heading, true );
@@ -1958,6 +2124,32 @@ public class MCLauncherModpackDetailModal extends StackPane
         return section;
     }
 
+    /**
+     * Builds a section VBox with a click-to-toggle header. The returned VBox is an
+     * outer container whose first child is the header HBox (chevron + title);
+     * subsequent children added by section builders are the "content" rows.
+     *
+     * <p>When collapsed, the content children are set {@code visible=false,
+     * managed=false} so they take zero layout space and the section shrinks to just
+     * the header. A {@link javafx.collections.ListChangeListener} on the section's
+     * child list keeps this state consistent for rows added AFTER a toggle: the
+     * content-browser sections populate themselves asynchronously, so their rows
+     * arrive seconds after construction, and the listener ensures they respect the
+     * current expand state.
+     *
+     * <p>Pre-collapsed sections also receive an empty {@link #LAZY_POPULATE_KEY}
+     * stash so {@link #registerOnFirstExpand} can queue deferred populate work that
+     * fires once, the first time the user expands the section.
+     *
+     * @param heading         section title shown in the header
+     * @param defaultExpanded {@code true} to start expanded; {@code false} to start
+     *                        collapsed so the user has to click to load. Sections
+     *                        likely to contain many rows (mods, screenshots, crash
+     *                        history) default to collapsed to keep the modal scroll
+     *                        manageable for large packs.
+     * @return the assembled section {@link VBox} (header at index 0, content rows
+     *         appended by the caller)
+     */
     private VBox buildSectionBox( String heading, boolean defaultExpanded )
     {
         VBox section = new VBox( 8 );
@@ -2036,6 +2228,15 @@ public class MCLauncherModpackDetailModal extends StackPane
         return section;
     }
 
+    /**
+     * Builds a small pill-style {@link Label} ("chip") carrying the given text and
+     * style classes — used for the hero badges and the stat-chip metadata row.
+     *
+     * @param text    the chip's display text
+     * @param classes zero or more CSS style classes to add to the chip (e.g.
+     *                {@code "stat-chip"}, {@code "stat-chip-warn"})
+     * @return the styled chip {@link Label}
+     */
     private Label buildChip( String text, String... classes )
     {
         Label chip = new Label( text );
@@ -2043,6 +2244,16 @@ public class MCLauncherModpackDetailModal extends StackPane
         return chip;
     }
 
+    /**
+     * Builds one Quick Actions tile button. The supplied action is wrapped in a
+     * try/catch so a failing action (e.g. an IO error opening a folder) logs and is
+     * swallowed rather than propagating out of the FX event handler.
+     *
+     * @param text   the button's display text
+     * @param action the work to run when the button is clicked; any thrown
+     *               {@link Throwable} is logged and suppressed
+     * @return the configured {@link MFXButton}
+     */
     private MFXButton buildQuickActionBtn( String text, Runnable action )
     {
         MFXButton btn = new MFXButton( text );
@@ -2058,6 +2269,16 @@ public class MCLauncherModpackDetailModal extends StackPane
         return btn;
     }
 
+    /**
+     * Builds a single key/value row for the Stats section: a fixed-width label
+     * column on the left and a flex-growing, wrapping value on the right. A null or
+     * blank value renders as an em-dash placeholder.
+     *
+     * @param label the row's key text (left column)
+     * @param value the row's value text (right column); rendered as {@code "—"} when
+     *              null or blank
+     * @return the assembled stat row {@link HBox}
+     */
     private HBox buildStatRow( String label, String value )
     {
         HBox row = new HBox( 8 );
@@ -2073,6 +2294,13 @@ public class MCLauncherModpackDetailModal extends StackPane
         return row;
     }
 
+    /**
+     * Builds a single Update Log row: the entry's formatted timestamp on the left and
+     * an {@code v<old> → v<new>} version-change arrow on the right.
+     *
+     * @param e the update-log entry to render
+     * @return the assembled log row {@link HBox}
+     */
     private HBox buildUpdateLogRow( ModPackUpdateLog.Entry e )
     {
         HBox row = new HBox( 10 );
@@ -2096,6 +2324,17 @@ public class MCLauncherModpackDetailModal extends StackPane
     //  helpers package-visible across the gui package).
     // =============================================================================
 
+    /**
+     * Resolves the pack's logo image for the hero, mirroring the hero card's
+     * resolution rules: the on-disk cached logo file when present, otherwise the
+     * bundled default-logo URL. Loaded in background mode so the modal doesn't block
+     * on a cold image fetch. Returns {@code null} only if even the default fails to
+     * construct.
+     *
+     * @param pack the pack whose logo is resolved
+     * @return the resolved logo {@link Image}, or {@code null} when none could be
+     *         constructed
+     */
     private static Image resolveLogoImage( GameModPack pack )
     {
         try {

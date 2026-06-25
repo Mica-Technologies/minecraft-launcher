@@ -124,27 +124,48 @@ public final class NewsItem
      */
     public enum Type
     {
+        /** General information; the default for absent or unrecognized {@code type}. */
         INFO( "ℹ", "stat-chip" ),          // ℹ
+        /** Announces a pack update or new content; rendered with the success chip style. */
         UPDATE( "⬆", "stat-chip-success" ), // ⬆
+        /** Cautionary notice; rendered with the warning chip style. */
         WARNING( "⚠", "stat-chip-warn" ),   // ⚠
+        /** Time-bound happening (contest, server event, etc.). */
         EVENT( "★", "stat-chip" );          // ★
 
+        /** Leading Unicode symbol shown before the title for this category. */
         private final String glyph;
+
+        /** CSS style class applied to the type chip for this category. */
         private final String chipStyleClass;
 
+        /**
+         * Binds the display glyph and chip style class to an enum constant.
+         *
+         * @param glyph          leading Unicode symbol shown before the title
+         * @param chipStyleClass CSS style class for the type chip
+         */
         Type( String glyph, String chipStyleClass )
         {
             this.glyph = glyph;
             this.chipStyleClass = chipStyleClass;
         }
 
-        /** Leading symbol shown before the title. */
+        /**
+         * Leading symbol shown before the title.
+         *
+         * @return the Unicode glyph for this category
+         */
         public String glyph()
         {
             return glyph;
         }
 
-        /** CSS style class for the type chip (reuses existing stat-chip styles). */
+        /**
+         * CSS style class for the type chip (reuses existing stat-chip styles).
+         *
+         * @return the chip style class name for this category
+         */
         public String chipStyleClass()
         {
             return chipStyleClass;
@@ -154,6 +175,8 @@ public final class NewsItem
     /**
      * Returns the parsed {@link Type}, defaulting to {@link Type#INFO} for an
      * absent or unrecognized {@code type} string.
+     *
+     * @return the resolved category, never {@code null}
      */
     public Type getType()
     {
@@ -168,25 +191,41 @@ public final class NewsItem
         }
     }
 
-    /** Returns the trimmed, length-clamped title, or {@code null} when blank. */
+    /**
+     * Returns the trimmed, length-clamped title, or {@code null} when blank.
+     *
+     * @return the display title clamped to {@link #MAX_TITLE_LEN} characters, or {@code null}
+     */
     public String getTitle()
     {
         return clamp( title, MAX_TITLE_LEN );
     }
 
-    /** Returns the trimmed, length-clamped body, or {@code null} when blank. */
+    /**
+     * Returns the trimmed, length-clamped body, or {@code null} when blank.
+     *
+     * @return the display body clamped to {@link #MAX_BODY_LEN} characters, or {@code null}
+     */
     public String getBody()
     {
         return clamp( body, MAX_BODY_LEN );
     }
 
-    /** Returns the trimmed id, or {@code null} when blank. */
+    /**
+     * Returns the trimmed id, or {@code null} when blank.
+     *
+     * @return the read/unread tracking id, or {@code null} when none was supplied
+     */
     public String getId()
     {
         return ( id == null || id.isBlank() ) ? null : id.trim();
     }
 
-    /** Returns whether this item is pinned. */
+    /**
+     * Returns whether this item is pinned.
+     *
+     * @return {@code true} when the item floats above unpinned items regardless of date
+     */
     public boolean isPinned()
     {
         return pinned;
@@ -197,6 +236,8 @@ public final class NewsItem
      * {@code https} URL; {@code null} otherwise (including for {@code file:},
      * {@code javascript:}, or otherwise malformed values supplied by a remote
      * manifest).
+     *
+     * @return a sanitized {@code http}/{@code https} URL, or {@code null} when none is safe to use
      */
     public String getUrl()
     {
@@ -209,6 +250,7 @@ public final class NewsItem
      *
      * @param today the current local date (injected so callers avoid a hidden
      *              clock dependency)
+     * @return {@code true} when a parseable {@code expires} date is on or before {@code today}
      */
     public boolean isExpired( LocalDate today )
     {
@@ -220,6 +262,8 @@ public final class NewsItem
      * Returns this item's date as an epoch-second value for sorting, or
      * {@link Long#MIN_VALUE} when no parseable date is present (undated items
      * sort to the bottom).
+     *
+     * @return the item's date as epoch seconds, or {@link Long#MIN_VALUE} when undated
      */
     public long getSortEpoch()
     {
@@ -230,6 +274,8 @@ public final class NewsItem
     /**
      * Returns a locale-formatted medium date string for display (e.g.
      * "Jun 20, 2026"), or {@code null} when the date is absent / unparseable.
+     *
+     * @return a locale-formatted medium date string, or {@code null} when no date parses
      */
     public String getDisplayDate()
     {
@@ -241,7 +287,11 @@ public final class NewsItem
                                           .withLocale( Locale.getDefault() ) );
     }
 
-    /** True when this item has enough to render (a non-blank title). */
+    /**
+     * True when this item has enough to render (a non-blank title).
+     *
+     * @return {@code true} when {@link #getTitle()} is non-null
+     */
     public boolean isRenderable()
     {
         return getTitle() != null;

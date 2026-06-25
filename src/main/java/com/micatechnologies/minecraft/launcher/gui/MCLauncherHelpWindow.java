@@ -53,11 +53,50 @@ import java.util.Objects;
  */
 public class MCLauncherHelpWindow
 {
+    /**
+     * The singleton help {@link Stage}, or {@code null} until {@link #buildStage()} runs on first
+     * {@link #show(HelpTopic)} and after {@link #cleanup()} tears it down.
+     *
+     * @since 2.0
+     */
     private static Stage helpStage = null;
+
+    /**
+     * The {@link WebView} rendering the help HTML content, created in {@link #buildStage()}.
+     *
+     * @since 2.0
+     */
     private static WebView webView = null;
+
+    /**
+     * The {@link WebEngine} backing {@link #webView}; the target of {@code loadContent} calls in
+     * {@link #loadTopic(HelpTopic)} and the host of the JavaScript {@link HelpBridge}.
+     *
+     * @since 2.0
+     */
     private static WebEngine webEngine = null;
+
+    /**
+     * The sidebar topic picker listing every {@link HelpTopic}, created in {@link #buildStage()}.
+     *
+     * @since 2.0
+     */
     private static ListView< HelpTopic > topicList = null;
+
+    /**
+     * The window's root layout pane (sidebar + content), the host for the theme stylesheets applied
+     * by {@link #applyTheme()}.
+     *
+     * @since 2.0
+     */
     private static BorderPane root = null;
+
+    /**
+     * The topic currently displayed in {@link #webView}; re-loaded by {@link #refreshTheme()} when the
+     * theme changes so the content re-renders against the new theme CSS.
+     *
+     * @since 2.0
+     */
     private static HelpTopic currentTopic = null;
 
     /**
@@ -65,6 +104,7 @@ public class MCLauncherHelpWindow
      * front and the topic is loaded.
      *
      * @param topic the help topic to display
+     * @since 2.0
      */
     public static void show( HelpTopic topic )
     {
@@ -106,7 +146,9 @@ public class MCLauncherHelpWindow
     }
 
     /**
-     * Hides the help window if it is showing.
+     * Hides the help window if it is showing. No-op if the window was never built.
+     *
+     * @since 2.0
      */
     public static void hide()
     {
@@ -131,6 +173,8 @@ public class MCLauncherHelpWindow
      * Stage — potentially with a stale theme, an Owner stage that no
      * longer exists, and a WebView whose internal state was set up against
      * a now-closed launcher window.
+     *
+     * @since 2.0
      */
     public static void cleanup()
     {
@@ -171,6 +215,10 @@ public class MCLauncherHelpWindow
 
     /**
      * Refreshes the help window theme to match the current launcher theme. Call when the launcher theme changes.
+     * No-op if the window has not been built. Re-applies the sidebar stylesheets and re-loads the
+     * {@link #currentTopic} so the WebView content picks up the new theme CSS.
+     *
+     * @since 2.0
      */
     public static void refreshTheme()
     {
@@ -188,7 +236,13 @@ public class MCLauncherHelpWindow
     }
 
     /**
-     * Builds the help Stage, WebView, and sidebar layout. Called lazily on first show.
+     * Builds the help Stage, WebView, and sidebar layout. Called lazily on first show. Sets the window
+     * title and icon, wires the sidebar selection to {@link #loadTopic(HelpTopic)}, makes the WebView
+     * canvas transparent, installs smooth scrolling, registers the JavaScript {@link HelpBridge} for
+     * intercepting internal {@code help://topic/} links, blocks any navigation away from the bundled
+     * content, and applies the active theme.
+     *
+     * @since 2.0
      */
     private static void buildStage()
     {
@@ -351,7 +405,15 @@ public class MCLauncherHelpWindow
     }
 
     /**
-     * Loads the specified help topic into the WebView.
+     * Loads the specified help topic into the {@link #webView}. Selects the topic in the sidebar
+     * (without re-firing the selection listener), reads the topic's bundled HTML resource, inlines the
+     * base + active-theme help stylesheets directly into the document, and hands the assembled markup
+     * to {@link WebEngine#loadContent(String)}. Falls back to a localized "topic unavailable" or
+     * "load error" page when the resource is missing or an exception is thrown.
+     *
+     * @param topic the help topic to render; recorded as {@link #currentTopic} so a later
+     *              {@link #refreshTheme()} can re-render it
+     * @since 2.0
      */
     private static void loadTopic( HelpTopic topic )
     {
@@ -402,7 +464,11 @@ public class MCLauncherHelpWindow
      * Applies the current launcher theme CSS to the help window's JavaFX sidebar. Loads
      * the legacy theme sheet first (for compatibility selectors), then the modern UI
      * base + tokens sheets so the sidebar styling reads as part of the same app shell
-     * as the main launcher window.
+     * as the main launcher window. Also reconciles the Native-theme surface (transparent over macOS
+     * vibrancy / solid over Windows DWM), installs or clears the macOS {@code NSVisualEffectView}
+     * vibrancy, and matches the OS title-bar chrome and Mica backdrop to the active theme.
+     *
+     * @since 2.0
      */
     private static void applyTheme()
     {
@@ -502,7 +568,12 @@ public class MCLauncherHelpWindow
 
     /** Reads a classpath text resource (e.g. a help CSS sheet) into a String for inlining, or "" if
      *  it can't be read. Used to embed the help stylesheets directly into the WebView document — see
-     *  {@link #loadTopic} for why linking them as file: resources doesn't work under loadContent(). */
+     *  {@link #loadTopic} for why linking them as file: resources doesn't work under loadContent().
+     *
+     * @param resourcePath the classpath-relative resource path to read
+     * @return the resource decoded as UTF-8, or "" if the resource is missing or unreadable
+     * @since 2.0
+     */
     private static String readResourceText( String resourcePath )
     {
         try ( InputStream in = MCLauncherHelpWindow.class.getClassLoader()
@@ -523,11 +594,17 @@ public class MCLauncherHelpWindow
      *  return inconsistent values across rapid back-to-back calls; reading it once per pass keeps
      *  every theming decision (root bg, sidebar tokens, content CSS, title-bar chrome) in agreement.
      *  Otherwise the window splits — e.g. a dark root paired with the light content sheet, giving
-     *  the near-black-on-dark help text the user reported. */
+     *  the near-black-on-dark help text the user reported.
+     *
+     * @since 2.0
+     */
     private static Boolean osDarkCache = null;
 
     /** Re-reads + caches the OS dark/light state. Called once at the start of each show / refresh so
-     *  the whole pass agrees on one value. */
+     *  the whole pass agrees on one value.
+     *
+     * @since 2.0
+     */
     private static void refreshOsDarkCache()
     {
         osDarkCache = com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
@@ -535,7 +612,11 @@ public class MCLauncherHelpWindow
 
     /** OS dark/light for this pass — the value cached by {@link #refreshOsDarkCache()} (or a fresh
      *  read if nothing's cached yet). Use this everywhere instead of calling the detector directly,
-     *  so a single pass never disagrees with itself. */
+     *  so a single pass never disagrees with itself.
+     *
+     * @return {@code true} if the OS is in dark mode for the current pass
+     * @since 2.0
+     */
     private static boolean isOsDark()
     {
         if ( osDarkCache == null ) {
@@ -545,7 +626,11 @@ public class MCLauncherHelpWindow
     }
 
     /** Returns the ui-tokens-*.css resource path for the active launcher theme.
-     *  Native theme picks its dark or light variant based on OS dark/light state. */
+     *  Native theme picks its dark or light variant based on OS dark/light state.
+     *
+     * @return the classpath-relative path to the token sheet for the active theme
+     * @since 2.0
+     */
     private static String resolveUiTokensPath()
     {
         String theme = ConfigManager.getTheme();
@@ -566,6 +651,9 @@ public class MCLauncherHelpWindow
      * theme. Themes that follow the OS (Automatic, Native) pick their light or dark
      * companion based on the OS dark/light state — otherwise the help WebView content
      * stayed dark even when the rest of the app was light.
+     *
+     * @return the classpath-relative path to the help content theme sheet for the active theme
+     * @since 2.0
      */
     private static String resolveThemeCssPath()
     {
@@ -587,6 +675,10 @@ public class MCLauncherHelpWindow
 
     /**
      * Returns the launcher's main theme CSS URL for the JavaFX sidebar styling.
+     *
+     * @return the external-form URL of the legacy theme sheet for the active theme, or {@code null}
+     *         if the resource cannot be located
+     * @since 2.0
      */
     private static String resolveActiveThemeCss()
     {
@@ -613,6 +705,10 @@ public class MCLauncherHelpWindow
 
     /**
      * Resolves a classpath resource to a URL string.
+     *
+     * @param path the classpath-relative resource path to resolve
+     * @return the external-form URL of the resource, or "" if it cannot be located
+     * @since 2.0
      */
     private static String resolveResourceUrl( String path )
     {
@@ -623,14 +719,20 @@ public class MCLauncherHelpWindow
     /**
      * JavaScript-to-Java bridge for intercepting help topic link clicks in the WebView. Must be public for the
      * JavaScript engine to access it. The instance is stored as a field to prevent garbage collection.
+     *
+     * @since 2.0
      */
     @SuppressWarnings( "unused" ) // Called from JavaScript
     public static class HelpBridge
     {
         /**
-         * Called from JavaScript when a help://topic/ link is clicked.
+         * Called from JavaScript when a help://topic/ link is clicked. Normalizes the supplied topic
+         * name to the {@link HelpTopic} enum-constant form (upper-cased, hyphens to underscores),
+         * resolves it, and navigates the sidebar + WebView to that topic on the FX thread. Unknown
+         * topic names are logged and ignored.
          *
          * @param topicName the topic name from the URL (e.g. "SETTINGS" or "MAIN_SCREEN")
+         * @since 2.0
          */
         public void navigateTo( String topicName )
         {
@@ -649,7 +751,11 @@ public class MCLauncherHelpWindow
     }
 
     /**
-     * Prevent the HelpBridge from being garbage collected (JavaScript weak references).
+     * Strong reference to the {@link HelpBridge} exposed to the WebView's JavaScript context. Held as
+     * a static field so the bridge isn't garbage-collected out from under the JavaScript-side weak
+     * reference while a help page is showing.
+     *
+     * @since 2.0
      */
     private static HelpBridge helpBridge = new HelpBridge();
 
@@ -665,6 +771,9 @@ public class MCLauncherHelpWindow
      * Best-effort: failure (missing flag, JFX internal rename, future API change)
      * logs silently and leaves the WebView opaque — the user just sees the old solid
      * fill, not a crash.
+     *
+     * @param wv the WebView whose underlying WebKit canvas should be made transparent
+     * @since 2.0
      */
     private static void makeWebViewTransparent( WebView wv )
     {

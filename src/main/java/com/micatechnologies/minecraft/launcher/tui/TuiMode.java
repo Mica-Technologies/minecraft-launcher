@@ -40,7 +40,15 @@ public final class TuiMode
     private static volatile PrintStream realOut = null;
     private static volatile InputStream realIn  = null;
 
-    /** @return whether {@code --cli}/{@code --tui} appears anywhere in the program arguments. */
+    /**
+     * Tests whether the user asked for the terminal UI on the command line.
+     *
+     * @param args the raw program arguments (may be {@code null})
+     *
+     * @return whether {@code --cli}/{@code --tui} appears anywhere in the program arguments
+     *
+     * @since 2026.6
+     */
     public static boolean requestedIn( String[] args )
     {
         if ( args == null ) {
@@ -54,7 +62,18 @@ public final class TuiMode
         return false;
     }
 
-    /** Activates TUI mode and stashes the real console streams for Lanterna to render against. */
+    /**
+     * Activates TUI mode and stashes the real console streams for Lanterna to render against.
+     *
+     * <p>Must be called with the streams captured at the very start of {@code main()}, before the
+     * logger reassigns {@code System.out} to a file stream, so Lanterna draws to the actual terminal
+     * while launcher logging stays out of the way.</p>
+     *
+     * @param realOut the real terminal stdout captured before logging redirection
+     * @param realIn  the real terminal stdin captured before logging redirection
+     *
+     * @since 2026.6
+     */
     public static void enable( PrintStream realOut, InputStream realIn )
     {
         TuiMode.realOut = realOut;
@@ -62,6 +81,14 @@ public final class TuiMode
         TuiMode.enabled = true;
     }
 
+    /**
+     * Reports whether the launcher is currently running in full-screen terminal UI mode.
+     *
+     * @return {@code true} once {@link #enable(PrintStream, InputStream)} has activated TUI mode,
+     *         {@code false} otherwise (e.g. normal GUI / headless server modes)
+     *
+     * @since 2026.6
+     */
     public static boolean isEnabled()
     {
         return enabled;

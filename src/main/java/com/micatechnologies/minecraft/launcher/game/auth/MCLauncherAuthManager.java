@@ -36,9 +36,51 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Static manager for the launcher's Microsoft/Minecraft authentication lifecycle.
+ *
+ * <p>This class wraps the {@code minecraft_authenticator} library and layers on the
+ * launcher-specific concerns around it:</p>
+ * <ul>
+ *     <li><strong>Encrypted-at-rest session state</strong> — the saved login file
+ *         ({@code player.mica}), the cached {@link User} record
+ *         ({@code cached_user.json}), and the last-renewal timestamp
+ *         ({@code renewal.timestamp}) are all written with the machine-bound
+ *         {@link com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher}
+ *         and locked to owner-only file permissions. Legacy plaintext layouts are
+ *         migrated transparently on first read.</li>
+ *     <li><strong>Token-refresh throttling</strong> — a hard refresh interval
+ *         ({@link #TOKEN_REFRESH_INTERVAL_MS}) plus a softer preemptive window
+ *         ({@link #TOKEN_SOFT_REFRESH_INTERVAL_MS}) keep cold starts fast and avoid
+ *         hammering Microsoft's servers with needless renewals.</li>
+ *     <li><strong>Rate limiting / backoff</strong> — {@link #enforceRateLimit()}
+ *         spaces out API calls and applies exponential backoff after consecutive
+ *         failures to avoid HTTP 429 responses.</li>
+ *     <li><strong>Async / cold-start support</strong> — {@link #loadCachedUserNow()}
+ *         and {@link #renewExistingLoginAsync()} let the GUI paint immediately with
+ *         cached identity while a token refresh settles in the background.</li>
+ *     <li><strong>Profile archiving</strong> — {@link #archiveAndLogout()} and
+ *         {@link #switchToArchivedProfile(String)} hand off to {@link ProfileArchive}
+ *         for multi-account switching.</li>
+ * </ul>
+ *
+ * <p>All members are static; the class holds the single active session in
+ * {@link #loggedIn}. It is not intended to be instantiated.</p>
+ *
+ * @author Mica Technologies
+ */
 public class MCLauncherAuthManager
 {
+    /**
+     * On-disk location of the encrypted saved login file ({@code player.mica}),
+     * resolved from {@link LocalPathManager#getRememberedAccountFilePath()}.
+     */
     private static final Path SAVED_LOGIN_FILE_PATH = Path.of( LocalPathManager.getRememberedAccountFilePath() );
+
+    /**
+     * The currently signed-in {@link User}, or {@code null} when no session is
+     * active. Populated by the renewal / login / cache-restore paths.
+     */
     private static       User loggedIn              = null;
 
     /**
@@ -350,6 +392,13 @@ public class MCLauncherAuthManager
     @FunctionalInterface
     public interface AuthStatusCallback
     {
+        /**
+         * Invoked to report incremental authentication progress to a UI surface.
+         *
+         * @param sectionText the high-level phase label (e.g. "Signing in")
+         * @param detailText  the finer-grained detail for the current phase
+         *                    (e.g. "Contacting servers")
+         */
         void onStatus( String sectionText, String detailText );
     }
 
@@ -368,7 +417,11 @@ public class MCLauncherAuthManager
     }
 
     /**
-     * Reports status to the callback if set.
+     * Reports status to the registered {@link #statusCallback} if one is set;
+     * otherwise a no-op.
+     *
+     * @param sectionText the high-level phase label
+     * @param detailText  the finer-grained detail for the current phase
      */
     private static void reportStatus( String sectionText, String detailText ) {
         if ( statusCallback != null ) {
@@ -409,7 +462,12 @@ public class MCLauncherAuthManager
     }
 
     /**
-     * Records a successful auth attempt (resets failure counter).
+     * Records a successful auth attempt, resetting the consecutive-failure counter
+     * used for exponential backoff.
+     *
+     * @param save when {@code true}, persists the renewal timestamp and cached user
+     *             to disk ("remember me"); when {@code false}, clears any persisted
+     *             session files so no session state survives at rest
      */
     private static void recordAuthSuccess( boolean save ) {
         consecutiveFailures.set( 0 );
@@ -451,10 +509,21 @@ public class MCLauncherAuthManager
         consecutiveFailures.incrementAndGet();
     }
 
+    /**
+     * Indicates whether a saved login file exists on disk for this machine.
+     *
+     * @return {@code true} if {@link #SAVED_LOGIN_FILE_PATH} is a regular file
+     *         (a remembered account may be restorable), {@code false} otherwise
+     */
     public static boolean hasExistingLogin() {
         return Files.isRegularFile( SAVED_LOGIN_FILE_PATH );
     }
 
+    /**
+     * Returns the currently signed-in user held in memory.
+     *
+     * @return the active {@link User}, or {@code null} when no session is active
+     */
     public static User getLoggedInUser() {
         return loggedIn;
     }
@@ -572,6 +641,13 @@ public class MCLauncherAuthManager
         return fresh;
     }
 
+    /**
+     * Signs the current user out completely. Clears the in-memory session and
+     * deletes all on-disk session state — the saved login file, the cached user,
+     * and the renewal timestamp — so the login GUI lands on the next launch and no
+     * credentials survive at rest. IO failures during deletion are logged but do
+     * not throw.
+     */
     public static void logout() {
         // Clear local logged in file copy
         loggedIn = null;
@@ -719,6 +795,24 @@ public class MCLauncherAuthManager
         }
     }
 
+    /**
+     * Synchronously refreshes the session for a previously-remembered account.
+     *
+     * <p>The method short-circuits when a recent renewal is still valid: if the
+     * token is within the {@link #TOKEN_REFRESH_INTERVAL_MS} window it returns the
+     * in-memory {@link #loggedIn} user (or restores it from
+     * {@link #loadCachedUser() the cached-user file}) without any network contact.
+     * Otherwise it loads and decrypts the saved auth file, runs the
+     * {@code minecraft_authenticator} renewal under an {@link #AUTH_TIMEOUT_SECONDS}
+     * timeout (after {@link #enforceRateLimit() rate limiting}), persists the new
+     * tokens, and records the renewal.</p>
+     *
+     * @return a successful {@link MCLauncherAuthResult} wrapping the renewed
+     *         {@link User}, or one of the {@code ERROR_*} sentinels
+     *         ({@link MCLauncherAuthResult#ERROR_LOGIN_EXPIRED} when no user could
+     *         be resolved, {@link MCLauncherAuthResult#ERROR_OTHER} on timeout or
+     *         renewal failure)
+     */
     public static MCLauncherAuthResult renewExistingLogin() {
         reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
                       LocalizationManager.get( "authManager.status.checkingSession" ) );
@@ -846,6 +940,28 @@ public class MCLauncherAuthManager
         return result;
     }
 
+    /**
+     * Performs a fresh sign-in from a Microsoft OAuth authorization code.
+     *
+     * <p>Runs the {@code minecraft_authenticator} Microsoft flow under an
+     * {@link #AUTH_TIMEOUT_SECONDS} timeout (after {@link #enforceRateLimit() rate
+     * limiting}) to obtain and verify the Xbox/Minecraft session. On success the
+     * resulting {@link User} is stored in {@link #loggedIn}; the auth file is
+     * written to disk only when {@code save} is {@code true}, otherwise the saved
+     * login file is removed so nothing is remembered.</p>
+     *
+     * @param authCode the Microsoft OAuth authorization code obtained from the
+     *                 interactive sign-in flow
+     * @param save     {@code true} to remember the account (persist encrypted
+     *                 session state); {@code false} for a one-shot sign-in
+     * @return a successful {@link MCLauncherAuthResult} wrapping the new
+     *         {@link User}, or one of the {@code ERROR_*} sentinels — see
+     *         {@link #processAuthException(Exception)} for the failure mapping
+     *         ({@link MCLauncherAuthResult#ERROR_NOT_OWNED},
+     *         {@link MCLauncherAuthResult#ERROR_BAD_USERNAME_PASSWORD},
+     *         {@link MCLauncherAuthResult#ERROR_NO_VAL},
+     *         {@link MCLauncherAuthResult#ERROR_OTHER})
+     */
     public static MCLauncherAuthResult loginWithMicrosoftAccount( String authCode, boolean save ) {
         // Enforce rate limiting to prevent API spam
         enforceRateLimit();
@@ -906,6 +1022,15 @@ public class MCLauncherAuthManager
         return result;
     }
 
+    /**
+     * Persists or discards the freshly-obtained auth file depending on the
+     * "remember me" choice. When {@code save} is {@code true} the file is written
+     * via {@link #saveAuthFileEncrypted(AuthenticationFile)}; when {@code false} the
+     * saved login file is deleted. All failures are logged rather than thrown.
+     *
+     * @param authFile the auth file produced by a successful authentication
+     * @param save     {@code true} to remember the account, {@code false} to forget it
+     */
     private static void handleAuthFile( AuthenticationFile authFile, boolean save ) {
         if ( save ) {
             try {
@@ -929,6 +1054,16 @@ public class MCLauncherAuthManager
         }
     }
 
+    /**
+     * Maps an authentication exception to the appropriate {@link MCLauncherAuthResult}
+     * error sentinel by inspecting its message for known failure signatures.
+     *
+     * @param e the exception thrown by the authentication flow
+     * @return {@link MCLauncherAuthResult#ERROR_NOT_OWNED},
+     *         {@link MCLauncherAuthResult#ERROR_BAD_USERNAME_PASSWORD},
+     *         {@link MCLauncherAuthResult#ERROR_NO_VAL}, or
+     *         {@link MCLauncherAuthResult#ERROR_OTHER} for unrecognized causes
+     */
     private static MCLauncherAuthResult processAuthException( Exception e ) {
         MCLauncherAuthResult result;
         if ( checkIfExceptionIsNotBought( e ) ) {
@@ -968,16 +1103,35 @@ public class MCLauncherAuthManager
         Logger.logWarningSilent( LocalizationManager.format( "log.authManager.authErrorType", t.getClass().getName() ) );
     }
 
+    /**
+     * Tests whether an exception signals a missing-value failure (an
+     * {@code Optional} with "no value present").
+     *
+     * @param e the exception to inspect
+     * @return {@code true} if the message contains "no value present"
+     */
     private static boolean checkIfExceptionIsNoValuePresent( Exception e ) {
         String msg = e.getMessage();
         return msg != null && msg.toLowerCase().contains( "no value present" );
     }
 
+    /**
+     * Tests whether an exception signals that the account does not own Minecraft.
+     *
+     * @param e the exception to inspect
+     * @return {@code true} if the message indicates the game has not been bought
+     */
     private static boolean checkIfExceptionIsNotBought( Exception e ) {
         String msg = e.getMessage();
         return msg != null && msg.toLowerCase().contains( "not have bought" );
     }
 
+    /**
+     * Tests whether an exception signals invalid credentials.
+     *
+     * @param e the exception to inspect
+     * @return {@code true} if the message contains "invalid credentials"
+     */
     private static boolean checkIfExceptionIsInvalidCredentials( Exception e ) {
         String msg = e.getMessage();
         return msg != null && msg.toLowerCase().contains( "invalid credentials" );

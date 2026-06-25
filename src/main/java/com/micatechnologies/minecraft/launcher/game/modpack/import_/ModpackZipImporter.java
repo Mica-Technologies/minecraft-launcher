@@ -83,12 +83,16 @@ public final class ModpackZipImporter
      * manifest to {@code imported-manifests/}, and registers the pack with
      * {@link GameModPackManager#installModPackByURL}.
      *
+     * @param zipFile the Mica-export (or recognized Technic-server) ZIP to
+     *                import; must be an existing regular file
      * @return the {@code file:} URL of the on-disk manifest the pack was
      *         registered under (same one {@link GameModPackManager} uses
      *         to identify it).
      * @throws ImportException for any failure — invalid ZIP, missing
      *         marker, manifest unreadable, extract IO error, install
      *         failure. The message is safe to surface to end users.
+     *
+     * @since 2026.5
      */
     public static String importZip( File zipFile ) throws ImportException
     {
@@ -216,7 +220,14 @@ public final class ModpackZipImporter
      *  two top-level book-keeping entries (marker + manifest). Path
      *  traversal is blocked by checking the resolved path stays inside
      *  {@code dest} — a malicious ZIP containing {@code ../../etc/passwd}
-     *  entries would otherwise extract outside the install folder. */
+     *  entries would otherwise extract outside the install folder.
+     *
+     *  @param zip  the opened archive to read entries from
+     *  @param dest the install folder entries are extracted into
+     *
+     *  @throws IOException if the entry count cap is exceeded, an entry
+     *          escapes {@code dest}, a decompression cap is hit, or any
+     *          underlying read / write fails */
     private static void extractZipContents( ZipFile zip, Path dest ) throws IOException
     {
         Path destNormalized = dest.toAbsolutePath().normalize();
@@ -257,6 +268,14 @@ public final class ModpackZipImporter
         }
     }
 
+    /**
+     * Filesystem-safe sanitizer for the imported-manifest filename slug.
+     *
+     * @param s the raw slug to sanitize
+     *
+     * @return a filesystem-safe slug; {@code "unknown"} when {@code s} is
+     *         {@code null}
+     */
     private static String sanitize( String s )
     {
         if ( s == null ) return "unknown";
@@ -265,9 +284,16 @@ public final class ModpackZipImporter
 
     /** Mirrors {@link MrpackImporter.ImportException} / {@link TechnicImporter.ImportException}
      *  so callers can catch a single import-failure type if they import
-     *  generically across all three paths. */
+     *  generically across all three paths.
+     *
+     *  @since 2026.5 */
     public static class ImportException extends Exception
     {
+        /**
+         * Creates an import failure with an end-user-safe message.
+         *
+         * @param message the human-readable failure description
+         */
         public ImportException( String message ) { super( message ); }
     }
 }

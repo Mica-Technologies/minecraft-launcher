@@ -83,6 +83,11 @@ import java.time.format.DateTimeFormatter;
  */
 public final class ModpackContentBrowser
 {
+    /**
+     * Private constructor to prevent instantiation of this static-only utility class.
+     *
+     * @since 2026.5
+     */
     private ModpackContentBrowser() { /* static-only */ }
 
     /** Functional interface so the caller (the detail modal) can hand
@@ -95,14 +100,43 @@ public final class ModpackContentBrowser
     @FunctionalInterface
     public interface SectionBuilder
     {
+        /**
+         * Builds a collapsible section container with the given heading and initial expand state.
+         *
+         * @param heading         the localized section heading text
+         * @param defaultExpanded {@code true} to start the section expanded, {@code false} to start it
+         *                        collapsed
+         *
+         * @return the section's root {@link VBox}, ready for content rows to be appended
+         *
+         * @since 2026.5
+         */
         VBox build( String heading, boolean defaultExpanded );
     }
 
+    /**
+     * Side length, in pixels, of each square screenshot thumbnail tile.
+     *
+     * @since 2026.5
+     */
     private static final double THUMB_SIZE = 100;
+
+    /**
+     * Horizontal and vertical gap, in pixels, between screenshot thumbnail tiles in the grid.
+     *
+     * @since 2026.5
+     */
     private static final double THUMB_GAP  = 8;
     // Immutable + thread-safe: formatMeta runs both on the FX thread and on the
     // FxAsyncTask pool, so a shared SimpleDateFormat (not thread-safe) could
     // corrupt output or throw under concurrent formatting.
+    /**
+     * Shared, thread-safe formatter for last-modified timestamps ({@code yyyy-MM-dd HH:mm}) in the
+     * system default time zone. {@link DateTimeFormatter} is immutable and safe to share across the FX
+     * thread and the {@link FxAsyncTask} pool, unlike a {@code SimpleDateFormat}.
+     *
+     * @since 2026.5
+     */
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ofPattern( "yyyy-MM-dd HH:mm" ).withZone( ZoneId.systemDefault() );
 
@@ -110,9 +144,20 @@ public final class ModpackContentBrowser
     // Public section builders
     // ====================================================================
 
-    /** Lists each subfolder of {@code <packRoot>/saves/} as a row with
-     *  size + last-modified metadata and per-row Open Folder + Delete
-     *  actions. */
+    /**
+     * Lists each subfolder of {@code <packRoot>/saves/} as a row with
+     * size + last-modified metadata and per-row Open Folder + Delete
+     * actions. Returns immediately with a loading placeholder; the
+     * directory scan and row construction run asynchronously.
+     *
+     * @param pack       the modpack whose saves folder is listed
+     * @param sectionBox builder supplying the collapsible section container
+     * @param owner      stage to parent the per-row Delete confirmation dialog
+     *
+     * @return the section node (a populated {@link VBox})
+     *
+     * @since 2026.5
+     */
     public static Node buildWorldsSection( GameModPack pack, SectionBuilder sectionBox, Stage owner )
     {
         // Worlds list is typically 0-5 entries — expanded by default.
@@ -132,9 +177,21 @@ public final class ModpackContentBrowser
         return section;
     }
 
-    /** Renders a thumbnail grid of {@code <packRoot>/screenshots/*.png}.
-     *  Each thumbnail is clickable → opens the image viewer overlay
-     *  attached to {@code overlayHost}. */
+    /**
+     * Renders a thumbnail grid of {@code <packRoot>/screenshots/*.png}
+     * (also {@code .jpg} / {@code .jpeg}). Each thumbnail is clickable →
+     * opens the image viewer overlay attached to {@code overlayHost}.
+     * Pre-collapsed and lazily populated on first expand so a pack with
+     * hundreds of screenshots doesn't pay the scan cost on modal open.
+     *
+     * @param pack        the modpack whose screenshots folder is listed
+     * @param sectionBox  builder supplying the collapsible section container
+     * @param overlayHost host pane the full-size image viewer overlay is added to on click
+     *
+     * @return the section node (a populated {@link VBox})
+     *
+     * @since 2026.5
+     */
     public static Node buildScreenshotsSection( GameModPack pack, SectionBuilder sectionBox,
                                                   StackPane overlayHost )
     {
@@ -173,7 +230,23 @@ public final class ModpackContentBrowser
      *  + Forge / Fabric only load {@code .jar} files from the mods
      *  folder, so the disabled state is honored on the next launch.
      *  Useful for "is this mod the one crashing?" diagnosis without
-     *  leaving the launcher. */
+     *  leaving the launcher.
+     *
+     * <p>Also exposes a "Check for updates" button (background Modrinth
+     * scan that annotates each row) and, for modded packs, an "Add Mod"
+     * button that opens the Modrinth search dialog. Pre-collapsed and
+     * lazily populated on first expand because a typical Forge pack
+     * carries 100+ jars.</p>
+     *
+     * @param pack          the modpack whose mods folder is listed
+     * @param sectionBox    builder supplying the collapsible section container
+     * @param bodyToRebuild the modal body container passed through to per-row handlers
+     * @param owner         stage to parent the Add Mod dialog
+     *
+     * @return the section node (a populated {@link VBox})
+     *
+     * @since 2026.5
+     */
     public static Node buildModsSection( GameModPack pack, SectionBuilder sectionBox, VBox bodyToRebuild,
                                          Stage owner )
     {
@@ -205,6 +278,21 @@ public final class ModpackContentBrowser
         return section;
     }
 
+    /**
+     * Builds the mods section body on the FX thread: a header row with the "Check for updates" (and,
+     * for modded packs, "Add Mod") affordances followed by one row per jar. Per-row update labels and
+     * rows are tracked so the background Modrinth scan can write results and splice in one-click
+     * "Update" buttons in place.
+     *
+     * @param section       the section container the header and rows are appended to
+     * @param modsDir       the pack's {@code mods} directory
+     * @param mods          the jar / disabled-jar files to render, in display order
+     * @param bodyToRebuild the modal body container passed through to per-row handlers
+     * @param pack          the modpack; its loader type gates the Add Mod affordance
+     * @param owner         stage to parent the Add Mod dialog
+     *
+     * @since 2026.5
+     */
     private static void renderModsSection( VBox section, File modsDir, File[] mods, VBox bodyToRebuild,
                                            GameModPack pack, Stage owner )
     {
@@ -322,7 +410,15 @@ public final class ModpackContentBrowser
      *  renames the file between {@code foo.jar} and {@code foo.jar.disabled};
      *  after the rename, the row's controls (label / button / meta) are
      *  updated in place so the user sees the new state without a modal
-     *  re-render. */
+     *  re-render.
+     *
+     * @param initialFile the jar (or {@code .jar.disabled}) file this row represents initially
+     * @param unused      reserved parameter, currently unused
+     *
+     * @return the assembled row
+     *
+     * @since 2026.5
+     */
     private static HBox buildModRow( File initialFile, VBox unused )
     {
         HBox row = new HBox( 10 );
@@ -380,7 +476,15 @@ public final class ModpackContentBrowser
      *  Updates the {@code currentFile} reference + re-renders the row on
      *  success. Failure (locked file, permission denied) surfaces as a
      *  warning toast — non-fatal, the user just tries again after closing
-     *  the game. */
+     *  the game.
+     *
+     * @param currentFile single-element holder for the row's backing file; updated in place to the
+     *                    renamed file on success
+     * @param rerender    callback that re-renders the row's controls (invoked on the FX thread)
+     * @param btn         the toggle button, disabled for the duration of the rename
+     *
+     * @since 2026.5
+     */
     private static void toggleModEnabled( File[] currentFile, Runnable rerender, MFXButton btn )
     {
         // Disable the button during the rename so a frantic double-click
@@ -415,8 +519,20 @@ public final class ModpackContentBrowser
         } );
     }
 
-    /** Splices a one-click "Update" button into a mod row whose Modrinth scan found a newer
-     *  version. Inserted just before the enable/disable toggle (the row's last child). */
+    /**
+     * Splices a one-click "Update" button into a mod row whose Modrinth scan found a newer
+     * version. Inserted just before the enable/disable toggle (the row's last child). Idempotent —
+     * a row that already has an Update button is left unchanged.
+     *
+     * @param row         the mod row to splice the button into
+     * @param modsDir     the pack's {@code mods} directory the new jar is downloaded into
+     * @param oldJarName  filename of the jar to be replaced
+     * @param downloadUrl primary download URL of the latest version
+     * @param newVersion  version string of the latest version, for status display
+     * @param updateLabel the row's update-status label, updated as the download progresses
+     *
+     * @since 2026.5
+     */
     private static void addUpdateButton( HBox row, File modsDir, String oldJarName,
                                          String downloadUrl, String newVersion, Label updateLabel )
     {
@@ -438,8 +554,22 @@ public final class ModpackContentBrowser
         row.getChildren().add( insertAt, updateBtn );
     }
 
-    /** Downloads the latest mod jar, replaces the old one, and finalizes the row's UI. Runs off the
-     *  FX thread (called from {@link FxAsyncTask}); all scene-graph writes are marshaled back. */
+    /**
+     * Downloads the latest mod jar, replaces the old one, and finalizes the row's UI. Runs off the
+     * FX thread (called from {@link FxAsyncTask}); all scene-graph writes are marshaled back. On
+     * failure the update label shows an error and a warning toast is raised; the old jar is left in
+     * place.
+     *
+     * @param modsDir     the pack's {@code mods} directory
+     * @param oldJarName  filename of the jar being superseded
+     * @param downloadUrl primary download URL of the latest version
+     * @param newVersion  version string of the latest version, for status display
+     * @param row         the mod row being updated
+     * @param updateBtn   the Update button, removed on success or re-enabled on failure
+     * @param updateLabel the row's update-status label
+     *
+     * @since 2026.5
+     */
     private static void applyModUpdate( File modsDir, String oldJarName, String downloadUrl,
                                         String newVersion, HBox row, MFXButton updateBtn,
                                         Label updateLabel )
@@ -489,38 +619,71 @@ public final class ModpackContentBrowser
         }
     }
 
-    /** Lists each {@code <packRoot>/shaderpacks/*} entry (zip or
-     *  directory) with size + Open Folder action. */
+    /**
+     * Lists each {@code <packRoot>/shaderpacks/*} entry (zip or directory) with size + Open Folder
+     * action. Expanded by default, since shader-pack folders typically hold only a handful of entries.
+     *
+     * @param pack       the modpack whose shaderpacks folder is listed
+     * @param sectionBox builder supplying the collapsible section container
+     *
+     * @return the section node (a populated {@link VBox})
+     *
+     * @since 2026.5
+     */
     public static Node buildShaderPacksSection( GameModPack pack, SectionBuilder sectionBox )
     {
         return buildSimplePackList( pack, "shaderpacks", "detailModal.section.shaderPacks", sectionBox );
     }
 
-    /** Lists each {@code <packRoot>/resourcepacks/*} entry with the
-     *  same shape as the shader packs section. */
+    /**
+     * Lists each {@code <packRoot>/resourcepacks/*} entry with the same shape as the
+     * {@link #buildShaderPacksSection shader packs section}.
+     *
+     * @param pack       the modpack whose resourcepacks folder is listed
+     * @param sectionBox builder supplying the collapsible section container
+     *
+     * @return the section node (a populated {@link VBox})
+     *
+     * @since 2026.5
+     */
     public static Node buildResourcePacksSection( GameModPack pack, SectionBuilder sectionBox )
     {
         return buildSimplePackList( pack, "resourcepacks", "detailModal.section.resourcePacks", sectionBox );
     }
 
     /**
-     * Per-pack server-favorites list, persisted to
-     * {@code <packRoot>/server-favorites.json}. Renders the existing
-     * favorites with Connect / Copy IP / Remove actions and an Add row
-     * with Name + Address fields at the top. The Connect button sets
-     * the pack's transient quick-join target and routes through the
-     * same launch flow as the modal's Play button, so the user lands on
-     * the server's loading screen instead of the main menu.
+     * Immutable snapshot of {@code server-favorites.json} for one pack, read off the FX thread.
+     * Bundles the favorites list with the disable-default-server flag so a single background trip
+     * covers both reads.
      *
-     * <p>Section is empty-stated when no favorites exist; the Add row
-     * is still present so the user can add their first one.</p>
+     * @param favorites              the persisted server favorites for the pack
+     * @param defaultServerDisabled  {@code true} when auto-join to the manifest-declared default
+     *                               server has been disabled in the sidecar
+     *
+     * @since 2026.5
      */
-    /** Snapshot of {@code server-favorites.json} for one pack, read
-     *  off the FX thread. Bundles the favorites list with the
-     *  disableDefaultServer flag so a single bg trip covers both. */
     private record ServerStoreSnapshot( java.util.List< ServerFavorite > favorites,
                                         boolean defaultServerDisabled ) {}
 
+    /**
+     * Builds the per-pack server-favorites list, persisted to
+     * {@code <packRoot>/server-favorites.json}. Renders the existing favorites with Connect / Copy IP
+     * / Remove actions and an Add row with Name + Address fields at the top. The Connect button sets
+     * the pack's transient quick-join target and routes through the same launch flow as the modal's
+     * Play button, so the user lands on the server's loading screen instead of the main menu.
+     *
+     * <p>The favorites list is empty-stated when no favorites exist; the Add row is still present so
+     * the user can add their first one. The manifest-declared default-server row (with an auto-join
+     * toggle) is rendered above the Add row when the pack declares one. Expanded by default since the
+     * list is typically tiny.</p>
+     *
+     * @param pack       the modpack whose server favorites are listed
+     * @param sectionBox builder supplying the collapsible section container
+     *
+     * @return the section node (a populated {@link VBox})
+     *
+     * @since 2026.5
+     */
     public static Node buildServersSection( GameModPack pack, SectionBuilder sectionBox )
     {
         // Servers list is typically tiny — expanded by default.
@@ -597,6 +760,16 @@ public final class ModpackContentBrowser
         return section;
     }
 
+    /**
+     * Re-renders the favorites rows into {@code rowsBox} from the current {@code favorites} list,
+     * clearing any previously rendered rows first. Shows an empty-state label when the list is empty.
+     *
+     * @param pack      the modpack the rows belong to
+     * @param favorites the current favorites list, in display order
+     * @param rowsBox   the container the rows are rendered into
+     *
+     * @since 2026.5
+     */
     private static void renderServerRows( GameModPack pack,
                                           java.util.List< ServerFavorite > favorites,
                                           VBox rowsBox )
@@ -611,6 +784,21 @@ public final class ModpackContentBrowser
         }
     }
 
+    /**
+     * Builds one favorites row: server name + address with Connect, Copy IP, and Remove actions.
+     * Connect routes through the quick-join launch flow; Copy IP places the display address on the
+     * system clipboard; Remove deletes the favorite, persists the list, and re-renders the rows
+     * (rolling back the in-memory removal if the save fails).
+     *
+     * @param pack      the modpack the favorite belongs to
+     * @param favorites the backing favorites list (mutated by the Remove action)
+     * @param index     index of this row's favorite within {@code favorites}
+     * @param rowsBox   the rows container, re-rendered after a successful removal
+     *
+     * @return the assembled row
+     *
+     * @since 2026.5
+     */
     private static HBox buildServerRow( GameModPack pack,
                                         java.util.List< ServerFavorite > favorites,
                                         int index,
@@ -671,6 +859,20 @@ public final class ModpackContentBrowser
         return row;
     }
 
+    /**
+     * Builds the row for the manifest-declared default server: a "pack default" tag, the server name
+     * and address, and an auto-join checkbox. Toggling the checkbox persists the disabled flag to the
+     * sidecar via {@link ServerFavoritesStore#setDefaultServerDisabled}, reverting the visual state if
+     * the save fails.
+     *
+     * @param pack            the modpack the default server belongs to
+     * @param manifestDefault the manifest-declared default server favorite
+     * @param disabled        {@code true} if auto-join is currently disabled (checkbox starts unchecked)
+     *
+     * @return the assembled row
+     *
+     * @since 2026.5
+     */
     private static HBox buildDefaultServerRow( GameModPack pack, ServerFavorite manifestDefault, boolean disabled )
     {
         HBox row = new HBox( 10 );
@@ -710,10 +912,17 @@ public final class ModpackContentBrowser
         return row;
     }
 
-    /** Sets the pack's quick-join transient field and routes through
-     *  the standard launch pipeline. Mirrors the modal's startPlay
-     *  pattern (spawn task, set Discord presence, call LauncherCore.play
-     *  with the back-to-main-GUI callback). */
+    /**
+     * Sets the pack's transient quick-join field to the given favorite and routes through the standard
+     * launch pipeline. Mirrors the modal's {@code startPlay} pattern: spawns a background task, sets
+     * Discord presence, and calls {@link LauncherCore#play} with a callback that returns the user to
+     * the main GUI when the game exits.
+     *
+     * @param pack the modpack to launch
+     * @param fav  the server favorite to quick-join on launch
+     *
+     * @since 2026.5
+     */
     private static void connectToServer( GameModPack pack, ServerFavorite fav )
     {
         pack.setQuickJoinServer( fav );
@@ -734,11 +943,21 @@ public final class ModpackContentBrowser
         } );
     }
 
-    /** Lists {@code <packRoot>/crash-reports/*.txt} sorted newest-first
-     *  with each row showing the filename + mtime + a View action
-     *  that opens the crash text in an overlay. Empty when the
-     *  folder is missing or empty — typical state for a pack that's
-     *  never crashed. */
+    /**
+     * Lists {@code <packRoot>/crash-reports/*.txt} sorted newest-first, with each row showing the
+     * filename + last-modified time + a View action that opens the crash text in an overlay. Empty
+     * when the folder is missing or empty — the typical state for a pack that has never crashed.
+     * Pre-collapsed and lazily populated on first expand so a pack with a long crash log doesn't pay
+     * the scan cost on modal open.
+     *
+     * @param pack        the modpack whose crash-reports folder is listed
+     * @param sectionBox  builder supplying the collapsible section container
+     * @param overlayHost host pane the crash-report viewer overlay is added to when View is clicked
+     *
+     * @return the section node (a populated {@link VBox})
+     *
+     * @since 2026.5
+     */
     public static Node buildCrashHistorySection( GameModPack pack, SectionBuilder sectionBox,
                                                    StackPane overlayHost )
     {
@@ -764,6 +983,19 @@ public final class ModpackContentBrowser
         return section;
     }
 
+    /**
+     * Builds one crash-report row: the report filename + last-modified time, a View action that opens
+     * the report in the crash viewer overlay, and an Open Folder action that reveals it in the OS file
+     * browser.
+     *
+     * @param report      the crash-report text file this row represents
+     * @param overlayHost host pane the crash viewer overlay is added to on View
+     * @param pack        the modpack the report belongs to, passed to the crash analyzer
+     *
+     * @return the assembled row
+     *
+     * @since 2026.5
+     */
     private static HBox buildCrashRow( File report, StackPane overlayHost, GameModPack pack )
     {
         HBox row = new HBox( 10 );

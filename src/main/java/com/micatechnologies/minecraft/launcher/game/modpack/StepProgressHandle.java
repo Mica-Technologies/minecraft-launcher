@@ -60,13 +60,30 @@ public final class StepProgressHandle extends GameModPackProgressProvider
     private volatile long lastFireMs = 0;
     private static final long FIRE_THROTTLE_MS = 50;
 
+    /**
+     * Binds a new handle to a single step in the given tracker. The step
+     * binding is immutable for the life of the handle, which is what makes
+     * concurrent updates from parallel launch branches safe.
+     *
+     * @param tracker the shared launch-progress tracker the handle writes to
+     * @param stepId  the step this handle is permanently bound to
+     *
+     * @since 2026.3
+     */
     public StepProgressHandle( LaunchProgressTracker tracker, StepId stepId )
     {
         this.tracker = tracker;
         this.stepId = stepId;
     }
 
-    /** Underlying step this handle is bound to. */
+    /**
+     * Underlying step this handle is bound to.
+     *
+     * @return the immutable {@link StepId} this handle routes all progress
+     *         updates to
+     *
+     * @since 2026.3
+     */
     public StepId stepId() { return stepId; }
 
     /** Marks the handle's step running on the underlying tracker. Call at the
@@ -85,7 +102,9 @@ public final class StepProgressHandle extends GameModPackProgressProvider
     }
 
     /** Marks the handle's step failed with the given error message. Call from
-     *  the catch path of the branch that owns this handle. */
+     *  the catch path of the branch that owns this handle.
+     *
+     *  @param errorMessage human-readable failure reason shown on the row */
     public synchronized void markFailed( String errorMessage )
     {
         tracker.markFailed( stepId, errorMessage );
@@ -94,7 +113,10 @@ public final class StepProgressHandle extends GameModPackProgressProvider
     /** Marks the handle's step skipped with the given reason text. Call when
      *  policy short-circuits the step's work (e.g. scan-frequency policy
      *  saying "scan not due this launch"). The reason becomes the sub-text
-     *  on the row so the user can see why nothing ran. */
+     *  on the row so the user can see why nothing ran.
+     *
+     *  @param reason explanation for skipping; ignored when {@code null} or
+     *               empty */
     public synchronized void markSkipped( String reason )
     {
         if ( reason != null && !reason.isEmpty() ) {
@@ -107,6 +129,19 @@ public final class StepProgressHandle extends GameModPackProgressProvider
     //  GameModPackProgressProvider overrides — all routed to this step.
     // =========================================================================
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation accumulates {@code sectionProgress} into the
+     * current section total (capped at 100) and forwards it to this handle's
+     * bound step, coalescing per-file updates to roughly 20 fps. The throttle
+     * is bypassed once the section reaches 100% so the final "section
+     * complete" frame always lands before the next state change.</p>
+     *
+     * @param detailText      per-item detail text for the progress row
+     * @param sectionProgress increment (in 0..100 units) to add to the
+     *                        current section's accumulated progress
+     */
     @Override
     public synchronized void submitProgress( String detailText, double sectionProgress )
     {
@@ -122,12 +157,31 @@ public final class StepProgressHandle extends GameModPackProgressProvider
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation sets the sub-text of this handle's bound step.</p>
+     *
+     * @param text the sub-text to display on the row
+     */
     @Override
     synchronized void setCurrText( String text )
     {
         tracker.setSubText( stepId, text );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation resets the section accumulator to zero, clears
+     * the bound step's bar, and (when non-empty) shows {@code title} as the
+     * row's sub-text.</p>
+     *
+     * @param title sub-text describing the section being started; ignored
+     *              when {@code null} or empty
+     * @param size  declared section size (unused here; the accumulator is
+     *              driven by {@link #submitProgress} increments instead)
+     */
     @Override
     synchronized void startProgressSection( String title, double size )
     {
@@ -138,6 +192,15 @@ public final class StepProgressHandle extends GameModPackProgressProvider
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation shows {@code text} as the bound step's sub-text
+     * when non-empty; otherwise it is a no-op.</p>
+     *
+     * @param text closing sub-text for the section; ignored when {@code null}
+     *             or empty
+     */
     @Override
     synchronized void endProgressSection( String text )
     {
@@ -146,6 +209,19 @@ public final class StepProgressHandle extends GameModPackProgressProvider
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Intentionally a no-op: this handle pushes progress to the tracker
+     * directly from each public entry point above, so the base-class
+     * aggregate callback is unused. It is implemented only because the base
+     * class declares it abstract.</p>
+     *
+     * @param percent        ignored
+     * @param sectionTitle   ignored
+     * @param detailText     ignored
+     * @param downloadStatus ignored
+     */
     @Override
     public void updateProgressHandler( double percent, String sectionTitle,
                                         String detailText, String downloadStatus )

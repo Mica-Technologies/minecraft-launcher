@@ -54,7 +54,13 @@ public final class ModpackImageCycleClock
 {
     private static final ModpackImageCycleClock INSTANCE = new ModpackImageCycleClock();
 
-    /** @return the shared clock instance. */
+    /**
+     * Returns the shared, app-wide clock instance that every modpack image surface
+     * subscribes to. There is exactly one clock per JVM so all surfaces advance in
+     * lockstep.
+     *
+     * @return the singleton clock instance
+     */
     public static ModpackImageCycleClock getInstance()
     {
         return INSTANCE;

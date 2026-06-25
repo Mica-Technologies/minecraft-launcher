@@ -30,17 +30,25 @@ public class GameMod extends ManagedGameFile
 {
 
     /**
-     * Name of this mod
+     * Display name of this mod, used in logs and UI rather than for download/verification.
+     *
+     * @since 1.0
      */
     final String name;
 
     /**
-     * Boolean if mod required on client
+     * Flag indicating whether this mod is required when launching in client mode. When
+     * {@code false}, {@link #updateLocalFile(GameMode)} skips downloading it for the client.
+     *
+     * @since 1.0
      */
     final boolean clientReq;
 
     /**
-     * Boolean if mod required on server
+     * Flag indicating whether this mod is required when launching in server mode. When
+     * {@code false}, {@link #updateLocalFile(GameMode)} skips downloading it for the server.
+     *
+     * @since 1.0
      */
     final boolean serverReq;
 
@@ -75,11 +83,19 @@ public class GameMod extends ManagedGameFile
     }
 
     /**
-     * Update the local copy of this MCForgeAsset using the specified game mode (Client/Server).
+     * Update the local copy of this mod using the specified game mode (Client/Server). The
+     * download only occurs when this mod is required for the given side; otherwise the call
+     * is a no-op that reports success.
      *
      * @param gameAppMode client/server
      *
+     * @return {@code true} if the local copy is up to date after the call (including the
+     *         no-op case where the mod is not required for {@code gameAppMode}); otherwise the
+     *         result of the underlying {@link ManagedGameFile#updateLocalFile()} call
+     *
      * @throws ModpackException if update fails
+     *
+     * @since 1.0
      */
     boolean updateLocalFile( GameMode gameAppMode ) throws ModpackException
     {

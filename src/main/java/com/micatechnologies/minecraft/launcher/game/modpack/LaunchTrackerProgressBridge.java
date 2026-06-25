@@ -93,13 +93,19 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
      *  every {@link #startProgressSection(String, double)} call. */
     private double currentSectionProgress = 0.0;
 
+    /**
+     * @param tracker the multi-step tracker this bridge translates legacy
+     *                progress-provider calls into
+     */
     public LaunchTrackerProgressBridge( LaunchProgressTracker tracker )
     {
         this.tracker = tracker;
     }
 
     /** Exposes the tracker so the GUI / launch core can attach listeners or
-     *  query state. */
+     *  query state.
+     *
+     *  @return the backing tracker */
     public LaunchProgressTracker tracker() { return tracker; }
 
     /**
@@ -107,6 +113,9 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
      * parallel pre-launch orchestrator to give each branch its own progress
      * provider so concurrent submitProgress / setCurrText calls don't race
      * over the single bridge-level activeStep.
+     *
+     * @param stepId the step the returned handle should drive
+     * @return a per-step progress handle bound to {@code stepId}
      */
     public StepProgressHandle handleFor( StepId stepId )
     {
@@ -117,6 +126,14 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     //  Step-aware lifecycle (overrides of the base class no-op defaults)
     // =========================================================================
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Records {@code id} as the active step, resets the sub-section
+     * accumulator, and marks the step running on the tracker.</p>
+     *
+     * @param id the step now entering
+     */
     @Override
     public synchronized void enterStep( StepId id )
     {
@@ -125,6 +142,14 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
         tracker.markRunning( id );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Clears the active-step pointer (when it matches) and marks the step
+     * done on the tracker.</p>
+     *
+     * @param id the step that finished successfully
+     */
     @Override
     public synchronized void completeStep( StepId id )
     {
@@ -135,6 +160,15 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
         tracker.markDone( id );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Clears the active-step pointer (when it matches) and marks the step
+     * failed on the tracker with the supplied message.</p>
+     *
+     * @param id           the step that failed
+     * @param errorMessage the failure detail to surface on the row
+     */
     @Override
     public synchronized void failStep( StepId id, String errorMessage )
     {
@@ -149,6 +183,16 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     //  Legacy GameModPackProgressProvider surface
     // =========================================================================
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Accumulates {@code sectionProgress} into the current sub-section
+     * (capped at 100) and pushes the running fraction plus detail text to the
+     * active step's tracker row. A no-op when no step is active.</p>
+     *
+     * @param detailText      current-activity detail for the row sub-text
+     * @param sectionProgress increment to add to the current sub-section, in 0..100
+     */
     @Override
     public synchronized void submitProgress( String detailText, double sectionProgress )
     {
@@ -160,6 +204,13 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
         tracker.submitProgress( step, currentSectionProgress / 100.0, detailText );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Sets the active step's sub-text. A no-op when no step is active.</p>
+     *
+     * @param text the activity detail to display
+     */
     @Override
     synchronized void setCurrText( String text )
     {
@@ -169,6 +220,16 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Begins a sub-section within the active step: resets the in-row bar to
+     * zero and surfaces {@code title} as the row sub-text. The parent step
+     * stays {@code RUNNING}.</p>
+     *
+     * @param title the sub-section label shown as the row sub-text
+     * @param size  the legacy sub-section size hint (unused by the tracker bridge)
+     */
     @Override
     synchronized void startProgressSection( String title, double size )
     {
@@ -185,6 +246,16 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Ends a sub-section by setting the active step's sub-text to the
+     * completion message. The parent step is closed by {@link #completeStep},
+     * not here, so sequential sub-sections within one step keep the row
+     * {@code RUNNING}.</p>
+     *
+     * @param text the sub-section completion message
+     */
     @Override
     synchronized void endProgressSection( String text )
     {
@@ -196,6 +267,18 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>No-op: this bridge pushes straight to the tracker from each entry
+     * point above, so there is no separate render callback to honour. Present
+     * only to satisfy the abstract base class.</p>
+     *
+     * @param percent        ignored
+     * @param sectionTitle   ignored
+     * @param detailText     ignored
+     * @param downloadStatus ignored
+     */
     @Override
     public void updateProgressHandler( double percent, String sectionTitle,
                                         String detailText, String downloadStatus )

@@ -38,10 +38,30 @@ import java.util.concurrent.CountDownLatch;
  */
 class LauncherSession
 {
+    /** Raw command-line arguments handed to this session, forwarded straight from the launcher's {@code main()}
+     *  loop. Parsed by {@link LauncherCore#parseLauncherArgs(String[])} at the top of {@link #run()} to establish
+     *  game mode and the initial modpack selection, and echoed verbatim to the debug log for diagnostics. */
     private final String[] args;
+
+    /** Error message carried over from the previous lifecycle when this session is the product of an in-process
+     *  restart (e.g. a failed launch surfaced to the user on the next login screen), or {@code null} for a clean
+     *  start. Passed through to the client login flow and the modpack-selection screen so the prior failure can be
+     *  reported to the user once the new session's UI is up. */
     private final String previousRestartError;
+
+    /** Single-permit latch that pins the session thread inside {@link #run()} until exit or restart is signalled.
+     *  Counted down by the shutdown/restart code paths once the user (or the system) requests that this lifecycle
+     *  end, releasing {@link #run()} to return so the {@code main()} loop can shut down or spin up a fresh session.
+     *  Package-private so those lifecycle hooks can reach it. */
     final CountDownLatch exitLatch = new CountDownLatch( 1 );
 
+    /**
+     * Creates a launcher session for one lifecycle run.
+     *
+     * @param args                 the raw command-line arguments to parse and act on for this run
+     * @param previousRestartError an error message carried over from a prior lifecycle to surface to the user on
+     *                             this run, or {@code null} for a clean start
+     */
     LauncherSession( String[] args, String previousRestartError )
     {
         this.args = args;
@@ -49,7 +69,16 @@ class LauncherSession
     }
 
     /**
-     * Runs one full lifecycle of the launcher: parse args, login, load modpacks, show UI, and wait for exit.
+     * Runs one full lifecycle of the launcher and blocks until it ends.
+     *
+     * <p>In order: parses the launcher arguments (which fixes the game mode and the initial modpack selection),
+     * enables config-backed debug logging, bootstraps the optional RGB subsystem, resolves and applies the effective
+     * UI locale, applies system properties and configures the logger, then branches by mode. The headless TUI
+     * ({@code --cli} / {@code --tui}) path reuses the cached account, loads packs, and hands control to the Lanterna
+     * app, returning only when the user quits. The GUI (client) path kicks off a background JavaFX prestart thread,
+     * performs client login, lazily probes connectivity, loads installed modpacks, shows the modpack-selection
+     * screen, and dispatches any deferred {@code mmcl://} URI or {@code .mmcjson} import that arrived during cold
+     * start. The method then waits on {@link #exitLatch} until exit or restart is signalled.</p>
      */
     void run()
     {

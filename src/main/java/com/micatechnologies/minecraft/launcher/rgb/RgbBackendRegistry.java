@@ -79,6 +79,12 @@ public final class RgbBackendRegistry
      * <p>Returns an empty list when the master toggle is off — the
      * controller then idles without probing any backend. In Auto mode
      * the list may have 0–N entries; in Manual mode it has 0 or 1.</p>
+     *
+     * @return the backends to drive simultaneously; empty when RGB is
+     *         disabled, the choice is {@code "none"}, or no enabled backend
+     *         probes available
+     *
+     * @since 2026.5
      */
     public static List< RgbBackend > resolveBackendsFromConfig()
     {
@@ -111,11 +117,15 @@ public final class RgbBackendRegistry
      * NoOp when nothing is available. Kept for back-compat with any
      * call site still expecting one backend.
      *
+     * @return the first backend {@link #resolveBackendsFromConfig()} would
+     *         return, or a {@link NoOpBackend} when that list is empty
+     *
      * @deprecated Use {@link #resolveBackendsFromConfig()} and pass
      *             the resulting list to
      *             {@link RgbController#start(List)} so mixed-vendor
      *             rigs get all of their devices lit instead of just
      *             the first that probes.
+     * @since 2026.5
      */
     @Deprecated
     public static RgbBackend resolveFromConfig()
@@ -131,6 +141,16 @@ public final class RgbBackendRegistry
      * backend Auto mode would pick — which loses the "run several at
      * once" property, so production code should call
      * {@link #resolveBackendsFromConfig()} instead.
+     *
+     * @param choice the backend identifier (one of the
+     *               {@code ConfigConstants.RGB_BACKEND_*} values, or
+     *               {@code null}); unrecognized values fall back to NoOp
+     *
+     * @return the single backend matching {@code choice}, or a
+     *         {@link NoOpBackend} when the name is unrecognized, {@code null},
+     *         {@code "none"}, or (for {@code "auto"}) nothing probes available
+     *
+     * @since 2026.5
      */
     public static RgbBackend resolve( String choice )
     {
@@ -168,6 +188,9 @@ public final class RgbBackendRegistry
      * most reliable backend leads — OpenRGB, then the native Chroma
      * SDK, then Windows Dynamic Lighting, then the deprecated Chroma
      * REST as a last-resort fallback.</p>
+     *
+     * @return the enabled-and-available backends in probe order; empty when
+     *         nothing is both enabled and available
      */
     private static List< RgbBackend > probeAutoEnabled()
     {

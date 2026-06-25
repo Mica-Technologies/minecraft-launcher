@@ -93,6 +93,12 @@ public final class MrpackImporter
     private static final java.util.Set< String > SUPPORTED_LOADERS =
             java.util.Set.of( "forge", "neoforge", "fabric-loader" );
 
+    /**
+     * Private no-op constructor — this is a static-only utility class and is
+     * never instantiated.
+     *
+     * @since 2026.3
+     */
     private MrpackImporter() { /* static-only */ }
 
     /**
@@ -100,6 +106,14 @@ public final class MrpackImporter
      * {@code file://...} URL the caller hands to
      * {@code installModPackByURL}; {@code index} is the parsed Modrinth
      * index for the confirmation-dialog mod-list display.
+     *
+     * @param localManifestUrl the {@code file://...} URL of the written
+     *                         Mica manifest, ready for the install pipeline
+     * @param index            the parsed Modrinth index for confirmation-dialog
+     *                         display
+     * @param modCount         the number of files translated into the
+     *                         {@code mods/} section
+     * @since 2026.3
      */
     public record Result( String localManifestUrl, ModrinthIndex index, int modCount )
     {
@@ -110,10 +124,27 @@ public final class MrpackImporter
      * (unsupported loader, bad file, network failure during download).
      * The GUI catches this and surfaces {@link #getMessage} in the failure
      * notification — keep the wording user-readable.
+     *
+     * @since 2026.3
      */
     public static final class ImportException extends Exception
     {
+        /**
+         * Creates an import exception with a user-readable message.
+         *
+         * @param message the user-facing failure description
+         * @since 2026.3
+         */
         public ImportException( String message ) { super( message ); }
+
+        /**
+         * Creates an import exception with a user-readable message and an
+         * underlying cause.
+         *
+         * @param message the user-facing failure description
+         * @param cause   the underlying cause of the failure
+         * @since 2026.3
+         */
         public ImportException( String message, Throwable cause ) { super( message, cause ); }
     }
 
@@ -129,13 +160,16 @@ public final class MrpackImporter
      * @param projectSlug        Modrinth slug, used for the local manifest
      *                           filename so subsequent imports of the same
      *                           pack overwrite cleanly
-     */
-    /**
-     * @param mrpackDownloadUrl  CDN URL of the {@code .mrpack} archive
-     * @param projectSlug        Modrinth slug for the local manifest filename
      * @param iconUrl            Optional Modrinth-hosted project icon URL; when
      *                           {@code null} the imported manifest falls back
      *                           to the bundled-default logo
+     * @return the import {@link Result} carrying the local {@code file://}
+     *         manifest URL, the parsed index, and the mod count
+     * @throws ImportException if the URL is missing/blank, the archive isn't a
+     *                         valid Modrinth pack, the loader is unsupported,
+     *                         the Minecraft version is missing, or any
+     *                         download / parse / write step fails
+     * @since 2026.3
      */
     public static Result importMrpack( String mrpackDownloadUrl, String projectSlug, String iconUrl ) throws ImportException
     {
@@ -210,7 +244,11 @@ public final class MrpackImporter
 
     /** Streams the {@code .mrpack} into a temp file alongside the launcher
      *  config dir. Bounded to {@link #MAX_MRPACK_BYTES} so a hostile or
-     *  malformed CDN response can't OOM the launcher. */
+     *  malformed CDN response can't OOM the launcher.
+     *
+     *  @param url the CDN URL of the {@code .mrpack} archive
+     *  @return the temp file the archive was streamed into
+     *  @throws ImportException if the download fails or exceeds the byte cap */
     private static Path downloadMrpack( String url ) throws ImportException
     {
         try {
@@ -234,7 +272,13 @@ public final class MrpackImporter
     }
 
     /** Opens the {@code .mrpack} as a ZIP, locates
-     *  {@code modrinth.index.json}, parses it with Gson. */
+     *  {@code modrinth.index.json}, parses it with Gson.
+     *
+     *  @param mrpack the downloaded {@code .mrpack} archive on disk
+     *  @return the parsed index (with a non-null {@code files} list), or
+     *          {@code null} when the archive contains no
+     *          {@code modrinth.index.json}
+     *  @throws ImportException if the archive can't be read */
     private static ModrinthIndex parseIndex( Path mrpack ) throws ImportException
     {
         try ( ZipFile zip = new ZipFile( mrpack.toFile() ) ) {
@@ -254,7 +298,11 @@ public final class MrpackImporter
     }
 
     /** Returns the first dependency key that names a supported mod loader,
-     *  or {@code null} when the pack uses an unsupported loader. */
+     *  or {@code null} when the pack uses an unsupported loader.
+     *
+     *  @param index the parsed Modrinth index
+     *  @return the matching dependency key (e.g. {@code "forge"}), or
+     *          {@code null} if none of the pack's loaders are supported */
     private static String pickLoader( ModrinthIndex index )
     {
         if ( index == null || index.dependencies == null ) return null;
@@ -270,7 +318,16 @@ public final class MrpackImporter
      *  Mica section. The Forge installer URL is derived from the loader
      *  version + Minecraft version; its SHA-1 is computed by downloading
      *  the installer here so the manifest the launcher consumes is
-     *  fully self-contained. */
+     *  fully self-contained.
+     *
+     *  @param index          the parsed Modrinth index to translate
+     *  @param mcVersion      the target Minecraft version
+     *  @param forgeVersion   the loader version (Forge / NeoForge / Fabric)
+     *  @param forgeLoaderKey the Modrinth dependency key identifying the loader
+     *  @param iconUrl        optional Modrinth project icon URL, or {@code null}
+     *  @return the assembled Mica-format manifest as a {@link JsonObject}
+     *  @throws ImportException if the loader installer can't be fetched to
+     *                         compute its hash */
     private static JsonObject buildMicaManifest( ModrinthIndex index,
                                                   String mcVersion,
                                                   String forgeVersion,
@@ -422,7 +479,11 @@ public final class MrpackImporter
     /** Pings the Forge Maven coordinate that the version implies, then
      *  computes a SHA-1 of the downloaded installer. Returns the hex hash
      *  on success, or {@code null} on any error (which the caller surfaces
-     *  as a user-readable import failure). */
+     *  as a user-readable import failure).
+     *
+     *  @param installerUrl the loader installer JAR URL to fetch and hash
+     *  @return the hex-encoded SHA-1 of the installer, or {@code null} on any
+     *          download / hash failure */
     private static String computeForgeInstallerSha1( String installerUrl )
     {
         try {
@@ -465,7 +526,11 @@ public final class MrpackImporter
      *  Returns {@code null} (rather than throwing) on any failure — no
      *  iconUrl, non-https URL, network error, hash failure, unsupported
      *  format. Callers are expected to fall back to the bundled-default
-     *  logo URL in that case. */
+     *  logo URL in that case.
+     *
+     *  @param iconUrl the Modrinth-hosted project icon URL, or {@code null}
+     *  @return the hex-encoded SHA-1 of the staged PNG, or {@code null} on any
+     *          failure (no URL, non-http(s), download / decode / hash error) */
     private static String stageImportedLogo( String iconUrl )
     {
         if ( iconUrl == null || iconUrl.isBlank() ) return null;
@@ -520,7 +585,11 @@ public final class MrpackImporter
 
     /** Builds the Forge Maven URL for the given MC + Forge version pair.
      *  Mojang and Forge both publish under this stable Maven coordinate
-     *  shape, so this is a deterministic construction. */
+     *  shape, so this is a deterministic construction.
+     *
+     *  @param mcVersion    the target Minecraft version
+     *  @param forgeVersion the target Forge version
+     *  @return the Forge installer JAR URL on Forge's Maven */
     private static String buildForgeInstallerUrl( String mcVersion, String forgeVersion )
     {
         return String.format(
@@ -531,7 +600,12 @@ public final class MrpackImporter
     /** Maps a Modrinth {@code dependencies} key to the Mica manifest's
      *  {@code packModLoader} value. The mrpack keys for the three
      *  loaders we currently import: {@code forge}, {@code neoforge},
-     *  {@code fabric-loader}. */
+     *  {@code fabric-loader}.
+     *
+     *  @param loaderKey the Modrinth dependency key (may be {@code null})
+     *  @return the Mica {@code packModLoader} value ({@code "forge"},
+     *          {@code "neoforge"}, or {@code "fabric"}); defaults to
+     *          {@code "forge"} for unrecognized keys */
     private static String loaderKeyToType( String loaderKey )
     {
         return switch ( loaderKey == null ? "" : loaderKey ) {
@@ -543,7 +617,14 @@ public final class MrpackImporter
 
     /** Build the installer / profile URL for the requested loader.
      *  Forge / NeoForge return an installer-jar URL on the loader's
-     *  Maven; Fabric returns the meta service's profile-JSON endpoint. */
+     *  Maven; Fabric returns the meta service's profile-JSON endpoint.
+     *
+     *  @param loaderType    the Mica loader type ({@code "forge"} /
+     *                       {@code "neoforge"} / {@code "fabric"})
+     *  @param mcVersion     the target Minecraft version
+     *  @param loaderVersion the target loader version
+     *  @return the installer JAR URL (Forge / NeoForge) or profile-JSON URL
+     *          (Fabric) for the requested loader */
     private static String buildLoaderInstallerUrl( String loaderType,
                                                      String mcVersion,
                                                      String loaderVersion )
@@ -561,7 +642,13 @@ public final class MrpackImporter
 
     /** Writes the Mica-format manifest into {@code <config>/imported-manifests/}
      *  with a filename that's stable per (slug, version-id) so re-imports of
-     *  the same pack overwrite cleanly. */
+     *  the same pack overwrite cleanly.
+     *
+     *  @param manifest  the assembled Mica-format manifest to persist
+     *  @param slug      the Modrinth project slug (sanitized into the filename)
+     *  @param versionId the pack version ID (sanitized into the filename)
+     *  @return the path the manifest was written to
+     *  @throws ImportException if the manifest can't be written to disk */
     private static Path writeManifestToDisk( JsonObject manifest, String slug, String versionId ) throws ImportException
     {
         try {
@@ -587,7 +674,11 @@ public final class MrpackImporter
      *  so leaving the prefix in produces "vv43". The strip is only applied
      *  when the next character is a digit so we don't damage versions that
      *  genuinely start with the letter v (think "vintage-1.0"). Empty /
-     *  null inputs degrade to "1.0.0" — same as the historical behavior. */
+     *  null inputs degrade to "1.0.0" — same as the historical behavior.
+     *
+     *  @param raw the raw {@code versionId} string from the Modrinth index
+     *  @return the normalized version string, or {@code "1.0.0"} when the input
+     *          is null / blank */
     static String normalizeImportedVersion( String raw )
     {
         if ( raw == null || raw.isBlank() ) return "1.0.0";
@@ -601,7 +692,12 @@ public final class MrpackImporter
     }
 
     /** Quick path-component sanitizer. Filenames inside imported-manifests/
-     *  must be safe across Windows/macOS/Linux. */
+     *  must be safe across Windows/macOS/Linux.
+     *
+     *  @param raw      the raw string to sanitize into a filename component
+     *  @param fallback the value to return when {@code raw} is null / blank /
+     *                  reduces to empty after sanitizing
+     *  @return a filename-safe string */
     private static String sanitize( String raw, String fallback )
     {
         if ( raw == null || raw.isBlank() ) return fallback;
@@ -609,6 +705,11 @@ public final class MrpackImporter
         return s.isEmpty() ? fallback : s;
     }
 
+    /** Extracts the trailing filename component from a forward-slash path.
+     *
+     *  @param path a pack-root-relative path (may be {@code null})
+     *  @return the substring after the last {@code '/'}, the whole string when
+     *          there is no slash, or {@code null} when {@code path} is null */
     private static String filenameOf( String path )
     {
         if ( path == null ) return null;
@@ -616,6 +717,11 @@ public final class MrpackImporter
         return slash < 0 ? path : path.substring( slash + 1 );
     }
 
+    /** Counts the index files that live under the {@code mods/} prefix.
+     *
+     *  @param index the parsed Modrinth index (may be {@code null})
+     *  @return the number of bundled files whose path starts with
+     *          {@code mods/} */
     private static int countMods( ModrinthIndex index )
     {
         int count = 0;

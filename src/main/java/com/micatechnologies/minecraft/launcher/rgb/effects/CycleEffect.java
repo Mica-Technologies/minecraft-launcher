@@ -44,10 +44,32 @@ import java.util.List;
  */
 public final class CycleEffect implements RgbEffect
 {
+    /** Human-readable effect name surfaced via {@link #name()}. */
     private final String name;
+
+    /** Ordered palette cycled through, defensively copied at construction.
+     *  The cycle wraps from the last entry back to the first. */
     private final RgbColor[] colors;
+
+    /** Duration in milliseconds of one full loop through every color. */
     private final long periodMs;
 
+    /**
+     * Creates a color-cycle effect.
+     *
+     * @param name     human-readable effect name (returned by {@link #name()})
+     * @param colors   ordered palette to cycle through; must contain at least
+     *                 one color (copied defensively, so later mutation of the
+     *                 caller's list has no effect)
+     * @param periodMs duration in milliseconds of one full loop through every
+     *                 color; must be strictly positive
+     *
+     * @throws IllegalArgumentException if {@code colors} is {@code null} or
+     *                                  empty, or if {@code periodMs} is not
+     *                                  positive
+     *
+     * @since 2026.5
+     */
     public CycleEffect( String name, List< RgbColor > colors, long periodMs )
     {
         if ( colors == null || colors.isEmpty() ) {
@@ -61,8 +83,30 @@ public final class CycleEffect implements RgbEffect
         this.periodMs = periodMs;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the effect name supplied at construction
+     *
+     * @since 2026.5
+     */
     @Override public String name() { return name; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Maps the elapsed time onto a {@code (segment, segmentPhase)} pair,
+     * then returns a solid frame cross-faded between the segment's two
+     * adjacent palette colors using a half-cosine ease. A single-color
+     * palette degenerates to a constant solid frame.</p>
+     *
+     * @param elapsedMs milliseconds elapsed since the effect started; the
+     *                  phase wraps every {@code periodMs}
+     *
+     * @return the blended solid frame for this instant
+     *
+     * @since 2026.5
+     */
     @Override
     public RgbFrame frameAt( long elapsedMs )
     {
@@ -95,6 +139,12 @@ public final class CycleEffect implements RgbEffect
         return RgbFrame.solid( RgbColor.blend( from, to, t ) );
     }
 
-    /** Number of colors in the cycle. Exposed for tests + introspection. */
+    /**
+     * Number of colors in the cycle. Exposed for tests + introspection.
+     *
+     * @return the count of colors in the cycle palette
+     *
+     * @since 2026.5
+     */
     public int colorCount() { return colors.length; }
 }

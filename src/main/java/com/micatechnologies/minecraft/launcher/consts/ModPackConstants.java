@@ -76,8 +76,28 @@ public class ModPackConstants
     // `packModLoader` field. Stored lowercase; matched case-insensitively.
     // ====================================================================
 
+    /**
+     * Modloader type identifier for Forge. Stored lowercase in the modpack
+     * manifest's {@code packModLoader} field and matched case-insensitively.
+     *
+     * @since 2.0
+     */
     public static final String MOD_LOADER_FORGE    = "forge";
+
+    /**
+     * Modloader type identifier for NeoForge. Stored lowercase in the modpack
+     * manifest's {@code packModLoader} field and matched case-insensitively.
+     *
+     * @since 2.0
+     */
     public static final String MOD_LOADER_NEOFORGE = "neoforge";
+
+    /**
+     * Modloader type identifier for Fabric. Stored lowercase in the modpack
+     * manifest's {@code packModLoader} field and matched case-insensitively.
+     *
+     * @since 2.0
+     */
     public static final String MOD_LOADER_FABRIC   = "fabric";
 
     /** Default modloader assumed when {@code packModLoader} is absent
