@@ -34,7 +34,14 @@ import java.util.Objects;
  */
 public final class RgbFrame
 {
+    /**
+     * The background color applied to every key not present in {@code keyOverrides}.
+     */
     private final RgbColor background;
+
+    /**
+     * A sparse map of per-key overrides.
+     */
     private final Map< KeyboardKey, RgbColor > keyOverrides;
 
     /**

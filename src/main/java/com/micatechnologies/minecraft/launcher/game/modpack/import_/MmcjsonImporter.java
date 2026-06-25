@@ -50,6 +50,9 @@ import java.nio.file.Path;
  */
 public final class MmcjsonImporter
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private MmcjsonImporter() { /* static-only */ }
 
     /** Same folder Modrinth / ZIP / Technic-server / loader-version

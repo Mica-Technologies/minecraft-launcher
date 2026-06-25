@@ -35,6 +35,9 @@ import java.net.URI;
  */
 public final class UrlValidation
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private UrlValidation() { /* static utility */ }
 
     /**

@@ -36,6 +36,9 @@ import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
  */
 public final class NetworkConfig
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private NetworkConfig() { /* static-only */ }
 
     /** Whether a manual SOCKS / HTTP proxy is in effect. When {@code false}

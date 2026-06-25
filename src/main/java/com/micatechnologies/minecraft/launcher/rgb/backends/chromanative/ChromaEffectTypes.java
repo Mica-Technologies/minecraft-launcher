@@ -41,6 +41,9 @@ import com.sun.jna.Memory;
  */
 final class ChromaEffectTypes
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ChromaEffectTypes() { /* static-only */ }
 
     // ============================================================
@@ -59,8 +62,10 @@ final class ChromaEffectTypes
     //   REACTIVE=4, SPECTRUMCYCLING=5, STATIC=6, WAVE=7, CUSTOM2=8)
     // ============================================================
 
-    /** Static single-color fill across all mouse zones.
-     *  Param layout: { LEDId (uint32 = 0 for "all zones"), Color (COLORREF) }. */
+    /**
+     * Static single-color fill across all mouse zones.
+     * Param layout: { LEDId (uint32 = 0 for "all zones"), Color (COLORREF) }.
+     */
     static final int MOUSE_STATIC = 6;
 
     // ============================================================
@@ -102,22 +107,31 @@ final class ChromaEffectTypes
     //  (RGB fan hubs, light strips, etc.) — the user's setup.
     // ============================================================
 
-    /** Single-color fill across every Chromalink-attached zone.
-     *  Param = COLORREF. */
+    /**
+     * Single-color fill across every Chromalink-attached zone.
+     * Param = COLORREF.
+     */
     static final int CHROMALINK_STATIC = 2;
 
-    /** Per-LED 1×5 custom array (Chromalink exposes 5 logical zones).
-     *  Param = COLORREF[5] (20 bytes). */
+    /**
+     * Per-LED 1×5 custom array (Chromalink exposes 5 logical zones).
+     * Param = COLORREF[5] (20 bytes).
+     */
     static final int CHROMALINK_CUSTOM = 1;
 
     // ============================================================
     //  Param builders
     // ============================================================
 
-    /** Allocates a 4-byte param block holding a single COLORREF.
-     *  Used by every {@code _STATIC} effect that takes a bare color
-     *  (keyboard, mousepad, headset, keypad, chromalink). Mouse is
-     *  special — see {@link #buildMouseStaticParam}. */
+    /**
+     * Allocates a 4-byte param block holding a single COLORREF.
+     * Used by every {@code _STATIC} effect that takes a bare color
+     * (keyboard, mousepad, headset, keypad, chromalink). Mouse is
+     * special — see {@link #buildMouseStaticParam}.
+     *
+     * @param packedColor the packed color value to be stored in the parameter block
+     * @return a Memory object containing the parameter block
+     */
     static Memory buildStaticParam( int packedColor )
     {
         Memory m = new Memory( 4 );
@@ -125,8 +139,13 @@ final class ChromaEffectTypes
         return m;
     }
 
-    /** Mouse static effect param: {@code { LEDId, Color }}. LEDId 0
-     *  means "all zones" — covers the whole device with one color. */
+    /**
+     * Mouse static effect param: {@code { LEDId, Color }}. LEDId 0
+     * means "all zones" — covers the whole device with one color.
+     *
+     * @param packedColor the packed color value to be stored in the parameter block
+     * @return a Memory object containing the parameter block
+     */
     static Memory buildMouseStaticParam( int packedColor )
     {
         Memory m = new Memory( 8 );
@@ -135,9 +154,14 @@ final class ChromaEffectTypes
         return m;
     }
 
-    /** Keyboard CHROMA_CUSTOM param: 6 rows × 22 cols × 4-byte COLORREF.
-     *  {@code grid[row][col]} maps to byte offset
-     *  {@code (row * 22 + col) * 4}. */
+    /**
+     * Keyboard CHROMA_CUSTOM param: 6 rows × 22 cols × 4-byte COLORREF.
+     * {@code grid[row][col]} maps to byte offset
+     * {@code (row * 22 + col) * 4}.
+     *
+     * @param grid the 2D array representing the custom color grid
+     * @return a Memory object containing the parameter block
+     */
     static Memory buildKeyboardCustomParam( int[][] grid )
     {
         int rows = 6;

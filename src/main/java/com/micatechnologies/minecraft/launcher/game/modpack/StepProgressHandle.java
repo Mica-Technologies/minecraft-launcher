@@ -43,21 +43,36 @@ import com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracke
  */
 public final class StepProgressHandle extends GameModPackProgressProvider
 {
+    /**
+     * The shared launch-progress tracker the handle writes to.
+     */
     private final LaunchProgressTracker tracker;
+
+    /**
+     * The step this handle is permanently bound to.
+     */
     private final StepId stepId;
 
-    /** Accumulator for the current sub-section's progress within this step,
-     *  in 0..100. Same model as the bridge — multiple sub-sections within a
-     *  step each restart from 0 (the visual bar resets) and accumulate
-     *  toward 100 as individual files are verified. */
+    /**
+     * Accumulator for the current sub-section's progress within this step,
+     * in 0..100. Same model as the bridge — multiple sub-sections within a
+     * step each restart from 0 (the visual bar resets) and accumulate
+     * toward 100 as individual files are verified.
+     */
     private double currentSectionProgress = 0.0;
 
-    /** Wall-clock of the last tracker.submitProgress fire. Used to throttle
-     *  per-file updates down to ~20 fps so the bar render can actually catch
-     *  up — without this, fetchLatest* fans out so fast across parallelStream
-     *  workers that the bar gets new setProgress targets faster than it can
-     *  animate between them, which on screen reads as a stuttering empty bar. */
+    /**
+     * Wall-clock of the last tracker.submitProgress fire. Used to throttle
+     * per-file updates down to ~20 fps so the bar render can actually catch
+     * up — without this, fetchLatest* fans out so fast across parallelStream
+     * workers that the bar gets new setProgress targets faster than it can
+     * animate between them, which on screen reads as a stuttering empty bar.
+     */
     private volatile long lastFireMs = 0;
+
+    /**
+     * The throttle time in milliseconds for per-file updates.
+     */
     private static final long FIRE_THROTTLE_MS = 50;
 
     /**
@@ -86,37 +101,45 @@ public final class StepProgressHandle extends GameModPackProgressProvider
      */
     public StepId stepId() { return stepId; }
 
-    /** Marks the handle's step running on the underlying tracker. Call at the
-     *  start of the branch that owns this handle. */
+    /**
+     * Marks the handle's step running on the underlying tracker. Call at the
+     * start of the branch that owns this handle.
+     */
     public synchronized void markRunning()
     {
         currentSectionProgress = 0.0;
         tracker.markRunning( stepId );
     }
 
-    /** Marks the handle's step done. Call when the branch finishes
-     *  successfully. */
+    /**
+     * Marks the handle's step done. Call when the branch finishes
+     * successfully.
+     */
     public synchronized void markDone()
     {
         tracker.markDone( stepId );
     }
 
-    /** Marks the handle's step failed with the given error message. Call from
-     *  the catch path of the branch that owns this handle.
+    /**
+     * Marks the handle's step failed with the given error message. Call from
+     * the catch path of the branch that owns this handle.
      *
-     *  @param errorMessage human-readable failure reason shown on the row */
+     * @param errorMessage human-readable failure reason shown on the row
+     */
     public synchronized void markFailed( String errorMessage )
     {
         tracker.markFailed( stepId, errorMessage );
     }
 
-    /** Marks the handle's step skipped with the given reason text. Call when
-     *  policy short-circuits the step's work (e.g. scan-frequency policy
-     *  saying "scan not due this launch"). The reason becomes the sub-text
-     *  on the row so the user can see why nothing ran.
+    /**
+     * Marks the handle's step skipped with the given reason text. Call when
+     * policy short-circuits the step's work (e.g. scan-frequency policy
+     * saying "scan not due this launch"). The reason becomes the sub-text
+     * on the row so the user can see why nothing ran.
      *
-     *  @param reason explanation for skipping; ignored when {@code null} or
-     *               empty */
+     * @param reason explanation for skipping; ignored when {@code null} or
+     *               empty
+     */
     public synchronized void markSkipped( String reason )
     {
         if ( reason != null && !reason.isEmpty() ) {

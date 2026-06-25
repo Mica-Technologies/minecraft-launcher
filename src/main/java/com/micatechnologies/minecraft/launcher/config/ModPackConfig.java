@@ -45,6 +45,9 @@ import java.util.List;
  */
 public final class ModPackConfig
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModPackConfig() { /* static-only */ }
 
     // ====================================================================

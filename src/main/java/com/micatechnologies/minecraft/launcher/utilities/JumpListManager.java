@@ -47,12 +47,17 @@ import org.apache.commons.lang3.SystemUtils;
  */
 public final class JumpListManager
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private JumpListManager() { /* static-only */ }
 
     /**
      * Refreshes the OS-shell recent-modpacks surface to reflect the current
      * play history. Called at launcher startup (right after the URL-scheme
      * registration) and after every successful pack launch.
+     *
+     * @since 2026.5
      */
     public static void refresh()
     {

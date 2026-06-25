@@ -51,6 +51,9 @@ import java.util.Deque;
  */
 public final class CardPool< T >
 {
+    /**
+     * The internal deque used to store and manage the pooled cards.
+     */
     private final Deque< T > pool = new ArrayDeque<>();
 
     /** Returns the pool's current size — primarily a diagnostic /
@@ -60,8 +63,12 @@ public final class CardPool< T >
         return pool.size();
     }
 
-    /** Pushes {@code card} onto the pool. The caller is expected to
-     *  have already removed it from the scene graph. */
+    /**
+     * Pushes {@code card} onto the pool. The caller is expected to
+     * have already removed it from the scene graph.
+     *
+     * @param card the card to release back into the pool
+     */
     public void release( T card )
     {
         if ( card == null ) return;
@@ -74,6 +81,9 @@ public final class CardPool< T >
      * (empty-state placeholder Labels, import-progress cards, etc.)
      * are skipped by the cast guard so they don't pollute the pool.
      * Caller still needs to clear() the children list afterwards.
+     *
+     * @param children the iterable collection of nodes to recycle
+     * @param cardClass the class type of the card nodes to be recycled
      */
     public void recycleAll( Iterable< ? extends javafx.scene.Node > children, Class< T > cardClass )
     {
@@ -84,30 +94,43 @@ public final class CardPool< T >
         }
     }
 
-    /** Pop a card from the pool if available, otherwise invoke
-     *  {@code factory} to build a fresh one. The factory's card is
-     *  expected to be pre-bound to its data; pool cards are returned
-     *  as-is and need a {@code bind()} call to reset their visual
-     *  state. Use {@link #acquireOrNull} when the caller needs to
-     *  distinguish the two paths. */
+    /**
+     * Pop a card from the pool if available, otherwise invoke
+     * {@code factory} to build a fresh one. The factory's card is
+     * expected to be pre-bound to its data; pool cards are returned
+     * as-is and need a {@code bind()} call to reset their visual
+     * state. Use {@link #acquireOrNull} when the caller needs to
+     * distinguish the two paths.
+     *
+     * @param factory the supplier function to create a new card if none is available in the pool
+     * @return the acquired or newly created card
+     */
     public T acquireOr( java.util.function.Supplier< T > factory )
     {
         T card = pool.poll();
         return card == null ? factory.get() : card;
     }
 
-    /** Pop a card from the pool, returning null when the pool is
-     *  empty. Lets the caller branch between "construct + bind once"
-     *  (fresh card path) and "rebind only" (recycled card path)
-     *  without doubling the bind work on first-paint. */
+    /**
+     * Pop a card from the pool, returning null when the pool is
+     * empty. Lets the caller branch between "construct + bind once"
+     * (fresh card path) and "rebind only" (recycled card path)
+     * without doubling the bind work on first-paint.
+     *
+     * @return the acquired card from the pool, or null if the pool is empty
+     */
     public T acquireOrNull()
     {
         return pool.poll();
     }
 
-    /** Runs {@code action} over every pooled (not-currently-displayed) card.
-     *  Used by the owning GUI's cleanup to tear down per-card subscriptions
-     *  (e.g. the image-cycle clock) on cards that aren't in the scene graph. */
+    /**
+     * Runs {@code action} over every pooled (not-currently-displayed) card.
+     * Used by the owning GUI's cleanup to tear down per-card subscriptions
+     * (e.g. the image-cycle clock) on cards that aren't in the scene graph.
+     *
+     * @param action the consumer function to apply to each card in the pool
+     */
     public void forEach( java.util.function.Consumer< ? super T > action )
     {
         for ( T card : pool ) {

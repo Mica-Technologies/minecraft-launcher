@@ -69,12 +69,18 @@ public final class SensitiveDataRedactor
     private static final Pattern LEGACY_SESSION_PATTERN = Pattern.compile(
             "token:[A-Za-z0-9._-]+:([0-9a-fA-F-]{32,36})" );
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private SensitiveDataRedactor() { /* static-only */ }
 
     /**
      * Returns a copy of {@code input} with any embedded auth tokens replaced by
      * a placeholder. Null and empty inputs are passed through unchanged. The
      * input is never modified.
+     *
+     * @param input the string to be redacted
+     * @return the redacted string, or the original input if it is null or empty
      */
     public static String redact( String input )
     {

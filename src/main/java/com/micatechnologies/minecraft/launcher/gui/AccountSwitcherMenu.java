@@ -45,6 +45,9 @@ import java.util.List;
  */
 public final class AccountSwitcherMenu
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private AccountSwitcherMenu() { /* static-only */ }
 
     /**

@@ -232,6 +232,13 @@ public final class ArchiveExtractor
         }
     }
 
+    /**
+     * Describes the type of a TAR archive entry.
+     *
+     * @param entry the TAR archive entry to describe
+     *
+     * @return a string describing the type of the entry
+     */
     private static String describeTarType( TarArchiveEntry entry )
     {
         if ( entry.isSymbolicLink() )    return "symlink";

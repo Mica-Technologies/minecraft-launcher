@@ -51,6 +51,9 @@ import java.util.concurrent.TimeoutException;
  */
 public final class DownloadExecutor
 {
+    /**
+     * Private constructor to prevent instantiation of the utility class.
+     */
     private DownloadExecutor() { }
 
     /**
@@ -122,6 +125,11 @@ public final class DownloadExecutor
         }
     }
 
+    /**
+     * Cancels all the futures in the provided list.
+     *
+     * @param futures the futures to cancel
+     */
     private static void cancelAll( List< ? extends Future< ? > > futures )
     {
         for ( Future< ? > f : futures ) {

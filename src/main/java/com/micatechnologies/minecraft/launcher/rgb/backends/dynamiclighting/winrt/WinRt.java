@@ -67,6 +67,9 @@ import java.nio.charset.StandardCharsets;
  */
 public final class WinRt
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private WinRt() { /* static-only */ }
 
     // ====================================================================

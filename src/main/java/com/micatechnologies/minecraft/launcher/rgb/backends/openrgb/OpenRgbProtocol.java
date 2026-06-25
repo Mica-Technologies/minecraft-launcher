@@ -48,6 +48,9 @@ import java.util.List;
  */
 final class OpenRgbProtocol
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private OpenRgbProtocol() { /* static-only */ }
 
     /** Magic bytes that prefix every packet header. */
@@ -69,11 +72,34 @@ final class OpenRgbProtocol
 
     // -------- Packet IDs --------
 
+    /**
+     * Packet ID for requesting the count of controllers.
+     */
     static final int PKT_REQUEST_CONTROLLER_COUNT      = 0;
+
+    /**
+     * Packet ID for requesting controller data.
+     */
     static final int PKT_REQUEST_CONTROLLER_DATA       = 1;
+
+    /**
+     * Packet ID for requesting the protocol version.
+     */
     static final int PKT_REQUEST_PROTOCOL_VERSION      = 40;
+
+    /**
+     * Packet ID for setting the client name.
+     */
     static final int PKT_SET_CLIENT_NAME               = 50;
+
+    /**
+     * Packet ID for updating LEDs on a controller.
+     */
     static final int PKT_RGBCONTROLLER_UPDATELEDS      = 1050;
+
+    /**
+     * Packet ID for setting a custom mode on a controller.
+     */
     static final int PKT_RGBCONTROLLER_SETCUSTOMMODE   = 1100;
 
     /** Header length: 4 magic + 4 device index + 4 packet ID + 4 size. */
@@ -83,9 +109,16 @@ final class OpenRgbProtocol
     //  Packet I/O
     // =========================================================================
 
-    /** Writes one packet to the OpenRGB server. Header + body in a single
-     *  flush so the server reads them as one logical unit. Allowed to
-     *  throw — caller catches and routes to the circuit breaker. */
+    /**
+     * Writes one packet to the OpenRGB server. Header + body in a single
+     * flush so the server reads them as one logical unit.
+     *
+     * @param out         The output stream to write the packet to.
+     * @param deviceIndex The index of the device.
+     * @param packetId    The ID of the packet.
+     * @param body        The body of the packet.
+     * @throws IOException If an I/O error occurs while writing the packet.
+     */
     static void sendPacket( OutputStream out, int deviceIndex, int packetId, byte[] body )
             throws IOException
     {
@@ -101,10 +134,17 @@ final class OpenRgbProtocol
         out.flush();
     }
 
-    /** Reads one packet from the OpenRGB server. Validates the magic
-     *  and packet ID match expectations; on mismatch throws so the
-     *  caller can record a circuit-breaker failure instead of letting
-     *  a corrupted stream wedge the worker. */
+    /**
+     * Reads one packet from the OpenRGB server. Validates the magic
+     * and packet ID match expectations; on mismatch throws so the
+     * caller can record a circuit-breaker failure instead of letting
+     * a corrupted stream wedge the worker.
+     *
+     * @param in              The input stream to read the packet from.
+     * @param expectedPacketId The expected packet ID.
+     * @return A {@link Packet} object containing the parsed packet data.
+     * @throws IOException If an I/O error occurs while reading the packet or if the magic or packet ID do not match expectations.
+     */
     static Packet readPacket( DataInputStream in, int expectedPacketId ) throws IOException
     {
         byte[] header = in.readNBytes( HEADER_BYTES );
@@ -139,13 +179,21 @@ final class OpenRgbProtocol
         return new Packet( deviceIndex, packetId, body );
     }
 
+    /**
+     * Represents a parsed OpenRGB packet.
+     */
     record Packet( int deviceIndex, int packetId, byte[] body ) {}
 
     // =========================================================================
     //  Body builders
     // =========================================================================
 
-    /** Body for SET_CLIENT_NAME: null-terminated ASCII client name. */
+    /**
+     * Builds the body for the SET_CLIENT_NAME packet.
+     *
+     * @param clientName The name of the client to set.
+     * @return A byte array containing the body of the packet.
+     */
     static byte[] buildClientNameBody( String clientName )
     {
         byte[] nameBytes = clientName.getBytes( StandardCharsets.US_ASCII );
@@ -155,20 +203,23 @@ final class OpenRgbProtocol
         return body;
     }
 
-    /** Body for REQUEST_CONTROLLER_DATA: client's preferred protocol
-     *  version as uint32 LE. Server uses this to format the response
-     *  blob for the right schema. */
+    /**
+     * Builds the body for the REQUEST_CONTROLLER_DATA packet.
+     *
+     * @return A byte array containing the body of the packet.
+     */
     static byte[] buildRequestControllerDataBody()
     {
         return ByteBuffer.allocate( 4 ).order( ByteOrder.LITTLE_ENDIAN )
                           .putInt( CLIENT_PROTOCOL_VERSION ).array();
     }
 
-    /** Body for UPDATELEDS: uint32 data_size + uint16 num_colors + N×4
-     *  bytes (R, G, B, padding) per LED. The data_size field is the
-     *  byte count of EVERYTHING that follows it (including itself
-     *  redundantly per the OpenRGB serialization rule, which is why
-     *  the math below includes the 4 bytes for the field). */
+    /**
+     * Builds the body for the UPDATELEDS packet.
+     *
+     * @param packedColors An array of packed colors to update.
+     * @return A byte array containing the body of the packet.
+     */
     static byte[] buildUpdateLedsBody( int[] packedColors )
     {
         int numColors = packedColors.length;
@@ -200,7 +251,18 @@ final class OpenRgbProtocol
     record ControllerData( int deviceType, String name, String description,
                            List< String > ledNames )
     {
+        /**
+         * Checks if the device is a keyboard.
+         *
+         * @return {@code true} if the device type is keyboard, {@code false} otherwise.
+         */
         boolean isKeyboard() { return deviceType == DEVICE_TYPE_KEYBOARD; }
+
+        /**
+         * Gets the count of LEDs.
+         *
+         * @return The number of LEDs.
+         */
         int ledCount() { return ledNames.size(); }
     }
 
@@ -215,6 +277,10 @@ final class OpenRgbProtocol
      * <p>Throws {@link IOException} on a truncated or malformed body — the
      * backend's circuit breaker then records a failure and demotes the
      * backend on repeated bad reads.</p>
+     *
+     * @param body The body of the controller data packet to parse.
+     * @return A {@link ControllerData} object containing the parsed data.
+     * @throws IOException If an I/O error occurs while parsing the controller data or if the data is truncated or malformed.
      */
     static ControllerData parseControllerData( byte[] body ) throws IOException
     {
@@ -289,9 +355,14 @@ final class OpenRgbProtocol
         }
     }
 
-    /** Reads a length-prefixed string: uint16 length (INCLUDES trailing
-     *  null per OpenRGB's serialization), then {@code length} bytes. The
-     *  trailing null is stripped before returning. */
+    /**
+     * Reads a length-prefixed string: uint16 length (INCLUDES trailing
+     * null per OpenRGB's serialization), then {@code length} bytes. The
+     * trailing null is stripped before returning.
+     *
+     * @param buf The buffer to read the string from.
+     * @return A string containing the parsed data.
+     */
     private static String readString( ByteBuffer buf )
     {
         int length = buf.getShort() & 0xFFFF;

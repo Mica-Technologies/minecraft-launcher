@@ -50,6 +50,9 @@ import java.util.List;
  */
 public final class ModpackImageResolver
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModpackImageResolver() { /* static-only */ }
 
     /** Decode size hint for pack logos. Logos display at 68 px on the home hero

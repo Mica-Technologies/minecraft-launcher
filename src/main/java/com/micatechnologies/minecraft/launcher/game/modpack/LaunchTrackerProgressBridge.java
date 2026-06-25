@@ -82,6 +82,9 @@ import com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracke
  */
 public final class LaunchTrackerProgressBridge extends GameModPackProgressProvider
 {
+    /**
+     * The multistep tracker this bridge translates legacy progress-provider calls into.
+     */
     private final LaunchProgressTracker tracker;
 
     /** Step that subsequent setCurrText / submitProgress calls update. Set by
@@ -94,6 +97,8 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     private double currentSectionProgress = 0.0;
 
     /**
+     * Constructs a new LaunchTrackerProgressBridge with the specified tracker.
+     *
      * @param tracker the multi-step tracker this bridge translates legacy
      *                progress-provider calls into
      */
@@ -102,10 +107,12 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
         this.tracker = tracker;
     }
 
-    /** Exposes the tracker so the GUI / launch core can attach listeners or
-     *  query state.
+    /**
+     * Exposes the tracker so the GUI / launch core can attach listeners or
+     * query state.
      *
-     *  @return the backing tracker */
+     * @return the backing tracker
+     */
     public LaunchProgressTracker tracker() { return tracker; }
 
     /**
@@ -127,10 +134,8 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     // =========================================================================
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Records {@code id} as the active step, resets the sub-section
-     * accumulator, and marks the step running on the tracker.</p>
+     * Records {@code id} as the active step, resets the sub-section
+     * accumulator, and marks the step running on the tracker.
      *
      * @param id the step now entering
      */
@@ -143,10 +148,8 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Clears the active-step pointer (when it matches) and marks the step
-     * done on the tracker.</p>
+     * Clears the active-step pointer (when it matches) and marks the step
+     * done on the tracker.
      *
      * @param id the step that finished successfully
      */
@@ -161,10 +164,8 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Clears the active-step pointer (when it matches) and marks the step
-     * failed on the tracker with the supplied message.</p>
+     * Clears the active-step pointer (when it matches) and marks the step
+     * failed on the tracker with the supplied message.
      *
      * @param id           the step that failed
      * @param errorMessage the failure detail to surface on the row
@@ -184,11 +185,9 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     // =========================================================================
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Accumulates {@code sectionProgress} into the current sub-section
+     * Accumulates {@code sectionProgress} into the current sub-section
      * (capped at 100) and pushes the running fraction plus detail text to the
-     * active step's tracker row. A no-op when no step is active.</p>
+     * active step's tracker row. A no-op when no step is active.
      *
      * @param detailText      current-activity detail for the row sub-text
      * @param sectionProgress increment to add to the current sub-section, in 0..100
@@ -205,9 +204,7 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Sets the active step's sub-text. A no-op when no step is active.</p>
+     * Sets the active step's sub-text. A no-op when no step is active.
      *
      * @param text the activity detail to display
      */
@@ -221,11 +218,9 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Begins a sub-section within the active step: resets the in-row bar to
+     * Begins a sub-section within the active step: resets the in-row bar to
      * zero and surfaces {@code title} as the row sub-text. The parent step
-     * stays {@code RUNNING}.</p>
+     * stays {@code RUNNING}.
      *
      * @param title the sub-section label shown as the row sub-text
      * @param size  the legacy sub-section size hint (unused by the tracker bridge)
@@ -247,12 +242,10 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>Ends a sub-section by setting the active step's sub-text to the
+     * Ends a sub-section by setting the active step's sub-text to the
      * completion message. The parent step is closed by {@link #completeStep},
      * not here, so sequential sub-sections within one step keep the row
-     * {@code RUNNING}.</p>
+     * {@code RUNNING}.
      *
      * @param text the sub-section completion message
      */
@@ -268,11 +261,9 @@ public final class LaunchTrackerProgressBridge extends GameModPackProgressProvid
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * <p>No-op: this bridge pushes straight to the tracker from each entry
+     * No-op: this bridge pushes straight to the tracker from each entry
      * point above, so there is no separate render callback to honour. Present
-     * only to satisfy the abstract base class.</p>
+     * only to satisfy the abstract base class.
      *
      * @param percent        ignored
      * @param sectionTitle   ignored

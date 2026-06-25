@@ -41,32 +41,55 @@ import org.apache.commons.lang3.SystemUtils;
  */
 public final class WindowsDpiAwareness
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private WindowsDpiAwareness() { /* static-only */ }
 
     /** Minimal user32 binding for the Win10 1703+ context-handle API. */
     public interface User32Dpi extends StdCallLibrary
     {
+        /**
+         * Singleton instance of {@link User32Dpi}.
+         */
         User32Dpi INSTANCE = SystemUtils.IS_OS_WINDOWS
                              ? Native.load( "user32", User32Dpi.class )
                              : null;
 
+        /**
+         * Sets the process DPI awareness context.
+         *
+         * @param dpiContext the DPI awareness context to set
+         * @return true if successful, false otherwise
+         */
         boolean SetProcessDpiAwarenessContext( Pointer dpiContext );
     }
 
     /** Minimal shcore binding for the Win8.1 fallback. */
     public interface ShcoreDpi extends StdCallLibrary
     {
+        /**
+         * Singleton instance of {@link ShcoreDpi}.
+         */
         ShcoreDpi INSTANCE = SystemUtils.IS_OS_WINDOWS
                              ? Native.load( "shcore", ShcoreDpi.class )
                              : null;
 
+        /**
+         * Sets the process DPI awareness.
+         *
+         * @param value the DPI awareness value to set
+         * @return the result of the operation
+         */
         int SetProcessDpiAwareness( int value );
     }
 
     /** DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 — Win10 1703+. Sentinel HANDLE value. */
     private static final Pointer PER_MONITOR_V2 = new Pointer( -4L );
+
     /** DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE — Win10 1607+. */
     private static final Pointer PER_MONITOR_V1 = new Pointer( -3L );
+
     /** PROCESS_PER_MONITOR_DPI_AWARE — shcore fallback for Win8.1 / Win10 pre-1607. */
     private static final int LEGACY_PER_MONITOR = 2;
 

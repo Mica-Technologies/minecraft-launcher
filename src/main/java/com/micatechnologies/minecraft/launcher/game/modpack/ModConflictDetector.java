@@ -46,6 +46,9 @@ import java.util.regex.Pattern;
  */
 public final class ModConflictDetector
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModConflictDetector() { /* static-only */ }
 
     /**
@@ -63,6 +66,11 @@ public final class ModConflictDetector
     public record Conflict( String title, String description,
                              String firstJarName, String secondJarName ) { }
 
+    /**
+     * A rule representing a known incompatibility between two mod families.
+     * The matcher looks for paired filename patterns; both halves must be present
+     * for a conflict to fire.
+     */
     private record Rule( String title, String description,
                           Pattern firstPattern, Pattern secondPattern ) { }
 
@@ -147,7 +155,13 @@ public final class ModConflictDetector
         return hits;
     }
 
-    /** Returns the first jar filename whose name matches the pattern, or {@code null}. */
+    /**
+     * Returns the first jar filename whose name matches the pattern, or {@code null}.
+     *
+     * @param names   list of jar filenames to search
+     * @param pattern pattern to match against each filename
+     * @return the first matching filename, or {@code null} if no match is found
+     */
     private static String firstMatch( List< String > names, Pattern pattern )
     {
         for ( String name : names ) {

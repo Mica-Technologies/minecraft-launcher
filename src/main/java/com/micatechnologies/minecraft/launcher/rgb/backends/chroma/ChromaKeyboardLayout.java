@@ -51,7 +51,11 @@ public final class ChromaKeyboardLayout
     /** Number of columns in the Chroma keyboard grid. */
     public static final int COLS = 22;
 
-    /** Per-key (row, col) lookup. Immutable, populated at class init. */
+    /**
+     * Per-key (row, col) lookup. Immutable, populated at class init.
+     *
+     * @since 2026.5
+     */
     private static final Map< KeyboardKey, int[] > KEY_TO_RC;
 
     static {
@@ -106,18 +110,37 @@ public final class ChromaKeyboardLayout
         KEY_TO_RC = Map.copyOf( m );
     }
 
+    /**
+     * Creates a new int array containing the specified row and column.
+     *
+     * @param row the row index
+     * @param col the column index
+     * @return an int array with two elements: [row, col]
+     * @since 2026.5
+     */
     private static int[] rc( int row, int col ) { return new int[]{ row, col }; }
 
-    /** Returns the (row, col) Chroma grid coordinate for {@code key},
-     *  or {@code null} if the launcher doesn't map this key for the
-     *  Chroma backend. The caller treats null as "leave at background
-     *  color" — same graceful-degradation behavior as
-     *  {@link com.micatechnologies.minecraft.launcher.rgb.backends.openrgb.OpenRgbBackend}'s
-     *  unrecognized-name path. */
+    /**
+     * Returns the (row, col) Chroma grid coordinate for {@code key},
+     * or {@code null} if the launcher doesn't map this key for the
+     * Chroma backend. The caller treats null as "leave at background
+     * color" — same graceful-degradation behavior as
+     * {@link com.micatechnologies.minecraft.launcher.rgb.backends.openrgb.OpenRgbBackend}'s
+     * unrecognized-name path.
+     *
+     * @param key the keyboard key to look up
+     * @return an int array containing the row and column coordinates, or null if not found
+     * @since 2026.5
+     */
     public static int[] coordOf( KeyboardKey key )
     {
         return KEY_TO_RC.get( key );
     }
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     *
+     * @since 2026.5
+     */
     private ChromaKeyboardLayout() { /* static-only */ }
 }

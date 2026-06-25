@@ -82,10 +82,39 @@ public final class RgbBackendHealth
      *  the cap rather than growing unboundedly. */
     private static final long MAX_BACKOFF_MS = 30L * 60_000L;
 
+    /**
+     * Lock object used for synchronizing access to shared state.
+     *
+     * @since 2026.5
+     */
     private final Object lock = new Object();
+
+    /**
+     * Current state of the circuit breaker.
+     *
+     * @since 2026.5
+     */
     private State state = State.HEALTHY;
+
+    /**
+     * Counter for consecutive failures.
+     *
+     * @since 2026.5
+     */
     private int consecutiveFailures = 0;
+
+    /**
+     * Timestamp of the next retry attempt in milliseconds.
+     *
+     * @since 2026.5
+     */
     private long nextRetryAt = 0L;
+
+    /**
+     * Current backoff duration in milliseconds.
+     *
+     * @since 2026.5
+     */
     private long currentBackoffMs = INITIAL_BACKOFF_MS;
 
     /**

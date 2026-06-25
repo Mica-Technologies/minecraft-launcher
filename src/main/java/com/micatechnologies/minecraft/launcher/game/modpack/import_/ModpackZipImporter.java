@@ -70,6 +70,9 @@ import java.util.zip.ZipFile;
  */
 public final class ModpackZipImporter
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModpackZipImporter() { /* static-only */ }
 
     /** Where the imported manifest gets written. Same folder Modrinth /

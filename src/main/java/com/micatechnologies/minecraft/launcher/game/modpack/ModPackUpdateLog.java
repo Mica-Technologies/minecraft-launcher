@@ -76,6 +76,9 @@ public final class ModPackUpdateLog
      *  unbounded growth. */
     private static final int MAX_ENTRIES = 200;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ModPackUpdateLog() { /* static-only */ }
 
     /**
@@ -198,6 +201,12 @@ public final class ModPackUpdateLog
 
     // ---------------------------------------------------------------------------------
 
+    /**
+     * Reads the last seen version from the specified tracker file.
+     *
+     * @param trackerFile the path to the tracker file
+     * @return the last seen version, or {@code null} if the file does not exist or an I/O error occurs
+     */
     private static String readLastSeenVersion( Path trackerFile )
     {
         if ( !Files.exists( trackerFile ) ) return null;
@@ -210,11 +219,27 @@ public final class ModPackUpdateLog
         }
     }
 
+    /**
+     * Writes the last seen version to the specified tracker file.
+     *
+     * @param trackerFile the path to the tracker file
+     * @param version     the version to write
+     * @throws IOException if an I/O error occurs while writing the file
+     */
     private static void writeLastSeenVersion( Path trackerFile, String version ) throws IOException
     {
         Files.writeString( trackerFile, version, StandardCharsets.UTF_8 );
     }
 
+    /**
+     * Appends a log entry to the specified log file.
+     *
+     * @param logFile     the path to the log file
+     * @param timestampMs the epoch-millisecond timestamp of when the version change was observed
+     * @param oldVersion  the previously-seen {@code packVersion}
+     * @param newVersion  the {@code packVersion} the change moved to
+     * @throws IOException if an I/O error occurs while writing the file
+     */
     private static void appendLogEntry( Path logFile, long timestampMs, String oldVersion, String newVersion )
             throws IOException
     {
@@ -224,17 +249,26 @@ public final class ModPackUpdateLog
                            StandardOpenOption.CREATE, StandardOpenOption.APPEND );
     }
 
-    /** Replaces field-separator characters with a visually-similar substitute so a
-     *  rogue version string can't corrupt the parsing of subsequent fields. */
+    /**
+     * Sanitizes a version string by replacing field-separator characters with a visually-similar substitute.
+     *
+     * @param version the version string to sanitize
+     * @return the sanitized version string
+     */
     private static String sanitize( String version )
     {
         if ( version == null ) return "";
         return version.replace( LOG_FIELD_SEP, "/" ).replace( "\n", " " ).replace( "\r", " " );
     }
 
-    /** Caps the log at {@link #MAX_ENTRIES} entries by rewriting the file with the
-     *  newest {@code MAX_ENTRIES} lines. Cheap because the file is small and trim only
-     *  runs after an append. */
+    /**
+     * Caps the log at {@link #MAX_ENTRIES} entries by rewriting the file with the
+     * newest {@code MAX_ENTRIES} lines. Cheap because the file is small and trim only
+     * runs after an append.
+     *
+     * @param logFile the path to the log file
+     * @throws IOException if an I/O error occurs while reading or writing the file
+     */
     private static void trimLogIfNeeded( Path logFile ) throws IOException
     {
         List< String > lines = Files.readAllLines( logFile, StandardCharsets.UTF_8 );
@@ -243,10 +277,15 @@ public final class ModPackUpdateLog
         Files.write( logFile, trimmed, StandardCharsets.UTF_8 );
     }
 
-    /** Per-pack lock for serializing read/write on the same pack's log files. Using
-     *  the pack's root path (interned) means two different packs can update in
-     *  parallel — the manifest fetch is parallelStreamed in
-     *  {@link GameModPackManager#fetchInstalledModPacks}. */
+    /**
+     * Per-pack lock for serializing read/write on the same pack's log files. Using
+     * the pack's root path (interned) means two different packs can update in
+     * parallel — the manifest fetch is parallelStreamed in
+     * {@link GameModPackManager#fetchInstalledModPacks}.
+     *
+     * @param pack the modpack for which to get the lock
+     * @return the lock object for the specified modpack
+     */
     private static Object lockFor( GameModPack pack )
     {
         return ( "modpack-update-log:" + pack.getPackRootFolder() ).intern();

@@ -77,18 +77,59 @@ public final class MacOsToolbarManager
     /** {@code NSWindowToolbarStyleUnified} (macOS 11+) — merges the toolbar into the title-bar row. */
     private static final long NS_WINDOW_TOOLBAR_STYLE_UNIFIED = 3L;
 
+    /**
+     * Identifier for a flexible space item in the toolbar.
+     */
     private static final String ID_FLEX     = "NSToolbarFlexibleSpaceItem";
+
+    /**
+     * Identifier for a space item in the toolbar.
+     */
     private static final String ID_SPACE    = "NSToolbarSpaceItem";
+
+    /**
+     * Identifier for the Browse item in the toolbar.
+     */
     private static final String ID_BROWSE   = "MicaBrowse";
+
+    /**
+     * Identifier for the Settings item in the toolbar.
+     */
     private static final String ID_SETTINGS = "MicaSettings";
+
+    /**
+     * Identifier for the Help item in the toolbar.
+     */
     private static final String ID_HELP     = "MicaHelp";
+
+    /**
+     * Identifier for the Update item in the toolbar.
+     */
     private static final String ID_UPDATE   = "MicaUpdate";
+
+    /**
+     * Identifier for the Account item in the toolbar.
+     */
     private static final String ID_ACCOUNT  = "MicaAccount";
 
+    /**
+     * Indicates whether the native toolbar has been installed successfully.
+     */
     private static volatile boolean installed   = false;
+
+    /**
+     * Indicates whether the delegate class has been built.
+     */
     private static volatile boolean classBuilt  = false;
+
+    /**
+     * Reference to the delegate object.
+     */
     private static volatile ID      delegateRef  = null;
-    /** The live account item, kept so the async avatar load can swap its image in. */
+
+    /**
+     * The live account item, kept so the async avatar load can swap its image in.
+     */
     private static volatile ID      accountItemRef = null;
 
     // "Update available" state. The native update item is only vended (and only included in the
@@ -96,8 +137,19 @@ public final class MacOsToolbarManager
     // JavaFX navbar's update glyph, set by UpdateCheckManager when a newer release is found. The
     // state is stored statically so it survives toolbar re-installs (every WINDOW_SHOWN / game
     // return rebuilds the toolbar and re-reads it).
+    /**
+     * Indicates whether an update is available.
+     */
     private static volatile boolean updateAvailable = false;
+
+    /**
+     * URL for the latest update, if available.
+     */
     private static volatile String  updateUrl       = null;
+
+    /**
+     * The owning stage for the toolbar window and click dialog.
+     */
     private static volatile Stage   toolbarStage    = null;
 
     // Whether the navigation/account items (Browse / Settings / Update / Account) are clickable.
@@ -105,16 +157,33 @@ public final class MacOsToolbarManager
     // would otherwise let the user reach the main menu without signing in. The items stay visible
     // (greyed) either way. Read when items are vended so a toolbar rebuild reflects the latest
     // state; toggled via setNavigationEnabled on every screen change.
+    /**
+     * Indicates whether navigation and account items are enabled.
+     */
     private static volatile boolean navEnabled = true;
 
     /** Item identifiers gated by {@link #navEnabled}. Help is intentionally excluded — it opens a
      *  separate help window and is safe (and useful) to reach from any screen, including login. */
+    /**
+     * Set of item identifiers that are gated by the navigation enabled state.
+     */
     private static final Set< String > GATED_ITEMS = Set.of( ID_BROWSE, ID_SETTINGS, ID_UPDATE, ID_ACCOUNT );
 
     // Retained for the JVM lifetime — if these Callback instances are GC'd, the native method
     // trampolines they back are freed and the next delegate call crashes the process.
+    /**
+     * Callback for handling toolbar item identifiers.
+     */
     private static Callback identifiersCallback;
+
+    /**
+     * Callback for handling items for a given identifier.
+     */
     private static Callback itemForIdentifierCallback;
+
+    /**
+     * Callback for handling actions on toolbar items.
+     */
     private static Callback actionCallback;
 
     /**

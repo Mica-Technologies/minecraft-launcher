@@ -51,6 +51,9 @@ import java.util.function.Supplier;
  */
 public final class KeyboardShortcutManager
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private KeyboardShortcutManager() { /* static-only */ }
 
     /**

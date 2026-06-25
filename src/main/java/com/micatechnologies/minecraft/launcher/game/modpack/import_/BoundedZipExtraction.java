@@ -38,6 +38,9 @@ import java.nio.file.StandardOpenOption;
  */
 final class BoundedZipExtraction
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private BoundedZipExtraction() { /* static-only */ }
 
     /** Max decompressed bytes for any single entry. */

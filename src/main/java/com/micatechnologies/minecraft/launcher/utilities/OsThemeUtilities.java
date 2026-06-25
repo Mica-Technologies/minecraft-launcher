@@ -49,9 +49,14 @@ import java.util.Locale;
  */
 public class OsThemeUtilities
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private OsThemeUtilities() { /* static-only utility */ }
 
     /**
+     * Determines if the operating system is currently in dark mode.
+     *
      * @return {@code true} when the OS reports a dark appearance. On any
      *         detector failure the launcher's "when in doubt, assume dark"
      *         default is returned, except on macOS where an absent

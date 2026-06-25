@@ -56,6 +56,9 @@ import java.util.List;
  */
 public final class ModrinthAddModDialog
 {
+    /**
+     * Private constructor to prevent instantiation.
+     */
     private ModrinthAddModDialog() { /* static-only */ }
 
     /**
@@ -164,7 +167,16 @@ public final class ModrinthAddModDialog
         queryField.requestFocus();
     }
 
-    /** One search-result row: title + meta + description, with a one-click Add button. */
+    /**
+     * One search-result row: title + meta + description, with a one-click Add button.
+     *
+     * @param hit       the search result hit
+     * @param pack      the game mod pack
+     * @param modsDir   the directory where mods are stored
+     * @param loader    the mod loader type
+     * @param mcVersion the Minecraft version array
+     * @return an HBox containing the result row
+     */
     private static HBox buildResultRow( ModrinthClient.SearchHit hit, GameModPack pack, File modsDir,
                                         String loader, String[] mcVersion )
     {
@@ -206,7 +218,15 @@ public final class ModrinthAddModDialog
         return row;
     }
 
-    /** Resolves the latest compatible file for a hit and downloads it into the mods folder. */
+    /**
+     * Resolves the latest compatible file for a hit and downloads it into the mods folder.
+     *
+     * @param hit       the search result hit
+     * @param modsDir   the directory where mods are stored
+     * @param loader    the mod loader type
+     * @param mcVersion the Minecraft version
+     * @param addBtn    the button used to trigger the download
+     */
     private static void addMod( ModrinthClient.SearchHit hit, File modsDir, String loader,
                                 String mcVersion, MFXButton addBtn )
     {
@@ -251,7 +271,12 @@ public final class ModrinthAddModDialog
         }
     }
 
-    /** Compact human-readable download count (e.g. {@code 1.2M}, {@code 45.0K}). */
+    /**
+     * Compact human-readable download count (e.g. {@code 1.2M}, {@code 45.0K}).
+     *
+     * @param downloads the number of downloads
+     * @return a formatted string representing the download count
+     */
     private static String formatDownloads( long downloads )
     {
         if ( downloads >= 1_000_000 ) {

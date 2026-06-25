@@ -36,6 +36,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class TuiRuntime
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private TuiRuntime() { /* static-only */ }
 
     /**

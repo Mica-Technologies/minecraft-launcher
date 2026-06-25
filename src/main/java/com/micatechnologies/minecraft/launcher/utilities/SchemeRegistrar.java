@@ -67,6 +67,9 @@ public final class SchemeRegistrar
      *  by-protocol view. */
     private static final String WIN_URL_DESCRIPTION = "URL:Mica Minecraft Launcher Protocol";
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private SchemeRegistrar() { /* static-only */ }
 
     /**
@@ -124,11 +127,15 @@ public final class SchemeRegistrar
         registerIfNeeded();
     }
 
-    /** Resolves the absolute path of the user-facing launcher executable. jpackage sets
+    /**
+     * Resolves the absolute path of the user-facing launcher executable. jpackage sets
      *  {@code jpackage.app-path} as a system property pointing at the wrapper exe — without
      *  that, we're running from a raw JAR / IDE classpath and there's no stable exe to
      *  register (or to relaunch — see {@code LauncherCore.relaunchApp}). Returns {@code null}
-     *  in that case. */
+     *  in that case.
+     *
+     * @return the absolute path of the launcher executable, or {@code null} if not found
+     */
     public static String resolveLauncherExePath()
     {
         String jpackagePath = System.getProperty( "jpackage.app-path" );
@@ -142,6 +149,11 @@ public final class SchemeRegistrar
     //  Windows — HKCU\Software\Classes registry writes via jna-platform Advapi32Util
     // =========================================================================================
 
+    /**
+     * Registers the URL scheme and file extension on Windows.
+     *
+     * @param exePath the path to the launcher executable
+     */
     private static void registerWindows( String exePath )
     {
         WinReg.HKEY root = WinReg.HKEY_CURRENT_USER;
@@ -188,12 +200,16 @@ public final class SchemeRegistrar
         Logger.logDebug( LocalizationManager.format( "log.schemeRegistrar.windowsRegistered", exePath ) );
     }
 
-    /** Extracts the bundled {@code mmcjson-file.ico} from JAR resources to a
+    /**
+     * Extracts the bundled {@code mmcjson-file.ico} from JAR resources to a
      *  stable path under the launcher's config folder. Returns the absolute
      *  path on success, or {@code null} when the resource can't be found /
      *  extracted (e.g. running from a stripped JAR). Idempotent — re-running
      *  overwrites the existing file so launcher updates that ship a refreshed
-     *  icon land automatically on next startup. */
+     *  icon land automatically on next startup.
+     *
+     * @return the absolute path to the extracted icon, or {@code null} if extraction fails
+     */
     private static String extractMmcjsonIconForWindows()
     {
         try {
@@ -220,8 +236,14 @@ public final class SchemeRegistrar
         }
     }
 
-    /** Creates {@code parent\name} if it doesn't already exist. Wraps the per-call boolean
-     *  return of {@code Advapi32Util.registryCreateKey} so the call sites read cleanly. */
+    /**
+     * Creates {@code parent\name} if it doesn't already exist. Wraps the per-call boolean
+     *  return of {@code Advapi32Util.registryCreateKey} so the call sites read cleanly.
+     *
+     * @param root the registry key root
+     * @param parent the parent key path
+     * @param name the name of the key to ensure
+     */
     private static void ensureKey( WinReg.HKEY root, String parent, String name )
     {
         try {
@@ -234,7 +256,13 @@ public final class SchemeRegistrar
         }
     }
 
-    /** Writes the standard {@code <key>\shell\open\command} chain pointing at the launcher exe. */
+    /**
+     * Writes the standard {@code <key>\shell\open\command} chain pointing at the launcher exe.
+     *
+     * @param root the registry key root
+     * @param parentKey the parent key path
+     * @param command the command to execute
+     */
     private static void ensureCommandSubkey( WinReg.HKEY root, String parentKey, String command )
     {
         ensureKey( root, parentKey, "shell" );
@@ -247,6 +275,12 @@ public final class SchemeRegistrar
     //  Linux — write a .desktop file under ~/.local/share/applications
     // =========================================================================================
 
+    /**
+     * Registers the URL scheme and file extension on Linux.
+     *
+     * @param exePath the path to the launcher executable
+     * @throws IOException if an I/O error occurs during registration
+     */
     private static void registerLinux( String exePath ) throws IOException
     {
         Path home = Paths.get( System.getProperty( "user.home" ) );
@@ -303,6 +337,9 @@ public final class SchemeRegistrar
      *
      * <p>No-op when the user has never played a pack yet; the resulting
      * {@code .desktop} file just doesn't carry an {@code Actions=} line.</p>
+     *
+     * @param content the StringBuilder to append actions to
+     * @param exePath the path to the launcher executable
      */
     private static void appendRecentPacksActions( StringBuilder content, String exePath )
     {
@@ -345,9 +382,14 @@ public final class SchemeRegistrar
         content.append( actionsSections );
     }
 
-    /** Escapes a string for safe inclusion in a Desktop Entry value. The spec
+    /**
+     * Escapes a string for safe inclusion in a Desktop Entry value. The spec
      *  treats CR/LF as separators and a handful of characters as field-quote
-     *  triggers; strip those defensively. */
+     *  triggers; strip those defensively.
+     *
+     * @param value the string to escape
+     * @return the escaped string
+     */
     private static String desktopEntryEscape( String value )
     {
         StringBuilder sb = new StringBuilder( value.length() );
@@ -360,10 +402,15 @@ public final class SchemeRegistrar
         return sb.toString();
     }
 
-    /** Percent-encodes a string for safe inclusion in the {@code mmcl://play?name=...}
+    /**
+     * Percent-encodes a string for safe inclusion in the {@code mmcl://play?name=...}
      *  query string. Spec-correct URL encoding via {@code URLEncoder} would emit
      *  {@code +} for spaces, which we don't want (URI parsers handle %20 better);
-     *  do the small subset ourselves. */
+     *  do the small subset ourselves.
+     *
+     * @param value the string to encode
+     * @return the encoded string
+     */
     private static String urlEncodeForDesktopExec( String value )
     {
         StringBuilder sb = new StringBuilder( value.length() );
@@ -385,13 +432,15 @@ public final class SchemeRegistrar
         return sb.toString();
     }
 
-    /** Extracts the bundled launcher PNG and writes scaled copies into the per-user hicolor icon
+    /**
+     * Extracts the bundled launcher PNG and writes scaled copies into the per-user hicolor icon
      *  theme as {@code mica-minecraft-launcher.png}, so the {@code .desktop} file's
      *  {@code Icon=mica-minecraft-launcher} resolves on portable / non-jpackage installs (the
      *  deb/rpm ship this icon themselves). Several standard sizes are emitted so panels that only
      *  scan specific sizes still find it. Idempotent: skips the work when already staged, so the
      *  post-launch recents refresh doesn't re-scale every launch. Remove the dir to force a refresh
-     *  after an icon change. Offscreen image work — safe on headless ({@code --cli}) Linux. */
+     *  after an icon change. Offscreen image work — safe on headless ({@code --cli}) Linux.
+     */
     private static void installLinuxAppIcon()
     {
         try {
@@ -434,11 +483,13 @@ public final class SchemeRegistrar
         }
     }
 
-    /** Registers the {@code application/x-mmcjson} MIME type with a {@code *.mmcjson} glob in the
+    /**
+     * Registers the {@code application/x-mmcjson} MIME type with a {@code *.mmcjson} glob in the
      *  per-user shared-mime-info database, so double-clicking a modpack file resolves to the type
      *  the {@code .desktop} file declares it handles. Without this the runtime registration covers
      *  the URL scheme but not the file association on portable installs (the deb/rpm register the
-     *  type at install time via jpackage's {@code --file-associations}). Idempotent. */
+     *  type at install time via jpackage's {@code --file-associations}). Idempotent.
+     */
     private static void registerLinuxMimeType()
     {
         try {
@@ -470,7 +521,12 @@ public final class SchemeRegistrar
         }
     }
 
-    /** Minimal XML text escaping for the few characters that matter inside an element body. */
+    /**
+     * Minimal XML text escaping for the few characters that matter inside an element body.
+     *
+     * @param s the string to escape
+     * @return the escaped string
+     */
     private static String xmlEscape( String s )
     {
         if ( s == null ) {
@@ -479,8 +535,12 @@ public final class SchemeRegistrar
         return s.replace( "&", "&amp;" ).replace( "<", "&lt;" ).replace( ">", "&gt;" );
     }
 
-    /** Fire-and-forget invocation of an external command with a 2-second timeout. Used for
-     *  the optional {@code update-desktop-database} refresh on Linux. */
+    /**
+     * Fire-and-forget invocation of an external command with a 2-second timeout. Used for
+     *  the optional {@code update-desktop-database} refresh on Linux.
+     *
+     * @param command the command to run
+     */
     private static void runQuietly( String... command )
     {
         try {

@@ -120,6 +120,11 @@ public final class InstallIndex
     private static final java.util.concurrent.atomic.AtomicLong TMP_SEQ =
             new java.util.concurrent.atomic.AtomicLong();
 
+    /**
+     * Returns the path to the index file.
+     *
+     * @return the path to the index file
+     */
     private static Path indexPath()
     {
         if ( testPathOverride != null ) {
@@ -128,11 +133,13 @@ public final class InstallIndex
         return Path.of( LocalPathManager.getLauncherModpackFolderPath(), INDEX_FILENAME );
     }
 
-    /** Best-effort reap of leftover {@code install_index.json.tmp.N} staging files
-     *  from a crash between write and rename — otherwise they accumulate forever
-     *  (the in-process cleanup only fires on an in-flight IOException). Only files
-     *  older than a few minutes are removed, so a concurrent in-flight write's temp
-     *  is never deleted out from under it. */
+    /**
+     * Best-effort reap of leftover {@code install_index.json.tmp.N} staging files
+     * from a crash between write and rename — otherwise they accumulate forever
+     * (the in-process cleanup only fires on an in-flight IOException). Only files
+     * older than a few minutes are removed, so a concurrent in-flight write's temp
+     * is never deleted out from under it.
+     */
     private static void reapStaleTempFiles()
     {
         try {
@@ -158,10 +165,14 @@ public final class InstallIndex
         catch ( Exception ignored ) { /* best-effort cleanup; never block load */ }
     }
 
-    /** Reads the index from disk, or returns an empty instance if the file is
-     *  missing / unreadable / from a future schema version. Treating any read
-     *  failure as empty forces the per-manifest fallback path on this launch,
-     *  which transparently rebuilds the index as packs refresh. */
+    /**
+     * Reads the index from disk, or returns an empty instance if the file is
+     * missing / unreadable / from a future schema version. Treating any read
+     * failure as empty forces the per-manifest fallback path on this launch,
+     * which transparently rebuilds the index as packs refresh.
+     *
+     * @return the loaded {@link InstallIndex} instance or an empty one if the file is missing, unreadable, or from a future schema version
+     */
     public static synchronized InstallIndex load()
     {
         reapStaleTempFiles();
@@ -186,12 +197,14 @@ public final class InstallIndex
         }
     }
 
-    /** Best-effort atomic-ish write. Atomic rename is used where supported so a
-     *  partial write doesn't leave behind a corrupted JSON the next load has to
-     *  discard. Falls back to a direct write if either the parent-directory
-     *  create or the atomic move fails — the file's still useful even without
-     *  the atomicity guarantee, and we'd rather end up with a written index
-     *  than an empty one. */
+    /**
+     * Best-effort atomic-ish write. Atomic rename is used where supported so a
+     * partial write doesn't leave behind a corrupted JSON the next load has to
+     * discard. Falls back to a direct write if either the parent-directory
+     * create or the atomic move fails — the file's still useful even without
+     * the atomicity guarantee, and we'd rather end up with a written index
+     * than an empty one.
+     */
     public synchronized void save()
     {
         Path p = indexPath();
@@ -265,7 +278,8 @@ public final class InstallIndex
      * their writes to a single shared temp file and publish a garbled JSON that the next
      * {@code load()} rejected with a {@code JsonSyntaxException}.</p>
      *
-     * @since 3.6
+     * @param manifestUrl the URL of the manifest
+     * @param pack the game mod pack to upsert
      */
     public static synchronized void upsertAndSave( String manifestUrl, GameModPack pack )
     {
@@ -279,7 +293,7 @@ public final class InstallIndex
      * Atomic load-remove-save counterpart of {@link #upsertAndSave}. Use on uninstall so
      * dropping an entry can't race a concurrent upsert into a lost update or a corrupt file.
      *
-     * @since 3.6
+     * @param manifestUrl the URL of the manifest to remove
      */
     public static synchronized void removeAndSave( String manifestUrl )
     {
@@ -291,10 +305,15 @@ public final class InstallIndex
 
     // ===== mutation =====
 
-    /** Adds-or-replaces the entry for {@code manifestUrl} with the card-rendering
-     *  subset of {@code pack}. NOT safe to pair with a separate {@link #save()} from
-     *  concurrent threads — use {@link #upsertAndSave} for any disk-backed mutation
-     *  that can run in parallel. */
+    /**
+     * Adds-or-replaces the entry for {@code manifestUrl} with the card-rendering
+     * subset of {@code pack}. NOT safe to pair with a separate {@link #save()} from
+     * concurrent threads — use {@link #upsertAndSave} for any disk-backed mutation
+     * that can run in parallel.
+     *
+     * @param manifestUrl the URL of the manifest
+     * @param pack the game mod pack to upsert
+     */
     public synchronized void upsert( String manifestUrl, GameModPack pack )
     {
         if ( manifestUrl == null || manifestUrl.isBlank() || pack == null ) return;
@@ -318,15 +337,24 @@ public final class InstallIndex
         packs.put( manifestUrl, e );
     }
 
-    /** Removes a single entry — used when the user uninstalls a pack so the
-     *  index doesn't accumulate ghost entries that age never reaps. */
+    /**
+     * Removes a single entry — used when the user uninstalls a pack so the
+     * index doesn't accumulate ghost entries that age never reaps.
+     *
+     * @param manifestUrl the URL of the manifest to remove
+     */
     public synchronized void remove( String manifestUrl )
     {
         if ( manifestUrl == null || manifestUrl.isBlank() || packs == null ) return;
         packs.remove( manifestUrl );
     }
 
-    /** Returns the entry for the given URL, or {@code null} if absent. */
+    /**
+     * Returns the entry for the given URL, or {@code null} if absent.
+     *
+     * @param manifestUrl the URL of the manifest
+     * @return the entry for the given URL, or {@code null} if absent
+     */
     public synchronized Entry get( String manifestUrl )
     {
         if ( manifestUrl == null || packs == null ) return null;

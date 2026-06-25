@@ -69,6 +69,9 @@ public final class ConfigStore
      *  typical Settings-save flurry into a single write. */
     private static final long WRITE_DEBOUNCE_MS = 500L;
 
+    /**
+     * Scheduled executor service used for scheduling writes.
+     */
     private static final ScheduledExecutorService WRITE_SCHEDULER =
             Executors.newSingleThreadScheduledExecutor( r -> {
                 Thread t = new Thread( r, "mica-config-write" );
@@ -76,7 +79,14 @@ public final class ConfigStore
                 return t;
             } );
 
+    /**
+     * The JSON object representing the configuration.
+     */
     private static JsonObject json = null;
+
+    /**
+     * The pending scheduled write task.
+     */
     private static ScheduledFuture< ? > pendingWrite = null;
 
     static {
@@ -87,6 +97,9 @@ public final class ConfigStore
                                                           "mica-config-shutdown-flush" ) );
     }
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private ConfigStore() { /* static-only */ }
 
     // ====================================================================
@@ -106,17 +119,25 @@ public final class ConfigStore
         return json;
     }
 
-    /** Replace the entire backing JSON (used by import / reset paths).
-     *  Caller is responsible for migrating the imported document via
-     *  {@link ConfigManager#migrateConfigIfNeeded} when applicable. */
+    /**
+     * Replace the entire backing JSON (used by import / reset paths).
+     * Caller is responsible for migrating the imported document via
+     * {@link ConfigManager#migrateConfigIfNeeded} when applicable.
+     *
+     * @param obj the new JSON object to set as the configuration
+     */
     public static synchronized void setJson( JsonObject obj ) {
         json = obj;
     }
 
-    /** Snapshot reference for diagnostic / migration code. Returns
-     *  null if the config hasn't been loaded yet — call
-     *  {@link #ensureLoaded()} first if you need a guaranteed-loaded
-     *  object. */
+    /**
+     * Snapshot reference for diagnostic / migration code. Returns
+     * null if the config hasn't been loaded yet — call
+     * {@link #ensureLoaded()} first if you need a guaranteed-loaded
+     * object.
+     *
+     * @return the current JSON configuration or null if not loaded
+     */
     public static synchronized JsonObject peek() {
         return json;
     }
@@ -263,10 +284,14 @@ public final class ConfigStore
         ConfigManager.migrateConfigIfNeeded();
     }
 
-    /** Renames a corrupt config file aside with a timestamp suffix so the
-     *  user can recover settings later. Silently best-effort — if the rename
-     *  fails (file locked, permission denied), the launcher still resets and
-     *  the bad bytes get overwritten on the next write. */
+    /**
+     * Renames a corrupt config file aside with a timestamp suffix so the
+     * user can recover settings later. Silently best-effort — if the rename
+     * fails (file locked, permission denied), the launcher still resets and
+     * the bad bytes get overwritten on the next write.
+     *
+     * @param configFile the corrupt configuration file to preserve
+     */
     private static void preserveCorruptConfigFile( File configFile )
     {
         try {
@@ -299,10 +324,12 @@ public final class ConfigStore
                 ConfigStore::writeNow, WRITE_DEBOUNCE_MS, TimeUnit.MILLISECONDS );
     }
 
-    /** Synchronously flushes any pending debounced write. Called from
-     *  the JVM shutdown hook + exposed for code paths that need
-     *  durability before returning (config import, reset). No-op when
-     *  nothing is queued. */
+    /**
+     * Synchronously flushes any pending debounced write. Called from
+     * the JVM shutdown hook + exposed for code paths that need
+     * durability before returning (config import, reset). No-op when
+     * nothing is queued.
+     */
     public static synchronized void flushNow() {
         ScheduledFuture< ? > pending = pendingWrite;
         pendingWrite = null;
@@ -312,21 +339,23 @@ public final class ConfigStore
         }
     }
 
-    /** Actual disk-write implementation — runs on the scheduled-writer
-     *  thread under normal operation, or on the shutdown-hook /
-     *  flushNow callers' threads when they bypass the schedule.
+    /**
+     * Actual disk-write implementation — runs on the scheduled-writer
+     * thread under normal operation, or on the shutdown-hook /
+     * flushNow callers' threads when they bypass the schedule.
      *
-     *  <p><b>Atomic write contract.</b> Writes go to a sibling temp file
-     *  ({@code configuration.json.tmp}) first, get fsync-ed to durable
-     *  storage, and then atomic-renamed over the target. The sequence
-     *  guarantees that any abrupt process exit — JVM crash, taskkill /f,
-     *  power loss — leaves either the previous content or the new
-     *  content on disk, never a half-written truncation. The non-atomic
-     *  {@code FileUtils.writeStringToFile} this replaced was the root
-     *  cause of "launcher randomly forgot my modpack list" reports: any
-     *  kill during the open-truncate-write-close window left a 0-byte
-     *  or partial JSON file that {@link #loadFromDisk} couldn't parse
-     *  on the next launch, triggering the corrupt-recovery reset.</p> */
+     * <p><b>Atomic write contract.</b> Writes go to a sibling temp file
+     * ({@code configuration.json.tmp}) first, get fsync-ed to durable
+     * storage, and then atomic-renamed over the target. The sequence
+     * guarantees that any abrupt process exit — JVM crash, taskkill /f,
+     * power loss — leaves either the previous content or the new
+     * content on disk, never a half-written truncation. The non-atomic
+     * {@code FileUtils.writeStringToFile} this replaced was the root
+     * cause of "launcher randomly forgot my modpack list" reports: any
+     * kill during the open-truncate-write-close window left a 0-byte
+     * or partial JSON file that {@link #loadFromDisk} couldn't parse
+     * on the next launch, triggering the corrupt-recovery reset.</p>
+     */
     private static synchronized void writeNow() {
         if ( json == null ) {
             Logger.logError( LocalizationManager.CONFIG_NOT_LOADED_CANT_SAVE_ERROR_TEXT );
@@ -368,12 +397,14 @@ public final class ConfigStore
         }
     }
 
-    /** A single atomic-write attempt: serialize the in-memory JSON to a sibling
-     *  temp file, fsync it, and atomic-rename it over the target. Lets
-     *  {@link java.nio.channels.ClosedByInterruptException} propagate so
-     *  {@link #writeNow()} can retry it; every other failure is logged and the
-     *  temp file cleaned up. Must be called with the {@code ConfigStore} monitor
-     *  held (it is — {@link #writeNow()} is {@code synchronized}). */
+    /**
+     * A single atomic-write attempt: serialize the in-memory JSON to a sibling
+     * temp file, fsync it, and atomic-rename it over the target. Lets
+     * {@link java.nio.channels.ClosedByInterruptException} propagate so
+     * {@link #writeNow()} can retry it; every other failure is logged and the
+     * temp file cleaned up. Must be called with the {@code ConfigStore} monitor
+     * held (it is — {@link #writeNow()} is {@code synchronized}).
+     */
     private static void writeNowOnce() throws java.nio.channels.ClosedByInterruptException {
         String path = LocalPathManager.getLauncherConfigFolderPath()
                 + ConfigConstants.CONFIG_FILE_NAME;

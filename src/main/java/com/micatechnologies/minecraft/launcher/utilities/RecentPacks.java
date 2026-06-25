@@ -40,6 +40,9 @@ import java.util.List;
  */
 public final class RecentPacks
 {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private RecentPacks() { /* static-only */ }
 
     /**

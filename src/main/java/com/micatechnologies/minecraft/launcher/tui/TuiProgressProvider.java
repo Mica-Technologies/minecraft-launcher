@@ -44,12 +44,18 @@ public final class TuiProgressProvider extends GameModPackProgressProvider
         void onProgress( double percent, String section, String detail, String downloadStatus );
     }
 
+    /**
+     * The listener to receive progress updates.
+     *
+     * @since 2026.6
+     */
     private final Listener listener;
 
     /**
      * Constructs a new {@link TuiProgressProvider} with the specified listener.
      *
      * @param listener The listener to receive progress updates.
+     * @since 2026.6
      */
     public TuiProgressProvider( Listener listener )
     {
@@ -63,6 +69,7 @@ public final class TuiProgressProvider extends GameModPackProgressProvider
      * @param sectionTitle  The title of the current section being processed.
      * @param detailText    Detailed information about the current operation.
      * @param downloadStatus The status of the download process.
+     * @since 2026.6
      */
     @Override
     public void updateProgressHandler( double percent, String sectionTitle, String detailText,
