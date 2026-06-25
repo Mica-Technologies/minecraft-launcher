@@ -21,8 +21,26 @@ import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationM
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthResult;
 
+/**
+ * Helpers for interpreting authentication results.
+ *
+ * @author Mica Technologies
+ * @version 1.0
+ * @since 1.0
+ */
 public class AuthUtilities
 {
+    /**
+     * Interprets an {@link MCLauncherAuthResult}, logging a localized error for
+     * each known failure mode and reporting overall success.
+     *
+     * @param authResult the result of an authentication attempt
+     *
+     * @return {@code true} when authentication succeeded; {@code false} for any
+     *         error result (after logging the corresponding message)
+     *
+     * @since 1.0
+     */
     public static boolean checkAuthResponse( MCLauncherAuthResult authResult ) {
         boolean authSuccess = false;
         if ( authResult == MCLauncherAuthResult.ERROR_BAD_USERNAME_PASSWORD ) {
