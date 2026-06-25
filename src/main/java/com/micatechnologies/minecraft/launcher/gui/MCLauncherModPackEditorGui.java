@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -2319,7 +2318,8 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      */
     private String serializeDocument()
     {
-        return new GsonBuilder().setPrettyPrinting().create().toJson( workingDocument );
+        return com.micatechnologies.minecraft.launcher.utilities.JSONUtilities.getPrettyGson()
+                .toJson( workingDocument );
     }
 
     /**

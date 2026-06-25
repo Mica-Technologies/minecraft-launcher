@@ -17,7 +17,6 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
@@ -577,7 +576,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
                         available.add( u );
                     }
                     manifest.add( ModPackConstants.AVAILABLE_PACKS_MANIFEST_LIST_KEY, available );
-                    String json = new GsonBuilder().setPrettyPrinting().create().toJson( manifest );
+                    String json = com.micatechnologies.minecraft.launcher.utilities.JSONUtilities
+                            .getPrettyGson().toJson( manifest );
                     java.nio.file.Files.writeString( file.toPath(), json,
                                                      java.nio.charset.StandardCharsets.UTF_8 );
                     GUIUtilities.JFXPlatformRun( () -> hostingManifestBtn.setText( LocalizationManager.get( "browse.hostingManifest.saved" ) ) );
