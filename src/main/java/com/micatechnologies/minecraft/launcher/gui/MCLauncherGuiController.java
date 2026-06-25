@@ -26,11 +26,35 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Singleton controller that owns the launcher's single {@link MCLauncherGuiWindow}
+ * and drives all screen transitions. The {@code goTo*Gui()} family swaps the
+ * window's scene to the requested screen (constructing it, lazily starting the
+ * window if needed), while the {@code getTopStageOrNull} / {@code requestFocus} /
+ * focus helpers give off-thread callers (notifications, tray, deep-link handlers)
+ * a safe way to query and surface the window without reaching into
+ * {@link MCLauncherGuiWindow} directly.
+ *
+ * @author Mica Technologies
+ * @version 1.0
+ * @since 1.0
+ */
 public class MCLauncherGuiController
 {
+    /** Whether {@link #startGui()} has successfully constructed the window; gates
+     *  every accessor so off-thread callers never see a partially-initialized GUI. */
     private static final AtomicBoolean       startSuccess = new AtomicBoolean( false );
+    /** The launcher's single GUI window, or {@code null} before start / after exit. */
     private static       MCLauncherGuiWindow guiWindow    = null;
 
+    /**
+     * Returns the launcher's top-level {@link Stage}, or {@code null} when the
+     * GUI has not started (or has been torn down). Safe to call from any thread.
+     *
+     * @return the host stage, or {@code null} if the GUI isn't up
+     *
+     * @since 1.0
+     */
     public static Stage getTopStageOrNull() {
         return startSuccess.get() && guiWindow != null ? guiWindow.getStage() : null;
     }
@@ -53,6 +77,15 @@ public class MCLauncherGuiController
         return startSuccess.get() && guiWindow != null ? guiWindow.getCurrentGui() : null;
     }
 
+    /**
+     * Brings the launcher window to the foreground and gives it input focus,
+     * de-iconifying and showing it first if needed. Used when the user activates
+     * the tray icon or follows an {@code mmcl://} deep link with the window
+     * minimized or hidden. No-op when the GUI isn't up; marshals onto the FX
+     * thread internally so it's safe to call from any thread.
+     *
+     * @since 1.0
+     */
     public static void requestFocus() {
         Stage topStage = getTopStageOrNull();
         if ( topStage != null ) {
@@ -200,6 +233,17 @@ public class MCLauncherGuiController
         }
     }
 
+    /**
+     * Navigates to the main menu, reusing a {@link #prebuildMainGui() pre-built}
+     * instance when one is ready (else constructing on the spot) and re-arming
+     * the prebuild for the next visit. Starts the GUI window if needed.
+     *
+     * @return the shown main-menu controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
+     */
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherMainGui goToMainGui() throws IOException {
         MCLauncherMainGui newMainGui = null;
@@ -231,6 +275,15 @@ public class MCLauncherGuiController
         return newMainGui;
     }
 
+    /**
+     * Navigates to the Settings screen, starting the GUI window if needed.
+     *
+     * @return the shown settings controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
+     */
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherSettingsGui goToSettingsGui() throws IOException {
         MCLauncherSettingsGui newSettingsGui = null;
@@ -246,6 +299,15 @@ public class MCLauncherGuiController
         return newSettingsGui;
     }
 
+    /**
+     * Navigates to the Game Library screen, starting the GUI window if needed.
+     *
+     * @return the shown library controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
+     */
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherGameLibraryGui goToGameLibraryGui() throws IOException {
         MCLauncherGameLibraryGui newLibraryGui = null;
@@ -261,6 +323,15 @@ public class MCLauncherGuiController
         return newLibraryGui;
     }
 
+    /**
+     * Navigates to the Microsoft sign-in screen, starting the GUI window if needed.
+     *
+     * @return the shown login controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
+     */
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherLoginGui goToLoginGui() throws IOException {
         MCLauncherLoginGui newLoginGui = null;
@@ -276,6 +347,16 @@ public class MCLauncherGuiController
         return newLoginGui;
     }
 
+    /**
+     * Navigates to the legacy single-bar progress screen (used by sign-in and
+     * other long-running flows), starting the GUI window if needed.
+     *
+     * @return the shown progress controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
+     */
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherProgressGui goToProgressGui() throws IOException {
         MCLauncherProgressGui newProgressGui = null;
@@ -313,6 +394,15 @@ public class MCLauncherGuiController
         return newGui;
     }
 
+    /**
+     * Navigates to the in-game console screen, starting the GUI window if needed.
+     *
+     * @return the shown console controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
+     */
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherGameConsoleGui goToGameConsoleGui() throws IOException {
         MCLauncherGameConsoleGui newGui = null;
@@ -328,6 +418,16 @@ public class MCLauncherGuiController
         return newGui;
     }
 
+    /**
+     * Navigates to the Java runtime management screen, starting the GUI window
+     * if needed.
+     *
+     * @return the shown runtime controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
+     */
     @SuppressWarnings( "UnusedReturnValue" )
     public static MCLauncherRuntimeGui goToRuntimeGui() throws IOException {
         MCLauncherRuntimeGui newRuntimeGui = null;
@@ -343,6 +443,17 @@ public class MCLauncherGuiController
         return newRuntimeGui;
     }
 
+    /**
+     * Opens the modpack editor with an empty document. Convenience for
+     * {@link #goToModPackEditorGui(com.micatechnologies.minecraft.launcher.game.modpack.GameModPack)}
+     * with {@code null}.
+     *
+     * @return the shown editor controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
+     */
     public static MCLauncherModPackEditorGui goToModPackEditorGui() throws IOException
     {
         return goToModPackEditorGui( null );
@@ -379,12 +490,28 @@ public class MCLauncherGuiController
         return newEditorGui;
     }
 
+    /**
+     * Forces the active window to re-apply the current theme (stylesheets +
+     * native chrome). No-op when the GUI isn't up. Called after a theme change
+     * in Settings.
+     *
+     * @since 1.0
+     */
     public static void forceThemeRefresh() {
         if ( guiWindow != null ) {
             guiWindow.forceThemeChange();
         }
     }
 
+    /**
+     * Tears down the GUI window for a session end / restart: discards any
+     * unconsumed pre-built main GUI (which holds this session's now-closing
+     * {@link Stage}), cleans up and closes the window, and resets the
+     * started-state flag in lockstep so off-thread callers don't dereference a
+     * half-torn-down GUI.
+     *
+     * @since 1.0
+     */
     public static void exit() {
         // Discard any unconsumed pre-built main GUI. It holds a reference to THIS
         // session's Stage (passed to its constructor in prebuildMainGui); if the

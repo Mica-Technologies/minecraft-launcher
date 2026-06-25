@@ -19,12 +19,31 @@ package com.micatechnologies.minecraft.launcher.utilities;
 
 import java.time.LocalTime;
 
+/**
+ * Small time-of-day helper for user-facing greetings.
+ *
+ * @author Mica Technologies
+ * @version 1.0
+ * @since 1.0
+ */
 public class TimeUtilities
 {
+    /** Start of the "morning" band (inclusive): midnight. */
     private static final LocalTime MORNING_TIME_RANGE   = LocalTime.of( 0, 0, 0 );
+    /** Start of the "afternoon" band (inclusive): noon. */
     private static final LocalTime AFTERNOON_TIME_RANGE = LocalTime.of( 12, 0, 0 );
+    /** Start of the "evening" band (inclusive): 5pm. */
     private static final LocalTime EVENING_TIME_RANGE   = LocalTime.of( 17, 0, 0 );
 
+    /**
+     * Returns a greeting appropriate to the current local time of day:
+     * "Good Morning" before noon, "Good Afternoon" until 5pm, and
+     * "Good Evening" thereafter.
+     *
+     * @return a time-appropriate greeting string
+     *
+     * @since 1.0
+     */
     public static String getFriendlyTimeBasedGreeting() {
         String returnString;
         if ( isTimeInRange( MORNING_TIME_RANGE, AFTERNOON_TIME_RANGE ) ) {
@@ -39,6 +58,17 @@ public class TimeUtilities
         return returnString;
     }
 
+    /**
+     * Returns whether the current local time falls within the half-open range
+     * {@code [startRange, endRange)}.
+     *
+     * @param startRange inclusive lower bound
+     * @param endRange   exclusive upper bound
+     *
+     * @return {@code true} if now is at/after {@code startRange} and before {@code endRange}
+     *
+     * @since 1.0
+     */
     private static boolean isTimeInRange( LocalTime startRange, LocalTime endRange ) {
         LocalTime now = LocalTime.now();
         return ( !now.isBefore( startRange ) ) && now.isBefore( endRange );
