@@ -638,12 +638,17 @@ public abstract class GameModPackMetadata
     public String getInstalledVersion()
     {
         Path versionFile = Path.of( getPackRootFolder(), INSTALLED_VERSION_FILE );
-        if ( Files.exists( versionFile ) ) {
-            try {
-                return Files.readString( versionFile, StandardCharsets.UTF_8 ).trim();
-            }
-            catch ( IOException e ) {
-                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadInstalledVersion", getPackName() ) );
+        // Read under the same per-path monitor saveInstalledVersion writes under,
+        // so a concurrent save (during launch) can't expose a half-written file to
+        // a reader (e.g. a card render computing isUpdateAvailable).
+        synchronized ( SynchronizedFileManager.getSynchronizedFile( versionFile ) ) {
+            if ( Files.exists( versionFile ) ) {
+                try {
+                    return Files.readString( versionFile, StandardCharsets.UTF_8 ).trim();
+                }
+                catch ( IOException e ) {
+                    Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToReadInstalledVersion", getPackName() ) );
+                }
             }
         }
         return null;
@@ -657,14 +662,16 @@ public abstract class GameModPackMetadata
     public void saveInstalledVersion()
     {
         Path versionFile = Path.of( getPackRootFolder(), INSTALLED_VERSION_FILE );
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            versionFile.getParent().toFile().mkdirs();
-            Files.writeString( versionFile, getPackVersion(), StandardCharsets.UTF_8 );
-            updateAvailable = null; // Reset cached check
-        }
-        catch ( IOException e ) {
-            Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveInstalledVersion", getPackName() ) );
+        synchronized ( SynchronizedFileManager.getSynchronizedFile( versionFile ) ) {
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                versionFile.getParent().toFile().mkdirs();
+                Files.writeString( versionFile, getPackVersion(), StandardCharsets.UTF_8 );
+                updateAvailable = null; // Reset cached check
+            }
+            catch ( IOException e ) {
+                Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackMetadata.unableToSaveInstalledVersion", getPackName() ) );
+            }
         }
     }
 
@@ -816,6 +823,8 @@ public abstract class GameModPackMetadata
 
             // Write updated history with accumulated play time
             try {
+                //noinspection ResultOfMethodCallIgnored
+                historyFile.getParent().toFile().mkdirs();
                 String content = lastPlayed + "\n" + totalPlayTime + "\n" + launchCount + "\n";
                 Files.writeString( historyFile, content, StandardCharsets.UTF_8 );
             }
