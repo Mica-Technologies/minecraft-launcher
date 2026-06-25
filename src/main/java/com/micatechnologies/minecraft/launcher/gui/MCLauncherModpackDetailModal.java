@@ -1668,22 +1668,22 @@ public class MCLauncherModpackDetailModal extends StackPane
      * to grow over time as other per-pack power-user knobs (custom RAM,
      * custom JVM args, etc.) land.
      *
-     * <p>Starts collapsed and lazy-populates via {@link #registerOnFirstExpand}
-     * so its (relatively heavy) controls are only constructed if the user opens
-     * the section.
+     * <p>Starts expanded (it's the only section on the Advanced tab, so gating it
+     * behind a click is pointless), but still lazy-populates via
+     * {@link #registerOnFirstExpand} — which fires immediately for an
+     * already-expanded section, so the controls construct when the Advanced tab
+     * is first opened rather than at modal-open.
      *
      * @param pack the pack the advanced controls operate on
-     * @return the collapsed section {@link VBox} (header only until first expand)
+     * @return the section {@link VBox}
      */
     private Node buildAdvancedSection( GameModPack pack )
     {
-        // Advanced is a power-user surface — most users never touch
-        // it. Pre-collapse + lazy-populate: the MFXComboBox /
-        // MFXToggleButton / MFXButton instances + ConfigManager reads
-        // are non-trivial to construct, and we don't want them
-        // contributing to the modal-open render storm when the user
-        // isn't going to look at them anyway.
-        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.advanced" ), false );
+        // Expanded by default — Advanced is its own tab now, so there's no extra
+        // scroll to protect. The MFXComboBox / MFXToggleButton / MFXButton
+        // construction + ConfigManager reads still defer to the lazy-populate
+        // (fires on first expand, i.e. when the tab is first shown).
+        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.advanced" ), true );
 
         registerOnFirstExpand( section, () -> buildAdvancedSectionBody( section, pack ) );
         return section;
