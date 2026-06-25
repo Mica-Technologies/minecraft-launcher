@@ -62,22 +62,21 @@ import java.util.EnumMap;
 public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
 {
     /** FXML-injected title label at the top of the card (set via {@link #setTitle(String)}). */
-    @SuppressWarnings( "unused" ) @FXML Label titleLabel;
     /** FXML-injected subtitle label under the title (set / hidden via {@link #setSubtitle(String)}). */
-    @SuppressWarnings( "unused" ) @FXML Label subtitleLabel;
     /** FXML-injected container the per-step rows are added to in {@link #attachToTracker(LaunchProgressTracker)}. */
-    @SuppressWarnings( "unused" ) @FXML VBox rowsBox;
     /** FXML-injected row holding the Cancel button; shown / hidden by {@link #setCancelHandler(Runnable)}. */
-    @SuppressWarnings( "unused" ) @FXML HBox cancelBtnRow;
     /** FXML-injected Cancel button wired by {@link #setCancelHandler(Runnable)}. */
-    @SuppressWarnings( "unused" ) @FXML MFXButton cancelBtn;
-
     /** Per-step row widgets, populated in {@link #attachToTracker(LaunchProgressTracker)}.
      *  Holding references avoids walking rowsBox.getChildren() on every state
      *  change — a state callback fires once per step transition (~6 steps × a
      *  handful of transitions each over the launch), so it's not load-bearing
      *  for performance, but the direct map also lets us reason about the row
      *  set independently of FXML node ordering. */
+    @SuppressWarnings( "unused" ) @FXML Label titleLabel;
+    @SuppressWarnings( "unused" ) @FXML Label subtitleLabel;
+    @SuppressWarnings( "unused" ) @FXML VBox rowsBox;
+    @SuppressWarnings( "unused" ) @FXML HBox cancelBtnRow;
+    @SuppressWarnings( "unused" ) @FXML MFXButton cancelBtn;
     private final EnumMap< LaunchProgressTracker.StepId, RowWidgets > rowWidgets =
             new EnumMap<>( LaunchProgressTracker.StepId.class );
 

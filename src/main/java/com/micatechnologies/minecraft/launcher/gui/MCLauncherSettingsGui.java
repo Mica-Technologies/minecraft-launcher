@@ -491,26 +491,26 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
     /** RGB tab: master enable for RGB integration. Backed by {@link ConfigManager#getRgbEnable};
      *  toggling it restarts the RGB controller. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableToggle;
     /** RGB tab: backend selection (Auto / OpenRGB / Chroma / Windows DL / Corsair / Aura / None).
      *  Display labels map to config tokens via {@link #backendForLabel(String)}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbBackendCombo;
     /** RGB tab: status chip showing connection state, refreshed by {@link #refreshRgbStatusChip()}. */
-    @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbStatusChip;
     /** RGB tab: enable the menu (idle) lighting effect. Backed by
      *  {@link ConfigManager#getRgbMenuEffectEnable}; toggling repaints immediately. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbMenuEffectToggle;
     /** RGB tab: menu effect style (Solid / Breathe / Pulse / Cycle / Rainbow). Display names map to
      *  the {@code RGB_EFFECT_STYLE_*} config values. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbEffectStyleSelection;
     /** RGB tab: derive effect colors from the active modpack's palette. Backed by
      *  {@link ConfigManager#getRgbUsePackColors}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbUsePackColorsToggle;
     /** RGB tab: highlight gameplay keys (WASD etc.). Backed by
      *  {@link ConfigManager#getRgbHighlightKeys}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbHighlightKeysToggle;
     /** RGB tab: flashes a fixed magenta test pattern across connected devices via
      *  {@link #runRgbConnectionTest()}. */
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbBackendCombo;
+    @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbStatusChip;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbMenuEffectToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbEffectStyleSelection;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbUsePackColorsToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbHighlightKeysToggle;
     @SuppressWarnings( "unused" ) @FXML MFXButton rgbTestBtn;
 
     // Per-backend Auto-mode integration toggles — let mixed-vendor rigs
@@ -518,33 +518,32 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     // an installed-but-unwanted vendor without leaving Auto.
 
     /** RGB tab: header label for the per-backend Auto-mode toggle section; shown only in Auto mode. */
-    @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbAutoToggleHeader;
     /** RGB tab: container for the per-backend Auto-mode toggles; shown only in Auto mode. */
-    @SuppressWarnings( "unused" ) @FXML javafx.scene.layout.VBox rgbAutoToggleBox;
     /** RGB tab (Auto mode): include the OpenRGB backend. Backed by
      *  {@link ConfigManager#getRgbEnableOpenRgb}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableOpenRgbToggle;
     /** RGB tab (Auto mode): include the native Razer Chroma backend. Backed by
      *  {@link ConfigManager#getRgbEnableChromaNative}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaNativeToggle;
     /** RGB tab (Auto mode): include the REST Razer Chroma backend. Backed by
      *  {@link ConfigManager#getRgbEnableChromaRest}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaRestToggle;
     /** RGB tab (Auto mode): include the Windows Dynamic Lighting backend. Backed by
      *  {@link ConfigManager#getRgbEnableWindowsDl}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableWindowsDlToggle;
     /** RGB tab (Auto mode): include the Corsair iCUE backend. Backed by
      *  {@link ConfigManager#getRgbEnableCorsair}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableCorsairToggle;
     /** RGB tab (Auto mode): include the ASUS Aura backend. Backed by
      *  {@link ConfigManager#getRgbEnableAsusAura}. */
-    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableAsusAuraToggle;
-
     /**
      * StackPane containing the category content panes.
      *
      * @since 3.0
      */
+    @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbAutoToggleHeader;
+    @SuppressWarnings( "unused" ) @FXML javafx.scene.layout.VBox rgbAutoToggleBox;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableOpenRgbToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaNativeToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaRestToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableWindowsDlToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableCorsairToggle;
+    @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableAsusAuraToggle;
     @SuppressWarnings( "unused" )
     @FXML
     StackPane settingsContent;
@@ -555,23 +554,22 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      * @since 3.2
      */
     /** About tab: application name label (static text from FXML). */
-    @SuppressWarnings( "unused" ) @FXML Label     aboutAppNameLabel;
     /** About tab: application version label. */
-    @SuppressWarnings( "unused" ) @FXML Label     aboutVersionLabel;
     /** About tab: enable automatic launcher update checks. Backed by
      *  {@link ConfigManager#getLauncherUpdateCheckEnabled}. */
-    @SuppressWarnings( "unused" ) @FXML MFXToggleButton launcherUpdateCheckBox;
     /** About tab: opens the project website in the default browser. */
-    @SuppressWarnings( "unused" ) @FXML MFXButton aboutWebsiteBtn;
     /** About tab: opens the project source repository in the default browser. */
-    @SuppressWarnings( "unused" ) @FXML MFXButton aboutSourceBtn;
-
     /**
      * Account tab FXML controls.
      *
      * @since 3.0
      */
     /** Account tab: the logged-in player's avatar image. */
+    @SuppressWarnings( "unused" ) @FXML Label     aboutAppNameLabel;
+    @SuppressWarnings( "unused" ) @FXML Label     aboutVersionLabel;
+    @SuppressWarnings( "unused" ) @FXML MFXToggleButton launcherUpdateCheckBox;
+    @SuppressWarnings( "unused" ) @FXML MFXButton aboutWebsiteBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton aboutSourceBtn;
     @SuppressWarnings( "unused" )
     @FXML
     javafx.scene.image.ImageView accountAvatar;

@@ -79,6 +79,11 @@ public final class MacOsTitleBarManager
      *  into the window's existing style mask so the content view spans the title bar. */
     private static final long NS_WINDOW_STYLE_MASK_FULL_SIZE_CONTENT_VIEW = 1L << 15;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     *
+     * @since 2026.2
+     */
     private MacOsTitleBarManager() { /* static-only utility */ }
 
     /**

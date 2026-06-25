@@ -108,9 +108,6 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML MFXComboBox< Integer > pageSizeFilter;
 
     // ===== FXML — card grid =====
-    @SuppressWarnings( "unused" ) @FXML ScrollPane libraryScrollPane;
-    @SuppressWarnings( "unused" ) @FXML FlowPane cardList;
-
     /** Active import-in-progress card, prepended to the FlowPane during any
      *  Modrinth / future CurseForge import so the user can see at a glance
      *  that work is happening. Null when no import is in flight. Lives
@@ -118,6 +115,8 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      *  the FlowPane regardless of which page or filter the user is on, so
      *  the user can't accidentally hide an active import by changing the
      *  view. */
+    @SuppressWarnings( "unused" ) @FXML ScrollPane libraryScrollPane;
+    @SuppressWarnings( "unused" ) @FXML FlowPane cardList;
     private ImportProgressCard activeImportCard;
 
     // ===== FXML — bottom bar =====

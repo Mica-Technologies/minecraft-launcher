@@ -55,18 +55,35 @@ public final class StringOrArray
     /** Ordered, unmodifiable, trimmed + blank-free values. Never {@code null}; may be empty. */
     private final List< String > values;
 
+    /**
+     * Constructs a new instance of {@code StringOrArray} with the given normalized values.
+     *
+     * @param normalizedValues the list of normalized string values
+     */
     private StringOrArray( List< String > normalizedValues )
     {
         this.values = Collections.unmodifiableList( normalizedValues );
     }
 
-    /** Builds a {@code StringOrArray} from individual values (null / blank entries dropped). */
+    /**
+     * Builds a {@code StringOrArray} from individual values (null / blank entries dropped).
+     *
+     * @param values the array of string values
+     *
+     * @return a new instance of {@code StringOrArray}
+     */
     public static StringOrArray of( String... values )
     {
         return of( values == null ? null : Arrays.asList( values ) );
     }
 
-    /** Builds a {@code StringOrArray} from a list (null / blank entries dropped, order preserved). */
+    /**
+     * Builds a {@code StringOrArray} from a list (null / blank entries dropped, order preserved).
+     *
+     * @param values the list of string values
+     *
+     * @return a new instance of {@code StringOrArray}
+     */
     public static StringOrArray of( List< String > values )
     {
         List< String > normalized = new ArrayList<>();
@@ -83,19 +100,31 @@ public final class StringOrArray
         return new StringOrArray( normalized );
     }
 
-    /** @return the ordered values (never {@code null}; possibly empty). */
+    /**
+     * Returns the ordered values (never {@code null}; possibly empty).
+     *
+     * @return the list of values
+     */
     public List< String > all()
     {
         return values;
     }
 
-    /** @return the first value (the "primary"), or {@code null} if empty. */
+    /**
+     * Returns the first value (the "primary"), or {@code null} if empty.
+     *
+     * @return the first value, or {@code null} if there are no values
+     */
     public String first()
     {
         return values.isEmpty() ? null : values.get( 0 );
     }
 
-    /** @return {@code true} if there are no values. */
+    /**
+     * Checks if there are no values in this instance.
+     *
+     * @return {@code true} if there are no values, {@code false} otherwise
+     */
     public boolean isEmpty()
     {
         return values.isEmpty();
@@ -108,8 +137,6 @@ public final class StringOrArray
      * @param o the object to compare against
      *
      * @return {@code true} if {@code o} is a {@code StringOrArray} with equal values
-     *
-     * @since 2026.6
      */
     @Override
     public boolean equals( Object o )
@@ -128,8 +155,6 @@ public final class StringOrArray
      * value list.
      *
      * @return the hash code of the backing value list
-     *
-     * @since 2026.6
      */
     @Override
     public int hashCode()
@@ -141,8 +166,6 @@ public final class StringOrArray
      * Returns the backing value list's string form, e.g. {@code [a, b]}.
      *
      * @return a debug string of the contained values
-     *
-     * @since 2026.6
      */
     @Override
     public String toString()
@@ -158,6 +181,15 @@ public final class StringOrArray
     public static final class Adapter
             implements JsonDeserializer< StringOrArray >, JsonSerializer< StringOrArray >
     {
+        /**
+         * Deserializes a JSON element into a {@code StringOrArray}.
+         *
+         * @param json the JSON element to deserialize
+         * @param typeOfT the type of the target object
+         * @param ctx the context for deserialization
+         *
+         * @return a new instance of {@code StringOrArray}
+         */
         @Override
         public StringOrArray deserialize( JsonElement json, Type typeOfT, JsonDeserializationContext ctx )
         {
@@ -177,6 +209,15 @@ public final class StringOrArray
             return StringOrArray.of( json.getAsString() );
         }
 
+        /**
+         * Serializes a {@code StringOrArray} into a JSON element.
+         *
+         * @param src the source object to serialize
+         * @param typeOfSrc the type of the source object
+         * @param ctx the context for serialization
+         *
+         * @return the serialized JSON element
+         */
         @Override
         public JsonElement serialize( StringOrArray src, Type typeOfSrc, JsonSerializationContext ctx )
         {

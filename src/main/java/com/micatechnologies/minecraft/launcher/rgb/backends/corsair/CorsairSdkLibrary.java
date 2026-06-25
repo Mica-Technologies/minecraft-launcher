@@ -108,6 +108,12 @@ public interface CorsairSdkLibrary extends StdCallLibrary
      *  SDK's worker thread when the session state changes. */
     interface CorsairSessionStateChangedHandler extends Callback
     {
+        /**
+         * Handles the session state change event.
+         *
+         * @param context The context pointer provided during connection.
+         * @param eventData The event data associated with the state change.
+         */
         void invoke( Pointer context, Pointer eventData );
     }
 
@@ -154,13 +160,31 @@ public interface CorsairSdkLibrary extends StdCallLibrary
     {
         public int deviceTypeMask;
 
+        /**
+         * Constructs a new instance of {@link CorsairDeviceFilter}.
+         */
         public CorsairDeviceFilter() {}
+
+        /**
+         * Constructs a new instance of {@link CorsairDeviceFilter} with the specified mask.
+         *
+         * @param mask The device type mask to set.
+         */
         public CorsairDeviceFilter( int mask ) { this.deviceTypeMask = mask; }
 
         public static class ByReference extends CorsairDeviceFilter
                 implements Structure.ByReference
         {
+            /**
+             * Constructs a new instance of {@link ByReference}.
+             */
             public ByReference() {}
+
+            /**
+             * Constructs a new instance of {@link ByReference} with the specified mask.
+             *
+             * @param mask The device type mask to set.
+             */
             public ByReference( int mask ) { super( mask ); }
         }
     }

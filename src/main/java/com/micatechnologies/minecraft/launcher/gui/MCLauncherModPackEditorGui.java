@@ -93,38 +93,38 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     // region FXML fields
 
     /** Toolbar button that discards the working document and starts a blank manifest. */
-    @FXML MFXButton newBtn;
     /** Toolbar button that opens an existing manifest from a local file. */
-    @FXML MFXButton openFileBtn;
     /** Toolbar button that downloads and opens a manifest from a remote URL. */
-    @FXML MFXButton openUrlBtn;
     /** Toolbar button that writes the current document to disk. */
-    @FXML MFXButton saveBtn;
     /** Toolbar button that runs the document validation pass. */
-    @FXML MFXButton validateBtn;
     /** Toolbar button that shows a diff between the last-saved snapshot and the live editor state. */
-    @FXML MFXButton diffBtn;
     /** Toolbar button that navigates back to the Game Library screen. */
-    @FXML MFXButton returnBtn;
     /** Tab container holding the metadata tab plus the per-file-type list tabs. */
-    @FXML TabPane editorTabPane;
     /** Status line at the bottom of the editor used for transient progress / result messages. */
-    @FXML Label statusLabel;
     /** Announcement banner label (shown via {@link #announcementRow}). */
-    @FXML Label announcement;
     /** Navbar help affordance; opens the help window on the editor's {@link HelpTopic}. */
-    @FXML Label helpBtn;
     /** Offline-mode indicator driven by {@link OfflineIndicator}. */
-    @FXML Label offlineLabel;
     /** Row constraints controlling visibility/height of the announcement banner row. */
+    @FXML MFXButton newBtn;
+    @FXML MFXButton openFileBtn;
+    @FXML MFXButton openUrlBtn;
+    @FXML MFXButton saveBtn;
+    @FXML MFXButton validateBtn;
+    @FXML MFXButton diffBtn;
+    @FXML MFXButton returnBtn;
+    @FXML TabPane editorTabPane;
+    @FXML Label statusLabel;
+    @FXML Label announcement;
+    @FXML Label helpBtn;
+    @FXML Label offlineLabel;
     @FXML RowConstraints announcementRow;
 
     // Version bump buttons
     /** Increments the major segment of the pack version and zeroes the rest. */
-    @FXML MFXButton bumpMajorBtn;
     /** Increments the minor segment of the pack version and zeroes the patch. */
-    @FXML MFXButton bumpMinorBtn;
     /** Increments the patch segment of the pack version. */
+    @FXML MFXButton bumpMajorBtn;
+    @FXML MFXButton bumpMinorBtn;
     @FXML MFXButton bumpPatchBtn;
 
     // Forge picker
@@ -133,40 +133,40 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
     // Metadata fields
     /** Editable field for the modpack display name ({@code packName}). */
-    @FXML MFXTextField packNameField;
     /** Editable field for the modpack version string ({@code packVersion}). */
-    @FXML MFXTextField packVersionField;
     /** Editable field for the canonical manifest URL ({@code packURL}). */
-    @FXML MFXTextField packURLField;
     /** Editable field for the minimum RAM allocation in GB ({@code packMinRAMGB}). */
-    @FXML MFXTextField packMinRAMField;
     /** Toggle marking the pack as unstable / pre-release ({@code packUnstable}). */
-    @FXML MFXToggleButton packUnstableToggle;
     /** Toggle enabling a custom Discord rich-presence for the pack ({@code packCustomDiscordRpc}). */
-    @FXML MFXToggleButton packCustomDiscordRpcToggle;
     /** Combo selecting the modloader type (Forge / NeoForge / Fabric); persisted to {@code packModLoader}. */
-    @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > packModLoaderTypeCombo;
     /** Hint line describing what the loader URL field expects for the current loader choice. */
-    @FXML javafx.scene.control.Label packModLoaderHint;
     /** Editable field for the modloader installer / profile URL (stored as {@code packModLoaderURL}, mirrored to {@code packForgeURL} for Forge). */
-    @FXML MFXTextField packForgeURLField;
     /** Editable field for the modloader installer SHA-1 hash (stored as {@code packModLoaderHash}, mirrored to {@code packForgeHash} for Forge). */
-    @FXML MFXTextField packForgeHashField;
     /** Informational field for the detected Minecraft version ({@code packMinecraftVersion}); surfaced for humans only, ignored at runtime. */
-    @FXML MFXTextField packMinecraftVersionField;
     /** Multi-line field for the logo image URL(s) ({@code packLogoURL}); one URL per line. */
-    @FXML TextArea     packLogoURLField;
     /** Editable field for the logo image SHA-1 hash ({@code packLogoSha1}). */
-    @FXML MFXTextField packLogoSha1Field;
     /** Multi-line field for the background image URL(s) ({@code packBackgroundURL}); one URL per line. */
-    @FXML TextArea     packBgURLField;
     /** Editable field for the background image SHA-1 hash ({@code packBackgroundSha1}). */
-    @FXML MFXTextField packBgSha1Field;
     /** Live preview of the primary logo image. */
-    @FXML ImageView logoPreview;
     /** Live preview of the primary background image. */
-    @FXML ImageView bgPreview;
     /** Multi-line field for security-scan exclusion globs ({@code packScanExclusions}); one entry per line. */
+    @FXML MFXTextField packNameField;
+    @FXML MFXTextField packVersionField;
+    @FXML MFXTextField packURLField;
+    @FXML MFXTextField packMinRAMField;
+    @FXML MFXToggleButton packUnstableToggle;
+    @FXML MFXToggleButton packCustomDiscordRpcToggle;
+    @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > packModLoaderTypeCombo;
+    @FXML javafx.scene.control.Label packModLoaderHint;
+    @FXML MFXTextField packForgeURLField;
+    @FXML MFXTextField packForgeHashField;
+    @FXML MFXTextField packMinecraftVersionField;
+    @FXML TextArea     packLogoURLField;
+    @FXML MFXTextField packLogoSha1Field;
+    @FXML TextArea     packBgURLField;
+    @FXML MFXTextField packBgSha1Field;
+    @FXML ImageView logoPreview;
+    @FXML ImageView bgPreview;
     @FXML TextArea scanExclusionsArea;
 
     // endregion

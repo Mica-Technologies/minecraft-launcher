@@ -54,6 +54,11 @@ public interface Combase extends StdCallLibrary
      *  short-circuits before reaching anything that would NPE. */
     Combase INSTANCE = SystemUtils.IS_OS_WINDOWS ? loadOrNull() : null;
 
+    /**
+     * Loads the Combase library if possible.
+     *
+     * @return The loaded Combase instance, or null if loading fails.
+     */
     private static Combase loadOrNull()
     {
         try { return Native.load( "combase", Combase.class ); }
@@ -138,6 +143,8 @@ public interface Combase extends StdCallLibrary
      * Returns false on non-Windows or when {@code combase.dll} isn't
      * present (vanishingly unlikely on any supported Windows install,
      * but cheap to check).
+     *
+     * @return true if Combase is loadable, false otherwise.
      */
     static boolean isLoadable()
     {
@@ -149,7 +156,16 @@ public interface Combase extends StdCallLibrary
      *  is enough. */
     final class Hstring extends PointerType
     {
+        /**
+         * Constructs a new Hstring instance with no initial pointer.
+         */
         public Hstring() {}
+
+        /**
+         * Constructs a new Hstring instance with the specified pointer.
+         *
+         * @param p The pointer to initialize the Hstring with.
+         */
         public Hstring( Pointer p ) { super( p ); }
     }
 }

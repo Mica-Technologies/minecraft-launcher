@@ -64,6 +64,8 @@ public final class InGameEffect implements RgbEffect
     private final RgbFrame frame;
 
     /**
+     * Constructs a new {@code InGameEffect} with the specified parameters.
+     *
      * @param packDisplayName     pack name surfaced in the effect's
      *                            {@link #name()} (for log lines and the
      *                            Settings status chip). Pass {@code ""}
@@ -91,6 +93,11 @@ public final class InGameEffect implements RgbEffect
         this.frame = new RgbFrame( background, overrides );
     }
 
+    /**
+     * Returns the name of the effect.
+     *
+     * @return the name of the effect, which includes the pack display name if available.
+     */
     @Override
     public String name()
     {
@@ -99,6 +106,12 @@ public final class InGameEffect implements RgbEffect
                 : "In-Game (" + packDisplayName + ")";
     }
 
+    /**
+     * Returns the RGB frame at the specified elapsed time.
+     *
+     * @param elapsedMs the elapsed time in milliseconds.
+     * @return the RGB frame for the effect.
+     */
     @Override
     public RgbFrame frameAt( long elapsedMs )
     {

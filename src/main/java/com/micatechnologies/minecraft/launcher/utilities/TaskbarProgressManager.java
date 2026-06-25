@@ -50,9 +50,19 @@ import javafx.stage.WindowEvent;
  */
 public final class TaskbarProgressManager
 {
+    /**
+     * The shared instance of {@link TaskbarProgressbar}.
+     */
     private static volatile TaskbarProgressbar instance = null;
+
+    /**
+     * The stage currently attached to the taskbar progress manager.
+     */
     private static volatile Stage              attachedStage = null;
 
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
     private TaskbarProgressManager() { /* static-only */ }
 
     /**
@@ -61,6 +71,7 @@ public final class TaskbarProgressManager
      * stage are ignored (the launcher only ever has one window stage, so a
      * second stage would indicate a bug rather than a re-attach intent).
      *
+     * @param stage the stage to attach the taskbar progress bar to
      * @return true if a usable wrapper exists after this call
      */
     public static boolean attach( Stage stage )
@@ -118,6 +129,8 @@ public final class TaskbarProgressManager
      * Drives the OS-level progress overlay from a 0..1 fraction (or
      * {@link MFXProgressBar#INDETERMINATE_PROGRESS} for the indeterminate
      * marquee). Pass values already converted from the 0..100 percent scale.
+     *
+     * @param fraction the progress fraction to set, or {@link MFXProgressBar#INDETERMINATE_PROGRESS}
      */
     public static void setProgress( double fraction )
     {

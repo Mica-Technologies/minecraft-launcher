@@ -74,22 +74,19 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     /** Three iso-cube voxel groups at the top of the progress card. Animated in
      *  {@link #afterShow()} with a staggered bounce so the screen feels alive while a
      *  long-running download is in flight. */
-    @SuppressWarnings( "unused" ) @FXML Group voxelCube1;
-    @SuppressWarnings( "unused" ) @FXML Group voxelCube2;
-    @SuppressWarnings( "unused" ) @FXML Group voxelCube3;
-
     /** Cancel button at the bottom of the progress card. Hidden by default; callers
      *  that want cancellation opt in via {@link #setCancelHandler}. */
-    @SuppressWarnings( "unused" ) @FXML MFXButton cancelBtn;
-
     /** Container for the cancel button — toggled visible + managed by
      *  {@link #setCancelHandler}. Wrapping the button in an HBox lets us add top
      *  padding that's only allocated when the cancel button is actually shown
      *  (the row collapses to zero height when the HBox is unmanaged). */
-    @SuppressWarnings( "unused" ) @FXML HBox cancelBtnRow;
-
     /** Running animations on the voxel cubes. Held so {@link #cleanup()} can stop them
      *  on scene transition rather than leaking timeline state across scene changes. */
+    @SuppressWarnings( "unused" ) @FXML Group voxelCube1;
+    @SuppressWarnings( "unused" ) @FXML Group voxelCube2;
+    @SuppressWarnings( "unused" ) @FXML Group voxelCube3;
+    @SuppressWarnings( "unused" ) @FXML MFXButton cancelBtn;
+    @SuppressWarnings( "unused" ) @FXML HBox cancelBtnRow;
     private final List< TranslateTransition > voxelAnimations = new ArrayList<>();
 
     /**

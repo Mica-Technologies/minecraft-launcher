@@ -73,6 +73,9 @@ public final class ModpackImageCycleClock
     /** The running timeline, or {@code null} when stopped (no listeners, or "never"). */
     private Timeline timeline;
 
+    /**
+     * Private constructor to enforce singleton pattern.
+     */
     private ModpackImageCycleClock() { /* singleton */ }
 
     /**
@@ -136,6 +139,9 @@ public final class ModpackImageCycleClock
         timeline.play();
     }
 
+    /**
+     * Stops the current timeline if it is running.
+     */
     private void stop()
     {
         if ( timeline != null ) {
@@ -144,6 +150,9 @@ public final class ModpackImageCycleClock
         }
     }
 
+    /**
+     * Fires a tick event to all registered listeners.
+     */
     private void fireTick()
     {
         for ( Runnable r : listeners ) {
@@ -160,6 +169,9 @@ public final class ModpackImageCycleClock
      * Maps a canonical interval token (see {@link ConfigConstants#IMAGE_CYCLE_INTERVAL_OPTIONS})
      * to a concrete {@link Duration}, or {@code null} for {@code "never"} / anything
      * unrecognized (treated as "don't cycle").
+     *
+     * @param token the interval token to map
+     * @return the corresponding duration, or {@code null} if the token is "never" or unrecognized
      */
     static Duration tokenToDuration( String token )
     {

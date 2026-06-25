@@ -114,30 +114,28 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
 
     // ===== Crash diagnosis card =====
     /** Container card for the crash diagnosis panel; hidden when there is no diagnosis to show. */
-    @SuppressWarnings( "unused" ) @FXML VBox  diagnosisCard;
     /** Title label within the diagnosis card (the diagnosis's short headline). */
-    @SuppressWarnings( "unused" ) @FXML Label diagnosisTitleLabel;
     /** Summary label within the diagnosis card (the diagnosis's longer explanation). */
-    @SuppressWarnings( "unused" ) @FXML Label diagnosisSummaryLabel;
     /** Horizontal box holding the per-suggestion action buttons / hint labels for the diagnosis. */
-    @SuppressWarnings( "unused" ) @FXML HBox  diagnosisActionsBox;
-
     /** Navbar help button that opens the contextual help window for this screen. */
+    @SuppressWarnings( "unused" ) @FXML VBox  diagnosisCard;
+    @SuppressWarnings( "unused" ) @FXML Label diagnosisTitleLabel;
+    @SuppressWarnings( "unused" ) @FXML Label diagnosisSummaryLabel;
+    @SuppressWarnings( "unused" ) @FXML HBox  diagnosisActionsBox;
     @SuppressWarnings( "unused" ) @FXML Label helpBtn;
 
     // ===== Search / filter / auto-pin toolbar =====
     /** Text field for incremental case-insensitive search within the displayed log. */
-    @SuppressWarnings( "unused" ) @FXML MFXTextField searchField;
     /** Status label for the search toolbar (e.g. shows "no match" feedback). */
-    @SuppressWarnings( "unused" ) @FXML Label searchStatusLabel;
     /** Button that jumps to the previous search match. */
-    @SuppressWarnings( "unused" ) @FXML MFXButton searchPrevBtn;
     /** Button that jumps to the next search match. */
-    @SuppressWarnings( "unused" ) @FXML MFXButton searchNextBtn;
     /** Checkbox that, when selected (default), auto-scrolls the log to the latest line on every append. */
-    @SuppressWarnings( "unused" ) @FXML CheckBox autoPinCheckBox;
-
     /** The attached game process whose output is being captured, or {@code null} in crash-only mode. */
+    @SuppressWarnings( "unused" ) @FXML MFXTextField searchField;
+    @SuppressWarnings( "unused" ) @FXML Label searchStatusLabel;
+    @SuppressWarnings( "unused" ) @FXML MFXButton searchPrevBtn;
+    @SuppressWarnings( "unused" ) @FXML MFXButton searchNextBtn;
+    @SuppressWarnings( "unused" ) @FXML CheckBox autoPinCheckBox;
     private Process gameProcess;
     /** Wall-clock start time of the session, in milliseconds, used to compute the live uptime/duration. */
     private long startTimeMs;

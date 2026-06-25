@@ -117,14 +117,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML FlowPane modpackCardList;
 
     // ===== Bottom status bar =====
+    /** Expanded modpack-detail modal — overlays the main GUI when the user
+     *  single-clicks a hero card. Constructed lazily in {@link #setup()} so the
+     *  rootPane is real and the GridPane attachment works. */
     @SuppressWarnings( "unused" ) @FXML Label versionLabel;
     @SuppressWarnings( "unused" ) @FXML Label offlineLabel;
     @SuppressWarnings( "unused" ) @FXML Label backgroundFetchLabel;
     @SuppressWarnings( "unused" ) @FXML MFXButton exitBtn;
-
-    /** Expanded modpack-detail modal — overlays the main GUI when the user
-     *  single-clicks a hero card. Constructed lazily in {@link #setup()} so the
-     *  rootPane is real and the GridPane attachment works. */
     private MCLauncherModpackDetailModal detailModal;
 
     // ===== Filter / sort / pagination state =====
