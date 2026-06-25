@@ -99,8 +99,10 @@ import java.util.function.Supplier;
  *   <li><b>Stats</b> — Last played, total play time, launch count.</li>
  *   <li><b>Update Log</b> — Chronological per-pack record of manifest packVersion
  *       changes (see {@link ModPackUpdateLog}).</li>
- *   <li><b>Coming Soon</b> — empty section reserved for future per-pack news, custom
- *       buttons, and other manifest-driven content.</li>
+ *   <li><b>News</b> — manifest-authored {@code packNews} entries, shown only when
+ *       the pack ships them (see {@link com.micatechnologies.minecraft.launcher.game.modpack.NewsItem}).</li>
+ *   <li><b>Links</b> — manifest-authored {@code packLinks} (wiki, Discord, etc.),
+ *       shown only when the pack ships them (see {@link com.micatechnologies.minecraft.launcher.game.modpack.LinkItem}).</li>
  * </ol>
  *
  * <p>The Play and Website buttons live in a sticky action row pinned below the
@@ -512,7 +514,38 @@ public class MCLauncherModpackDetailModal extends StackPane
         if ( pack.getManifestUrl() != null && !pack.getManifestUrl().isBlank() ) {
             builders.add( () -> buildAdvancedSection( pack ) );
         }
-        builders.add( this::buildComingSoonSection );
+        // News + Links — manifest-authored. Each section is added only when the
+        // pack actually ships that content; packs with neither show nothing here
+        // (the old always-present "Coming Soon" placeholder was removed). Both
+        // getVisible* calls are pure in-memory reads over the parsed manifest, so
+        // gating at assembly time is cheap.
+        java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.NewsItem > news;
+        try {
+            news = pack.getVisibleNews();
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( LocalizationManager.format(
+                    "log.modpackDetail.newsReadFailed", t.getClass().getSimpleName() ) );
+            news = java.util.Collections.emptyList();
+        }
+        if ( !news.isEmpty() ) {
+            final java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.NewsItem > finalNews = news;
+            builders.add( () -> buildNewsSection( pack, finalNews ) );
+        }
+
+        java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LinkItem > links;
+        try {
+            links = pack.getVisibleLinks();
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( LocalizationManager.format(
+                    "log.modpackDetail.linksReadFailed", t.getClass().getSimpleName() ) );
+            links = java.util.Collections.emptyList();
+        }
+        if ( !links.isEmpty() ) {
+            final java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LinkItem > finalLinks = links;
+            builders.add( () -> buildLinksSection( finalLinks ) );
+        }
 
         final int[] next = { 0 };
         new AnimationTimer()
@@ -1650,14 +1683,150 @@ public class MCLauncherModpackDetailModal extends StackPane
         return row;
     }
 
-    private Node buildComingSoonSection()
+    /**
+     * News section — renders the pack's manifest-authored {@code packNews}
+     * entries (see {@link com.micatechnologies.minecraft.launcher.game.modpack.NewsItem}).
+     * Only built when the pack ships visible news (the caller gates on
+     * {@code getVisibleNews()}). Opening the modal marks the visible news as
+     * seen, clearing the hero-card unread badge.
+     *
+     * @param news the precomputed, non-empty list of visible news items
+     */
+    private Node buildNewsSection( GameModPack pack,
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.NewsItem > news )
     {
-        VBox section = buildSectionBox( com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( "detailModal.section.comingSoon" ) );
-        Label hint = new Label( LocalizationManager.get( "modal.comingSoon.hint" ) );
-        hint.setWrapText( true );
-        hint.getStyleClass().add( "muted" );
-        section.getChildren().add( hint );
+        VBox section = buildSectionBox( LocalizationManager.get( "detailModal.section.news" ) );
+        VBox list = new VBox( 10 );
+        for ( com.micatechnologies.minecraft.launcher.game.modpack.NewsItem item : news ) {
+            list.getChildren().add( buildNewsCard( item ) );
+        }
+        section.getChildren().add( list );
+
+        // Mark seen off the FX thread — opening the modal counts as having seen
+        // the pack's news, so the unread badge clears on next main-menu render.
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                pack.markAllNewsSeen();
+            }
+            catch ( Throwable t ) {
+                Logger.logWarningSilent( LocalizationManager.format(
+                        "log.modpackDetail.newsMarkSeenFailed", t.getClass().getSimpleName() ) );
+            }
+        } );
         return section;
+    }
+
+    /** One news entry rendered as a compact card: a type glyph + title header,
+     *  an optional date, the plain-text body, and an optional validated
+     *  "Read more" link. */
+    private Node buildNewsCard( com.micatechnologies.minecraft.launcher.game.modpack.NewsItem item )
+    {
+        VBox card = new VBox( 4 );
+        card.getStyleClass().add( "modpackDetailSection" );
+        card.setPadding( new Insets( 10 ) );
+
+        // Header — type chip (glyph only, colour by type) + bold title.
+        HBox header = new HBox( 8 );
+        header.setAlignment( Pos.CENTER_LEFT );
+        Label typeChip = buildChip( item.getType().glyph(), item.getType().chipStyleClass() );
+        Label title = new Label( item.getTitle() );
+        title.getStyleClass().add( "modpackDetailContentName" );
+        title.setWrapText( true );
+        HBox.setHgrow( title, Priority.ALWAYS );
+        header.getChildren().addAll( typeChip, title );
+        card.getChildren().add( header );
+
+        // Date — muted, secondary.
+        String displayDate = item.getDisplayDate();
+        if ( displayDate != null ) {
+            Label date = new Label( displayDate );
+            date.getStyleClass().add( "muted" );
+            date.setStyle( "-fx-font-size: 11px;" );
+            card.getChildren().add( date );
+        }
+
+        // Body — plain text, never interpreted as markup.
+        String body = item.getBody();
+        if ( body != null ) {
+            Label bodyLabel = new Label( body );
+            bodyLabel.setWrapText( true );
+            card.getChildren().add( bodyLabel );
+        }
+
+        // Read more — only when the manifest supplied a valid http(s) URL.
+        String url = item.getUrl();
+        if ( url != null ) {
+            javafx.scene.control.Hyperlink link =
+                    new javafx.scene.control.Hyperlink( LocalizationManager.get( "modal.news.readMore" ) );
+            link.setOnAction( e -> openExternalUrl( url ) );
+            card.getChildren().add( link );
+        }
+
+        return card;
+    }
+
+    /**
+     * Links section — renders the pack's manifest-authored {@code packLinks}
+     * (see {@link com.micatechnologies.minecraft.launcher.game.modpack.LinkItem}).
+     * Only built when the pack ships visible links (the caller gates on
+     * {@code getVisibleLinks()}).
+     *
+     * @param links the precomputed, non-empty list of renderable links
+     */
+    private Node buildLinksSection(
+            java.util.List< com.micatechnologies.minecraft.launcher.game.modpack.LinkItem > links )
+    {
+        VBox section = buildSectionBox( LocalizationManager.get( "detailModal.section.links" ) );
+        VBox list = new VBox( 10 );
+        for ( com.micatechnologies.minecraft.launcher.game.modpack.LinkItem link : links ) {
+            list.getChildren().add( buildLinkCard( link ) );
+        }
+        section.getChildren().add( list );
+        return section;
+    }
+
+    /** One link rendered as a compact card: a clickable title (opens the URL)
+     *  with an optional plain-text description beneath. The URL is already
+     *  http(s)-validated by {@link com.micatechnologies.minecraft.launcher.game.modpack.LinkItem#getUrl()}. */
+    private Node buildLinkCard( com.micatechnologies.minecraft.launcher.game.modpack.LinkItem link )
+    {
+        VBox card = new VBox( 2 );
+        card.getStyleClass().add( "modpackDetailSection" );
+        card.setPadding( new Insets( 10 ) );
+
+        final String url = link.getUrl();
+        javafx.scene.control.Hyperlink title = new javafx.scene.control.Hyperlink( link.getTitle() );
+        title.getStyleClass().add( "modpackDetailContentName" );
+        title.setWrapText( true );
+        title.setOnAction( e -> openExternalUrl( url ) );
+        card.getChildren().add( title );
+
+        String description = link.getDescription();
+        if ( description != null ) {
+            Label desc = new Label( description );
+            desc.setWrapText( true );
+            desc.getStyleClass().add( "muted" );
+            desc.setStyle( "-fx-font-size: 11px;" );
+            card.getChildren().add( desc );
+        }
+
+        return card;
+    }
+
+    /** Opens a pre-validated http(s) URL in the user's browser, off the FX
+     *  thread. The caller is responsible for the http/https gate (see
+     *  {@link com.micatechnologies.minecraft.launcher.game.modpack.NewsItem#getUrl()}). */
+    private static void openExternalUrl( String url )
+    {
+        SystemUtilities.spawnNewTask( () -> {
+            try {
+                Desktop.getDesktop().browse( URI.create( url ) );
+            }
+            catch ( IOException e ) {
+                Logger.logError( LocalizationManager.format( "log.modpack.openBrowserFailed", url ) );
+                Logger.logThrowable( e );
+            }
+        } );
     }
 
     private HBox buildActionRow( GameModPack pack )
