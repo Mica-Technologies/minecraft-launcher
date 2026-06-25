@@ -721,6 +721,41 @@
     -fx-background-color: transparent;
 }
 
+/* Persistent meta header (chip row + Problems banner) under the hero. */
+.modpackDetailHeaderMeta {
+    -fx-background-color: transparent;
+}
+
+/* Segmented tab bar (Overview / Content / Activity / Advanced) between the
+ * header and the scrollable per-tab body. Bottom hairline anchors the row; the
+ * active tab gets a soft fill + a primary-colored underline. */
+.modpackDetailTabBar {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.modpackDetailTab {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 7 14 7 14;
+    -fx-background-radius: 8;
+}
+
+.modpackDetailTab:hover {
+    -fx-background-color: -color-primary-soft;
+    -fx-text-fill: -color-text;
+}
+
+.modpackDetailTab.active {
+    -fx-background-color: -color-primary-soft;
+    -fx-text-fill: -color-text;
+    -fx-border-color: transparent transparent -color-primary transparent;
+    -fx-border-width: 0 0 2 0;
+    -fx-background-radius: 8 8 0 0;
+}
+
 /* Section panels inside the modal body — soft surface, padded, separates the
  * Quick Actions / Stats / Update Log / Coming Soon groups visually. */
 .modpackDetailSection {
