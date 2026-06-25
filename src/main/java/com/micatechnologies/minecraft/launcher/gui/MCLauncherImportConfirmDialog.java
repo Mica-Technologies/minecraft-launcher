@@ -212,10 +212,8 @@ public final class MCLauncherImportConfirmDialog
         // on macOS, no-op on Linux) and defers via WINDOW_SHOWN if the
         // stage isn't realized yet, so calling pre-showAndWait is safe.
         try {
-            String themeName = com.micatechnologies.minecraft.launcher.config.ConfigManager.getTheme();
-            boolean lightChrome = com.micatechnologies.minecraft.launcher.consts.ConfigConstants.THEME_LIGHT.equals( themeName )
-                    || ( com.micatechnologies.minecraft.launcher.consts.ConfigConstants.THEME_NATIVE.equals( themeName )
-                         && !isOsDarkSafe() );
+            boolean lightChrome = GUIUtilities.isLightChrome(
+                    com.micatechnologies.minecraft.launcher.config.ConfigManager.getTheme() );
             com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
                     .applyTitleBarDarkMode( stage, !lightChrome );
         }
@@ -223,18 +221,6 @@ public final class MCLauncherImportConfirmDialog
 
         stage.showAndWait();
         return confirmed[ 0 ];
-    }
-
-    /** Defensive wrapper around OsThemeDetector for the native-theme chrome
-     *  decision; mirrors the helper pattern used elsewhere in the GUI so a
-     *  detector failure on an unusual platform never blocks the dialog.
-     *
-     * @return {@code true} if the OS is reporting dark mode
-     * @since 2026.3
-     */
-    private static boolean isOsDarkSafe()
-    {
-        return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
     }
 
     // ===== helpers =====
