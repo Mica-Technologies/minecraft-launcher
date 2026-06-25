@@ -610,6 +610,16 @@ public final class OfficialLauncherExporter
         copyRecursively( src, dst );
     }
 
+    /**
+     * Recursively copies a directory tree from {@code src} to {@code dst},
+     * creating directories and replacing existing files. Unwraps per-entry
+     * {@link IOException}s thrown from the walk into the caller.
+     *
+     * @param src source directory root
+     * @param dst destination directory root
+     *
+     * @throws IOException if any entry fails to copy
+     */
     private static void copyRecursively( Path src, Path dst ) throws IOException
     {
         try ( var stream = Files.walk( src ) ) {
@@ -634,6 +644,14 @@ public final class OfficialLauncherExporter
         }
     }
 
+    /**
+     * Recursively deletes a directory tree, removing deepest paths first so
+     * directories are empty before they are deleted.
+     *
+     * @param dir the directory root to delete
+     *
+     * @throws IOException if any entry fails to delete
+     */
     private static void deleteRecursively( Path dir ) throws IOException
     {
         try ( var stream = Files.walk( dir ) ) {
@@ -699,6 +717,14 @@ public final class OfficialLauncherExporter
         return UUID.nameUUIDFromBytes( nameBytes ).toString();
     }
 
+    /**
+     * Returns the pack's Minecraft version id for the exported profile, falling
+     * back to the pack name if the version can't be resolved.
+     *
+     * @param pack the pack being exported
+     *
+     * @return the Minecraft version id, or the pack name on failure
+     */
     private static String safeVanillaVersionId( GameModPack pack )
     {
         try {
@@ -779,6 +805,13 @@ public final class OfficialLauncherExporter
         }
     }
 
+    /**
+     * Returns the current UTC time as an ISO-8601 timestamp
+     * ({@code yyyy-MM-dd'T'HH:mm:ss.SSS'Z'}), the format the Mojang launcher
+     * profile uses for {@code created}/{@code lastUsed}.
+     *
+     * @return the current instant as an ISO-8601 UTC string
+     */
     private static String isoNow()
     {
         SimpleDateFormat sdf = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT );
@@ -906,6 +939,15 @@ public final class OfficialLauncherExporter
         return null;
     }
 
+    /**
+     * Encodes the pack's {@code logo.png} as a 64×64 PNG {@code data:} URI for
+     * use as the exported Mojang launcher profile's icon. Returns {@code null}
+     * (caller falls back to a default icon) when no logo exists or encoding fails.
+     *
+     * @param pack the pack whose logo to encode
+     *
+     * @return a {@code data:image/png;base64,...} URI, or {@code null} on failure
+     */
     private static String encodePackLogoAsIcon( GameModPack pack )
     {
         try {
@@ -947,6 +989,16 @@ public final class OfficialLauncherExporter
         return obj != null ? obj : new JsonObject();
     }
 
+    /**
+     * Atomically writes the (merged) {@code launcher_profiles.json} to
+     * {@code target}, mirroring ConfigStore's write discipline so a crash
+     * mid-export can't corrupt the Mojang launcher's own state.
+     *
+     * @param target the {@code launcher_profiles.json} path to write
+     * @param json   the merged profiles object to serialize
+     *
+     * @throws IOException if the write fails
+     */
     private static void atomicWriteProfilesJson( Path target, JsonObject json ) throws IOException
     {
         // Preserve the user's existing keys we don't touch (settings,
