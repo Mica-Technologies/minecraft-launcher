@@ -286,6 +286,12 @@ public final class MacOsToolbarManager
         if ( !stage.isShowing() ) {
             EventHandler< WindowEvent > onShown = new EventHandler< WindowEvent >()
             {
+                /**
+                 * Installs the toolbar once the stage is first shown, then
+                 * detaches itself so it runs only once.
+                 *
+                 * @param event the {@code WINDOW_SHOWN} event
+                 */
                 @Override
                 public void handle( WindowEvent event )
                 {
@@ -391,6 +397,16 @@ public final class MacOsToolbarManager
     /** {@code -(NSArray*)toolbar(Default|Allowed)ItemIdentifiers:(NSToolbar*)tb}. */
     private static final class IdentifiersCallback implements Callback
     {
+        /**
+         * Objective-C callback returning the toolbar's item identifiers (the
+         * flexible-space spacer plus the Mica toolbar items).
+         *
+         * @param self    the receiving Obj-C object pointer
+         * @param cmd     the selector pointer
+         * @param toolbar the {@code NSToolbar} pointer
+         *
+         * @return a pointer to an {@code NSArray} of item identifiers
+         */
         @SuppressWarnings( "unused" )
         public Pointer callback( Pointer self, Pointer cmd, Pointer toolbar )
         {
@@ -479,6 +495,14 @@ public final class MacOsToolbarManager
     /** {@code -(void)onMicaToolbarItem:(NSToolbarItem*)sender}. Dispatches by item identifier. */
     private static final class ActionCallback implements Callback
     {
+        /**
+         * Objective-C callback invoked when a toolbar item is clicked; dispatches
+         * the launcher action keyed by the sender's item identifier.
+         *
+         * @param self   the receiving Obj-C object pointer
+         * @param cmd    the selector pointer
+         * @param sender the {@code NSToolbarItem} pointer that fired
+         */
         @SuppressWarnings( "unused" )
         public void callback( Pointer self, Pointer cmd, Pointer sender )
         {
@@ -661,6 +685,12 @@ public final class MacOsToolbarManager
         hideAll( root.lookupAll( ".navDivider" ) );
     }
 
+    /**
+     * Hides a node both visually and from layout ({@code visible=false},
+     * {@code managed=false}). No-op when {@code node} is {@code null}.
+     *
+     * @param node the node to hide (may be {@code null})
+     */
     private static void hide( Node node )
     {
         if ( node != null ) {
@@ -669,6 +699,11 @@ public final class MacOsToolbarManager
         }
     }
 
+    /**
+     * Hides every node in the given set via {@link #hide(Node)}.
+     *
+     * @param nodes the nodes to hide
+     */
     private static void hideAll( Set< Node > nodes )
     {
         for ( Node node : nodes ) {
