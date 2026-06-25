@@ -1533,6 +1533,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             // users learn one vocabulary, not two. Avoids the ambiguous imperative
             // ("Update!") that "Update" alone would imply.
             if ( newPack.isUpdateAvailable() ) badgeRow.getChildren().add( buildChip( LocalizationManager.get( "main.badge.recentlyUpdated" ), "stat-chip-success" ) );
+            // Unread-news badge — a "News" chip when the pack ships news items
+            // the user hasn't yet seen (cleared when they open the detail modal).
+            // Wrapped defensively: getUnreadNewsCount touches per-pack files, and
+            // a hostile/garbled manifest must never break the card render.
+            try {
+                if ( newPack.getUnreadNewsCount() > 0 ) {
+                    badgeRow.getChildren().add( buildChip( LocalizationManager.get( "main.badge.news" ), "stat-chip" ) );
+                }
+            }
+            catch ( Throwable ignored ) { /* no badge on failure */ }
 
             // Name + chips
             name.setText( resolveDisplayName( newPack ) );

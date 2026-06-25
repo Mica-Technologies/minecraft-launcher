@@ -256,6 +256,30 @@ public abstract class GameModPackMetadata
     protected List< ScanAcknowledgement > packScanAcknowledgements;
 
     /**
+     * Per-pack news entries shown in the modpack detail modal's News section.
+     * Authored directly in the manifest JSON so news rides along on the
+     * already-fetched, already-verified pack definition — no separate feed or
+     * server. Defaults to an empty list when the manifest omits the field. See
+     * {@link NewsItem} for the entry shape and defensive accessors.
+     *
+     * @since 2026.6
+     */
+    @SuppressWarnings( "unused" )
+    protected List< NewsItem > packNews;
+
+    /**
+     * Per-pack links shown in the modpack detail modal's Links section (wiki,
+     * Discord, store page, issue tracker, …). Authored directly in the manifest
+     * JSON, alongside {@link #packNews}; no separate infrastructure. Defaults to
+     * an empty list when the manifest omits the field. See {@link LinkItem} for
+     * the entry shape and defensive accessors.
+     *
+     * @since 2026.6
+     */
+    @SuppressWarnings( "unused" )
+    protected List< LinkItem > packLinks;
+
+    /**
      * List of mod pack Forge mods. Value read from manifest JSON.
      *
      * @since 1.0
@@ -417,6 +441,85 @@ public abstract class GameModPackMetadata
             packScanAcknowledgements = new ArrayList<>();
         }
         return packScanAcknowledgements;
+    }
+
+    /**
+     * Get this pack's news entries, in manifest order. Never null.
+     *
+     * @return list of news items, possibly empty
+     *
+     * @since 2026.6
+     */
+    public List< NewsItem > getPackNews()
+    {
+        if ( packNews == null )
+        {
+            packNews = new ArrayList<>();
+        }
+        return packNews;
+    }
+
+    /**
+     * Returns this pack's news items that should be shown right now — renderable
+     * (non-blank title) and not past their expiry — sorted pinned-first then
+     * newest-date-first. The list is freshly computed and safe to mutate.
+     *
+     * @return visible, sorted news items; never null
+     *
+     * @since 2026.6
+     */
+    public List< NewsItem > getVisibleNews()
+    {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        List< NewsItem > visible = new ArrayList<>();
+        for ( NewsItem item : getPackNews() ) {
+            if ( item != null && item.isRenderable() && !item.isExpired( today ) ) {
+                visible.add( item );
+            }
+        }
+        visible.sort( ( a, b ) -> {
+            if ( a.isPinned() != b.isPinned() ) {
+                return a.isPinned() ? -1 : 1;
+            }
+            return Long.compare( b.getSortEpoch(), a.getSortEpoch() );
+        } );
+        return visible;
+    }
+
+    /**
+     * Get this pack's links, in manifest order. Never null.
+     *
+     * @return list of links, possibly empty
+     *
+     * @since 2026.6
+     */
+    public List< LinkItem > getPackLinks()
+    {
+        if ( packLinks == null )
+        {
+            packLinks = new ArrayList<>();
+        }
+        return packLinks;
+    }
+
+    /**
+     * Returns this pack's links that should be shown — renderable ones (non-blank
+     * title and a valid http(s) URL) in manifest order. The list is freshly
+     * computed and safe to mutate.
+     *
+     * @return renderable links in manifest order; never null
+     *
+     * @since 2026.6
+     */
+    public List< LinkItem > getVisibleLinks()
+    {
+        List< LinkItem > visible = new ArrayList<>();
+        for ( LinkItem link : getPackLinks() ) {
+            if ( link != null && link.isRenderable() ) {
+                visible.add( link );
+            }
+        }
+        return visible;
     }
 
     /**
@@ -880,6 +983,111 @@ public abstract class GameModPackMetadata
     {
         ensureHistoryLoaded();
         return cachedLaunchCount;
+    }
+
+    // endregion
+
+    // region News read/unread tracking
+
+    /**
+     * Name of the file that stores already-seen news IDs in each modpack's root
+     * folder — one id per line. Local-only, like {@code .installed_version} and
+     * {@code .launch_history}; no infrastructure beyond the pack folder.
+     */
+    private static final String SEEN_NEWS_FILE = ".seen_news";
+
+    /**
+     * Reads the set of news IDs the user has already seen for this pack. Returns
+     * an empty set when the file is absent or unreadable.
+     *
+     * @return mutable set of seen news IDs, never null
+     *
+     * @since 2026.6
+     */
+    public java.util.Set< String > getSeenNewsIds()
+    {
+        java.util.Set< String > seen = new java.util.HashSet<>();
+        Path seenFile = Path.of( getPackRootFolder(), SEEN_NEWS_FILE );
+        synchronized ( SynchronizedFileManager.getSynchronizedFile( seenFile ) ) {
+            if ( Files.exists( seenFile ) ) {
+                try {
+                    for ( String line : Files.readAllLines( seenFile, StandardCharsets.UTF_8 ) ) {
+                        String id = line.trim();
+                        if ( !id.isEmpty() ) {
+                            seen.add( id );
+                        }
+                    }
+                }
+                catch ( IOException e ) {
+                    Logger.logWarningSilent( LocalizationManager.format(
+                            "log.gameModPackMetadata.unableToReadSeenNews", getPackName() ) );
+                }
+            }
+        }
+        return seen;
+    }
+
+    /**
+     * Returns the number of currently-visible news items carrying a stable id
+     * that the user has not yet seen. Items without an id can't be tracked and
+     * are excluded so the badge can always be cleared.
+     *
+     * @return count of unread, trackable news items
+     *
+     * @since 2026.6
+     */
+    public int getUnreadNewsCount()
+    {
+        List< NewsItem > visible = getVisibleNews();
+        if ( visible.isEmpty() ) {
+            return 0;
+        }
+        java.util.Set< String > seen = getSeenNewsIds();
+        int unread = 0;
+        for ( NewsItem item : visible ) {
+            String id = item.getId();
+            if ( id != null && !seen.contains( id ) ) {
+                unread++;
+            }
+        }
+        return unread;
+    }
+
+    /**
+     * Marks every currently-visible news item with an id as seen, clearing the
+     * unread badge. No-op when there are no trackable items. Best-effort: a
+     * write failure is logged, not thrown.
+     *
+     * @since 2026.6
+     */
+    public void markAllNewsSeen()
+    {
+        List< NewsItem > visible = getVisibleNews();
+        java.util.Set< String > ids = new java.util.LinkedHashSet<>();
+        for ( NewsItem item : visible ) {
+            String id = item.getId();
+            if ( id != null ) {
+                ids.add( id );
+            }
+        }
+        if ( ids.isEmpty() ) {
+            return;
+        }
+        Path seenFile = Path.of( getPackRootFolder(), SEEN_NEWS_FILE );
+        synchronized ( SynchronizedFileManager.getSynchronizedFile( seenFile ) ) {
+            // Union with whatever was already seen so expired/rotated-out items
+            // stay marked and never resurface if an author re-adds them.
+            ids.addAll( getSeenNewsIds() );
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                seenFile.getParent().toFile().mkdirs();
+                Files.writeString( seenFile, String.join( "\n", ids ) + "\n", StandardCharsets.UTF_8 );
+            }
+            catch ( IOException e ) {
+                Logger.logWarningSilent( LocalizationManager.format(
+                        "log.gameModPackMetadata.unableToSaveSeenNews", getPackName() ) );
+            }
+        }
     }
 
     // endregion
