@@ -201,6 +201,16 @@ public class LauncherCore
             com.micatechnologies.minecraft.launcher.tui.TuiMode.enable( System.out, System.in );
         }
 
+        // Headless manifest diagnostic (--diag-manifest <url>): resolve a pack's
+        // Minecraft library manifest twice and report whether the second resolve
+        // is memoized (client.json parsed once, not twice). Runs before the
+        // single-instance lock + GUI/auth bootstrap so it works standalone with
+        // the launcher open, needs no auth, and never spawns the game.
+        if ( args.length == 2 && LauncherConstants.PROGRAM_ARG_DIAG_MANIFEST.equalsIgnoreCase( args[ 0 ] ) ) {
+            runManifestDiagnostic( args[ 1 ] );
+            return;
+        }
+
         // Enforce single instance. If another instance is already running:
         //   - and we have a mmcl:// URI in argv, forward it to the running instance and exit
         //     silently (the running instance brings itself to focus and dispatches the action).
@@ -1238,6 +1248,62 @@ public class LauncherCore
      *
      * @since 2.0
      */
+    /**
+     * Headless diagnostic for the per-pack Minecraft library-manifest
+     * memoization (see {@code GameModPack.getMinecraftLibraryManifest}). Fetches
+     * the pack at {@code manifestUrl} without authenticating, resolves its
+     * library manifest twice, and reports whether the second resolution returns
+     * the same cached instance — i.e. whether the version's client.json is parsed
+     * once rather than twice. Prints a PASS/FAIL line to the console and exits;
+     * never authenticates or launches the game.
+     *
+     * @param manifestUrl a modpack manifest URL, or a {@code file:} URL to a
+     *                    local manifest
+     *
+     * @since 2026.6
+     */
+    private static void runManifestDiagnostic( String manifestUrl ) {
+        final java.io.PrintStream out = System.out;
+        // Client mode so LocalPathManager / config resolve to the real launcher
+        // folder rather than the server-mode (cwd) paths.
+        GameModeManager.setCurrentGameMode( GameMode.CLIENT );
+        out.println( "[manifest-diag] resolving manifest: " + manifestUrl );
+        try {
+            com.micatechnologies.minecraft.launcher.game.modpack.GameModPack pack =
+                    com.micatechnologies.minecraft.launcher.game.modpack.GameModPackFetcher.get( manifestUrl, false );
+            if ( pack == null ) {
+                out.println( "[manifest-diag] FAILED: could not fetch / parse the manifest" );
+                System.exit( 2 );
+                return;
+            }
+            out.println( "[manifest-diag] pack: " + pack.getFriendlyName()
+                                 + "  (MC " + pack.getMinecraftVersion() + ")" );
+
+            long t0 = System.nanoTime();
+            com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest m1 =
+                    pack.getMinecraftLibraryManifest();
+            long t1 = System.nanoTime();
+            com.micatechnologies.minecraft.launcher.game.modpack.manifests.GameLibraryManifest m2 =
+                    pack.getMinecraftLibraryManifest();
+            long t2 = System.nanoTime();
+
+            boolean memoized = ( m1 == m2 );
+            out.printf( "[manifest-diag] 1st resolve: %.1f ms (downloads + parses client.json)%n",
+                        ( t1 - t0 ) / 1e6 );
+            out.printf( "[manifest-diag] 2nd resolve: %.3f ms%n", ( t2 - t1 ) / 1e6 );
+            out.println( "[manifest-diag] same instance (memoized -> parsed once): " + memoized );
+            out.println( memoized
+                                 ? "[manifest-diag] RESULT: PASS - library manifest resolved once per pack"
+                                 : "[manifest-diag] RESULT: FAIL - second resolve rebuilt the manifest (re-parse)" );
+            System.exit( memoized ? LauncherConstants.EXIT_STATUS_CODE_GOOD : 1 );
+        }
+        catch ( Throwable t ) {
+            out.println( "[manifest-diag] ERROR: " + t );
+            t.printStackTrace( out );
+            System.exit( 2 );
+        }
+    }
+
     public static String parseLauncherArgs( String[] args ) {
         // mmcl:// deep-link from the website / OS scheme handler. The OS hands us the URI as
         // argv when the launcher cold-starts via the scheme. Stash it for the session to
