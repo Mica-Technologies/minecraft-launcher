@@ -1813,20 +1813,12 @@ public class MCLauncherModpackDetailModal extends StackPane
         return card;
     }
 
-    /** Opens a pre-validated http(s) URL in the user's browser, off the FX
-     *  thread. The caller is responsible for the http/https gate (see
-     *  {@link com.micatechnologies.minecraft.launcher.game.modpack.NewsItem#getUrl()}). */
+    /** Opens an http(s) URL in the user's browser via the shared
+     *  {@link GUIUtilities#openExternalUrl(String)} helper (validates scheme,
+     *  runs off the FX thread). */
     private static void openExternalUrl( String url )
     {
-        SystemUtilities.spawnNewTask( () -> {
-            try {
-                Desktop.getDesktop().browse( URI.create( url ) );
-            }
-            catch ( IOException e ) {
-                Logger.logError( LocalizationManager.format( "log.modpack.openBrowserFailed", url ) );
-                Logger.logThrowable( e );
-            }
-        } );
+        GUIUtilities.openExternalUrl( url );
     }
 
     private HBox buildActionRow( GameModPack pack )
@@ -2221,23 +2213,7 @@ public class MCLauncherModpackDetailModal extends StackPane
 
     private static void openModpackWebsite( GameModPack pack )
     {
-        SystemUtilities.spawnNewTask( () -> {
-            String url = pack.getPackURL();
-            // Manifest-supplied URL; allow only http/https to keep "View Website"
-            // from opening local files via file:// or arbitrary other schemes.
-            if ( url == null
-                    || !( url.startsWith( "https://" ) || url.startsWith( "http://" ) ) ) {
-                Logger.logWarning( LocalizationManager.format( "log.modpack.refuseNonHttpUrl", url ) );
-                return;
-            }
-            try {
-                Desktop.getDesktop().browse( URI.create( url ) );
-            }
-            catch ( IOException e ) {
-                Logger.logError( LocalizationManager.format( "log.modpack.openBrowserFailed", url ) );
-                Logger.logThrowable( e );
-            }
-        } );
+        GUIUtilities.openModpackWebsite( pack );
     }
 
     private static void openPackSubfolder( GameModPack pack, String subfolder )
