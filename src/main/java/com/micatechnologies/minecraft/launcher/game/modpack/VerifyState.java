@@ -25,8 +25,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 /**
  * Persistent record of "we did a full hash-verify of this pack's files on
@@ -147,19 +145,9 @@ public final class VerifyState
     public static String computeManifestSha256( String manifestBody )
     {
         if ( manifestBody == null ) return null;
-        try {
-            MessageDigest md = MessageDigest.getInstance( "SHA-256" );
-            byte[] hash = md.digest( manifestBody.getBytes( StandardCharsets.UTF_8 ) );
-            StringBuilder sb = new StringBuilder( hash.length * 2 );
-            for ( byte b : hash ) sb.append( String.format( "%02x", b ) );
-            return sb.toString();
-        }
-        catch ( NoSuchAlgorithmException e ) {
-            // SHA-256 is mandatory in every JRE we ship against; unreachable
-            // in practice. Falling through returns null and the launch path
-            // safely falls back to FULL verify.
-            return null;
-        }
+        // Returns null only on the (unreachable) missing-SHA-256 case, which the
+        // launch path safely treats as "manifest changed" → full verify.
+        return com.micatechnologies.minecraft.launcher.utilities.HashUtilities.sha256Hex( manifestBody );
     }
 
     // ===== decision =====

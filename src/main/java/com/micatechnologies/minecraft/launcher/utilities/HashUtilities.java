@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -64,6 +65,98 @@ public class HashUtilities
 
         byte[] hashBytes = digest.digest();
         return new BigInteger( 1, hashBytes );
+    }
+
+    /**
+     * Hex table for {@link #bytesToHex(byte[])}. Lower-case to match the rest of
+     * the codebase's hash-string convention (manifest hashes are compared
+     * case-insensitively via {@link #constantTimeHexEquals(String, String)}).
+     */
+    private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
+
+    /**
+     * Encodes a byte array as a lower-case hexadecimal string, two characters per
+     * byte (leading zeros preserved). Shared by the {@code *Hex} digest helpers
+     * so every in-memory hash renders identically to the zero-padded
+     * {@code String.format} output the {@code File} variants produce.
+     *
+     * @param bytes raw bytes to encode (e.g. a {@link MessageDigest} result)
+     *
+     * @return lower-case hex string of length {@code 2 * bytes.length}
+     *
+     * @since 2026.6
+     */
+    public static String bytesToHex( byte[] bytes ) {
+        char[] out = new char[ bytes.length * 2 ];
+        for ( int i = 0; i < bytes.length; i++ ) {
+            int v = bytes[ i ] & 0xFF;
+            out[ i * 2 ]     = HEX_CHARS[ v >>> 4 ];
+            out[ i * 2 + 1 ] = HEX_CHARS[ v & 0x0F ];
+        }
+        return new String( out );
+    }
+
+    /**
+     * Computes the hex digest of an in-memory byte array using the given
+     * algorithm. Centralizes the {@code MessageDigest.getInstance} + hex-encode
+     * loop that several callers previously hand-rolled.
+     *
+     * @param algorithm JCA digest algorithm name (e.g. {@code "SHA-256"})
+     * @param data      bytes to hash
+     *
+     * @return lower-case hex digest, or {@code null} if the algorithm is unavailable
+     *
+     * @since 2026.6
+     */
+    private static String digestHex( String algorithm, byte[] data ) {
+        try {
+            return bytesToHex( MessageDigest.getInstance( algorithm ).digest( data ) );
+        }
+        catch ( NoSuchAlgorithmException e ) {
+            Logger.logError( LocalizationManager.format( "log.hashUtil.algorithmUnavailable", algorithm ) );
+            Logger.logThrowable( e );
+            return null;
+        }
+    }
+
+    /**
+     * Gets the SHA-1 hex digest of an in-memory byte array.
+     *
+     * @param data bytes to hash
+     *
+     * @return lower-case SHA-1 hex digest, or {@code null} if SHA-1 is unavailable
+     *
+     * @since 2026.6
+     */
+    public static String sha1Hex( byte[] data ) {
+        return digestHex( "SHA-1", data );
+    }
+
+    /**
+     * Gets the SHA-256 hex digest of an in-memory byte array.
+     *
+     * @param data bytes to hash
+     *
+     * @return lower-case SHA-256 hex digest, or {@code null} if SHA-256 is unavailable
+     *
+     * @since 2026.6
+     */
+    public static String sha256Hex( byte[] data ) {
+        return digestHex( "SHA-256", data );
+    }
+
+    /**
+     * Gets the SHA-256 hex digest of a string's UTF-8 bytes. Convenience for the
+     * common "hash a URL / identifier into a stable cache key" case.
+     *
+     * @param value string whose UTF-8 encoding is hashed
+     *
+     * @return lower-case SHA-256 hex digest, or {@code null} if SHA-256 is unavailable
+     *
+     * @since 2026.6
+     */
+    public static String sha256Hex( String value ) {
+        return sha256Hex( value.getBytes( StandardCharsets.UTF_8 ) );
     }
 
     /**

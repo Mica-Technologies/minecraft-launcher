@@ -24,8 +24,6 @@ import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 
 import java.io.File;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 
 /**
  * Simple file cache manager that stores downloaded content in a local cache directory with TTL-based expiry.
@@ -77,19 +75,10 @@ public class CacheManager
      */
     private static String hashUrl( String url )
     {
-        try {
-            MessageDigest digest = MessageDigest.getInstance( "SHA-256" );
-            byte[] hash = digest.digest( url.getBytes( StandardCharsets.UTF_8 ) );
-            StringBuilder sb = new StringBuilder();
-            for ( byte b : hash ) {
-                sb.append( String.format( "%02x", b ) );
-            }
-            return sb.toString();
-        }
-        catch ( Exception e ) {
-            // Fallback: use hashCode (less collision-resistant but functional)
-            return Integer.toHexString( url.hashCode() );
-        }
+        // Fallback to hashCode (less collision-resistant but functional) only on
+        // the unreachable missing-SHA-256 case, preserving the original behavior.
+        String hex = HashUtilities.sha256Hex( url );
+        return hex != null ? hex : Integer.toHexString( url.hashCode() );
     }
 
     /**
