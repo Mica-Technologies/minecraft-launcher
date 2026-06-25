@@ -53,6 +53,14 @@ public final class RgbConfig
                                        ConfigConstants.RGB_ENABLE_DEFAULT );
     }
 
+    /**
+     * Sets the master kill-switch for the entire RGB-integration subsystem.
+     *
+     * @param enable {@code true} to allow the RGB controller to probe backends
+     *               and drive lighting, {@code false} to keep it inert
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbEnable( boolean enable ) {
         writeBoolean( ConfigConstants.RGB_ENABLE_KEY, enable );
     }
@@ -84,6 +92,16 @@ public final class RgbConfig
         };
     }
 
+    /**
+     * Sets the selected RGB backend identifier. Only the known identifiers
+     * validated by {@link #getRgbBackend()} are accepted; any unknown or
+     * {@code null} value is coerced to the default ({@code "auto"}) so the
+     * on-disk config never accumulates garbage.
+     *
+     * @param backend the backend identifier to store
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbBackend( String backend ) {
         // Defensive: only accept known identifiers — same set
         // {@link #getRgbBackend} validates. Unknown strings would
@@ -115,6 +133,15 @@ public final class RgbConfig
                                        ConfigConstants.RGB_USE_PACK_COLORS_DEFAULT );
     }
 
+    /**
+     * Sets whether in-game effects use the running modpack's logo dominant
+     * colors rather than the launcher theme's accent palette.
+     *
+     * @param usePackColors {@code true} to drive effects from the pack's logo
+     *                      colors
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbUsePackColors( boolean usePackColors ) {
         writeBoolean( ConfigConstants.RGB_USE_PACK_COLORS_KEY, usePackColors );
     }
@@ -126,6 +153,14 @@ public final class RgbConfig
                                        ConfigConstants.RGB_HIGHLIGHT_KEYS_DEFAULT );
     }
 
+    /**
+     * Sets whether the in-game effect highlights the WASD / E / Space / Shift
+     * keys in a contrasting accent over the pack-color background.
+     *
+     * @param highlight {@code true} to highlight the movement / action keys
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbHighlightKeys( boolean highlight ) {
         writeBoolean( ConfigConstants.RGB_HIGHLIGHT_KEYS_KEY, highlight );
     }
@@ -140,56 +175,152 @@ public final class RgbConfig
     // instead of having to pick a single backend.
     // ====================================================================
 
+    /**
+     * Whether the OpenRGB backend is permitted to start. Effective only when the
+     * master {@link #getRgbEnable()} switch is on and the backend's runtime
+     * availability probe passes.
+     *
+     * @return {@code true} if the OpenRGB backend is enabled
+     *
+     * @since 2026.5
+     */
     public static synchronized boolean getRgbEnableOpenRgb() {
         return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_OPENRGB_KEY,
                                        ConfigConstants.RGB_ENABLE_OPENRGB_DEFAULT );
     }
 
+    /**
+     * Sets whether the OpenRGB backend is permitted to start.
+     *
+     * @param enable {@code true} to enable the OpenRGB backend
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbEnableOpenRgb( boolean enable ) {
         writeBoolean( ConfigConstants.RGB_ENABLE_OPENRGB_KEY, enable );
     }
 
+    /**
+     * Whether the native Razer Chroma backend is permitted to start. Effective
+     * only when the master {@link #getRgbEnable()} switch is on and the backend's
+     * runtime availability probe passes.
+     *
+     * @return {@code true} if the native Chroma backend is enabled
+     *
+     * @since 2026.5
+     */
     public static synchronized boolean getRgbEnableChromaNative() {
         return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_KEY,
                                        ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_DEFAULT );
     }
 
+    /**
+     * Sets whether the native Razer Chroma backend is permitted to start.
+     *
+     * @param enable {@code true} to enable the native Chroma backend
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbEnableChromaNative( boolean enable ) {
         writeBoolean( ConfigConstants.RGB_ENABLE_CHROMA_NATIVE_KEY, enable );
     }
 
+    /**
+     * Whether the Razer Chroma REST backend is permitted to start. Effective only
+     * when the master {@link #getRgbEnable()} switch is on and the backend's
+     * runtime availability probe passes.
+     *
+     * @return {@code true} if the Chroma REST backend is enabled
+     *
+     * @since 2026.5
+     */
     public static synchronized boolean getRgbEnableChromaRest() {
         return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CHROMA_REST_KEY,
                                        ConfigConstants.RGB_ENABLE_CHROMA_REST_DEFAULT );
     }
 
+    /**
+     * Sets whether the Razer Chroma REST backend is permitted to start.
+     *
+     * @param enable {@code true} to enable the Chroma REST backend
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbEnableChromaRest( boolean enable ) {
         writeBoolean( ConfigConstants.RGB_ENABLE_CHROMA_REST_KEY, enable );
     }
 
+    /**
+     * Whether the Windows DLL (WinDL) backend is permitted to start. Effective
+     * only when the master {@link #getRgbEnable()} switch is on and the backend's
+     * runtime availability probe passes.
+     *
+     * @return {@code true} if the Windows DLL backend is enabled
+     *
+     * @since 2026.5
+     */
     public static synchronized boolean getRgbEnableWindowsDl() {
         return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_WINDOWS_DL_KEY,
                                        ConfigConstants.RGB_ENABLE_WINDOWS_DL_DEFAULT );
     }
 
+    /**
+     * Sets whether the Windows DLL (WinDL) backend is permitted to start.
+     *
+     * @param enable {@code true} to enable the Windows DLL backend
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbEnableWindowsDl( boolean enable ) {
         writeBoolean( ConfigConstants.RGB_ENABLE_WINDOWS_DL_KEY, enable );
     }
 
+    /**
+     * Whether the Corsair iCUE backend is permitted to start. Effective only when
+     * the master {@link #getRgbEnable()} switch is on and the backend's runtime
+     * availability probe passes.
+     *
+     * @return {@code true} if the Corsair backend is enabled
+     *
+     * @since 2026.5
+     */
     public static synchronized boolean getRgbEnableCorsair() {
         return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_CORSAIR_KEY,
                                        ConfigConstants.RGB_ENABLE_CORSAIR_DEFAULT );
     }
 
+    /**
+     * Sets whether the Corsair iCUE backend is permitted to start.
+     *
+     * @param enable {@code true} to enable the Corsair backend
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbEnableCorsair( boolean enable ) {
         writeBoolean( ConfigConstants.RGB_ENABLE_CORSAIR_KEY, enable );
     }
 
+    /**
+     * Whether the ASUS Aura backend is permitted to start. Effective only when
+     * the master {@link #getRgbEnable()} switch is on and the backend's runtime
+     * availability probe passes.
+     *
+     * @return {@code true} if the ASUS Aura backend is enabled
+     *
+     * @since 2026.5
+     */
     public static synchronized boolean getRgbEnableAsusAura() {
         return readBooleanWithDefault( ConfigConstants.RGB_ENABLE_ASUS_AURA_KEY,
                                        ConfigConstants.RGB_ENABLE_ASUS_AURA_DEFAULT );
     }
 
+    /**
+     * Sets whether the ASUS Aura backend is permitted to start.
+     *
+     * @param enable {@code true} to enable the ASUS Aura backend
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbEnableAsusAura( boolean enable ) {
         writeBoolean( ConfigConstants.RGB_ENABLE_ASUS_AURA_KEY, enable );
     }
@@ -198,11 +329,27 @@ public final class RgbConfig
     // Menu effect
     // ====================================================================
 
+    /**
+     * Whether the ambient launcher-menu RGB effect runs while the user is in the
+     * launcher UI (as opposed to the in-game effect).
+     *
+     * @return {@code true} if the menu effect is enabled
+     *
+     * @since 2026.5
+     */
     public static synchronized boolean getRgbMenuEffectEnable() {
         return readBooleanWithDefault( ConfigConstants.RGB_MENU_EFFECT_ENABLE_KEY,
                                        ConfigConstants.RGB_MENU_EFFECT_ENABLE_DEFAULT );
     }
 
+    /**
+     * Sets whether the ambient launcher-menu RGB effect runs while the user is in
+     * the launcher UI.
+     *
+     * @param enable {@code true} to enable the menu effect
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbMenuEffectEnable( boolean enable ) {
         writeBoolean( ConfigConstants.RGB_MENU_EFFECT_ENABLE_KEY, enable );
     }
@@ -225,6 +372,15 @@ public final class RgbConfig
         return value;
     }
 
+    /**
+     * Sets the RGB effect-style identifier. A {@code null} value or one not in
+     * {@link ConfigConstants#RGB_EFFECT_STYLES} is silently ignored so the
+     * on-disk config never persists an unknown style.
+     *
+     * @param style the effect-style identifier to store
+     *
+     * @since 2026.5
+     */
     public static synchronized void setRgbEffectStyle( String style ) {
         if ( style == null || !ConfigConstants.RGB_EFFECT_STYLES.contains( style ) ) {
             return; // ignore — don't persist garbage
@@ -240,6 +396,17 @@ public final class RgbConfig
     // depend on a package-private helper in the facade class.
     // ====================================================================
 
+    /**
+     * Reads a boolean config value, seeding the live JSON with the supplied
+     * default (without scheduling a write) when the key is absent.
+     *
+     * @param key  the config key to read
+     * @param dflt the default value used when the key is missing
+     *
+     * @return the stored boolean value, or {@code dflt} when the key was absent
+     *
+     * @since 2026.5
+     */
     private static boolean readBooleanWithDefault( String key, boolean dflt ) {
         JsonObject json = ConfigStore.ensureLoaded();
         if ( !json.has( key ) ) {
@@ -248,6 +415,14 @@ public final class RgbConfig
         return json.get( key ).getAsBoolean();
     }
 
+    /**
+     * Writes a boolean config value and schedules a debounced disk flush.
+     *
+     * @param key   the config key to write
+     * @param value the boolean value to store
+     *
+     * @since 2026.5
+     */
     private static void writeBoolean( String key, boolean value ) {
         ConfigStore.ensureLoaded().addProperty( key, value );
         ConfigStore.scheduleWrite();

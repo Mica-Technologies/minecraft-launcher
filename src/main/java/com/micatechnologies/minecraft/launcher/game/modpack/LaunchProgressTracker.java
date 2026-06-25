@@ -56,13 +56,19 @@ public final class LaunchProgressTracker
      */
     public enum StepId
     {
+        /** Downloading + verifying the pack's mods, configs, resources, and
+         *  cached images — the first launch phase. */
         MODPACK_CONTENT( "Modpack content" ),
         // "Modloader libraries" rather than "Forge libraries" so the
         // label reads correctly for Fabric and NeoForge packs too. The
         // enum names stay FORGE_* for source-stability — only the user-
         // facing displayLabel changed.
+        /** Resolving + downloading the modloader's (Forge / NeoForge / Fabric)
+         *  libraries. */
         FORGE_LIBS( "Modloader libraries" ),
+        /** Downloading + verifying the vanilla Minecraft libraries and asset index. */
         MC_LIBS_ASSETS( "Minecraft libraries & assets" ),
+        /** Verifying / installing the Java runtime the pack requires. */
         JRE_INSTALL( "Java runtime" ),
         // "Game patching" matches the existing "Patching game files..."
         // log line + reads correctly for every loader that has a post-
@@ -70,11 +76,19 @@ public final class LaunchProgressTracker
         // loaders). Loaders without a post-install pipeline (Fabric)
         // are excluded from the step list entirely via
         // {@link GameModPack#usesPostInstallSteps()}, so no row renders.
+        /** Running the loader's post-install patching pipeline (modern Forge /
+         *  NeoForge processors). Loaders without a post-install pipeline are
+         *  excluded from the step list entirely. */
         FORGE_PROCESSORS( "Game patching" ),
+        /** Final jarscanner security pass over the assembled install. */
         SECURITY_SCAN( "Security scan" );
 
+        /** User-facing label shown next to this step's status icon. */
         private final String displayLabel;
 
+        /**
+         * @param displayLabel human-readable label rendered for this step
+         */
         StepId( String displayLabel ) { this.displayLabel = displayLabel; }
 
         /** Human-readable label rendered next to the step's status icon. */
@@ -115,10 +129,18 @@ public final class LaunchProgressTracker
         private volatile String subText = "";
         private volatile String errorMessage = null;
 
+        /**
+         * @param id the stage this row represents
+         */
         Step( StepId id ) { this.id = id; }
 
+        /** @return the stable stage identifier for this row */
         public StepId id() { return id; }
+
+        /** @return the human-readable label for this row, from {@link StepId#displayLabel()} */
         public String displayLabel() { return id.displayLabel(); }
+
+        /** @return the row's current render state */
         public State state() { return state; }
 
         /** Progress within the row's RUNNING state, in [0, 1]. Meaningless
@@ -144,6 +166,12 @@ public final class LaunchProgressTracker
     @FunctionalInterface
     public interface Listener
     {
+        /**
+         * Invoked once per state, progress, or sub-text change on a row.
+         *
+         * @param step the row that changed; the same internal instance the
+         *             tracker holds, so its fields stay live after the call
+         */
         void onStepChanged( Step step );
     }
 
@@ -151,6 +179,10 @@ public final class LaunchProgressTracker
     private final EnumMap< StepId, Step > byId;
     private final List< Listener > listeners = new CopyOnWriteArrayList<>();
 
+    /**
+     * @param orderedSteps the rows to render, in display order; wrapped
+     *                     unmodifiable and indexed by {@link StepId}
+     */
     private LaunchProgressTracker( List< Step > orderedSteps )
     {
         this.orderedSteps = Collections.unmodifiableList( orderedSteps );
@@ -166,6 +198,9 @@ public final class LaunchProgressTracker
      * all — the GUI renders nothing for them rather than a SKIPPED-style
      * placeholder, which matches the "hide non-applicable rows on vanilla"
      * UX decision.
+     *
+     * @param ids the stages to render, in display order
+     * @return a new tracker holding one row per supplied ID
      */
     public static LaunchProgressTracker forSteps( StepId... ids )
     {
@@ -176,14 +211,16 @@ public final class LaunchProgressTracker
         return new LaunchProgressTracker( built );
     }
 
-    /** Immutable ordered view of every active row. */
+    /** @return immutable ordered view of every active row */
     public List< Step > steps() { return orderedSteps; }
 
     /** Snapshot of every row currently in {@link State#RUNNING}. Used by the
      *  launch flow's NetworkUtilities retry listener so cross-cutting events
      *  (a retry, an HTTP 429, a hash-mismatch re-download) can update every
      *  in-flight row's sub-text without the caller having to identify which
-     *  branch the affected download belongs to. */
+     *  branch the affected download belongs to.
+     *
+     *  @return a fresh list of the rows currently in {@link State#RUNNING} */
     public List< Step > runningSteps()
     {
         List< Step > out = new ArrayList<>();
@@ -194,17 +231,26 @@ public final class LaunchProgressTracker
     }
 
     /** Returns the row for the given ID, or {@code null} if this tracker
-     *  doesn't include it. */
+     *  doesn't include it.
+     *
+     *  @param id the stage to look up
+     *  @return the matching row, or {@code null} when not part of this tracker */
     public Step step( StepId id ) { return byId.get( id ); }
 
     /** Subscribe to state-change notifications. The listener is invoked
      *  on whatever thread mutated the row; UI listeners should marshal
-     *  to the FX thread themselves. */
+     *  to the FX thread themselves.
+     *
+     *  @param l the listener to add; {@code null} is ignored */
     public void addListener( Listener l )
     {
         if ( l != null ) listeners.add( l );
     }
 
+    /** Unsubscribes a previously-added listener.
+     *
+     *  @param l the listener to remove; {@code null} (and listeners never
+     *           added) are ignored */
     public void removeListener( Listener l )
     {
         if ( l != null ) listeners.remove( l );
@@ -212,6 +258,11 @@ public final class LaunchProgressTracker
 
     // ---- state mutation ----
 
+    /** Marks the given step {@link State#RUNNING} and clears any prior error,
+     *  then notifies listeners.
+     *
+     *  @param id the step to transition
+     *  @throws IllegalArgumentException if the step isn't part of this tracker */
     public synchronized void markRunning( StepId id )
     {
         Step s = require( id );
@@ -220,6 +271,11 @@ public final class LaunchProgressTracker
         notifyChanged( s );
     }
 
+    /** Marks the given step {@link State#DONE}, snaps its progress to 1.0, and
+     *  notifies listeners.
+     *
+     *  @param id the step to transition
+     *  @throws IllegalArgumentException if the step isn't part of this tracker */
     public synchronized void markDone( StepId id )
     {
         Step s = require( id );
@@ -228,6 +284,12 @@ public final class LaunchProgressTracker
         notifyChanged( s );
     }
 
+    /** Marks the given step {@link State#FAILED}, records the error message for
+     *  {@link Step#errorMessage()}, and notifies listeners.
+     *
+     *  @param id           the step to transition
+     *  @param errorMessage the failure detail to surface on the row
+     *  @throws IllegalArgumentException if the step isn't part of this tracker */
     public synchronized void markFailed( StepId id, String errorMessage )
     {
         Step s = require( id );
@@ -239,7 +301,10 @@ public final class LaunchProgressTracker
     /** Marks the step skipped. Useful when the caller wants the row to remain
      *  in the listing for a moment with a "not applicable" indicator — most
      *  often, though, the GUI elects to omit the step from the tracker
-     *  entirely via {@link #forSteps(StepId...)}, which renders no row at all. */
+     *  entirely via {@link #forSteps(StepId...)}, which renders no row at all.
+     *
+     *  @param id the step to mark skipped
+     *  @throws IllegalArgumentException if the step isn't part of this tracker */
     public synchronized void markSkipped( StepId id )
     {
         Step s = require( id );
@@ -247,7 +312,11 @@ public final class LaunchProgressTracker
         notifyChanged( s );
     }
 
-    /** Updates the RUNNING-state progress reading. Clamped to [0, 1]. */
+    /** Updates the RUNNING-state progress reading. Clamped to [0, 1].
+     *
+     *  @param id       the step to update
+     *  @param progress the new progress fraction; values outside [0, 1] are clamped
+     *  @throws IllegalArgumentException if the step isn't part of this tracker */
     public synchronized void setProgress( StepId id, double progress )
     {
         Step s = require( id );
@@ -257,7 +326,11 @@ public final class LaunchProgressTracker
 
     /** Updates the row's sub-text without changing its state or progress.
      *  Use for current-activity detail (filename being processed, retry
-     *  attempt count, etc.). Empty string clears the sub-text. */
+     *  attempt count, etc.). Empty string clears the sub-text.
+     *
+     *  @param id      the step to update
+     *  @param subText the activity detail; {@code null} is coerced to an empty string
+     *  @throws IllegalArgumentException if the step isn't part of this tracker */
     public synchronized void setSubText( StepId id, String subText )
     {
         Step s = require( id );
@@ -267,7 +340,12 @@ public final class LaunchProgressTracker
 
     /** Convenience for the common pattern "increment a known fraction +
      *  set the sub-text in one call". Equivalent to two separate calls
-     *  but produces a single listener notification instead of two. */
+     *  but produces a single listener notification instead of two.
+     *
+     *  @param id       the step to update
+     *  @param progress the new progress fraction; values outside [0, 1] are clamped
+     *  @param subText  the activity detail; {@code null} is coerced to an empty string
+     *  @throws IllegalArgumentException if the step isn't part of this tracker */
     public synchronized void submitProgress( StepId id, double progress, String subText )
     {
         Step s = require( id );
@@ -276,6 +354,11 @@ public final class LaunchProgressTracker
         notifyChanged( s );
     }
 
+    /** Looks up a row, throwing if this tracker doesn't include it.
+     *
+     *  @param id the step to resolve
+     *  @return the matching row, never {@code null}
+     *  @throws IllegalArgumentException if the step isn't part of this tracker */
     private Step require( StepId id )
     {
         Step s = byId.get( id );
@@ -285,6 +368,11 @@ public final class LaunchProgressTracker
         return s;
     }
 
+    /** Fans the change out to every registered listener, outside the tracker
+     *  lock semantics of {@link CopyOnWriteArrayList}, swallowing any listener
+     *  fault so one bad listener can't starve the rest.
+     *
+     *  @param s the row that changed */
     private void notifyChanged( Step s )
     {
         // CopyOnWriteArrayList iteration is safe even if a listener removes

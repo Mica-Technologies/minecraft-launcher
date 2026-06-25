@@ -95,9 +95,13 @@ public class GameLibrary extends ManagedGameFile
     }
 
     /**
-     * Return if this MCLibrary is marked as a native library.
+     * Return if this MCLibrary is marked as a native library. Native libraries are
+     * platform-specific binaries (e.g. LWJGL natives) that must be extracted alongside the
+     * JVM libraries rather than placed on the classpath directly.
      *
      * @return true if native library
+     *
+     * @since 1.0
      */
     public boolean isNativeLib() {
         return isNativeLib;

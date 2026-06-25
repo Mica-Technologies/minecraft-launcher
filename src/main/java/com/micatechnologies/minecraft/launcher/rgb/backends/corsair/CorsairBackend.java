@@ -87,16 +87,38 @@ public final class CorsairBackend implements RgbBackend
 
     /** Per-device cached LED ID list. Lookup is hot path (every
      *  frame), so we hold the int[] + the deviceId byte buffer + a
-     *  reusable LED-color Memory side-by-side. */
+     *  reusable LED-color Memory side-by-side.
+     *
+     *  @since 2026.5 */
     private static final class Device
     {
+        /** 128-byte {@code CorsairDeviceId} buffer, detached from JNA's
+         *  shared {@link Structure} Memory so it survives across frames. */
         final byte[] id;          // 128-byte CorsairDeviceId buffer
+        /** LED IDs returned by {@code CorsairGetLedPositions}; the keys
+         *  every per-frame {@code CorsairSetLedColors} push writes to. */
         final int[]  ledIds;       // LED IDs returned by GetLedPositions
+        /** Human-readable device model string, used only for log lines. */
         final String model;        // for log lines only
+        /** Count of consecutive {@code SetLedColors} failures since the
+         *  last success; drives the never-succeeded drop check. */
         final AtomicInteger consecutiveFailures = new AtomicInteger( 0 );
+        /** Set once the device has accepted at least one frame this
+         *  session; keeps a previously-working device in the rotation
+         *  even when it later starts failing. */
         volatile boolean succeededOnce = false;
+        /** Set when the device has been permanently dropped from the
+         *  active set for the remainder of the session. */
         volatile boolean droppedFromRotation = false;
 
+        /**
+         * Creates a cached device record.
+         *
+         * @param id     the 128-byte {@code CorsairDeviceId} buffer
+         *               (a private copy detached from JNA's shared Memory)
+         * @param ledIds the device's LED IDs to color each frame
+         * @param model  the device model string for log lines
+         */
         Device( byte[] id, int[] ledIds, String model )
         {
             this.id = id;
@@ -105,7 +127,13 @@ public final class CorsairBackend implements RgbBackend
         }
     }
 
+    /** Active set of enumerated Corsair devices, populated by
+     *  {@link #enumerateDevices()} during {@link #start()} and cleared on
+     *  {@link #shutdown()}. */
     private final List< Device > devices = new ArrayList<>();
+
+    /** Connected state. {@code false} before {@link #start()} succeeds and
+     *  after {@link #shutdown()}. */
     private volatile boolean connected = false;
 
     /** Frame dedup. The effect engine ticks at 30 fps; the same
@@ -122,15 +150,58 @@ public final class CorsairBackend implements RgbBackend
     @SuppressWarnings( "FieldCanBeLocal" )
     private CorsairSdkLibrary.CorsairSessionStateChangedHandler stateHandler;
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the fixed human-readable backend name {@code "Corsair iCUE"}
+     *         used in log lines and the RGB settings UI
+     *
+     * @since 2026.5
+     */
     @Override
     public String name() { return "Corsair iCUE"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation reports availability by attempting to load
+     * the iCUE SDK DLL via JNA (see {@link CorsairSdkLibrary#isLoadable()}).
+     * The probe is cheap and side-effect free — it returns {@code false}
+     * instantly on non-Windows hosts or when iCUE isn't installed.</p>
+     *
+     * @return {@code true} when the iCUE SDK DLL is loadable on this host,
+     *         {@code false} otherwise
+     *
+     * @since 2026.5
+     */
     @Override
     public boolean isAvailable()
     {
         return CorsairSdkLibrary.isLoadable();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Calls {@code CorsairConnect}, then blocks on a
+     * {@link CountDownLatch} released by the SDK's state-changed callback
+     * until the session reaches {@code Connected} / {@code Subscribed} or a
+     * terminal failure state, capped at {@link #CONNECT_TIMEOUT_MS}. Once
+     * connected, enumerates every Corsair device and its LED IDs into
+     * {@link #devices}.</p>
+     *
+     * @throws IllegalStateException if the iCUE SDK DLL cannot be loaded
+     *                               (iCUE not installed); if
+     *                               {@code CorsairConnect} returns an error;
+     *                               if the session never reaches
+     *                               {@code Connected} within the timeout; if
+     *                               the session ends in a non-connected
+     *                               terminal state; or if the connection
+     *                               succeeds but no devices are found
+     * @throws Exception             per the {@link RgbBackend} contract
+     *
+     * @since 2026.5
+     */
     @Override
     public void start() throws Exception
     {
@@ -205,6 +276,33 @@ public final class CorsairBackend implements RgbBackend
         Logger.logStd( LocalizationManager.format( "log.rgb.corsair.devicesReady", devices.size() ) );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Pushes the frame's background color across every LED of every
+     * device still in the active rotation via {@code CorsairSetLedColors}.
+     * Identical consecutive frames are deduplicated (skipped entirely) by
+     * comparing the packed RGB triple against {@link #lastSentPackedRgb}.
+     * A no-op before {@link #start()} succeeds or after
+     * {@link #shutdown()}.</p>
+     *
+     * <p>The frame is treated as delivered if <em>any</em> device accepts
+     * it; a device that fails repeatedly without ever succeeding is
+     * dropped from the rotation (see {@link #handleDeviceFailure}). Only
+     * when every attempted device fails on the same frame is the failure
+     * surfaced to the controller's circuit breaker.</p>
+     *
+     * @param frame the frame to paint; its {@link RgbFrame#background()}
+     *              fills every LED on every device
+     *
+     * @throws IllegalStateException if at least one device was attempted
+     *                               but {@code CorsairSetLedColors} failed
+     *                               on every one; the message carries the
+     *                               last iCUE error code
+     * @throws Exception             per the {@link RgbBackend} contract
+     *
+     * @since 2026.5
+     */
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {
@@ -248,6 +346,18 @@ public final class CorsairBackend implements RgbBackend
         lastSentPackedRgb = packed;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Calls {@code CorsairDisconnect} (best-effort — any throwable is
+     * swallowed so shutdown always completes), after which iCUE restores
+     * devices to whatever profile was active before the launcher
+     * connected. Clears the cached device set, resets the frame-dedup
+     * marker, and drops the state-changed callback reference. Safe to call
+     * when never started.</p>
+     *
+     * @since 2026.5
+     */
     @Override
     public void shutdown()
     {
@@ -266,7 +376,11 @@ public final class CorsairBackend implements RgbBackend
     // =========================================================================
 
     /** Enumerate connected Corsair devices and fetch each one's LED ID
-     *  list, populating {@link #devices}. */
+     *  list, populating {@link #devices}. Devices that report zero LEDs are
+     *  skipped; a failed {@code CorsairGetDevices} call logs silently and
+     *  leaves {@link #devices} empty.
+     *
+     *  @since 2026.5 */
     private void enumerateDevices()
     {
         CorsairSdkLibrary.CorsairDeviceFilter.ByReference filter =
@@ -300,7 +414,14 @@ public final class CorsairBackend implements RgbBackend
     }
 
     /** Fetch the LED IDs on one device. Returns an empty array on any
-     *  failure — caller skips the device. */
+     *  failure — caller skips the device.
+     *
+     *  @param deviceIdBuffer the device's 128-byte {@code CorsairDeviceId}
+     *                        buffer to query
+     *
+     *  @return the device's LED IDs, or an empty array if the query failed
+     *
+     *  @since 2026.5 */
     private int[] fetchLedIds( byte[] deviceIdBuffer )
     {
         Memory idMem = new Memory( CorsairSdkLibrary.DEVICE_ID_LEN );
@@ -325,7 +446,17 @@ public final class CorsairBackend implements RgbBackend
     }
 
     /** Apply (r, g, b) to every LED on {@code dev}. Returns the
-     *  iCUE error code. */
+     *  iCUE error code.
+     *
+     *  @param dev the device to recolor
+     *  @param r   the red channel (0–255, as a signed byte)
+     *  @param g   the green channel (0–255, as a signed byte)
+     *  @param b   the blue channel (0–255, as a signed byte)
+     *
+     *  @return the {@code CorsairError} code from {@code CorsairSetLedColors};
+     *          {@link CorsairSdkLibrary#CE_SUCCESS} on success
+     *
+     *  @since 2026.5 */
     private int applyColorToDevice( Device dev, byte r, byte g, byte b )
     {
         Memory idMem = new Memory( CorsairSdkLibrary.DEVICE_ID_LEN );

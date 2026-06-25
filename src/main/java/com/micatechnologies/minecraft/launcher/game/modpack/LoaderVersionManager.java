@@ -72,28 +72,65 @@ import java.util.regex.Pattern;
  */
 public final class LoaderVersionManager
 {
+    /**
+     * Private no-op constructor. {@code LoaderVersionManager} exposes
+     * only static members and must never be instantiated.
+     *
+     * @since 2026.5
+     */
     private LoaderVersionManager() { /* static-only */ }
 
-    /** One installable loader-version entry. Carries everything needed
-     *  to render a card AND construct the synthetic manifest at install
-     *  time. {@code installerUrl} is the Forge / NeoForge installer JAR
-     *  URL or the Fabric profile-JSON URL — same interpretation as
-     *  {@code packModLoaderURL} in a manifest. */
+    /**
+     * One installable loader-version entry. Carries everything needed
+     * to render a card AND construct the synthetic manifest at install
+     * time. {@code installerUrl} is the Forge / NeoForge installer JAR
+     * URL or the Fabric profile-JSON URL — same interpretation as
+     * {@code packModLoaderURL} in a manifest.
+     *
+     * @param loaderType    the loader family identifier — one of the
+     *                      {@code ModPackConstants.MOD_LOADER_*} values
+     *                      ({@code forge} / {@code neoforge} /
+     *                      {@code fabric})
+     * @param mcVersion     the Minecraft version this loader build
+     *                      targets (e.g. {@code 1.20.1})
+     * @param loaderVersion the loader's own version string (e.g.
+     *                      {@code 47.4.1})
+     * @param installerUrl  the Forge / NeoForge installer JAR URL or
+     *                      the Fabric profile-JSON URL
+     *
+     * @since 2026.5
+     */
     public record LoaderVersion(
             String loaderType,
             String mcVersion,
             String loaderVersion,
             String installerUrl )
     {
-        /** Display label used in the Browse GUI card title. */
+        /**
+         * Display label used in the Browse GUI card title, of the form
+         * {@code "<PrettyLoader> <mcVersion> (<loaderVersion>)"} (e.g.
+         * {@code "Forge 1.20.1 (47.4.1)"}).
+         *
+         * @return the human-readable card title for this entry
+         *
+         * @since 2026.5
+         */
         public String displayName() {
             return prettyLoaderName( loaderType ) + " " + mcVersion + " (" + loaderVersion + ")";
         }
 
-        /** Stable filename for the local manifest. Same {@code (loader,
-         *  mc, version)} → same file, so re-installs overwrite cleanly
-         *  and we can detect "already installed" by checking file
-         *  existence. */
+        /**
+         * Stable filename for the local manifest. Same {@code (loader,
+         * mc, version)} → same file, so re-installs overwrite cleanly
+         * and we can detect "already installed" by checking file
+         * existence. Version components are run through {@link #sanitize}
+         * so the name always survives the filesystem.
+         *
+         * @return the {@code loader-<type>-<mc>-<version>.json} filename
+         *         for this entry's on-disk manifest
+         *
+         * @since 2026.5
+         */
         public String manifestFilename() {
             String safeMc = sanitize( mcVersion );
             String safeLoader = sanitize( loaderVersion );
@@ -101,8 +138,16 @@ public final class LoaderVersionManager
         }
     }
 
+    /** Lazily-populated cache of fetched Forge versions; {@code null}
+     *  until {@link #getForgeVersions()} runs its first network fetch. */
     private static List< LoaderVersion > forgeCache;
+
+    /** Lazily-populated cache of fetched NeoForge versions; {@code null}
+     *  until {@link #getNeoForgeVersions()} runs its first network fetch. */
     private static List< LoaderVersion > neoForgeCache;
+
+    /** Lazily-populated cache of fetched Fabric versions; {@code null}
+     *  until {@link #getFabricVersions()} runs its first network fetch. */
     private static List< LoaderVersion > fabricCache;
 
     // ====================================================================
@@ -112,7 +157,15 @@ public final class LoaderVersionManager
     /**
      * Fetch + cache the Forge versions advertised by Forge's
      * promotions API. Returns recommended + latest per MC version
-     * (newest MC first). Calls after the first warm-cached.
+     * (newest MC first). Calls after the first warm-cached. Network or
+     * parse failures are logged silently and yield whatever was
+     * accumulated before the failure (possibly an empty list) rather
+     * than throwing.
+     *
+     * @return the cached, newest-MC-first list of installable Forge
+     *         loader versions; never {@code null}
+     *
+     * @since 2026.5
      */
     public static synchronized List< LoaderVersion > getForgeVersions()
     {
@@ -164,6 +217,17 @@ public final class LoaderVersionManager
         return forgeCache;
     }
 
+    /**
+     * Builds the canonical Forge installer JAR URL on Forge's Maven for
+     * the given Minecraft + Forge version pair.
+     *
+     * @param mcVer    the Minecraft version (e.g. {@code 1.20.1})
+     * @param forgeVer the Forge version (e.g. {@code 47.4.1})
+     *
+     * @return the {@code forge-<mc>-<forge>-installer.jar} download URL
+     *
+     * @since 2026.5
+     */
     private static String forgeInstallerUrl( String mcVer, String forgeVer ) {
         return "https://maven.minecraftforge.net/net/minecraftforge/forge/"
                 + mcVer + "-" + forgeVer + "/forge-" + mcVer + "-" + forgeVer + "-installer.jar";
@@ -177,6 +241,14 @@ public final class LoaderVersionManager
      * Fetch + cache the NeoForge versions advertised by the
      * project's Maven metadata. MC version is derived from the
      * NeoForge version prefix ({@code 21.1.x} → MC {@code 1.21.1}).
+     * Entries whose version string doesn't parse to an MC version are
+     * skipped. Network or parse failures are logged silently and yield
+     * whatever was accumulated before the failure rather than throwing.
+     *
+     * @return the cached, newest-first list of installable NeoForge
+     *         loader versions; never {@code null}
+     *
+     * @since 2026.5
      */
     public static synchronized List< LoaderVersion > getNeoForgeVersions()
     {
@@ -205,15 +277,35 @@ public final class LoaderVersionManager
         return neoForgeCache;
     }
 
+    /**
+     * Builds the canonical NeoForge installer JAR URL on NeoForge's
+     * Maven for the given NeoForge version.
+     *
+     * @param version the NeoForge version (e.g. {@code 21.1.0})
+     *
+     * @return the {@code neoforge-<version>-installer.jar} download URL
+     *
+     * @since 2026.5
+     */
     private static String neoForgeInstallerUrl( String version ) {
         return "https://maven.neoforged.net/releases/net/neoforged/neoforge/"
                 + version + "/neoforge-" + version + "-installer.jar";
     }
 
-    /** NeoForge {@code MAJOR.MINOR.PATCH} → MC {@code 1.MAJOR.MINOR}.
-     *  Mirrors the helper in {@code MCLauncherModPackEditorGui} —
-     *  copies it here so the manager has no dependency on a GUI
-     *  class. Returns null when the input doesn't parse. */
+    /**
+     * Maps a NeoForge {@code MAJOR.MINOR.PATCH} version to its target
+     * Minecraft version {@code 1.MAJOR.MINOR} (or {@code 1.MAJOR} when
+     * the minor component is {@code 0}). Mirrors the helper in
+     * {@code MCLauncherModPackEditorGui} — copied here so the manager
+     * has no dependency on a GUI class.
+     *
+     * @param neoForgeVersion the NeoForge version string to translate
+     *
+     * @return the derived Minecraft version, or {@code null} when the
+     *         input is {@code null} or doesn't parse
+     *
+     * @since 2026.5
+     */
     private static String neoForgeMcVersionFor( String neoForgeVersion ) {
         if ( neoForgeVersion == null ) return null;
         String[] parts = neoForgeVersion.split( "\\." );
@@ -236,7 +328,15 @@ public final class LoaderVersionManager
      * Fetch + cache Fabric versions. Pairs each stable Minecraft
      * release with the latest stable Fabric loader (the official
      * "if it builds for this MC, this is the recommended loader"
-     * shape — see meta.fabricmc.net's profile endpoints).
+     * shape — see meta.fabricmc.net's profile endpoints). Snapshot MC
+     * releases are filtered out. Network or parse failures are logged
+     * silently and yield whatever was accumulated before the failure
+     * rather than throwing.
+     *
+     * @return the cached list of installable Fabric loader versions
+     *         (one entry per stable MC release); never {@code null}
+     *
+     * @since 2026.5
      */
     public static synchronized List< LoaderVersion > getFabricVersions()
     {
@@ -283,6 +383,18 @@ public final class LoaderVersionManager
         return fabricCache;
     }
 
+    /**
+     * Builds the Fabric meta service profile-JSON URL for the given
+     * Minecraft + Fabric loader version pair. This URL stands in for an
+     * installer JAR in a Fabric {@link LoaderVersion}.
+     *
+     * @param mcVersion     the Minecraft version (e.g. {@code 1.20.1})
+     * @param loaderVersion the Fabric loader version (e.g. {@code 0.16.0})
+     *
+     * @return the {@code .../loader/<mc>/<loader>/profile/json} URL
+     *
+     * @since 2026.5
+     */
     private static String fabricProfileUrl( String mcVersion, String loaderVersion ) {
         return "https://meta.fabricmc.net/v2/versions/loader/" + mcVersion
                 + "/" + loaderVersion + "/profile/json";
@@ -298,8 +410,15 @@ public final class LoaderVersionManager
      * with {@link GameModPackManager}. Idempotent — already-installed
      * versions return the existing manifest URL without re-writing.
      *
+     * @param version the loader version to install as an empty modpack
+     *
      * @return the {@code file:} URL of the on-disk manifest, which is
      *         what the rest of the launcher uses to identify it.
+     *
+     * @throws IOException if the manifest directory or file cannot be
+     *                     created or written
+     *
+     * @since 2026.5
      */
     public static synchronized String installVersion( LoaderVersion version ) throws IOException
     {
@@ -323,13 +442,34 @@ public final class LoaderVersionManager
         return manifestUrl;
     }
 
-    /** True iff the manifest file for {@code version} already exists
-     *  on disk under {@code imported-manifests/}. */
+    /**
+     * Reports whether the given loader version has already been
+     * installed, i.e. whether its manifest file already exists on disk
+     * under {@code imported-manifests/}.
+     *
+     * @param version the loader version to check
+     *
+     * @return {@code true} if the manifest file for {@code version}
+     *         already exists; {@code false} otherwise
+     *
+     * @since 2026.5
+     */
     public static boolean isInstalled( LoaderVersion version )
     {
         return Files.exists( manifestPathFor( version ) );
     }
 
+    /**
+     * Resolves the on-disk path of the manifest file for the given
+     * loader version, under the launcher config folder's
+     * {@code imported-manifests/} directory.
+     *
+     * @param version the loader version whose manifest path to compute
+     *
+     * @return the absolute {@link Path} of this version's manifest file
+     *
+     * @since 2026.5
+     */
     private static Path manifestPathFor( LoaderVersion version )
     {
         return Path.of( LocalPathManager.getLauncherConfigFolderPath(),
@@ -337,10 +477,21 @@ public final class LoaderVersionManager
                          version.manifestFilename() );
     }
 
-    /** Build the minimal Mica-format manifest for an empty loader
-     *  pack. Field shape mirrors {@code MrpackImporter.buildMicaManifest}
-     *  — same keys, same defaults, but with empty mod / config / etc.
-     *  arrays and no pack-specific assets. */
+    /**
+     * Build the minimal Mica-format manifest for an empty loader
+     * pack. Field shape mirrors {@code MrpackImporter.buildMicaManifest}
+     * — same keys, same defaults, but with empty mod / config / etc.
+     * arrays and no pack-specific assets. Loader-loader URLs are left
+     * unhashed (empty hash → "skip verification" in the managed-file
+     * path) and the legacy {@code packForge*} fields are mirrored only
+     * for Forge packs.
+     *
+     * @param v the loader version to materialise as a manifest
+     *
+     * @return the populated Mica manifest {@link JsonObject}
+     *
+     * @since 2026.5
+     */
     private static JsonObject buildEmptyLoaderManifest( LoaderVersion v )
     {
         JsonObject m = new JsonObject();
@@ -378,6 +529,18 @@ public final class LoaderVersionManager
         return m;
     }
 
+    /**
+     * Resolves the canonical project homepage URL for a loader family,
+     * stored as the {@code packURL} of a generated loader manifest.
+     *
+     * @param loaderType the loader family identifier ({@code forge} /
+     *                   {@code neoforge} / {@code fabric})
+     *
+     * @return the project homepage URL, or the Minecraft site URL for
+     *         an unrecognised loader type
+     *
+     * @since 2026.5
+     */
     private static String urlForLoader( String loaderType )
     {
         return switch ( loaderType ) {
@@ -388,6 +551,18 @@ public final class LoaderVersionManager
         };
     }
 
+    /**
+     * Maps a loader family identifier to its display-cased name for use
+     * in card titles.
+     *
+     * @param loaderType the loader family identifier ({@code forge} /
+     *                   {@code neoforge} / {@code fabric})
+     *
+     * @return the pretty loader name, or the raw {@code loaderType} for
+     *         an unrecognised value
+     *
+     * @since 2026.5
+     */
     private static String prettyLoaderName( String loaderType )
     {
         return switch ( loaderType ) {
@@ -398,12 +573,22 @@ public final class LoaderVersionManager
         };
     }
 
-    /** Strip path-unsafe characters from version strings so the
-     *  computed filename always survives the filesystem. Forge / NeoForge
-     *  / Fabric version strings only contain {@code [A-Za-z0-9._-]} in
-     *  practice, but Forge's underscore-prefixed build-metadata
-     *  ({@code 14.23.5.2855_230729ER}) and Fabric's snapshot loader
-     *  ids could hit edge cases. */
+    /**
+     * Strip path-unsafe characters from version strings so the
+     * computed filename always survives the filesystem. Forge / NeoForge
+     * / Fabric version strings only contain {@code [A-Za-z0-9._-]} in
+     * practice, but Forge's underscore-prefixed build-metadata
+     * ({@code 14.23.5.2855_230729ER}) and Fabric's snapshot loader
+     * ids could hit edge cases. Any character outside
+     * {@code [A-Za-z0-9._-]} is replaced with an underscore.
+     *
+     * @param input the raw version string to sanitize
+     *
+     * @return the filesystem-safe form, or {@code "unknown"} when
+     *         {@code input} is {@code null}
+     *
+     * @since 2026.5
+     */
     private static String sanitize( String input )
     {
         if ( input == null ) return "unknown";

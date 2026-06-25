@@ -58,6 +58,13 @@ public final class RuntimeConfig
         return json.get( ConfigConstants.MIN_RAM_KEY ).getAsLong();
     }
 
+    /**
+     * Sets the minimum heap size in megabytes (the {@code -Xms} value).
+     *
+     * @param minRam the minimum heap size, in megabytes
+     *
+     * @since 2026.5
+     */
     public static synchronized void setMinRam( long minRam ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.MIN_RAM_KEY, minRam );
         ConfigStore.scheduleWrite();
@@ -73,11 +80,24 @@ public final class RuntimeConfig
         return json.get( ConfigConstants.MAX_RAM_KEY ).getAsLong();
     }
 
-    /** Convenience: maximum RAM in gigabytes. */
+    /**
+     * Convenience accessor: the maximum heap size expressed in gigabytes.
+     *
+     * @return the maximum heap size in gigabytes ({@link #getMaxRam()} / 1024)
+     *
+     * @since 2026.5
+     */
     public static double getMaxRamInGb() {
         return getMaxRam() / 1024.0;
     }
 
+    /**
+     * Sets the maximum heap size in megabytes (the {@code -Xmx} value).
+     *
+     * @param maxRam the maximum heap size, in megabytes
+     *
+     * @since 2026.5
+     */
     public static synchronized void setMaxRam( long maxRam ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.MAX_RAM_KEY, maxRam );
         ConfigStore.scheduleWrite();
@@ -100,6 +120,17 @@ public final class RuntimeConfig
         return json.get( ConfigConstants.JVM_ARGS_KEY ).getAsString();
     }
 
+    /**
+     * Sets the custom JVM arguments string appended to the launch command. A
+     * {@code null} value is stored as the empty string. Unlike the other setters
+     * in this class, this flushes to disk immediately rather than debouncing,
+     * because the value controls what gets executed at launch and must survive a
+     * crash inside the debounce window.
+     *
+     * @param jvmArgs the custom JVM argument string, or {@code null} to clear it
+     *
+     * @since 2026.5
+     */
     public static synchronized void setCustomJvmArgs( String jvmArgs ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.JVM_ARGS_KEY,
                                                   jvmArgs == null ? "" : jvmArgs );

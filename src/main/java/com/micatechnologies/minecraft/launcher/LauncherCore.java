@@ -334,9 +334,26 @@ public class LauncherCore
      */
     public static final class LaunchSession
     {
+        /**
+         * The worker thread running {@link LauncherCore#play(GameModPack, Runnable)} for this
+         * launch. Interrupted by {@link #cancel()} to break out of blocking downloads. May be
+         * {@code null} only in degenerate cases; normally captured as the calling thread at
+         * construction time.
+         */
         private final Thread thread;
+
+        /**
+         * Cancellation flag for this launch. Flipped to {@code true} (once) by {@link #cancel()};
+         * polled by the {@code play()} pipeline at its checkpoints to abort early.
+         */
         private final AtomicBoolean cancelled = new AtomicBoolean( false );
 
+        /**
+         * Constructs a launch session bound to the given worker thread.
+         *
+         * @param thread the thread executing the launch pipeline, captured so {@link #cancel()}
+         *               can interrupt it
+         */
         private LaunchSession( Thread thread )
         {
             this.thread = thread;
@@ -442,6 +459,15 @@ public class LauncherCore
      *       can resolve the conflict from the modpack detail modal's mod
      *       toggles.</li>
      * </ul>
+     *
+     * @param pack      the mod pack being launched, used to locate and disable the
+     *                  offending jar inside its {@code mods/} folder
+     * @param conflicts the non-empty list of detected conflicts; only the first is
+     *                  offered for one-click resolution, the rest are listed in the
+     *                  dialog body
+     *
+     * @return {@code true} to proceed with the launch (mod disabled, or "Launch
+     *         anyway" chosen), {@code false} to cancel
      */
     private static boolean promptForConflicts(
             GameModPack pack,
@@ -552,9 +578,19 @@ public class LauncherCore
     }
 
     /**
-     * Launches the specified mod pack for gameplay.
+     * Launches the specified mod pack for gameplay, optionally running a callback once the
+     * launch sequence finishes.
+     *
+     * <p>Awaits any cold-start-deferred auth refresh, runs the pre-launch mod-conflict scan
+     * (client mode only), drives the launch-progress GUI + tracker, spawns the game JVM, and
+     * either attaches the in-game console or blocks on the process until it exits. The
+     * {@code after} callback is invoked after the game exits, but only when the in-game console
+     * is <em>not</em> managing the UI lifecycle and the launch was not cancelled.</p>
      *
      * @param gameModPack mod pack to launch/play
+     * @param after       optional callback to run once the launch sequence completes; may be
+     *                    {@code null}. Not invoked when the in-game console is enabled or the
+     *                    launch was cancelled.
      *
      * @since 2.0
      */
@@ -937,7 +973,10 @@ public class LauncherCore
      * displays the mod pack selection window with the specified mod pack preselected. In server mode, mod pack
      * selection launches the specified mod pack.
      *
-     * @param modPackName name of mod pack
+     * @param modPackName         name of mod pack
+     * @param initialErrorMessage error message to surface to the user before selection (logged
+     *                            visibly in client mode, silently in server mode); may be
+     *                            {@code null} or empty when there is no pending error
      *
      * @since 1.0
      */
@@ -1080,6 +1119,11 @@ public class LauncherCore
      * Performs login when the launcher is in client mode. If a user is remembered, it will be loaded from memory and
      * logged in automatically. If a user is not remembered or cannot be logged in automatically, the login screen will
      * display.
+     *
+     * @param initialErrorMessage error message to display on the login screen (e.g. from a
+     *                            failed auto-renewal); may be {@code null} or empty. May be
+     *                            replaced internally with a refresh-failure message if a saved
+     *                            account could not be renewed.
      *
      * @since 2.0
      */
@@ -1381,6 +1425,9 @@ public class LauncherCore
      * Performs launcher closing tasks and the restarts the launcher application with the specified error reason. This
      * method must be able to be called and complete without waiting at all times.
      *
+     * @param restartErrorString error reason to carry into the restarted session, or
+     *                           {@code null} for a clean restart with no error
+     *
      * @since 2.0
      */
     public static void restartAppWithError( String restartErrorString ) {
@@ -1406,6 +1453,13 @@ public class LauncherCore
         restartAppNow();
     }
 
+    /**
+     * Synchronously performs the restart: runs {@link #cleanupApp()} then releases the current
+     * session's exit latch so the {@link #main(String[])} restart loop iterates. Expects
+     * {@link #restartFlag} to already have been set by the caller. Invoked directly by
+     * background-thread callers and on a dedicated thread for FX-thread callers (see
+     * {@link #restartAppWithError(String)}).
+     */
     private static void restartAppNow() {
         cleanupApp();
         currentSession.exitLatch.countDown();
@@ -1448,6 +1502,14 @@ public class LauncherCore
         relauncher.start();
     }
 
+    /**
+     * Performs the out-of-process relaunch on the dedicated relaunch thread: flushes config to
+     * disk, resolves the installed executable path, and either spawns a fresh process and exits
+     * the current JVM or — when no installed exe is available (dev / raw-JAR / IDE) — falls back
+     * to the in-process {@link #restartAppNow()} path. On a post-cleanup spawn failure it
+     * re-enters the in-process restart loop rather than leaving the user with a dead launcher.
+     * See {@link #relaunchApp()} for the thread-confinement rationale.
+     */
     private static void relaunchAppNow() {
         // Persist config to disk NOW, up front, on this un-interrupted dedicated
         // thread — the spawned process reads the locale override (and the rest of
@@ -1499,6 +1561,8 @@ public class LauncherCore
      * showed through alongside our own navbar — a double title bar). Falls back to
      * a detached {@link ProcessBuilder} with discarded stdio if shell-execute is
      * unavailable.
+     *
+     * @param exePath absolute path to the installed launcher executable to respawn
      *
      * @return {@code true} if a new process was started
      */
@@ -1565,6 +1629,12 @@ public class LauncherCore
      * we ever want to suppress the success message on partial failures. Today
      * a failed step throws out of buildClasspath and the launch unwinds, so
      * the toast can't fire in that scenario anyway.</p>
+     *
+     * @param tracker the launch progress tracker to inspect; a {@code null} tracker
+     *                reports as not-completed
+     *
+     * @return {@code true} when every step is terminal (DONE / FAILED / SKIPPED),
+     *         {@code false} if any step is still PENDING or RUNNING
      */
     private static boolean allStepsCompleted(
             com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker )
@@ -1625,6 +1695,12 @@ public class LauncherCore
         closeAppNow();
     }
 
+    /**
+     * Synchronously performs application shutdown: runs {@link #cleanupApp()}, releases the
+     * current session's exit latch, logs the farewell line, and terminates the JVM with the
+     * good exit status. Invoked directly by background-thread callers and on a dedicated thread
+     * for FX-thread callers (see {@link #closeApp()}).
+     */
     private static void closeAppNow() {
         cleanupApp();
         currentSession.exitLatch.countDown();

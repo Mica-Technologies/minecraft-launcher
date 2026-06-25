@@ -89,6 +89,8 @@ public class GameAssetManifest extends ManagedGameFile
      *  reads via the asset index from here; legacy MC reads from the per-pack flat tree
      *  materialized by {@link #materializeVirtualTree()}.
      *
+     *  @return absolute path string to the launcher-wide shared {@code assets/} root
+     *
      *  @since 3.2 */
     public static String getSharedAssetsRoot() {
         return LocalPathManager.getLauncherSharedAssetsFolderPath();
@@ -108,6 +110,15 @@ public class GameAssetManifest extends ManagedGameFile
                 LocalPathConstants.MINECRAFT_ASSET_RELATIVE_INDEXES_FOLDER ) ) );
     }
 
+    /**
+     * Recursively deletes {@code f} and, when it is a directory, all of its
+     * children depth-first. Best-effort: a failure to delete any individual
+     * path is logged as a warning rather than propagated, so a single locked
+     * file does not abort the wider cleanup. A {@code null} or non-existent
+     * argument is a no-op.
+     *
+     * @param f the file or directory tree to delete
+     */
     private void deleteRecursive( File f )
     {
         if ( f == null || !f.exists() ) {
@@ -307,7 +318,12 @@ public class GameAssetManifest extends ManagedGameFile
      *
      * @param progressProvider progress manager
      *
-     * @throws ModpackException if unable to read manifest or update asset
+     * @throws ModpackException      if unable to read manifest or update asset, or
+     *                              if the downloads do not complete within 30 minutes
+     * @throws InterruptedException if the calling thread is interrupted while
+     *                              awaiting the asset download tasks
+     * @throws ExecutionException   if one of the asset download tasks fails with
+     *                              an exception
      * @since 1.1
      */
     public void downloadAssets( final GameModPackProgressProvider progressProvider )

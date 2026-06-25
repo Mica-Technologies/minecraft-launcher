@@ -43,11 +43,31 @@ import com.micatechnologies.minecraft.launcher.rgb.RgbFrame;
  */
 public final class PulseEffect implements RgbEffect
 {
+    /** Human-readable effect name surfaced via {@link #name()}. */
     private final String name;
+
+    /** The color at the trough of the breathe ({@code t == 0}). */
     private final RgbColor colorA;
+
+    /** The color at the peak of the breathe ({@code t == 1}). */
     private final RgbColor colorB;
+
+    /** Duration in milliseconds of one full breathe (A → B → A). */
     private final long periodMs;
 
+    /**
+     * Creates a two-color breathe effect.
+     *
+     * @param name     human-readable effect name (returned by {@link #name()})
+     * @param colorA   color shown at the breathe trough ({@code t == 0})
+     * @param colorB   color shown at the breathe peak ({@code t == 1})
+     * @param periodMs duration in milliseconds of one full breathe; must be
+     *                 strictly positive
+     *
+     * @throws IllegalArgumentException if {@code periodMs} is not positive
+     *
+     * @since 2026.5
+     */
     public PulseEffect( String name, RgbColor colorA, RgbColor colorB, long periodMs )
     {
         if ( periodMs <= 0 ) {
@@ -59,8 +79,30 @@ public final class PulseEffect implements RgbEffect
         this.periodMs = periodMs;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the effect name supplied at construction
+     *
+     * @since 2026.5
+     */
     @Override public String name() { return name; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Maps the elapsed time onto a cosine-eased breathe coefficient and
+     * returns a solid frame blended between {@code colorA} and {@code colorB}.
+     * The coefficient is {@code 0} at the start of each period, {@code 1} at
+     * the half-period, and back to {@code 0} at the period boundary.</p>
+     *
+     * @param elapsedMs milliseconds elapsed since the effect started; the
+     *                  phase wraps every {@code periodMs}
+     *
+     * @return the blended solid frame for this instant
+     *
+     * @since 2026.5
+     */
     @Override
     public RgbFrame frameAt( long elapsedMs )
     {

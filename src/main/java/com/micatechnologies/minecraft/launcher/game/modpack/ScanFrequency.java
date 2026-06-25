@@ -62,11 +62,23 @@ public enum ScanFrequency
      *  protected. */
     DISABLED( "Disabled" );
 
+    /** Human-readable label rendered in the Settings / detail-modal combo box. */
     private final String displayLabel;
 
+    /**
+     * Enum constructor binding the human-readable label to each constant.
+     *
+     * @param displayLabel the label shown in the frequency combo box
+     */
     ScanFrequency( String displayLabel ) { this.displayLabel = displayLabel; }
 
-    /** Human-readable label rendered in the combo box. */
+    /**
+     * Human-readable label rendered in the combo box.
+     *
+     * @return the display label for this frequency
+     *
+     * @since 2026.3
+     */
     public String displayLabel() { return displayLabel; }
 
     /** Default value for a fresh install — see the design discussion above.
@@ -76,7 +88,13 @@ public enum ScanFrequency
 
     /** Parses a stored name, falling back to {@link #DEFAULT} on any
      *  unknown / null value. Used during config reads so a downgraded
-     *  launcher reading a newer config doesn't crash. */
+     *  launcher reading a newer config doesn't crash.
+     *
+     *  @param name the persisted {@link #name()} string, or {@code null}
+     *  @return the matching constant, or {@link #DEFAULT} when {@code name}
+     *          is {@code null} or unrecognized
+     *
+     *  @since 2026.3 */
     public static ScanFrequency fromNameSafe( String name )
     {
         if ( name == null ) return DEFAULT;

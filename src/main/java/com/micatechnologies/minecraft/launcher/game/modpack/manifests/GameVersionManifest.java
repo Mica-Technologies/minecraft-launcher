@@ -183,6 +183,13 @@ public class GameVersionManifest
      */
     private static final class ClientJsonFetchException extends RuntimeException
     {
+        /**
+         * Wraps the given checked exception for tunnelling out of a lambda.
+         *
+         * @param cause the underlying checked exception to carry
+         *
+         * @since 3.0
+         */
         private ClientJsonFetchException( Throwable cause ) {
             super( cause );
         }

@@ -49,6 +49,20 @@ import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.*;
 
+/**
+ * JavaFX GUI controller for the launcher's Microsoft account sign-in screen.
+ *
+ * <p>This scene embeds a {@link WebView} that hosts the Microsoft OAuth sign-in flow. When the WebView navigates to the
+ * OAuth redirect URL, the attached load-worker listener extracts the returned authorization code and redeems it via
+ * {@link MCLauncherAuthManager} on a background task. A successful login (optionally persisted when the "stay logged in"
+ * toggle is selected) releases {@link #loginSuccessLatch}, unblocking callers of {@link #waitForLoginSuccess()}; a failed
+ * login reloads the sign-in page so the user can retry.</p>
+ *
+ * <p>While this screen is shown, navigation away via the macOS title-bar toolbar is disabled so the user cannot bypass
+ * authentication, and the launcher's Discord rich presence reflects the logging-in state.</p>
+ *
+ * @see MCLauncherAbstractGui
+ */
 public class MCLauncherLoginGui extends MCLauncherAbstractGui
 {
     /**
@@ -97,12 +111,26 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
     @FXML
     RowConstraints announcementRow;
 
+    /**
+     * One-shot latch that is counted down when a Microsoft sign-in completes successfully and the resulting account has
+     * been registered with the launcher. Callers of {@link #waitForLoginSuccess()} block on this latch until login
+     * succeeds, allowing the launcher boot sequence to gate on the user authenticating.
+     */
     private final CountDownLatch loginSuccessLatch        = new CountDownLatch( 1 );
+
+    /**
+     * Guard flag indicating that the embedded WebView has been navigated to the Microsoft sign-in page and the
+     * OAuth-callback listener should therefore act on subsequent navigation events. It is set to {@code true} when the
+     * sign-in URL is loaded and cleared to {@code false} once the OAuth redirect has been observed and consumed,
+     * preventing the callback listener from reacting to unrelated or transitional WebView state changes.
+     */
     private final AtomicBoolean  waitingOnWebViewResponse = new AtomicBoolean( false );
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
      * controller.
+     *
+     * @param stage the JavaFX {@link Stage} that will host this login scene
      *
      * @throws IOException if unable to load FXML file specified
      */
@@ -112,7 +140,11 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
-     * controller.
+     * controller, sizing the scene to the supplied width and height.
+     *
+     * @param stage  the JavaFX {@link Stage} that will host this login scene
+     * @param width  the initial scene width, in pixels
+     * @param height the initial scene height, in pixels
      *
      * @throws IOException if unable to load FXML file specified
      */
@@ -200,6 +232,12 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         exitBtn.setOnAction( event -> LauncherCore.closeApp() );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation installs smooth wheel-scrolling on the sign-in {@link WebView}, loads the Microsoft OAuth
+     * sign-in page, and sets the launcher's Discord rich-presence status to indicate the user is logging in.</p>
+     */
     @Override
     void afterShow() {
         // Smooth wheel-scroll inside the MS sign-in WebView so account-picker
@@ -214,16 +252,32 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
         SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "login.discord.loggingIn" ) ) );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The login scene holds no resources requiring teardown, so this implementation is intentionally empty.</p>
+     */
     @Override
     void cleanup() {
 
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@link HelpTopic#LOGIN}, the help topic associated with the login screen
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.LOGIN; }
 
-    /** Block the macOS title-bar toolbar's Browse / Settings / Account items here —
-     *  leaving them clickable would let the user skip sign-in and reach the app. */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns {@code false} to block the macOS title-bar toolbar's Browse / Settings / Account items on this screen
+     * — leaving them clickable would let the user skip sign-in and reach the app.</p>
+     *
+     * @return {@code false}; navigation away from the login screen via the toolbar is disallowed until sign-in completes
+     */
     @Override
     boolean allowsToolbarNavigation() { return false; }
 

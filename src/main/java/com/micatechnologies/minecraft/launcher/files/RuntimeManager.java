@@ -112,6 +112,13 @@ public class RuntimeManager
     @FunctionalInterface
     public interface RuntimeProgressCallback
     {
+        /**
+         * Invoked with a human-readable status update as runtime verification or
+         * installation progresses. Used by callers that embed the runtime flow
+         * inside another progress display instead of the standalone progress GUI.
+         *
+         * @param statusText the localized status text describing the current step
+         */
         void onProgress( String statusText );
     }
 
@@ -142,6 +149,19 @@ public class RuntimeManager
         }
     }
 
+    /**
+     * Core implementation of runtime verification, run under the per-component lock.
+     * Routes the {@code jre-legacy} component to {@link #verifyLegacyJre}; otherwise
+     * resolves the component from the Mojang runtime index, takes a fast path when an
+     * installed runtime is already present (queuing a background update check), or
+     * downloads and SHA-1-verifies every manifest file (in parallel) and writes the
+     * version marker. The resolved Java path/version are stored in the verification
+     * caches; failures fall back to an existing install or the system {@code java}.
+     *
+     * @param component        the Mojang runtime component name
+     * @param showProgress     whether to open a standalone progress GUI window
+     * @param progressCallback optional inline progress callback, or {@code null}
+     */
     private static void verifyRuntimeImpl( String component, boolean showProgress, RuntimeProgressCallback progressCallback ) {
         // Mojang's jre-legacy is Java 8u51, which is too old for Forge (needs 8u121+ for sun.misc.ObjectInputFilter).
         // Use Bell-SW Liberica 8u392 instead, which is the last known-good JRE 8 for Minecraft + Forge.
@@ -613,16 +633,42 @@ public class RuntimeManager
         clearRuntime( majorVersionToComponent( majorVersion ) );
     }
 
-    /** @since 1.0 */
+    /**
+     * Verifies (downloading if needed) the legacy JRE 8 runtime, showing the progress GUI.
+     * Convenience wrapper for {@code verifyJre( 8 )}.
+     *
+     * @since 1.0
+     */
     public static void verifyJre8() { verifyJre( 8 ); }
 
-    /** @since 1.0 */
+    /**
+     * Deletes the installed legacy JRE 8 runtime from disk and evicts its cached
+     * path/version. Convenience wrapper for {@code clearRuntime( 8 )}.
+     *
+     * @throws IOException if the runtime folder cannot be deleted
+     *
+     * @since 1.0
+     */
     public static void clearJre8() throws IOException { clearRuntime( 8 ); }
 
-    /** @since 1.0 */
+    /**
+     * Gets the Java executable path for the legacy JRE 8 runtime, verifying/downloading
+     * it on demand. Convenience wrapper for {@code getJavaPath( 8 )}.
+     *
+     * @return the path to the JRE 8 Java executable
+     *
+     * @since 1.0
+     */
     public static String getJre8Path() { return getJavaPath( 8 ); }
 
-    /** @since 1.0 */
+    /**
+     * Gets the version string for the legacy JRE 8 runtime.
+     * Convenience wrapper for {@code getJavaVersion( 8 )}.
+     *
+     * @return the JRE 8 version string, or {@code null} if not yet verified
+     *
+     * @since 1.0
+     */
     public static String getJre8Version() { return getJavaVersion( 8 ); }
 
     // --- Legacy JRE 8 via Bell-SW Liberica (Mojang's 8u51 is too old for Forge) ---
@@ -634,7 +680,15 @@ public class RuntimeManager
             = "https://api.bell-sw.com/v1/liberica/releases?version-feature=8&version-update=392&bitness=64&installation-type=archive&os={OS}&arch={ARCH}&bundle-type=jre";
 
     /**
-     * Verifies/downloads the legacy JRE 8 using Bell-SW Liberica 8u392 instead of Mojang's too-old 8u51.
+     * Verifies/downloads the legacy JRE 8 using Bell-SW Liberica 8u392 instead of
+     * Mojang's too-old 8u51. Resolves the Liberica release for the current OS/arch
+     * from the Bell-SW API, downloads and SHA-1-verifies the archive, extracts it
+     * (with containment hardening via {@link ArchiveExtractor}), restores execute
+     * bits on the extracted binaries, and records the resolved path/version in the
+     * verification caches. On any failure it falls back to the system {@code java}.
+     *
+     * @param showProgress     whether to open a standalone progress GUI window
+     * @param progressCallback optional inline progress callback, or {@code null}
      */
     private static void verifyLegacyJre( boolean showProgress, RuntimeProgressCallback progressCallback ) {
         String component = "jre-legacy";
@@ -835,7 +889,14 @@ public class RuntimeManager
     // --- Internal helpers ---
 
     /**
-     * Maps a Java major version to the Mojang runtime component name.
+     * Maps a Java major version to the Mojang runtime component name. Exact matches
+     * resolve to their canonical component; unknown versions snap to the nearest
+     * lower-or-equal known component so an out-of-range request still yields a usable
+     * runtime.
+     *
+     * @param majorVersion the Java major version (e.g. 8, 17, 21)
+     *
+     * @return the Mojang runtime component name for that major version
      */
     static String majorVersionToComponent( int majorVersion ) {
         return switch ( majorVersion ) {
@@ -856,7 +917,12 @@ public class RuntimeManager
     }
 
     /**
-     * Returns the per-component runtime folder path.
+     * Returns the per-component runtime folder path, located under the launcher's
+     * runtime root and named after the component.
+     *
+     * @param component the runtime component name
+     *
+     * @return the absolute path to that component's runtime folder
      */
     private static String getComponentRuntimeFolderPath( String component ) {
         return SystemUtilities.buildFilePath( LocalPathManager.getLauncherRuntimeFolderPath(), component );
@@ -869,6 +935,10 @@ public class RuntimeManager
      * fast path in {@link #verifyRuntime} misses on the next launch and runs a
      * full verify + install. Best-effort: any failure (offline, parse error) is
      * logged and ignored, leaving the working runtime in place.
+     *
+     * @param component         the Mojang runtime component name to check
+     * @param runtimeFolderPath the on-disk folder for that component (holds the version marker)
+     * @param installedVersion  the currently installed version name to compare against
      */
     private static void backgroundRuntimeUpdateCheck( String component, String runtimeFolderPath,
                                                       String installedVersion ) {
@@ -904,7 +974,14 @@ public class RuntimeManager
     }
 
     /**
-     * Fetches and caches the Mojang runtime index.
+     * Fetches and caches the Mojang runtime index. Returns the in-memory cache while
+     * it is still within {@link #RUNTIME_INDEX_TTL_MS}; otherwise re-downloads the
+     * index (falling back to the on-disk copy if the download fails but a cached file
+     * exists), refreshes the cache and its timestamp, and returns it.
+     *
+     * @return the parsed Mojang runtime index JSON object
+     *
+     * @throws Exception if the index cannot be downloaded and no cached copy exists, or if parsing fails
      */
     private static synchronized JsonObject getMojangRuntimeIndex() throws Exception {
         if ( runtimeIndex != null
@@ -935,7 +1012,13 @@ public class RuntimeManager
     }
 
     /**
-     * Attempts to find a java executable by searching the runtime folder.
+     * Attempts to find a java executable by recursively searching the given runtime
+     * folder for the platform-appropriate executable name ({@code java.exe} on
+     * Windows, {@code java} otherwise).
+     *
+     * @param runtimeFolder the runtime folder to search
+     *
+     * @return the absolute path to the first matching java executable, or {@code null} if none is found
      */
     private static String findJavaExecutable( File runtimeFolder ) {
         String javaName = org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ? "java.exe" : "java";
@@ -948,6 +1031,9 @@ public class RuntimeManager
      * present. No-op on Windows, where execution is governed by file extension.
      * Used by the Liberica legacy-JRE flow, which extracts via
      * {@link ArchiveExtractor} that intentionally drops POSIX permissions.
+     *
+     * @param javaExec the extracted java executable whose sibling {@code bin/} files
+     *                 should be made executable; may be {@code null} (no-op)
      */
     static void markJavaBinariesExecutable( File javaExec ) {
         if ( javaExec == null || org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
@@ -976,7 +1062,13 @@ public class RuntimeManager
     }
 
     /**
-     * Recursively searches for a file by name.
+     * Recursively searches a directory tree for the first regular file whose name
+     * exactly matches the given name.
+     *
+     * @param dir  the directory to search (including subdirectories)
+     * @param name the exact file name to match
+     *
+     * @return the absolute path to the first matching file, or {@code null} if none is found
      */
     private static String searchForFile( File dir, String name ) {
         File[] children = dir.listFiles();
@@ -998,7 +1090,16 @@ public class RuntimeManager
     }
 
     /**
-     * Reports progress via the standalone progress window, the inline callback, or the console log.
+     * Reports progress to whichever sinks are present: the standalone progress window
+     * (if non-{@code null}), the inline callback (if non-{@code null}), and always the
+     * console log. A negative {@code percent} indicates indeterminate progress and is
+     * omitted from the log line.
+     *
+     * @param progressWindow the standalone progress GUI to update, or {@code null}
+     * @param callback       the inline progress callback to notify, or {@code null}
+     * @param upperLabel     the upper (heading) label text
+     * @param lowerText      the lower (detail/status) text
+     * @param percent        the completion percentage (0–100), or negative for indeterminate
      */
     private static void reportProgress( MCLauncherProgressGui progressWindow, RuntimeProgressCallback callback,
                                          String upperLabel, String lowerText, double percent )

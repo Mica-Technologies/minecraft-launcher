@@ -74,7 +74,11 @@ public final class ModPackAuditLog
     /** How many of the most recent lines survive a trim. */
     private static final int TRIM_RETAIN_LINES = 2000;
 
-    /** Default "re-downloaded every launch" threshold for {@link #analyzeProblems(String, int)}. */
+    /**
+     * Default "re-downloaded every launch" threshold for {@link #analyzeProblems(String, int)}.
+     *
+     * @since 3.7
+     */
     public static final int DEFAULT_PROBLEM_THRESHOLD = 3;
 
     // Current-launch context. Set by the launch orchestrator around the download phase.
@@ -87,6 +91,8 @@ public final class ModPackAuditLog
      *
      * @param packRoot the pack's root folder
      * @param launchId the launch number this run will be recorded under
+     *
+     * @since 3.7
      */
     public static void beginLaunch( String packRoot, int launchId )
     {
@@ -94,14 +100,25 @@ public final class ModPackAuditLog
         currentLaunchId = launchId;
     }
 
-    /** Clears the current-launch context. Always call from the orchestrator's finally. */
+    /**
+     * Clears the current-launch context. Always call from the orchestrator's finally.
+     *
+     * @since 3.7
+     */
     public static void endLaunch()
     {
         currentPackRoot = null;
         currentLaunchId = -1;
     }
 
-    /** Whether a launch context is active (an audit entry would be recorded). */
+    /**
+     * Whether a launch context is active (an audit entry would be recorded).
+     *
+     * @return {@code true} when {@link #beginLaunch} has set a launch context
+     *         that {@link #endLaunch} has not yet cleared
+     *
+     * @since 3.7
+     */
     public static boolean isRecording()
     {
         return currentPackRoot != null;
@@ -116,6 +133,8 @@ public final class ModPackAuditLog
      * @param newHash       hash of the file after the download (may be null)
      * @param expectedHash  the manifest's declared hash (may be null)
      * @param algo          the hash algorithm used ({@code sha256}/{@code sha1}/{@code md5}, may be null)
+     *
+     * @since 3.7
      */
     public static void recordRedownload( String fullLocalPath, String oldHash, String newHash,
                                          String expectedHash, String algo )
@@ -203,6 +222,8 @@ public final class ModPackAuditLog
      * @param contentUnchanged     true when every one of those re-downloads fetched identical
      *                             bytes — the hallmark of a manifest hash that doesn't match the
      *                             served file
+     *
+     * @since 3.7
      */
     public record Problem( String file, int consecutiveLaunches, boolean contentUnchanged ) { }
 
@@ -216,6 +237,8 @@ public final class ModPackAuditLog
      * @param threshold          how many consecutive launches define a problem
      *
      * @return the flagged files (possibly empty), never null
+     *
+     * @since 3.7
      */
     public static List< Problem > analyzeProblems( String packRoot, int mostRecentLaunchId, int threshold )
     {
@@ -281,7 +304,15 @@ public final class ModPackAuditLog
         return problems;
     }
 
-    /** Convenience overload using {@link #DEFAULT_PROBLEM_THRESHOLD}. */
+    /**
+     * Convenience overload using {@link #DEFAULT_PROBLEM_THRESHOLD}.
+     *
+     * @param packRoot           the pack's root folder
+     * @param mostRecentLaunchId the pack's current launch number (its latest completed launch)
+     * @return the flagged files (possibly empty), never null
+     *
+     * @since 3.7
+     */
     public static List< Problem > analyzeProblems( String packRoot, int mostRecentLaunchId )
     {
         return analyzeProblems( packRoot, mostRecentLaunchId, DEFAULT_PROBLEM_THRESHOLD );

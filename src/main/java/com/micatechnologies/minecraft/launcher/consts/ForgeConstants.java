@@ -85,9 +85,36 @@ public class ForgeConstants
      */
     public static final String FORGE_VERSION_MANIFEST_LIBRARY_URL_KEY = "url";
 
+    /**
+     * Key for accessing the {@code downloads} object of a library in a Forge version manifest. The object holds the
+     * download metadata (artifact descriptor) for the library.
+     *
+     * @since 1.0
+     */
     public static final String FORGE_VERSION_MANIFEST_LIBRARY_DOWNLOADS_KEY = "downloads";
+
+    /**
+     * Key for accessing the {@code artifact} descriptor nested within a library's {@code downloads} object in a Forge
+     * version manifest. The artifact descriptor carries the relative path, SHA-1 hash, and download URL.
+     *
+     * @since 1.0
+     */
     public static final String FORGE_VERSION_MANIFEST_LIBRARY_ARTIFACT_KEY = "artifact";
+
+    /**
+     * Key for accessing the relative {@code path} of a library artifact in a Forge version manifest. The path is
+     * resolved against the local libraries folder to determine where the artifact is stored.
+     *
+     * @since 1.0
+     */
     public static final String FORGE_VERSION_MANIFEST_LIBRARY_PATH_KEY = "path";
+
+    /**
+     * Key for accessing the {@code sha1} hash of a library artifact in a Forge version manifest. Used to verify the
+     * integrity of the downloaded artifact.
+     *
+     * @since 1.0
+     */
     public static final String FORGE_VERSION_MANIFEST_LIBRARY_SHA1_KEY = "sha1";
 
     /**

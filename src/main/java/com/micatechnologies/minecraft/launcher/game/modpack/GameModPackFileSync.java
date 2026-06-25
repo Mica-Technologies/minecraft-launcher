@@ -42,8 +42,23 @@ import java.util.concurrent.*;
  */
 class GameModPackFileSync
 {
+    /**
+     * The modpack metadata supplying the per-category file lists, the pack root
+     * folder, and the imported-pack flag that drives the sync behaviour.
+     */
     private final GameModPackMetadata         metadata;
+
+    /**
+     * The progress callback used to surface per-file status and percent-complete
+     * updates to the UI, or {@code null} when progress reporting is not required.
+     */
     private final GameModPackProgressProvider  progressProvider;
+
+    /**
+     * The aggregate download tracker (total / completed file counts) for the
+     * current sync, derived from {@link #progressProvider}; {@code null} when no
+     * progress provider was supplied.
+     */
     private final DownloadTracker              downloadTracker;
 
     /**

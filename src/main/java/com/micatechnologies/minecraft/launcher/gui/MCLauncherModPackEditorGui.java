@@ -76,6 +76,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      *  already-decoded {@link Image} instantly with no network or disk work. Access-ordered
      *  so the least-recently-shown icon is evicted past the cap. */
     private static final int MODRINTH_ICON_CACHE_MAX = 128;
+    /** Backing access-ordered, synchronized LRU map for {@link #MODRINTH_ICON_CACHE_MAX} —
+     *  see the field above for the caching rationale. Keyed by project slug; evicts the
+     *  least-recently-shown entry once the cap is exceeded. */
     private static final java.util.Map< String, Image > MODRINTH_ICON_CACHE =
             java.util.Collections.synchronizedMap(
                     new java.util.LinkedHashMap< String, Image >( 16, 0.75f, true )
@@ -89,46 +92,81 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
     // region FXML fields
 
+    /** Toolbar button that discards the working document and starts a blank manifest. */
     @FXML MFXButton newBtn;
+    /** Toolbar button that opens an existing manifest from a local file. */
     @FXML MFXButton openFileBtn;
+    /** Toolbar button that downloads and opens a manifest from a remote URL. */
     @FXML MFXButton openUrlBtn;
+    /** Toolbar button that writes the current document to disk. */
     @FXML MFXButton saveBtn;
+    /** Toolbar button that runs the document validation pass. */
     @FXML MFXButton validateBtn;
+    /** Toolbar button that shows a diff between the last-saved snapshot and the live editor state. */
     @FXML MFXButton diffBtn;
+    /** Toolbar button that navigates back to the Game Library screen. */
     @FXML MFXButton returnBtn;
+    /** Tab container holding the metadata tab plus the per-file-type list tabs. */
     @FXML TabPane editorTabPane;
+    /** Status line at the bottom of the editor used for transient progress / result messages. */
     @FXML Label statusLabel;
+    /** Announcement banner label (shown via {@link #announcementRow}). */
     @FXML Label announcement;
+    /** Navbar help affordance; opens the help window on the editor's {@link HelpTopic}. */
     @FXML Label helpBtn;
+    /** Offline-mode indicator driven by {@link OfflineIndicator}. */
     @FXML Label offlineLabel;
+    /** Row constraints controlling visibility/height of the announcement banner row. */
     @FXML RowConstraints announcementRow;
 
     // Version bump buttons
+    /** Increments the major segment of the pack version and zeroes the rest. */
     @FXML MFXButton bumpMajorBtn;
+    /** Increments the minor segment of the pack version and zeroes the patch. */
     @FXML MFXButton bumpMinorBtn;
+    /** Increments the patch segment of the pack version. */
     @FXML MFXButton bumpPatchBtn;
 
     // Forge picker
+    /** Modloader version-picker button; dispatches to the Forge/NeoForge/Fabric picker based on the selected loader type. */
     @FXML MFXButton forgePickerBtn;
 
     // Metadata fields
+    /** Editable field for the modpack display name ({@code packName}). */
     @FXML MFXTextField packNameField;
+    /** Editable field for the modpack version string ({@code packVersion}). */
     @FXML MFXTextField packVersionField;
+    /** Editable field for the canonical manifest URL ({@code packURL}). */
     @FXML MFXTextField packURLField;
+    /** Editable field for the minimum RAM allocation in GB ({@code packMinRAMGB}). */
     @FXML MFXTextField packMinRAMField;
+    /** Toggle marking the pack as unstable / pre-release ({@code packUnstable}). */
     @FXML MFXToggleButton packUnstableToggle;
+    /** Toggle enabling a custom Discord rich-presence for the pack ({@code packCustomDiscordRpc}). */
     @FXML MFXToggleButton packCustomDiscordRpcToggle;
+    /** Combo selecting the modloader type (Forge / NeoForge / Fabric); persisted to {@code packModLoader}. */
     @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > packModLoaderTypeCombo;
+    /** Hint line describing what the loader URL field expects for the current loader choice. */
     @FXML javafx.scene.control.Label packModLoaderHint;
+    /** Editable field for the modloader installer / profile URL (stored as {@code packModLoaderURL}, mirrored to {@code packForgeURL} for Forge). */
     @FXML MFXTextField packForgeURLField;
+    /** Editable field for the modloader installer SHA-1 hash (stored as {@code packModLoaderHash}, mirrored to {@code packForgeHash} for Forge). */
     @FXML MFXTextField packForgeHashField;
+    /** Informational field for the detected Minecraft version ({@code packMinecraftVersion}); surfaced for humans only, ignored at runtime. */
     @FXML MFXTextField packMinecraftVersionField;
+    /** Multi-line field for the logo image URL(s) ({@code packLogoURL}); one URL per line. */
     @FXML TextArea     packLogoURLField;
+    /** Editable field for the logo image SHA-1 hash ({@code packLogoSha1}). */
     @FXML MFXTextField packLogoSha1Field;
+    /** Multi-line field for the background image URL(s) ({@code packBackgroundURL}); one URL per line. */
     @FXML TextArea     packBgURLField;
+    /** Editable field for the background image SHA-1 hash ({@code packBackgroundSha1}). */
     @FXML MFXTextField packBgSha1Field;
+    /** Live preview of the primary logo image. */
     @FXML ImageView logoPreview;
+    /** Live preview of the primary background image. */
     @FXML ImageView bgPreview;
+    /** Multi-line field for security-scan exclusion globs ({@code packScanExclusions}); one entry per line. */
     @FXML TextArea scanExclusionsArea;
 
     // endregion
@@ -166,6 +204,14 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      */
     private com.micatechnologies.minecraft.launcher.game.modpack.GameModPack initialPack = null;
 
+    /**
+     * Constructs the modpack editor GUI controller bound to the given stage.
+     *
+     * @param stage the JavaFX stage this controller renders into
+     *
+     * @throws IOException if the backing FXML scene cannot be loaded
+     * @since 3.0
+     */
     public MCLauncherModPackEditorGui( Stage stage ) throws IOException
     {
         super( stage );
@@ -180,18 +226,42 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         this.initialPack = pack;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the classpath-relative path to the modpack editor FXML scene
+     * @since 3.0
+     */
     @Override
     String getSceneFxmlPath()
     {
         return "gui/modpackEditorGUI.fxml";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the human-readable window/scene name for the editor
+     * @since 3.0
+     */
     @Override
     String getSceneName()
     {
         return "Modpack Editor";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Wires every toolbar/picker button action, the modloader-type combo
+     * and its dependent picker-button label and hint line, the version-bump
+     * buttons, keyboard shortcuts, image-preview refresh on URL field focus
+     * loss, and creates the five file-list tabs. Finishes by starting a blank
+     * document and, if a pack was pre-staged via {@link #setInitialPack}, loads
+     * that pack's manifest into the editor.</p>
+     *
+     * @since 3.0
+     */
     @Override
     void setup()
     {
@@ -392,6 +462,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Installs smooth-scroll behaviour on the editor's inner
+     * {@link javafx.scene.control.ScrollPane} (located by CSS class since the
+     * FXML node has no {@code fx:id}) so wheel scrolling matches the rest of
+     * the app.</p>
+     *
+     * @since 3.0
+     */
     @Override
     void afterShow()
     {
@@ -407,12 +487,26 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>No-op for this controller — it registers no persistent listeners
+     * beyond FXML-bound ones, so there is nothing to tear down.</p>
+     *
+     * @since 3.0
+     */
     @Override
     void cleanup()
     {
         // Nothing to clean up -- no persistent listeners beyond FXML-bound ones
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@link HelpTopic#MODPACK_EDITOR}, the help topic for this screen
+     * @since 3.0
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.MODPACK_EDITOR; }
 
@@ -1939,6 +2033,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         populateFileList( "packInitialFiles", false, true );
     }
 
+    /**
+     * Populates a single file-list tab's backing list from the matching JSON array in the working
+     * document. Each entry's strongest available hash (sha256 → sha1 → md5) becomes the displayed
+     * primary hash; weaker hashes are stashed for round-trip preservation. Missing entries, a
+     * missing/non-array key, or a null document leave the list empty.
+     *
+     * @param jsonArrayKey       the document key for this list (e.g. {@code "packMods"})
+     * @param hasName            whether entries carry a {@code name} field (mods only)
+     * @param hasClientServerReq whether entries carry {@code clientReq}/{@code serverReq} flags
+     */
     private void populateFileList( String jsonArrayKey, boolean hasName, boolean hasClientServerReq )
     {
         ObservableList< ModPackEditorFileEntry > data = fileListData.get( jsonArrayKey );
@@ -2020,6 +2124,16 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         collectFileList( "packInitialFiles", false, true );
     }
 
+    /**
+     * Serializes a single file-list tab's backing list back into the matching JSON array on the
+     * working document. Writes all three hash slots ({@code sha1}/{@code md5}/{@code sha256}) — the
+     * primary one from the entry's displayed hash plus any preserved extra hashes — using the
+     * {@code "-1"} sentinel for empty slots to match the launcher's "no usable hash" convention.
+     *
+     * @param jsonArrayKey       the document key to write (e.g. {@code "packMods"})
+     * @param hasName            whether entries should emit a {@code name} field (mods only)
+     * @param hasClientServerReq whether entries should emit {@code clientReq}/{@code serverReq} flags
+     */
     private void collectFileList( String jsonArrayKey, boolean hasName, boolean hasClientServerReq )
     {
         ObservableList< ModPackEditorFileEntry > data = fileListData.get( jsonArrayKey );
@@ -2076,6 +2190,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
 
     // region Helpers
 
+    /**
+     * Reads a string value from the working document.
+     *
+     * @param key the document key to read
+     *
+     * @return the value as a string, or {@code ""} if absent or JSON-null
+     */
     private String getDocString( String key )
     {
         if ( workingDocument.has( key ) && !workingDocument.get( key ).isJsonNull() ) {
@@ -2156,6 +2277,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         return "";
     }
 
+    /**
+     * Reads a boolean value from the working document.
+     *
+     * @param key the document key to read
+     *
+     * @return the value as a boolean, or {@code false} if absent or JSON-null
+     */
     private boolean getDocBool( String key )
     {
         if ( workingDocument.has( key ) && !workingDocument.get( key ).isJsonNull() ) {
@@ -2164,6 +2292,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         return false;
     }
 
+    /**
+     * Serializes the working document to a pretty-printed JSON string. Does not first collect UI
+     * field state into the document — use {@link #collectAndSerializeDocument()} for that.
+     *
+     * @return the working document as pretty-printed JSON
+     */
     private String serializeDocument()
     {
         return new GsonBuilder().setPrettyPrinting().create().toJson( workingDocument );
@@ -2179,6 +2313,13 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         return serializeDocument();
     }
 
+    /**
+     * Reports whether the editor has unsaved changes by collecting the current UI state into the
+     * document, serializing it, and comparing against the last saved/loaded snapshot.
+     *
+     * @return {@code true} if the live state differs from the saved snapshot; {@code false} when
+     *         clean or when there is no working document
+     */
     private boolean isDirty()
     {
         if ( workingDocument == null ) {
@@ -2187,6 +2328,15 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         return !collectAndSerializeDocument().equals( savedSnapshot );
     }
 
+    /**
+     * Validates every entry in a file list, appending one human-readable line to {@code issues} for
+     * each empty required field. Entries are flagged when their remote URL or local path is blank.
+     *
+     * @param issues       accumulator the validation messages are appended to
+     * @param jsonArrayKey the file-list key to validate (e.g. {@code "packMods"})
+     * @param label        localized display label used to name entries in messages
+     * @param hasName      whether entries carry a name (used to label entries by name when present)
+     */
     private void validateFileEntries( StringBuilder issues, String jsonArrayKey, String label, boolean hasName )
     {
         ObservableList< ModPackEditorFileEntry > data = fileListData.get( jsonArrayKey );
@@ -2209,6 +2359,14 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Validates that a required scalar field is present and non-blank, appending a message to
+     * {@code issues} when it is missing or empty.
+     *
+     * @param issues accumulator the validation message is appended to
+     * @param key    the document key that must be present and non-blank
+     * @param label  localized display label naming the field in the message
+     */
     private void checkRequired( StringBuilder issues, String key, String label )
     {
         if ( !workingDocument.has( key ) || workingDocument.get( key ).getAsString().isBlank() ) {
@@ -2317,6 +2475,14 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * Loads the image at {@code url} into the given preview {@link ImageView} asynchronously
+     * (JavaFX background loading). A blank/null URL or any load failure clears the preview instead.
+     * All view mutation happens on the FX thread.
+     *
+     * @param url       the image URL to preview, or blank/null to clear
+     * @param imageView the preview target to update
+     */
     private void refreshImagePreview( String url, ImageView imageView )
     {
         if ( url == null || url.isBlank() ) {
@@ -2333,6 +2499,12 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Sets the bottom status line text. Safe to call from any thread — the update is marshaled onto
+     * the FX thread.
+     *
+     * @param message the status text to display
+     */
     private void updateStatus( String message )
     {
         GUIUtilities.JFXPlatformRun( () -> statusLabel.setText( message ) );

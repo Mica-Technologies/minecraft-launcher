@@ -150,6 +150,20 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                                                  .getAsString();
     }
 
+    /**
+     * Derives the Minecraft version this Forge build targets from its version
+     * manifest. Prefers the manifest's {@code inheritsFrom} field (modern Forge
+     * names the base MC version there); failing that, strips the {@code -forge}
+     * suffix from the manifest's own version id; and as a last resort returns
+     * the supplied fallback id unchanged.
+     *
+     * @param forgeVersionManifest the parsed Forge version manifest
+     * @param fallbackVersionId    the Forge version id to fall back on when no
+     *                             {@code inheritsFrom} is present
+     *
+     * @return the resolved Minecraft version string
+     * @since 1.0
+     */
     private static String parseMinecraftVersion( JsonObject forgeVersionManifest, String fallbackVersionId ) {
         if ( forgeVersionManifest.has( ForgeConstants.FORGE_VERSION_MANIFEST_INHERITS_FROM_KEY ) ) {
             return forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_INHERITS_FROM_KEY ).getAsString();
@@ -161,6 +175,20 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return fallbackVersionId;
     }
 
+    /**
+     * Extracts the Minecraft game arguments from a Forge version manifest,
+     * normalising across Forge eras. Legacy Forge stores them as a single
+     * pre-joined {@code minecraftArguments} string; modern Forge (1.13+) stores
+     * them as an {@code arguments.game} array, which is flattened via
+     * {@link ManifestRuleUtilities#flattenArguments}. Returns an empty string
+     * when neither form is present.
+     *
+     * @param forgeVersionManifest the parsed Forge version manifest
+     *
+     * @return the game arguments as a single space-joined string, or an empty
+     *         string when the manifest declares none
+     * @since 1.0
+     */
     private static String parseMinecraftArguments( JsonObject forgeVersionManifest ) {
         if ( forgeVersionManifest.has( ForgeConstants.FORGE_VERSION_MANIFEST_MINECRAFT_ARGS_KEY ) ) {
             return forgeVersionManifest.get( ForgeConstants.FORGE_VERSION_MANIFEST_MINECRAFT_ARGS_KEY ).getAsString();
@@ -250,6 +278,15 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     // migrated yet).
     // ====================================================================
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns {@code "Forge"}; the NeoForge subclass overrides this to
+     * report its own name.</p>
+     *
+     * @return the constant {@code "Forge"}
+     * @since 1.0
+     */
     @Override
     public String getName() {
         return "Forge";
@@ -264,16 +301,53 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return "net.minecraftforge:forge:";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>For Forge this is the Forge version id (the same value as
+     * {@link #getForgeVersion()}).</p>
+     *
+     * @return the Forge version id
+     * @since 1.0
+     */
     @Override
     public String getLoaderVersion() {
         return forgeVersion;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Delegates to {@link #getForgeJvmArguments()} — modern Forge (1.13+)
+     * may declare module-system JVM flags in its manifest's
+     * {@code arguments.jvm} section.</p>
+     *
+     * @return the Forge JVM arguments string, or an empty string if none
+     *
+     * @throws ModpackException if the Forge version manifest cannot be read
+     * @since 1.0
+     */
     @Override
     public String getJvmArguments() throws ModpackException {
         return getForgeJvmArguments();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Delegates to {@link #buildForgeClasspath(GameMode, GameModPackProgressProvider)},
+     * which resolves, downloads/verifies, and assembles the deduplicated Forge
+     * library classpath (including the patched client and {@code MC_EXTRA}
+     * artifacts for modern Forge).</p>
+     *
+     * @param gameAppMode      client or server side the classpath is built for
+     * @param progressProvider progress sink for UI feedback, or {@code null}
+     *
+     * @return the platform-separated classpath string
+     *
+     * @throws ModpackException if libraries cannot be resolved, downloaded, or verified
+     * @since 1.0
+     */
     @Override
     public String buildClasspath( GameMode gameAppMode,
                                    GameModPackProgressProvider progressProvider )
@@ -282,6 +356,21 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return buildForgeClasspath( gameAppMode, progressProvider );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Delegates to {@link #runForgeProcessors(GameMode, GameModPackProgressProvider, String)},
+     * which executes the Forge install-processor pipeline (modern Forge 1.13+)
+     * to produce the patched client JAR. A no-op for legacy Forge installers
+     * that carry no processors.</p>
+     *
+     * @param gameAppMode      client or server side the processors run for
+     * @param progressProvider progress sink for UI feedback, or {@code null}
+     * @param runtimeComponent the Java runtime component used to launch processors
+     *
+     * @throws ModpackException if any install processor fails
+     * @since 1.0
+     */
     @Override
     public void runPostInstallSteps( GameMode gameAppMode,
                                       GameModPackProgressProvider progressProvider,
@@ -645,6 +734,21 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return "jar:" + forgeInstaller.toURI() + "!/" + entryName;
     }
 
+    /**
+     * Downloads and SHA-1 verifies every Forge library required for the given
+     * side, in parallel on the shared bounded download pool. Each asset is
+     * assigned the Forge libs folder as its local-path prefix, then
+     * downloaded/verified concurrently; the batch is bounded at 30 minutes and
+     * pending downloads are cancelled on interrupt, timeout, or failure.
+     *
+     * @param gameAppMode      client or server side libraries are fetched for
+     * @param progressProvider progress sink for UI feedback, or {@code null}
+     *
+     * @throws ModpackException if the library list cannot be built, a download
+     *                          fails verification, or the batch times out / is
+     *                          interrupted
+     * @since 1.0
+     */
     private void downloadForgeAssets( GameMode gameAppMode, GameModPackProgressProvider progressProvider )
     throws ModpackException
     {
@@ -1160,7 +1264,17 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
     }
 
     /**
-     * Extracts an embedded maven entry from the Forge installer JAR to a local file.
+     * Extracts an artifact embedded under the installer JAR's {@code maven/}
+     * subtree to a local file, creating parent directories and overwriting any
+     * existing destination.
+     *
+     * @param repoPath    the artifact's repo-relative path beneath {@code maven/}
+     *                    inside the installer JAR
+     * @param destination the local file to write the extracted bytes to
+     *
+     * @throws IOException      if the entry is missing or cannot be read/copied
+     * @throws ModpackException if the installer JAR cannot be opened
+     * @since 1.0
      */
     private void extractEmbeddedMavenEntry( String repoPath, File destination ) throws IOException, ModpackException {
         try ( JarFile forgeJar = getForgeJarFile() ) {
@@ -1175,6 +1289,23 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         }
     }
 
+    /**
+     * Resolves, downloads/verifies, and assembles the full Forge classpath for
+     * the given side. Builds the library list, fetches every required artifact
+     * via {@link #downloadForgeAssets(GameMode, GameModPackProgressProvider)},
+     * then collects the side-required library paths into a {@link LinkedHashSet}
+     * (deduplicated, insertion-ordered). For modern Forge (1.13+) it also appends
+     * the processor-produced {@code PATCHED} client JAR and the {@code MC_EXTRA}
+     * resources JAR named in {@code install_profile.json}, when present on disk.
+     *
+     * @param gameAppMode      client or server side the classpath is built for
+     * @param progressProvider progress sink for UI feedback, or {@code null}
+     *
+     * @return the platform-separated classpath string
+     *
+     * @throws ModpackException if libraries cannot be resolved, downloaded, or verified
+     * @since 1.0
+     */
     String buildForgeClasspath( GameMode gameAppMode, GameModPackProgressProvider progressProvider )
     throws ModpackException
     {
@@ -1264,6 +1395,17 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return classpath.toString();
     }
 
+    /**
+     * Returns the parsed Forge version manifest, caching it on first read so
+     * repeated accessors (libraries list, main class, arguments) don't re-open
+     * and re-parse the installer JAR each launch. The cache is invalidated by
+     * {@link #updateLocalFile()} when the installer is re-downloaded.
+     *
+     * @return the cached Forge version manifest as a {@link JsonObject}
+     *
+     * @throws ModpackException if the manifest cannot be located or parsed
+     * @since 1.0
+     */
     private JsonObject getForgeVersionManifest() throws ModpackException {
         JsonObject cached = cachedForgeVersionManifest;
         if ( cached != null ) {
@@ -1274,6 +1416,22 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
         return manifest;
     }
 
+    /**
+     * Reads and parses the Forge version manifest from the installer JAR,
+     * normalising across Forge eras. Modern Forge (1.13+, plus some late 1.12.x
+     * builds) carries a top-level {@code version.json} with the full
+     * launcher-version manifest shape; legacy Forge (1.7.10 through early
+     * 1.12.x) has no such file and instead nests the equivalent metadata under
+     * {@code versionInfo} inside {@code install_profile.json}. This method
+     * returns whichever is found, so downstream callers need not branch on era.
+     *
+     * @return the Forge version manifest as a {@link JsonObject}
+     *
+     * @throws ModpackException if the installer cannot be opened, neither
+     *                          manifest form can be parsed, or no version
+     *                          metadata is found
+     * @since 1.0
+     */
     private JsonObject readForgeVersionManifest() throws ModpackException {
         try ( JarFile forgeJarFile = getForgeJarFile() ) {
             // Modern Forge (1.13+, plus some 1.12.x builds): version.json

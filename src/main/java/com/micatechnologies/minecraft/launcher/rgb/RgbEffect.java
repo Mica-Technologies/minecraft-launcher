@@ -40,7 +40,13 @@ package com.micatechnologies.minecraft.launcher.rgb;
  */
 public interface RgbEffect
 {
-    /** Human-readable name for log lines + the Settings status chip. */
+    /**
+     * Human-readable name for log lines + the Settings status chip.
+     *
+     * @return the effect's display name; never {@code null}
+     *
+     * @since 2026.5
+     */
     String name();
 
     /**
@@ -49,6 +55,16 @@ public interface RgbEffect
      * "no change this tick" — the engine then skips this frame entirely
      * (useful for effects that only animate occasionally, e.g. a slow
      * 5-second cross-fade).
+     *
+     * @param elapsedMs milliseconds elapsed since this effect was
+     *                  activated by the engine; the animation timeline
+     *                  is derived purely from this value, never internal
+     *                  mutable clock state
+     *
+     * @return the frame to display at {@code elapsedMs}, or {@code null}
+     *         to signal "no change this tick" (engine skips the frame)
+     *
+     * @since 2026.5
      */
     RgbFrame frameAt( long elapsedMs );
 }

@@ -61,10 +61,15 @@ import java.util.EnumMap;
  */
 public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
 {
+    /** FXML-injected title label at the top of the card (set via {@link #setTitle(String)}). */
     @SuppressWarnings( "unused" ) @FXML Label titleLabel;
+    /** FXML-injected subtitle label under the title (set / hidden via {@link #setSubtitle(String)}). */
     @SuppressWarnings( "unused" ) @FXML Label subtitleLabel;
+    /** FXML-injected container the per-step rows are added to in {@link #attachToTracker(LaunchProgressTracker)}. */
     @SuppressWarnings( "unused" ) @FXML VBox rowsBox;
+    /** FXML-injected row holding the Cancel button; shown / hidden by {@link #setCancelHandler(Runnable)}. */
     @SuppressWarnings( "unused" ) @FXML HBox cancelBtnRow;
+    /** FXML-injected Cancel button wired by {@link #setCancelHandler(Runnable)}. */
     @SuppressWarnings( "unused" ) @FXML MFXButton cancelBtn;
 
     /** Per-step row widgets, populated in {@link #attachToTracker(LaunchProgressTracker)}.
@@ -80,6 +85,9 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
      *  the listener on screen transition and we don't accumulate live listeners
      *  against a torn-down GUI. */
     private LaunchProgressTracker attachedTracker;
+
+    /** The listener registered on {@link #attachedTracker}; retained so {@link #detachFromTracker()}
+     *  can deregister exactly this instance. */
     private LaunchProgressTracker.Listener attachedListener;
 
     /** Coalesces the per-file progress storm. A warm launch fires thousands of
@@ -93,17 +101,39 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
     private final java.util.concurrent.atomic.AtomicBoolean progressFlushScheduled =
             new java.util.concurrent.atomic.AtomicBoolean( false );
 
+    /**
+     * Constructs the launch-progress GUI bound to the given stage, loading its FXML scene via the
+     * superclass.
+     *
+     * @param stage the JavaFX stage this GUI renders into
+     * @throws IOException if the FXML scene resource cannot be loaded
+     */
     public MCLauncherLaunchProgressGui( Stage stage ) throws IOException
     {
         super( stage );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the classpath path to this GUI's FXML scene
+     */
     @Override
     String getSceneFxmlPath() { return "gui/launchProgressGUI.fxml"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the human-readable scene name used for window titling / logging
+     */
     @Override
     String getSceneName() { return "Launching"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@link HelpTopic#GETTING_STARTED}, the help topic surfaced for the launch screen
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.GETTING_STARTED; }
 
@@ -112,6 +142,13 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
     @Override
     boolean allowsToolbarNavigation() { return false; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Routes the window-close (X) gesture through {@link LauncherCore#closeApp()} rather than
+     * silently dismissing the launch screen, so closing mid-launch shuts the application down
+     * cleanly instead of orphaning the in-flight launch pipeline.</p>
+     */
     @Override
     void setup()
     {
@@ -121,6 +158,14 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Attaches the shared {@link TaskbarProgressManager} to this stage so a coarse rolled-up
+     * launch-progress indicator is visible on the Windows taskbar / macOS dock even while the
+     * launcher window is unfocused. The per-step detail remains in this GUI; the taskbar receives
+     * only the averaged fraction (see {@link #refreshOverallTaskbarProgress()}).</p>
+     */
     @Override
     void afterShow()
     {
@@ -131,6 +176,13 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         TaskbarProgressManager.attach( stage );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Drops the tracker subscription via {@link #detachFromTracker()} so the registered listener
+     * doesn't keep this GUI alive past the scene transition, and stops the taskbar progress
+     * indicator on the FX thread.</p>
+     */
     @Override
     void cleanup()
     {
@@ -140,14 +192,24 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         GUIUtilities.JFXPlatformRun( TaskbarProgressManager::stop );
     }
 
-    /** Sets the title line (e.g. "Launching Forge 1.16.5"). */
+    /**
+     * Sets the title line (e.g. "Launching Forge 1.16.5"). Marshalled to the FX thread; a
+     * {@code null} value clears the label to empty text.
+     *
+     * @param text the title text to display, or {@code null} to clear it
+     */
     public void setTitle( String text )
     {
         GUIUtilities.JFXPlatformRun( () -> titleLabel.setText( text == null ? "" : text ) );
     }
 
-    /** Sets the optional subtitle under the title (e.g. version string).
-     *  Empty / null hides the subtitle row. */
+    /**
+     * Sets the optional subtitle under the title (e.g. version string). Marshalled to the FX thread;
+     * an empty or {@code null} value hides the subtitle row entirely (visibility and layout managed
+     * both cleared) so it doesn't reserve vertical space.
+     *
+     * @param text the subtitle text to display, or {@code null} / empty to hide the subtitle row
+     */
     public void setSubtitle( String text )
     {
         GUIUtilities.JFXPlatformRun( () -> {
@@ -162,6 +224,13 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
      * Wires the GUI to a tracker. Walks the tracker's step list once to
      * build the row widgets, then subscribes for live updates. Replacing
      * the tracker on a re-attach detaches the previous one cleanly.
+     *
+     * <p>The registered listener coalesces the per-file progress storm: only the first event since
+     * the last FX flush queues a {@link Platform#runLater(Runnable)}, which then re-renders every row
+     * from the tracker's current state and refreshes the taskbar once. This throttles UI updates to
+     * the FX frame rate rather than flooding the queue with one runnable per verified asset.</p>
+     *
+     * @param tracker the launch-progress tracker to render and subscribe to for live updates
      */
     public void attachToTracker( LaunchProgressTracker tracker )
     {
@@ -199,6 +268,10 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * Deregisters the current tracker listener (if any) and clears the {@link #attachedTracker} /
+     * {@link #attachedListener} references. Idempotent — safe to call when no tracker is attached.
+     */
     private void detachFromTracker()
     {
         if ( attachedTracker != null && attachedListener != null ) {
@@ -213,6 +286,9 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
      * to the supplied handler. Pass {@code null} to hide the button. The
      * button visually disables on click so a spam-clicker doesn't fire the
      * handler repeatedly while cancellation is taking a beat to land.
+     *
+     * @param handler the action to run when Cancel is clicked, or {@code null} to hide the Cancel
+     *                button and clear any previously-wired action
      */
     public void setCancelHandler( Runnable handler )
     {

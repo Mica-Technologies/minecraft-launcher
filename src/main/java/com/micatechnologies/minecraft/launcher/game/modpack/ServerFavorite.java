@@ -40,7 +40,12 @@ public record ServerFavorite( String name, String host, int port )
     public static final int DEFAULT_PORT = 25565;
 
     /** Compact-canonical form: {@code host} when port is the default,
-     *  {@code host:port} otherwise. Mirrors what the user typed. */
+     *  {@code host:port} otherwise. Mirrors what the user typed.
+     *
+     *  @return the bare host when {@link #port} is {@link #DEFAULT_PORT},
+     *          otherwise {@code host:port}
+     *
+     *  @since 2026.5 */
     public String displayAddress()
     {
         return port == DEFAULT_PORT ? host : ( host + ":" + port );
@@ -49,7 +54,19 @@ public record ServerFavorite( String name, String host, int port )
     /**
      * Parses a {@code host} or {@code host:port} string into a favorite
      * with the given display name. Returns {@code null} on malformed input
-     * (empty host, non-numeric port, port out of range).
+     * (empty host, non-numeric port, port out of range). When no port is
+     * present the favorite uses {@link #DEFAULT_PORT}; a blank {@code name}
+     * falls back to the host.
+     *
+     * @param name     human-readable label, or {@code null}/blank to default
+     *                 to the host
+     * @param hostPort the user-entered {@code host} or {@code host:port}
+     *                 string
+     * @return the parsed favorite, or {@code null} when {@code hostPort} is
+     *         blank, the host is empty, or the port is non-numeric or outside
+     *         {@code 1..65535}
+     *
+     * @since 2026.5
      */
     public static ServerFavorite parse( String name, String hostPort )
     {

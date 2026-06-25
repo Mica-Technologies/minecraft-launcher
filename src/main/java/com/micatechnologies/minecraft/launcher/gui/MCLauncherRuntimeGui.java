@@ -43,46 +43,108 @@ import java.util.Map;
  */
 public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
 {
+    /**
+     * Optional announcement banner shown at the top of the screen, populated by
+     * shared navbar logic when the launcher has an announcement to surface.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     Label announcement;
 
+    /**
+     * Layout row backing the {@link #announcement} banner. Collapsed when there
+     * is no announcement so the banner reserves no vertical space.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     javafx.scene.layout.RowConstraints announcementRow;
 
+    /**
+     * Navbar help button, wired in {@link #setup()} to open the help window for
+     * this screen's {@link #getHelpTopic() help topic}.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     Label helpBtn;
 
+    /**
+     * Navbar offline indicator, driven by {@link OfflineIndicator} to reflect
+     * the launcher's online/offline state.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     Label offlineLabel;
 
+    /**
+     * Status line that reports the outcome of the most recent action (count of
+     * installed runtimes, deletion results, or error messages).
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     Label statusLabel;
 
+    /**
+     * Static informational text describing the runtime management screen.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     Label infoLabel;
 
+    /**
+     * List view showing one row per installed Java runtime (component, version,
+     * and on-disk size). Selection here drives the per-runtime delete action.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     ListView< String > runtimeListView;
 
+    /**
+     * Button that re-scans and reloads the installed-runtime list.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton refreshBtn;
 
+    /**
+     * Button that deletes the runtime currently selected in
+     * {@link #runtimeListView}, after a confirmation prompt.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton deleteBtn;
 
+    /**
+     * Button that deletes every installed runtime, after a confirmation prompt.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton deleteAllBtn;
 
+    /**
+     * Button that returns to the settings screen.
+     *
+     * @since 2025.1
+     */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton returnBtn;
@@ -95,20 +157,59 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
      */
     private volatile List< Map< String, String > > currentRuntimes;
 
+    /**
+     * Constructs the runtime management GUI bound to the given stage, using the
+     * abstract GUI's default scene dimensions.
+     *
+     * @param stage the JavaFX stage that hosts this screen
+     *
+     * @throws IOException if the backing FXML resource fails to load
+     *
+     * @since 2025.1
+     */
     public MCLauncherRuntimeGui( Stage stage ) throws IOException {
         super( stage );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the classpath-relative path to this screen's FXML layout
+     *         ({@code gui/runtimeManagementGUI.fxml})
+     *
+     * @since 2025.1
+     */
     @Override
     String getSceneFxmlPath() {
         return "gui/runtimeManagementGUI.fxml";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the human-readable scene name shown in the window title
+     *         ({@code "Runtime Management"})
+     *
+     * @since 2025.1
+     */
     @Override
     String getSceneName() {
         return "Runtime Management";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Wires the OS close button to close the application, the return button
+     * back to settings, the navbar help button, the offline indicator, global
+     * keyboard shortcuts, and the refresh / delete / delete-all actions. The
+     * delete handlers snapshot {@link #currentRuntimes} on the FX thread to
+     * avoid a concurrent refresh swapping the list mid-operation, prompt for
+     * confirmation, then run the deletion off the FX thread. Finishes with an
+     * initial {@link #refreshRuntimeList()} to populate the list.</p>
+     *
+     * @since 2025.1
+     */
     @Override
     void setup() {
         // Configure window close -- X button closes the app
@@ -224,25 +325,64 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
         refreshRuntimeList();
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>No post-show work is required for this screen.</p>
+     *
+     * @since 2025.1
+     */
     @Override
     void afterShow() {
         // Nothing needed after show
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This screen holds no scene-scoped resources to release.</p>
+     *
+     * @since 2025.1
+     */
     @Override
     void cleanup() {
         // Nothing to clean up
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@link HelpTopic#RUNTIME_MANAGEMENT}, the help topic shown for the
+     *         runtime management screen
+     *
+     * @since 2025.1
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.RUNTIME_MANAGEMENT; }
 
-    /** Disable toolbar navigation while the runtime is being installed/verified. */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Disables toolbar navigation while a runtime is being installed or
+     * verified.</p>
+     *
+     * @return {@code false}; toolbar navigation is not permitted from this screen
+     *
+     * @since 2025.1
+     */
     @Override
     boolean allowsToolbarNavigation() { return false; }
 
     /**
-     * Refreshes the runtime list view with current installed runtimes.
+     * Re-scans the installed Java runtimes via {@link RuntimeManager}, rebuilds
+     * the {@link #runtimeListView} contents (component, optional verified
+     * version, and on-disk size per row), installs the empty-state placeholder,
+     * and updates {@link #statusLabel} with the installed count or an
+     * empty-state message. The list-view mutation and status update are
+     * marshalled onto the JavaFX application thread; this method itself may be
+     * invoked from a background task.
+     *
+     * @since 2025.1
      */
     private void refreshRuntimeList() {
         currentRuntimes = RuntimeManager.getInstalledRuntimes();

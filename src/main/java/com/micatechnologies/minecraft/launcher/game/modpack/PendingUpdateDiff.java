@@ -55,6 +55,16 @@ public final class PendingUpdateDiff
     /**
      * Summary of the manifest-vs-installed mod diff. Counts are by version-grouped mod, and the
      * name lists hold the base mod names (version-stripped) for display.
+     *
+     * @param added        number of mods the new manifest declares that aren't installed
+     * @param removed      number of installed mods absent from the new manifest
+     * @param updated      number of mods present on both sides whose installed bytes differ from
+     *                     the manifest's declared hash
+     * @param addedNames   version-stripped display names of the added mods
+     * @param removedNames version-stripped display names of the removed mods
+     * @param updatedNames version-stripped display names of the updated mods
+     *
+     * @since 2026.6
      */
     public record Result(
             int added,
@@ -64,6 +74,13 @@ public final class PendingUpdateDiff
             List< String > removedNames,
             List< String > updatedNames )
     {
+        /**
+         * Reports whether this diff contains no changes at all.
+         *
+         * @return {@code true} when the added, removed, and updated counts are all zero
+         *
+         * @since 2026.6
+         */
         public boolean isEmpty()
         {
             return added == 0 && removed == 0 && updated == 0;
@@ -77,6 +94,11 @@ public final class PendingUpdateDiff
      * installed jar's key is absent from the manifest, and <i>updated</i> when both sides share a
      * key but the installed bytes don't match the manifest's declared hash. Returns an empty result
      * if the pack is vanilla, has no manifest mods, or the diff is empty.
+     *
+     * @param pack the modpack to diff; may be {@code null} (yields an empty result)
+     * @return the manifest-vs-installed change summary, never {@code null}
+     *
+     * @since 2026.6
      */
     public static Result compute( GameModPack pack )
     {

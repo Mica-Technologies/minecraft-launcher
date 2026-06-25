@@ -116,6 +116,10 @@ public final class ModpackExporter
      * (every pack supports EXPORT_ZIP, and SHARE_URL implies the JSON is
      * also self-contained) but the returned value is the "best" / most
      * lightweight mode available.
+     *
+     * @param pack the pack to classify; a {@code null} pack maps to
+     *             {@link ExportMode#EXPORT_ZIP}
+     * @return the best available {@link ExportMode} for the pack, never {@code null}
      */
     public static ExportMode classifyExport( GameModPack pack )
     {
@@ -141,7 +145,10 @@ public final class ModpackExporter
      *  no readable manifest exists (vanilla / failed packs). Convenience
      *  for the Share-Manifest path; identical to
      *  {@link GameModPackFetcher#loadManifestText(String)} but takes a
-     *  pack so callers don't have to thread the URL through. */
+     *  pack so callers don't have to thread the URL through.
+     *
+     *  @param pack the pack whose manifest body to load; {@code null} yields {@code null}
+     *  @return the raw manifest JSON, or {@code null} when no readable manifest exists */
     public static String loadManifestText( GameModPack pack )
     {
         if ( pack == null ) return null;
@@ -199,6 +206,11 @@ public final class ModpackExporter
     /**
      * Export the pack with worlds excluded. Convenience for the
      * common case.
+     *
+     * @param pack           the installed pack to export
+     * @param destinationZip output file; overwritten if it exists
+     * @throws IOException if the pack has no install folder, its folder is
+     *                     missing, or writing the archive fails
      */
     public static void exportToZip( GameModPack pack, File destinationZip ) throws IOException
     {
@@ -215,6 +227,9 @@ public final class ModpackExporter
      * @param progress        optional callback receiving bytes-written
      *                        running total; useful for UI progress
      *                        indicators
+     * @throws IllegalArgumentException if {@code pack} is {@code null}
+     * @throws IOException              if the pack has no install folder, its
+     *                                 folder is missing, or writing the archive fails
      */
     public static void exportToZip( GameModPack pack, File destinationZip,
                                      boolean includeWorlds, LongConsumer progress ) throws IOException

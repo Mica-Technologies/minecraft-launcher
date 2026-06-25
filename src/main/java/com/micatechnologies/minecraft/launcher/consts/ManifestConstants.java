@@ -68,9 +68,41 @@ public class ManifestConstants
      */
     public static final String MINECRAFT_ASSET_MANIFEST_OBJECTS_KEY = "objects";
 
+    /**
+     * JSON key for accessing the SHA-1 {@code hash} of an individual asset object within a Minecraft asset manifest.
+     * The hash both identifies the object on the asset server and verifies the integrity of the downloaded file.
+     *
+     * @since 1.0
+     */
     public static final String MINECRAFT_ASSET_MANIFEST_OBJECT_HASH_KEY = "hash";
+
+    /**
+     * JSON key for accessing the {@code libraries} array in a Minecraft library manifest.
+     *
+     * @since 1.0
+     */
     public static final String MINECRAFT_LIBRARY_MANIFEST_LIBRARIES_KEY="libraries";
+
+    /**
+     * JSON key for accessing the {@code downloads} object of a library in a Minecraft library manifest. The object
+     * holds the download metadata (artifact descriptor) for the library.
+     *
+     * @since 1.0
+     */
     public static final String MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_KEY = "downloads";
+
+    /**
+     * JSON key for accessing the Maven-coordinate {@code name} of a library in a Minecraft library manifest.
+     *
+     * @since 1.0
+     */
     public static final String MINECRAFT_LIBRARY_MANIFEST_LIBRARY_NAME_KEY = "name";
+
+    /**
+     * JSON key for accessing the {@code artifact} descriptor nested within a library's {@code downloads} object in a
+     * Minecraft library manifest. The artifact descriptor carries the relative path, SHA-1 hash, and download URL.
+     *
+     * @since 1.0
+     */
     public static final String MINECRAFT_LIBRARY_MANIFEST_LIBRARY_DOWNLOADS_ARTIFACT_KEY = "artifact";
 }

@@ -61,6 +61,7 @@ public class GUIUtilities
      * @param contentText dialog content/question text
      * @param button1     button 1 text
      * @param button2     button 2 text
+     * @param owner       stage to own the dialog (window-modal parent); may be {@code null}
      *
      * @return 0 for cancel, 1 for button 1, 2 for button 2
      *
@@ -159,6 +160,13 @@ public class GUIUtilities
      * the content label is reconfigured to size itself off the wrapped text,
      * mirroring {@link #showErrorMessageMultiline}.
      *
+     * @param title       dialog title
+     * @param headerText  dialog header
+     * @param contentText dialog content/question text; newlines are preserved
+     * @param button1     button 1 text
+     * @param button2     button 2 text
+     * @param owner       stage to own the dialog (window-modal parent); may be {@code null}
+     *
      * @return 0 for cancel, 1 for button 1, 2 for button 2
      *
      * @since 2026.3
@@ -237,6 +245,7 @@ public class GUIUtilities
      * Show an error message dialog to user with specified information.
      *
      * @param contentText dialog content/error text
+     * @param owner       stage to own the dialog (window-modal parent); may be {@code null}
      *
      * @since 1.0
      */
@@ -300,6 +309,9 @@ public class GUIUtilities
      * to the text. Bypassing the single-line {@link #sanitizeDialogText}
      * is the whole point — newlines stay, the cap is larger, redaction
      * still runs.</p>
+     *
+     * @param contentText dialog content/error text; newlines are preserved
+     * @param owner       stage to own the dialog (window-modal parent); may be {@code null}
      */
     public static void showErrorMessageMultiline( String contentText, Stage owner ) {
         CountDownLatch waitForError = new CountDownLatch( 1 );
@@ -358,6 +370,10 @@ public class GUIUtilities
      * traces compress to one readable line, and truncates the result so a leaked
      * stack-trace dump can't push past the dialog's visible bounds. Empty/null
      * input passes through unchanged.
+     *
+     * @param contentText caller-supplied dialog text (may be {@code null}/empty)
+     *
+     * @return a single-line, redacted, length-capped copy safe to display
      */
     private static String sanitizeDialogText( String contentText )
     {
@@ -387,6 +403,10 @@ public class GUIUtilities
      * line is trimmed so editor-style CRLF input doesn't leak double-spacing.
      * Runs of three or more blank lines collapse to two — a hard ceiling on
      * vertical sprawl without flattening intentional paragraph breaks.</p>
+     *
+     * @param contentText caller-supplied dialog text (may be {@code null}/empty)
+     *
+     * @return a newline-preserving, redacted, length-capped copy safe to display
      */
     private static String sanitizeDialogTextMultiline( String contentText )
     {
@@ -410,6 +430,9 @@ public class GUIUtilities
      * Show an error message dialog to user with specified information and retry option.
      *
      * @param contentText dialog content/error text
+     * @param owner       stage to own the dialog; window-modal when showing,
+     *                    application-modal (and ownerless) when {@code null} or hidden
+     * @param retryText   label for the retry button
      *
      * @return true if retry, false if not
      *
@@ -481,6 +504,7 @@ public class GUIUtilities
      * Show a warning message dialog to user with specified information.
      *
      * @param contentText dialog content/warning text
+     * @param owner       stage to own the dialog (window-modal parent); may be {@code null}
      *
      * @since 1.0
      */

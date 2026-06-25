@@ -45,7 +45,10 @@ public class VanillaVersionManager
     /**
      * Fetches and caches all versions from the Mojang version manifest.
      *
-     * @return list of version objects with fields: id, type, url, releaseTime
+     * @return list of version objects with fields: id, type, url, releaseTime;
+     *         empty when the manifest cannot be downloaded or parsed
+     *
+     * @since 3.0
      */
     public static synchronized List< JsonObject > getAllVersions() {
         if ( allVersions != null ) {
@@ -88,7 +91,10 @@ public class VanillaVersionManager
      *
      * @param type "release", "snapshot", "old_beta", "old_alpha", or "all"
      *
-     * @return filtered list of version objects
+     * @return filtered list of version objects; the full list when
+     *         {@code type} is {@code "all"}
+     *
+     * @since 3.0
      */
     public static List< JsonObject > getVersionsByType( String type ) {
         List< JsonObject > all = getAllVersions();
@@ -106,13 +112,22 @@ public class VanillaVersionManager
 
     /**
      * Returns the list of installed vanilla version IDs from config.
+     *
+     * @return the configured installed vanilla version IDs
+     *
+     * @since 3.0
      */
     public static List< String > getInstalledVersionIds() {
         return ConfigManager.getInstalledVanillaVersions();
     }
 
     /**
-     * Installs a vanilla version by adding its ID to the config.
+     * Installs a vanilla version by adding its ID to the config. No-op if
+     * the version is already installed.
+     *
+     * @param versionId the Mojang version ID to mark installed
+     *
+     * @since 3.0
      */
     public static void installVersion( String versionId ) {
         List< String > installed = new ArrayList<>( getInstalledVersionIds() );
@@ -124,6 +139,10 @@ public class VanillaVersionManager
 
     /**
      * Uninstalls a vanilla version by removing its ID from the config.
+     *
+     * @param versionId the Mojang version ID to remove
+     *
+     * @since 3.0
      */
     public static void uninstallVersion( String versionId ) {
         List< String > installed = new ArrayList<>( getInstalledVersionIds() );
@@ -133,6 +152,12 @@ public class VanillaVersionManager
 
     /**
      * Checks if a version is currently installed.
+     *
+     * @param versionId the Mojang version ID to test
+     *
+     * @return {@code true} if the version is recorded as installed
+     *
+     * @since 3.0
      */
     public static boolean isInstalled( String versionId ) {
         return getInstalledVersionIds().contains( versionId );
@@ -140,6 +165,12 @@ public class VanillaVersionManager
 
     /**
      * Returns the display name for a vanilla version (e.g. "Minecraft 1.20.4").
+     *
+     * @param versionId the Mojang version ID
+     *
+     * @return the human-readable display name
+     *
+     * @since 3.0
      */
     public static String getDisplayName( String versionId ) {
         return "Minecraft " + versionId;
@@ -147,6 +178,12 @@ public class VanillaVersionManager
 
     /**
      * Returns the friendly name for use in the modpack selection list.
+     *
+     * @param versionId the Mojang version ID
+     *
+     * @return the friendly name including the {@code (Vanilla)} suffix
+     *
+     * @since 3.0
      */
     public static String getFriendlyName( String versionId ) {
         return "Minecraft " + versionId + " (Vanilla)";

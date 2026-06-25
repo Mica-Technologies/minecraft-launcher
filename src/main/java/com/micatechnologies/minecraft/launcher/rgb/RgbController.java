@@ -97,6 +97,16 @@ public final class RgbController
 
     private static volatile RgbController INSTANCE;
 
+    /**
+     * Returns the process-wide controller singleton, lazily creating it
+     * on first call using double-checked locking. The created instance
+     * is inert until {@link #start(List)} (or {@link #start(RgbBackend)})
+     * activates it, so calling this from cold paths is cheap.
+     *
+     * @return the shared {@link RgbController} instance; never {@code null}
+     *
+     * @since 2026.5
+     */
     public static RgbController getInstance()
     {
         RgbController local = INSTANCE;
@@ -160,6 +170,11 @@ public final class RgbController
     /**
      * Single-backend convenience overload. {@code null} or a
      * {@link NoOpBackend} starts an empty session (no real backends).
+     *
+     * @param backend the lone backend to activate, or {@code null} /
+     *                a {@link NoOpBackend} to start an empty session
+     *
+     * @since 2026.5
      */
     public synchronized void start( RgbBackend backend )
     {
@@ -183,6 +198,12 @@ public final class RgbController
      * (or throwing) drops just that backend from the active list. The
      * launcher continues with whatever subset succeeded — including
      * none.</p>
+     *
+     * @param backends the backends to probe and activate; {@code null}
+     *                 is treated as an empty list, {@link NoOpBackend}
+     *                 entries are filtered out
+     *
+     * @since 2026.5
      */
     public synchronized void start( List< RgbBackend > backends )
     {
@@ -300,6 +321,12 @@ public final class RgbController
      * if the queue is full (worker stalled on a slow SDK call) the
      * frame is dropped silently. Returns immediately on every thread
      * including the FX thread.
+     *
+     * @param frame the frame to enqueue for rendering; {@code null} is
+     *             ignored, as is any frame submitted while the
+     *             controller is not running
+     *
+     * @since 2026.5
      */
     public void submitFrame( RgbFrame frame )
     {
@@ -319,6 +346,11 @@ public final class RgbController
      * <p>The effect engine is created lazily on first use, so a launcher
      * session that never enables RGB never spins up the
      * {@code mica-rgb-effects} scheduler thread.</p>
+     *
+     * @param effect the effect to drive, or {@code null} to stop the
+     *              current effect (painting one final black frame)
+     *
+     * @since 2026.5
      */
     public void setEffect( RgbEffect effect )
     {
@@ -340,15 +372,26 @@ public final class RgbController
         eng.setEffect( effect );
     }
 
-    /** Convenience for {@code setEffect(null)}. */
+    /**
+     * Convenience for {@code setEffect(null)} — stops the active effect.
+     *
+     * @since 2026.5
+     */
     public void stopEffect()
     {
         setEffect( null );
     }
 
-    /** Returns the currently-active effect (for the Settings status
-     *  chip). Null when no effect or when the engine hasn't been
-     *  created yet. */
+    /**
+     * Returns the currently-active effect (for the Settings status
+     * chip). Null when no effect or when the engine hasn't been
+     * created yet.
+     *
+     * @return the active {@link RgbEffect}, or {@code null} when none is
+     *         set or the lazy effect engine has not been created
+     *
+     * @since 2026.5
+     */
     public RgbEffect activeEffect()
     {
         RgbEffectEngine eng;
@@ -364,6 +407,13 @@ public final class RgbController
      * {@link RgbBackend#name()} string, {@code health} is the circuit
      * breaker state, and {@code consecutiveFailures} is the current
      * failure run length (useful for "Degraded (3 errors)" displays).
+     *
+     * @param name                the backend's {@link RgbBackend#name()}
+     *                            display string
+     * @param health              the circuit-breaker state of this backend
+     * @param consecutiveFailures the current consecutive-failure run length
+     *
+     * @since 2026.5
      */
     public record BackendStatus( String name, RgbBackendHealth.State health,
                                  int consecutiveFailures ) {}
@@ -371,20 +421,41 @@ public final class RgbController
     /** Snapshot of subsystem state for the Settings status chip. Safe
      *  from any thread. {@code backends} is in dispatch order; the
      *  first entry is the "primary" displayed in compact status
-     *  surfaces. Empty when nothing is running. */
+     *  surfaces. Empty when nothing is running.
+     *
+     * @param backends per-backend status snapshots in dispatch order;
+     *                 the first entry is the "primary" backend
+     * @param running  whether the controller's worker is currently active
+     *
+     * @since 2026.5
+     */
     public record Status( List< BackendStatus > backends, boolean running )
     {
-        /** Convenience accessor for legacy chip code that only renders
-         *  one backend. Returns {@code "None"} when empty. */
+        /**
+         * Convenience accessor for legacy chip code that only renders
+         * one backend. Returns {@code "None"} when empty.
+         *
+         * @return the name of the primary (first) backend, or
+         *         {@code "None"} when no backends are present
+         *
+         * @since 2026.5
+         */
         public String primaryName()
         {
             return backends.isEmpty() ? "None" : backends.get( 0 ).name();
         }
 
-        /** Worst health across all slots — HEALTHY > DEGRADED > DEAD.
-         *  Lets the chip show DEAD when any one backend is dead even if
-         *  others are fine, which is the right thing for "is everything
-         *  working" status. */
+        /**
+         * Worst health across all slots — HEALTHY &gt; DEGRADED &gt; DEAD.
+         * Lets the chip show DEAD when any one backend is dead even if
+         * others are fine, which is the right thing for "is everything
+         * working" status.
+         *
+         * @return the worst (least-healthy) state across all backends;
+         *         {@link RgbBackendHealth.State#HEALTHY} when empty
+         *
+         * @since 2026.5
+         */
         public RgbBackendHealth.State worstHealth()
         {
             RgbBackendHealth.State worst = RgbBackendHealth.State.HEALTHY;

@@ -50,6 +50,15 @@ public final class NetworkConfig
         return json.get( ConfigConstants.PROXY_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether a manual SOCKS / HTTP proxy is in effect.
+     *
+     * @param enable {@code true} to route launcher traffic through the
+     *               configured proxy, {@code false} to use the JVM-default
+     *               resolver
+     *
+     * @since 2026.5
+     */
     public static synchronized void setProxyEnable( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.PROXY_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -66,6 +75,14 @@ public final class NetworkConfig
         return json.get( ConfigConstants.PROXY_HOST_KEY ).getAsString();
     }
 
+    /**
+     * Sets the proxy host (FQDN or IP). A {@code null} value is stored as the
+     * empty string.
+     *
+     * @param host the proxy host, or {@code null} to clear it
+     *
+     * @since 2026.5
+     */
     public static synchronized void setProxyHost( String host ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.PROXY_HOST_KEY,
                                                   host != null ? host : "" );
@@ -83,6 +100,14 @@ public final class NetworkConfig
         return json.get( ConfigConstants.PROXY_PORT_KEY ).getAsInt();
     }
 
+    /**
+     * Sets the proxy port. The store is schema-loose — range validation belongs
+     * at the UI / consumer layer.
+     *
+     * @param port the proxy port to store
+     *
+     * @since 2026.5
+     */
     public static synchronized void setProxyPort( int port ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.PROXY_PORT_KEY, port );
         ConfigStore.scheduleWrite();
@@ -100,6 +125,14 @@ public final class NetworkConfig
         return json.get( ConfigConstants.PROXY_TYPE_KEY ).getAsString();
     }
 
+    /**
+     * Sets the proxy type ({@code "HTTP"} or {@code "SOCKS"}). A {@code null}
+     * value is coerced to {@code "HTTP"}.
+     *
+     * @param type the proxy type, or {@code null} to default to {@code "HTTP"}
+     *
+     * @since 2026.5
+     */
     public static synchronized void setProxyType( String type ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.PROXY_TYPE_KEY,
                                                   type != null ? type : "HTTP" );

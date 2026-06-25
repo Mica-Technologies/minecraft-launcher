@@ -101,7 +101,26 @@ public final class OfficialLauncherExporter
 
     /** Outcome of an export attempt. Carries enough state for the GUI
      *  to render either the success toast or the "you need to install
-     *  the loader first" follow-up dialog. */
+     *  the loader first" follow-up dialog.
+     *
+     *  @param success            {@code true} when the export (or removal)
+     *                            completed; {@code false} when it failed
+     *  @param profileName        the Mojang-launcher profile display name
+     *                            written / removed, or {@code null} on failure
+     *  @param gameDir            absolute path of the export gameDir, or
+     *                            {@code null} on failure
+     *  @param versionId          the resolved Mojang-launcher version ID, or
+     *                            {@code null} on failure / removal
+     *  @param loaderInstalled    {@code true} when the matching version
+     *                            directory already exists under
+     *                            {@code .minecraft/versions/}; {@code false}
+     *                            signals the caller to warn the user to
+     *                            install the loader first
+     *  @param loaderInstallerUrl best-effort URL of the loader installer to
+     *                            offer in the loader-missing warning, or
+     *                            {@code null} when unavailable / vanilla
+     *  @param errorMessage       localized failure message, or {@code null}
+     *                            on success */
     public record Result(
             boolean success,
             String profileName,
@@ -111,11 +130,29 @@ public final class OfficialLauncherExporter
             String loaderInstallerUrl,
             String errorMessage
     ) {
+        /**
+         * Builds a successful result.
+         *
+         * @param name            the profile display name written
+         * @param dir             absolute path of the export gameDir
+         * @param versionId       the resolved Mojang-launcher version ID
+         * @param loaderInstalled whether the matching version directory exists
+         * @param installerUrl    loader installer URL, or {@code null}
+         * @return a success {@link Result} with {@code success == true} and no
+         *         error message
+         */
         public static Result success( String name, String dir, String versionId,
                                        boolean loaderInstalled, String installerUrl )
         {
             return new Result( true, name, dir, versionId, loaderInstalled, installerUrl, null );
         }
+        /**
+         * Builds a failure result carrying a user-facing message.
+         *
+         * @param message the localized failure message to surface
+         * @return a failure {@link Result} with {@code success == false} and
+         *         all detail fields null/false
+         */
         public static Result failure( String message ) {
             return new Result( false, null, null, null, false, null, message );
         }
@@ -126,6 +163,11 @@ public final class OfficialLauncherExporter
      * Windows: {@code %APPDATA%\.minecraft}. macOS:
      * {@code ~/Library/Application Support/minecraft}. Linux:
      * {@code ~/.minecraft}.
+     *
+     * @return the platform-appropriate {@code .minecraft} data folder path
+     *         (not guaranteed to exist)
+     *
+     * @since 2026.5
      */
     public static Path resolveDotMinecraft()
     {
@@ -147,7 +189,12 @@ public final class OfficialLauncherExporter
 
     /** Returns {@code true} when the Mojang launcher data folder + the
      *  {@code launcher_profiles.json} file are both present. Used as a
-     *  precondition check before kicking off an export. */
+     *  precondition check before kicking off an export.
+     *
+     *  @return {@code true} when both the {@code .minecraft} directory and
+     *          its {@code launcher_profiles.json} exist
+     *
+     *  @since 2026.5 */
     public static boolean isOfficialLauncherAvailable()
     {
         Path dotMc = resolveDotMinecraft();
@@ -250,6 +297,15 @@ public final class OfficialLauncherExporter
      * hand-edit launcher_profiles.json. Surfaced from the right-click
      * menu + detail modal only when a Mica profile for the pack exists,
      * so users don't see a no-op button on un-exported packs.</p>
+     *
+     * @param pack the pack whose Mica-owned profile + export gameDir should
+     *             be removed
+     * @return a success {@link Result} once the desired "no Mica profile"
+     *         end-state holds (including when nothing existed to remove); a
+     *         failure result only when rewriting {@code launcher_profiles.json}
+     *         fails
+     *
+     * @since 2026.5
      */
     public static Result removeExport( GameModPack pack )
     {
@@ -309,7 +365,13 @@ public final class OfficialLauncherExporter
 
     /** Returns {@code true} when a Mica-owned profile for this pack
      *  exists in launcher_profiles.json. Used by the UI to decide
-     *  whether to surface the Remove action. */
+     *  whether to surface the Remove action.
+     *
+     *  @param pack the pack to check; {@code null} yields {@code false}
+     *  @return {@code true} when a profile keyed on this pack's stable key is
+     *          present in {@code launcher_profiles.json}
+     *
+     *  @since 2026.5 */
     public static boolean hasExportedProfile( GameModPack pack )
     {
         if ( pack == null ) return false;
@@ -340,7 +402,15 @@ public final class OfficialLauncherExporter
      *
      *  <p>Public so the GUI confirmation flow can pre-flight the value
      *  before showing the dialog (and warn the user about a missing
-     *  loader version directory without doing the full copy first).</p> */
+     *  loader version directory without doing the full copy first).</p>
+     *
+     *  @param pack the pack (or vanilla version) to resolve an ID for
+     *  @return the Mojang-launcher version ID for the pack's loader, or its
+     *          raw Minecraft version for vanilla packs
+     *  @throws Exception if a vanilla pack has no Minecraft version, or pack
+     *          metadata access fails while deriving the ID
+     *
+     *  @since 2026.5 */
     public static String computeVersionId( GameModPack pack ) throws Exception
     {
         if ( pack.isVanillaVersion() ) {
@@ -390,7 +460,15 @@ public final class OfficialLauncherExporter
     /** Returns {@code true} when {@code .minecraft/versions/<id>/<id>.json}
      *  exists — the Mojang launcher's "this version is installed" marker.
      *  Public so the confirmation dialog can drive the loader-missing
-     *  warning without invoking the full export pipeline first. */
+     *  warning without invoking the full export pipeline first.
+     *
+     *  @param dotMc     the resolved {@code .minecraft} data folder
+     *  @param versionId the Mojang-launcher version ID to look for
+     *  @return {@code true} when the version's {@code <id>.json} marker file
+     *          exists; {@code false} when {@code versionId} is blank or the
+     *          file is absent
+     *
+     *  @since 2026.5 */
     public static boolean isVersionInstalled( Path dotMc, String versionId )
     {
         if ( versionId == null || versionId.isBlank() ) return false;
@@ -417,7 +495,13 @@ public final class OfficialLauncherExporter
 
     /** Where the per-pack export gameDir lives. Public so the
      *  Phase 5 remove flow can surface the path in its confirmation
-     *  dialog (so users know exactly what gets deleted). */
+     *  dialog (so users know exactly what gets deleted).
+     *
+     *  @param pack the pack to compute the export gameDir for
+     *  @return the per-pack export directory under
+     *          {@code <launcher-data>/official-launcher-exports/}
+     *
+     *  @since 2026.5 */
     public static Path computeExportGameDir( GameModPack pack )
     {
         String launcherLocal = LocalPathManager.getLauncherLocalPath();
@@ -427,7 +511,12 @@ public final class OfficialLauncherExporter
 
     /** Strips characters Windows / macOS / Linux disallow in folder names
      *  and trims to a reasonable length. Result is never empty — falls
-     *  back to {@code "modpack"}. */
+     *  back to {@code "modpack"}.
+     *
+     *  @param name the raw folder name (typically a pack display name)
+     *  @return a filesystem-safe name (control chars dropped, reserved chars
+     *          replaced with {@code _}, capped at 80 chars), or
+     *          {@code "modpack"} when nothing usable remains */
     static String sanitizeFolderName( String name )
     {
         if ( name == null || name.isBlank() ) return "modpack";
@@ -566,6 +655,13 @@ public final class OfficialLauncherExporter
     // Profile entry construction
     // ====================================================================
 
+    /** Builds the Mojang-launcher profile display name for a pack: the pack
+     *  name (or a {@code Minecraft}/{@code Modpack} fallback) suffixed with
+     *  {@code  (Mica)} so users can tell Mica-owned profiles apart in the
+     *  Mojang UI.
+     *
+     *  @param pack the pack to name
+     *  @return the {@code  (Mica)}-tagged profile display name */
     static String profileDisplayName( GameModPack pack )
     {
         String base = pack.getPackName();
@@ -580,7 +676,11 @@ public final class OfficialLauncherExporter
     /** Deterministic UUID per pack. Two packs with different manifest
      *  URLs / vanilla IDs produce different keys; the same pack across
      *  re-exports produces the same key (so the profile updates in
-     *  place rather than duplicating). */
+     *  place rather than duplicating).
+     *
+     *  @param pack the pack to derive a profile key for
+     *  @return a deterministic UUID string keyed on the pack's manifest URL
+     *          (or vanilla version), stable across re-exports */
     static String stableProfileKey( GameModPack pack )
     {
         String identity;
@@ -696,6 +796,12 @@ public final class OfficialLauncherExporter
      * <p>Read-only — does not trigger {@link com.micatechnologies.minecraft.launcher.files.RuntimeManager#getJavaPath}'s
      * download/verify path. We walk the runtime root on disk directly so
      * an export action never blocks on a network fetch.</p>
+     *
+     * @param pack the pack whose Minecraft version selects the runtime
+     *             component; {@code null} yields {@code null}
+     * @return the absolute path Mica's installed Java for the pack's MC
+     *         version, in the shape the Mojang {@code javaDir} field expects,
+     *         or {@code null} when no matching runtime is installed
      */
     static String resolveMicaJavaDir( GameModPack pack )
     {
@@ -717,7 +823,12 @@ public final class OfficialLauncherExporter
      *  manifests directly here because the export path may run before
      *  the pack has ever been launched, when the version manifest isn't
      *  in Mica's cache yet. Falls back to {@code jre-legacy} on parse
-     *  failure since that's the safest "old MC" answer. */
+     *  failure since that's the safest "old MC" answer.
+     *
+     *  @param mcVersion the Minecraft version string (e.g. {@code 1.20.1})
+     *  @return the Mojang runtime component name the launcher would pick for
+     *          that version (e.g. {@code java-runtime-gamma}), defaulting to
+     *          {@code jre-legacy} on blank / unparseable input */
     static String pickRuntimeComponent( String mcVersion )
     {
         if ( mcVersion == null || mcVersion.isBlank() ) {

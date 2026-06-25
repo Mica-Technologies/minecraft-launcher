@@ -88,6 +88,14 @@ public final class VerifyState
 
     // ===== load / save =====
 
+    /**
+     * Resolves the sidecar path {@code <packRoot>/.verify_state.json} for
+     * the given pack.
+     *
+     * @param pack the modpack whose pack root is used
+     *
+     * @return the sidecar file path
+     */
     private static Path sidecarPath( GameModPack pack )
     {
         return Path.of( pack.getPackRootFolder(), VERIFY_STATE_FILE );
@@ -96,7 +104,14 @@ public final class VerifyState
     /** Reads the sidecar from {@code <packRoot>/.verify_state.json}, or
      *  returns {@code null} if absent / unreadable. Treating any read
      *  failure as "no state" forces a full verify on the next launch,
-     *  which is the safe default — the cost is one slow launch. */
+     *  which is the safe default — the cost is one slow launch.
+     *
+     *  @param pack the modpack whose sidecar is read
+     *
+     *  @return the parsed {@link VerifyState}, or {@code null} if the
+     *          sidecar is missing or cannot be read / parsed
+     *
+     *  @since 2026.3 */
     public static VerifyState loadForPack( GameModPack pack )
     {
         try {
@@ -114,7 +129,13 @@ public final class VerifyState
     }
 
     /** Writes the sidecar atomically (best-effort) so a partial write doesn't
-     *  leave a corrupted JSON the next load has to discard. */
+     *  leave a corrupted JSON the next load has to discard. I/O failures are
+     *  logged and swallowed rather than propagated.
+     *
+     *  @param pack  the modpack whose sidecar is written
+     *  @param state the verify-state record to persist
+     *
+     *  @since 2026.3 */
     public static void saveForPack( GameModPack pack, VerifyState state )
     {
         try {
@@ -141,6 +162,14 @@ public final class VerifyState
      * <p>Returns {@code null} on hash failure — the caller should treat that
      * as "manifest changed" and fall back to full verify, since we can't
      * prove non-change without a hash.</p>
+     *
+     * @param manifestBody the manifest JSON body to hash
+     *
+     * @return the lowercase-hex SHA-256 of {@code manifestBody}, or
+     *         {@code null} when {@code manifestBody} is {@code null} or
+     *         hashing fails
+     *
+     * @since 2026.3
      */
     public static String computeManifestSha256( String manifestBody )
     {
@@ -181,6 +210,11 @@ public final class VerifyState
      * @param ttlMs                  fast-path validity window after verifiedAt
      * @param alwaysVerifyOnLaunch   per-pack toggle (default false)
      * @param globalForceFullVerify  launcher-wide flag (default false)
+     *
+     * @return {@link LaunchVerifyMode#FAST_PATH} when every eligibility
+     *         condition above holds, otherwise {@link LaunchVerifyMode#FULL}
+     *
+     * @since 2026.3
      */
     public static LaunchVerifyMode decideMode( VerifyState state,
                                                 String currentManifestSha256,
@@ -203,7 +237,15 @@ public final class VerifyState
 
     /** Merges a "verify just succeeded" record into {@code existing} (or a
      *  fresh state if null), preserving scan-tracking fields. Returns the
-     *  updated instance — caller persists via {@link #saveForPack}. */
+     *  updated instance — caller persists via {@link #saveForPack}.
+     *
+     *  @param existing       the prior state to update, or {@code null} to
+     *                       start fresh
+     *  @param manifestSha256 hex SHA-256 of the manifest that was verified
+     *
+     *  @return the updated (or newly created) state with verify fields set
+     *
+     *  @since 2026.3 */
     public static VerifyState successfulVerify( VerifyState existing, String manifestSha256 )
     {
         VerifyState s = existing != null ? existing : new VerifyState();
@@ -215,7 +257,15 @@ public final class VerifyState
 
     /** Merges a "scan just succeeded" record into {@code existing} (or a
      *  fresh state if null), preserving verify-tracking fields. Returns
-     *  the updated instance — caller persists via {@link #saveForPack}. */
+     *  the updated instance — caller persists via {@link #saveForPack}.
+     *
+     *  @param existing       the prior state to update, or {@code null} to
+     *                       start fresh
+     *  @param manifestSha256 hex SHA-256 of the manifest in effect at scan time
+     *
+     *  @return the updated (or newly created) state with scan fields set
+     *
+     *  @since 2026.3 */
     public static VerifyState successfulScan( VerifyState existing, String manifestSha256 )
     {
         VerifyState s = existing != null ? existing : new VerifyState();

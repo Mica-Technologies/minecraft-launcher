@@ -44,17 +44,46 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Top-level JavaFX {@link Application} that owns the launcher's single primary {@link Stage} and orchestrates
+ * everything that lives at the window level rather than inside any one screen.
+ *
+ * <p>A single instance hosts the stream of {@link MCLauncherAbstractGui} screens shown over the launcher's lifetime:
+ * {@link #setScene(MCLauncherAbstractGui)} swaps the active screen into the stage, wiring up its scene, minimum size,
+ * help button, system menu bar, title, and theme. The window also manages a number of cross-screen concerns:</p>
+ *
+ * <ul>
+ *     <li>A dark-fill cold-start placeholder scene (with a deferred bouncing voxel animation) so the very first paint
+ *         isn't OS-default white while the session thread bootstraps — see {@link #attachPlaceholderVoxelsAsync()}.</li>
+ *     <li>Persisting and restoring the window's bounds + maximized state across launches
+ *         (debounced) — see {@link #installBoundsPersistence()} and {@link #restoreSavedBounds()}.</li>
+ *     <li>Theme application: layering legacy + ui-base + token stylesheets and driving the matching native chrome
+ *         (Windows DWM Mica / caption color, macOS vibrancy / hidden-inset title bar) — see {@link #applyTheme}.</li>
+ *     <li>OS-theme-change tracking via {@link OsThemeDetector} so Automatic / Native themes follow the OS.</li>
+ *     <li>Platform integration shims that are no-ops off their target OS (Windows monitor-change taskbar nudge,
+ *         macOS dock menu + native toolbar).</li>
+ * </ul>
+ */
 public class MCLauncherGuiWindow extends Application
 {
 
+    /** Preferred (default) window width, in pixels, used for the cold-start placeholder scene. */
     private static final double                PREF_WIDTH  = 1000.0;
+    /** Preferred (default) window height, in pixels, used for the cold-start placeholder scene. */
     private static final double                PREF_HEIGHT = 800.0;
+    /** Most-permissive minimum window width, in pixels. Individual screens may raise this via their FXML min. */
     private static final double                MIN_WIDTH   = 750.0;
+    /** Most-permissive minimum window height, in pixels. Individual screens may raise this via their FXML min. */
     private static final double                MIN_HEIGHT  = 600.0;
+    /** The single primary stage this window owns, captured in {@link #start(Stage)}. */
     private              Stage                 stage;
+    /** The screen currently displayed in the stage's scene, or {@code null} before the first {@link #setScene}. */
     private              MCLauncherAbstractGui gui;
 
+    /** OS theme detector used to follow light/dark OS changes for the Automatic / Native themes; {@code null} if the
+     *  detector could not be created. */
     private OsThemeDetector detector = null;
+    /** The registered OS-theme change listener, retained so it can be removed before re-registering or at cleanup. */
     private java.util.function.Consumer< Boolean > themeListener = null;
 
     /**
@@ -83,6 +112,21 @@ public class MCLauncherGuiWindow extends Application
     /** Same volatile-cleanup-vs-FX-close race as {@link #boundsSaveDebouncer}. */
     private volatile PauseTransition monitorChangeDebouncer   = null;
 
+    /**
+     * JavaFX application entry point for the launcher's primary window. Captures the stage, configures its minimum
+     * size / resizability / icon, sets up the OS theme detector, restores any saved bounds, and installs a minimal
+     * dark-fill placeholder scene before showing so the first paint isn't OS-default white. After showing, it begins
+     * persisting bounds changes, installs the Windows monitor-change taskbar nudge, and installs the macOS dock menu.
+     *
+     * <p>The bouncing voxel placeholder animation is attached asynchronously ({@link #attachPlaceholderVoxelsAsync()})
+     * so its node-class + rasterization cost stays off the cold path the first scene paint pays for.</p>
+     *
+     * {@inheritDoc}
+     *
+     * @param stage the primary stage supplied by the JavaFX runtime
+     *
+     * @throws Exception if startup fails in a way the JavaFX launcher should surface
+     */
     @Override
     public void start( Stage stage ) throws Exception {
         // Save stage
@@ -213,7 +257,12 @@ public class MCLauncherGuiWindow extends Application
         } );
     }
 
-    /** One 36×36 isometric voxel cube (top + left + right faces) drawn as SVG paths. */
+    /** One 36×36 isometric voxel cube (top + left + right faces) drawn as SVG paths.
+     *
+     *  @param topHex   fill color (hex) of the top face
+     *  @param leftHex  fill color (hex) of the left face
+     *  @param rightHex fill color (hex) of the right face
+     *  @return a {@link javafx.scene.Group} containing the three face paths */
     private static javafx.scene.Group buildVoxelCube( String topHex, String leftHex, String rightHex ) {
         javafx.scene.Group cube = new javafx.scene.Group();
         javafx.scene.shape.SVGPath top = new javafx.scene.shape.SVGPath();
@@ -229,7 +278,10 @@ public class MCLauncherGuiWindow extends Application
         return cube;
     }
 
-    /** Indefinite-cycle bounce on the given cube node with a staggered start. */
+    /** Indefinite-cycle bounce on the given cube node with a staggered start.
+     *
+     *  @param cube    the cube node to animate
+     *  @param delayMs the start delay, in milliseconds, used to stagger sibling cubes */
     private void startBounce( javafx.scene.Group cube, int delayMs ) {
         javafx.animation.TranslateTransition tt = new javafx.animation.TranslateTransition(
                 Duration.millis( 500 ), cube );
@@ -451,6 +503,19 @@ public class MCLauncherGuiWindow extends Application
         } );
     }
 
+    /**
+     * Swaps the given screen into the stage as the active GUI. Cleans up the previously-shown screen, runs the new
+     * screen's {@code setup()}, syncs the stage's minimum size to the screen's root min, injects the corner help
+     * button (for navbar-less screens), attaches the system menu bar, sets the window title, applies the current
+     * theme, and installs the platform-specific title-bar chrome (Windows custom chrome, macOS hidden-inset +
+     * native toolbar) before finally setting the scene and calling the screen's {@code afterShow()}.
+     *
+     * <p>The very first call also stops the cold-start placeholder animations. All scene mutation runs on the FX
+     * thread. After the scene swap, the OS-theme change listener is (re)registered so Automatic / Native themes keep
+     * following the OS.</p>
+     *
+     * @param gui the screen to display; its {@code scene} and {@code rootPane} must already be built
+     */
     void setScene( MCLauncherAbstractGui gui ) {
         // Cleanup previous GUI, if present
         if ( this.gui != null ) {
@@ -593,6 +658,15 @@ public class MCLauncherGuiWindow extends Application
         }
     }
 
+    /**
+     * Shows the stage on the FX thread, applying first-show-only platform chrome setup. On the first show this
+     * installs the macOS hidden-inset title bar + native toolbar (and re-applies them on every later
+     * {@code WINDOW_SHOWN}), installs the Windows custom-chrome window-proc subclass, and applies the initial DWM
+     * chrome attributes (dark-mode title bar, Mica backdrop, caption/border color, and a forced full repaint) so the
+     * very first painted frame already carries the themed chrome. Subsequent calls (one per screen navigation) simply
+     * re-show the already-visible stage without re-firing the DWM attributes, which has been observed to stutter on
+     * focus regain.
+     */
     public void show() {
         GUIUtilities.JFXPlatformRun( () -> {
             boolean firstShow = !stage.isShowing();
@@ -736,6 +810,11 @@ public class MCLauncherGuiWindow extends Application
         return null;
     }
 
+    /**
+     * Returns the primary {@link Stage} this window owns.
+     *
+     * @return the launcher's primary stage, or {@code null} if {@link #start(Stage)} has not yet run
+     */
     public Stage getStage() {
         return stage;
     }
@@ -749,6 +828,12 @@ public class MCLauncherGuiWindow extends Application
         return gui;
     }
 
+    /**
+     * Re-resolves and re-applies the user's configured theme to the active screen (and the help window, if open).
+     * For the Automatic and Native themes this consults the OS light/dark preference; every other theme maps to a
+     * fixed stylesheet pair. Safe to call after any event that may have changed the effective theme (config change,
+     * OS theme toggle, screen navigation).
+     */
     public void forceThemeChange() {
         // Also refresh the help window theme if it's open
         MCLauncherHelpWindow.refreshTheme();
@@ -797,36 +882,52 @@ public class MCLauncherGuiWindow extends Application
      *  Material green to a brand-blue palette to match the modern token-sheet primary.
      *  Creeper's brand is green, so it keeps a green-accented legacy sheet — the
      *  sheet is a snapshot of legacy-dark from before the blue retune.</p> */
+    /** Legacy single-theme stylesheet for the Dark theme (also shared by the Native dark variant). */
     private static final String LEGACY_DARK         = "guiStyle-dark.css";
+    /** Legacy single-theme stylesheet for the Light theme (also shared by the Native light variant). */
     private static final String LEGACY_LIGHT        = "guiStyle-light.css";
+    /** Legacy single-theme stylesheet for the Blue/Gray theme. */
     private static final String LEGACY_BLUE_GRAY    = "guiStyle-bluegray.css";
+    /** Legacy single-theme stylesheet for the Orange/Purple theme. */
     private static final String LEGACY_ORANGE_PURPLE = "guiStyle-orangepurple.css";
+    /** Legacy single-theme stylesheet for the Creeper theme (green-accented snapshot of legacy-dark). */
     private static final String LEGACY_CREEPER       = "guiStyle-creeper.css";
 
     /** Path to the brand-new theme-agnostic base sheet (font stack + component shell). */
     private static final String UI_BASE_SHEET       = "ui/ui-base.css";
 
     /** Per-theme token sheets that define `-color-*` lookup variables consumed by ui-base.css. */
+    /** Token sheet for the Dark theme. */
     private static final String UI_TOKENS_DARK         = "ui/ui-tokens-dark.css";
+    /** Token sheet for the Light theme. */
     private static final String UI_TOKENS_LIGHT        = "ui/ui-tokens-light.css";
+    /** Token sheet for the Blue/Gray theme. */
     private static final String UI_TOKENS_BLUE_GRAY    = "ui/ui-tokens-bluegray.css";
+    /** Token sheet for the Orange/Purple theme. */
     private static final String UI_TOKENS_ORANGE_PURPLE = "ui/ui-tokens-orangepurple.css";
+    /** Token sheet for the Creeper theme. */
     private static final String UI_TOKENS_CREEPER       = "ui/ui-tokens-creeper.css";
+    /** Token sheet for the Native (dark) theme — translucent surfaces for the OS backdrop to show through. */
     private static final String UI_TOKENS_NATIVE        = "ui/ui-tokens-native.css";
+    /** Token sheet for the Native light variant — translucent surfaces over a light OS backdrop. */
     private static final String UI_TOKENS_NATIVE_LIGHT  = "ui/ui-tokens-native-light.css";
 
+    /** Applies the opaque Light theme (legacy-light + ui-tokens-light). */
     private void switchToLightTheme() {
         applyTheme( LEGACY_LIGHT, UI_TOKENS_LIGHT );
     }
 
+    /** Applies the opaque Dark theme (legacy-dark + ui-tokens-dark). */
     private void switchToDarkTheme() {
         applyTheme( LEGACY_DARK, UI_TOKENS_DARK );
     }
 
+    /** Applies the opaque Blue/Gray theme (legacy-bluegray + ui-tokens-bluegray). */
     private void switchToBlueGrayTheme() {
         applyTheme( LEGACY_BLUE_GRAY, UI_TOKENS_BLUE_GRAY );
     }
 
+    /** Applies the opaque Orange/Purple theme (legacy-orangepurple + ui-tokens-orangepurple). */
     private void switchToOrangePurpleTheme() {
         applyTheme( LEGACY_ORANGE_PURPLE, UI_TOKENS_ORANGE_PURPLE );
     }
@@ -909,6 +1010,17 @@ public class MCLauncherGuiWindow extends Application
     private String appliedLegacySheet;
     private String appliedTokenSheet;
 
+    /**
+     * Installs the given (legacy, token) stylesheet pair onto the active screen's root pane in layered order
+     * (legacy → {@link #UI_BASE_SHEET} → token), painting a matching inline background fall-back, and — only on an
+     * actual theme change to an already-showing window — driving the native chrome pipeline (Windows DWM backdrop,
+     * caption/border color, title-bar dark mode, full repaint; macOS vibrancy teardown for opaque themes). A no-op
+     * if no real screen is installed yet (the cold-start placeholder has no controller). Plain navigations that
+     * re-apply the same theme skip the chrome pipeline to avoid a visible composition flicker.
+     *
+     * @param legacySheet classpath path of the legacy single-theme stylesheet to install
+     * @param tokenSheet  classpath path of the {@code ui-tokens-*.css} sheet defining the {@code -color-*} palette
+     */
     private void applyTheme( String legacySheet, String tokenSheet ) {
         GUIUtilities.JFXPlatformRun( () -> {
             // Cold-start window: the initial placeholder scene installed in start()
@@ -1071,7 +1183,10 @@ public class MCLauncherGuiWindow extends Application
     }
 
     /** Mirrors the {@code -color-bg} lookup defined in each ui-tokens-{theme}.css. Used as the inline
-     *  fallback bg color so we never rely solely on lookup-variable resolution. */
+     *  fallback bg color so we never rely solely on lookup-variable resolution.
+     *
+     *  @param tokenSheet the active token sheet's path, or {@code null}
+     *  @return the hex background color string for that theme, or the dark default when {@code null}/unrecognized */
     private static String themeBgHex( String tokenSheet ) {
         if ( tokenSheet == null ) return "#0C1017";
         if ( tokenSheet.endsWith( "ui-tokens-light.css" ) )         return "#FFFFFF";
@@ -1092,6 +1207,14 @@ public class MCLauncherGuiWindow extends Application
     private static final java.util.concurrent.ConcurrentHashMap< String, String > CSS_URL_CACHE =
             new java.util.concurrent.ConcurrentHashMap<>();
 
+    /**
+     * Resolves a classpath CSS resource to its external URL form, memoizing the result.
+     *
+     * @param resourcePath the classpath-relative path of the CSS resource
+     * @return the resource's external URL string
+     *
+     * @throws NullPointerException if no such resource exists on the classpath
+     */
     private String cssUrl( String resourcePath ) {
         return CSS_URL_CACHE.computeIfAbsent( resourcePath, p ->
                 Objects.requireNonNull( getClass().getClassLoader().getResource( p ),
@@ -1198,7 +1321,10 @@ public class MCLauncherGuiWindow extends Application
      *  resolve a fallback bg color without needing an instance. Kept duplicated
      *  rather than refactored because the values rarely change and matching
      *  the per-token-sheet lookup table here keeps the static helper independent
-     *  of the main GUI window's lifecycle. */
+     *  of the main GUI window's lifecycle.
+     *
+     *  @param tokenSheet the active token sheet's path
+     *  @return the solid hex background color string for that theme, or the dark default when unrecognized */
     private static String themeBgHexStatic( String tokenSheet ) {
         if ( tokenSheet.endsWith( "ui-tokens-light.css" ) )         return "#FFFFFF";
         if ( tokenSheet.endsWith( "ui-tokens-blue-gray.css" )
@@ -1216,6 +1342,8 @@ public class MCLauncherGuiWindow extends Application
      * (mainGUI) are expected to declare their own helpBtn directly in FXML — that is the canonical placement and
      * its action handler is wired by the screen's controller. This method handles the screens with no navbar
      * (login splash, progress) by floating a corner overlay help button.
+     *
+     * @param gui the screen whose root pane should receive the floated help button if it has none
      */
     private void injectHelpButton( MCLauncherAbstractGui gui )
     {
@@ -1239,7 +1367,10 @@ public class MCLauncherGuiWindow extends Application
         }
     }
 
-    /** True if any descendant of the given parent has styleClass "helpButton". */
+    /** True if any descendant of the given parent has styleClass "helpButton".
+     *
+     *  @param parent the subtree root to search (may be {@code null})
+     *  @return {@code true} if {@code parent} or any descendant carries the {@code helpButton} style class */
     private boolean hasHelpButton( javafx.scene.Parent parent )
     {
         if ( parent == null ) return false;

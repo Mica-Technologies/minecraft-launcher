@@ -116,12 +116,42 @@ public final class MCLauncherQuickStartWizard
      *  doesn't have. */
     private static final int RAM_SLIDER_MAX_GB = 64;
 
+    /** The modal stage hosting the wizard. Created in {@link #buildStage(Stage)}.
+     *
+     * @since 3.4 */
     private Stage stage;
+
+    /** Stacked host for the step panels — all steps are layered here and toggled
+     *  visible/managed one at a time as the user navigates.
+     *
+     * @since 3.4 */
     private StackPane stepContainer;
+
+    /** The Back navigation button, disabled on the first step.
+     *
+     * @since 3.4 */
     private MFXButton backBtn;
+
+    /** The Next navigation button, relabeled "Get Started" on the final step.
+     *
+     * @since 3.4 */
     private MFXButton nextBtn;
+
+    /** The "step X of N" progress label in the navigation bar.
+     *
+     * @since 3.4 */
     private Label progressIndicator;
+
+    /** Zero-based index of the currently visible step.
+     *
+     * @since 3.4 */
     private int currentStep = 0;
+
+    /** The pre-built step panels, in display order (Welcome, Theme, RAM,
+     *  Preferences, Done). Built once up front so navigating Back retains each
+     *  step's intermediate state.
+     *
+     * @since 3.4 */
     private VBox[] steps;
 
     /**
@@ -137,6 +167,14 @@ public final class MCLauncherQuickStartWizard
         new MCLauncherQuickStartWizard().display( owner );
     }
 
+    /**
+     * Builds the wizard stage on the JavaFX application thread and shows it
+     * modally, blocking the calling flow until the wizard is dismissed.
+     *
+     * @param owner the parent stage, or {@code null} for an unowned modal
+     *
+     * @since 3.4
+     */
     private void display( Stage owner )
     {
         GUIUtilities.JFXPlatformRun( () -> {
@@ -149,6 +187,18 @@ public final class MCLauncherQuickStartWizard
     //  Stage assembly
     // =============================================================================
 
+    /**
+     * Assembles the entire wizard window: the modal stage and its icon/close
+     * handling, all five step panels, the stacked step host, and the bottom
+     * navigation bar (Skip / Back / Next plus the progress indicator). Installs
+     * the active launcher theme stylesheets and matches the OS title-bar
+     * appearance to that theme, then shows the first step. Must run on the
+     * JavaFX application thread.
+     *
+     * @param owner the parent stage to own this modal, or {@code null} for none
+     *
+     * @since 3.4
+     */
     private void buildStage( Stage owner )
     {
         stage = new Stage();
@@ -254,14 +304,32 @@ public final class MCLauncherQuickStartWizard
         goToStep( 0 );
     }
 
-    /** Cheap wrapper around OsThemeDetector for the wizard's pre-show theme
-     *  resolution. Mirrors the pattern in MCLauncherHelpWindow so the OS-state
-     *  query has a single failure mode regardless of detector availability. */
+    /**
+     * Cheap wrapper around OsThemeDetector for the wizard's pre-show theme
+     * resolution. Mirrors the pattern in MCLauncherHelpWindow so the OS-state
+     * query has a single failure mode regardless of detector availability.
+     *
+     * @return {@code true} if the operating system is currently in dark mode,
+     *         {@code false} otherwise (including when detection is unavailable)
+     *
+     * @since 3.4
+     */
     private static boolean isOsDark()
     {
         return com.micatechnologies.minecraft.launcher.utilities.OsThemeUtilities.isOsDark();
     }
 
+    /**
+     * Navigates to the step at the given index, toggling panel visibility,
+     * syncing the Back button's enabled state, relabeling Next ("Get Started"
+     * on the last step), and updating the "step X of N" progress indicator.
+     * Out-of-range indices are ignored, which makes Back on step 0 and Next on
+     * the final step safe no-ops at the bounds.
+     *
+     * @param idx the zero-based index of the step to show
+     *
+     * @since 3.4
+     */
     private void goToStep( int idx )
     {
         if ( idx < 0 || idx >= steps.length ) return;
@@ -278,6 +346,13 @@ public final class MCLauncherQuickStartWizard
                 "quickStart.progressIndicator", idx + 1, steps.length ) );
     }
 
+    /**
+     * Marks the quick-start wizard as completed in config and closes the stage.
+     * Invoked by both the Skip link and the final-step "Get Started" button so
+     * either path persists the completed flag and the wizard never re-prompts.
+     *
+     * @since 3.4
+     */
     private void finish()
     {
         ConfigManager.setQuickStartCompleted( true );
@@ -290,6 +365,14 @@ public final class MCLauncherQuickStartWizard
     //  Step builders
     // =============================================================================
 
+    /**
+     * Builds the Welcome step: branding heading, subtitle, and an intro hint.
+     * Purely informational — the user just clicks Next.
+     *
+     * @return the assembled Welcome step panel
+     *
+     * @since 3.4
+     */
     private VBox buildWelcomeStep()
     {
         VBox step = baseStep();
@@ -310,6 +393,19 @@ public final class MCLauncherQuickStartWizard
         return step;
     }
 
+    /**
+     * Builds the Theme step: a flow-pane grid of mutually-exclusive toggle
+     * buttons, one per entry in {@link #THEME_SWATCHES}, each showing a color
+     * swatch preview. The button matching the current config theme starts
+     * selected; selecting one persists it via {@link ConfigManager#setTheme}
+     * and applies it live (refreshing both the main GUI and the wizard's own
+     * stylesheets) so the change is visible immediately. Deselect is disallowed
+     * so exactly one theme is always chosen.
+     *
+     * @return the assembled Theme step panel
+     *
+     * @since 3.4
+     */
     private VBox buildThemeStep()
     {
         VBox step = baseStep();
@@ -367,6 +463,20 @@ public final class MCLauncherQuickStartWizard
         return step;
     }
 
+    /**
+     * Builds the RAM step: a snap-to-tick slider over the launcher's allowed
+     * heap range, seeded with the recommended allocation (see
+     * {@link #computeRecommendedRamGb(long)}) when the config still holds the
+     * default, or the user's existing allocation otherwise. An inline
+     * recommendation line explains the heuristic. The slider persists its value
+     * to {@link ConfigManager#setMaxRam} only on actual user interaction, never
+     * at build time, so merely opening (or skipping) the wizard does not
+     * overwrite the user's existing RAM setting.
+     *
+     * @return the assembled RAM step panel
+     *
+     * @since 3.4
+     */
     private VBox buildRamStep()
     {
         VBox step = baseStep();
@@ -424,6 +534,16 @@ public final class MCLauncherQuickStartWizard
         return step;
     }
 
+    /**
+     * Builds the Preferences step: two opt-in toggles — Discord rich presence
+     * and launcher update checks — each seeded from current config and writing
+     * back via {@link ConfigManager} only when toggled. Both default ON for a
+     * fresh install.
+     *
+     * @return the assembled Preferences step panel
+     *
+     * @since 3.4
+     */
     private VBox buildPreferencesStep()
     {
         VBox step = baseStep();
@@ -460,6 +580,15 @@ public final class MCLauncherQuickStartWizard
         return step;
     }
 
+    /**
+     * Builds the Done step: a closing heading, subtitle, and a recap of what was
+     * configured. The navigation bar's Next button reads "Get Started" here and
+     * closes the wizard.
+     *
+     * @return the assembled Done step panel
+     *
+     * @since 3.4
+     */
     private VBox buildDoneStep()
     {
         VBox step = baseStep();
@@ -483,6 +612,15 @@ public final class MCLauncherQuickStartWizard
     //  Small builders + helpers
     // =============================================================================
 
+    /**
+     * Creates an empty step panel with the wizard's shared spacing, padding, and
+     * style class. Each step builder starts from one of these and appends its
+     * own content.
+     *
+     * @return a styled, empty {@link VBox} ready to receive step content
+     *
+     * @since 3.4
+     */
     private VBox baseStep()
     {
         VBox step = new VBox( 12 );

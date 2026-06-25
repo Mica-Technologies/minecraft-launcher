@@ -96,9 +96,27 @@ public final class ChromaRestBackend implements RgbBackend
     private final java.util.Set< String > endpointsSucceededOnce =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the fixed display name {@code "Razer Chroma"}
+     * @since 2026.5
+     */
     @Override
     public String name() { return "Razer Chroma"; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Probes {@code localhost:54235} with a short TCP connect rather
+     * than a full init handshake — Synapse only opens that port when the
+     * Chroma SDK is enabled, so a successful connect is a cheap,
+     * side-effect-free signal that the backend can be started.</p>
+     *
+     * @return {@code true} if the Chroma SDK REST port accepts a TCP
+     *         connection within the probe timeout
+     * @since 2026.5
+     */
     @Override
     public boolean isAvailable()
     {
@@ -118,6 +136,20 @@ public final class ChromaRestBackend implements RgbBackend
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>POSTs the application descriptor to the init endpoint, reads the
+     * server-chosen session URI out of the response, and spawns the
+     * daemon heartbeat thread that keeps the session alive between
+     * renders.</p>
+     *
+     * @throws IOException if the init request returns a non-200 status or
+     *                     a response body that lacks the {@code uri} field
+     * @throws Exception   if the underlying HTTP send fails (e.g.
+     *                     interrupted or connection error)
+     * @since 2026.5
+     */
     @Override
     public void start() throws Exception
     {
@@ -184,6 +216,24 @@ public final class ChromaRestBackend implements RgbBackend
             "/mouse", "/mousepad", "/headset", "/keypad", "/chromalink"
     };
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Builds the 6×22 keyboard {@code CHROMA_CUSTOM} grid (background
+     * plus per-key overrides) and a {@code CHROMA_STATIC} background frame
+     * for each non-keyboard endpoint, then PUTs them all independently.
+     * Per-endpoint failures are tolerated and logged so a partial device
+     * lineup still lights up; the call only throws when every endpoint
+     * failed, which is the genuine Chroma-down state the controller's
+     * circuit breaker should observe.</p>
+     *
+     * @param frame the frame whose background and per-key overrides are
+     *              applied across all Chroma endpoints
+     * @throws IOException if every endpoint push failed (cause set to the
+     *                     last underlying failure)
+     * @throws Exception   if an endpoint push raises a non-IO failure
+     * @since 2026.5
+     */
     @Override
     public void renderFrame( RgbFrame frame ) throws Exception
     {

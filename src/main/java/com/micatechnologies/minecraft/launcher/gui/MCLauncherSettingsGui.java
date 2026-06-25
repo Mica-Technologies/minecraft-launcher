@@ -62,103 +62,178 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * JavaFX controller backing the launcher's Settings screen ({@code gui/settingsGUI.fxml}).
+ *
+ * <p>The screen is organized as a left-hand category sidebar (Account, Game, Appearance, Advanced,
+ * Network, Security, System, Discord, RGB, About) plus a {@link StackPane} of stacked content panes;
+ * {@link #showCategory(int)} swaps which pane is visible. {@link #setup()} binds every control to its
+ * backing {@link ConfigManager} key, with the heavier per-tab wiring delegated to
+ * {@link #setupAccountTab()}, {@link #setupAboutTab()}, and {@link #setupRgbTab()}.</p>
+ *
+ * <p>Two save styles share a single {@link #persistSettings()} body: the plain Save button and the
+ * Save &amp; Restart shortcut (the latter shown only while a pending language change needs a full
+ * relaunch to take effect). Navigating away — return button, window close, or an {@code mmcl://}
+ * deep-link — is guarded against discarding unsaved edits via {@link #hasUnsavedChanges()} and the
+ * paired confirmation prompts.</p>
+ *
+ * <p>Some controls (the Advanced-tab backup policy, RGB toggles, and a few others) persist
+ * immediately through change listeners rather than waiting for Save; those are intentionally
+ * excluded from the unsaved-changes comparison.</p>
+ *
+ * @see MCLauncherAbstractGui
+ * @see ConfigManager
+ */
 public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 {
+    /**
+     * Listener installed on the min-RAM spinner that raises the max-RAM spinner's lower bound so the
+     * two RAM controls can never cross. Retained as a field so {@link #cleanup()} can detach it.
+     */
     private javafx.beans.value.ChangeListener< Double > minRamListener;
+
+    /**
+     * Listener installed on the max-RAM spinner that lowers the min-RAM spinner's upper bound so the
+     * two RAM controls can never cross. Retained as a field so {@link #cleanup()} can detach it.
+     */
     private javafx.beans.value.ChangeListener< Double > maxRamListener;
 
+    /** Game tab: minimum JVM heap in whole/fractional gigabytes. Persisted via
+     *  {@link ConfigManager#setMinRam} (converted to MB). Clamped against {@link #maxRamGb}. */
     @SuppressWarnings( "unused" )
     @FXML
     Spinner< Double > minRamGb;
 
+    /** Game tab: maximum JVM heap in whole/fractional gigabytes. Persisted via
+     *  {@link ConfigManager#setMaxRam} (converted to MB). Clamped against {@link #minRamGb}. */
     @SuppressWarnings( "unused" )
     @FXML
     Spinner< Double > maxRamGb;
 
+    /** Game tab: enables verbose debug logging. Forced off and disabled in dev builds. Backed by
+     *  {@link ConfigManager#getDebugLogging}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton debugCheckBox;
 
+    /** Appearance tab: allows launcher windows to be resized. Backed by
+     *  {@link ConfigManager#getResizableWindows}; applied to the stage on save. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton windowResizeCheckBox;
 
+    /** Discord tab: enables Discord rich-presence. Backed by {@link ConfigManager#getDiscordRpcEnable};
+     *  disabling it on save tears down the live RPC client. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton discordCheckBox;
 
+    /** Discord tab: enables surfacing Discord server invites. Backed by
+     *  {@link ConfigManager#getDiscordInvitesEnable}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton discordInvitesCheckBox;
 
+    /** Advanced tab: enables enhanced (extra-detail) logging. Backed by
+     *  {@link ConfigManager#getEnhancedLogging}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton enhancedLoggingCheckBox;
 
+    /** Game tab: shows the in-launcher game console while a modpack runs. Backed by
+     *  {@link ConfigManager#getInGameConsoleEnable}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton inGameConsoleCheckBox;
 
+    /** Game tab: in-game console scrollback cap. Items are localized labels (including an
+     *  "Unlimited" entry for {@code 0}); the selected index maps to a preset in
+     *  {@link ConfigConstants#CONSOLE_LOG_MAX_LINES_PRESETS}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > consoleLogMaxLinesSelection;
 
+    /** System tab: throttles background work while the machine is on battery. Backed by
+     *  {@link ConfigManager#getBatteryThrottleEnable}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton batteryThrottleCheckBox;
 
+    /** Advanced tab: enables the LWJGL ARM64 native-library patch. Backed by
+     *  {@link ConfigManager#getLwjglArmPatchEnable}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton lwjglArmPatchCheckBox;
 
+    /** Security tab: opens a directory chooser to pick the folder the security scan targets;
+     *  updates {@link #scanFolder} and {@link #scanFolderLabel}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton scanFolderBtn;
 
+    /** Security tab: starts the jarscanner security scan of {@link #scanFolder}, or cancels an
+     *  in-progress scan when {@link #scanning} is set. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton scanBtn;
 
+    /** Advanced tab: wipes the entire launcher data directory and restarts (confirmed first). */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton resetLauncherBtn;
 
+    /** Advanced tab: clears every installed Java runtime so they are re-downloaded on demand
+     *  (confirmed first). */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton resetRuntimeBtn;
 
+    /** Advanced tab: navigates to the runtime-management screen. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton manageRuntimeBtn;
 
+    /** Network tab: enables routing launcher traffic through a proxy. Backed by
+     *  {@link ConfigManager#getProxyEnable}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXToggleButton proxyEnableCheckBox;
 
+    /** Network tab: proxy hostname/IP. Backed by {@link ConfigManager#getProxyHost}. */
     @SuppressWarnings( "unused" )
     @FXML
     javafx.scene.control.TextField proxyHostField;
 
+    /** Network tab: proxy port (1–65535). Backed by {@link ConfigManager#getProxyPort}. */
     @SuppressWarnings( "unused" )
     @FXML
     Spinner< Integer > proxyPortSpinner;
 
+    /** Network tab: proxy type. Items come from {@link ConfigConstants#PROXY_TYPES}; backed by
+     *  {@link ConfigManager#getProxyType}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > proxyTypeSelection;
 
+    /** Advanced tab: writes the full launcher config to a user-chosen JSON file via
+     *  {@link ConfigManager#exportConfig}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton exportSettingsBtn;
 
+    /** Advanced tab: loads launcher config from a user-chosen JSON file via
+     *  {@link ConfigManager#importConfig}, then reloads the Settings screen. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton importSettingsBtn;
 
+    /** Advanced tab: opens the launcher's local data directory in the OS file browser. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton openFolderBtn;
 
+    /** Persists every settings control to config (see {@link #persistSettings()}) and briefly
+     *  flashes a "Saved" label. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton saveBtn;
@@ -170,22 +245,31 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     MFXButton saveAndRestartBtn;
 
+    /** Navbar button that returns to the main menu, prompting first if there are unsaved changes. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton returnBtn;
 
+    /** About/System tab: shows the launcher version (or a dev-mode sentinel in dev builds). */
     @SuppressWarnings( "unused" )
     @FXML
     Label versionLabel;
 
+    /** System tab: shows total / used system RAM, populated off the FX thread because the OSHI
+     *  hardware query can stall. */
     @SuppressWarnings( "unused" )
     @FXML
     Label sysRamLabel;
 
+    /** Appearance tab: UI theme selection. Items come from {@link ConfigConstants#ALLOWED_THEMES};
+     *  backed by {@link ConfigManager#getTheme}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > themeSelection;
 
+    /** Appearance tab: UI language selection. The first item is the "Use OS Language" sentinel that
+     *  clears the override; the rest map to BCP-47 tags via
+     *  {@code SupportedLocales}. Backed by {@link ConfigManager#getLocaleOverride}. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > languageSelection;
@@ -219,31 +303,48 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     io.github.palexdev.materialfx.controls.MFXToggleButton imageCycleShuffleToggle;
 
+    /** Game tab: quick-pick JVM-args preset. Items come from {@link ConfigConstants#JVM_PRESET_NAMES};
+     *  selecting one writes the matching {@link ConfigConstants#JVM_PRESET_ARGS} entry as the custom
+     *  JVM args on save. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXComboBox< String > jvmPresetSelection;
 
+    /** Game tab: generates JVM args tuned to the host CPU, total RAM, and the configured max heap via
+     *  {@code HardwareTunedJvmArgs} and persists them as the custom JVM args. */
     @SuppressWarnings( "unused" )
     @FXML
     io.github.palexdev.materialfx.controls.MFXButton generateJvmArgsBtn;
 
+    /** Game tab: summary line under {@link #generateJvmArgsBtn} showing the detected hardware inputs
+     *  the recommendation is based on; kept in sync with the max-RAM spinner. */
     @SuppressWarnings( "unused" )
     @FXML
     javafx.scene.control.Label generateJvmArgsHint;
 
-    // Pack-backup policy controls (Advanced tab).
+    // Pack-backup policy controls (Advanced tab). All four persist immediately via change
+    // listeners rather than waiting for the Save button.
+
+    /** Advanced tab: take an automatic pack backup before applying an update. Backed by
+     *  {@link ConfigManager#getAutoBackupBeforeUpdate}. */
     @SuppressWarnings( "unused" )
     @FXML
     io.github.palexdev.materialfx.controls.MFXToggleButton autoBackupToggle;
 
+    /** Advanced tab: include the world saves directory in pack backups. Backed by
+     *  {@link ConfigManager#getBackupIncludeSaves}. */
     @SuppressWarnings( "unused" )
     @FXML
     io.github.palexdev.materialfx.controls.MFXToggleButton backupIncludeSavesToggle;
 
+    /** Advanced tab: maximum number of backups retained per pack (0 = no cap). Backed by
+     *  {@link ConfigManager#getMaxBackupsPerPack}. */
     @SuppressWarnings( "unused" )
     @FXML
     javafx.scene.control.Spinner< Integer > backupMaxCountSpinner;
 
+    /** Advanced tab: maximum age in days a backup is retained (0 = no cap). Backed by
+     *  {@link ConfigManager#getMaxBackupAgeDays}. */
     @SuppressWarnings( "unused" )
     @FXML
     javafx.scene.control.Spinner< Integer > backupMaxAgeDaysSpinner;
@@ -269,6 +370,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     Label helpBtn;
 
+    /** Navbar offline indicator label, driven by {@link OfflineIndicator}. */
     @SuppressWarnings( "unused" )
     @FXML
     Label offlineLabel;
@@ -357,14 +459,19 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     io.github.palexdev.materialfx.controls.MFXPasswordField curseForgeApiKeyField;
 
+    /** Advanced tab: persists the entered CurseForge API key (encrypted at rest) via
+     *  {@link ConfigManager#setCurseForgeApiKey}, then clears the input. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton curseForgeApiKeySaveBtn;
 
+    /** Advanced tab: wipes any stored CurseForge API key without revealing it. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton curseForgeApiKeyClearBtn;
 
+    /** Advanced tab: indicates whether a CurseForge API key is configured (never shows the value
+     *  itself). Refreshed by {@link #refreshCurseForgeApiKeyStatus()}. */
     @SuppressWarnings( "unused" )
     @FXML
     Label curseForgeApiKeyStatusLabel;
@@ -381,25 +488,56 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     // RGB tab controls — populated by setupRgbTab() and bound to the
     // RGB-integration settings under config keys "rgbEnable", "rgbBackend",
     // "rgbUsePackColors", "rgbHighlightKeys".
+
+    /** RGB tab: master enable for RGB integration. Backed by {@link ConfigManager#getRgbEnable};
+     *  toggling it restarts the RGB controller. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableToggle;
+    /** RGB tab: backend selection (Auto / OpenRGB / Chroma / Windows DL / Corsair / Aura / None).
+     *  Display labels map to config tokens via {@link #backendForLabel(String)}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbBackendCombo;
+    /** RGB tab: status chip showing connection state, refreshed by {@link #refreshRgbStatusChip()}. */
     @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbStatusChip;
+    /** RGB tab: enable the menu (idle) lighting effect. Backed by
+     *  {@link ConfigManager#getRgbMenuEffectEnable}; toggling repaints immediately. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbMenuEffectToggle;
+    /** RGB tab: menu effect style (Solid / Breathe / Pulse / Cycle / Rainbow). Display names map to
+     *  the {@code RGB_EFFECT_STYLE_*} config values. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXComboBox< String > rgbEffectStyleSelection;
+    /** RGB tab: derive effect colors from the active modpack's palette. Backed by
+     *  {@link ConfigManager#getRgbUsePackColors}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbUsePackColorsToggle;
+    /** RGB tab: highlight gameplay keys (WASD etc.). Backed by
+     *  {@link ConfigManager#getRgbHighlightKeys}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbHighlightKeysToggle;
+    /** RGB tab: flashes a fixed magenta test pattern across connected devices via
+     *  {@link #runRgbConnectionTest()}. */
     @SuppressWarnings( "unused" ) @FXML MFXButton rgbTestBtn;
 
     // Per-backend Auto-mode integration toggles — let mixed-vendor rigs
     // run several backends at once (Razer + Windows DL etc.), or disable
     // an installed-but-unwanted vendor without leaving Auto.
+
+    /** RGB tab: header label for the per-backend Auto-mode toggle section; shown only in Auto mode. */
     @SuppressWarnings( "unused" ) @FXML javafx.scene.control.Label rgbAutoToggleHeader;
+    /** RGB tab: container for the per-backend Auto-mode toggles; shown only in Auto mode. */
     @SuppressWarnings( "unused" ) @FXML javafx.scene.layout.VBox rgbAutoToggleBox;
+    /** RGB tab (Auto mode): include the OpenRGB backend. Backed by
+     *  {@link ConfigManager#getRgbEnableOpenRgb}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableOpenRgbToggle;
+    /** RGB tab (Auto mode): include the native Razer Chroma backend. Backed by
+     *  {@link ConfigManager#getRgbEnableChromaNative}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaNativeToggle;
+    /** RGB tab (Auto mode): include the REST Razer Chroma backend. Backed by
+     *  {@link ConfigManager#getRgbEnableChromaRest}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableChromaRestToggle;
+    /** RGB tab (Auto mode): include the Windows Dynamic Lighting backend. Backed by
+     *  {@link ConfigManager#getRgbEnableWindowsDl}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableWindowsDlToggle;
+    /** RGB tab (Auto mode): include the Corsair iCUE backend. Backed by
+     *  {@link ConfigManager#getRgbEnableCorsair}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableCorsairToggle;
+    /** RGB tab (Auto mode): include the ASUS Aura backend. Backed by
+     *  {@link ConfigManager#getRgbEnableAsusAura}. */
     @SuppressWarnings( "unused" ) @FXML io.github.palexdev.materialfx.controls.MFXToggleButton rgbEnableAsusAuraToggle;
 
     /**
@@ -416,10 +554,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      *
      * @since 3.2
      */
+    /** About tab: application name label (static text from FXML). */
     @SuppressWarnings( "unused" ) @FXML Label     aboutAppNameLabel;
+    /** About tab: application version label. */
     @SuppressWarnings( "unused" ) @FXML Label     aboutVersionLabel;
+    /** About tab: enable automatic launcher update checks. Backed by
+     *  {@link ConfigManager#getLauncherUpdateCheckEnabled}. */
     @SuppressWarnings( "unused" ) @FXML MFXToggleButton launcherUpdateCheckBox;
+    /** About tab: opens the project website in the default browser. */
     @SuppressWarnings( "unused" ) @FXML MFXButton aboutWebsiteBtn;
+    /** About tab: opens the project source repository in the default browser. */
     @SuppressWarnings( "unused" ) @FXML MFXButton aboutSourceBtn;
 
     /**
@@ -427,18 +571,25 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      *
      * @since 3.0
      */
+    /** Account tab: the logged-in player's avatar image. */
     @SuppressWarnings( "unused" )
     @FXML
     javafx.scene.image.ImageView accountAvatar;
 
+    /** Account tab: the logged-in player's display name ({@code accountNameLabel}) and UUID
+     *  ({@code accountUuidLabel}) labels. */
     @SuppressWarnings( "unused" )
     @FXML
     Label accountNameLabel, accountUuidLabel;
 
+    /** Account tab: links and actions — open minecraft.net profile, open Microsoft account, log out,
+     *  and add another account. */
     @SuppressWarnings( "unused" )
     @FXML
     MFXButton minecraftNetBtn, msAccountBtn, logoutBtn, addAccountBtn;
 
+    /** Account tab: container rendering the archived (saved) accounts list, populated by
+     *  {@link #rebuildSavedAccountsList()}. */
     @SuppressWarnings( "unused" )
     @FXML
     javafx.scene.layout.VBox savedAccountsList;
@@ -448,13 +599,18 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     private MFXButton[] navButtons;
 
+    /** {@code true} while a security scan is running; flips the scan button into cancel mode. */
     boolean scanning         = false;
+    /** {@code true} when the user cancelled the in-progress scan; consumed in the result summary. */
     boolean scanningCanceled = false;
+    /** The folder targeted by the security scan; defaults to the launcher data directory. */
     File    scanFolder       = null;
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
      * controller.
+     *
+     * @param stage the JavaFX stage that will host this scene
      *
      * @throws IOException if unable to load FXML file specified
      */
@@ -465,6 +621,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
      * controller.
+     *
+     * @param stage  the JavaFX stage that will host this scene
+     * @param width  the initial scene width in pixels
+     * @param height the initial scene height in pixels
      *
      * @throws IOException if unable to load FXML file specified
      */
@@ -514,7 +674,19 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Abstract method: This method must perform initialization and setup of the scene and @FXML components.
+     * Performs all one-time initialization of the Settings scene and its {@code @FXML} controls.
+     *
+     * <p>This is the bulk of the controller's wiring: it installs the unsaved-changes guards on the
+     * window-close and return-button paths, wires the Save / Save&amp;Restart / reset / import-export /
+     * folder buttons, seeds every control from its backing {@link ConfigManager} key (RAM spinners,
+     * theme and language dropdowns, JVM-preset picker, proxy fields, console-buffer and backup-policy
+     * controls, the security-scan controls, the CurseForge key inputs, etc.), and registers the
+     * sidebar navigation handlers. The Account, About, and RGB tabs have their heavier wiring
+     * delegated to {@link #setupAccountTab()}, {@link #setupAboutTab()}, and {@link #setupRgbTab()}.
+     * Finishes by selecting the Account category via {@link #showCategory(int)}.</p>
+     *
+     * <p>Several slow operations (system-RAM query via OSHI, the player avatar fetch) are dispatched
+     * to worker threads so opening the screen never blocks the FX thread.</p>
      */
     @Override
     void setup() {
@@ -1363,6 +1535,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Populates the Account settings tab: fills in the player's name, UUID, and avatar (fetched off
+     * the FX thread), wires the helpful external links, the confirmed logout, and the
+     * "Add Another Account" archive-and-relogin flow, then renders the saved-accounts list via
+     * {@link #rebuildSavedAccountsList()}.
+     *
+     * @since 3.0
+     */
     private void setupAccountTab()
     {
         // Player profile
@@ -1984,6 +2164,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation runs the post-show wiring that must wait until the scene graph exists:
+     * installs smooth-scroll on every tab's {@code ScrollPane}, selects the current theme in the
+     * dropdown (case-insensitively), installs tooltips on the controls, wires the navbar help button,
+     * applies the offline indicator, and registers the global keyboard shortcuts.</p>
+     */
     @Override
     void afterShow() {
         // Wire smooth-scroll on every tab's inner ScrollPane so wheel scrolling
@@ -2064,6 +2252,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         KeyboardShortcutManager.installGlobalShortcuts( scene, this::getHelpTopic );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation detaches the two RAM-spinner cross-clamp listeners
+     * ({@link #minRamListener} and {@link #maxRamListener}) installed in {@link #setup()},
+     * so the spinners and this controller can be garbage-collected once the Settings
+     * scene is torn down. Each removal is fully null-guarded because the controller may
+     * be cleaned up before its value factories were ever installed.</p>
+     */
     @Override
     void cleanup() {
         if ( minRamGb != null && minRamGb.getValueFactory() != null && minRamListener != null ) {
@@ -2074,6 +2271,15 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation always returns {@link HelpTopic#SETTINGS}, the help page for the
+     * Settings screen. Used both by the navbar help button wired in {@link #afterShow()} and by
+     * the global help keyboard shortcut.</p>
+     *
+     * @return {@link HelpTopic#SETTINGS}
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.SETTINGS; }
 

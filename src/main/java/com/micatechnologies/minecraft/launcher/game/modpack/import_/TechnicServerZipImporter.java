@@ -86,6 +86,13 @@ import java.util.zip.ZipInputStream;
  */
 public final class TechnicServerZipImporter
 {
+    /**
+     * Private constructor preventing instantiation. This class is a
+     * static-only utility holder; all functionality is exposed through
+     * its static methods.
+     *
+     * @since 2026.5
+     */
     private TechnicServerZipImporter() { /* static-only */ }
 
     /** Where the imported manifest gets written. Same folder Modrinth /
@@ -105,6 +112,13 @@ public final class TechnicServerZipImporter
      * positives matter — a generic mods ZIP would extract messily if we
      * accepted it — so we require all three signals: top-level {@code mods/}
      * entry, a top-level server JAR, and at least one launch script.
+     *
+     * @param zip the opened ZIP archive to inspect
+     *
+     * @return {@code true} when all three Technic-server signals are present;
+     *         {@code false} otherwise
+     *
+     * @since 2026.5
      */
     public static boolean looksLikeTechnicServerZip( ZipFile zip )
     {
@@ -130,7 +144,14 @@ public final class TechnicServerZipImporter
      *  {@code .jar} filename, or {@code null} if there isn't one. Used
      *  as a fallback when the launch-script parser fails — many older
      *  Technic packs only ship a single root JAR so this is reliable
-     *  in practice. */
+     *  in practice.
+     *
+     *  @param zip the opened ZIP archive to scan
+     *
+     *  @return the first top-level {@code .jar} entry name, or {@code null}
+     *          when the archive contains no top-level JAR
+     *
+     *  @since 2026.5 */
     private static String findFirstTopLevelJar( ZipFile zip )
     {
         Enumeration< ? extends ZipEntry > entries = zip.entries();
@@ -147,7 +168,15 @@ public final class TechnicServerZipImporter
      *  and extracts the server JAR filename from the {@code -jar <name>} argument.
      *  Falls back to {@code null} when no launch script is present or no
      *  {@code -jar} reference parses; the caller then walks top-level entries to
-     *  find any candidate {@code .jar}. */
+     *  find any candidate {@code .jar}.
+     *
+     *  @param zip the opened ZIP archive whose launch script is read
+     *
+     *  @return the bare server JAR filename (leading path components stripped)
+     *          parsed from the {@code -jar} argument, or {@code null} when no
+     *          launch script is present or no {@code -jar} reference parses
+     *
+     *  @since 2026.5 */
     private static String findServerJarFromLaunchScript( ZipFile zip )
     {
         Pattern jarArg = Pattern.compile( "-jar\\s+([^\\s\"]+\\.jar)", Pattern.CASE_INSENSITIVE );
@@ -179,9 +208,12 @@ public final class TechnicServerZipImporter
      * {@link ModpackZipImporter}) has already verified
      * {@link #looksLikeTechnicServerZip(ZipFile)} returned true.
      *
+     * @param zipFile the Technic "Server Download" ZIP file to import
+     *
      * @return the {@code file:} URL of the on-disk manifest the pack was
      *         registered under.
      * @throws ImportException for any failure during read / extract / install.
+     * @since 2026.5
      */
     public static String importZip( File zipFile ) throws ImportException
     {
@@ -289,7 +321,17 @@ public final class TechnicServerZipImporter
      *  them as {@code packMods} entries.
      *
      *  <p>Path traversal is blocked by checking the resolved path stays
-     *  inside {@code dest} — same guard {@link ModpackZipImporter} uses.</p> */
+     *  inside {@code dest} — same guard {@link ModpackZipImporter} uses.</p>
+     *
+     *  @param zip              the opened ZIP archive to extract
+     *  @param dest             the install folder the entries are written under
+     *  @param topLevelModNames out-parameter; receives the bare filenames of
+     *                          every top-level {@code mods/*.jar} / {@code mods/*.zip}
+     *                          entry extracted, for the manifest builder to list
+     *
+     *  @throws IOException if the archive exceeds the entry / byte caps, an entry
+     *                      escapes the target folder, or a copy fails
+     *  @since 2026.5 */
     private static void extractContents( ZipFile zip, Path dest, List< String > topLevelModNames )
             throws IOException
     {
@@ -352,7 +394,19 @@ public final class TechnicServerZipImporter
      *  always left blank since deriving it would require pinning a
      *  specific Forge / Fabric / NeoForge build URL that the launcher
      *  doesn't host for every MC version — user fills that in via the
-     *  modpack editor.</p> */
+     *  modpack editor.</p>
+     *
+     *  @param packName     the derived pack display name
+     *  @param packVersion  the derived pack version string
+     *  @param modFilenames the bare filenames of the extracted {@code mods/}
+     *                      entries to list as {@code packMods}
+     *  @param loaderInfo   detected loader + MC version, or {@code null} when
+     *                      detection found no markers (loader defaults to Forge,
+     *                      MC version left blank)
+     *
+     *  @return the assembled Mica manifest JSON object
+     *
+     *  @since 2026.5 */
     private static JsonObject buildManifest( String packName, String packVersion,
                                               List< String > modFilenames,
                                               LoaderInfo loaderInfo )
@@ -402,12 +456,30 @@ public final class TechnicServerZipImporter
         return manifest;
     }
 
+    /** Strips the trailing extension (everything from the last {@code .})
+     *  from {@code filename}, used to derive a mod's display name from its
+     *  file name. Returns the input unchanged when there is no extension.
+     *
+     *  @param filename the file name to strip
+     *
+     *  @return the file name without its extension
+     *
+     *  @since 2026.5 */
     private static String stripExtension( String filename )
     {
         int dot = filename.lastIndexOf( '.' );
         return dot > 0 ? filename.substring( 0, dot ) : filename;
     }
 
+    /** Replaces every character outside {@code [A-Za-z0-9._-]} with an
+     *  underscore so the result is safe to embed in a manifest filename.
+     *  Returns {@code "unknown"} for a {@code null} input.
+     *
+     *  @param s the string to sanitize
+     *
+     *  @return the filename-safe form of {@code s}
+     *
+     *  @since 2026.5 */
     private static String sanitize( String s )
     {
         if ( s == null ) return "unknown";
@@ -418,7 +490,13 @@ public final class TechnicServerZipImporter
      *  parsed from the server JAR. Either field may be null when the
      *  detector found one signal but not the other — e.g. a Forge JAR with
      *  no embedded version properties produces {@code loader=forge,
-     *  mcVersion=null}. */
+     *  mcVersion=null}.
+     *
+     *  @param loader    the detected mod-loader identifier (one of the
+     *                   {@code ModPackConstants.MOD_LOADER_*} values), or null
+     *  @param mcVersion the detected Minecraft version, or null when unknown
+     *
+     *  @since 2026.5 */
     private record LoaderInfo( String loader, String mcVersion ) {}
 
     /**
@@ -443,6 +521,16 @@ public final class TechnicServerZipImporter
      *
      * <p>Returns {@code null} when none of the markers are present;
      * caller falls back to a blank manifest loader field.</p>
+     *
+     * @param outerZip           the opened server-pack ZIP that contains the
+     *                           server JAR as a nested entry
+     * @param serverJarEntryName the entry name of the server JAR to inspect
+     *
+     * @return a {@link LoaderInfo} describing the detected loader and (when
+     *         available) Minecraft version, or {@code null} when no markers
+     *         match or the entry can't be read
+     *
+     * @since 2026.5
      */
     private static LoaderInfo detectLoader( ZipFile outerZip, String serverJarEntryName )
     {
@@ -515,9 +603,19 @@ public final class TechnicServerZipImporter
     }
 
     /** Mirrors the other importers' checked exception type so the GUI
-     *  can catch a single import-failure type generically. */
+     *  can catch a single import-failure type generically.
+     *
+     *  @since 2026.5 */
     public static class ImportException extends Exception
     {
+        /**
+         * Constructs an {@code ImportException} with the supplied
+         * human-readable failure message.
+         *
+         * @param message the detail message describing the import failure
+         *
+         * @since 2026.5
+         */
         public ImportException( String message ) { super( message ); }
     }
 }

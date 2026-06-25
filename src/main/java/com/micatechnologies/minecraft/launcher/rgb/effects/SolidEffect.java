@@ -35,16 +35,46 @@ import com.micatechnologies.minecraft.launcher.rgb.RgbFrame;
  */
 public final class SolidEffect implements RgbEffect
 {
+    /** Human-readable effect name surfaced via {@link #name()}. */
     private final String name;
+
+    /** The single, pre-built frame returned for every tick. */
     private final RgbFrame frame;
 
+    /**
+     * Creates a solid-color effect.
+     *
+     * @param name  human-readable effect name (returned by {@link #name()})
+     * @param color the single color painted across the whole keyboard
+     *
+     * @since 2026.5
+     */
     public SolidEffect( String name, RgbColor color )
     {
         this.name = name;
         this.frame = RgbFrame.solid( color );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the effect name supplied at construction
+     *
+     * @since 2026.5
+     */
     @Override public String name() { return name; }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This effect is constant: the same {@link RgbFrame} is returned on
+     * every call regardless of {@code elapsedMs}.</p>
+     *
+     * @param elapsedMs ignored; the frame does not change over time
+     *
+     * @return the single solid-color frame
+     *
+     * @since 2026.5
+     */
     @Override public RgbFrame frameAt( long elapsedMs ) { return frame; }
 }

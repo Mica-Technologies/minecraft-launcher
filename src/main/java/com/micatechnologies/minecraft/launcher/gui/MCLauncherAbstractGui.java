@@ -40,6 +40,11 @@ public abstract class MCLauncherAbstractGui
      */
     Scene scene = null;
 
+    /**
+     * The JavaFX {@link Stage} (window) that hosts {@link #scene}. Supplied at construction and
+     * retained for the lifetime of the controller so the screen can drive window-level operations
+     * (hide, close-request handling, etc.).
+     */
     final Stage stage;
 
     /**
@@ -53,9 +58,13 @@ public abstract class MCLauncherAbstractGui
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
-     * controller.
+     * controller. The FXML file is loaded on the JavaFX Application Thread and bound to the active localization
+     * bundle so {@code %key} attributes resolve. If the host stage already has a scene, the new scene inherits
+     * its current width and height; otherwise the scene uses the FXML's preferred size.
      *
-     * @throws IOException if unable to load FXML file specified
+     * @param stage the JavaFX stage (window) that will host the loaded scene
+     *
+     * @throws IOException if unable to load FXML file specified, or if scene construction failed
      */
     public MCLauncherAbstractGui( Stage stage ) throws IOException {
         GUIUtilities.JFXPlatformRun( () -> {
@@ -95,9 +104,15 @@ public abstract class MCLauncherAbstractGui
 
     /**
      * Constructor for abstract scene class that initializes {@link #scene} and sets <code>this</code> as the FXML
-     * controller.
+     * controller, sizing the scene to the given explicit dimensions. As with the single-argument constructor,
+     * the explicit width/height are only applied when the stage does not already have a scene; an existing
+     * scene's dimensions are preserved.
      *
-     * @throws IOException if unable to load FXML file specified
+     * @param stage  the JavaFX stage (window) that will host the loaded scene
+     * @param width  the desired scene width, in pixels, used when the stage has no existing scene
+     * @param height the desired scene height, in pixels, used when the stage has no existing scene
+     *
+     * @throws IOException if unable to load FXML file specified, or if scene construction failed
      */
     public MCLauncherAbstractGui( Stage stage, double width, double height ) throws IOException {
         GUIUtilities.JFXPlatformRun( () -> {
@@ -140,6 +155,10 @@ public abstract class MCLauncherAbstractGui
         }
     }
 
+    /**
+     * Hides this screen's host window. The hide is dispatched onto the JavaFX Application Thread, so this method
+     * is safe to call from any thread.
+     */
     public void hideStage() {
         GUIUtilities.JFXPlatformRun( stage::hide );
     }
@@ -163,8 +182,18 @@ public abstract class MCLauncherAbstractGui
      */
     abstract void setup();
 
+    /**
+     * Abstract method: invoked after the scene has been shown on the stage. Implementations use this hook for
+     * work that requires the scene to already be visible and laid out (e.g. focusing a control, measuring node
+     * bounds, or starting animations that depend on rendered geometry).
+     */
     abstract void afterShow();
 
+    /**
+     * Abstract method: invoked when this screen is being torn down. Implementations release any resources,
+     * stop background threads or timers, and detach listeners established during {@link #setup()} so the screen
+     * can be garbage-collected cleanly.
+     */
     abstract void cleanup();
 
     /**

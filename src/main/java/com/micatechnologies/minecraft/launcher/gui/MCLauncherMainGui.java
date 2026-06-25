@@ -193,25 +193,72 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  the rest of the launcher's screen transitions do. */
     private static volatile boolean mainMenuShownOnce = false;
 
+    /**
+     * Constructs the main launcher screen bound to the given JavaFX stage, using
+     * the abstract base class's default window dimensions.
+     *
+     * @param stage the JavaFX stage this screen renders into
+     *
+     * @throws IOException if the FXML scene fails to load
+     * @since 1.0
+     */
     public MCLauncherMainGui( Stage stage ) throws IOException {
         super( stage );
     }
 
+    /**
+     * Constructs the main launcher screen bound to the given JavaFX stage at an
+     * explicit initial size.
+     *
+     * @param stage  the JavaFX stage this screen renders into
+     * @param width  the initial stage width, in pixels
+     * @param height the initial stage height, in pixels
+     *
+     * @throws IOException if the FXML scene fails to load
+     * @since 1.0
+     */
     @SuppressWarnings( "unused" )
     public MCLauncherMainGui( Stage stage, double width, double height ) throws IOException {
         super( stage, width, height );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the classpath-relative FXML path for the main-menu scene
+     * @since 1.0
+     */
     @Override
     String getSceneFxmlPath() {
         return "gui/mainGUI.fxml";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the human-readable scene name reported for this screen
+     * @since 1.0
+     */
     @Override
     String getSceneName() {
         return "Home";
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Wires every interactive element of the main menu: the window-close exit
+     * confirmation, navbar buttons (settings / library / help / refresh), the
+     * account lockup (avatar + name), keyboard shortcuts (ENTER plays the
+     * last-played pack, F5 refreshes, Cmd/Ctrl+F focuses search), the
+     * announcement banner, the bottom-bar status indicators (auth refresh,
+     * available-packs fetch, installed-pack revalidate), the filter / sort /
+     * pagination controls, and finally builds the first card grid and attaches
+     * the detail-modal overlay. Constructs {@link #detailModal} lazily here so
+     * the real {@code rootPane} GridPane exists for attachment.</p>
+     *
+     * @since 1.0
+     */
     @Override
     void setup() {
         // Window close → exit confirmation flow.
@@ -521,6 +568,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         TooltipManager.install( pageSizeFilter, LocalizationManager.get( "tooltip.main.pageSize" ) );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Runs once the stage's first paint has flushed: stamps the cold-start
+     * profiler's {@code main_menu_painted} mark, installs the navbar tooltips,
+     * fires the first-launch quick-start wizard (once per install), pushes focus
+     * onto the rootPane to suppress the default focus ring, plays the once-per-
+     * session cold-start fade-in, and idle-prefetches the most-recently-played
+     * pack's client.json so the next Play click skips that download.</p>
+     *
+     * @since 1.0
+     */
     @Override
     void afterShow() {
         // Defer two event-loop ticks past the stage's onShown so the first full
@@ -615,6 +674,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Tears down everything {@link #setup()} wired so the discarded screen
+     * can be collected: stops the taskbar progress overlay, unsubscribes every
+     * hero card (visible and pooled) and the detail modal from the shared
+     * {@link ModpackImageCycleClock}, and disposes the {@link #vm}'s
+     * search-debounce timer + rebuild callback so a last-instant keystroke can't
+     * fire {@link #rebuildCards()} on a torn-down screen.</p>
+     *
+     * @since 1.0
+     */
     @Override
     void cleanup() {
         // Defensive: if the update-check fired showFullError() to flag an
@@ -650,9 +721,32 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return {@link HelpTopic#MAIN_SCREEN} — the help topic shown when the user
+     *         opens contextual help from this screen
+     * @since 1.0
+     */
     @Override
     HelpTopic getHelpTopic() { return HelpTopic.MAIN_SCREEN; }
 
+    /**
+     * Sets (or clears) the announcement banner row, combining an optional
+     * caller-supplied {@code extra} line with whatever the announcement service
+     * currently returns for the home screen, and sizing the row to fit.
+     *
+     * <p>If the resolved text was dismissed earlier this session (the user
+     * clicked the banner's ✕ for that exact text) it is treated as empty and the
+     * row collapses. An empty result hides + un-manages the banner entirely;
+     * non-empty text shows it at a fixed 40px (single line) or 60px (multi-line)
+     * height, with explicit min/pref/max sizes because {@code USE_COMPUTED_SIZE}
+     * did not resolve consistently across navigation transitions.</p>
+     *
+     * @param extra an additional banner line to prepend above the service
+     *              announcement (e.g. the dev-mode notice), or {@code null} /
+     *              empty to show only the service announcement
+     */
     public void setAnnouncementRow( String extra ) {
         String homeAnnounce = AnnouncementManager.getAnnouncementHome();
         if ( homeAnnounce == null ) homeAnnounce = "";
@@ -735,6 +829,8 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * by {@link #rebuildCards()} (which slices it to the current page) and
      * {@link #selectModpack(GameModPack)} (which finds a pack's index to compute
      * its page), so the two can never disagree on ordering.
+     *
+     * @return the fully filtered + sorted pack list, before pagination
      */
     private List< GameModPack > buildFilteredSortedPacks()
     {
@@ -777,6 +873,18 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return all;
     }
 
+    /**
+     * Rebuilds the visible card grid from the current filter / search / sort /
+     * pagination state. Computes the filtered + sorted pack list via
+     * {@link #buildFilteredSortedPacks()}, clamps + slices it to the current
+     * page, updates the pagination controls, recycles the previously-displayed
+     * hero cards back into {@link #cardPool}, then either renders the empty-state
+     * placeholder (no matching packs) or acquires/binds one pooled card per pack
+     * in the page slice.
+     *
+     * <p>Must run on the FX thread — touches FXML-injected controls and mutates
+     * the {@link #modpackCardList} FlowPane's child list.</p>
+     */
     private void rebuildCards()
     {
         List< GameModPack > all = buildFilteredSortedPacks();
@@ -815,6 +923,10 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * Reorders the pack list per the selected sort key. Mutates in place to
      * avoid an extra list allocation — the caller is the one-shot
      * {@link #rebuildCards()} pipeline that doesn't reuse the list.
+     *
+     * @param packs   the pack list to reorder in place
+     * @param sortKey the selected sort key (one of the {@code SORT_*} constants);
+     *                anything unrecognized falls back to last-played ordering
      */
     private void sortPacks( List< GameModPack > packs, String sortKey )
     {
@@ -858,7 +970,12 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         }
     }
 
-    /** Updates the prev/next/page-label state to match the new pagination math. */
+    /**
+     * Updates the prev/next/page-label state to match the new pagination math.
+     *
+     * @param bounds the clamped page bounds (start / end / total items / total
+     *               pages) for the current page
+     */
     private void updatePaginationControls( LibraryViewModel.PageBounds bounds )
     {
         int currentPage = vm.getCurrentPage();
@@ -887,6 +1004,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * us when the background revalidate replaces a stub with a fully-loaded
      * pack. Caching it would mean stale matches on the first few seconds
      * after cold start.</p>
+     *
+     * @param pack   the pack whose search haystack to test
+     * @param tokens the lowercased search tokens that must all match; a
+     *               {@code null} or empty array matches everything
+     *
+     * @return {@code true} when every non-empty token is a substring of the
+     *         pack's haystack
      */
     private static boolean matchesAllTokens( GameModPack pack, String[] tokens )
     {
@@ -904,6 +1028,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * one lowercase haystack. Used by {@link #matchesAllTokens} so a search
      * for "1.12" or "forge" or "biomes 1.12" hits even when those tokens
      * aren't in the display name.
+     *
+     * @param pack the pack to build a search haystack for
+     *
+     * @return a single lowercase string concatenating the pack's display name,
+     *         versions, loader info, and a {@code vanilla} / {@code modpack} tag
      */
     private static String buildSearchHaystack( GameModPack pack )
     {
@@ -1165,8 +1294,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     private final class ModpackHeroCard extends VBox
     {
+        /** Fixed card width in pixels — lets the parent FlowPane wrap cards onto a clean grid. */
         private static final double CARD_WIDTH  = 360;
+        /** Height in pixels of the card's top image region. */
         private static final double IMAGE_HEIGHT = 150;
+        /** Fixed height in pixels for the Play / Website action buttons so they align in their row. */
         private static final double BTN_H       = 38;
 
         /** Current pack — mutated by {@link #bind}. All event handlers read this
@@ -1198,6 +1330,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         /** Guards the one-shot background prefetch of not-yet-cached cycle images per bind. */
         private boolean                  cyclePrefetchStarted;
 
+        /**
+         * Builds the card's static scene-graph tree once (image region, logo,
+         * name/chips/last-played body, action buttons, single/double-click and
+         * context-menu interactions) and binds it to {@code initialPack}. The tree
+         * is reused across rebinds via {@link #bind} so the per-card allocation +
+         * CSS-apply cost is paid once per pool slot rather than per rebuild.
+         *
+         * @param initialPack the pack to display on first construction
+         */
         ModpackHeroCard( GameModPack initialPack )
         {
             getStyleClass().add( "heroCardShell" );
@@ -1607,6 +1748,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
          * {@link #bind} and again after an async image warm-up lands, so a pack whose extra
          * images weren't cached at first paint starts cycling once they arrive. Idempotent.
          *
+         * @param pack         the pack whose cached logos / backgrounds to resolve
          * @param primaryLogo  the already-resolved primary logo, used as a single-item
          *                     fallback when no logos are cached on disk yet
          * @param showBg       whether background imagery is enabled (Settings opt-out)
@@ -1714,6 +1856,15 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             }
         }
 
+        /**
+         * Launches the given pack. Records it as the last-selected pack, sets the
+         * Discord game presence, and hands off to
+         * {@link LauncherCore#play(GameModPack, Runnable)} with a completion
+         * callback that re-shows and re-focuses the main GUI once the game exits.
+         * Runs the launch off the FX thread.
+         *
+         * @param pack the pack to launch
+         */
         private void startPlay( GameModPack pack ) {
             ConfigManager.setLastModPackSelected( pack.getPackName() );
             SystemUtilities.spawnNewTask( () -> {
@@ -1734,6 +1885,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             } );
         }
 
+        /**
+         * Builds a small pill-shaped chip label with the base {@code stat-chip}
+         * style plus any extra style classes (e.g. {@code stat-chip-warn} for the
+         * beta badge).
+         *
+         * @param text         the chip's text
+         * @param extraClasses additional CSS style classes to apply
+         *
+         * @return the styled chip {@link Label}
+         */
         private Label buildChip( String text, String... extraClasses ) {
             Label chip = new Label( text );
             chip.getStyleClass().add( "stat-chip" );
@@ -1741,6 +1902,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
             return chip;
         }
 
+        /**
+         * Builds a small pill-shaped chip label with only the base
+         * {@code stat-chip} style.
+         *
+         * @param text the chip's text
+         *
+         * @return the styled chip {@link Label}
+         */
         private Label buildChip( String text ) {
             return buildChip( text, new String[ 0 ] );
         }
@@ -1748,6 +1917,17 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
     // ---------- helpers used by the card ----------
 
+    /**
+     * Resolves the user-facing display name for a pack. Vanilla versions use the
+     * bare pack name (the standard friendly-name template duplicates the version
+     * into a noisy "Minecraft 1.21.11: 1.21.11" suffix); modded packs prefer the
+     * friendly name, falling back to the pack name and finally a localized
+     * "unnamed pack" placeholder.
+     *
+     * @param pack the pack to name
+     *
+     * @return a non-null display name, never blank
+     */
     private static String resolveDisplayName( GameModPack pack ) {
         // Vanilla packs use the standard friendly-name template "%s: %s" which expands to
         // e.g. "Minecraft 1.21.11: 1.21.11" — the pack name already contains the version,
@@ -2128,6 +2308,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  the second stop algorithmically. */
     private record DominantColors( Color primary, Color secondary )
     {
+        /**
+         * Whether a distinct second hue was found during sampling.
+         *
+         * @return {@code true} when {@link #secondary} is non-null (a second
+         *         distinct hue was identified), {@code false} when the logo was
+         *         too monochrome and the gradient renderer must derive the
+         *         second stop algorithmically
+         */
         boolean hasSecondary() { return secondary != null; }
     }
 
@@ -2142,6 +2330,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      * <p>Used by {@code RgbIntegration} to derive the in-game RGB
      * effect's color palette from the selected modpack.</p>
      *
+     * @param pack the modpack whose logo to sample
+     *
+     * @return a two-element array {@code {primary, secondary}} (either element may
+     *         be {@code null} when no distinct hue was found), or {@code null}
+     *         when the pack is vanilla / has no on-disk logo / yields no hues
      * @since 2026.5
      */
     public static Color[] sampleDominantPackColors( GameModPack pack )
@@ -2174,6 +2367,11 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *
      * @param pack  the modpack whose logo to sample.
      * @param count maximum colors to return. Must be ≥ 1.
+     *
+     * @return up to {@code count} distinct dominant colors (possibly fewer when
+     *         the logo lacks that many distinct hues), or {@code null} when the
+     *         pack is vanilla, {@code count < 1}, or the logo can't be loaded /
+     *         sampled
      */
     public static Color[] sampleDominantPackPalette( GameModPack pack, int count )
     {
@@ -2509,12 +2707,34 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return new DominantColors( primary, secondary );
     }
 
+    /**
+     * Computes the weighted average color of a histogram bucket — the per-channel
+     * weighted sums divided by the bucket's total weight — yielding the
+     * representative color for that bucket. Always fully opaque.
+     *
+     * @param idx    the bucket index to average
+     * @param counts per-bucket total weights (must be non-zero at {@code idx})
+     * @param rSum   per-bucket weighted red sums
+     * @param gSum   per-bucket weighted green sums
+     * @param bSum   per-bucket weighted blue sums
+     *
+     * @return the bucket's representative color, fully opaque
+     */
     private static Color bucketAverage( int idx, int[] counts, double[] rSum, double[] gSum, double[] bSum )
     {
         int c = counts[ idx ];
         return new Color( rSum[ idx ] / c, gSum[ idx ] / c, bSum[ idx ] / c, 1.0 );
     }
 
+    /**
+     * Euclidean distance between two colors in normalized RGB space (each channel
+     * in {@code [0, 1]}), used to keep sampled palette entries visually distinct.
+     *
+     * @param a the first color
+     * @param b the second color
+     *
+     * @return the RGB-space distance between {@code a} and {@code b}
+     */
     private static double colorDistance( Color a, Color b )
     {
         double dr = a.getRed()   - b.getRed();
@@ -2540,21 +2760,51 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         return ModpackImageResolver.resolveLogoOrDefault( pack );
     }
 
+    /**
+     * Reads the pack's Minecraft version, swallowing any parse / manifest error
+     * so a hostile or half-loaded pack can't break card rendering.
+     *
+     * @param pack the pack to query
+     *
+     * @return the Minecraft version string, or {@code null} on any failure
+     */
     private static String safeMinecraftVersion( GameModPack pack ) {
         try { return pack.getMinecraftVersion(); }
         catch ( Exception ignored ) { return null; }
     }
 
+    /**
+     * Reads the pack's mod-loader name (Forge / NeoForge / Fabric), swallowing
+     * any error so a half-loaded pack can't break card rendering.
+     *
+     * @param pack the pack to query
+     *
+     * @return the loader name, or {@code null} on any failure
+     */
     private static String safeLoaderName( GameModPack pack ) {
         try { return pack.getLoaderName(); }
         catch ( Exception ignored ) { return null; }
     }
 
+    /**
+     * Reads the pack's mod-loader version, swallowing any error so a half-loaded
+     * pack can't break card rendering.
+     *
+     * @param pack the pack to query
+     *
+     * @return the loader version, or {@code null} on any failure
+     */
     private static String safeLoaderVersion( GameModPack pack ) {
         try { return pack.getLoaderVersion(); }
         catch ( Exception ignored ) { return null; }
     }
 
+    /**
+     * Opens the pack's website in the system browser via
+     * {@link GUIUtilities#openModpackWebsite}.
+     *
+     * @param pack the pack whose website URL to open
+     */
     private static void openModpackWebsite( GameModPack pack ) {
         GUIUtilities.openModpackWebsite( pack );
     }
@@ -2989,6 +3239,13 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * Creates a desktop shortcut that launches the given pack directly, then
+     * surfaces a success alert (or an error dialog on failure). Runs on a
+     * background thread; all UI is dispatched back to the FX thread.
+     *
+     * @param pack the pack to create a desktop launch shortcut for
+     */
     private static void createDesktopShortcut( GameModPack pack ) {
         SystemUtilities.spawnNewTask( () -> {
             try {
@@ -3022,6 +3279,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         } );
     }
 
+    /**
+     * Opens a subfolder of the pack's install directory in the system file
+     * manager, creating the folder first if it doesn't exist. Runs on a
+     * background thread; failures are logged silently rather than surfaced.
+     *
+     * @param pack      the pack whose install directory to resolve
+     * @param subfolder the subfolder name (e.g. {@code "mods"},
+     *                  {@code "screenshots"}), or {@code ""} for the install
+     *                  root itself
+     */
     private static void openPackSubfolder( GameModPack pack, String subfolder ) {
         SystemUtilities.spawnNewTask( () -> {
             try {

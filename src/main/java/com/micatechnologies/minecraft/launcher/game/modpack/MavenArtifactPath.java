@@ -47,16 +47,32 @@ public final class MavenArtifactPath
 {
     private MavenArtifactPath() { /* static-only */ }
 
-    /** One parsed Maven coordinate. {@code classifier} may be null;
-     *  {@code ext} defaults to {@code "jar"}. */
+    /**
+     * One parsed Maven coordinate. {@code classifier} may be null;
+     * {@code ext} defaults to {@code "jar"}.
+     *
+     * @param group      dot-separated Maven group id (translated to {@code /} for paths)
+     * @param artifact   Maven artifact id
+     * @param version    artifact version
+     * @param classifier optional Maven classifier, or {@code null} when absent
+     * @param ext        file extension (e.g. {@code jar}); defaults to {@code jar} when unspecified
+     *
+     * @since 2026.5
+     */
     public record Coord( String group, String artifact, String version,
                           String classifier, String ext )
     {
-        /** Relative filesystem path under a Maven repo root —
-         *  {@code group-as-path/artifact/version/artifact-version[-classifier].ext}.
-         *  Uses forward slashes; callers that need OS-specific
-         *  separators should call {@code String.replace('/', File.separatorChar)}
-         *  on the result. */
+        /**
+         * Relative filesystem path under a Maven repo root —
+         * {@code group-as-path/artifact/version/artifact-version[-classifier].ext}.
+         * Uses forward slashes; callers that need OS-specific
+         * separators should call {@code String.replace('/', File.separatorChar)}
+         * on the result.
+         *
+         * @return the repo-relative path for this coordinate, using {@code /} separators
+         *
+         * @since 2026.5
+         */
         public String toRelativePath()
         {
             String fileName = artifact + "-" + version
@@ -84,6 +100,8 @@ public final class MavenArtifactPath
      *
      * @throws ModpackException when the input doesn't parse or
      *                          contains a path-traversal sequence
+     *
+     * @since 2026.5
      */
     public static Coord parseStrict( String coord ) throws ModpackException
     {
@@ -142,6 +160,16 @@ public final class MavenArtifactPath
      * bad coordinate is just skipped over rather than fatal. Path
      * traversal still throws (silently dropping a traversal attempt
      * is worse than crashing — better to fail loud on a likely attack).
+     *
+     * @param coord raw Maven coordinate string, possibly with
+     *              {@code [brackets]} and/or {@code @ext} suffix
+     * @return parsed {@link Coord}, or {@code null} when the input is
+     *         structurally invalid (non-traversal)
+     *
+     * @throws RuntimeException wrapping the underlying {@link ModpackException}
+     *                          when the coordinate contains a path-traversal sequence
+     *
+     * @since 2026.5
      */
     public static Coord parseOrNull( String coord )
     {
@@ -158,14 +186,36 @@ public final class MavenArtifactPath
         }
     }
 
-    /** Convenience: strict parse + direct relative-path conversion. */
+    /**
+     * Convenience: strict parse + direct relative-path conversion.
+     *
+     * @param coord raw Maven coordinate string
+     * @return the repo-relative path for the coordinate
+     *
+     * @throws ModpackException when the input doesn't parse or contains a
+     *                          path-traversal sequence (see {@link #parseStrict})
+     *
+     * @since 2026.5
+     */
     public static String toRelativePathStrict( String coord ) throws ModpackException
     {
         return parseStrict( coord ).toRelativePath();
     }
 
-    /** Convenience: lenient parse + direct relative-path conversion;
-     *  returns null when the coordinate doesn't parse. */
+    /**
+     * Convenience: lenient parse + direct relative-path conversion;
+     * returns null when the coordinate doesn't parse.
+     *
+     * @param coord raw Maven coordinate string
+     * @return the repo-relative path, or {@code null} when the coordinate is
+     *         structurally invalid (non-traversal)
+     *
+     * @throws RuntimeException wrapping a {@link ModpackException} when the
+     *                          coordinate contains a path-traversal sequence
+     *                          (see {@link #parseOrNull})
+     *
+     * @since 2026.5
+     */
     public static String toRelativePathOrNull( String coord )
     {
         Coord c = parseOrNull( coord );

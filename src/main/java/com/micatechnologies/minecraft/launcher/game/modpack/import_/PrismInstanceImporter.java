@@ -84,8 +84,19 @@ import java.util.Properties;
  */
 public final class PrismInstanceImporter
 {
+    /**
+     * Private no-op constructor — this is a static-only utility class and is
+     * never instantiated.
+     *
+     * @since 2026.5
+     */
     private PrismInstanceImporter() { /* static-only */ }
 
+    /** Subdirectory under the launcher config dir where translated Mica
+     *  manifests for imported instances live. Shares the same folder as
+     *  {@link MrpackImporter#IMPORTED_MANIFESTS_DIR}.
+     *
+     *  @since 2026.5 */
     public static final String IMPORTED_MANIFESTS_DIR = MrpackImporter.IMPORTED_MANIFESTS_DIR;
 
     /** Soft cap on instance.cfg / mmc-pack.json file sizes. Real files
@@ -106,6 +117,7 @@ public final class PrismInstanceImporter
      * @throws ImportException for any failure — missing files, malformed
      *         JSON, unsupported modloader, disk write failure. The
      *         message is safe to surface to end users.
+     * @since 2026.5
      */
     public static String importInstance( File instanceDir ) throws ImportException
     {
@@ -235,6 +247,13 @@ public final class PrismInstanceImporter
     //  instance.cfg + mmc-pack.json parsing
     // -------------------------------------------------------------------
 
+    /** Loads {@code instance.cfg} (loose INI {@code key=value} pairs) into a
+     *  {@link Properties}. The optional {@code [General]} section header is
+     *  ignored as a non-property line.
+     *
+     *  @param cfg the {@code instance.cfg} file
+     *  @return the parsed properties
+     *  @throws ImportException if the file is over the size cap or can't be read */
     private static Properties readInstanceCfg( File cfg ) throws ImportException
     {
         if ( cfg.length() > MAX_METADATA_BYTES ) {
@@ -253,12 +272,27 @@ public final class PrismInstanceImporter
         }
     }
 
-    /** Subset of mmc-pack.json that the importer cares about. */
+    /** Subset of mmc-pack.json that the importer cares about.
+     *
+     *  @param mcVersion          the Minecraft version
+     *  @param loaderType         the Mica loader type, or {@code null} for a
+     *                            vanilla instance
+     *  @param loaderVersion      the loader version, or {@code null}
+     *  @param loaderInstallerUrl the derived installer / profile URL, or
+     *                            {@code null} for a vanilla instance */
     private record ParsedComponents( String mcVersion,
                                      String loaderType,
                                      String loaderVersion,
                                      String loaderInstallerUrl ) {}
 
+    /** Parses {@code mmc-pack.json}, walking its {@code components} array to
+     *  resolve the Minecraft version, mod loader, and loader version.
+     *
+     *  @param f the {@code mmc-pack.json} file
+     *  @return the subset of components the importer needs
+     *  @throws ImportException if the file is over the size cap, isn't valid
+     *                         JSON, lacks the {@code components} array, or has
+     *                         no Minecraft version */
     private static ParsedComponents parseMmcPackJson( File f ) throws ImportException
     {
         if ( f.length() > MAX_METADATA_BYTES ) {
@@ -320,6 +354,15 @@ public final class PrismInstanceImporter
         return new ParsedComponents( mcVersion, loaderType, loaderVersion, installerUrl );
     }
 
+    /** Builds the installer / profile URL for the given loader. Forge and
+     *  NeoForge resolve to an installer-jar URL on the loader's Maven; Fabric
+     *  resolves to its meta service's profile-JSON endpoint.
+     *
+     *  @param loaderType    the Mica loader type
+     *  @param mcVersion     the target Minecraft version
+     *  @param loaderVersion the target loader version
+     *  @return the installer / profile URL, or {@code null} for an unrecognized
+     *          loader type */
     private static String buildLoaderInstallerUrl( String loaderType, String mcVersion, String loaderVersion )
     {
         return switch ( loaderType ) {
@@ -348,7 +391,12 @@ public final class PrismInstanceImporter
     /** Recursively copies {@code src} → {@code dest}, skipping any
      *  top-level {@code bin/} folder (which holds Prism's vendored MC
      *  jar that Mica resolves separately). REPLACE_EXISTING so a
-     *  partial import can be retried. */
+     *  partial import can be retried.
+     *
+     *  @param src  the source directory (the instance's {@code .minecraft/})
+     *  @param dest the destination directory (the new Mica pack root)
+     *  @throws IOException if a directory can't be created or a file can't be
+     *                     copied */
     private static void copyTreeSkipBin( Path src, Path dest ) throws IOException
     {
         Files.createDirectories( dest );
@@ -374,6 +422,12 @@ public final class PrismInstanceImporter
         } );
     }
 
+    /** Quick path-component sanitizer so the generated manifest filename is
+     *  safe across Windows/macOS/Linux.
+     *
+     *  @param raw the raw string to sanitize (typically the pack name)
+     *  @return a filename-safe string, or {@code "imported"} when the input is
+     *          null / blank / reduces to empty */
     private static String sanitize( String raw )
     {
         if ( raw == null || raw.isBlank() ) return "imported";
@@ -382,9 +436,17 @@ public final class PrismInstanceImporter
     }
 
     /** Checked exception mirroring the other importers — call sites
-     *  can't forget to surface the failure. */
+     *  can't forget to surface the failure.
+     *
+     *  @since 2026.5 */
     public static class ImportException extends Exception
     {
+        /**
+         * Creates an import exception with a user-readable message.
+         *
+         * @param message the user-facing failure description
+         * @since 2026.5
+         */
         public ImportException( String message ) { super( message ); }
     }
 }

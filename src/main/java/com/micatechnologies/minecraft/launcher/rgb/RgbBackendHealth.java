@@ -46,9 +46,22 @@ package com.micatechnologies.minecraft.launcher.rgb;
  */
 public final class RgbBackendHealth
 {
+    /**
+     * Circuit-breaker state for a single backend.
+     *
+     * @since 2026.5
+     */
     public enum State
     {
-        HEALTHY, DEGRADED, DEAD
+        /** Every call goes through; the default starting state. */
+        HEALTHY,
+        /** Recent failures crossed the degraded threshold; calls are gated by an
+         *  exponential-backoff retry clock that permits one probe call when it
+         *  expires. */
+        DEGRADED,
+        /** Too many failures even after retries; no further calls are made until
+         *  the next launcher start. */
+        DEAD
     }
 
     /** Consecutive failures to enter DEGRADED. Small enough that a transient
@@ -75,10 +88,19 @@ public final class RgbBackendHealth
     private long nextRetryAt = 0L;
     private long currentBackoffMs = INITIAL_BACKOFF_MS;
 
-    /** Returns true when a backend call is currently allowed. In DEGRADED
-     *  state, returns true once {@code nowMs >= nextRetryAt} — one probe
-     *  call is permitted; the next failure ratchets the backoff. DEAD
-     *  always returns false. */
+    /**
+     * Returns true when a backend call is currently allowed. In DEGRADED
+     * state, returns true once {@code nowMs >= nextRetryAt} — one probe
+     * call is permitted; the next failure ratchets the backoff. DEAD
+     * always returns false.
+     *
+     * @param nowMs the current time in epoch milliseconds, used to evaluate
+     *              the DEGRADED-state retry clock
+     *
+     * @return {@code true} if a call may proceed now, {@code false} otherwise
+     *
+     * @since 2026.5
+     */
     public boolean canCall( long nowMs )
     {
         synchronized ( lock ) {
@@ -90,11 +112,15 @@ public final class RgbBackendHealth
         }
     }
 
-    /** Record a successful call. Resets failure counters and clears
-     *  DEGRADED back to HEALTHY. Does nothing in DEAD (the breaker is
-     *  intentionally one-way after that point — we don't want a single
-     *  lucky call after a session-long outage to re-enable a backend
-     *  whose driver is broken). */
+    /**
+     * Record a successful call. Resets failure counters and clears
+     * DEGRADED back to HEALTHY. Does nothing in DEAD (the breaker is
+     * intentionally one-way after that point — we don't want a single
+     * lucky call after a session-long outage to re-enable a backend
+     * whose driver is broken).
+     *
+     * @since 2026.5
+     */
     public void recordSuccess()
     {
         synchronized ( lock ) {
@@ -105,8 +131,16 @@ public final class RgbBackendHealth
         }
     }
 
-    /** Record a failed call. Increments counters and may advance the
-     *  breaker state. Idempotent for repeat calls past DEAD. */
+    /**
+     * Record a failed call. Increments counters and may advance the
+     * breaker state. Idempotent for repeat calls past DEAD.
+     *
+     * @param nowMs the current time in epoch milliseconds, used to schedule
+     *              the next DEGRADED-state retry when crossing the degraded
+     *              threshold
+     *
+     * @since 2026.5
+     */
     public void recordFailure( long nowMs )
     {
         synchronized ( lock ) {
@@ -124,6 +158,17 @@ public final class RgbBackendHealth
         }
     }
 
+    /**
+     * Returns the current circuit-breaker state.
+     *
+     * <p>Read under the same lock that guards mutation, so the value is a
+     * consistent snapshot. Primarily consulted by the Settings status chip
+     * (from the FX thread) while the RGB worker thread is the only mutator.</p>
+     *
+     * @return the current {@link State}
+     *
+     * @since 2026.5
+     */
     public State state()
     {
         synchronized ( lock ) {
@@ -131,8 +176,16 @@ public final class RgbBackendHealth
         }
     }
 
-    /** Snapshot of the consecutive-failure counter — exposed mainly for
-     *  diagnostic logging and the Settings status chip. */
+    /**
+     * Snapshot of the consecutive-failure counter — exposed mainly for
+     * diagnostic logging and the Settings status chip.
+     *
+     * @return the number of consecutive failures recorded since the last
+     *         success (or, in DEAD state, since the session-long failure run
+     *         began)
+     *
+     * @since 2026.5
+     */
     public int consecutiveFailures()
     {
         synchronized ( lock ) {

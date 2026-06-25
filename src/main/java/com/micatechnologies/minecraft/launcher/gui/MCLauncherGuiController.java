@@ -59,20 +59,33 @@ public class MCLauncherGuiController
         return startSuccess.get() && guiWindow != null ? guiWindow.getStage() : null;
     }
 
-    /** Best-effort check for whether the launcher window currently has OS focus — i.e. the user
-     *  is actively looking at it. Used to gate native toasts for events the user may have tabbed
-     *  away from (e.g. an install finishing). The reads are plain boolean property gets, safe
-     *  enough off the FX thread for a notification decision; returns false when the GUI isn't up
-     *  or the window is hidden / minimized. */
+    /**
+     * Best-effort check for whether the launcher window currently has OS focus — i.e. the user
+     * is actively looking at it. Used to gate native toasts for events the user may have tabbed
+     * away from (e.g. an install finishing). The reads are plain boolean property gets, safe
+     * enough off the FX thread for a notification decision; returns false when the GUI isn't up
+     * or the window is hidden / minimized.
+     *
+     * @return {@code true} if the launcher window is shown, non-iconified, and focused;
+     *         {@code false} otherwise (including when the GUI is not up)
+     *
+     * @since 1.0
+     */
     public static boolean isLauncherFocused() {
         Stage topStage = getTopStageOrNull();
         return topStage != null && topStage.isShowing() && !topStage.isIconified() && topStage.isFocused();
     }
 
-    /** Returns the launcher's currently-shown GUI controller (Main, Library, Settings,
-     *  Editor, etc.) or {@code null} if the GUI hasn't started yet. Lets external
-     *  callers make screen-aware decisions without reaching into {@link MCLauncherGuiWindow}
-     *  directly. */
+    /**
+     * Returns the launcher's currently-shown GUI controller (Main, Library, Settings,
+     * Editor, etc.) or {@code null} if the GUI hasn't started yet. Lets external
+     * callers make screen-aware decisions without reaching into {@link MCLauncherGuiWindow}
+     * directly.
+     *
+     * @return the currently-displayed screen controller, or {@code null} if the GUI isn't up
+     *
+     * @since 1.0
+     */
     public static MCLauncherAbstractGui getCurrentGuiOrNull() {
         return startSuccess.get() && guiWindow != null ? guiWindow.getCurrentGui() : null;
     }
@@ -119,6 +132,11 @@ public class MCLauncherGuiController
      * and the session thread's own startGui call from goToMainGui. Whichever
      * thread enters first does the construction; the second gets a fast
      * {@code guiWindow != null} return.</p>
+     *
+     * @return {@code true} if the window is (now or already) started successfully,
+     *         {@code false} if construction failed
+     *
+     * @since 1.0
      */
     static synchronized boolean startGui() {
         if ( guiWindow == null ) {
@@ -164,6 +182,11 @@ public class MCLauncherGuiController
      * FX-prestart thread can overlap the window-init work with its own
      * auth + pack-load critical path. Safe to call multiple times — the
      * underlying startGui is synchronized + idempotent.
+     *
+     * @return {@code true} if the window is (now or already) started successfully,
+     *         {@code false} if construction failed
+     *
+     * @since 1.0
      */
     public static boolean prestartGui() {
         return startGui();
@@ -179,8 +202,14 @@ public class MCLauncherGuiController
      * <p>Accessed only under {@link #PREBUILD_LOCK} so a session thread
      * arriving mid-prebuild blocks on the monitor instead of racing into
      * its own redundant FXML load.</p>
+     *
+     * @since 1.0
      */
     private static MCLauncherMainGui prebuiltMainGui = null;
+
+    /** Monitor guarding {@link #prebuiltMainGui} so prebuild + consume can't race —
+     *  a session thread arriving mid-prebuild blocks on this lock until the in-flight
+     *  construction completes instead of falling through to a redundant FXML load. */
     private static final Object PREBUILD_LOCK = new Object();
 
     /**
@@ -194,6 +223,8 @@ public class MCLauncherGuiController
      * rather than falling through and constructing a redundant copy on
      * its own. Pre-condition: {@link #startGui()} has been called and
      * succeeded so {@link #guiWindow} is non-null.</p>
+     *
+     * @since 1.0
      */
     public static void prebuildMainGui() {
         synchronized ( PREBUILD_LOCK ) {
@@ -224,6 +255,11 @@ public class MCLauncherGuiController
      * arriving mid-prebuild waits for the in-flight construction to
      * finish instead of returning null + redundantly constructing on its
      * own. Single-use: a subsequent call returns null.</p>
+     *
+     * @return the pre-built main-menu controller, or {@code null} if none was
+     *         prepared (or it was already consumed)
+     *
+     * @since 1.0
      */
     private static MCLauncherMainGui consumePrebuiltMainGui() {
         synchronized ( PREBUILD_LOCK ) {
@@ -377,6 +413,10 @@ public class MCLauncherGuiController
      * path; other long-running flows (sign-in, etc.) still go through the
      * legacy {@link #goToProgressGui()} which renders a single bar.
      *
+     * @return the shown launch-progress controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
      * @since 2026.3
      */
     @SuppressWarnings( "UnusedReturnValue" )
@@ -466,6 +506,15 @@ public class MCLauncherGuiController
      * blank New-Modpack screen. Pass {@code null} to start with an empty
      * document (the toolbar New / Open / Open URL buttons still work either
      * way).
+     *
+     * @param initialPack the installed pack whose manifest source pre-populates the
+     *                    editor fields, or {@code null} to open a blank document
+     *
+     * @return the shown editor controller, or {@code null} if the window
+     *         could not be started
+     *
+     * @throws IOException if the screen's FXML could not be loaded
+     * @since 1.0
      */
     public static MCLauncherModPackEditorGui goToModPackEditorGui(
             com.micatechnologies.minecraft.launcher.game.modpack.GameModPack initialPack )

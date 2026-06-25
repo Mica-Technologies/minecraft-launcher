@@ -37,6 +37,22 @@ public final class RgbFrame
     private final RgbColor background;
     private final Map< KeyboardKey, RgbColor > keyOverrides;
 
+    /**
+     * Construct an immutable frame from a background color and an
+     * optional sparse map of per-key overrides. The override map is
+     * defensively copied into an immutable {@link Map}; a {@code null}
+     * or empty map collapses to {@link Map#of()}.
+     *
+     * @param background   the fill color applied to every key not present
+     *                     in {@code keyOverrides}; must not be
+     *                     {@code null}
+     * @param keyOverrides per-key color overrides (e.g. WASD highlight),
+     *                     or {@code null} / empty for a solid frame
+     *
+     * @throws NullPointerException if {@code background} is {@code null}
+     *
+     * @since 2026.5
+     */
     public RgbFrame( RgbColor background, Map< KeyboardKey, RgbColor > keyOverrides )
     {
         this.background = Objects.requireNonNull( background, "background must not be null" );
@@ -45,33 +61,79 @@ public final class RgbFrame
                 : Map.copyOf( keyOverrides );
     }
 
-    /** A solid-color frame — every key painted the same. Used by simple
-     *  effects (Test button flash, single-color idle) where no per-key
-     *  highlighting is wanted. */
+    /**
+     * A solid-color frame — every key painted the same. Used by simple
+     * effects (Test button flash, single-color idle) where no per-key
+     * highlighting is wanted.
+     *
+     * @param color the fill color for the whole device
+     *
+     * @return a new frame whose background is {@code color} with no
+     *         per-key overrides
+     *
+     * @since 2026.5
+     */
     public static RgbFrame solid( RgbColor color )
     {
         return new RgbFrame( color, Map.of() );
     }
 
+    /**
+     * The background fill color of this frame, applied to every key not
+     * explicitly overridden.
+     *
+     * @return the background color; never {@code null}
+     *
+     * @since 2026.5
+     */
     public RgbColor background() { return background; }
 
-    /** Returns the color this frame wants for {@code key} — either the
-     *  override entry if present, or the background color. Never returns
-     *  null. */
+    /**
+     * Returns the color this frame wants for {@code key} — either the
+     * override entry if present, or the background color. Never returns
+     * null.
+     *
+     * @param key the keyboard key to resolve a color for
+     *
+     * @return the override color for {@code key} if one exists, otherwise
+     *         the background color; never {@code null}
+     *
+     * @since 2026.5
+     */
     public RgbColor colorFor( KeyboardKey key )
     {
         RgbColor override = keyOverrides.get( key );
         return override != null ? override : background;
     }
 
-    /** Unmodifiable view of the per-key override map — backends iterate it
-     *  to set non-background keys, leaving the rest of the device on the
-     *  background fill. */
+    /**
+     * Unmodifiable view of the per-key override map — backends iterate it
+     * to set non-background keys, leaving the rest of the device on the
+     * background fill.
+     *
+     * @return the immutable per-key override map; empty when the frame
+     *         is a solid fill
+     *
+     * @since 2026.5
+     */
     public Map< KeyboardKey, RgbColor > overrides()
     {
         return keyOverrides;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Two frames are equal when they have the same background color
+     * and the same per-key override map.</p>
+     *
+     * @param o the object to compare against
+     *
+     * @return {@code true} if {@code o} is an {@link RgbFrame} with an
+     *         equal background and equal overrides
+     *
+     * @since 2026.5
+     */
     @Override
     public boolean equals( Object o )
     {
@@ -81,6 +143,16 @@ public final class RgbFrame
                 && keyOverrides.equals( other.keyOverrides );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Derived from the background color and the per-key override map,
+     * consistent with {@link #equals(Object)}.</p>
+     *
+     * @return a hash code combining the background and override map
+     *
+     * @since 2026.5
+     */
     @Override
     public int hashCode()
     {

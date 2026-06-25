@@ -48,8 +48,10 @@ import java.util.List;
  */
 public final class ServerFavoritesStore
 {
+    /** Non-instantiable: this is a static-only utility holder. */
     private ServerFavoritesStore() { /* static-only */ }
 
+    /** Sidecar filename written into the pack root folder. */
     private static final String FILE_NAME = "server-favorites.json";
 
     /**
@@ -57,6 +59,15 @@ public final class ServerFavoritesStore
      * auto-joining the pack's manifest-declared default server.
      * Defaults to {@code false} (auto-join is enabled when the pack
      * declares a default).
+     *
+     * @param pack the modpack whose sidecar is consulted; a {@code null}
+     *             pack is treated as "not disabled"
+     *
+     * @return {@code true} if the sidecar records the default-server
+     *         auto-join as disabled, {@code false} otherwise (including
+     *         when the sidecar is missing or unreadable)
+     *
+     * @since 2026.5
      */
     public static boolean isDefaultServerDisabled( GameModPack pack )
     {
@@ -78,6 +89,16 @@ public final class ServerFavoritesStore
      * Persists the user's choice to disable / re-enable auto-join for
      * the pack's manifest-declared default server. Leaves the existing
      * favorites list untouched.
+     *
+     * @param pack     the modpack whose sidecar is rewritten
+     * @param disabled {@code true} to suppress auto-joining the
+     *                 manifest-declared default server, {@code false} to
+     *                 re-enable it
+     *
+     * @throws IOException if {@code pack} is {@code null} or the sidecar
+     *                     cannot be written
+     *
+     * @since 2026.5
      */
     public static void setDefaultServerDisabled( GameModPack pack, boolean disabled ) throws IOException
     {
@@ -89,6 +110,17 @@ public final class ServerFavoritesStore
     /**
      * Returns the favorites list for the given pack. Never null; an
      * empty list is returned when the file is missing or malformed.
+     * Individual malformed array entries are skipped silently, and
+     * out-of-range ports / blank names are normalized rather than
+     * rejected.
+     *
+     * @param pack the modpack whose favorites are read; a {@code null}
+     *             pack yields an empty list
+     *
+     * @return an immutable-or-fresh list of valid {@link ServerFavorite}
+     *         entries, never {@code null}
+     *
+     * @since 2026.5
      */
     public static List< ServerFavorite > load( GameModPack pack )
     {
@@ -125,13 +157,40 @@ public final class ServerFavoritesStore
         }
     }
 
-    /** Overwrites the favorites file with the given list, preserving
-     *  the existing {@code disableDefaultServer} flag. */
+    /**
+     * Overwrites the favorites file with the given list, preserving
+     * the existing {@code disableDefaultServer} flag.
+     *
+     * @param pack      the modpack whose sidecar is rewritten
+     * @param favorites the favorites to persist; {@code null} or
+     *                  host-less entries are dropped
+     *
+     * @throws IOException if {@code pack} is {@code null} or the sidecar
+     *                     cannot be written
+     *
+     * @since 2026.5
+     */
     public static void save( GameModPack pack, List< ServerFavorite > favorites ) throws IOException
     {
         writeAll( pack, favorites, isDefaultServerDisabled( pack ) );
     }
 
+    /**
+     * Serializes the favorites list and the default-server flag to the
+     * sidecar file, creating parent directories as needed. Host-less or
+     * {@code null} favorite entries are dropped, and the
+     * {@code disableDefaultServer} flag is only emitted when {@code true}
+     * to keep the common-case file minimal.
+     *
+     * @param pack                  the modpack whose sidecar is written
+     * @param favorites             the favorites to persist (may be
+     *                              {@code null} for an empty list)
+     * @param defaultServerDisabled whether to record the default-server
+     *                              auto-join as disabled
+     *
+     * @throws IOException if {@code pack} is {@code null} or the file
+     *                     cannot be written
+     */
     private static void writeAll( GameModPack pack, List< ServerFavorite > favorites,
                                   boolean defaultServerDisabled ) throws IOException
     {
@@ -160,6 +219,16 @@ public final class ServerFavoritesStore
         Files.writeString( dest, JSONUtilities.getGson().toJson( root ), StandardCharsets.UTF_8 );
     }
 
+    /**
+     * Reads the sidecar file and returns its parsed root object.
+     *
+     * @param f the sidecar file to read
+     *
+     * @return the parsed root {@link JsonObject}, or {@code null} when
+     *         the body does not parse to a JSON object
+     *
+     * @throws IOException if the file cannot be read
+     */
     private static JsonObject readRoot( File f ) throws IOException
     {
         String body = Files.readString( f.toPath(), StandardCharsets.UTF_8 );
@@ -167,6 +236,16 @@ public final class ServerFavoritesStore
         return parsed != null && parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
     }
 
+    /**
+     * Reads a string-valued property, tolerating missing keys, JSON
+     * nulls, and non-primitive values.
+     *
+     * @param o   the JSON object to read from
+     * @param key the property name to look up
+     *
+     * @return the property's string value, or {@code null} when absent
+     *         or not a JSON primitive
+     */
     private static String optString( JsonObject o, String key )
     {
         if ( !o.has( key ) ) return null;

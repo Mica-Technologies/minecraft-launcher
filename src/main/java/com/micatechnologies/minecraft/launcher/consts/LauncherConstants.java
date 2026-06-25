@@ -70,6 +70,13 @@ public class LauncherConstants
      */
     public final static String LAUNCHER_APPLICATION_NAME_TRIMMED = LAUNCHER_APPLICATION_NAME.replaceAll( " ", "" );
 
+    /**
+     * Determines whether the launcher is running in development mode. Returns {@code true} when the launcher's package
+     * has no implementation version (typical of an IDE / unpackaged run) or when the JAR manifest contains a
+     * {@code Launcher-Environment: DEV} entry (set by the {@code -Pdev} Maven profile).
+     *
+     * @return {@code true} if the launcher is running in development mode, {@code false} otherwise
+     */
     private static boolean detectDevMode() {
         // No manifest version means running from IDE -- always dev mode
         if ( LauncherCore.class.getPackage().getImplementationVersion() == null ) {
@@ -87,6 +94,13 @@ public class LauncherConstants
         }
     }
 
+    /**
+     * Resolves the launcher application name from the JAR manifest's implementation title, appending a {@code " DEV"}
+     * suffix when dev mode is active and the title does not already advertise it. Falls back to a hard-coded dev name
+     * when no manifest title is present (e.g. an IDE run).
+     *
+     * @return the resolved launcher application name
+     */
     private static String resolveAppName() {
         String title = LauncherCore.class.getPackage().getImplementationTitle();
         if ( title != null ) {
@@ -99,6 +113,13 @@ public class LauncherConstants
         return "Mica Minecraft Launcher DEV";
     }
 
+    /**
+     * Resolves the launcher application version. Prefers the JAR manifest's {@code Implementation-Version} (present in
+     * packaged builds); when absent, falls back to {@code git describe} against the repository containing the running
+     * class, and finally to the {@code "0.0.0-dev"} sentinel when neither is available.
+     *
+     * @return the resolved launcher application version string
+     */
     private static String resolveAppVersion() {
         String fromManifest = LauncherCore.class.getPackage().getImplementationVersion();
         if ( fromManifest != null ) {
@@ -108,6 +129,15 @@ public class LauncherConstants
         return fromGit != null ? fromGit : "0.0.0-dev";
     }
 
+    /**
+     * Attempts to derive a version string by running {@code git describe --tags --dirty=.dirty --always} in the
+     * repository that contains the running class. The invocation is bounded by a short (2 second) timeout so a stuck
+     * git process cannot hang launcher startup; on timeout, non-zero exit, blank output, or any error the method
+     * returns {@code null} so the caller can fall back to the dev sentinel.
+     *
+     * @return the trimmed {@code git describe} output, or {@code null} if the repository root cannot be found, git is
+     *         unavailable, the invocation fails or times out, or the output is empty
+     */
     private static String tryGitDescribe() {
         java.nio.file.Path repoRoot = findRepoRoot();
         if ( repoRoot == null ) {
@@ -139,6 +169,14 @@ public class LauncherConstants
         }
     }
 
+    /**
+     * Locates the Git repository root for the running class by walking up from its {@code CodeSource} location until a
+     * {@code .git} entry is found. Both worktree layouts (where {@code .git} is a regular file) and standard clones
+     * (where it is a directory) are handled.
+     *
+     * @return the repository root path, or {@code null} if no {@code .git} ancestor is found or the location cannot be
+     *         resolved (e.g. when invoked from a JAR URL outside a repository)
+     */
     // Walks up from the running class's CodeSource until it hits a `.git` entry — works for the
     // regular IDE case (target/classes or out/production/...) and for git worktrees (where .git
     // is a file, not a directory). Returns null if invoked from a JAR URL outside a repo, in

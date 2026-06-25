@@ -44,8 +44,25 @@ public final class SupportedLocales
     /** One supported UI language. {@code tag} is the BCP-47 form used in
      *  config storage + resource bundle file suffixes (e.g.
      *  {@code DisplayStrings_es.properties}). {@code displayName} is shown
-     *  in the Settings dropdown. */
+     *  in the Settings dropdown.
+     *
+     * @param tag         the BCP-47 locale tag (e.g. {@code "es"},
+     *                    {@code "pt-BR"}) used for config storage and as the
+     *                    resource-bundle file suffix
+     * @param displayName the language name written in its own language, shown
+     *                    in the Settings Language dropdown
+     *
+     * @since 2026.5
+     */
     public record Entry( String tag, String displayName ) {
+        /**
+         * Converts this entry's BCP-47 {@link #tag()} into a {@link Locale}.
+         *
+         * @return the {@link Locale} parsed from {@link #tag()} via
+         *         {@link Locale#forLanguageTag(String)}
+         *
+         * @since 2026.5
+         */
         public Locale toLocale() { return Locale.forLanguageTag( tag ); }
     }
 

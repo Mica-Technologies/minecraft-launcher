@@ -61,6 +61,19 @@ public final class RgbEffectEngine
     private long effectStartMs;
     private ScheduledFuture< ? > tickFuture;
 
+    /**
+     * Create an engine bound to {@code controller}. The dedicated
+     * {@code mica-rgb-effects} daemon scheduler is created immediately
+     * but stays idle — no ticks are scheduled until the first non-null
+     * {@link #setEffect(RgbEffect)} call arms it.
+     *
+     * @param controller the controller this engine pushes rendered
+     *                   frames into via
+     *                   {@link RgbController#submitFrame(RgbFrame)};
+     *                   never {@code null}
+     *
+     * @since 2026.5
+     */
     public RgbEffectEngine( RgbController controller )
     {
         this.controller = controller;
@@ -76,6 +89,12 @@ public final class RgbEffectEngine
      * (equivalent to {@link #stop()}). Idempotent — setting the same
      * effect instance again is a no-op and does NOT restart its
      * elapsed-time clock.
+     *
+     * @param effect the effect to drive at the engine cadence, or
+     *              {@code null} to stop the engine (cancels ticking and
+     *              pushes one final black frame)
+     *
+     * @since 2026.5
      */
     public void setEffect( RgbEffect effect )
     {
@@ -102,16 +121,27 @@ public final class RgbEffectEngine
         }
     }
 
-    /** Stops the engine (no current effect, no ticking, one final
-     *  black frame pushed). The scheduler stays alive so a subsequent
-     *  setEffect call can re-arm it cheaply. */
+    /**
+     * Stops the engine (no current effect, no ticking, one final
+     * black frame pushed). The scheduler stays alive so a subsequent
+     * {@link #setEffect(RgbEffect)} call can re-arm it cheaply.
+     *
+     * @since 2026.5
+     */
     public void stop()
     {
         setEffect( null );
     }
 
-    /** Returns the currently-active effect, or {@code null} if none.
-     *  Provided mainly for the Settings status chip. */
+    /**
+     * Returns the currently-active effect, or {@code null} if none.
+     * Provided mainly for the Settings status chip.
+     *
+     * @return the active {@link RgbEffect}, or {@code null} when the
+     *         engine is stopped / no effect is set
+     *
+     * @since 2026.5
+     */
     public RgbEffect activeEffect()
     {
         synchronized ( lock ) {
@@ -122,6 +152,8 @@ public final class RgbEffectEngine
     /**
      * Shut down the scheduler entirely. Called from the launcher's
      * cleanup path on exit; after this the engine cannot be reused.
+     *
+     * @since 2026.5
      */
     public void shutdown()
     {

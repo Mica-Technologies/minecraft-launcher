@@ -54,6 +54,7 @@ import com.micatechnologies.minecraft.launcher.consts.LauncherConstants;
  */
 public final class AppConfig
 {
+    /** Not instantiable; this is a static-only utility holder. */
     private AppConfig() { /* static-only */ }
 
     // ====================================================================
@@ -70,6 +71,11 @@ public final class AppConfig
         return json.get( ConfigConstants.THEME_KEY ).getAsString();
     }
 
+    /**
+     * Sets the active launcher theme identifier and schedules a debounced disk flush.
+     *
+     * @param theme the theme identifier to persist
+     */
     public static synchronized void setTheme( String theme ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.THEME_KEY, theme );
         ConfigStore.scheduleWrite();
@@ -93,6 +99,12 @@ public final class AppConfig
         return el.getAsString();
     }
 
+    /**
+     * Sets the user locale override and schedules a debounced disk flush. A {@code null} or empty tag clears the
+     * override, restoring OS-locale detection at the next startup.
+     *
+     * @param tag the BCP-47 locale tag to persist (e.g. {@code "fr-FR"}), or {@code null}/empty to clear the override
+     */
     public static synchronized void setLocaleOverride( String tag ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.LOCALE_OVERRIDE_KEY,
                                                   tag == null ? "" : tag );
@@ -117,6 +129,12 @@ public final class AppConfig
                 || json.get( ConfigConstants.LOG_DEBUG_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets the persisted debug-logging preference and schedules a debounced disk flush. Note that dev builds always
+     * log debug regardless of this value; only the user's on-disk preference is changed here.
+     *
+     * @param enable {@code true} to enable debug logging, {@code false} to disable it
+     */
     public static synchronized void setDebugLogging( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.LOG_DEBUG_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -132,6 +150,11 @@ public final class AppConfig
         return json.get( ConfigConstants.LOG_ENHANCED_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets the enhanced (more verbose) logging preference and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to enable enhanced logging, {@code false} to disable it
+     */
     public static synchronized void setEnhancedLogging( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.LOG_ENHANCED_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -156,6 +179,11 @@ public final class AppConfig
         return json.get( ConfigConstants.DISCORD_RPC_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets the Discord rich-presence enable preference and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to enable Discord rich-presence, {@code false} to disable it
+     */
     public static synchronized void setDiscordRpcEnable( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.DISCORD_RPC_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -173,6 +201,11 @@ public final class AppConfig
         return json.get( ConfigConstants.DISCORD_INVITES_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets the Discord "Join Game" invites enable preference and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to enable Discord invites, {@code false} to disable them
+     */
     public static synchronized void setDiscordInvitesEnable( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.DISCORD_INVITES_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -192,6 +225,11 @@ public final class AppConfig
         return json.get( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether launcher windows can be resized and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to allow window resizing, {@code false} to disallow it
+     */
     public static synchronized void setResizableWindows( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.RESIZE_WINDOWS_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -208,6 +246,11 @@ public final class AppConfig
         return json.get( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether the in-game console window is shown when launching a modpack and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to enable the in-game console, {@code false} to disable it
+     */
     public static synchronized void setInGameConsoleEnable( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.INGAME_CONSOLE_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -224,6 +267,12 @@ public final class AppConfig
         return json.get( ConfigConstants.CONSOLE_LOG_MAX_LINES_KEY ).getAsInt();
     }
 
+    /**
+     * Sets the visible-log-line cap for the in-game console and schedules a debounced disk flush. Negative values are
+     * clamped to {@code 0} (unlimited).
+     *
+     * @param max the maximum number of visible console lines, or {@code 0} for unlimited
+     */
     public static synchronized void setConsoleLogMaxLines( int max ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.CONSOLE_LOG_MAX_LINES_KEY,
                                                  Math.max( 0, max ) );
@@ -244,6 +293,11 @@ public final class AppConfig
         return json.get( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether the launcher checks for its own updates on startup and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to enable the startup update check, {@code false} to disable it
+     */
     public static synchronized void setLauncherUpdateCheckEnabled( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.LAUNCHER_UPDATE_CHECK_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -262,6 +316,12 @@ public final class AppConfig
         return json.get( ConfigConstants.URI_HANDLER_ENABLED_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether the {@code mmcl://} URI handler is enabled and schedules a debounced disk flush. When disabled,
+     * neither cold-start argv-delivered URIs nor runtime IPC-delivered URIs are dispatched.
+     *
+     * @param enable {@code true} to enable the URI handler, {@code false} to disable it
+     */
     public static synchronized void setUriHandlerEnabled( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.URI_HANDLER_ENABLED_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -279,6 +339,12 @@ public final class AppConfig
         return json.get( ConfigConstants.QUICK_START_COMPLETED_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether the first-launch quick-start wizard has been completed or skipped and schedules a debounced disk
+     * flush.
+     *
+     * @param completed {@code true} once the quick-start wizard has been completed or skipped
+     */
     public static synchronized void setQuickStartCompleted( boolean completed ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.QUICK_START_COMPLETED_KEY, completed );
         ConfigStore.scheduleWrite();
@@ -296,6 +362,11 @@ public final class AppConfig
         return json.get( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether downloads throttle while running on battery power and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to throttle downloads on battery, {@code false} to download at full speed
+     */
     public static synchronized void setBatteryThrottleEnable( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.BATTERY_THROTTLE_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -318,6 +389,12 @@ public final class AppConfig
         return json.get( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY ).getAsBoolean();
     }
 
+    /**
+     * Sets whether LWJGL ARM64 native patching is enabled and schedules a debounced disk flush. When on, the launcher
+     * substitutes ARM64-compatible LWJGL2 natives for older Minecraft versions on ARM64 macOS / Linux.
+     *
+     * @param enable {@code true} to enable LWJGL ARM64 patching, {@code false} to disable it
+     */
     public static synchronized void setLwjglArmPatchEnable( boolean enable ) {
         ConfigStore.ensureLoaded().addProperty( ConfigConstants.LWJGL_ARM_PATCH_ENABLE_KEY, enable );
         ConfigStore.scheduleWrite();
@@ -333,30 +410,60 @@ public final class AppConfig
     // them atomically.
     // ====================================================================
 
+    /**
+     * Returns the last-persisted launcher window X position.
+     *
+     * @return the saved X coordinate, or {@link Double#NaN} when none has ever been persisted (caller should fall
+     *         back to a centered default)
+     */
     public static synchronized double getWindowX() {
         JsonObject json = ConfigStore.ensureLoaded();
         if ( !json.has( ConfigConstants.WINDOW_X_KEY ) ) return Double.NaN;
         return json.get( ConfigConstants.WINDOW_X_KEY ).getAsDouble();
     }
 
+    /**
+     * Returns the last-persisted launcher window Y position.
+     *
+     * @return the saved Y coordinate, or {@link Double#NaN} when none has ever been persisted (caller should fall
+     *         back to a centered default)
+     */
     public static synchronized double getWindowY() {
         JsonObject json = ConfigStore.ensureLoaded();
         if ( !json.has( ConfigConstants.WINDOW_Y_KEY ) ) return Double.NaN;
         return json.get( ConfigConstants.WINDOW_Y_KEY ).getAsDouble();
     }
 
+    /**
+     * Returns the last-persisted launcher window width.
+     *
+     * @return the saved width, or {@link Double#NaN} when none has ever been persisted (caller should fall back to a
+     *         default size)
+     */
     public static synchronized double getWindowWidth() {
         JsonObject json = ConfigStore.ensureLoaded();
         if ( !json.has( ConfigConstants.WINDOW_WIDTH_KEY ) ) return Double.NaN;
         return json.get( ConfigConstants.WINDOW_WIDTH_KEY ).getAsDouble();
     }
 
+    /**
+     * Returns the last-persisted launcher window height.
+     *
+     * @return the saved height, or {@link Double#NaN} when none has ever been persisted (caller should fall back to a
+     *         default size)
+     */
     public static synchronized double getWindowHeight() {
         JsonObject json = ConfigStore.ensureLoaded();
         if ( !json.has( ConfigConstants.WINDOW_HEIGHT_KEY ) ) return Double.NaN;
         return json.get( ConfigConstants.WINDOW_HEIGHT_KEY ).getAsDouble();
     }
 
+    /**
+     * Returns whether the launcher window was maximized when last persisted.
+     *
+     * @return the saved maximized state, or {@link ConfigConstants#WINDOW_MAXIMIZED_DEFAULT} when none has been
+     *         persisted
+     */
     public static synchronized boolean getWindowMaximized() {
         JsonObject json = ConfigStore.ensureLoaded();
         if ( !json.has( ConfigConstants.WINDOW_MAXIMIZED_KEY ) ) {
@@ -365,6 +472,15 @@ public final class AppConfig
         return json.get( ConfigConstants.WINDOW_MAXIMIZED_KEY ).getAsBoolean();
     }
 
+    /**
+     * Persists all five window-bounds components in a single shot so a debounced flush captures them atomically.
+     *
+     * @param x         the window X position to persist
+     * @param y         the window Y position to persist
+     * @param width     the window width to persist
+     * @param height    the window height to persist
+     * @param maximized the maximized state to persist
+     */
     public static synchronized void setWindowBounds( double x, double y, double width, double height,
                                                        boolean maximized ) {
         JsonObject json = ConfigStore.ensureLoaded();

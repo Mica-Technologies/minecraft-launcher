@@ -65,11 +65,27 @@ public class ManagedGameFile
      */
     private static volatile LaunchVerifyMode currentVerifyMode = LaunchVerifyMode.FULL;
 
-    /** Reads the current launcher-wide verify mode. */
+    /**
+     * Reads the current launcher-wide verify mode.
+     *
+     * @return the verify mode currently applied to every {@link ManagedGameFile}
+     *         verification this launch
+     *
+     * @since 2026.3
+     */
     public static LaunchVerifyMode getCurrentVerifyMode() { return currentVerifyMode; }
 
-    /** Sets the launcher-wide verify mode that subsequent verifyLocalFile
-     *  calls will honor. The launch orchestrator owns this lifecycle. */
+    /**
+     * Sets the launcher-wide verify mode that subsequent {@code verifyLocalFile}
+     * calls will honor. The launch orchestrator owns this lifecycle. A
+     * {@code null} argument is coerced to {@link LaunchVerifyMode#FULL} so the
+     * field never holds a null and the verify path always has a definite mode.
+     *
+     * @param mode the verify mode to apply, or {@code null} to reset to
+     *             {@link LaunchVerifyMode#FULL}
+     *
+     * @since 2026.3
+     */
     public static void setCurrentVerifyMode( LaunchVerifyMode mode )
     {
         currentVerifyMode = ( mode != null ) ? mode : LaunchVerifyMode.FULL;
@@ -233,6 +249,12 @@ public class ManagedGameFile
      * upstream that publishes both (Mojang piston-meta v2, Modrinth) without
      * dropping verification for upstreams that publish only one
      * (Forge installer SHA-1, legacy MC asset SHA-1).
+     *
+     * @param remote remote file URL
+     * @param local  local file path
+     * @param sha1   expected SHA-1 hash, or a "no hash" value (see above)
+     * @param md5    expected MD5 hash, or a "no hash" value (see above)
+     * @param sha256 expected SHA-256 hash, or a "no hash" value (see above)
      *
      * @since 2026.5
      */
@@ -749,6 +771,11 @@ public class ManagedGameFile
      */
     public enum ManagedGameFileHashType
     {
-        SHA1, MD5, SHA256
+        /** SHA-1 digest. Common for Mojang/Forge installer and legacy MC asset manifests. */
+        SHA1,
+        /** MD5 digest. Collision-broken; the weakest of the supported algorithms. */
+        MD5,
+        /** SHA-256 digest. The strongest supported algorithm; preferred when an upstream publishes it. */
+        SHA256
     }
 }

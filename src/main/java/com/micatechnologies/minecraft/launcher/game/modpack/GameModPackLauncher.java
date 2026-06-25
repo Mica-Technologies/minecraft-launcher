@@ -69,10 +69,15 @@ class GameModPackLauncher
                 return s != null && s.isCancelled();
             };
 
-    /** Throws if the current launch has been cancelled. Branches call
-     *  this at strategic checkpoints (top of branch, between major
-     *  steps) so the launch aborts shortly after the user clicks
-     *  cancel rather than after every blocking download finishes. */
+    /**
+     * Throws if the current launch has been cancelled. Branches call
+     * this at strategic checkpoints (top of branch, between major
+     * steps) so the launch aborts shortly after the user clicks
+     * cancel rather than after every blocking download finishes.
+     *
+     * @throws ModpackException if {@link #cancellationCheck} reports the
+     *                          current launch has been cancelled
+     */
     private void checkCancelled() throws ModpackException
     {
         if ( cancellationCheck.getAsBoolean() ) {
@@ -220,6 +225,11 @@ class GameModPackLauncher
     /**
      * Rolls up every fast-path eligibility check into a single decision for
      * this launch. See {@link VerifyState#decideMode} for the conditions.
+     *
+     * @return the {@link LaunchVerifyMode} to install for this launch —
+     *         {@link LaunchVerifyMode#FULL} when the cached verify state is
+     *         missing, stale, manifest-mismatched, or the per-pack opt-out is
+     *         set; otherwise {@link LaunchVerifyMode#FAST_PATH}
      */
     private LaunchVerifyMode decideLaunchVerifyMode()
     {
@@ -246,6 +256,9 @@ class GameModPackLauncher
      * classpath. Used by the "Verify this pack now" / "Verify all game files"
      * UI actions in step 4. The sidecar gets written automatically by
      * buildClasspath on success since this is a FULL-mode run.
+     *
+     * @throws ModpackException if the underlying classpath build / file
+     *                          verification fails
      */
     void verifyAllFilesNow() throws ModpackException
     {
@@ -263,6 +276,8 @@ class GameModPackLauncher
      * Variant of {@link #buildClasspath()} that hardcodes FULL verify and
      * skips the per-pack opt-out / global-flag decision. Used by the
      * verify-now actions; not by the normal Play path.
+     *
+     * @throws ModpackException if unable to build the classpath / verify files
      */
     private void buildClasspathForceFull() throws ModpackException
     {
@@ -283,9 +298,23 @@ class GameModPackLauncher
         }
     }
 
-    /** The actual buildClasspath body. Extracted so {@link #buildClasspath()}
-     *  can wrap it in the verify-mode install / restore lifecycle without
-     *  the body needing to know that ceremony exists. */
+    /**
+     * The actual buildClasspath body. Extracted so {@link #buildClasspath()}
+     * can wrap it in the verify-mode install / restore lifecycle without
+     * the body needing to know that ceremony exists.
+     *
+     * <p>Runs the four pre-launch download stages (modpack content, loader
+     * libraries, Minecraft libraries + assets, and JRE install) — in parallel
+     * on {@link #LAUNCH_IO_POOL} for modded packs, sequentially for vanilla —
+     * then the post-install processors step (Forge / NeoForge only) and the
+     * security scan, before merging the loader and Minecraft classpaths with
+     * Maven-coordinate-aware, loader-priority dedup.</p>
+     *
+     * @return the merged, deduplicated classpath String for the game JVM
+     *
+     * @throws ModpackException if any download / verify / patch / scan stage
+     *                          fails, or the launch is cancelled
+     */
     private String buildClasspathInner() throws ModpackException
     {
         // The four pre-launch download stages have no real data dependency on each
@@ -454,6 +483,16 @@ class GameModPackLauncher
      * as the key. Different versions of the same artifact + classifier
      * collide; different classifiers of the same artifact don't (LWJGL
      * natives variants stay distinct).</p>
+     *
+     * @param loaderClasspath the loader-provided classpath entries, which win
+     *                        on coordinate collision; may be {@code null}/empty
+     * @param mcClasspath     the vanilla Minecraft classpath entries, added
+     *                        only where they don't collide with a loader entry;
+     *                        may be {@code null}/empty
+     *
+     * @return the merged classpath, entries joined by {@link File#pathSeparator},
+     *         with the redundant vanilla {@code bin/minecraft.jar} dropped when
+     *         the loader supplies a patched client
      */
     private static String mergeClasspathsLoaderPriority( String loaderClasspath,
                                                           String mcClasspath )
@@ -479,10 +518,17 @@ class GameModPackLauncher
         return String.join( File.pathSeparator, byCoord.values() );
     }
 
-    /** True iff any classpath entry is a modern-Forge / NeoForge
-     *  patched client jar. Recognises both by their Maven path
-     *  (libraries/net/minecraftforge/forge/.../forge-VERSION-client.jar
-     *  or libraries/net/neoforged/neoforge/.../neoforge-VERSION-client.jar). */
+    /**
+     * True iff any classpath entry is a modern-Forge / NeoForge
+     * patched client jar. Recognises both by their Maven path
+     * (libraries/net/minecraftforge/forge/.../forge-VERSION-client.jar
+     * or libraries/net/neoforged/neoforge/.../neoforge-VERSION-client.jar).
+     *
+     * @param entries the classpath entries to inspect
+     *
+     * @return {@code true} if at least one entry is a Forge / NeoForge
+     *         patched client jar; {@code false} otherwise
+     */
     private static boolean loaderProvidesPatchedClient( java.util.Collection< String > entries )
     {
         for ( String entry : entries ) {
@@ -496,16 +542,35 @@ class GameModPackLauncher
         return false;
     }
 
-    /** True iff the entry is the vanilla {@code bin/minecraft.jar} the
-     *  launcher places into each pack's install. We look for the
-     *  trailing path component rather than the full path because the
-     *  modpack root varies per-pack. */
+    /**
+     * True iff the entry is the vanilla {@code bin/minecraft.jar} the
+     * launcher places into each pack's install. We look for the
+     * trailing path component rather than the full path because the
+     * modpack root varies per-pack.
+     *
+     * @param entry the classpath entry to test
+     *
+     * @return {@code true} if the entry path ends with {@code /bin/minecraft.jar}
+     */
     private static boolean isVanillaMinecraftJar( String entry )
     {
         String normalized = entry.replace( '\\', '/' );
         return normalized.endsWith( "/bin/minecraft.jar" );
     }
 
+    /**
+     * Splits a classpath String on the platform path separator and inserts each
+     * non-blank entry into {@code byCoord} keyed by its
+     * {@link #mavenCoordDedupKey(String) Maven dedup key}.
+     *
+     * @param byCoord       the accumulator map (coordinate key → entry),
+     *                      mutated in place; iteration order is insertion order
+     * @param classpath     the classpath String to split and add; a {@code null}
+     *                      or empty value is a no-op
+     * @param skipIfPresent when {@code true}, an entry is added only if its key
+     *                      is absent (existing entries win); when {@code false},
+     *                      an entry overwrites any existing value for its key
+     */
     private static void addClasspathEntries( java.util.LinkedHashMap< String, String > byCoord,
                                               String classpath, boolean skipIfPresent )
     {
@@ -522,10 +587,20 @@ class GameModPackLauncher
         }
     }
 
-    /** Compute a dedup key for a classpath entry that's stable across
-     *  versions of the same Maven artifact but distinct across
-     *  classifiers. Falls back to the raw path when the entry doesn't
-     *  match the Maven directory layout. */
+    /**
+     * Compute a dedup key for a classpath entry that's stable across
+     * versions of the same Maven artifact but distinct across
+     * classifiers. Falls back to the raw path when the entry doesn't
+     * match the Maven directory layout.
+     *
+     * @param classpathEntry the single classpath entry (an absolute or relative
+     *                       jar path) to derive a key from
+     *
+     * @return a version-agnostic dedup key of the form
+     *         {@code <grandparentPath>:<artifact>[-<classifier>].jar}, or the
+     *         raw {@code classpathEntry} when it doesn't follow the Maven
+     *         {@code <artifact>/<version>/<artifact>-<version>.jar} layout
+     */
     private static String mavenCoordDedupKey( String classpathEntry )
     {
         File f = new File( classpathEntry );
@@ -553,9 +628,18 @@ class GameModPackLauncher
         return grandparent.getAbsolutePath() + ":" + coordSuffix;
     }
 
-    /** Constructs a handle for the given step. Bridge-aware: returns a real
-     *  {@link StepProgressHandle} when a bridge is present, or {@code null} for
-     *  headless / non-tracker callers. */
+    /**
+     * Constructs a handle for the given step. Bridge-aware: returns a real
+     * {@link StepProgressHandle} when a bridge is present, or {@code null} for
+     * headless / non-tracker callers.
+     *
+     * @param bridge the progress bridge for this launch, or {@code null} when
+     *               there is no launch-tracker UI to drive
+     * @param stepId the launch step the handle should report progress for
+     *
+     * @return a {@link StepProgressHandle} for {@code stepId} when {@code bridge}
+     *         is non-null; otherwise {@code null}
+     */
     private static StepProgressHandle handleFor( LaunchTrackerProgressBridge bridge,
                                                   LaunchProgressTracker.StepId stepId )
     {
@@ -567,7 +651,11 @@ class GameModPackLauncher
      *  doesn't actually interrupt the underlying worker thread on modern JDKs —
      *  it just marks the future cancelled — but the failed-launch unwind path
      *  has already navigated away, so siblings finishing in the background
-     *  isn't user-visible. */
+     *  isn't user-visible.
+     *
+     * @param futures the in-flight branch futures to cancel; each is cancelled
+     *                best-effort and any thrown error is swallowed
+     */
     private static void cancelSiblings( java.util.concurrent.CompletableFuture< ? >... futures )
     {
         for ( java.util.concurrent.CompletableFuture< ? > f : futures ) {
@@ -576,8 +664,16 @@ class GameModPackLauncher
         }
     }
 
-    /** Wraps a non-{@link CompletionException} throwable so it can propagate out
-     *  of a CompletableFuture without being mangled. Pure unwrapping helper. */
+    /**
+     * Wraps a non-{@link java.util.concurrent.CompletionException CompletionException}
+     * throwable so it can propagate out of a CompletableFuture without being
+     * mangled. Pure unwrapping helper.
+     *
+     * @param t the throwable raised inside a branch task
+     *
+     * @return {@code t} itself when it is already a {@code CompletionException};
+     *         otherwise a new {@code CompletionException} wrapping {@code t}
+     */
     private static java.util.concurrent.CompletionException rethrowAsCompletion( Throwable t )
     {
         if ( t instanceof java.util.concurrent.CompletionException ce ) {
@@ -586,9 +682,17 @@ class GameModPackLauncher
         return new java.util.concurrent.CompletionException( t );
     }
 
-    /** Unwraps the actual root cause from CompletionException / ExecutionException
-     *  layers and returns it as a {@link ModpackException}. Anything that isn't
-     *  already a ModpackException gets wrapped. */
+    /**
+     * Unwraps the actual root cause from CompletionException / ExecutionException
+     * layers and returns it as a {@link ModpackException}. Anything that isn't
+     * already a ModpackException gets wrapped.
+     *
+     * @param t the (possibly wrapped) throwable from a failed branch future
+     *
+     * @return the unwrapped cause as a {@link ModpackException} — returned
+     *         directly if it already was one, otherwise wrapped with the cause's
+     *         message (or a generic fallback message)
+     */
     private static ModpackException unwrapModpackException( Throwable t )
     {
         Throwable cause = t;
@@ -608,7 +712,13 @@ class GameModPackLauncher
                 cause );
     }
 
-    /** Holds the two return values from the MC libs + JRE sequential branch. */
+    /**
+     * Holds the two return values from the MC libs + JRE sequential branch.
+     *
+     * @param manifest  the resolved Minecraft library manifest, needed later
+     *                  for the runtime component, asset index, and game args
+     * @param classpath the assembled vanilla Minecraft classpath String
+     */
     private record McLibsAndJreResult( GameLibraryManifest manifest, String classpath ) {}
 
     // =========================================================================
@@ -618,6 +728,18 @@ class GameModPackLauncher
     //  entry, markFailed in the catch path, markDone on success.
     // =========================================================================
 
+    /**
+     * Modpack-content download stage: syncs mods, configs, resource packs,
+     * shader packs, and initial files for the pack, applies the LWJGL2 ARM
+     * mod patch where needed, and caches the pack images. Drives the step
+     * lifecycle ({@code markRunning} / {@code markDone} / {@code markFailed})
+     * on the supplied handle.
+     *
+     * @param handle the progress handle for this step, or {@code null} for
+     *               headless callers (falls back to {@link #progressProvider})
+     *
+     * @throws ModpackException if a file sync fails or the launch is cancelled
+     */
     private void doModpackContent( StepProgressHandle handle ) throws ModpackException
     {
         if ( handle != null ) handle.markRunning();
@@ -660,6 +782,19 @@ class GameModPackLauncher
         }
     }
 
+    /**
+     * Loader-library download stage: builds the modloader's classpath
+     * (downloading/verifying loader libraries as a side effect) for the
+     * current game mode. Drives the step lifecycle on the supplied handle.
+     *
+     * @param handle the progress handle for this step, or {@code null} for
+     *               headless callers (falls back to {@link #progressProvider})
+     *
+     * @return the loader-side classpath String
+     *
+     * @throws ModpackException if the loader library sync fails or the launch
+     *                          is cancelled
+     */
     private String doForgeLibs( StepProgressHandle handle ) throws ModpackException
     {
         if ( handle != null ) handle.markRunning();
@@ -688,6 +823,25 @@ class GameModPackLauncher
         }
     }
 
+    /**
+     * Minecraft-libraries-then-JRE stage: resolves the Minecraft library
+     * manifest, builds the vanilla Minecraft classpath (downloading/verifying
+     * libraries and assets), then installs/verifies the Java runtime the
+     * manifest requires. The two sub-steps are sequential because the JRE
+     * install depends on the manifest resolved first. Each sub-step drives its
+     * own handle's lifecycle.
+     *
+     * @param mcHandle  the progress handle for the MC-libs/assets sub-step, or
+     *                  {@code null} for headless callers
+     * @param jreHandle the progress handle for the JRE-install sub-step, or
+     *                  {@code null} for headless callers
+     *
+     * @return an {@link McLibsAndJreResult} carrying the resolved library
+     *         manifest and the assembled Minecraft classpath
+     *
+     * @throws ModpackException if the library/asset sync or runtime install
+     *                          fails, or the launch is cancelled
+     */
     private McLibsAndJreResult doMcLibsThenJre( StepProgressHandle mcHandle,
                                                  StepProgressHandle jreHandle ) throws ModpackException
     {
@@ -749,6 +903,19 @@ class GameModPackLauncher
         return new McLibsAndJreResult( libraryManifest, classpath );
     }
 
+    /**
+     * Post-install processors stage: runs the loader's post-install steps
+     * (the Forge / NeoForge patching pipeline) using the given Java runtime
+     * component. Only invoked for loaders that declare post-install steps.
+     * Drives the step lifecycle on the supplied handle.
+     *
+     * @param handle               the progress handle for this step, or
+     *                             {@code null} for headless callers
+     * @param procRuntimeComponent the Java runtime component the processors
+     *                             should run under
+     *
+     * @throws ModpackException if the post-install run fails
+     */
     private void doForgeProcessors( StepProgressHandle handle, String procRuntimeComponent )
             throws ModpackException
     {
@@ -773,6 +940,20 @@ class GameModPackLauncher
         }
     }
 
+    /**
+     * Security-scan stage: consults the effective {@link ScanFrequency} policy
+     * for this pack and, when a scan is due, runs the malware scan over the
+     * pack's downloaded mods and libraries, persisting the scan-tracking state
+     * afterwards. When the policy says a scan isn't due, the step is marked
+     * skipped with a localized reason rather than run. Drives the step lifecycle
+     * on the supplied handle and transiently redirects the pack's progress
+     * provider so scanner output lands on this step's row.
+     *
+     * @param handle the progress handle for this step, or {@code null} for
+     *               headless callers
+     *
+     * @throws ModpackException if the scan fails or is interrupted
+     */
     private void doSecurityScan( StepProgressHandle handle ) throws ModpackException
     {
         // Resolve the effective frequency for this pack (per-pack override, then
@@ -866,8 +1047,16 @@ class GameModPackLauncher
         }
     }
 
-    /** Pulls a short error message out of a throwable for use in the failed-row
-     *  sub-text on the launch progress GUI. */
+    /**
+     * Pulls a short error message out of a throwable for use in the failed-row
+     * sub-text on the launch progress GUI.
+     *
+     * @param t the throwable to describe, possibly {@code null}
+     *
+     * @return the throwable's message if present, else its simple class name,
+     *         or a localized "unknown failure" string when {@code t} is
+     *         {@code null}
+     */
     private static String extractMessage( Throwable t )
     {
         if ( t == null ) return LocalizationManager.get( "gameModPackLauncher.error.unknownFailure" );
@@ -908,6 +1097,11 @@ class GameModPackLauncher
     }
 
     /**
+     * Tests whether a JVM-arg token names an experimental HotSpot VM option
+     * that requires {@code -XX:+UnlockExperimentalVMOptions}.
+     *
+     * @param arg the JVM-arg token to test, possibly {@code null}
+     *
      * @return {@code true} if {@code arg} is a {@code -XX:} option whose name is
      *         in {@link #EXPERIMENTAL_VM_OPTIONS}, ignoring any {@code +}/{@code -}
      *         boolean prefix and {@code =value} suffix.
@@ -1387,7 +1581,7 @@ class GameModPackLauncher
      *   <li>MC 1.17+: Uses {@code -Dlog4j2.formatMsgNoLookups=true} JVM flag (built-in support)</li>
      * </ul>
      *
-     * @param jvmArgs   the JVM arguments builder to append to
+     * @param argv      the JVM argument list to append the log4j flags to
      * @param mcVersion the Minecraft version string
      *
      * @since 3.0
@@ -1437,7 +1631,7 @@ class GameModPackLauncher
      * means the second pack onwards is a hash-verify-only fast path with no
      * network at all.</p>
      *
-     * @param jvmArgs  the JVM arguments builder to append to
+     * @param argv     the JVM argument list to append the config flag to
      * @param url      the download URL for the config file
      * @param sha1     the expected SHA-1 hash
      * @param fileName the human-readable file name (used in debug log only — the

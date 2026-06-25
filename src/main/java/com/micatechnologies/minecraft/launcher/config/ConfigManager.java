@@ -75,26 +75,71 @@ public class ConfigManager
     // RuntimeConfig delegates — RAM + JVM args
     // ====================================================================
 
+    /**
+     * Returns the configured minimum game JVM heap size in megabytes.
+     *
+     * @return the minimum RAM in megabytes
+     * @see RuntimeConfig#getMinRam()
+     * @since 1.0
+     */
     public synchronized static long getMinRam() {
         return RuntimeConfig.getMinRam();
     }
 
+    /**
+     * Sets the minimum game JVM heap size in megabytes.
+     *
+     * @param minRam the minimum RAM in megabytes to persist
+     * @see RuntimeConfig#setMinRam(long)
+     * @since 1.0
+     */
     public synchronized static void setMinRam( long minRam ) {
         RuntimeConfig.setMinRam( minRam );
     }
 
+    /**
+     * Returns the configured maximum game JVM heap size in megabytes.
+     *
+     * @return the maximum RAM in megabytes
+     * @see RuntimeConfig#getMaxRam()
+     * @since 1.0
+     */
     public synchronized static long getMaxRam() {
         return RuntimeConfig.getMaxRam();
     }
 
+    /**
+     * Returns the configured maximum game JVM heap size in gigabytes.
+     *
+     * @return the maximum RAM in gigabytes
+     * @see RuntimeConfig#getMaxRamInGb()
+     * @since 1.0
+     */
     public synchronized static double getMaxRamInGb() {
         return RuntimeConfig.getMaxRamInGb();
     }
 
+    /**
+     * Sets the maximum game JVM heap size in megabytes.
+     *
+     * @param maxRam the maximum RAM in megabytes to persist
+     * @see RuntimeConfig#setMaxRam(long)
+     * @since 1.0
+     */
     public synchronized static void setMaxRam( long maxRam ) {
         RuntimeConfig.setMaxRam( maxRam );
     }
 
+    /**
+     * Returns the user-configured custom game JVM arguments, re-validating the stored value before returning it. A
+     * value that fails {@link JvmArgsValidator#isClean(String)} (e.g. tampered in via a hand edit or sync-restored
+     * file) is dropped in favour of {@link ConfigConstants#JVM_ARGS_VALUE_DEFAULT} rather than being tokenised into
+     * the game JVM argv.
+     *
+     * @return the validated custom JVM argument string, or the default when the stored value fails validation
+     * @see RuntimeConfig#getCustomJvmArgs()
+     * @since 1.0
+     */
     public synchronized static String getCustomJvmArgs() {
         // Validate on READ as well as write: setCustomJvmArgs rejects control
         // chars + ${...} placeholders, but the value can also reach the config
@@ -113,34 +158,90 @@ public class ConfigManager
 
     // -- Backup-before-update policy (delegates to ModPackConfig) ----------
 
+    /**
+     * Returns whether the launcher automatically backs up a modpack before applying an update.
+     *
+     * @return {@code true} when auto-backup-before-update is enabled
+     * @see ModPackConfig#getAutoBackupBeforeUpdate()
+     * @since 1.0
+     */
     public synchronized static boolean getAutoBackupBeforeUpdate() {
         return ModPackConfig.getAutoBackupBeforeUpdate();
     }
 
+    /**
+     * Sets whether the launcher automatically backs up a modpack before applying an update.
+     *
+     * @param enable {@code true} to enable auto-backup-before-update, {@code false} to disable it
+     * @see ModPackConfig#setAutoBackupBeforeUpdate(boolean)
+     * @since 1.0
+     */
     public synchronized static void setAutoBackupBeforeUpdate( boolean enable ) {
         ModPackConfig.setAutoBackupBeforeUpdate( enable );
     }
 
+    /**
+     * Returns the maximum number of backups retained per modpack.
+     *
+     * @return the per-pack backup retention count
+     * @see ModPackConfig#getMaxBackupsPerPack()
+     * @since 1.0
+     */
     public synchronized static int getMaxBackupsPerPack() {
         return ModPackConfig.getMaxBackupsPerPack();
     }
 
+    /**
+     * Sets the maximum number of backups retained per modpack.
+     *
+     * @param max the per-pack backup retention count to persist
+     * @see ModPackConfig#setMaxBackupsPerPack(int)
+     * @since 1.0
+     */
     public synchronized static void setMaxBackupsPerPack( int max ) {
         ModPackConfig.setMaxBackupsPerPack( max );
     }
 
+    /**
+     * Returns the maximum age in days before a modpack backup is eligible for pruning.
+     *
+     * @return the maximum backup age in days
+     * @see ModPackConfig#getMaxBackupAgeDays()
+     * @since 1.0
+     */
     public synchronized static int getMaxBackupAgeDays() {
         return ModPackConfig.getMaxBackupAgeDays();
     }
 
+    /**
+     * Sets the maximum age in days before a modpack backup is eligible for pruning.
+     *
+     * @param days the maximum backup age in days to persist
+     * @see ModPackConfig#setMaxBackupAgeDays(int)
+     * @since 1.0
+     */
     public synchronized static void setMaxBackupAgeDays( int days ) {
         ModPackConfig.setMaxBackupAgeDays( days );
     }
 
+    /**
+     * Returns whether modpack backups include the world saves directory.
+     *
+     * @return {@code true} when saves are included in backups
+     * @see ModPackConfig#getBackupIncludeSaves()
+     * @since 1.0
+     */
     public synchronized static boolean getBackupIncludeSaves() {
         return ModPackConfig.getBackupIncludeSaves();
     }
 
+    /**
+     * Sets whether modpack backups include the world saves directory.
+     *
+     * @param include {@code true} to include saves in backups, {@code false} to exclude them
+     * @see ModPackConfig#setBackupIncludeSaves(boolean)
+     * @since 1.0
+     */
     public synchronized static void setBackupIncludeSaves( boolean include ) {
         ModPackConfig.setBackupIncludeSaves( include );
     }
@@ -175,84 +276,223 @@ public class ConfigManager
     // ModPackConfig delegates
     // ====================================================================
 
+    /**
+     * Returns the URL of the modpack the user last selected.
+     *
+     * @return the last-selected modpack URL
+     * @see ModPackConfig#getLastModPackSelected()
+     * @since 1.0
+     */
     public synchronized static String getLastModPackSelected() {
         return ModPackConfig.getLastModPackSelected();
     }
 
+    /**
+     * Sets the URL of the modpack the user last selected.
+     *
+     * @param lastModPackSelected the modpack URL to persist as last-selected
+     * @see ModPackConfig#setLastModPackSelected(String)
+     * @since 1.0
+     */
     public synchronized static void setLastModPackSelected( String lastModPackSelected ) {
         ModPackConfig.setLastModPackSelected( lastModPackSelected );
     }
 
+    /**
+     * Returns the list of installed modpack manifest URLs.
+     *
+     * @return the installed-modpack URL list
+     * @see ModPackConfig#getInstalledModPacks()
+     * @since 1.0
+     */
     public synchronized static List< String > getInstalledModPacks() {
         return ModPackConfig.getInstalledModPacks();
     }
 
+    /**
+     * Sets the list of installed modpack manifest URLs.
+     *
+     * @param installedModPacks the installed-modpack URL list to persist
+     * @see ModPackConfig#setInstalledModPacks(List)
+     * @since 1.0
+     */
     public synchronized static void setInstalledModPacks( List< String > installedModPacks ) {
         ModPackConfig.setInstalledModPacks( installedModPacks );
     }
 
+    /**
+     * Returns the list of installed vanilla (non-modpack) Minecraft versions.
+     *
+     * @return the installed vanilla version list
+     * @see ModPackConfig#getInstalledVanillaVersions()
+     * @since 1.0
+     */
     public synchronized static List< String > getInstalledVanillaVersions() {
         return ModPackConfig.getInstalledVanillaVersions();
     }
 
+    /**
+     * Sets the list of installed vanilla (non-modpack) Minecraft versions.
+     *
+     * @param versions the installed vanilla version list to persist
+     * @see ModPackConfig#setInstalledVanillaVersions(List)
+     * @since 1.0
+     */
     public synchronized static void setInstalledVanillaVersions( List< String > versions ) {
         ModPackConfig.setInstalledVanillaVersions( versions );
     }
 
+    /**
+     * Returns whether the given modpack is set to always re-verify its files on launch.
+     *
+     * @param packUrl the modpack manifest URL to query
+     * @return {@code true} when always-verify-on-launch is enabled for the pack
+     * @see ModPackConfig#getAlwaysVerifyOnLaunch(String)
+     * @since 1.0
+     */
     public synchronized static boolean getAlwaysVerifyOnLaunch( String packUrl ) {
         return ModPackConfig.getAlwaysVerifyOnLaunch( packUrl );
     }
 
+    /**
+     * Sets whether the given modpack always re-verifies its files on launch.
+     *
+     * @param packUrl the modpack manifest URL to configure
+     * @param value   {@code true} to enable always-verify-on-launch for the pack, {@code false} to disable it
+     * @see ModPackConfig#setAlwaysVerifyOnLaunch(String, boolean)
+     * @since 1.0
+     */
     public synchronized static void setAlwaysVerifyOnLaunch( String packUrl, boolean value ) {
         ModPackConfig.setAlwaysVerifyOnLaunch( packUrl, value );
     }
 
+    /**
+     * Returns the default security-scan frequency applied to packs without a per-pack override.
+     *
+     * @return the default scan frequency
+     * @see ModPackConfig#getDefaultScanFrequency()
+     * @since 1.0
+     */
     public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency
             getDefaultScanFrequency() {
         return ModPackConfig.getDefaultScanFrequency();
     }
 
+    /**
+     * Sets the default security-scan frequency applied to packs without a per-pack override.
+     *
+     * @param frequency the default scan frequency to persist
+     * @see ModPackConfig#setDefaultScanFrequency(com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency)
+     * @since 1.0
+     */
     public synchronized static void setDefaultScanFrequency(
             com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency frequency ) {
         ModPackConfig.setDefaultScanFrequency( frequency );
     }
 
+    /**
+     * Returns the per-pack security-scan frequency override for the given modpack, if any.
+     *
+     * @param packUrl the modpack manifest URL to query
+     * @return the pack's scan-frequency override
+     * @see ModPackConfig#getScanFrequencyForPack(String)
+     * @since 1.0
+     */
     public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency
             getScanFrequencyForPack( String packUrl ) {
         return ModPackConfig.getScanFrequencyForPack( packUrl );
     }
 
+    /**
+     * Sets the per-pack security-scan frequency override for the given modpack.
+     *
+     * @param packUrl   the modpack manifest URL to configure
+     * @param frequency the scan-frequency override to persist for the pack
+     * @see ModPackConfig#setScanFrequencyForPack(String, com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency)
+     * @since 1.0
+     */
     public synchronized static void setScanFrequencyForPack(
             String packUrl,
             com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency frequency ) {
         ModPackConfig.setScanFrequencyForPack( packUrl, frequency );
     }
 
+    /**
+     * Returns the effective security-scan frequency for the given modpack, resolving the per-pack override against the
+     * default.
+     *
+     * @param packUrl the modpack manifest URL to resolve
+     * @return the effective scan frequency for the pack
+     * @see ModPackConfig#effectiveScanFrequencyForPack(String)
+     * @since 1.0
+     */
     public synchronized static com.micatechnologies.minecraft.launcher.game.modpack.ScanFrequency
             effectiveScanFrequencyForPack( String packUrl ) {
         return ModPackConfig.effectiveScanFrequencyForPack( packUrl );
     }
 
+    /**
+     * Returns whether modpack background images are shown in the UI.
+     *
+     * @return {@code true} when pack backgrounds are shown
+     * @see ModPackConfig#getShowPackBackgrounds()
+     * @since 1.0
+     */
     public synchronized static boolean getShowPackBackgrounds() {
         return ModPackConfig.getShowPackBackgrounds();
     }
 
+    /**
+     * Sets whether modpack background images are shown in the UI.
+     *
+     * @param show {@code true} to show pack backgrounds, {@code false} to hide them
+     * @see ModPackConfig#setShowPackBackgrounds(boolean)
+     * @since 1.0
+     */
     public synchronized static void setShowPackBackgrounds( boolean show ) {
         ModPackConfig.setShowPackBackgrounds( show );
     }
 
+    /**
+     * Returns the configured interval token for cycling multi-image pack showcases.
+     *
+     * @return the image-cycle interval setting
+     * @see ModPackConfig#getImageCycleInterval()
+     * @since 1.0
+     */
     public synchronized static String getImageCycleInterval() {
         return ModPackConfig.getImageCycleInterval();
     }
 
+    /**
+     * Sets the interval token for cycling multi-image pack showcases.
+     *
+     * @param interval the image-cycle interval setting to persist
+     * @see ModPackConfig#setImageCycleInterval(String)
+     * @since 1.0
+     */
     public synchronized static void setImageCycleInterval( String interval ) {
         ModPackConfig.setImageCycleInterval( interval );
     }
 
+    /**
+     * Returns whether multi-image pack showcases are cycled in shuffled order.
+     *
+     * @return {@code true} when image cycling is shuffled
+     * @see ModPackConfig#getImageCycleShuffle()
+     * @since 1.0
+     */
     public synchronized static boolean getImageCycleShuffle() {
         return ModPackConfig.getImageCycleShuffle();
     }
 
+    /**
+     * Sets whether multi-image pack showcases are cycled in shuffled order.
+     *
+     * @param shuffle {@code true} to shuffle image cycling, {@code false} for sequential order
+     * @see ModPackConfig#setImageCycleShuffle(boolean)
+     * @since 1.0
+     */
     public synchronized static void setImageCycleShuffle( boolean shuffle ) {
         ModPackConfig.setImageCycleShuffle( shuffle );
     }
@@ -261,14 +501,36 @@ public class ConfigManager
     // AuthTokenStore delegates
     // ====================================================================
 
+    /**
+     * Decrypts and returns the user-supplied CurseForge Core API key, or {@code null} when none is configured or the
+     * stored envelope can't be decrypted on this machine.
+     *
+     * @return the decrypted CurseForge API key, or {@code null} when unavailable
+     * @see AuthTokenStore#getCurseForgeApiKey()
+     * @since 1.0
+     */
     public synchronized static String getCurseForgeApiKey() {
         return AuthTokenStore.getCurseForgeApiKey();
     }
 
+    /**
+     * Encrypts and persists the user-supplied CurseForge API key. A {@code null} or blank key clears the stored value.
+     *
+     * @param apiKey the CurseForge API key to encrypt and persist, or {@code null}/blank to clear it
+     * @see AuthTokenStore#setCurseForgeApiKey(String)
+     * @since 1.0
+     */
     public synchronized static void setCurseForgeApiKey( String apiKey ) {
         AuthTokenStore.setCurseForgeApiKey( apiKey );
     }
 
+    /**
+     * Returns whether an encrypted CurseForge API key is present on disk. Does not attempt decryption.
+     *
+     * @return {@code true} when a non-blank CurseForge key envelope is stored
+     * @see AuthTokenStore#hasCurseForgeApiKey()
+     * @since 1.0
+     */
     public synchronized static boolean hasCurseForgeApiKey() {
         return AuthTokenStore.hasCurseForgeApiKey();
     }
@@ -277,42 +539,74 @@ public class ConfigManager
     // RgbConfig delegates
     // ====================================================================
 
+    /** @return whether the RGB integration subsystem is enabled. @see RgbConfig#getRgbEnable() @since 1.0 */
     public synchronized static boolean getRgbEnable()              { return RgbConfig.getRgbEnable(); }
+    /** Sets whether the RGB integration subsystem is enabled. @param v the new enable flag. @see RgbConfig#setRgbEnable(boolean) @since 1.0 */
     public synchronized static void    setRgbEnable( boolean v )   { RgbConfig.setRgbEnable( v ); }
+    /** @return the selected RGB backend identifier. @see RgbConfig#getRgbBackend() @since 1.0 */
     public synchronized static String  getRgbBackend()             { return RgbConfig.getRgbBackend(); }
+    /** Sets the selected RGB backend identifier. @param v the backend identifier. @see RgbConfig#setRgbBackend(String) @since 1.0 */
     public synchronized static void    setRgbBackend( String v )   { RgbConfig.setRgbBackend( v ); }
+    /** @return whether RGB effects derive their colors from the active pack. @see RgbConfig#getRgbUsePackColors() @since 1.0 */
     public synchronized static boolean getRgbUsePackColors()       { return RgbConfig.getRgbUsePackColors(); }
+    /** Sets whether RGB effects derive their colors from the active pack. @param v the new flag. @see RgbConfig#setRgbUsePackColors(boolean) @since 1.0 */
     public synchronized static void    setRgbUsePackColors( boolean v ) { RgbConfig.setRgbUsePackColors( v ); }
+    /** @return whether RGB effects highlight relevant keyboard keys. @see RgbConfig#getRgbHighlightKeys() @since 1.0 */
     public synchronized static boolean getRgbHighlightKeys()       { return RgbConfig.getRgbHighlightKeys(); }
+    /** Sets whether RGB effects highlight relevant keyboard keys. @param v the new flag. @see RgbConfig#setRgbHighlightKeys(boolean) @since 1.0 */
     public synchronized static void    setRgbHighlightKeys( boolean v ) { RgbConfig.setRgbHighlightKeys( v ); }
+    /** @return whether the OpenRGB backend is enabled. @see RgbConfig#getRgbEnableOpenRgb() @since 1.0 */
     public synchronized static boolean getRgbEnableOpenRgb()       { return RgbConfig.getRgbEnableOpenRgb(); }
+    /** Sets whether the OpenRGB backend is enabled. @param v the new flag. @see RgbConfig#setRgbEnableOpenRgb(boolean) @since 1.0 */
     public synchronized static void    setRgbEnableOpenRgb( boolean v ) { RgbConfig.setRgbEnableOpenRgb( v ); }
+    /** @return whether the Razer Chroma native backend is enabled. @see RgbConfig#getRgbEnableChromaNative() @since 1.0 */
     public synchronized static boolean getRgbEnableChromaNative()  { return RgbConfig.getRgbEnableChromaNative(); }
+    /** Sets whether the Razer Chroma native backend is enabled. @param v the new flag. @see RgbConfig#setRgbEnableChromaNative(boolean) @since 1.0 */
     public synchronized static void    setRgbEnableChromaNative( boolean v ) { RgbConfig.setRgbEnableChromaNative( v ); }
+    /** @return whether the Razer Chroma REST backend is enabled. @see RgbConfig#getRgbEnableChromaRest() @since 1.0 */
     public synchronized static boolean getRgbEnableChromaRest()    { return RgbConfig.getRgbEnableChromaRest(); }
+    /** Sets whether the Razer Chroma REST backend is enabled. @param v the new flag. @see RgbConfig#setRgbEnableChromaRest(boolean) @since 1.0 */
     public synchronized static void    setRgbEnableChromaRest( boolean v ) { RgbConfig.setRgbEnableChromaRest( v ); }
+    /** @return whether the Windows Dynamic Lighting backend is enabled. @see RgbConfig#getRgbEnableWindowsDl() @since 1.0 */
     public synchronized static boolean getRgbEnableWindowsDl()     { return RgbConfig.getRgbEnableWindowsDl(); }
+    /** Sets whether the Windows Dynamic Lighting backend is enabled. @param v the new flag. @see RgbConfig#setRgbEnableWindowsDl(boolean) @since 1.0 */
     public synchronized static void    setRgbEnableWindowsDl( boolean v ) { RgbConfig.setRgbEnableWindowsDl( v ); }
+    /** @return whether the Corsair iCUE backend is enabled. @see RgbConfig#getRgbEnableCorsair() @since 1.0 */
     public synchronized static boolean getRgbEnableCorsair()       { return RgbConfig.getRgbEnableCorsair(); }
+    /** Sets whether the Corsair iCUE backend is enabled. @param v the new flag. @see RgbConfig#setRgbEnableCorsair(boolean) @since 1.0 */
     public synchronized static void    setRgbEnableCorsair( boolean v ) { RgbConfig.setRgbEnableCorsair( v ); }
+    /** @return whether the ASUS Aura backend is enabled. @see RgbConfig#getRgbEnableAsusAura() @since 1.0 */
     public synchronized static boolean getRgbEnableAsusAura()      { return RgbConfig.getRgbEnableAsusAura(); }
+    /** Sets whether the ASUS Aura backend is enabled. @param v the new flag. @see RgbConfig#setRgbEnableAsusAura(boolean) @since 1.0 */
     public synchronized static void    setRgbEnableAsusAura( boolean v ) { RgbConfig.setRgbEnableAsusAura( v ); }
+    /** @return whether the in-menu RGB effect is enabled. @see RgbConfig#getRgbMenuEffectEnable() @since 1.0 */
     public synchronized static boolean getRgbMenuEffectEnable()    { return RgbConfig.getRgbMenuEffectEnable(); }
+    /** Sets whether the in-menu RGB effect is enabled. @param v the new flag. @see RgbConfig#setRgbMenuEffectEnable(boolean) @since 1.0 */
     public synchronized static void    setRgbMenuEffectEnable( boolean v ) { RgbConfig.setRgbMenuEffectEnable( v ); }
+    /** @return the selected RGB effect style identifier. @see RgbConfig#getRgbEffectStyle() @since 1.0 */
     public synchronized static String  getRgbEffectStyle()         { return RgbConfig.getRgbEffectStyle(); }
+    /** Sets the selected RGB effect style identifier. @param v the effect style identifier. @see RgbConfig#setRgbEffectStyle(String) @since 1.0 */
     public synchronized static void    setRgbEffectStyle( String v ) { RgbConfig.setRgbEffectStyle( v ); }
 
     // ====================================================================
     // NetworkConfig delegates — proxy
     // ====================================================================
 
+    /** @return whether the launcher routes network traffic through a configured proxy. @see NetworkConfig#getProxyEnable() @since 1.0 */
     public synchronized static boolean getProxyEnable()         { return NetworkConfig.getProxyEnable(); }
+    /** Sets whether the launcher routes network traffic through a configured proxy. @param v the new flag. @see NetworkConfig#setProxyEnable(boolean) @since 1.0 */
     public synchronized static void    setProxyEnable( boolean v ) { NetworkConfig.setProxyEnable( v ); }
+    /** @return the configured proxy host. @see NetworkConfig#getProxyHost() @since 1.0 */
     public synchronized static String  getProxyHost()           { return NetworkConfig.getProxyHost(); }
+    /** Sets the configured proxy host. @param v the proxy host. @see NetworkConfig#setProxyHost(String) @since 1.0 */
     public synchronized static void    setProxyHost( String v ) { NetworkConfig.setProxyHost( v ); }
+    /** @return the configured proxy port. @see NetworkConfig#getProxyPort() @since 1.0 */
     public synchronized static int     getProxyPort()           { return NetworkConfig.getProxyPort(); }
+    /** Sets the configured proxy port. @param v the proxy port. @see NetworkConfig#setProxyPort(int) @since 1.0 */
     public synchronized static void    setProxyPort( int v )    { NetworkConfig.setProxyPort( v ); }
+    /** @return the configured proxy type (e.g. HTTP / SOCKS). @see NetworkConfig#getProxyType() @since 1.0 */
     public synchronized static String  getProxyType()           { return NetworkConfig.getProxyType(); }
+    /** Sets the configured proxy type (e.g. HTTP / SOCKS). @param v the proxy type. @see NetworkConfig#setProxyType(String) @since 1.0 */
     public synchronized static void    setProxyType( String v ) { NetworkConfig.setProxyType( v ); }
 
     // ====================================================================
@@ -320,45 +614,89 @@ public class ConfigManager
     // app lifecycle, LWJGL ARM, window bounds
     // ====================================================================
 
+    /** @return the active launcher theme identifier. @see AppConfig#getTheme() @since 1.0 */
     public synchronized static String  getTheme()                       { return AppConfig.getTheme(); }
+    /** Sets the active launcher theme identifier. @param v the theme identifier. @see AppConfig#setTheme(String) @since 1.0 */
     public synchronized static void    setTheme( String v )             { AppConfig.setTheme( v ); }
+    /** @return the user locale override (BCP-47 tag), or empty for OS detection. @see AppConfig#getLocaleOverride() @since 1.0 */
     public synchronized static String  getLocaleOverride()              { return AppConfig.getLocaleOverride(); }
+    /** Sets the user locale override. @param v the BCP-47 tag, or {@code null}/empty to clear. @see AppConfig#setLocaleOverride(String) @since 1.0 */
     public synchronized static void    setLocaleOverride( String v )    { AppConfig.setLocaleOverride( v ); }
 
+    /** @return whether debug logging is enabled (always true in dev builds). @see AppConfig#getDebugLogging() @since 1.0 */
     public synchronized static boolean getDebugLogging()                { return AppConfig.getDebugLogging(); }
+    /** Sets the debug-logging preference. @param v the new flag. @see AppConfig#setDebugLogging(boolean) @since 1.0 */
     public synchronized static void    setDebugLogging( boolean v )     { AppConfig.setDebugLogging( v ); }
+    /** @return whether enhanced (verbose) logging is enabled. @see AppConfig#getEnhancedLogging() @since 1.0 */
     public synchronized static boolean getEnhancedLogging()             { return AppConfig.getEnhancedLogging(); }
+    /** Sets the enhanced-logging preference. @param v the new flag. @see AppConfig#setEnhancedLogging(boolean) @since 1.0 */
     public synchronized static void    setEnhancedLogging( boolean v )  { AppConfig.setEnhancedLogging( v ); }
 
+    /** @return whether Discord rich-presence is enabled. @see AppConfig#getDiscordRpcEnable() @since 1.0 */
     public synchronized static boolean getDiscordRpcEnable()            { return AppConfig.getDiscordRpcEnable(); }
+    /** Sets whether Discord rich-presence is enabled. @param v the new flag. @see AppConfig#setDiscordRpcEnable(boolean) @since 1.0 */
     public synchronized static void    setDiscordRpcEnable( boolean v ) { AppConfig.setDiscordRpcEnable( v ); }
+    /** @return whether Discord "Join Game" invites are enabled. @see AppConfig#getDiscordInvitesEnable() @since 1.0 */
     public synchronized static boolean getDiscordInvitesEnable()        { return AppConfig.getDiscordInvitesEnable(); }
+    /** Sets whether Discord "Join Game" invites are enabled. @param v the new flag. @see AppConfig#setDiscordInvitesEnable(boolean) @since 1.0 */
     public synchronized static void    setDiscordInvitesEnable( boolean v ) { AppConfig.setDiscordInvitesEnable( v ); }
 
+    /** @return whether launcher windows can be resized. @see AppConfig#getResizableWindows() @since 1.0 */
     public synchronized static boolean getResizableWindows()            { return AppConfig.getResizableWindows(); }
+    /** Sets whether launcher windows can be resized. @param v the new flag. @see AppConfig#setResizableWindows(boolean) @since 1.0 */
     public synchronized static void    setResizableWindows( boolean v ) { AppConfig.setResizableWindows( v ); }
+    /** @return whether the in-game console is shown on launch. @see AppConfig#getInGameConsoleEnable() @since 1.0 */
     public synchronized static boolean getInGameConsoleEnable()         { return AppConfig.getInGameConsoleEnable(); }
+    /** Sets whether the in-game console is shown on launch. @param v the new flag. @see AppConfig#setInGameConsoleEnable(boolean) @since 1.0 */
     public synchronized static void    setInGameConsoleEnable( boolean v ) { AppConfig.setInGameConsoleEnable( v ); }
+    /** @return the in-game console visible-line cap (0 = unlimited). @see AppConfig#getConsoleLogMaxLines() @since 1.0 */
     public synchronized static int     getConsoleLogMaxLines()          { return AppConfig.getConsoleLogMaxLines(); }
+    /** Sets the in-game console visible-line cap. @param v the line cap (0 = unlimited). @see AppConfig#setConsoleLogMaxLines(int) @since 1.0 */
     public synchronized static void    setConsoleLogMaxLines( int v )   { AppConfig.setConsoleLogMaxLines( v ); }
 
+    /** @return whether the launcher checks for its own updates on startup. @see AppConfig#getLauncherUpdateCheckEnabled() @since 1.0 */
     public synchronized static boolean getLauncherUpdateCheckEnabled()  { return AppConfig.getLauncherUpdateCheckEnabled(); }
+    /** Sets whether the launcher checks for its own updates on startup. @param v the new flag. @see AppConfig#setLauncherUpdateCheckEnabled(boolean) @since 1.0 */
     public synchronized static void    setLauncherUpdateCheckEnabled( boolean v ) { AppConfig.setLauncherUpdateCheckEnabled( v ); }
+    /** @return whether the {@code mmcl://} URI handler is enabled. @see AppConfig#getUriHandlerEnabled() @since 1.0 */
     public synchronized static boolean getUriHandlerEnabled()           { return AppConfig.getUriHandlerEnabled(); }
+    /** Sets whether the {@code mmcl://} URI handler is enabled. @param v the new flag. @see AppConfig#setUriHandlerEnabled(boolean) @since 1.0 */
     public synchronized static void    setUriHandlerEnabled( boolean v ) { AppConfig.setUriHandlerEnabled( v ); }
+    /** @return whether the first-launch quick-start wizard has been completed. @see AppConfig#getQuickStartCompleted() @since 1.0 */
     public synchronized static boolean getQuickStartCompleted()         { return AppConfig.getQuickStartCompleted(); }
+    /** Sets whether the first-launch quick-start wizard has been completed. @param v the new flag. @see AppConfig#setQuickStartCompleted(boolean) @since 1.0 */
     public synchronized static void    setQuickStartCompleted( boolean v ) { AppConfig.setQuickStartCompleted( v ); }
+    /** @return whether downloads throttle while on battery power. @see AppConfig#getBatteryThrottleEnable() @since 1.0 */
     public synchronized static boolean getBatteryThrottleEnable()       { return AppConfig.getBatteryThrottleEnable(); }
+    /** Sets whether downloads throttle while on battery power. @param v the new flag. @see AppConfig#setBatteryThrottleEnable(boolean) @since 1.0 */
     public synchronized static void    setBatteryThrottleEnable( boolean v ) { AppConfig.setBatteryThrottleEnable( v ); }
 
+    /** @return whether LWJGL ARM64 native patching is enabled. @see AppConfig#getLwjglArmPatchEnable() @since 1.0 */
     public synchronized static boolean getLwjglArmPatchEnable()         { return AppConfig.getLwjglArmPatchEnable(); }
+    /** Sets whether LWJGL ARM64 native patching is enabled. @param v the new flag. @see AppConfig#setLwjglArmPatchEnable(boolean) @since 1.0 */
     public synchronized static void    setLwjglArmPatchEnable( boolean v ) { AppConfig.setLwjglArmPatchEnable( v ); }
 
+    /** @return the last-persisted window X position, or {@link Double#NaN} when unset. @see AppConfig#getWindowX() @since 1.0 */
     public synchronized static double  getWindowX()                     { return AppConfig.getWindowX(); }
+    /** @return the last-persisted window Y position, or {@link Double#NaN} when unset. @see AppConfig#getWindowY() @since 1.0 */
     public synchronized static double  getWindowY()                     { return AppConfig.getWindowY(); }
+    /** @return the last-persisted window width, or {@link Double#NaN} when unset. @see AppConfig#getWindowWidth() @since 1.0 */
     public synchronized static double  getWindowWidth()                 { return AppConfig.getWindowWidth(); }
+    /** @return the last-persisted window height, or {@link Double#NaN} when unset. @see AppConfig#getWindowHeight() @since 1.0 */
     public synchronized static double  getWindowHeight()                { return AppConfig.getWindowHeight(); }
+    /** @return whether the window was maximized when last persisted. @see AppConfig#getWindowMaximized() @since 1.0 */
     public synchronized static boolean getWindowMaximized()             { return AppConfig.getWindowMaximized(); }
+    /**
+     * Persists all five launcher-window bounds components atomically.
+     *
+     * @param x         the window X position to persist
+     * @param y         the window Y position to persist
+     * @param width     the window width to persist
+     * @param height    the window height to persist
+     * @param maximized the maximized state to persist
+     * @see AppConfig#setWindowBounds(double, double, double, double, boolean)
+     * @since 1.0
+     */
     public synchronized static void    setWindowBounds( double x, double y, double width, double height,
                                                           boolean maximized ) {
         AppConfig.setWindowBounds( x, y, width, height, maximized );

@@ -125,6 +125,9 @@ public class GameModPackFetcher
      * like {@code packMods} are null until the full manifest fetch upgrades
      * it. Use {@link GameModPack#isStub} to detect this state.
      *
+     * @param manifestUrl mod pack manifest URL keying the index lookup;
+     *                    a {@code null} or blank value yields {@code null}
+     *
      * @return the stub pack, or {@code null} if the index has no entry for
      *         this URL (first launch, fresh install, etc.) — caller should
      *         fall back to {@link #getFromCache} / {@link #get}
@@ -283,6 +286,16 @@ public class GameModPackFetcher
         return loadCachedManifest( manifestUrl );
     }
 
+    /**
+     * Reads a manifest file from a local {@code file://} URL — used for imported
+     * modpacks whose translated Mica manifest was written by
+     * {@link com.micatechnologies.minecraft.launcher.game.modpack.import_.MrpackImporter}.
+     *
+     * @param fileUrl the {@code file://} URL pointing at the on-disk manifest
+     *
+     * @return the manifest body text on success, or {@code null} when {@code fileUrl}
+     *         is {@code null}, the target is not a regular file, or it is unreadable
+     */
     private static String readLocalManifest( String fileUrl )
     {
         if ( fileUrl == null ) return null;
@@ -320,11 +333,28 @@ public class GameModPackFetcher
         return cacheDir().resolve( Integer.toHexString( manifestUrl.hashCode() ) + ".json" );
     }
 
+    /**
+     * Returns the directory holding all cached manifest bodies and their metadata
+     * sidecars ({@code <launcher-modpack-folder>/manifest_cache}).
+     *
+     * @return the manifest cache directory path
+     */
     private static Path cacheDir()
     {
         return Path.of( LocalPathManager.getLauncherModpackFolderPath(), MANIFEST_CACHE_DIR );
     }
 
+    /**
+     * Computes the lowercase hex SHA-256 of the given string for use as a cache
+     * filename. SHA-256 is mandatory in every supported JRE, so the fallback to
+     * the legacy {@code hashCode} hex form is effectively unreachable; it exists
+     * only to keep caching working rather than returning a {@code null} filename.
+     *
+     * @param input the string to hash (typically a manifest URL)
+     *
+     * @return the SHA-256 hex digest, or the legacy {@code hashCode} hex form if
+     *         SHA-256 is somehow unavailable
+     */
     private static String sha256Hex( String input )
     {
         // SHA-256 is mandatory in every JRE we support, so the null branch is
@@ -357,6 +387,12 @@ public class GameModPackFetcher
      * load (both fresh-from-network and cache-hit), so the index stays in
      * sync without separate write paths. Best-effort: an index update
      * failure is logged but never breaks the caller.
+     *
+     * @param manifestUrl the pack manifest URL keying the index entry; a
+     *                    {@code null} value is ignored (no-op)
+     * @param parsedPack  the freshly parsed pack whose card-rendering subset
+     *                    is written into the index; a {@code null} value is
+     *                    ignored (no-op)
      *
      * @since 2026.3
      */
@@ -415,15 +451,36 @@ public class GameModPackFetcher
      */
     private static class ManifestCacheMeta
     {
+        /** The {@code ETag} validator from the manifest's last successful fetch, or {@code null}. */
         String etag;
+
+        /** The {@code Last-Modified} validator from the manifest's last successful fetch, or {@code null}. */
         String lastModified;
     }
 
+    /**
+     * Returns the sidecar metadata file path ({@code manifest_cache/<sha256>.meta.json})
+     * holding the conditional-GET validators for the given manifest URL.
+     *
+     * @param manifestUrl mod pack manifest URL
+     *
+     * @return the {@code .meta.json} sidecar path next to the cached manifest body
+     */
     private static Path getCacheMetaPath( String manifestUrl )
     {
         return cacheDir().resolve( sha256Hex( manifestUrl ) + ".meta.json" );
     }
 
+    /**
+     * Loads the cached ETag / Last-Modified validators for the given manifest URL.
+     * Returns {@code null} when no sidecar exists or it cannot be parsed; a
+     * {@code null} result forces the next fetch to issue an unconditional GET,
+     * which is the safe behaviour when the stored validators cannot be trusted.
+     *
+     * @param manifestUrl mod pack manifest URL
+     *
+     * @return the parsed cache metadata, or {@code null} if absent or unreadable
+     */
     private static ManifestCacheMeta loadCacheMeta( String manifestUrl )
     {
         try {
@@ -442,6 +499,16 @@ public class GameModPackFetcher
         }
     }
 
+    /**
+     * Persists the ETag / Last-Modified validators returned by a successful
+     * network fetch so the next fetch of this manifest can be conditional.
+     * Best-effort: a write failure is logged but never propagated — it just
+     * means the following fetch falls back to an unconditional GET.
+     *
+     * @param manifestUrl  mod pack manifest URL
+     * @param etag         the ETag validator from the response, or {@code null}
+     * @param lastModified the Last-Modified validator from the response, or {@code null}
+     */
     private static void saveCacheMeta( String manifestUrl, String etag, String lastModified )
     {
         try {

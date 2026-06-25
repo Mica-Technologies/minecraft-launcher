@@ -70,6 +70,8 @@ public final class MmcjsonImporter
      * {@code imported-manifests/mmcjson-<sanitized>.json}, and registers
      * it with {@link GameModPackManager#installModPackByURL}.
      *
+     * @param mmcjsonFile the {@code .mmcjson} file to import; must be an
+     *                    existing regular file within the size cap
      * @return the {@code file:} URL of the on-disk manifest the pack was
      *         registered under (the same URL the install index uses to
      *         identify it). Caller can use this to focus / reveal the
@@ -144,7 +146,12 @@ public final class MmcjsonImporter
     /** Path-component sanitizer matching the convention used by
      *  {@link MrpackImporter#sanitize}. Filenames inside
      *  {@code imported-manifests/} must be safe across Windows /
-     *  macOS / Linux. */
+     *  macOS / Linux.
+     *
+     *  @param raw the raw pack name to sanitize
+     *
+     *  @return a filesystem-safe component; {@code "imported"} when the
+     *          input is blank or sanitizes to empty */
     private static String sanitize( String raw )
     {
         if ( raw == null || raw.isBlank() ) return "imported";
@@ -154,9 +161,16 @@ public final class MmcjsonImporter
 
     /** Mirrors {@link MrpackImporter.ImportException} /
      *  {@link ModpackZipImporter.ImportException} — checked exception so
-     *  call sites can't forget to surface the failure. */
+     *  call sites can't forget to surface the failure.
+     *
+     *  @since 2026.5 */
     public static class ImportException extends Exception
     {
+        /**
+         * Creates an import failure with an end-user-safe message.
+         *
+         * @param message the human-readable failure description
+         */
         public ImportException( String message ) { super( message ); }
     }
 }
