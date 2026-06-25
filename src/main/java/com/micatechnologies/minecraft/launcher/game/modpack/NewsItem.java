@@ -200,21 +200,7 @@ public final class NewsItem
      */
     public String getUrl()
     {
-        if ( url == null || url.isBlank() ) {
-            return null;
-        }
-        try {
-            java.net.URI parsed = java.net.URI.create( url.trim() );
-            String scheme = parsed.getScheme();
-            if ( scheme != null
-                    && ( scheme.equalsIgnoreCase( "http" ) || scheme.equalsIgnoreCase( "https" ) ) ) {
-                return parsed.toString();
-            }
-        }
-        catch ( IllegalArgumentException ignored ) {
-            // Fall through — malformed URI, treat as no link.
-        }
-        return null;
+        return com.micatechnologies.minecraft.launcher.utilities.UrlValidation.sanitizedHttpUrl( url );
     }
 
     /**
