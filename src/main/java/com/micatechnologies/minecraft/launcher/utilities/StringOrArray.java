@@ -101,6 +101,16 @@ public final class StringOrArray
         return values.isEmpty();
     }
 
+    /**
+     * Value equality: two instances are equal when their backing value lists are
+     * equal (same strings in the same order).
+     *
+     * @param o the object to compare against
+     *
+     * @return {@code true} if {@code o} is a {@code StringOrArray} with equal values
+     *
+     * @since 2026.6
+     */
     @Override
     public boolean equals( Object o )
     {
@@ -113,12 +123,27 @@ public final class StringOrArray
         return values.equals( other.values );
     }
 
+    /**
+     * Hash code consistent with {@link #equals(Object)}, derived from the backing
+     * value list.
+     *
+     * @return the hash code of the backing value list
+     *
+     * @since 2026.6
+     */
     @Override
     public int hashCode()
     {
         return values.hashCode();
     }
 
+    /**
+     * Returns the backing value list's string form, e.g. {@code [a, b]}.
+     *
+     * @return a debug string of the contained values
+     *
+     * @since 2026.6
+     */
     @Override
     public String toString()
     {

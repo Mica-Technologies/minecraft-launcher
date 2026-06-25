@@ -27,11 +27,32 @@ import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * Checks the launcher's GitHub releases API for the latest published release.
+ * Results are memoized for the process lifetime after the first successful
+ * fetch, so repeated queries don't re-hit the network.
+ *
+ * @author Mica Technologies
+ * @version 1.0
+ * @since 1.0
+ */
 public class UpdateCheckUtilities
 {
+    /** Cached latest release version tag; {@code null} until first fetched. */
     private static String latestReleaseVersion = null;
+    /** Cached latest release page URL; {@code null} until first fetched. */
     private static String latestReleaseURL     = null;
 
+    /**
+     * Returns the latest released launcher version, fetching it from the GitHub
+     * releases API on first call and returning the memoized value thereafter.
+     *
+     * @return the latest release version tag, or {@code null} if the API
+     *         response was empty/malformed
+     *
+     * @throws IOException if the version information could not be downloaded
+     * @since 1.0
+     */
     public static String getLatestReleaseVersion() throws IOException {
         if ( latestReleaseVersion == null ) {
             fetchLatestInformation();
@@ -40,6 +61,16 @@ public class UpdateCheckUtilities
         return latestReleaseVersion;
     }
 
+    /**
+     * Returns the URL of the latest release, fetching it from the GitHub
+     * releases API on first call and returning the memoized value thereafter.
+     *
+     * @return the latest release page URL, or {@code null} if the API
+     *         response was empty/malformed
+     *
+     * @throws IOException if the version information could not be downloaded
+     * @since 1.0
+     */
     public static String getLatestReleaseURL() throws IOException {
         if ( latestReleaseURL == null ) {
             fetchLatestInformation();
@@ -48,6 +79,15 @@ public class UpdateCheckUtilities
         return latestReleaseURL;
     }
 
+    /**
+     * Downloads the latest-release JSON from the GitHub releases API and
+     * populates {@link #latestReleaseVersion} / {@link #latestReleaseURL}. Logs
+     * and leaves the fields untouched when the response is empty or missing the
+     * expected keys.
+     *
+     * @throws IOException if the release information could not be downloaded
+     * @since 1.0
+     */
     private static void fetchLatestInformation() throws IOException {
         // Download latest version information from launcher GitHub releases API
         File latestVersionInfoFile = SynchronizedFileManager.getSynchronizedFile(
