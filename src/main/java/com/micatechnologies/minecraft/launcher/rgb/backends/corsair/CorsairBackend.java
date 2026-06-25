@@ -494,6 +494,14 @@ public final class CorsairBackend implements RgbBackend
         }
     }
 
+    /**
+     * Trims trailing NUL padding from a fixed-size C string buffer and returns the
+     * result as a Java string.
+     *
+     * @param buf the NUL-padded byte buffer
+     *
+     * @return the trimmed string
+     */
     private static String trimTrailingNulls( byte[] buf )
     {
         int end = 0;
@@ -501,6 +509,13 @@ public final class CorsairBackend implements RgbBackend
         return new String( buf, 0, end, java.nio.charset.StandardCharsets.UTF_8 );
     }
 
+    /**
+     * Returns a human-readable description for an iCUE SDK error code, for logging.
+     *
+     * @param code the SDK error code
+     *
+     * @return a human-readable error description
+     */
     private static String describeError( int code )
     {
         return switch ( code ) {
@@ -516,6 +531,13 @@ public final class CorsairBackend implements RgbBackend
         };
     }
 
+    /**
+     * Returns a human-readable description for an iCUE session state, for logging.
+     *
+     * @param state the SDK session-state code
+     *
+     * @return a human-readable state description
+     */
     private static String describeSessionState( int state )
     {
         return switch ( state ) {
