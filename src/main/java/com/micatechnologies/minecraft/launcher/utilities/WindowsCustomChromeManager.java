@@ -106,10 +106,18 @@ public final class WindowsCustomChromeManager
     private static final int WM_NCCALCSIZE   = 0x0083;
     private static final int WM_NCHITTEST    = 0x0084;
     private static final int WM_NCACTIVATE   = 0x0086;
+    private static final int WM_NCLBUTTONDOWN = 0x00A1;
+    private static final int WM_NCLBUTTONUP   = 0x00A2;
     private static final int WM_NCMOUSEMOVE  = 0x00A0;
     private static final int WM_NCMOUSELEAVE = 0x02A2;
     private static final int WM_MOUSEMOVE    = 0x0200;
+    private static final int WM_SYSCOMMAND    = 0x0112;
     private static final int WM_DPICHANGED    = 0x02E0;
+
+    /** WM_SYSCOMMAND command — maximize the window (low 4 bits are reserved, so mask with 0xFFF0). */
+    private static final int SC_MAXIMIZE     = 0xF030;
+    /** WM_SYSCOMMAND command — restore the window from maximized/minimized. */
+    private static final int SC_RESTORE      = 0xF120;
 
     private static final int HTCLIENT      = 1;
     private static final int HTCAPTION     = 2;
@@ -292,6 +300,12 @@ public final class WindowsCustomChromeManager
                 Logger.logWarningSilent( LocalizationManager.format( "log.customChrome.dropCaptionFailed",
                                                                      t.getMessage() ) );
             }
+            // Re-arm DWM frame composition for the now caption-stripped window. Without this the
+            // top edge falls back to legacy "classic" non-client rendering — the white top line and
+            // classic caption-button bitmaps reported in issue #80 — and the Windows 11 snap-layouts
+            // flyout can't attach to our HTMAXBUTTON. A 1px top margin is enough; our opaque content
+            // paints over it. Must run after the WS_CAPTION drop, before the SWP_FRAMECHANGED below.
+            WindowChromeManager.extendFrameForCustomChrome( hwnd );
             // Trigger a non-client recalc so the title bar is removed immediately.
             u.SetWindowPos( hwnd, null, 0, 0, 0, 0,
                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED );
@@ -342,6 +356,16 @@ public final class WindowsCustomChromeManager
     private static LRESULT wndProc( HWND hwnd, int uMsg, WPARAM wParam, LPARAM lParam )
     {
         try {
+            // Let DWM handle the message first so it can render + hit-test the native caption
+            // affordances it still owns on a custom frame — chiefly the Windows 11 maximize/
+            // snap-layouts button. It returns false for the messages we handle below (WM_NCCALCSIZE,
+            // WM_NCHITTEST over our content, etc.) since the window has no system caption, so this is
+            // a safe, additive first pass. (No-op if the DWM binding is unavailable.)
+            WindowChromeManager.LRESULTByReference dwmResult = new WindowChromeManager.LRESULTByReference();
+            if ( WindowChromeManager.Dwmapi.INSTANCE != null
+                    && WindowChromeManager.Dwmapi.INSTANCE.DwmDefWindowProc( hwnd, uMsg, wParam, lParam, dwmResult ) ) {
+                return dwmResult.getValue();
+            }
             switch ( uMsg ) {
                 case WM_NCCALCSIZE:
                     if ( wParam.intValue() != 0 ) {
@@ -350,6 +374,27 @@ public final class WindowsCustomChromeManager
                     break;
                 case WM_NCHITTEST:
                     return onNcHitTest( hwnd, lParam );
+                case WM_NCLBUTTONDOWN:
+                    // Press on the OS-owned maximize slot (HTMAXBUTTON): swallow it so the original
+                    // (Glass) proc doesn't pop the system menu or start a drag. The actual
+                    // maximize/restore fires on button-up, matching the OS caption button.
+                    if ( wParam.intValue() == HTMAXBUTTON ) {
+                        return new LRESULT( 0 );
+                    }
+                    break;
+                case WM_NCLBUTTONUP:
+                    // Release on the maximize slot: toggle maximize/restore ourselves. The native
+                    // path can't do it for us because our subclass forwards to Glass's window proc,
+                    // not DefWindowProc, so DefWindowProc's HTMAXBUTTON click handling never runs —
+                    // which is exactly why the button "did nothing" (issue #80). Drive it via
+                    // WM_SYSCOMMAND so the OS performs a normal animated maximize/restore.
+                    if ( wParam.intValue() == HTMAXBUTTON ) {
+                        int cmd = isMaximized( hwnd ) ? SC_RESTORE : SC_MAXIMIZE;
+                        User32Ex.INSTANCE.SendMessageW( hwnd, WM_SYSCOMMAND, new WPARAM( cmd ), new LPARAM( 0 ) );
+                        setMaxHover( false );
+                        return new LRESULT( 0 );
+                    }
+                    break;
                 case WM_NCACTIVATE:
                     // On focus change Windows repaints the non-client frame to reflect the
                     // active/inactive state, which briefly flashes the default title bar through our
@@ -603,8 +648,8 @@ public final class WindowsCustomChromeManager
     private static int frameThicknessX()
     {
         try {
-            return User32Ex.INSTANCE.GetSystemMetrics( 32 /* SM_CXFRAME */ )
-                    + User32Ex.INSTANCE.GetSystemMetrics( 92 /* SM_CXPADDEDBORDER */ );
+            return systemMetricForDpi( 32 /* SM_CXFRAME */ )
+                    + systemMetricForDpi( 92 /* SM_CXPADDEDBORDER */ );
         }
         catch ( Throwable t ) {
             return scale( 8 );
@@ -619,12 +664,36 @@ public final class WindowsCustomChromeManager
     private static int frameThicknessY()
     {
         try {
-            return User32Ex.INSTANCE.GetSystemMetrics( 33 /* SM_CYFRAME */ )
-                    + User32Ex.INSTANCE.GetSystemMetrics( 92 /* SM_CXPADDEDBORDER */ );
+            return systemMetricForDpi( 33 /* SM_CYFRAME */ )
+                    + systemMetricForDpi( 92 /* SM_CXPADDEDBORDER */ );
         }
         catch ( Throwable t ) {
             return scale( 8 );
         }
+    }
+
+    /**
+     * Reads a system metric at the window's current DPI. {@code GetSystemMetrics} returns values for
+     * the <i>primary monitor's</i> DPI, which is wrong for a Per-Monitor-V2 window on a secondary /
+     * differently-scaled monitor — it would under- or over-inset the maximized frame and clip content
+     * or leave a sliver. {@code GetSystemMetricsForDpi} (Win10 1607+, same baseline as
+     * {@link #queryDpi}) returns the value for {@link #currentDpi}; falls back to the legacy call.
+     *
+     * @param nIndex the {@code SM_*} metric index
+     * @return the metric value in physical px at the current DPI
+     */
+    private static int systemMetricForDpi( int nIndex )
+    {
+        try {
+            int v = User32Ex.INSTANCE.GetSystemMetricsForDpi( nIndex, currentDpi );
+            if ( v > 0 ) {
+                return v;
+            }
+        }
+        catch ( Throwable t ) {
+            // GetSystemMetricsForDpi needs Win10 1607+; fall through to the DPI-unaware call.
+        }
+        return User32Ex.INSTANCE.GetSystemMetrics( nIndex );
     }
 
     /**
@@ -753,6 +822,27 @@ public final class WindowsCustomChromeManager
          * @return the value of the specified system metric or configuration setting.
          */
         int      GetSystemMetrics( int nIndex );
+
+        /**
+         * Retrieves a system metric for the specified DPI (Per-Monitor-aware variant of
+         * {@link #GetSystemMetrics}). Available on Windows 10 1607+.
+         *
+         * @param nIndex the system metric to retrieve.
+         * @param dpi    the DPI to scale the metric for.
+         * @return the value of the specified system metric at the given DPI.
+         */
+        int      GetSystemMetricsForDpi( int nIndex, int dpi );
+
+        /**
+         * Sends a message to the specified window and waits for it to be processed.
+         *
+         * @param hWnd   the handle to the window.
+         * @param msg    the message identifier.
+         * @param wParam the first message parameter.
+         * @param lParam the second message parameter.
+         * @return the result of the message processing.
+         */
+        LRESULT  SendMessageW( HWND hWnd, int msg, WPARAM wParam, LPARAM lParam );
 
         /**
          * Retrieves the DPI associated with a window.

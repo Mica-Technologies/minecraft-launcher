@@ -14,7 +14,12 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.sun.glass.ui.Window;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
+import com.sun.jna.Structure;
 import com.sun.jna.platform.win32.WinDef.HWND;
+import com.sun.jna.platform.win32.WinDef.LPARAM;
+import com.sun.jna.platform.win32.WinDef.LRESULT;
+import com.sun.jna.platform.win32.WinDef.WPARAM;
+import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.win32.StdCallLibrary;
 import javafx.stage.Stage;
@@ -95,6 +100,92 @@ public final class WindowChromeManager
          * @return              a result code indicating success or failure
          */
         int DwmSetWindowAttribute( HWND hwnd, int dwAttribute, IntByReference pvAttribute, int cbAttribute );
+
+        /**
+         * Extends the DWM-composited frame into the client area by the given {@link MARGINS}. Used by
+         * the custom-chrome path: a window that has dropped {@code WS_CAPTION} and zeroed
+         * {@code WM_NCCALCSIZE} otherwise loses DWM frame composition for its top edge, which Windows
+         * then renders in the old "classic" non-client style (the white top line + classic caption
+         * buttons). A 1px top margin re-arms composition so the modern frame, drop shadow, and the
+         * Windows 11 snap-layouts flyout work, while the launcher's opaque content paints over it.
+         *
+         * @param hwnd      the handle to the window
+         * @param pMarInset the margins (in physical px) to extend the frame by
+         * @return an {@code HRESULT} (0 = {@code S_OK})
+         */
+        int DwmExtendFrameIntoClientArea( HWND hwnd, MARGINS pMarInset );
+
+        /**
+         * The DWM default window procedure. A custom-frame window calls this <i>first</i> from its
+         * own window proc so DWM can render and hit-test the native caption affordances it still owns
+         * — chiefly the Windows 11 maximize/snap-layouts button — that a fully app-drawn frame can't
+         * reproduce. Returns {@code true} (and fills {@code plResult}) when DWM handled the message;
+         * the caller then returns that result instead of forwarding to the original proc.
+         *
+         * @param hwnd     the handle to the window
+         * @param msg      the message identifier
+         * @param wParam   the first message parameter
+         * @param lParam   the second message parameter
+         * @param plResult receives the message result when DWM handled it
+         * @return {@code true} if DWM handled the message, otherwise {@code false}
+         */
+        boolean DwmDefWindowProc( HWND hwnd, int msg, WPARAM wParam, LPARAM lParam, LRESULTByReference plResult );
+    }
+
+    /**
+     * Win32 {@code MARGINS} — the per-edge inset (physical px) for {@code DwmExtendFrameIntoClientArea}.
+     */
+    @Structure.FieldOrder( { "cxLeftWidth", "cxRightWidth", "cyTopHeight", "cyBottomHeight" } )
+    public static class MARGINS extends Structure
+    {
+        public int cxLeftWidth;
+        public int cxRightWidth;
+        public int cyTopHeight;
+        public int cyBottomHeight;
+    }
+
+    /**
+     * A by-reference {@code LRESULT} (pointer-sized) out-param for {@link Dwmapi#DwmDefWindowProc}.
+     */
+    public static class LRESULTByReference extends ByReference
+    {
+        /** Allocates the pointer-sized backing storage for the out-param. */
+        public LRESULTByReference() { super( Native.POINTER_SIZE ); }
+
+        /**
+         * Reads the value DWM wrote.
+         *
+         * @return the {@code LRESULT} DWM stored, as a JNA {@link LRESULT}
+         */
+        public LRESULT getValue() { return new LRESULT( getPointer().getLong( 0 ) ); }
+    }
+
+    /**
+     * Re-arms DWM frame composition for a custom-chrome (caption-stripped) window by extending the
+     * frame 1px into the client area. Without this a window that dropped {@code WS_CAPTION} renders
+     * its top edge in the legacy "classic" non-client style — the white top line and classic caption
+     * buttons reported in issue #80. No-op off Windows / on a null handle; failures are logged, never
+     * thrown (chrome niceties must not break the app).
+     *
+     * @param hwnd the native window handle to extend the frame on
+     */
+    public static void extendFrameForCustomChrome( HWND hwnd )
+    {
+        if ( !SystemUtils.IS_OS_WINDOWS || hwnd == null ) {
+            return;
+        }
+        try {
+            MARGINS margins = new MARGINS();
+            margins.cxLeftWidth = 0;
+            margins.cxRightWidth = 0;
+            margins.cyTopHeight = 1;   // 1px is enough to keep DWM composing the frame + snap button
+            margins.cyBottomHeight = 0;
+            Dwmapi.INSTANCE.DwmExtendFrameIntoClientArea( hwnd, margins );
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.windowChrome.extendFrameFailed",
+                                                                 t.getMessage() ) );
+        }
     }
 
     /**
