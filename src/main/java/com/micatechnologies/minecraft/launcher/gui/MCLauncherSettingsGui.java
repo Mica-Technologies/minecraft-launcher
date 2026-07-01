@@ -2521,6 +2521,41 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( lwjglArmPatchCheckBox.isSelected() != ConfigManager.getLwjglArmPatchEnable() ) return true;
         String selectedTheme = themeSelection.getSelectedItem();
         if ( selectedTheme != null && !selectedTheme.equalsIgnoreCase( ConfigManager.getTheme() ) ) return true;
+
+        // Proxy settings (persistSettings writes these — must be dirty-checked too).
+        if ( proxyEnableCheckBox.isSelected() != ConfigManager.getProxyEnable() ) return true;
+        if ( !proxyHostField.getText().equals( ConfigManager.getProxyHost() ) ) return true;
+        if ( proxyPortSpinner.getValue() != null
+                && proxyPortSpinner.getValue() != ConfigManager.getProxyPort() ) return true;
+        String selectedProxyType = proxyTypeSelection.getSelectedItem();
+        if ( selectedProxyType != null && !selectedProxyType.equals( ConfigManager.getProxyType() ) ) return true;
+
+        // Console log line cap.
+        if ( consoleLogMaxLinesSelection != null && consoleLogMaxLinesSelection.getSelectedItem() != null ) {
+            int idx = consoleLogMaxLinesSelection.getSelectedIndex();
+            if ( idx >= 0 && idx < ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS.length
+                    && ConfigConstants.CONSOLE_LOG_MAX_LINES_PRESETS[ idx ] != ConfigManager.getConsoleLogMaxLines() ) {
+                return true;
+            }
+        }
+
+        // JVM preset — persistSettings maps the selected preset name to its args string.
+        String selectedPreset = jvmPresetSelection.getSelectedItem();
+        if ( selectedPreset != null ) {
+            for ( int i = 0; i < ConfigConstants.JVM_PRESET_NAMES.length; i++ ) {
+                if ( ConfigConstants.JVM_PRESET_NAMES[ i ].equals( selectedPreset ) ) {
+                    if ( !ConfigConstants.JVM_PRESET_ARGS[ i ].equals( ConfigManager.getCustomJvmArgs() ) ) return true;
+                    break;
+                }
+            }
+        }
+
+        // Language override (BCP-47 tag, or empty for OS detection).
+        if ( languageSelection != null && languageSelection.getSelectedItem() != null
+                && !selectedLanguageOverrideTag().equalsIgnoreCase( ConfigManager.getLocaleOverride() ) ) {
+            return true;
+        }
+
         return false;
     }
 }
