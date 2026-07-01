@@ -395,24 +395,69 @@ public final class WindowChromeManager
      * @param stage        the Stage to apply the backdrop to
      * @param backdropType one of {@link #BACKDROP_MICA}, {@link #BACKDROP_ACRYLIC},
      *                     {@link #BACKDROP_MICA_ALT}, or {@link #BACKDROP_NONE} to clear
+     * @return {@code true} if DWM accepted the attribute (S_OK), {@code false} off Windows, on a
+     *         null / unresolved handle, or when DWM rejected it (Win10 / Win11 before 22H2)
      */
-    public static void applyBackdrop( Stage stage, int backdropType )
+    public static boolean applyBackdrop( Stage stage, int backdropType )
     {
         if ( !SystemUtils.IS_OS_WINDOWS || stage == null ) {
-            return;
+            return false;
         }
         HWND hwnd = resolveHwnd( stage );
         if ( hwnd == null ) {
-            return;
+            return false;
         }
         IntByReference value = new IntByReference( backdropType );
         try {
-            Dwmapi.INSTANCE.DwmSetWindowAttribute(
+            // DwmSetWindowAttribute returns an HRESULT: S_OK (0) when DWM accepted the backdrop, or a
+            // failure code (E_INVALIDARG) on Windows builds that don't know DWMWA_SYSTEMBACKDROP_TYPE
+            // — Windows 10 and Windows 11 before 22H2. Callers use this to distinguish "backdrop
+            // applied" from "silently rejected": a transparent scene over a rejected backdrop
+            // composites as pure black rather than showing Mica.
+            int hr = Dwmapi.INSTANCE.DwmSetWindowAttribute(
                     hwnd, DWMWA_SYSTEMBACKDROP_TYPE, value, 4 );
+            return hr == 0;
         }
         catch ( Throwable t ) {
             Logger.logWarningSilent( LocalizationManager.format( "log.windowChrome.backdropFailed", t.getMessage() ) );
+            return false;
         }
+    }
+
+    /** Cached result of the Mica-backdrop capability probe: {@code null} until the first probe with a
+     *  realized HWND, then the OS-level answer (stable for the process lifetime). */
+    private static volatile Boolean micaBackdropSupported = null;
+
+    /**
+     * Reports whether DWM will actually render a Mica system backdrop for this stage's window. Mica
+     * needs the {@code DWMWA_SYSTEMBACKDROP_TYPE} attribute (Windows 11 22H2 / build 22621+); on
+     * Windows 10 and earlier Windows 11 builds DWM rejects it, so any window relying on a transparent
+     * scene to let Mica show through instead composites as <b>pure black</b>. Callers use this to fall
+     * back to a solid background on those systems.
+     *
+     * <p>Probes DWM once — by requesting the Mica backdrop and reading the HRESULT — then caches the
+     * OS-level answer. Returns {@code false} <i>without caching</i> when the native window isn't
+     * realized yet (no HWND), so a later call after the stage is shown can still detect support.
+     * Always {@code false} off Windows.</p>
+     *
+     * @param stage the Stage whose window to probe
+     * @return {@code true} if DWM applied the Mica backdrop, otherwise {@code false}
+     */
+    public static boolean supportsMicaBackdrop( Stage stage )
+    {
+        if ( !SystemUtils.IS_OS_WINDOWS ) {
+            return false;
+        }
+        Boolean cached = micaBackdropSupported;
+        if ( cached != null ) {
+            return cached;
+        }
+        if ( stage == null || resolveHwnd( stage ) == null ) {
+            return false;   // window not realized yet — don't cache, let a later call re-probe
+        }
+        boolean ok = applyBackdrop( stage, BACKDROP_MICA );
+        micaBackdropSupported = ok;
+        return ok;
     }
 
     /**
