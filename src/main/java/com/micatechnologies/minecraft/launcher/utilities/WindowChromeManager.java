@@ -15,6 +15,8 @@ import com.sun.glass.ui.Window;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure;
+import com.sun.jna.platform.win32.Advapi32Util;
+import com.sun.jna.platform.win32.WinReg;
 import com.sun.jna.platform.win32.WinDef.HWND;
 import com.sun.jna.platform.win32.WinDef.LPARAM;
 import com.sun.jna.platform.win32.WinDef.LRESULT;
@@ -429,23 +431,35 @@ public final class WindowChromeManager
     private static volatile Boolean micaBackdropSupported = null;
 
     /**
-     * Reports whether DWM will actually render a Mica system backdrop for this stage's window. Mica
-     * needs the {@code DWMWA_SYSTEMBACKDROP_TYPE} attribute (Windows 11 22H2 / build 22621+); on
-     * Windows 10 and earlier Windows 11 builds DWM rejects it, so any window relying on a transparent
-     * scene to let Mica show through instead composites as <b>pure black</b>. Callers use this to fall
-     * back to a solid background on those systems.
+     * Reports whether DWM will actually <b>render</b> a Mica system backdrop for this stage's window.
+     * Two independent conditions have to hold, and both fail as a pure-black window when a scene
+     * relies on transparency to reveal Mica:
+     * <ul>
+     *   <li><b>OS support.</b> Mica needs the {@code DWMWA_SYSTEMBACKDROP_TYPE} attribute (Windows 11
+     *       22H2 / build 22621+); on Windows 10 and earlier Windows 11 builds DWM rejects it. Probed
+     *       via the {@link #applyBackdrop} HRESULT and cached (this never changes for the process).</li>
+     *   <li><b>Transparency effects on.</b> Even where the attribute is <i>accepted</i> (S_OK), DWM
+     *       paints no Mica when Windows "Transparency effects" is off — user preference, the
+     *       "reduce transparency" accessibility setting, or battery saver. This is the common reason a
+     *       Mica-capable machine still shows black. Re-checked every call (it can be toggled at
+     *       runtime), so it is intentionally <i>not</i> folded into the cached OS-support probe.</li>
+     * </ul>
+     * Callers use a {@code false} result to fall back to a solid background instead of transparent.
      *
-     * <p>Probes DWM once — by requesting the Mica backdrop and reading the HRESULT — then caches the
-     * OS-level answer. Returns {@code false} <i>without caching</i> when the native window isn't
+     * <p>Returns {@code false} <i>without caching</i> the OS probe when the native window isn't
      * realized yet (no HWND), so a later call after the stage is shown can still detect support.
      * Always {@code false} off Windows.</p>
      *
      * @param stage the Stage whose window to probe
-     * @return {@code true} if DWM applied the Mica backdrop, otherwise {@code false}
+     * @return {@code true} if DWM will paint the Mica backdrop, otherwise {@code false}
      */
     public static boolean supportsMicaBackdrop( Stage stage )
     {
         if ( !SystemUtils.IS_OS_WINDOWS ) {
+            return false;
+        }
+        // Transparency effects gate first — cheap, and it can change at runtime so it's never cached.
+        if ( !transparencyEffectsEnabled() ) {
             return false;
         }
         Boolean cached = micaBackdropSupported;
@@ -458,6 +472,33 @@ public final class WindowChromeManager
         boolean ok = applyBackdrop( stage, BACKDROP_MICA );
         micaBackdropSupported = ok;
         return ok;
+    }
+
+    /**
+     * Reads Windows' "Transparency effects" toggle (Settings → Personalization → Colors). Mica /
+     * Acrylic only render when it's on; with it off DWM still accepts the backdrop attribute but paints
+     * nothing, so a transparent scene composites as black. The setting lives at
+     * {@code HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize\EnableTransparency}
+     * ({@code 1} = on). Battery saver and the "reduce transparency" accessibility option flip this same
+     * value, so this one read covers all three. Defaults to {@code true} when the value is absent
+     * (its Windows default) or unreadable — never suppress Mica on a bad read.
+     *
+     * @return {@code true} if transparency effects are enabled (or indeterminate), {@code false} if
+     *         explicitly disabled
+     */
+    private static boolean transparencyEffectsEnabled()
+    {
+        try {
+            final String key = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+            if ( Advapi32Util.registryValueExists( WinReg.HKEY_CURRENT_USER, key, "EnableTransparency" ) ) {
+                return Advapi32Util.registryGetIntValue( WinReg.HKEY_CURRENT_USER, key, "EnableTransparency" ) != 0;
+            }
+        }
+        catch ( Throwable t ) {
+            Logger.logWarningSilent( LocalizationManager.format( "log.windowChrome.transparencyReadFailed",
+                                                                 t.getMessage() ) );
+        }
+        return true;   // absent / unreadable → Windows default is on
     }
 
     /**
