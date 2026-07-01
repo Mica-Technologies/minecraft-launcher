@@ -748,6 +748,15 @@ public class MCLauncherGuiWindow extends Application
                             .applyBorderColor( stage, chrome );
                 }
 
+                // applyTheme() set the native scene fill before the window was realized (no HWND yet),
+                // so the Mica-capability probe couldn't run and it defaulted to the safe solid bg.
+                // Now that the HWND exists, re-evaluate: a Mica-capable OS flips the fill to
+                // transparent so the backdrop shows through; Win10 / pre-22H2 stays solid (a
+                // transparent scene there paints black).
+                if ( isNative ) {
+                    applyNativeThemeFill( themeBgHex( tokenSheet ) );
+                }
+
                 // Force a non-client frame recalc so DWM repaints the title bar with
                 // the chrome attributes we just set.
                 com.micatechnologies.minecraft.launcher.utilities.WindowsShellRefresh
@@ -1062,10 +1071,11 @@ public class MCLauncherGuiWindow extends Application
             //
             // Native theme is the exception: with StageStyle.UNIFIED on Windows, DWM can
             // composite a Mica backdrop through the JavaFX scene — but only if the scene
-            // and rootPane both render transparent pixels. So for Native we clear the
-            // inline rootPane bg (the ui-tokens-native.css `.rootPane { background: transparent }`
-            // rule wins) and set scene fill to TRANSPARENT. For any other theme the inline
-            // override paints the solid bg.
+            // and rootPane both render transparent pixels AND the OS actually supports the
+            // Mica backdrop. applyNativeThemeFill() goes transparent when a real backdrop
+            // (Windows 11 22H2+ Mica, or macOS vibrancy) is available and falls back to the
+            // solid native bg otherwise, so Win10 / pre-22H2 don't render a black window. For
+            // any other theme the inline override paints the solid bg.
             String bg = themeBgHex( tokenSheet );
             boolean isNative = tokenSheet.endsWith( "ui-tokens-native.css" )
                             || tokenSheet.endsWith( "ui-tokens-native-light.css" );
@@ -1079,18 +1089,12 @@ public class MCLauncherGuiWindow extends Application
                 // perception threshold for color shifts on a near-black or near-white
                 // backdrop, so the vibrancy reads at full strength visually.
                 //
-                // Windows DWM Mica path keeps fully-transparent root (the DWM
-                // compositor has different render behavior and doesn't share macOS's
-                // "skip transparent" optimization).
-                if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
-                    gui.rootPane.setStyle( "-fx-background-color: rgba(0, 0, 0, 0.001);" );
-                }
-                else {
-                    gui.rootPane.setStyle( "-fx-background-color: transparent;" );
-                }
-                if ( gui.scene != null ) {
-                    gui.scene.setFill( javafx.scene.paint.Color.TRANSPARENT );
-                }
+                // Windows DWM Mica path keeps a fully-transparent root — BUT only when the OS
+                // actually supports the Mica backdrop. On Windows 10 / Windows 11 before 22H2 DWM
+                // rejects DWMWA_SYSTEMBACKDROP_TYPE, and a transparent scene with no backdrop behind
+                // it composites as pure black. applyNativeThemeFill() falls back to the solid native
+                // bg on those systems so the window is opaque and themed instead of black.
+                applyNativeThemeFill( bg );
             }
             else {
                 gui.rootPane.setStyle( "-fx-background-color: " + bg + ";" );
@@ -1180,6 +1184,46 @@ public class MCLauncherGuiWindow extends Application
             com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
                     .forceFullRepaint( stage );
         } );
+    }
+
+    /**
+     * Sets the current native (Mica) scene's fill + rootPane bg. Transparent so the OS backdrop
+     * composites through — but that only works where the backdrop is real:
+     * <ul>
+     *   <li><b>macOS</b> — FXThemes vibrancy backs the window; transparent scene + a near-zero-alpha
+     *       rootPane (the alpha keeps JFX from short-circuiting the transparent framebuffer to black).</li>
+     *   <li><b>Windows, Mica supported</b> (Win11 22H2+) — transparent scene lets DWM Mica show.</li>
+     *   <li><b>Windows, Mica NOT supported</b> (Win10 / pre-22H2) — DWM rejects the backdrop, so a
+     *       transparent scene would render as pure black. Fall back to the solid native bg instead.</li>
+     * </ul>
+     * The Windows capability check needs a realized HWND, so at startup (applyTheme runs before the
+     * window is shown) this resolves to the safe solid bg; {@link #show()} re-invokes it on first show
+     * once the HWND exists to flip a Mica-capable window to transparent.
+     *
+     * @param bg the solid native bg hex to use when transparency isn't backed by a real backdrop
+     */
+    private void applyNativeThemeFill( String bg ) {
+        if ( gui == null || gui.rootPane == null ) {
+            return;
+        }
+        boolean transparent;
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+            gui.rootPane.setStyle( "-fx-background-color: rgba(0, 0, 0, 0.001);" );
+            transparent = true;
+        }
+        else if ( com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager
+                          .supportsMicaBackdrop( stage ) ) {
+            gui.rootPane.setStyle( "-fx-background-color: transparent;" );
+            transparent = true;
+        }
+        else {
+            gui.rootPane.setStyle( "-fx-background-color: " + bg + ";" );
+            transparent = false;
+        }
+        if ( gui.scene != null ) {
+            gui.scene.setFill( transparent ? javafx.scene.paint.Color.TRANSPARENT
+                                           : javafx.scene.paint.Color.web( bg ) );
+        }
     }
 
     /** Mirrors the {@code -color-bg} lookup defined in each ui-tokens-{theme}.css. Used as the inline
