@@ -41,7 +41,7 @@ jobs:
       # `.N` bump, which silently picks the wrong N if any tags are missing.
       # depth 0 alone has been observed to skip tags in some checkout paths.
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -129,7 +129,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -190,7 +190,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -238,7 +238,7 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
@@ -282,7 +282,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up JDK 26 (Zulu FX)
         uses: actions/setup-java@v5
