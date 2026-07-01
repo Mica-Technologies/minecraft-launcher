@@ -130,6 +130,18 @@ class GameModPackFileSync
 
         // Build list of mod download tasks on the shared bounded download pool.
         if ( metadata.packMods.size() > 1 ) {
+            final int modCount = metadata.packMods.size();
+            // Mods download concurrently on the shared pool, so a per-mod "Downloading X"
+            // detail line is last-writer-wins across ~16 threads — the name shown rarely
+            // matches the file actually transferring (the "wrong mod name" bug, and the
+            // frozen name that makes a slow sibling look stuck). Report an aggregate
+            // completed-count instead, which is correct no matter which pool thread writes
+            // it; the live speed/ETA still comes from the shared DownloadTracker.
+            final java.util.concurrent.atomic.AtomicInteger modsProcessed =
+                    new java.util.concurrent.atomic.AtomicInteger( 0 );
+            if ( progressProvider != null ) {
+                progressProvider.setCurrText( "Downloading mods (0/" + modCount + ")..." );
+            }
             List< Future< Boolean > > threadPoolFutures = new ArrayList<>();
             for ( GameMod mod : metadata.packMods ) {
                 Callable< Boolean > updateFileCallable = () -> {
@@ -138,15 +150,12 @@ class GameModPackFileSync
                         mod.setDownloadTracker( downloadTracker );
                     }
 
-                    if ( progressProvider != null ) {
-                        progressProvider.setCurrText( "Downloading " + mod.name + "..." );
-                    }
-
                     boolean ret = mod.updateLocalFile( GameModeManager.getCurrentGameMode() );
 
+                    int done = modsProcessed.incrementAndGet();
                     if ( progressProvider != null ) {
-                        progressProvider.submitProgress( "Verified " + mod.name,
-                                                         ( 70.0 / ( double ) metadata.packMods.size() ) );
+                        progressProvider.submitProgress( "Downloading mods (" + done + "/" + modCount + ")...",
+                                                         ( 70.0 / ( double ) modCount ) );
                     }
                     if ( downloadTracker != null ) {
                         downloadTracker.completeFile();

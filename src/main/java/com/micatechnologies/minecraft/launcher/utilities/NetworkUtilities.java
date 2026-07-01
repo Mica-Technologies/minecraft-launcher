@@ -403,15 +403,23 @@ public class NetworkUtilities
     public static void downloadFileFromURL( URL source, File destination, DownloadTracker tracker ) throws IOException {
         synchronized ( getPathLock( destination ) ) {
             IOException lastException = null;
+            // Register the file with the tracker exactly once for the whole retry sequence.
+            // Re-registering per attempt (the old behaviour) double-counted the expected bytes
+            // and leaked an activeDownloads increment on every failed try, which made the
+            // aggregate byte total jump backward and the progress bar/ETA regress — reading to
+            // the user as a stuck download.
+            boolean registered = false;
             for ( int attempt = 1; attempt <= MAX_RETRIES; attempt++ ) {
                 File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
                 URLConnection connection = null;
+                long attemptBytes = 0;   // bytes this attempt reported to the tracker, rolled back on failure
                 try {
                     connection = openConnection( source );
                     applyDefaults( connection );
                     long contentLength = connection.getContentLengthLong();
-                    if ( tracker != null ) {
+                    if ( tracker != null && !registered ) {
                         tracker.registerDownload( contentLength );
+                        registered = true;
                     }
                     try ( InputStream is = connection.getInputStream();
                           OutputStream os = new BufferedOutputStream( new FileOutputStream( tempFile ) ) ) {
@@ -421,6 +429,7 @@ public class NetworkUtilities
                             os.write( buffer, 0, bytesRead );
                             if ( tracker != null ) {
                                 tracker.addBytes( bytesRead );
+                                attemptBytes += bytesRead;
                             }
                             // Battery saver: when on battery + the user hasn't disabled throttling,
                             // sleep just enough per chunk to cap this stream at the configured rate.
@@ -439,6 +448,11 @@ public class NetworkUtilities
                     // Drop the partial download so a failed attempt can't be mistaken for a
                     // complete file on a later run and isn't left orphaned on disk.
                     tempFile.delete();
+                    // Roll back the partial bytes this failed attempt fed the tracker so the retry
+                    // re-counts them from scratch instead of double-counting into the total.
+                    if ( tracker != null && attemptBytes > 0 ) {
+                        tracker.addBytes( -attemptBytes );
+                    }
                     if ( attempt < MAX_RETRIES ) {
                         Logger.logWarningSilent( LocalizationManager.format( "log.network.downloadAttemptFailed",
                                                                              attempt, source.toString(),
