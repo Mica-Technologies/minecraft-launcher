@@ -1038,8 +1038,26 @@ public class GameModPack extends GameModPackMetadata
         pack.packMinRAMGB = "2";
         pack.packLogoURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_LOGO_URL );
         pack.packBackgroundURL = StringOrArray.of( ModPackConstants.MODPACK_DEFAULT_BG_URL );
+        pack.failedLoad = true;
         return pack;
     }
+
+    /** True when this pack object represents a <em>failed</em> manifest load
+     *  (built via {@link #createFailedModPack}) rather than a real pack. Its
+     *  {@code packMods} / loader fields are null, so the launch pipeline must
+     *  refuse to sync or launch it — otherwise the empty mod list would be
+     *  treated as "this pack has no mods," wiping the installed mods folder
+     *  and launching modless. Transient so it never round-trips through Gson. */
+    private transient boolean failedLoad;
+
+    /**
+     * Reports whether this pack represents a failed manifest load. Callers on
+     * the launch path should abort rather than sync/launch a failed pack, since
+     * its null mod list would otherwise be mistaken for "no mods."
+     *
+     * @return {@code true} when built by {@link #createFailedModPack}
+     */
+    public boolean isFailedLoad() { return failedLoad; }
 
     /** True when this pack was built from an {@link InstallIndex.Entry} stub and
      *  hasn't yet had its full manifest loaded. Stub instances carry just the

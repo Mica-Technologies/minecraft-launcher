@@ -166,6 +166,17 @@ class GameModPackLauncher
      */
     String buildClasspath() throws ModpackException
     {
+        // Refuse to launch a pack whose manifest failed to load. Such a pack carries a null mod
+        // list, which the downstream sync would treat as "this pack has no mods" — wiping the
+        // installed mods folder and launching modless. Aborting here keeps the existing install
+        // intact and surfaces the real problem (manifest/network unavailable) instead.
+        if ( pack.isFailedLoad() ) {
+            throw new ModpackException( "Refusing to launch \"" + pack.getPackName()
+                    + "\": its modpack manifest could not be loaded, so the mod set can't be "
+                    + "verified. Check network / manifest availability and try again — the "
+                    + "installed files have been left untouched." );
+        }
+
         if ( progressProvider != null ) {
             progressProvider.setCurrText( LocalizationManager.get( "gameModPackLauncher.progress.preparingModpack" ) );
         }
