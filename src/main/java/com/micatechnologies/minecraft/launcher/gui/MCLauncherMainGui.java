@@ -2262,6 +2262,14 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     public static void prefetchAvailableModpackBackgrounds()
     {
+        // Never run in a headless / server session. This constructs javafx.scene.image.Image
+        // objects, which forces JavaFX toolkit + renderer initialization; on a headless box that
+        // fails ("no suitable pipeline found") and spams the log once per available pack — and the
+        // failed toolkit init can wedge the JVM, holding locks other launch threads then block on.
+        // Prefetching modpack card backgrounds is a pure GUI nicety with no meaning in server mode.
+        if ( !MCLauncherGuiController.shouldCreateGui() ) {
+            return;
+        }
         com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask( () -> {
             java.util.List< GameModPack > available;
             try {
