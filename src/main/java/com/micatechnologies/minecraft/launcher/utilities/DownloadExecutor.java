@@ -105,36 +105,13 @@ public final class DownloadExecutor
     throws InterruptedException, ExecutionException, TimeoutException
     {
         long deadline = System.currentTimeMillis() + timeoutMs;
-        boolean stuckDumped = false;
         try {
             for ( Future< ? > f : futures ) {
-                // Wait in bounded slices rather than one long get() so a batch that has
-                // silently frozen (observed: every download-pool task wedged pre-first-byte
-                // with no timeout firing) self-diagnoses: a full slice with ZERO newly
-                // completed futures across the whole batch dumps the download/launch
-                // thread stacks to the log once, then waiting continues to the deadline.
-                while ( true ) {
-                    long remaining = deadline - System.currentTimeMillis();
-                    if ( remaining <= 0L ) {
-                        throw new TimeoutException(
-                                "Download tasks did not complete within the allotted time." );
-                    }
-                    long doneBefore = countDone( futures );
-                    try {
-                        f.get( Math.min( remaining, STUCK_PROBE_INTERVAL_MS ), TimeUnit.MILLISECONDS );
-                        break;
-                    }
-                    catch ( TimeoutException sliceTimeout ) {
-                        if ( deadline - System.currentTimeMillis() <= 0L ) {
-                            throw sliceTimeout;   // genuine overall deadline — handled below
-                        }
-                        if ( !stuckDumped && countDone( futures ) == doneBefore ) {
-                            stuckDumped = true;
-                            dumpWorkerThreads( futures );
-                        }
-                        // Slice elapsed but time remains — keep waiting on the same future.
-                    }
+                long remaining = deadline - System.currentTimeMillis();
+                if ( remaining <= 0L ) {
+                    throw new TimeoutException( "Download tasks did not complete within the allotted time." );
                 }
+                f.get( remaining, TimeUnit.MILLISECONDS );
             }
         }
         catch ( InterruptedException e ) {
@@ -146,104 +123,6 @@ public final class DownloadExecutor
             cancelAll( futures );
             throw e;
         }
-    }
-
-    /**
-     * Interval between batch-progress probes inside {@link #awaitAll}. A batch that completes
-     * nothing for one full interval is considered stuck and triggers a one-shot thread dump.
-     */
-    private static final long STUCK_PROBE_INTERVAL_MS = 2 * 60 * 1000L;
-
-    /** Maximum stack frames captured per thread in the stuck-batch dump. */
-    private static final int STUCK_DUMP_MAX_FRAMES = 14;
-
-    /**
-     * Counts the futures in the batch that have reached a terminal state.
-     *
-     * @param futures the batch to inspect
-     * @return how many futures are done (completed, failed, or cancelled)
-     */
-    private static long countDone( List< ? extends Future< ? > > futures )
-    {
-        long done = 0;
-        for ( Future< ? > f : futures ) {
-            if ( f.isDone() ) {
-                done++;
-            }
-        }
-        return done;
-    }
-
-    /**
-     * Logs the current state + stack of every live thread when a download batch has stalled.
-     * Fired once per {@link #awaitAll} batch when a full probe interval passes with no batch
-     * progress. Dumps <b>all</b> threads, not just the download/launch workers: a stuck batch is
-     * usually blocked on a lock held by some <i>other</i> thread (e.g. a config monitor held by a
-     * wedged GUI-init thread), so limiting the dump to the workers hides the actual culprit.
-     * JDK-internal daemons ({@code Reference Handler}, {@code Finalizer}, GC/compiler threads) are
-     * skipped to keep the report focused on application threads.
-     *
-     * @param futures the stalled batch (for the done/total summary in the header)
-     */
-    private static void dumpWorkerThreads( List< ? extends Future< ? > > futures )
-    {
-        try {
-            StringBuilder sb = new StringBuilder();
-            sb.append( countDone( futures ) ).append( '/' ).append( futures.size() )
-              .append( " tasks done" );
-            for ( var entry : Thread.getAllStackTraces().entrySet() ) {
-                Thread t = entry.getKey();
-                if ( isJdkInternalThread( t ) ) {
-                    continue;
-                }
-                sb.append( '\n' ).append( t.getName() ).append( " [" ).append( t.getState() ).append( ']' );
-                StackTraceElement[] frames = entry.getValue();
-                int limit = Math.min( frames.length, STUCK_DUMP_MAX_FRAMES );
-                for ( int i = 0; i < limit; i++ ) {
-                    sb.append( "\n    at " ).append( frames[ i ] );
-                }
-                if ( frames.length > limit ) {
-                    sb.append( "\n    ... " ).append( frames.length - limit ).append( " more" );
-                }
-            }
-            com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
-                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
-                            .format( "log.downloadExecutor.noProgressDump",
-                                     STUCK_PROBE_INTERVAL_MS / 1000, sb.toString() ) );
-        }
-        catch ( Throwable t ) {
-            // Diagnostics must never break the wait path itself.
-        }
-    }
-
-    /**
-     * Whether a thread is a JDK-internal / VM daemon that adds noise rather than signal to the
-     * stall dump (reference/finalizer handlers, GC and JIT worker threads, the JFR recorder,
-     * common-pool idlers, etc.). Best-effort name matching — an unrecognised name is treated as an
-     * application thread so we never hide a potential lock holder.
-     *
-     * @param t the thread to classify
-     * @return {@code true} to skip it in the dump
-     */
-    private static boolean isJdkInternalThread( Thread t )
-    {
-        String name = t.getName();
-        if ( name == null ) {
-            return false;
-        }
-        return name.equals( "Reference Handler" )
-                || name.equals( "Finalizer" )
-                || name.equals( "Signal Dispatcher" )
-                || name.equals( "Common-Cleaner" )
-                || name.equals( "Notification Thread" )
-                || name.startsWith( "GC " )
-                || name.startsWith( "G1 " )
-                || name.startsWith( "C1 " )
-                || name.startsWith( "C2 " )
-                || name.startsWith( "JFR " )
-                || name.startsWith( "VM " )
-                || name.startsWith( "CompilerThread" )
-                || name.startsWith( "process reaper" );
     }
 
     /**
