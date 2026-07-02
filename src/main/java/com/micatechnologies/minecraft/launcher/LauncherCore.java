@@ -773,15 +773,29 @@ public class LauncherCore
                                 retryTrackerRef.setSubText( s.id(), notice );
                             }
                         } );
+                // Wire the live download-progress listener the same way: a large file's
+                // byte progress ("name — 45% · 12/27 MB · speed") lands on whichever rows
+                // are currently RUNNING, so a big resource pack / mod download shows movement
+                // instead of a frozen line. Same push-to-all-running-rows simplification as
+                // the retry listener (the download call has no step context to target one row).
+                com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.setDownloadProgressListener(
+                        notice -> {
+                            if ( session.isCancelled() ) return;
+                            for ( var s : retryTrackerRef.runningSteps() ) {
+                                retryTrackerRef.setSubText( s.id(), notice );
+                            }
+                        } );
                 try {
                     gameModPack.startGame();
                 }
                 finally {
-                    // Always clear the listener so subsequent background activity
+                    // Always clear the listeners so subsequent background activity
                     // (manifest revalidates, the next launch attempt) doesn't push
                     // notices into a torn-down GUI.
                     com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities
                             .setRetryNoticeListener( null );
+                    com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities
+                            .setDownloadProgressListener( null );
                     // Release the launch progress provider (and the progress-window
                     // labels it captures) now that progress reporting is done. Swap
                     // rather than set(null) so the cached launcher — and its
