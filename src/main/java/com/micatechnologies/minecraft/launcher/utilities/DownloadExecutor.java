@@ -105,13 +105,36 @@ public final class DownloadExecutor
     throws InterruptedException, ExecutionException, TimeoutException
     {
         long deadline = System.currentTimeMillis() + timeoutMs;
+        boolean stuckDumped = false;
         try {
             for ( Future< ? > f : futures ) {
-                long remaining = deadline - System.currentTimeMillis();
-                if ( remaining <= 0L ) {
-                    throw new TimeoutException( "Download tasks did not complete within the allotted time." );
+                // Wait in bounded slices rather than one long get() so a batch that has
+                // silently frozen (observed: every download-pool task wedged pre-first-byte
+                // with no timeout firing) self-diagnoses: a full slice with ZERO newly
+                // completed futures across the whole batch dumps the download/launch
+                // thread stacks to the log once, then waiting continues to the deadline.
+                while ( true ) {
+                    long remaining = deadline - System.currentTimeMillis();
+                    if ( remaining <= 0L ) {
+                        throw new TimeoutException(
+                                "Download tasks did not complete within the allotted time." );
+                    }
+                    long doneBefore = countDone( futures );
+                    try {
+                        f.get( Math.min( remaining, STUCK_PROBE_INTERVAL_MS ), TimeUnit.MILLISECONDS );
+                        break;
+                    }
+                    catch ( TimeoutException sliceTimeout ) {
+                        if ( deadline - System.currentTimeMillis() <= 0L ) {
+                            throw sliceTimeout;   // genuine overall deadline — handled below
+                        }
+                        if ( !stuckDumped && countDone( futures ) == doneBefore ) {
+                            stuckDumped = true;
+                            dumpWorkerThreads( futures );
+                        }
+                        // Slice elapsed but time remains — keep waiting on the same future.
+                    }
                 }
-                f.get( remaining, TimeUnit.MILLISECONDS );
             }
         }
         catch ( InterruptedException e ) {
@@ -122,6 +145,72 @@ public final class DownloadExecutor
         catch ( ExecutionException | TimeoutException e ) {
             cancelAll( futures );
             throw e;
+        }
+    }
+
+    /**
+     * Interval between batch-progress probes inside {@link #awaitAll}. A batch that completes
+     * nothing for one full interval is considered stuck and triggers a one-shot thread dump.
+     */
+    private static final long STUCK_PROBE_INTERVAL_MS = 2 * 60 * 1000L;
+
+    /** Maximum stack frames captured per thread in the stuck-batch dump. */
+    private static final int STUCK_DUMP_MAX_FRAMES = 14;
+
+    /**
+     * Counts the futures in the batch that have reached a terminal state.
+     *
+     * @param futures the batch to inspect
+     * @return how many futures are done (completed, failed, or cancelled)
+     */
+    private static long countDone( List< ? extends Future< ? > > futures )
+    {
+        long done = 0;
+        for ( Future< ? > f : futures ) {
+            if ( f.isDone() ) {
+                done++;
+            }
+        }
+        return done;
+    }
+
+    /**
+     * Logs the current stack of every download-pool ({@code mmcl-download}) and launch-branch
+     * ({@code mica-launch-io}) thread. Fired once per {@link #awaitAll} batch when a full probe
+     * interval passes with no batch progress — the resulting log section shows exactly where
+     * each worker is parked, turning an otherwise-silent freeze into a diagnosable report.
+     *
+     * @param futures the stuck batch (for the done/total summary in the header)
+     */
+    private static void dumpWorkerThreads( List< ? extends Future< ? > > futures )
+    {
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append( countDone( futures ) ).append( '/' ).append( futures.size() )
+              .append( " tasks done" );
+            for ( var entry : Thread.getAllStackTraces().entrySet() ) {
+                Thread t = entry.getKey();
+                String name = t.getName();
+                if ( !name.startsWith( "mmcl-download" ) && !name.startsWith( "mica-launch-io" ) ) {
+                    continue;
+                }
+                sb.append( '\n' ).append( name ).append( " [" ).append( t.getState() ).append( ']' );
+                StackTraceElement[] frames = entry.getValue();
+                int limit = Math.min( frames.length, STUCK_DUMP_MAX_FRAMES );
+                for ( int i = 0; i < limit; i++ ) {
+                    sb.append( "\n    at " ).append( frames[ i ] );
+                }
+                if ( frames.length > limit ) {
+                    sb.append( "\n    ... " ).append( frames.length - limit ).append( " more" );
+                }
+            }
+            com.micatechnologies.minecraft.launcher.files.Logger.logWarningSilent(
+                    com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
+                            .format( "log.downloadExecutor.noProgressDump",
+                                     STUCK_PROBE_INTERVAL_MS / 1000, sb.toString() ) );
+        }
+        catch ( Throwable t ) {
+            // Diagnostics must never break the wait path itself.
         }
     }
 
