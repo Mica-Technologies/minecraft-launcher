@@ -365,6 +365,21 @@ class GameModPackFileSync
      */
     private void clearFloatingMods()
     {
+        // CRITICAL data-loss guard: a null packMods means we have NO authoritative mod list —
+        // the manifest failed to load (createFailedModPack leaves packMods null) or the pack is
+        // an unpopulated stub. In that state EVERY installed mod counts as "floating" and the
+        // sweep below would delete the entire mods folder, leaving the game to launch with no
+        // mods (the reported empty-mods-folder wipe). Only sweep when we actually have a manifest
+        // mod list to compare against. A genuinely empty (non-null) list is still a valid
+        // "remove all floating mods" instruction and is allowed through.
+        if ( metadata.packMods == null ) {
+            Logger.logWarningSilent(
+                    "Skipping floating-mod cleanup: no manifest mod list is loaded for this pack "
+                            + "(manifest fetch failed or pack not fully loaded). Refusing to delete "
+                            + "existing mods." );
+            return;
+        }
+
         // Get full path to modpack mods folder
         String modLocalPathPrefix = metadata.getPackRootFolder() +
                 File.separator +
