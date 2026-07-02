@@ -122,6 +122,17 @@ public final class PowerStateManager
      *  fall back to the historical "throttle whenever on battery" behavior. */
     public static boolean shouldThrottleDownloads()
     {
+        // Check the on-battery state FIRST. It's a cheap cached volatile read (the oshi probe
+        // behind it runs at most once per CACHE_TTL) and is false on every server / desktop, so
+        // the common case returns here WITHOUT touching ConfigManager. That ordering matters: the
+        // config getter is `synchronized static` on the global ConfigManager monitor, and
+        // maybeThrottle() calls this once per 8 KB download chunk — reading it per chunk from
+        // every parallel download thread convoyed them all on that one lock and, when something
+        // else held the config monitor (a headless JavaFX init deadlock), wedged the entire
+        // download pool. A machine with no battery can never throttle, so never pay that cost.
+        if ( !isOnBattery() ) {
+            return false;
+        }
         try {
             if ( !ConfigManager.getBatteryThrottleEnable() ) {
                 return false;
@@ -129,9 +140,6 @@ public final class PowerStateManager
         }
         catch ( Exception e ) {
             // Config not initialized yet (very early in startup) — assume default-on.
-        }
-        if ( !isOnBattery() ) {
-            return false;
         }
         int pct = getBatteryPercentage();
         if ( pct < 0 ) {

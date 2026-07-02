@@ -1,0 +1,32 @@
+Manifest-Version: 1.0
+Created-By: Maven Archiver 3.6.5
+Java-Version: 26
+Build-Jdk-Spec: 26
+Class-Path: lanterna-3.1.2.jar javafx-base-26.0.1.jar javafx-base-26.0.1
+ -win.jar javafx-graphics-26.0.1.jar javafx-graphics-26.0.1-win.jar java
+ fx-controls-26.0.1.jar javafx-controls-26.0.1-win.jar javafx-fxml-26.0.
+ 1.jar javafx-fxml-26.0.1-win.jar javafx-web-26.0.1.jar javafx-web-26.0.
+ 1-win.jar javafx-media-26.0.1.jar javafx-media-26.0.1-win.jar jdk-jsobj
+ ect-26.0.1.jar jdk-jsobject-26.0.1-win.jar commons-compress-1.27.1.jar 
+ commons-codec-1.17.1.jar commons-lang3-3.20.0.jar commons-io-2.22.0.jar
+  imageio-webp-3.13.1.jar imageio-core-3.13.1.jar imageio-metadata-3.13.
+ 1.jar common-lang-3.13.1.jar common-io-3.13.1.jar common-image-3.13.1.j
+ ar gson-2.13.2.jar error_prone_annotations-2.41.0.jar slf4j-simple-2.0.
+ 18.jar slf4j-api-2.0.18.jar DiscordIPC-0.10.2.jar junixsocket-common-2.
+ 10.1.jar junixsocket-native-common-2.10.1.jar Reflect-1.4.0.jar jSystem
+ ThemeDetector-3.8.jar versioncompare-1.4.1.jar annotations-22.0.0.jar f
+ xthemes-1.6.0.jar jfa-1.2.0.jar materialfx-11.17.0.jar mfxcore-11.8.0.j
+ ar mfxlocalization-11.1.0.jar mfxresources-11.9.1.jar mfxeffects-11.3.0
+ .jar virtualizedfx-11.9.6.jar oshi-core-6.6.5.jar jna-5.15.0.jar jna-pl
+ atform-5.15.0.jar commons-math3-3.6.1.jar minecraft_authenticator-3.0.6
+ .jar plexus-utils-4.0.3.jar FXTaskbarProgressBar-v11.4.jar bridj-0.7.0.
+ jar dx-1.7.jar jodd-util-6.3.0.jar asm-9.10.jar asm-tree-9.10.jar
+Specification-Title: Mica Minecraft Launcher
+Specification-Version: 0.0
+Specification-Vendor: Mica Technologies | Minecraft
+Implementation-Title: Mica Minecraft Launcher
+Implementation-Version: 2026.07.02+2
+Implementation-Vendor: Mica Technologies | Minecraft
+Main-Class: com.micatechnologies.minecraft.launcher.LauncherCore
+Launcher-Environment: RELEASE
+

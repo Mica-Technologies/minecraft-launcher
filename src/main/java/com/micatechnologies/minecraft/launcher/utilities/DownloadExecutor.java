@@ -175,12 +175,15 @@ public final class DownloadExecutor
     }
 
     /**
-     * Logs the current stack of every download-pool ({@code mmcl-download}) and launch-branch
-     * ({@code mica-launch-io}) thread. Fired once per {@link #awaitAll} batch when a full probe
-     * interval passes with no batch progress — the resulting log section shows exactly where
-     * each worker is parked, turning an otherwise-silent freeze into a diagnosable report.
+     * Logs the current state + stack of every live thread when a download batch has stalled.
+     * Fired once per {@link #awaitAll} batch when a full probe interval passes with no batch
+     * progress. Dumps <b>all</b> threads, not just the download/launch workers: a stuck batch is
+     * usually blocked on a lock held by some <i>other</i> thread (e.g. a config monitor held by a
+     * wedged GUI-init thread), so limiting the dump to the workers hides the actual culprit.
+     * JDK-internal daemons ({@code Reference Handler}, {@code Finalizer}, GC/compiler threads) are
+     * skipped to keep the report focused on application threads.
      *
-     * @param futures the stuck batch (for the done/total summary in the header)
+     * @param futures the stalled batch (for the done/total summary in the header)
      */
     private static void dumpWorkerThreads( List< ? extends Future< ? > > futures )
     {
@@ -190,11 +193,10 @@ public final class DownloadExecutor
               .append( " tasks done" );
             for ( var entry : Thread.getAllStackTraces().entrySet() ) {
                 Thread t = entry.getKey();
-                String name = t.getName();
-                if ( !name.startsWith( "mmcl-download" ) && !name.startsWith( "mica-launch-io" ) ) {
+                if ( isJdkInternalThread( t ) ) {
                     continue;
                 }
-                sb.append( '\n' ).append( name ).append( " [" ).append( t.getState() ).append( ']' );
+                sb.append( '\n' ).append( t.getName() ).append( " [" ).append( t.getState() ).append( ']' );
                 StackTraceElement[] frames = entry.getValue();
                 int limit = Math.min( frames.length, STUCK_DUMP_MAX_FRAMES );
                 for ( int i = 0; i < limit; i++ ) {
@@ -212,6 +214,36 @@ public final class DownloadExecutor
         catch ( Throwable t ) {
             // Diagnostics must never break the wait path itself.
         }
+    }
+
+    /**
+     * Whether a thread is a JDK-internal / VM daemon that adds noise rather than signal to the
+     * stall dump (reference/finalizer handlers, GC and JIT worker threads, the JFR recorder,
+     * common-pool idlers, etc.). Best-effort name matching — an unrecognised name is treated as an
+     * application thread so we never hide a potential lock holder.
+     *
+     * @param t the thread to classify
+     * @return {@code true} to skip it in the dump
+     */
+    private static boolean isJdkInternalThread( Thread t )
+    {
+        String name = t.getName();
+        if ( name == null ) {
+            return false;
+        }
+        return name.equals( "Reference Handler" )
+                || name.equals( "Finalizer" )
+                || name.equals( "Signal Dispatcher" )
+                || name.equals( "Common-Cleaner" )
+                || name.equals( "Notification Thread" )
+                || name.startsWith( "GC " )
+                || name.startsWith( "G1 " )
+                || name.startsWith( "C1 " )
+                || name.startsWith( "C2 " )
+                || name.startsWith( "JFR " )
+                || name.startsWith( "VM " )
+                || name.startsWith( "CompilerThread" )
+                || name.startsWith( "process reaper" );
     }
 
     /**
