@@ -502,6 +502,22 @@ public class NetworkUtilities
     private static final int DOWNLOAD_BUFFER_SIZE = 8192;
 
     /**
+     * Stall-detection window for tracked downloads. The per-read {@code setReadTimeout} only
+     * fires on a <em>fully silent</em> socket — a connection that trickles a few bytes every
+     * &lt;30 s resets the timer forever and hangs the download thread indefinitely (observed as
+     * a server-mode mod sync freezing mid-batch with no error). Every window we check the bytes
+     * actually received; below the floor the attempt is aborted so the retry ladder opens a
+     * fresh connection instead of riding a throttled/half-dead one.
+     */
+    private static final long STALL_WINDOW_MS = 60_000L;
+
+    /**
+     * Minimum bytes per stall window to count as live progress (~512 B/s average). Slow-but-real
+     * connections (even sub-dial-up) clear this easily; only a genuinely wedged transfer trips it.
+     */
+    private static final long STALL_MIN_WINDOW_BYTES = 30_720L;
+
+    /**
      * Downloads the file from the specified URL to the specified file, reporting byte-level progress to the given
      * {@link DownloadTracker}. Uses a manual stream copy with a buffer instead of
      * {@link FileUtils#copyInputStreamToFile} so that progress can be reported per chunk.
@@ -538,11 +554,31 @@ public class NetworkUtilities
                           OutputStream os = new BufferedOutputStream( new FileOutputStream( tempFile ) ) ) {
                         byte[] buffer = new byte[DOWNLOAD_BUFFER_SIZE];
                         int bytesRead;
+                        long stallWindowStartMs = System.currentTimeMillis();
+                        long stallWindowBytes = 0;
                         while ( ( bytesRead = is.read( buffer ) ) != -1 ) {
                             os.write( buffer, 0, bytesRead );
                             attemptBytes += bytesRead;
+                            stallWindowBytes += bytesRead;
                             if ( tracker != null ) {
                                 tracker.addBytes( bytesRead );
+                            }
+                            // Stall watchdog: a trickling connection (a few bytes every <30 s)
+                            // never trips setReadTimeout, so without this check the download
+                            // thread hangs indefinitely on a throttled/half-dead transfer.
+                            // Abort the attempt so the retry ladder gets a fresh connection.
+                            long nowMs = System.currentTimeMillis();
+                            if ( nowMs - stallWindowStartMs >= STALL_WINDOW_MS ) {
+                                if ( stallWindowBytes < STALL_MIN_WINDOW_BYTES ) {
+                                    Logger.logWarningSilent( LocalizationManager.format(
+                                            "log.network.downloadStalled", destination.getName(),
+                                            stallWindowBytes, ( nowMs - stallWindowStartMs ) / 1000 ) );
+                                    throw new IOException( "Download stalled (received " + stallWindowBytes
+                                            + " bytes in " + ( ( nowMs - stallWindowStartMs ) / 1000 )
+                                            + "s): " + source );
+                                }
+                                stallWindowStartMs = nowMs;
+                                stallWindowBytes = 0;
                             }
                             // Surface live per-file byte progress so a large resource pack / mod
                             // shows a moving "name — 45% · 12/27 MB · speed" line instead of a

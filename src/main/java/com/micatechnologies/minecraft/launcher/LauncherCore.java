@@ -715,6 +715,14 @@ public class LauncherCore
                     } ) );
                 } );
             }
+            else {
+                // Headless launch (server mode, or the GUI failed to build): nothing else
+                // consumes the tracker, which previously made the whole download/verify phase
+                // fully silent in the log — a large mod re-sync was indistinguishable from a
+                // hung launcher. Attach a Logger-backed listener so step transitions and
+                // (throttled) per-file download progress land in the server log/terminal.
+                attachHeadlessTrackerLogging( tracker );
+            }
 
             try {
                 Logger.logDebug( LocalizationManager.LAUNCHING_MOD_PACK_TEXT + ": " + gameModPack.getFriendlyName() );
@@ -1727,6 +1735,67 @@ public class LauncherCore
             }
         }
         return true;
+    }
+
+    /**
+     * Attaches a Logger-backed listener to the launch tracker for headless launches (server mode,
+     * or a client whose GUI failed to build). Without it the tracker's step transitions and
+     * per-file download progress have no consumer, so the entire download/verify phase runs in
+     * total silence — a large mod re-sync (e.g. the post-wipe recovery re-downloading every mod)
+     * is indistinguishable in the log from a hung launcher.
+     *
+     * <p>State transitions (RUNNING / DONE / FAILED) always log. Sub-text detail (per-file
+     * progress, retry notices) is throttled to one line per step per few seconds so a byte-level
+     * progress feed doesn't flood the log.</p>
+     *
+     * @param tracker the launch tracker to mirror into the log
+     *
+     * @since 2026.7
+     */
+    private static void attachHeadlessTrackerLogging(
+            com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker tracker )
+    {
+        final long detailIntervalMs = 3_000L;
+        final java.util.concurrent.ConcurrentHashMap<
+                com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId,
+                com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.State > lastState =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        final java.util.concurrent.ConcurrentHashMap<
+                com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.StepId,
+                java.util.concurrent.atomic.AtomicLong > lastDetailLogMs =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        tracker.addListener( step -> {
+            // State transitions always log — they're the launch's structural milestones.
+            var prev = lastState.put( step.id(), step.state() );
+            if ( prev != step.state() ) {
+                if ( step.state() == com.micatechnologies.minecraft.launcher.game.modpack
+                        .LaunchProgressTracker.State.FAILED ) {
+                    Logger.logErrorSilent( LocalizationManager.format( "log.launch.headless.stepFailed",
+                                                                       step.displayLabel(),
+                                                                       step.errorMessage() != null
+                                                                               ? step.errorMessage() : "" ) );
+                }
+                else {
+                    Logger.logStd( LocalizationManager.format( "log.launch.headless.stepState",
+                                                               step.displayLabel(), step.state() ) );
+                }
+                return;
+            }
+            // Same state — this is a progress/sub-text tick. Throttle per step so the
+            // byte-level download feed becomes a readable heartbeat, not a flood.
+            String sub = step.subText();
+            if ( sub == null || sub.isEmpty() ) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            java.util.concurrent.atomic.AtomicLong last = lastDetailLogMs.computeIfAbsent(
+                    step.id(), k -> new java.util.concurrent.atomic.AtomicLong( 0 ) );
+            long prevMs = last.get();
+            if ( now - prevMs >= detailIntervalMs && last.compareAndSet( prevMs, now ) ) {
+                Logger.logStd( LocalizationManager.format( "log.launch.headless.stepDetail",
+                                                           step.displayLabel(), sub ) );
+            }
+        } );
     }
 
     /**
