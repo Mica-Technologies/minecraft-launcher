@@ -99,6 +99,119 @@ public class NetworkUtilities
         retryNoticeListener = listener;
     }
 
+    /**
+     * Optional listener for live per-file download progress. Set by the launch flow
+     * (alongside {@link #retryNoticeListener}) so a large file's byte progress surfaces
+     * as row sub-text — "Faithful-64x.zip — 45% · 12.3 / 27.1 MB · 2.4 MB/s" — instead of
+     * a frozen "Downloading X..." line that just sits there while a big resource pack or
+     * mod streams. Same volatile / cross-thread, best-effort, single-listener semantics as
+     * {@link #retryNoticeListener}; cleared after launch.
+     *
+     * @since 2026.7
+     */
+    private static volatile java.util.function.Consumer< String > downloadProgressListener = null;
+
+    /**
+     * Installs a listener that fires (throttled) with a formatted live progress line for
+     * the file currently downloading. Set to {@code null} to clear.
+     *
+     * @param listener the progress-line consumer, or {@code null} to clear
+     */
+    public static void setDownloadProgressListener( java.util.function.Consumer< String > listener )
+    {
+        downloadProgressListener = listener;
+    }
+
+    /** Minimum interval between download-progress listener fires (ms). Shared across all
+     *  concurrent downloads via {@link #lastDownloadProgressFireMs} so a burst of parallel
+     *  transfers can't collectively flood the UI thread. ~8 updates/sec is smooth enough. */
+    private static final long DOWNLOAD_PROGRESS_MIN_INTERVAL_MS = 120;
+
+    /** Wall-clock of the last download-progress fire; CAS-gated so only one of many
+     *  concurrent download threads fires per interval. */
+    private static final java.util.concurrent.atomic.AtomicLong lastDownloadProgressFireMs =
+            new java.util.concurrent.atomic.AtomicLong( 0 );
+
+    /**
+     * Fires the download-progress listener (when installed) with a live line for the file
+     * being received, throttled so concurrent downloads don't flood the UI. Safe to call
+     * from any download thread.
+     *
+     * @param destination   the file being written (its name labels the line)
+     * @param bytesSoFar     bytes received for this file so far
+     * @param contentLength  the file's total size, or &le; 0 when the server didn't report it
+     * @param tracker        the active tracker for the speed readout, or {@code null}
+     */
+    private static void notifyDownloadProgress( File destination, long bytesSoFar, long contentLength,
+                                                DownloadTracker tracker )
+    {
+        java.util.function.Consumer< String > l = downloadProgressListener;
+        if ( l == null ) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long last = lastDownloadProgressFireMs.get();
+        if ( now - last < DOWNLOAD_PROGRESS_MIN_INTERVAL_MS ) {
+            return;
+        }
+        // Only the thread that wins the CAS fires this interval — the rest skip, so N
+        // concurrent downloads still produce ~one update per interval, not N.
+        if ( !lastDownloadProgressFireMs.compareAndSet( last, now ) ) {
+            return;
+        }
+        try {
+            l.accept( formatDownloadProgress( destination, bytesSoFar, contentLength, tracker ) );
+        }
+        catch ( Throwable ignored ) {
+            // A listener fault must never poison the download path.
+        }
+    }
+
+    /**
+     * Builds the live per-file progress line, e.g.
+     * {@code "Faithful-64x.zip — 45% · 12.3 / 27.1 MB · 2.4 MB/s"}. Falls back to a plain
+     * byte count when the server didn't send a Content-Length.
+     */
+    private static String formatDownloadProgress( File destination, long bytesSoFar, long contentLength,
+                                                  DownloadTracker tracker )
+    {
+        String name = ( destination != null ) ? destination.getName() : "";
+        StringBuilder sb = new StringBuilder();
+        if ( !name.isEmpty() ) {
+            sb.append( name ).append( " — " );
+        }
+        if ( contentLength > 0 ) {
+            int pct = (int) Math.min( 100, ( bytesSoFar * 100 ) / contentLength );
+            sb.append( pct ).append( "% · " )
+              .append( formatBytes( bytesSoFar ) ).append( " / " ).append( formatBytes( contentLength ) );
+        }
+        else {
+            sb.append( formatBytes( bytesSoFar ) );
+        }
+        if ( tracker != null ) {
+            String speed = tracker.getFormattedSpeed();
+            if ( speed != null && !speed.isEmpty() ) {
+                sb.append( " · " ).append( speed );
+            }
+        }
+        return sb.toString();
+    }
+
+    /** Human-readable byte size (e.g. {@code "27.1 MB"}, {@code "812 KB"}, {@code "945 B"}). */
+    private static String formatBytes( long bytes )
+    {
+        if ( bytes < 1024 ) {
+            return bytes + " B";
+        }
+        if ( bytes < 1024 * 1024 ) {
+            return String.format( "%.0f KB", bytes / 1024.0 );
+        }
+        if ( bytes < 1024L * 1024 * 1024 ) {
+            return String.format( "%.1f MB", bytes / ( 1024.0 * 1024 ) );
+        }
+        return String.format( "%.2f GB", bytes / ( 1024.0 * 1024 * 1024 ) );
+    }
+
     /** Pulls the short filename out of a URL for a more readable retry message
      *  than the full URL would produce. {@code https://example/foo/bar.jar?x=1}
      *  becomes {@code bar.jar}. */
@@ -427,10 +540,14 @@ public class NetworkUtilities
                         int bytesRead;
                         while ( ( bytesRead = is.read( buffer ) ) != -1 ) {
                             os.write( buffer, 0, bytesRead );
+                            attemptBytes += bytesRead;
                             if ( tracker != null ) {
                                 tracker.addBytes( bytesRead );
-                                attemptBytes += bytesRead;
                             }
+                            // Surface live per-file byte progress so a large resource pack / mod
+                            // shows a moving "name — 45% · 12/27 MB · speed" line instead of a
+                            // frozen label. Throttled internally, so this is cheap per chunk.
+                            notifyDownloadProgress( destination, attemptBytes, contentLength, tracker );
                             // Battery saver: when on battery + the user hasn't disabled throttling,
                             // sleep just enough per chunk to cap this stream at the configured rate.
                             // No-op on AC, on desktops, or when disabled.
