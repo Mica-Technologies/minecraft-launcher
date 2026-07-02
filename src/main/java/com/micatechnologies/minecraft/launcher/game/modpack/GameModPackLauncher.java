@@ -244,6 +244,15 @@ class GameModPackLauncher
      */
     private LaunchVerifyMode decideLaunchVerifyMode()
     {
+        // Servers launch infrequently (on service start / crash-restart) and are highly
+        // update-sensitive: a headless server silently running a stale mod set is worse than
+        // paying a full hash verify each launch. Never fast-path in server mode — always
+        // FULL-verify so every file is re-checked against the current manifest and any stale
+        // mod re-downloads. (Clients keep fast-path for snappy repeat launches.)
+        if ( com.micatechnologies.minecraft.launcher.config.GameModeManager.isServer() ) {
+            return LaunchVerifyMode.FULL;
+        }
+
         // Honor the per-pack "always verify" opt-out. The launcher-wide
         // "force-full-verify-next-launch" lever isn't a separate flag in
         // 3.3's design — the user-facing global action (Settings → Security
