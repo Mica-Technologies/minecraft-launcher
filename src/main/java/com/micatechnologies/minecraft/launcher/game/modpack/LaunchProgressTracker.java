@@ -263,11 +263,14 @@ public final class LaunchProgressTracker
      *
      *  @param id the step to transition
      *  @throws IllegalArgumentException if the step isn't part of this tracker */
-    public synchronized void markRunning( StepId id )
+    public void markRunning( StepId id )
     {
-        Step s = require( id );
-        s.state = State.RUNNING;
-        s.errorMessage = null;
+        Step s;
+        synchronized ( this ) {
+            s = require( id );
+            s.state = State.RUNNING;
+            s.errorMessage = null;
+        }
         notifyChanged( s );
     }
 
@@ -276,11 +279,14 @@ public final class LaunchProgressTracker
      *
      *  @param id the step to transition
      *  @throws IllegalArgumentException if the step isn't part of this tracker */
-    public synchronized void markDone( StepId id )
+    public void markDone( StepId id )
     {
-        Step s = require( id );
-        s.state = State.DONE;
-        s.progress = 1.0;
+        Step s;
+        synchronized ( this ) {
+            s = require( id );
+            s.state = State.DONE;
+            s.progress = 1.0;
+        }
         notifyChanged( s );
     }
 
@@ -290,11 +296,14 @@ public final class LaunchProgressTracker
      *  @param id           the step to transition
      *  @param errorMessage the failure detail to surface on the row
      *  @throws IllegalArgumentException if the step isn't part of this tracker */
-    public synchronized void markFailed( StepId id, String errorMessage )
+    public void markFailed( StepId id, String errorMessage )
     {
-        Step s = require( id );
-        s.state = State.FAILED;
-        s.errorMessage = errorMessage;
+        Step s;
+        synchronized ( this ) {
+            s = require( id );
+            s.state = State.FAILED;
+            s.errorMessage = errorMessage;
+        }
         notifyChanged( s );
     }
 
@@ -305,10 +314,13 @@ public final class LaunchProgressTracker
      *
      *  @param id the step to mark skipped
      *  @throws IllegalArgumentException if the step isn't part of this tracker */
-    public synchronized void markSkipped( StepId id )
+    public void markSkipped( StepId id )
     {
-        Step s = require( id );
-        s.state = State.SKIPPED;
+        Step s;
+        synchronized ( this ) {
+            s = require( id );
+            s.state = State.SKIPPED;
+        }
         notifyChanged( s );
     }
 
@@ -317,10 +329,13 @@ public final class LaunchProgressTracker
      *  @param id       the step to update
      *  @param progress the new progress fraction; values outside [0, 1] are clamped
      *  @throws IllegalArgumentException if the step isn't part of this tracker */
-    public synchronized void setProgress( StepId id, double progress )
+    public void setProgress( StepId id, double progress )
     {
-        Step s = require( id );
-        s.progress = Math.max( 0.0, Math.min( 1.0, progress ) );
+        Step s;
+        synchronized ( this ) {
+            s = require( id );
+            s.progress = Math.max( 0.0, Math.min( 1.0, progress ) );
+        }
         notifyChanged( s );
     }
 
@@ -331,10 +346,13 @@ public final class LaunchProgressTracker
      *  @param id      the step to update
      *  @param subText the activity detail; {@code null} is coerced to an empty string
      *  @throws IllegalArgumentException if the step isn't part of this tracker */
-    public synchronized void setSubText( StepId id, String subText )
+    public void setSubText( StepId id, String subText )
     {
-        Step s = require( id );
-        s.subText = subText == null ? "" : subText;
+        Step s;
+        synchronized ( this ) {
+            s = require( id );
+            s.subText = subText == null ? "" : subText;
+        }
         notifyChanged( s );
     }
 
@@ -346,11 +364,14 @@ public final class LaunchProgressTracker
      *  @param progress the new progress fraction; values outside [0, 1] are clamped
      *  @param subText  the activity detail; {@code null} is coerced to an empty string
      *  @throws IllegalArgumentException if the step isn't part of this tracker */
-    public synchronized void submitProgress( StepId id, double progress, String subText )
+    public void submitProgress( StepId id, double progress, String subText )
     {
-        Step s = require( id );
-        s.progress = Math.max( 0.0, Math.min( 1.0, progress ) );
-        s.subText = subText == null ? "" : subText;
+        Step s;
+        synchronized ( this ) {
+            s = require( id );
+            s.progress = Math.max( 0.0, Math.min( 1.0, progress ) );
+            s.subText = subText == null ? "" : subText;
+        }
         notifyChanged( s );
     }
 
