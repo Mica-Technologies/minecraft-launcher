@@ -459,17 +459,28 @@ public class Logger
     }
 
     /**
-     * Log a warning with its prefix.
+     * Log a warning with its prefix, surfacing it on the GUI as a <em>non-modal</em>
+     * toast notification when a GUI is up.
+     *
+     * <p>This used to show a {@code WINDOW_MODAL} alert via
+     * {@code GUIUtilities.showWarningMessage}, which (a) blocked the calling thread until
+     * the user dismissed the dialog — a download/verify worker that logged a warning
+     * simply stopped — and (b) blocked all input to the owner window. A burst of warnings
+     * from parallel background threads stacked modal dialogs on nested FX event loops;
+     * if one landed behind the main window (or its owner was hidden by a screen
+     * transition), the launcher froze with no visible way to recover. Warnings are
+     * fire-and-forget by contract, so a passive toast + the log line carries the same
+     * information without ever blocking a thread or the UI.</p>
      *
      * @param warningLog warning to log
      *
      * @since 1.0
      */
     public static void logWarning( String warningLog ) {
-        // Show warning on GUI, if GUI available
         Stage jfxStage = MCLauncherGuiController.getTopStageOrNull();
         if ( jfxStage != null ) {
-            GUIUtilities.showWarningMessage( warningLog, jfxStage );
+            com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
+                    LocalizationManager.get( "dialog.alert.warning.title" ), warningLog );
         }
 
         logWarningSilent( warningLog );
