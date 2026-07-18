@@ -348,6 +348,23 @@ public class NetworkUtilities
     }
 
     /**
+     * Records evidence that the network is working: any successfully-completed real
+     * request is strictly stronger proof of connectivity than the socket-connect
+     * probe, so it clears a latched offline flag immediately. Without this, a
+     * transiently-failed startup probe (Wi-Fi still associating, VPN mid-handshake)
+     * stranded the session in offline mode — cache-only manifests, skipped
+     * refreshes — even while actual downloads were succeeding, until the user
+     * happened to trigger a manual re-probe or restarted the launcher.
+     */
+    private static void noteNetworkSuccess()
+    {
+        if ( offlineMode ) {
+            offlineMode = false;
+            Logger.logStd( LocalizationManager.get( "log.network.connectivityRestored" ) );
+        }
+    }
+
+    /**
      * Sets the offline mode flag. When true, network-dependent operations should gracefully degrade.
      *
      * @param offline true to enable offline mode
@@ -442,6 +459,13 @@ public class NetworkUtilities
      * Downloads the file from the specified URL to the specified file. Uses a temporary file and atomic rename to
      * prevent partial downloads from being treated as complete on subsequent runs.
      *
+     * <p>Delegates to the tracked variant with a {@code null} tracker so every file download —
+     * tracked or not — goes through the same hardened core: bounded retries, the trickle-stall
+     * watchdog, interrupt-responsive transfer loop, and atomic temp-file rename. The untracked
+     * variant previously used a plain stream copy with no stall detection, which let a
+     * throttled/half-dead connection (a few bytes every &lt;30&nbsp;s, never tripping the read
+     * timeout) hang a launch indefinitely on a small file.</p>
+     *
      * @param source      source URL
      * @param destination destination file
      *
@@ -449,51 +473,7 @@ public class NetworkUtilities
      * @since 1.1
      */
     public static void downloadFileFromURL( URL source, File destination ) throws IOException {
-        synchronized ( getPathLock( destination ) ) {
-            IOException lastException = null;
-            for ( int attempt = 1; attempt <= MAX_RETRIES; attempt++ ) {
-                File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
-                URLConnection connection = null;
-                try {
-                    connection = openConnection( source );
-                    applyDefaults( connection );
-                    try ( InputStream is = connection.getInputStream() ) {
-                        FileUtils.copyInputStreamToFile( is, tempFile );
-                    }
-                    Files.move( tempFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING );
-                    return;
-                }
-                catch ( IOException e ) {
-                    lastException = e;
-                    // Drop the partial download so a failed attempt can't be mistaken for a
-                    // complete file on a later run and isn't left orphaned on disk.
-                    tempFile.delete();
-                    if ( attempt < MAX_RETRIES ) {
-                        Logger.logWarningSilent( LocalizationManager.format( "log.network.downloadAttemptFailed",
-                                                                             attempt, source.toString(),
-                                                                             RETRY_BASE_DELAY_MS * attempt ) );
-                        notifyRetry( source, attempt + 1, MAX_RETRIES );
-                        try {
-                            Thread.sleep( RETRY_BASE_DELAY_MS * attempt );
-                        }
-                        catch ( InterruptedException ie ) {
-                            Thread.currentThread().interrupt();
-                            throw new IOException( "Download interrupted", ie );
-                        }
-                    }
-                }
-                finally {
-                    // Release the connection promptly. On the legacy HttpURLConnection stack a
-                    // connection left undisconnected lingers until keep-alive timeout/GC, so a
-                    // burst of failed concurrent downloads can exhaust the per-host pool and
-                    // stall sibling downloads.
-                    if ( connection instanceof HttpURLConnection httpConnection ) {
-                        httpConnection.disconnect();
-                    }
-                }
-            }
-            throw lastException;
-        }
+        downloadFileFromURL( source, destination, ( DownloadTracker ) null );
     }
 
     /**
@@ -530,6 +510,27 @@ public class NetworkUtilities
      * @since 2.0
      */
     public static void downloadFileFromURL( URL source, File destination, DownloadTracker tracker ) throws IOException {
+        downloadFileCore( source, destination, tracker, null );
+    }
+
+    /**
+     * Shared download core behind every {@code downloadFileFromURL} file variant. Bounded
+     * retries with exponential backoff, atomic temp-file rename, per-window trickle-stall
+     * watchdog, live progress reporting, and an interrupt-responsive transfer loop so a
+     * user-initiated cancel (thread interrupt) aborts an in-flight transfer at the next
+     * chunk boundary instead of riding out the whole file (or hanging forever on a stalled
+     * connection that never trips the read timeout).
+     *
+     * @param source            source URL
+     * @param destination       destination file
+     * @param tracker           the download tracker to report progress to, or null to skip tracking
+     * @param acceptContentType value for the {@code Accept} request header, or null to omit it
+     *
+     * @throws IOException if unable to download or save file after all retry attempts, or if the
+     *                     calling thread was interrupted mid-transfer
+     */
+    private static void downloadFileCore( URL source, File destination, DownloadTracker tracker,
+                                          String acceptContentType ) throws IOException {
         synchronized ( getPathLock( destination ) ) {
             IOException lastException = null;
             // Register the file with the tracker exactly once for the whole retry sequence.
@@ -545,6 +546,10 @@ public class NetworkUtilities
                 try {
                     connection = openConnection( source );
                     applyDefaults( connection );
+                    if ( acceptContentType != null ) {
+                        connection.setDoInput( true );
+                        connection.setRequestProperty( "Accept", acceptContentType );
+                    }
                     long contentLength = connection.getContentLengthLong();
                     if ( tracker != null && !registered ) {
                         tracker.registerDownload( contentLength );
@@ -557,6 +562,15 @@ public class NetworkUtilities
                         long stallWindowStartMs = System.currentTimeMillis();
                         long stallWindowBytes = 0;
                         while ( ( bytesRead = is.read( buffer ) ) != -1 ) {
+                            // Cancel responsiveness: a launch cancel interrupts the download
+                            // thread, but a socket read doesn't respond to interrupts — without
+                            // this check a large or slow transfer keeps streaming long after the
+                            // user clicked Cancel. Checking between chunks bounds the response
+                            // time to one read (~read timeout worst case).
+                            if ( Thread.currentThread().isInterrupted() ) {
+                                throw new java.io.InterruptedIOException(
+                                        "Download interrupted: " + source );
+                            }
                             os.write( buffer, 0, bytesRead );
                             attemptBytes += bytesRead;
                             stallWindowBytes += bytesRead;
@@ -594,6 +608,7 @@ public class NetworkUtilities
                     if ( tracker != null ) {
                         tracker.completeDownload();
                     }
+                    noteNetworkSuccess();
                     return;
                 }
                 catch ( IOException e ) {
@@ -605,6 +620,12 @@ public class NetworkUtilities
                     // re-counts them from scratch instead of double-counting into the total.
                     if ( tracker != null && attemptBytes > 0 ) {
                         tracker.addBytes( -attemptBytes );
+                    }
+                    // A cancel-driven interrupt must abort the whole retry ladder immediately —
+                    // retrying a download the user just cancelled defeats the cancel.
+                    if ( e instanceof java.io.InterruptedIOException ) {
+                        Thread.currentThread().interrupt();
+                        throw e;
                     }
                     if ( attempt < MAX_RETRIES ) {
                         Logger.logWarningSilent( LocalizationManager.format( "log.network.downloadAttemptFailed",
@@ -679,25 +700,7 @@ public class NetworkUtilities
     public static void downloadFileFromURL( URL source, File destination, String responseContentType )
     throws IOException
     {
-        URLConnection connection = openConnection( source );
-        try {
-            applyDefaults( connection );
-            connection.setDoInput( true );
-            connection.setRequestProperty( "Accept", responseContentType );
-            File tempFile = new File( destination.getAbsolutePath() + ".tmp" );
-            try ( InputStream is = connection.getInputStream() ) {
-                FileUtils.copyInputStreamToFile( is, tempFile );
-            }
-            Files.move( tempFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING );
-        }
-        finally {
-            // Release the connection promptly — on the legacy HttpURLConnection
-            // stack an undisconnected connection lingers on the keep-alive pool
-            // until timeout/GC, so a burst can exhaust the per-host pool.
-            if ( connection instanceof HttpURLConnection httpConnection ) {
-                httpConnection.disconnect();
-            }
-        }
+        downloadFileCore( source, destination, null, responseContentType );
     }
 
     /**
@@ -745,7 +748,9 @@ public class NetworkUtilities
         try {
             applyDefaults( connection );
             try ( InputStream is = connection.getInputStream() ) {
-                return IOUtils.toString( is, StandardCharsets.UTF_8 );
+                String body = IOUtils.toString( is, StandardCharsets.UTF_8 );
+                noteNetworkSuccess();
+                return body;
             }
         }
         finally {
@@ -777,7 +782,9 @@ public class NetworkUtilities
             connection.setDoInput( true );
             connection.setRequestProperty( "Accept", responseContentType );
             try ( InputStream is = connection.getInputStream() ) {
-                return IOUtils.toString( is, StandardCharsets.UTF_8 );
+                String body = IOUtils.toString( is, StandardCharsets.UTF_8 );
+                noteNetworkSuccess();
+                return body;
             }
         }
         finally {
@@ -855,6 +862,7 @@ public class NetworkUtilities
                     }
                     out.write( buffer, 0, read );
                 }
+                noteNetworkSuccess();
                 return out.toString( StandardCharsets.UTF_8 );
             }
         }
@@ -944,6 +952,7 @@ public class NetworkUtilities
                     String newEtag = httpConn.getHeaderField( "ETag" );
                     String newLastMod = httpConn.getHeaderField( "Last-Modified" );
                     httpConn.disconnect();
+                    noteNetworkSuccess();
                     return new BoundedFetchResult( null,
                                                     newEtag != null ? newEtag : prevEtag,
                                                     newLastMod != null ? newLastMod : prevLastModified,
@@ -978,6 +987,7 @@ public class NetworkUtilities
                     }
                     out.write( buffer, 0, read );
                 }
+                noteNetworkSuccess();
                 return new BoundedFetchResult( out.toString( StandardCharsets.UTF_8 ),
                                                 etag, lastMod, false );
             }

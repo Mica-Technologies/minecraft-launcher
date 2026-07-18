@@ -171,8 +171,9 @@ public class GameModPackFetcher
                 Logger.logStd( LocalizationManager.format( "log.gameModPackFetcher.loadedImportedManifest", manifestUrl ) );
             }
             else if ( NetworkUtilities.isOffline() ) {
-                // Offline: load from cache
-                manifestBody = loadCachedManifest( manifestUrl );
+                // Offline: load from cache. This is the one load path where a stale-cache
+                // warning is meaningful — the data genuinely can't be revalidated right now.
+                manifestBody = loadCachedManifest( manifestUrl, true );
                 if ( manifestBody == null ) {
                     throw new IOException( "No cached manifest available for offline mode" );
                 }
@@ -194,7 +195,7 @@ public class GameModPackFetcher
                                 prev != null ? prev.etag : null,
                                 prev != null ? prev.lastModified : null );
                 if ( result.isNotModified() ) {
-                    manifestBody = loadCachedManifest( manifestUrl );
+                    manifestBody = loadCachedManifest( manifestUrl, false );
                     if ( manifestBody == null ) {
                         // 304 but local cache is gone — degenerate case (cache cleared
                         // out-of-band between launches). Re-request unconditionally to
@@ -203,6 +204,17 @@ public class GameModPackFetcher
                         manifestBody = NetworkUtilities.downloadFileFromURLBounded(
                                 manifestUrl, MANIFEST_MAX_BYTES );
                         cacheManifest( manifestUrl, manifestBody );
+                    }
+                    else {
+                        // A 304 proves the cached body is byte-identical to what the server
+                        // would send right now — it IS fresh, even though the file on disk
+                        // hasn't been rewritten since the manifest last actually changed.
+                        // Touch the cache file's mtime so the staleness check measures "time
+                        // since last successful revalidation", not "time since the manifest
+                        // author last edited it". Without this, users whose manifests simply
+                        // hadn't changed in a week+ got scolded with "stale cache — reconnect"
+                        // warnings on every fully-online launch.
+                        touchCacheFreshness( manifestUrl );
                     }
                     // Refresh the validators in case the server updated them on the 304.
                     saveCacheMeta( manifestUrl, result.etag(), result.lastModified() );
@@ -412,29 +424,50 @@ public class GameModPackFetcher
     }
 
     /**
+     * Loads a cached manifest from disk without staleness warnings. See
+     * {@link #loadCachedManifest(String, boolean)}.
+     */
+    private static String loadCachedManifest( String manifestUrl )
+    {
+        return loadCachedManifest( manifestUrl, false );
+    }
+
+    /**
      * Loads a cached manifest from disk, or returns null if no cache exists.
      * Reads the SHA-256 path first; falls back to the legacy {@code hashCode}-based
      * path so existing installs continue to find their caches after the upgrade.
      * Once the launcher fetches a fresh manifest online it persists to the SHA-256
      * path; the legacy entry, if any, is left as harmless orphan data.
      *
-     * <p>When the cache is older than {@link #MANIFEST_STALE_THRESHOLD_MS} the
-     * load logs a user-visible warning naming the URL and recommending a
-     * reconnect — but the manifest is still returned so offline play keeps
-     * working. A hard refusal would break long-disconnected users; the warning
-     * is enough to surface the staleness without taking play away.
+     * <p>When {@code warnStale} is set and the cache is older than
+     * {@link #MANIFEST_STALE_THRESHOLD_MS}, the load surfaces a staleness warning
+     * (see {@link #warnIfStale}) — but the manifest is still returned so offline
+     * play keeps working. A hard refusal would break long-disconnected users; the
+     * warning is enough to surface the staleness without taking play away.</p>
+     *
+     * <p>Only the genuinely-offline fallback path should pass {@code warnStale} —
+     * cold-start cache paints and 304-revalidated loads are serving data that is
+     * (or is about to be) confirmed current, and warning there produced a barrage
+     * of false "reconnect to update" messages on fully-online sessions.</p>
+     *
+     * @param manifestUrl mod pack manifest URL
+     * @param warnStale   whether to surface a staleness warning for an old cache file
      */
-    private static String loadCachedManifest( String manifestUrl )
+    private static String loadCachedManifest( String manifestUrl, boolean warnStale )
     {
         try {
             Path cacheFile = getCacheFilePath( manifestUrl );
             if ( Files.exists( cacheFile ) ) {
-                warnIfStale( cacheFile, manifestUrl );
+                if ( warnStale ) {
+                    warnIfStale( cacheFile, manifestUrl );
+                }
                 return Files.readString( cacheFile, StandardCharsets.UTF_8 );
             }
             Path legacy = getLegacyCacheFilePath( manifestUrl );
             if ( Files.exists( legacy ) ) {
-                warnIfStale( legacy, manifestUrl );
+                if ( warnStale ) {
+                    warnIfStale( legacy, manifestUrl );
+                }
                 return Files.readString( legacy, StandardCharsets.UTF_8 );
             }
         }
@@ -442,6 +475,34 @@ public class GameModPackFetcher
             Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackFetcher.unableToLoadCachedManifest", manifestUrl ) );
         }
         return null;
+    }
+
+    /**
+     * Bumps the cached manifest body's mtime to "now" after a successful 304
+     * revalidation, so cache-age–based staleness reflects the last time the server
+     * <em>confirmed</em> the cache current rather than the last time the manifest's
+     * content actually changed. Touches whichever cache file (SHA-256 or legacy
+     * path) is in use. Best-effort — a failed touch just means the warning
+     * heuristic stays conservative.
+     *
+     * @param manifestUrl mod pack manifest URL whose cache file should be touched
+     */
+    private static void touchCacheFreshness( String manifestUrl )
+    {
+        try {
+            Path cacheFile = getCacheFilePath( manifestUrl );
+            if ( !Files.exists( cacheFile ) ) {
+                cacheFile = getLegacyCacheFilePath( manifestUrl );
+                if ( !Files.exists( cacheFile ) ) {
+                    return;
+                }
+            }
+            Files.setLastModifiedTime( cacheFile,
+                                       java.nio.file.attribute.FileTime.fromMillis( System.currentTimeMillis() ) );
+        }
+        catch ( IOException ignored ) {
+            // Best-effort — worst case the stale warning fires early next offline session.
+        }
     }
 
     /**
@@ -528,8 +589,28 @@ public class GameModPackFetcher
         }
     }
 
-    /** Emits a user-visible warning if the cache file's mtime is older than the
-     *  staleness threshold. No-op if the file's mtime can't be read. */
+    /** Manifest URLs that already produced a stale-cache log line this session, so
+     *  repeated cache loads (cold-start paint + revalidate + Play) don't spam the
+     *  log with duplicates for the same URL. */
+    private static final java.util.Set< String > STALE_WARNED_URLS =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** One-shot gate for the session-level "modpack data may be outdated" toast —
+     *  a dozen stale manifests warrant one passive notification, not a dozen. */
+    private static final java.util.concurrent.atomic.AtomicBoolean STALE_TOAST_FIRED =
+            new java.util.concurrent.atomic.AtomicBoolean( false );
+
+    /**
+     * Surfaces a staleness signal when the cache file's mtime is older than the
+     * threshold: a silent log line per manifest (deduplicated per session) plus a
+     * single non-modal toast for the whole session. No-op if mtime can't be read.
+     *
+     * <p>Deliberately NOT {@code Logger.logWarning}: this fires from parallel
+     * background manifest loads, and one popup per stale manifest produced a
+     * barrage of blocking modal dialogs (and, mid-screen-transition, an
+     * app-wide input freeze). It also only runs on the genuinely-offline load
+     * path now — see {@link #loadCachedManifest(String, boolean)}.</p>
+     */
     private static void warnIfStale( Path cacheFile, String manifestUrl )
     {
         try {
@@ -537,8 +618,16 @@ public class GameModPackFetcher
                     - Files.getLastModifiedTime( cacheFile ).toMillis();
             if ( ageMs > MANIFEST_STALE_THRESHOLD_MS ) {
                 long days = ageMs / ( 24L * 60L * 60L * 1000L );
-                Logger.logWarning( LocalizationManager.format( "log.gameModPackFetcher.usingStaleCachedManifest", manifestUrl,
-                                           days ) );
+                if ( STALE_WARNED_URLS.add( manifestUrl ) ) {
+                    Logger.logWarningSilent(
+                            LocalizationManager.format( "log.gameModPackFetcher.usingStaleCachedManifest",
+                                                        manifestUrl, days ) );
+                }
+                if ( STALE_TOAST_FIRED.compareAndSet( false, true ) ) {
+                    com.micatechnologies.minecraft.launcher.utilities.NotificationManager.warn(
+                            LocalizationManager.get( "notification.manifest.stale.title" ),
+                            LocalizationManager.format( "notification.manifest.stale.body", days ) );
+                }
             }
         }
         catch ( IOException ignored ) {
