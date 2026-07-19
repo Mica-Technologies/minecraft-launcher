@@ -139,10 +139,26 @@ public class MCLauncherModpackDetailModal extends StackPane
     private static final double MODAL_WIDTH_FRACTION  = 0.90;
     private static final double MODAL_HEIGHT_FRACTION = 0.90;
 
-    /** Height of the hero image section at the top of the modal. ~2× the hero-card
-     *  image height (150 → 320) so background art is genuinely "viewed bigger" rather
-     *  than just "viewed slightly bigger." */
+    /** Preferred (and maximum) height of the hero image section at the top of the
+     *  modal. ~2× the hero-card image height (150 → 320) so background art is
+     *  genuinely "viewed bigger" rather than just "viewed slightly bigger." The hero
+     *  only reaches this on a tall modal — it scales down toward
+     *  {@link #HERO_MIN_HEIGHT} on short modals so the sticky hero can't starve the
+     *  scrollable body (see the binding in {@link #buildHeroSection}). */
     private static final double HERO_HEIGHT      = 320;
+
+    /** Floor for the responsive hero height. Below this the pack art reads as a thin
+     *  strip and the logo/title crowd it, so we stop shrinking here and let the body
+     *  scroll instead. Keeps the 96px logo box + its 18px top/bottom padding fitting
+     *  comfortably. */
+    private static final double HERO_MIN_HEIGHT  = 172;
+
+    /** Fraction of the modal card's height the hero targets before clamping to
+     *  [{@link #HERO_MIN_HEIGHT}, {@link #HERO_HEIGHT}]. At the ~480px minimum modal
+     *  height this yields ~173px (near the floor), leaving the header, tab bar,
+     *  scroll body, and action row real room; a modal taller than ~890px pins the
+     *  hero at its 320 max and the extra height flows to the scroll body. */
+    private static final double HERO_HEIGHT_FRACTION = 0.36;
 
     /** How many update-log entries to render. The full log is bounded at 200 entries
      *  (see {@link ModPackUpdateLog}) but the modal only shows the most recent slice —
@@ -765,9 +781,19 @@ public class MCLauncherModpackDetailModal extends StackPane
 
         StackPane hero = new StackPane();
         hero.getStyleClass().add( "modpackDetailHero" );
-        hero.setMinHeight( HERO_HEIGHT );
-        hero.setPrefHeight( HERO_HEIGHT );
-        hero.setMaxHeight( HERO_HEIGHT );
+        // Responsive height: the hero is sticky (never scrolls), so a fixed 320 would
+        // eat most of a short modal and crush the scrollable body below the tab bar to
+        // near-zero. Scale it with the modal card's height, clamped to
+        // [HERO_MIN_HEIGHT, HERO_HEIGHT], so a small modal keeps a usable body while a
+        // tall one still gets the full-size hero art.
+        javafx.beans.binding.DoubleBinding heroHeight = javafx.beans.binding.Bindings
+                .createDoubleBinding( () -> {
+                    double h = modalCard.getHeight() * HERO_HEIGHT_FRACTION;
+                    return Math.max( HERO_MIN_HEIGHT, Math.min( HERO_HEIGHT, h ) );
+                }, modalCard.heightProperty() );
+        hero.minHeightProperty().bind( heroHeight );
+        hero.prefHeightProperty().bind( heroHeight );
+        hero.maxHeightProperty().bind( heroHeight );
 
         // Rounded-top clip so the hero image respects the modal card's corner radius.
         Rectangle clip = new Rectangle();
