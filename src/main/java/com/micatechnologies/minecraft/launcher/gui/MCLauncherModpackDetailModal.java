@@ -160,6 +160,13 @@ public class MCLauncherModpackDetailModal extends StackPane
      *  hero at its 320 max and the extra height flows to the scroll body. */
     private static final double HERO_HEIGHT_FRACTION = 0.36;
 
+    /** Distance from the hero's bottom edge to the ◀ ▶ nav chevrons. The chevrons are
+     *  bottom-anchored (not vertically centred) so they sit at a fixed offset above the
+     *  hero's lower edge — in the open image band below the logo/title block — regardless
+     *  of the responsive hero height. A vertically-centred chevron lands on the pack logo,
+     *  which occupies the hero's upper/middle band. */
+    private static final double HERO_NAV_BOTTOM_INSET = 28;
+
     /** How many update-log entries to render. The full log is bounded at 200 entries
      *  (see {@link ModPackUpdateLog}) but the modal only shows the most recent slice —
      *  anything older is reachable by opening the .update_log.txt file directly from
@@ -1074,14 +1081,17 @@ public class MCLauncherModpackDetailModal extends StackPane
         HBox.setHgrow( spacer, Priority.ALWAYS );
         HBox nav = new HBox( prev, spacer, next );
         nav.setId( "heroNav" );
-        nav.setAlignment( Pos.CENTER );
+        // Bottom-anchored: chevrons hug the hero's lower edge at a fixed HERO_NAV_BOTTOM_INSET,
+        // sitting in the open image band below the logo/title block, so they never collide with
+        // the pack logo the way a vertically-centred pair does once the responsive hero shrinks.
+        nav.setAlignment( Pos.BOTTOM_CENTER );
         nav.setPickOnBounds( false );
-        nav.setPadding( new Insets( 0, 12, 0, 12 ) );
+        nav.setPadding( new Insets( 0, 12, HERO_NAV_BOTTOM_INSET, 12 ) );
         // Fill the hero so the chevrons are pushed to its left / right edges by the
         // spacer (a pref-sized HBox would bunch them in the middle).
         nav.setMaxWidth( Double.MAX_VALUE );
         nav.setMaxHeight( Double.MAX_VALUE );
-        StackPane.setAlignment( nav, Pos.CENTER );
+        StackPane.setAlignment( nav, Pos.BOTTOM_CENTER );
         return nav;
     }
 
