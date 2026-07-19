@@ -163,11 +163,23 @@ public final class WindowChromeManager
     }
 
     /**
-     * Re-arms DWM frame composition for a custom-chrome (caption-stripped) window by extending the
-     * frame 1px into the client area. Without this a window that dropped {@code WS_CAPTION} renders
-     * its top edge in the legacy "classic" non-client style — the white top line and classic caption
-     * buttons reported in issue #80. No-op off Windows / on a null handle; failures are logged, never
-     * thrown (chrome niceties must not break the app).
+     * Extends the DWM-composited frame across the <b>entire</b> client area (MARGINS {@code -1} on all
+     * four edges — the "sheet of glass") of a custom-chrome (caption-stripped) window. Serves two ends
+     * with one call:
+     * <ul>
+     *   <li><b>Frame composition.</b> A window that dropped {@code WS_CAPTION} otherwise renders its
+     *       top edge in the legacy "classic" non-client style — the white top line and classic caption
+     *       buttons reported in issue #80. Extending the frame re-arms modern DWM composition (any
+     *       non-zero extension does this; a 1px top strip was the original fix).</li>
+     *   <li><b>Mica compositing.</b> The Native theme runs a transparent JavaFX scene so DWM's Mica
+     *       system backdrop shows through. DWM only composites the backdrop where the frame is extended,
+     *       so a 1px strip left the rest of the transparent client with no glass behind it — which
+     *       renders as pure <i>black</i>, not Mica. Extending the full client puts glass behind every
+     *       transparent pixel so Mica fills the window. Opaque themes are unaffected: their opaque
+     *       content simply paints over the glass.</li>
+     * </ul>
+     * No-op off Windows / on a null handle; failures are logged, never thrown (chrome niceties must not
+     * break the app).
      *
      * @param hwnd the native window handle to extend the frame on
      */
@@ -178,10 +190,10 @@ public final class WindowChromeManager
         }
         try {
             MARGINS margins = new MARGINS();
-            margins.cxLeftWidth = 0;
-            margins.cxRightWidth = 0;
-            margins.cyTopHeight = 1;   // 1px is enough to keep DWM composing the frame + snap button
-            margins.cyBottomHeight = 0;
+            margins.cxLeftWidth = -1;   // -1 on all edges = extend the frame across the ENTIRE
+            margins.cxRightWidth = -1;  // client ("sheet of glass") so DWM composites the Mica
+            margins.cyTopHeight = -1;   // system backdrop behind every transparent client pixel,
+            margins.cyBottomHeight = -1;// not just a 1px title strip.
             Dwmapi.INSTANCE.DwmExtendFrameIntoClientArea( hwnd, margins );
         }
         catch ( Throwable t ) {

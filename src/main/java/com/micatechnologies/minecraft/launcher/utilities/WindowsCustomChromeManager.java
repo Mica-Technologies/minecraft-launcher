@@ -300,11 +300,14 @@ public final class WindowsCustomChromeManager
                 Logger.logWarningSilent( LocalizationManager.format( "log.customChrome.dropCaptionFailed",
                                                                      t.getMessage() ) );
             }
-            // Re-arm DWM frame composition for the now caption-stripped window. Without this the
-            // top edge falls back to legacy "classic" non-client rendering — the white top line and
-            // classic caption-button bitmaps reported in issue #80 — and the Windows 11 snap-layouts
-            // flyout can't attach to our HTMAXBUTTON. A 1px top margin is enough; our opaque content
-            // paints over it. Must run after the WS_CAPTION drop, before the SWP_FRAMECHANGED below.
+            // Re-arm DWM frame composition for the now caption-stripped window by extending the frame
+            // across the whole client area. Without composition the top edge falls back to legacy
+            // "classic" non-client rendering — the white top line and classic caption-button bitmaps
+            // reported in issue #80 — and the Windows 11 snap-layouts flyout can't attach to our
+            // HTMAXBUTTON. Extending the FULL client (not just a 1px strip) additionally lets DWM
+            // composite the Mica system backdrop behind the Native theme's transparent scene; a 1px
+            // strip left the rest of the client with no glass and rendered black. Opaque themes paint
+            // over the glass unchanged. Must run after the WS_CAPTION drop, before the SWP_FRAMECHANGED.
             WindowChromeManager.extendFrameForCustomChrome( hwnd );
             // Trigger a non-client recalc so the title bar is removed immediately.
             u.SetWindowPos( hwnd, null, 0, 0, 0, 0,
