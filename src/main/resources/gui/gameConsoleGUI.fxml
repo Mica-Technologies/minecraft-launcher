@@ -76,21 +76,25 @@
             <HBox fx:id="diagnosisActionsBox" spacing="6.0" alignment="CENTER_LEFT"/>
         </VBox>
 
-        <!-- Search / filter / auto-pin toolbar -->
+        <!-- Search / filter / auto-pin toolbar. The search field is the sole
+             flexible element (grows on wide windows, shrinks under pressure);
+             every other control carries minWidth="-Infinity" (USE_PREF_SIZE) so
+             it keeps its full label instead of ellipsizing when space is tight. -->
         <HBox spacing="8.0" alignment="CENTER_LEFT">
             <MFXTextField fx:id="searchField" promptText="%console.search.placeholder"
-                          prefHeight="26.0" prefWidth="260.0" floatMode="DISABLED"
+                          prefHeight="26.0" prefWidth="260.0" minWidth="120.0"
+                          HBox.hgrow="ALWAYS" floatMode="DISABLED"
                           styleClass="no-floating-label"/>
             <Label fx:id="searchStatusLabel" text="" styleClass="muted"
-                   style="-fx-font-size: 11px;"/>
+                   minWidth="-Infinity" style="-fx-font-size: 11px;"/>
             <MFXButton fx:id="searchPrevBtn" text="%console.search.prev"
-                       prefHeight="26.0" prefWidth="46.0"
+                       prefHeight="26.0" minWidth="-Infinity"
                        styleClass="heroCardSecondaryBtn"/>
             <MFXButton fx:id="searchNextBtn" text="%console.search.next"
-                       prefHeight="26.0" prefWidth="46.0"
+                       prefHeight="26.0" minWidth="-Infinity"
                        styleClass="heroCardSecondaryBtn"/>
-            <Pane HBox.hgrow="ALWAYS"/>
-            <CheckBox fx:id="autoPinCheckBox" text="%console.autoPin.label" selected="true"/>
+            <CheckBox fx:id="autoPinCheckBox" text="%console.autoPin.label" selected="true"
+                      minWidth="-Infinity"/>
         </HBox>
 
         <!-- Live game log / crash report text -->
