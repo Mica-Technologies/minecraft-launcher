@@ -201,6 +201,29 @@ class GameModPackFileSync
                 throw new ModpackException( "Unable to execute runner to retrieve Minecraft mods!", e );
             }
         }
+
+        // Post-sync existence assertion. Everything above reports success per-file, but nothing
+        // downstream ever confirmed the bytes actually landed on disk — so a sync that wrote
+        // nothing at all was indistinguishable from a real one, and the game launched anyway.
+        // This is the cheap, unconditional backstop: every mod the manifest declares must exist
+        // as a non-empty file before we hand the classpath to the JVM. Hash correctness is the
+        // verify layer's job; this only catches "the file isn't even there."
+        final List< String > missingMods = new ArrayList<>();
+        for ( GameMod mod : metadata.packMods ) {
+            mod.setLocalPathPrefix( modLocalPathPrefix );
+            File modFile = SynchronizedFileManager.getSynchronizedFile( mod.getFullLocalFilePath() );
+            if ( modFile == null || !modFile.isFile() || modFile.length() == 0L ) {
+                missingMods.add( FilenameUtils.getName( mod.getFullLocalFilePath() ) );
+            }
+        }
+        if ( !missingMods.isEmpty() ) {
+            throw new ModpackException( "Mod sync for \"" + metadata.getPackName() + "\" finished but "
+                    + missingMods.size() + " of " + metadata.packMods.size()
+                    + " manifest-declared mod file(s) are missing or empty on disk: " + missingMods
+                    + ". Refusing to launch with an incomplete mod set." );
+        }
+        Logger.logDebug( "Mod existence check passed for \"" + metadata.getPackName() + "\": "
+                                 + metadata.packMods.size() + " file(s) present." );
     }
 
     /**
