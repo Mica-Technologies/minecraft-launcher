@@ -1070,14 +1070,44 @@ public class LauncherCore
                 final int maxRestarts = 3;
                 int restartCount = 0;
                 boolean shouldRestart = true;
+                GameModPack launchPack = finalGameModPack;
                 while ( shouldRestart ) {
+                    // Re-check the manifest on every crash-restart. The pack reference resolved
+                    // before the loop is a snapshot; a restart hours later would otherwise relaunch
+                    // the exact same mod set even if a new manifest had been published in the
+                    // meantime. Servers should always check for updates before (re)starting, so
+                    // re-run the blocking load and re-resolve by name.
+                    if ( restartCount > 0 ) {
+                        try {
+                            GameModPackManager.fetchInstalledModPacks( null, true );
+                        }
+                        catch ( Exception e ) {
+                            Logger.logErrorSilent( "Could not refresh modpack manifests before restart; "
+                                                           + "reusing the previously loaded pack." );
+                            Logger.logThrowable( e );
+                        }
+                    }
+                    GameModPack refreshed = GameModPackManager.getInstalledModPackByName( modPackName );
+                    if ( refreshed != null && !refreshed.isFailedLoad() && !refreshed.isStub() ) {
+                        launchPack = refreshed;
+                    }
+                    else if ( refreshed != null ) {
+                        // Keep the last known-good pack rather than launching from a stub/sentinel,
+                        // which buildClasspath would (correctly) refuse anyway.
+                        Logger.logErrorSilent( "Refreshed modpack entry for \"" + modPackName
+                                                       + "\" is not fully loaded; reusing the previously "
+                                                       + "loaded pack for this launch." );
+                    }
+
                     Logger.logStd( restartCount > 0
                                            ? LocalizationManager.format( "log.launcherCore.startingServerRestart",
                                                                          restartCount, maxRestarts )
                                            : LocalizationManager.get( "log.launcherCore.startingServer" ) );
-                    play( finalGameModPack );
+                    Logger.logStd( "Launching \"" + launchPack.getPackName() + "\" version "
+                                           + launchPack.getPackVersion() + "." );
+                    play( launchPack );
 
-                    Process proc = finalGameModPack.getLastLaunchedProcess();
+                    Process proc = launchPack.getLastLaunchedProcess();
                     if ( proc != null ) {
                         try {
                             // No userspace stream draining needed here — GameModPackLauncher
