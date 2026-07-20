@@ -17,22 +17,97 @@
 
 package com.micatechnologies.minecraft.launcher.game.modpack;
 
+import com.micatechnologies.minecraft.launcher.exceptions.ModpackException;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Regression tests for the "launched with an empty mods folder" incident.
+ *
+ * <p>A {@link GameModPack} can carry a {@code null} mod list for two entirely different reasons:
+ * the manifest genuinely declares no mods, or the manifest was never loaded at all. The second case
+ * has two shapes — a {@code createFailedModPack} sentinel (fetch failed) and an install-index stub
+ * (card-rendering subset only, full body never fetched). {@code fetchLatestMods} used to treat every
+ * null list as "this pack has no mods" and return success, so a headless server whose manifest
+ * couldn't be resolved would sync nothing and launch modless with no error.
+ *
+ * <p>These tests pin the guard that now aborts instead. They are deliberately filesystem-free: the
+ * check runs before {@code clearFloatingMods}, so a half-loaded pack can't touch installed files.
  */
 class IncompleteManifestLaunchGuardTest
 {
     private static final String MANIFEST_URL =
             "https://example.invalid/mc-launcher-api/alto/manifest.mmcjson";
+
+    /**
+     * A failed-fetch sentinel must abort the mod sync rather than reporting "no mods to handle".
+     */
+    @Test
+    void failedManifestAbortsModSync()
+    {
+        GameModPack failed = GameModPack.createFailedModPack( MANIFEST_URL, "connection refused" );
+        GameModPackFileSync sync = new GameModPackFileSync( failed, null );
+
+        ModpackException thrown = assertThrows( ModpackException.class, sync::fetchLatestMods );
+        assertTrue( thrown.getMessage().contains( "manifest fetch failed" ),
+                    "Failure reason should name the failed fetch, got: " + thrown.getMessage() );
+    }
+
+    /**
+     * An un-upgraded install-index stub must abort too. This is the case that actually shipped:
+     * {@code failedLoad} is false on a stub, so an {@code isFailedLoad()}-only guard let it through.
+     */
+    @Test
+    void indexStubAbortsModSync()
+    {
+        GameModPack stub = new GameModPack();
+        stub.packName = "Alto";
+        stub.markAsStub();
+        GameModPackFileSync sync = new GameModPackFileSync( stub, null );
+
+        ModpackException thrown = assertThrows( ModpackException.class, sync::fetchLatestMods );
+        assertTrue( thrown.getMessage().contains( "unpopulated index stub" ),
+                    "Failure reason should name the stub, got: " + thrown.getMessage() );
+    }
+
+    /**
+     * Documents the invariant the background-revalidate guard depends on: a failed fetch yields a
+     * sentinel that is non-null but unusable. {@code startInstalledRevalidateAsync} checked only for
+     * {@code null}, so it would swap this object over a perfectly good cached pack.
+     */
+    @Test
+    void failedModPackSentinelIsNonNullButUnusable()
+    {
+        GameModPack failed = GameModPack.createFailedModPack( MANIFEST_URL, "connection refused" );
+
+        assertTrue( failed.isFailedLoad(), "sentinel must report failedLoad" );
+        assertNull( failed.packMods, "sentinel must carry no mod list" );
+    }
+
+    /**
+     * A stub is not a failed load, and a failed load is not a stub — the two flags are independent,
+     * which is precisely why guarding on one alone was insufficient.
+     */
+    @Test
+    void stubAndFailedLoadAreIndependentStates()
+    {
+        GameModPack stub = new GameModPack();
+        stub.markAsStub();
+        assertTrue( stub.isStub(), "stub must report isStub" );
+        assertTrue( !stub.isFailedLoad(), "a stub is not a failed load" );
+
+        GameModPack failed = GameModPack.createFailedModPack( MANIFEST_URL, "boom" );
+        assertTrue( failed.isFailedLoad(), "failed pack must report isFailedLoad" );
+        assertTrue( !failed.isStub(), "a failed pack is not a stub" );
+    }
 
     /**
      * The proximate cause of the modless launch: when the per-manifest cache is missing, the
