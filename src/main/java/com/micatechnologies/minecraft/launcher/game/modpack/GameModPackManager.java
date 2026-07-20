@@ -530,7 +530,16 @@ public class GameModPackManager
                 manifestUrls.parallelStream().forEach( manifestUrl -> {
                     try {
                         GameModPack fresh = GameModPackFetcher.get( manifestUrl, true );
-                        if ( fresh == null ) return;
+                        // GameModPackFetcher.get never returns null on failure — it returns a
+                        // createFailedModPack sentinel (null mod list, failedLoad = true). Swapping
+                        // that into the live list would replace a perfectly good cached pack with an
+                        // unlaunchable one, so a transient network blip would break the next launch.
+                        // Keep the cached entry instead and let the caller see stale-but-valid data.
+                        if ( fresh == null || fresh.isFailedLoad() ) {
+                            Logger.logWarningSilent( "Revalidate for " + manifestUrl
+                                    + " did not return a usable manifest; keeping the cached copy." );
+                            return;
+                        }
                         // Walk the live list and replace the matching entry. CopyOnWriteArrayList
                         // semantics: set() is atomic per index. Match by manifest URL since
                         // pack names can change across versions.
