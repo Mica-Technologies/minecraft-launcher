@@ -36,6 +36,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Mod pack list manager class. This class handles the loading and modification of mod packs installed in the launcher.
@@ -312,6 +314,40 @@ public class GameModPackManager
      * @since 1.0
      */
     public synchronized static void fetchInstalledModPacks( MCLauncherProgressGui progressWindow ) {
+        fetchInstalledModPacks( progressWindow, false );
+    }
+
+    /**
+     * Maximum time the blocking variant of {@link #fetchInstalledModPacks} will wait for the
+     * background revalidate pass before giving up and proceeding with cache-loaded packs. Generous
+     * because a headless server start is not latency-sensitive, but bounded so a hung/blackholed
+     * manifest host can't wedge a server boot indefinitely.
+     *
+     * @since 2026.7
+     */
+    private static final long REVALIDATE_BLOCK_TIMEOUT_SECONDS = 120L;
+
+    /**
+     * Populates the list of installed mod packs, optionally blocking until the background manifest
+     * revalidate pass has finished.
+     *
+     * <p>The default (non-blocking) behaviour is cache-first: packs are painted from the install
+     * index and per-manifest cache, and the network refresh runs as a fire-and-forget future. That
+     * is correct for the GUI, which re-reads the list when the future settles and only launches on
+     * a later user click. It is <em>wrong</em> for any auto-launch path — headless server mode in
+     * particular — which resolves a pack reference immediately and launches from it, and so was
+     * structurally always one launcher-restart behind the published manifest. Passing {@code true}
+     * makes the refresh part of the load, so callers that launch immediately see current data.
+     *
+     * @param progressWindow         progress window to display progress information (can be null)
+     * @param blockUntilRevalidated  when {@code true}, wait (up to
+     *                               {@link #REVALIDATE_BLOCK_TIMEOUT_SECONDS}) for the manifest
+     *                               revalidate to complete before returning
+     *
+     * @since 2026.7
+     */
+    public synchronized static void fetchInstalledModPacks( MCLauncherProgressGui progressWindow,
+                                                            boolean blockUntilRevalidated ) {
         // Update progress window to show start of fetch installed
         if ( progressWindow != null ) {
             progressWindow.setSectionText( LocalizationManager.DOWNLOADING_INSTALLED_MOD_PACK_UPDATES_TEXT );
@@ -434,6 +470,46 @@ public class GameModPackManager
         // indicator.
         if ( !NetworkUtilities.isOffline() && !installedModPackManifestUrls.isEmpty() ) {
             startInstalledRevalidateAsync( installedModPackManifestUrls );
+
+            // Auto-launch callers (headless server mode) must not race the refresh: they resolve a
+            // pack reference the moment this method returns and launch from it, with no later
+            // re-read the way the GUI has. Join the future here so "the manifest was checked" and
+            // "the launch used the checked manifest" are the same event. Per-pack failures inside
+            // the pass are already non-fatal (the cached copy is kept), so this can only make the
+            // resulting data fresher, never worse.
+            if ( blockUntilRevalidated ) {
+                CompletableFuture< Void > pending = installedRevalidateFuture;
+                if ( pending != null ) {
+                    Logger.logStd( "Waiting for modpack manifest revalidation to complete before launch..." );
+                    try {
+                        pending.get( REVALIDATE_BLOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+                        Logger.logStd( "Modpack manifest revalidation complete." );
+                    }
+                    catch ( TimeoutException e ) {
+                        Logger.logError( "Modpack manifest revalidation did not finish within "
+                                                 + REVALIDATE_BLOCK_TIMEOUT_SECONDS + " seconds. "
+                                                 + "Proceeding with the last cached manifest data — "
+                                                 + "the launch may use an out-of-date mod set." );
+                    }
+                    catch ( InterruptedException e ) {
+                        Thread.currentThread().interrupt();
+                        Logger.logError( "Interrupted while waiting for modpack manifest revalidation." );
+                    }
+                    catch ( Exception e ) {
+                        Logger.logError( "Modpack manifest revalidation failed; proceeding with the "
+                                                 + "last cached manifest data." );
+                        Logger.logThrowable( e );
+                    }
+                }
+            }
+        }
+        else if ( blockUntilRevalidated ) {
+            // No refresh ran at all. That is a genuine risk for an auto-launch caller, so say so
+            // rather than letting it look like a successful up-to-date load.
+            Logger.logError( "Modpack manifests were NOT revalidated before launch ("
+                                     + ( NetworkUtilities.isOffline() ? "launcher is in offline mode"
+                                                                      : "no modpacks installed" )
+                                     + "). Any launch will use cached manifest data." );
         }
 
         // Update progress window

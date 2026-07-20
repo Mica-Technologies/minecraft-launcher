@@ -290,8 +290,14 @@ class LauncherSession
         // synchronously here because we need installedGameModPacks populated
         // before the main GUI's setup reads it — the cache-only path is fast
         // enough that the extra thread hop wasn't earning anything.
+        //
+        // Server mode blocks on the revalidate instead. A headless start goes straight from here
+        // into doModpackSelection -> play() with no user interaction and no later re-read, so a
+        // fire-and-forget refresh would always land after the launch had already been committed —
+        // leaving the server permanently one restart behind the published manifest. Servers should
+        // always check for modpack updates before launching, so make the check part of the load.
         ColdStartProfiler.mark( "packs_load_start" );
-        GameModPackManager.fetchInstalledModPacks( null );
+        GameModPackManager.fetchInstalledModPacks( null, GameModeManager.isServer() );
         ColdStartProfiler.mark( "packs_loaded" );
 
         // Wire the background-task error listener so the available-modpacks fetch
