@@ -397,7 +397,14 @@ public class GameModPackManager
             runOnManifestFetchPool( () -> needsNetwork.parallelStream().forEach( manifestUrl -> {
                 try {
                     GameModPack gameModPack = GameModPackFetcher.get( manifestUrl, true );
-                    installedGameModPacks.add( gameModPack );
+                    // Replace the Phase-1a index stub for this URL rather than appending beside it.
+                    // A plain add() left BOTH entries in the list — the unpopulated stub at its
+                    // original index and the freshly-fetched pack after it. getInstalledModPackByName
+                    // returns the FIRST name match, so every by-name lookup resolved to the stub,
+                    // whose null mod list then read as "this pack has no mods" and launched modless.
+                    // This is the path taken whenever the per-manifest cache is missing — i.e.
+                    // exactly the "I deleted manifest_cache to force a refresh" recovery flow.
+                    replaceOrAppendByUrl( installedGameModPacks, manifestUrl, gameModPack );
                     try {
                         ModPackUpdateLog.recordRemoteVersionSeen( gameModPack );
                     }
@@ -490,7 +497,9 @@ public class GameModPackManager
      *
      * @since 2026.3
      */
-    private static void replaceOrAppendByUrl( List< GameModPack > list, String manifestUrl, GameModPack fresh )
+    // Package-private rather than private so the replace-don't-append invariant can be pinned by a
+    // unit test: appending beside an index stub is what made by-name lookups resolve to the stub.
+    static void replaceOrAppendByUrl( List< GameModPack > list, String manifestUrl, GameModPack fresh )
     {
         if ( list == null || manifestUrl == null || fresh == null ) return;
         for ( int i = 0; i < list.size(); i++ ) {
