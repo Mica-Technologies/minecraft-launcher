@@ -148,7 +148,9 @@ class GameModPackFileSync
                 ModPackConstants.MODPACK_FORGE_MODS_LOCAL_FOLDER;
 
         // Build list of mod download tasks on the shared bounded download pool.
-        if ( metadata.packMods.size() > 1 ) {
+        // Guarded on non-empty rather than size() > 1: the old `> 1` test silently skipped the
+        // entire download block for a single-mod pack, which then launched with that mod missing.
+        if ( !metadata.packMods.isEmpty() ) {
             final int modCount = metadata.packMods.size();
             // Mods download concurrently on the shared pool, so a per-mod "Downloading X"
             // detail line is last-writer-wins across ~16 threads — the name shown rarely
