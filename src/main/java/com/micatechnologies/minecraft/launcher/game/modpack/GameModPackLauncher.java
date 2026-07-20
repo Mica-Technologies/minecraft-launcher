@@ -170,11 +170,16 @@ class GameModPackLauncher
         // list, which the downstream sync would treat as "this pack has no mods" — wiping the
         // installed mods folder and launching modless. Aborting here keeps the existing install
         // intact and surfaces the real problem (manifest/network unavailable) instead.
-        if ( pack.isFailedLoad() ) {
+        // Also covers the install-index stub: a pack painted from install_index.json carries the
+        // same null mod list but has failedLoad == false, so it slipped past the original
+        // isFailedLoad-only check and launched modless. Both states mean the same thing — we never
+        // loaded this pack's real manifest, so we don't know what its mod set is.
+        if ( pack.isFailedLoad() || pack.isStub() ) {
             throw new ModpackException( "Refusing to launch \"" + pack.getPackName()
-                    + "\": its modpack manifest could not be loaded, so the mod set can't be "
-                    + "verified. Check network / manifest availability and try again — the "
-                    + "installed files have been left untouched." );
+                    + "\": its modpack manifest "
+                    + ( pack.isFailedLoad() ? "could not be loaded" : "was never fully loaded (index stub)" )
+                    + ", so the mod set can't be verified. Check network / manifest availability and "
+                    + "try again — the installed files have been left untouched." );
         }
 
         if ( progressProvider != null ) {

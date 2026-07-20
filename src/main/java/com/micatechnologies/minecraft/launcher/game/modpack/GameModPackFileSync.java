@@ -109,13 +109,32 @@ class GameModPackFileSync
             return;
         }
 
+        // A null/absent mod list means one of two very different things, and conflating them is
+        // exactly what let a headless server boot with an empty mods folder: either the manifest
+        // genuinely declares no mods, or we never loaded a manifest at all (an install-index stub
+        // whose full body was never fetched, or a failed-fetch sentinel). Only the former is safe
+        // to treat as "nothing to do" — the latter must abort the launch, loudly, before any
+        // sweeping or launching happens. Checked before clearFloatingMods so a half-loaded pack
+        // can't touch the installed files at all.
+        // (The stub/failed-load flags live on GameModPack, the only concrete subclass; the sync
+        // holds the abstract metadata type, so match on it rather than widening the base class.)
+        if ( metadata instanceof GameModPack pack && ( pack.isStub() || pack.isFailedLoad() ) ) {
+            throw new ModpackException( "Refusing to sync mods for \"" + pack.getPackName()
+                    + "\": its manifest was never fully loaded ("
+                    + ( pack.isFailedLoad() ? "manifest fetch failed" : "unpopulated index stub" )
+                    + "), so the mod list is unknown. Treating that as \"this pack has no mods\" "
+                    + "would launch modless. Check network / manifest availability — the installed "
+                    + "files have been left untouched." );
+        }
+
         // Cleanup mods that don't belong
         clearFloatingMods();
         if ( progressProvider != null ) {
             progressProvider.submitProgress( "Removed floating mods", 30.0 );
         }
 
-        // Check if mods supplied
+        // Check if mods supplied. Reaching here with a null list means a fully-loaded manifest that
+        // genuinely declares no mods (e.g. a vanilla-version pack), which is a legitimate no-op.
         if ( metadata.packMods == null ) {
             if ( progressProvider != null ) {
                 progressProvider.submitProgress( "No mods to handle", 100 );
