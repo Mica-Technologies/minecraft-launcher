@@ -35,6 +35,7 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -307,16 +308,13 @@ public class RuntimeManager
                 JsonObject fileEntry = entry.getValue().getAsJsonObject();
                 String type = JsonHelper.getRequiredString( fileEntry, "type" );
 
-                if ( relativePath.indexOf( '\0' ) >= 0
-                        || relativePath.startsWith( "/" )
-                        || relativePath.startsWith( "\\" )
-                        || ( relativePath.length() >= 2 && relativePath.charAt( 1 ) == ':' ) ) {
+                if ( isUnsafeRuntimeManifestEntryName( relativePath ) ) {
                     Logger.logWarningSilent(
                             "Skipping unsafe runtime manifest entry name: " + relativePath );
                     continue;
                 }
-                java.nio.file.Path resolved = runtimeBase.resolve( relativePath ).normalize();
-                if ( !resolved.startsWith( runtimeBase ) ) {
+                java.nio.file.Path resolved = resolveWithinRuntimeBase( runtimeBase, relativePath );
+                if ( resolved == null ) {
                     Logger.logWarningSilent(
                             "Skipping runtime manifest entry that escapes base dir: " + relativePath );
                     continue;
@@ -527,9 +525,24 @@ public class RuntimeManager
      * @since 3.0
      */
     public static List< Map< String, String > > getInstalledRuntimes() {
-        List< Map< String, String > > runtimes = new ArrayList<>();
         String runtimeRootPath = LocalPathManager.getLauncherRuntimeFolderPath();
-        File runtimeRoot = SynchronizedFileManager.getSynchronizedFile( runtimeRootPath );
+        return getInstalledRuntimes( SynchronizedFileManager.getSynchronizedFile( runtimeRootPath ) );
+    }
+
+    /**
+     * Scans {@code runtimeRoot} for installed runtime component subfolders (a version marker file
+     * present) and returns their component name, version, and on-disk size.
+     *
+     * @param runtimeRoot the runtime root folder to scan
+     *
+     * @return list of installed runtime info maps
+     *
+     * @since 3.0
+     */
+    // Package-private (extracted from getInstalledRuntimes()) so the scan can be tested against a
+    // @TempDir instead of the real launcher runtime folder under the user's data directory.
+    static List< Map< String, String > > getInstalledRuntimes( File runtimeRoot ) {
+        List< Map< String, String > > runtimes = new ArrayList<>();
         if ( !runtimeRoot.exists() || !runtimeRoot.isDirectory() ) {
             return runtimes;
         }
@@ -924,8 +937,52 @@ public class RuntimeManager
      *
      * @return the absolute path to that component's runtime folder
      */
-    private static String getComponentRuntimeFolderPath( String component ) {
+    // Package-private (was private) so the path-composition rule can be asserted directly in a
+    // test without needing to trigger the network-bound verify flow that calls it internally.
+    static String getComponentRuntimeFolderPath( String component ) {
         return SystemUtilities.buildFilePath( LocalPathManager.getLauncherRuntimeFolderPath(), component );
+    }
+
+    /**
+     * Determines whether a Mojang runtime-manifest entry's relative path is unsafe to resolve
+     * against the runtime folder without even attempting to. Rejects embedded NUL bytes, paths
+     * that already look absolute ({@code /foo}, {@code \foo}), and Windows drive-letter paths
+     * ({@code C:\foo}).
+     * <p>
+     * Defense-in-depth: Mojang publishes the runtime manifest, but a manifest entry is still
+     * externally-sourced data, and this check mirrors the same containment posture
+     * {@link com.micatechnologies.minecraft.launcher.utilities.ArchiveExtractor} applies to
+     * archive entries.
+     *
+     * @param relativePath the manifest entry's relative path
+     *
+     * @return {@code true} if the entry must be rejected outright
+     */
+    // Package-private and static (extracted from the inline check in verifyRuntimeImpl) so the
+    // rejection rule can be tested directly against crafted path strings.
+    static boolean isUnsafeRuntimeManifestEntryName( String relativePath ) {
+        return relativePath.indexOf( '\0' ) >= 0
+                || relativePath.startsWith( "/" )
+                || relativePath.startsWith( "\\" )
+                || ( relativePath.length() >= 2 && relativePath.charAt( 1 ) == ':' );
+    }
+
+    /**
+     * Resolves {@code relativePath} against {@code runtimeBase} and returns the normalized result,
+     * or {@code null} if the resolved path would land outside {@code runtimeBase} (a {@code ../}
+     * traversal escape). Callers are expected to have already rejected the entry via
+     * {@link #isUnsafeRuntimeManifestEntryName(String)} first.
+     *
+     * @param runtimeBase   the runtime folder root every resolved entry must stay under (should
+     *                      already be absolute and normalized)
+     * @param relativePath  the manifest entry's relative path
+     *
+     * @return the resolved, normalized path, or {@code null} if it escapes {@code runtimeBase}
+     */
+    // Package-private and static, same rationale as isUnsafeRuntimeManifestEntryName above.
+    static Path resolveWithinRuntimeBase( Path runtimeBase, String relativePath ) {
+        Path resolved = runtimeBase.resolve( relativePath ).normalize();
+        return resolved.startsWith( runtimeBase ) ? resolved : null;
     }
 
     /**
