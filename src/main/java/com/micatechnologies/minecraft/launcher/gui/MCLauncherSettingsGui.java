@@ -443,6 +443,21 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     Label mcpStatusLabel;
 
+    /** Security tab: which AI client the connection snippet is rendered for. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXComboBox< String > mcpClientSelection;
+
+    /** Security tab: the ready-to-paste connection snippet for the selected client. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.control.TextArea mcpSetupSnippet;
+
+    /** Security tab: copies the snippet to the clipboard. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton mcpCopySetupBtn;
+
     /**
      * Security tab: whether the MCP server exposes state-changing tools. Off by default —
      * enabling the server alone yields a read-only one.
@@ -1490,6 +1505,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( mcpRefreshBtn != null ) {
             mcpRefreshBtn.setOnAction( e -> refreshMcpStatusLabel() );
         }
+        buildMcpClientSetup();
         if ( mcpClearActivityBtn != null ) {
             mcpClearActivityBtn.setOnAction( e -> {
                 com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getActivity().clear();
@@ -2897,6 +2913,82 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             case 3 -> com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy.DISABLED;
             default -> null;
         };
+    }
+
+
+    /**
+     * Wires the "connecting a client" snippet box.
+     *
+     * <p>The snippet is generated rather than written into the help text because the part that
+     * matters is install-specific: where this launcher actually lives, and whether it is a
+     * native executable or a JAR needing {@code java -jar}. A generic example would be wrong on
+     * macOS, where the path contains spaces.</p>
+     *
+     * <p>Every stdio form is preferred over raw HTTP because the relay reads the endpoint file
+     * itself — so the bearer token never lands in a client's config file, where it would sit in
+     * plaintext and go stale on the next launch.</p>
+     *
+     * @since 3.0
+     */
+    private void buildMcpClientSetup()
+    {
+        if ( mcpClientSelection == null || mcpSetupSnippet == null ) {
+            return;
+        }
+        java.util.List< String > labels = java.util.List.of(
+                LocalizationManager.get( "settings.mcp.connect.client.claudeCode" ),
+                LocalizationManager.get( "settings.mcp.connect.client.cursor" ),
+                LocalizationManager.get( "settings.mcp.connect.client.codex" ),
+                LocalizationManager.get( "settings.mcp.connect.client.http" ) );
+        mcpClientSelection.setItems( javafx.collections.FXCollections.observableArrayList( labels ) );
+        mcpClientSelection.getSelectionModel().selectedIndexProperty().addListener(
+                ( obs, oldV, newV ) -> renderMcpSetupSnippet( newV == null ? 0 : newV.intValue() ) );
+        mcpClientSelection.selectItem( labels.get( 0 ) );
+        renderMcpSetupSnippet( 0 );
+
+        if ( mcpCopySetupBtn != null ) {
+            mcpCopySetupBtn.setOnAction( e -> {
+                javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+                content.putString( mcpSetupSnippet.getText() );
+                javafx.scene.input.Clipboard.getSystemClipboard().setContent( content );
+                mcpCopySetupBtn.setText( LocalizationManager.get( "settings.mcp.connect.copied" ) );
+            } );
+        }
+    }
+
+    /**
+     * Renders the snippet for one client into the text area.
+     *
+     * @param clientIndex the index of the selected client in the combo
+     */
+    private void renderMcpSetupSnippet( int clientIndex )
+    {
+        if ( mcpSetupSnippet == null ) {
+            return;
+        }
+        com.micatechnologies.minecraft.launcher.mcp.McpClientSetup.Client[] clients =
+                com.micatechnologies.minecraft.launcher.mcp.McpClientSetup.Client.values();
+        int index = clientIndex < 0 || clientIndex >= clients.length ? 0 : clientIndex;
+        try {
+            String launcherPath = com.micatechnologies.minecraft.launcher.system.DesktopShortcutManager
+                    .resolveLauncherPath();
+            boolean nativeExe = !com.micatechnologies.minecraft.launcher.mcp.McpClientSetup
+                    .isJar( launcherPath );
+            mcpSetupSnippet.setText(
+                    com.micatechnologies.minecraft.launcher.mcp.McpClientSetup.snippet(
+                            clients[ index ], launcherPath, nativeExe,
+                            com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getPort(),
+                            com.micatechnologies.minecraft.launcher.mcp.McpEndpointFile.defaultPath()
+                                    .toString() ) );
+        }
+        catch ( Exception e ) {
+            // A snippet that cannot be built is not worth failing the whole settings pane over.
+            Logger.logWarningSilent( "Could not build the MCP client setup snippet" );
+            mcpSetupSnippet.setText( "" );
+        }
+        if ( mcpCopySetupBtn != null ) {
+            mcpCopySetupBtn.setText( LocalizationManager.get( "settings.mcp.connect.copy" ) );
+        }
     }
 
 }

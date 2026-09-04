@@ -9,6 +9,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Spinner?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -561,6 +562,27 @@
                                 <Font size="11.0" />
                             </font>
                         </Label>
+                    </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="%settings.mcp.connect.title">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="%settings.mcp.connect.description" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <MFXComboBox fx:id="mcpClientSelection" />
+                            <MFXButton fx:id="mcpCopySetupBtn" text="%settings.mcp.connect.copy" />
+                        </HBox>
+                        <TextArea fx:id="mcpSetupSnippet" editable="false" wrapText="false"
+                                  prefRowCount="7" styleClass="settingsTextArea" />
                     </VBox>
                     <VBox styleClass="settingsContainer" spacing="8">
                         <padding>

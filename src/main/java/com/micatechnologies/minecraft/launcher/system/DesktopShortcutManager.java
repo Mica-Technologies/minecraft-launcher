@@ -90,7 +90,9 @@ public class DesktopShortcutManager
      *
      * @since 1.0
      */
-    private static String resolveLauncherPath()
+    // Public so the MCP settings pane can show the user the real command for THIS install
+    // rather than a generic example. Behaviour unchanged; only the visibility widened.
+    public static String resolveLauncherPath()
     {
         // Check for jpackage app path (set by jpackage-based launchers)
         String jpackagePath = System.getProperty( "jpackage.app-path" );
