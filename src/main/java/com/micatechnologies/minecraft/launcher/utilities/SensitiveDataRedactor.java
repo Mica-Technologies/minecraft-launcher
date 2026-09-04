@@ -69,6 +69,20 @@ public final class SensitiveDataRedactor
     private static final Pattern LEGACY_SESSION_PATTERN = Pattern.compile(
             "token:[A-Za-z0-9._-]+:([0-9a-fA-F-]{32,36})" );
 
+    /** Canonical dashed UUID form (8-4-4-4-12). Word-boundary anchored so it can't
+     *  match a slice out of a longer hex run. Used only by {@link #redactStrict}. */
+    private static final Pattern UUID_DASHED_PATTERN = Pattern.compile(
+            "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b" );
+
+    /** Undashed 32-hex UUID form, which is what Mojang's APIs and launch arguments
+     *  actually use. Word-boundary anchored, so a 40-char SHA-1 is NOT matched (no
+     *  boundary exists 32 chars in). A bare MD5 hash is indistinguishable from an
+     *  undashed UUID at this layer and WILL be redacted — an accepted false positive,
+     *  since {@link #redactStrict} exists precisely for contexts where over-redaction
+     *  is preferable to leaking an identifier. Used only by {@link #redactStrict}. */
+    private static final Pattern UUID_UNDASHED_PATTERN = Pattern.compile(
+            "\\b[0-9a-fA-F]{32}\\b" );
+
     /**
      * Private constructor to prevent instantiation of this utility class.
      */
@@ -90,6 +104,44 @@ public final class SensitiveDataRedactor
         String out = ACCESS_TOKEN_PATTERN.matcher( input ).replaceAll( "$1$2" + REDACTED );
         out = CLIENT_TOKEN_PATTERN.matcher( out ).replaceAll( "$1$2" + REDACTED );
         out = LEGACY_SESSION_PATTERN.matcher( out ).replaceAll( "token:" + REDACTED + ":$1" );
+        return out;
+    }
+
+    /**
+     * Strict variant of {@link #redact(String)} that additionally removes account
+     * UUIDs in both the dashed (8-4-4-4-12) and undashed 32-hex forms.
+     *
+     * <p><b>Why this is separate from {@link #redact(String)}:</b> the base method
+     * deliberately preserves the trailing UUID of a legacy
+     * {@code token:<access-token>:<uuid>} string, because in the game console and the
+     * launch-command log that UUID is not a credential on its own and keeping it makes
+     * the redacted line recognizable as a session string. That is still the right
+     * behaviour for those surfaces, so it is left untouched.</p>
+     *
+     * <p>Some consumers have a stricter contract: no credential <i>or</i> identifying
+     * account value may escape, under any circumstances. Those callers use this method
+     * instead. It composes on top of {@link #redact(String)}, so the base patterns run
+     * first and the UUID pass then also catches the legacy string's preserved tail.</p>
+     *
+     * <p>Over-redaction is the intended failure mode here — see
+     * {@link #UUID_UNDASHED_PATTERN} for the one known false positive (a bare MD5).
+     * Callers that need a readable hash in their output should use
+     * {@link #redact(String)}.</p>
+     *
+     * @param input the string to be redacted
+     *
+     * @return the redacted string, or the original input if it is null or empty
+     *
+     * @since 2026.9
+     */
+    public static String redactStrict( String input )
+    {
+        if ( input == null || input.isEmpty() ) {
+            return input;
+        }
+        String out = redact( input );
+        out = UUID_DASHED_PATTERN.matcher( out ).replaceAll( REDACTED );
+        out = UUID_UNDASHED_PATTERN.matcher( out ).replaceAll( REDACTED );
         return out;
     }
 }
