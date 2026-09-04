@@ -78,6 +78,85 @@ jobs:
         with:
           name: surefire-reports-pr${{ github.event.pull_request.number }}
           path: build/target/surefire-reports/
+
+      # Coverage report. jacoco:report is a separate goal because the `report`
+      # execution is bound to `verify`, and this job deliberately stops at `test`
+      # to stay fast. Reporting only -- there is no coverage threshold, so this
+      # cannot fail the build; it exists so a reviewer can see what a PR did to
+      # coverage without running Maven locally.
+      - name: Generate coverage report
+        if: always()
+        run: mvn -B -s .mvn/ci-settings.xml jacoco:report --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
+
+      - name: Summarise coverage
+        if: always()
+        shell: bash
+        run: |
+          CSV=build/target/site/jacoco/jacoco.csv
+          if [ -f "$CSV" ]; then
+            awk -F, 'NR>1 {mi+=$4; mc+=$5; li+=$8; lc+=$9} END {
+              printf "### Coverage\n\n"
+              printf "| Metric | Covered | Total | %% |\n|---|---:|---:|---:|\n"
+              printf "| Instructions | %d | %d | %.2f%% |\n", mc, mc+mi, 100*mc/(mc+mi)
+              printf "| Lines | %d | %d | %.2f%% |\n", lc, lc+li, 100*lc/(lc+li)
+            }' "$CSV" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No coverage report produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-coverage-pr${{ github.event.pull_request.number }}
+          path: build/target/site/jacoco/
+          if-no-files-found: warn
+
+  # Opt-in JavaFX UI tests. These are gated behind MMCL_RUN_TESTFX so they never
+  # run in the default build (locally or in the `unit-tests` job above), because
+  # GUI automation is slow and prone to environment-specific flakiness. Running
+  # them here under xvfb gives visibility into GUI regressions without letting
+  # that flakiness block a PR:
+  #
+  #   - continue-on-error: true, so a failure is reported but not fatal.
+  #   - No other job `needs:` this one, so nothing waits on it.
+  #
+  # If these become reliable enough to gate on, drop continue-on-error and add
+  # this job to the platform builds' `needs:` list.
+  ui-tests:
+    name: UI Tests (TestFX, non-blocking)
+    runs-on: ubuntu-latest
+    needs: prepare
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 26 (Zulu FX)
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'zulu'
+          java-version: '26'
+          java-package: jdk+fx
+          cache: 'maven'
+
+      # TestFX needs a display. xvfb is used rather than Monocle because it needs
+      # no extra dependency and works with the stock Zulu FX JDK.
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run TestFX suite
+        env:
+          MMCL_RUN_TESTFX: 'true'
+        run: xvfb-run -a mvn -B -s .mvn/ci-settings.xml test --file pom.xml -Drevision=${{ needs.prepare.outputs.revision }}
+
+      - name: Upload UI test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: testfx-reports-pr${{ github.event.pull_request.number }}
+          path: build/target/surefire-reports/
+          if-no-files-found: warn
           retention-days: 14
           if-no-files-found: warn
 
