@@ -852,34 +852,14 @@ public abstract class GameModPackMetadata
      */
     public String getLastPlayedFormatted()
     {
-        long lastPlayed = getLastPlayedMs();
-        if ( lastPlayed == 0 ) {
-            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
-                    .get( "metadata.lastPlayed.never" );
+        // Bucketing lives in PlayTimeFormatting so the boundaries and pluralisation can
+        // be tested without asserting against English text; this method only renders.
+        PlayTimeFormatting.Label label =
+                PlayTimeFormatting.lastPlayed( getLastPlayedMs(), System.currentTimeMillis() );
+        if ( label.amount() == 0 ) {
+            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.get( label.key() );
         }
-        long elapsed = System.currentTimeMillis() - lastPlayed;
-        if ( elapsed < 60_000 ) {
-            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager
-                    .get( "metadata.lastPlayed.justNow" );
-        }
-        else if ( elapsed < 3_600_000 ) {
-            long mins = elapsed / 60_000;
-            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
-                    mins == 1 ? "metadata.lastPlayed.minuteAgo" : "metadata.lastPlayed.minutesAgo",
-                    mins );
-        }
-        else if ( elapsed < 86_400_000 ) {
-            long hours = elapsed / 3_600_000;
-            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
-                    hours == 1 ? "metadata.lastPlayed.hourAgo" : "metadata.lastPlayed.hoursAgo",
-                    hours );
-        }
-        else {
-            long days = elapsed / 86_400_000;
-            return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format(
-                    days == 1 ? "metadata.lastPlayed.dayAgo" : "metadata.lastPlayed.daysAgo",
-                    days );
-        }
+        return com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager.format( label.key(), ( long ) label.amount() );
     }
 
     /**
@@ -919,23 +899,15 @@ public abstract class GameModPackMetadata
      */
     public String getTotalPlayTimeFormatted()
     {
-        long totalMs = getTotalPlayTimeMs();
-        if ( totalMs == 0 ) {
-            return LocalizationManager.get( "gameModPackMetadata.totalPlayTime.zero" );
+        PlayTimeFormatting.Label label = PlayTimeFormatting.totalPlayTime( getTotalPlayTimeMs() );
+        if ( "gameModPackMetadata.totalPlayTime.zero".equals( label.key() ) ) {
+            return LocalizationManager.get( label.key() );
         }
-        long totalMinutes = totalMs / 60_000;
-        if ( totalMinutes < 60 ) {
-            return LocalizationManager.format(
-                    totalMinutes == 1 ? "gameModPackMetadata.totalPlayTime.minute"
-                                      : "gameModPackMetadata.totalPlayTime.minutes",
-                    totalMinutes );
+        // The minute buckets render a whole number; hours and days keep the fraction.
+        if ( label.key().startsWith( "gameModPackMetadata.totalPlayTime.minute" ) ) {
+            return LocalizationManager.format( label.key(), ( long ) label.amount() );
         }
-        double hours = totalMinutes / 60.0;
-        if ( hours < 24 ) {
-            return LocalizationManager.format( "gameModPackMetadata.totalPlayTime.hours", hours );
-        }
-        double days = hours / 24.0;
-        return LocalizationManager.format( "gameModPackMetadata.totalPlayTime.days", days );
+        return LocalizationManager.format( label.key(), label.amount() );
     }
 
     /**
