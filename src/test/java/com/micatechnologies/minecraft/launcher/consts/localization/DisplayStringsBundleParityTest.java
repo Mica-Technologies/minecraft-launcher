@@ -268,44 +268,19 @@ class DisplayStringsBundleParityTest
      * invents a slot index the English template never used will throw
      * (or silently no-op) when {@link MessageFormat#format} runs.
      *
-     * <p><b>Disabled — real bugs found (5 mismatches across 3 locales).</b>
-     * <ul>
-     *   <li>{@code es}: {@code editor.status.hashComputed} — English has
-     *       {@code {0}}, Spanish has no slot at all. The Spanish value is
-     *       literally {@code "Hash calculada: __MMCL_PH0 __ ..."} — the
-     *       translator's placeholder-protection sentinel
-     *       ({@code __MMCL_PHn__}) came back from Google Translate with an
-     *       injected space ({@code __MMCL_PH0 __}), so
-     *       {@code translate-locales.js}'s exact-match restore regex never
-     *       matched and the mangled sentinel was shipped verbatim instead
-     *       of {@code {0}}.</li>
-     *   <li>{@code es}: {@code log.rgb.controller.renderFrameThrew} —
-     *       English has {@code {0,1,2}}, Spanish only has {@code {0}}; the
-     *       shipped value contains the same kind of mangled
-     *       {@code __ MMCL_PH1__} / {@code __ MMCL_PH2__} sentinels (note
-     *       the space right after {@code __}) in place of real slots.</li>
-     *   <li>{@code pt-BR}: {@code log.configManager.migrateV6Urls} —
-     *       English has {@code {0}} (the count of migrated URLs); the
-     *       Portuguese translation drops the slot entirely, silently
-     *       discarding that number from the message.</li>
-     *   <li>{@code zh-TW}: {@code log.assetManifest.virtualTreeReady} —
-     *       English has {@code {0,1,2}}, Traditional Chinese has only
-     *       {@code {1,2}} (slot 0 dropped).</li>
-     *   <li>{@code zh-TW}: {@code log.technicImporter.scanned} — English
-     *       has {@code {0..6}}, Traditional Chinese has only
-     *       {@code {0..5}} (slot 6 dropped).</li>
-     * </ul>
-     * All five are shipped-translation content bugs, not a test bug — the
-     * fix is a translator/content change (re-run translation for the
-     * affected keys, or hand-fix the mangled sentinels), which this
-     * test-only task must not make. Filing as the finding instead of
-     * weakening the assertion.</p>
+     * <p><b>Previously disabled; fixed 2026-09-04.</b> Five mismatches had shipped —
+     * two in {@code es}, one in {@code pt-BR}, two in {@code zh-TW}. The cause was
+     * {@code translate-locales.js}: it protects placeholders by swapping them for
+     * {@code __MMCL_PHn__} sentinels around each API call, but the translation service does
+     * not treat those as opaque — it lowercased them and injected spaces
+     * ({@code __ MMCL_PH0 __}), and the exact-match restore regex then never matched, so the
+     * mangled sentinel shipped in place of {@code {0}}.</p>
+     *
+     * <p>The translator now matches the sentinel tolerantly <em>and</em> verifies placeholder
+     * parity against the English source before accepting a value, falling back to English
+     * rather than shipping a broken string. This assertion is what proves the bundles are
+     * clean; it stays strict on purpose.</p>
      */
-    @Disabled( "Real bugs: 5 MessageFormat slot mismatches shipped across es (2), pt-BR (1), and "
-            + "zh-TW (2) — see method javadoc for exact keys. Several are caused by the "
-            + "translate-locales.js __MMCL_PHn__ placeholder sentinel getting mangled by Google "
-            + "Translate (a stray space inserted) so the restore step never matches it back to {n}. "
-            + "Fix the translations / translator, do not weaken this assertion." )
     @Test
     void messageFormatPlaceholdersMatchAcrossTranslations()
             throws IOException
