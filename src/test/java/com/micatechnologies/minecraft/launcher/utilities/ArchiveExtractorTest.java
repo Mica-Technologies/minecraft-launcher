@@ -161,25 +161,22 @@ class ArchiveExtractorTest
     }
 
     /**
-     * <b>Pins a real bug, does not fix it.</b> {@link ArchiveExtractor}'s javadoc claims ZIP
-     * symlink entries are skipped "the same way" as TAR symlinks, via
-     * {@code ZipArchiveEntry#isUnixSymlink()}. That check can never fire in this code path:
-     * {@code extractEntries} reads with {@link org.apache.commons.compress.archivers.zip.ZipArchiveInputStream},
-     * a <em>streaming</em> reader that only sees each entry's local file header. The Unix mode
-     * bits {@code isUnixSymlink()} inspects live in the <em>central directory's</em> external
-     * file attributes, which a streaming reader never visits — so every entry it hands back has
-     * {@code platform == PLATFORM_FAT} and {@code getUnixMode() == 0}, symlink or not.
+     * ZIP symlink entries are skipped, matching the TAR path.
      *
-     * <p>Net effect: a malicious ZIP-packaged "JRE" containing a Unix symlink entry is extracted
-     * as an ordinary file (its content becomes whatever bytes follow the local header — here, the
-     * literal link-target string) instead of being skipped. The TAR/gzip path is unaffected:
-     * {@link TarArchiveEntry#isSymbolicLink()} reads the link flag out of the TAR header itself,
-     * which a streaming TAR reader does see. Reported rather than fixed here since closing this
-     * would mean switching the ZIP path to a random-access {@code ZipFile} (or manually reading
-     * the central directory first) — a real behavior change outside this test's remit.</p>
+     * <p>This test previously pinned a real hole. {@code extractZip} read through
+     * {@code ZipArchiveInputStream}, a <em>streaming</em> reader that only sees each entry's
+     * local file header — but the Unix mode bits {@code isUnixSymlink()} inspects live in the
+     * <em>central directory's</em> external file attributes. Every entry a streaming reader
+     * hands back therefore reports {@code getUnixMode() == 0}, symlink or not, so the symlink
+     * defence could never fire and a malicious ZIP-packaged "JRE" had its symlink materialized
+     * as an ordinary file. Fixed by reading through {@code ZipFile}, which parses the central
+     * directory.</p>
+     *
+     * <p>The TAR path was never affected: {@link TarArchiveEntry#isSymbolicLink()} reads the
+     * link flag out of the TAR header itself.</p>
      */
     @Test
-    void zipSymlinkEntryIsNotDetectedAndIsExtractedAsARegularFile( @TempDir Path tempDir ) throws Exception
+    void zipSymlinkEntryIsSkipped( @TempDir Path tempDir ) throws Exception
     {
         Path archive = tempDir.resolve( "jre.zip" );
         writeZip( archive, w -> {
@@ -190,12 +187,34 @@ class ArchiveExtractorTest
         Path dest = tempDir.resolve( "runtime" );
         ArchiveExtractor.extractZip( archive, dest );
 
-        assertTrue( Files.exists( dest.resolve( "bin/java" ) ),
-                    "current (buggy) behavior: the symlink entry is NOT skipped" );
-        assertArrayEquals( "/usr/bin/malicious".getBytes( StandardCharsets.UTF_8 ),
-                            Files.readAllBytes( dest.resolve( "bin/java" ) ),
-                            "the materialized file's content is the raw link-target bytes" );
-        assertTrue( Files.exists( dest.resolve( "lib/modules" ) ), "subsequent regular entries still extract" );
+        assertFalse( Files.exists( dest.resolve( "bin/java" ) ),
+                     "the symlink entry must not be materialized" );
+        assertTrue( Files.exists( dest.resolve( "lib/modules" ) ),
+                    "subsequent regular entries must still extract" );
+    }
+
+    /**
+     * The regression guard for the fix: a symlink entry must be refused however the archive
+     * orders it. A central-directory reader visits entries in a different order from a
+     * streaming one, so a fix that happened to work only when the symlink came first would be
+     * worth catching.
+     */
+    @Test
+    void aZipSymlinkIsSkippedWhereverItAppears( @TempDir Path tempDir ) throws Exception
+    {
+        Path archive = tempDir.resolve( "jre.zip" );
+        writeZip( archive, w -> {
+            w.fileEntry( "lib/first", "data" );
+            w.symlinkEntry( "bin/java", "/usr/bin/malicious" );
+            w.fileEntry( "lib/last", "data" );
+        } );
+
+        Path dest = tempDir.resolve( "runtime" );
+        ArchiveExtractor.extractZip( archive, dest );
+
+        assertFalse( Files.exists( dest.resolve( "bin/java" ) ) );
+        assertTrue( Files.exists( dest.resolve( "lib/first" ) ) );
+        assertTrue( Files.exists( dest.resolve( "lib/last" ) ) );
     }
 
     // =========================================================================================
