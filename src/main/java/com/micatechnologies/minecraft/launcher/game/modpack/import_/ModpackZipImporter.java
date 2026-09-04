@@ -231,7 +231,10 @@ public final class ModpackZipImporter
      *  @throws IOException if the entry count cap is exceeded, an entry
      *          escapes {@code dest}, a decompression cap is hit, or any
      *          underlying read / write fails */
-    private static void extractZipContents( ZipFile zip, Path dest ) throws IOException
+    // Package-private (not private) so the Zip-Slip containment guard below can be
+    // exercised directly by ModpackZipImporterTest. The repo prefers widening a seam
+    // over reflection in tests; see the testing notes in CLAUDE.md.
+    static void extractZipContents( ZipFile zip, Path dest ) throws IOException
     {
         Path destNormalized = dest.toAbsolutePath().normalize();
         Enumeration< ? extends ZipEntry > entries = zip.entries();

@@ -332,7 +332,10 @@ public final class TechnicServerZipImporter
      *  @throws IOException if the archive exceeds the entry / byte caps, an entry
      *                      escapes the target folder, or a copy fails
      *  @since 2026.5 */
-    private static void extractContents( ZipFile zip, Path dest, List< String > topLevelModNames )
+    // Package-private (not private) so the Zip-Slip containment guard below can be
+    // exercised directly by TechnicServerZipImporterTest. The repo prefers widening a
+    // seam over reflection in tests; see the testing notes in CLAUDE.md.
+    static void extractContents( ZipFile zip, Path dest, List< String > topLevelModNames )
             throws IOException
     {
         Path destNormalized = dest.toAbsolutePath().normalize();
