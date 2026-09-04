@@ -102,6 +102,14 @@ function escapeNonAscii(str) {
     return out;
 }
 
+// True when a raw value ends in an odd number of backslashes, meaning the entry
+// continues on the next physical line.
+function endsWithContinuation(rawValue) {
+    let backslashes = 0;
+    for (let i = rawValue.length - 1; i >= 0 && rawValue[i] === '\\'; i--) backslashes++;
+    return backslashes % 2 === 1;
+}
+
 function parseProperties(text) {
     // Returns { keysInOrder: [...], values: { key: value }, leadingComments: '...' }.
     // Mirrors the way java.util.Properties handles the file but preserves comment
@@ -114,8 +122,23 @@ function parseProperties(text) {
     const keysInOrder = [];
     let leadingComments = '';
     let seenFirstKey = false;
+    // Physical lines joined so far for an entry still awaiting its continuation.
+    let pending = null;
     for (const rawLine of lines) {
         const line = rawLine;
+        if (pending !== null) {
+            // Java strips leading whitespace from a continuation line.
+            const continued = line.replace(/^\s+/, '');
+            if (endsWithContinuation(continued)) {
+                pending.value += continued.slice(0, -1);
+                continue;
+            }
+            pending.value += continued;
+            if (!(pending.key in values)) keysInOrder.push(pending.key);
+            values[pending.key] = decodeUnicodeEscapes(pending.value);
+            pending = null;
+            continue;
+        }
         if (!seenFirstKey && (line.trim() === '' || line.trim().startsWith('#') || line.trim().startsWith('!'))) {
             leadingComments += line + '\n';
             continue;
@@ -126,10 +149,23 @@ function parseProperties(text) {
         const eq = line.indexOf('=');
         if (eq < 0) continue;
         const key = line.substring(0, eq).trim();
-        const value = decodeUnicodeEscapes(line.substring(eq + 1));
-        if (!(key in values)) keysInOrder.push(key);
-        values[key] = value;
+        const rawValue = line.substring(eq + 1);
         seenFirstKey = true;
+        // A value ending in an ODD number of backslashes continues onto the next line;
+        // an even number is one or more escaped literal backslashes and ends the entry.
+        // Reading each physical line as a complete entry -- which this did -- kept the
+        // trailing backslash and dropped the rest of the value, which is how 134 truncated
+        // strings ending in a stray "\" reached the shipped bundles.
+        if (endsWithContinuation(rawValue)) {
+            pending = { key, value: rawValue.slice(0, -1) };
+            continue;
+        }
+        if (!(key in values)) keysInOrder.push(key);
+        values[key] = decodeUnicodeEscapes(rawValue);
+    }
+    if (pending !== null) {
+        if (!(pending.key in values)) keysInOrder.push(pending.key);
+        values[pending.key] = decodeUnicodeEscapes(pending.value);
     }
     return { keysInOrder, values, leadingComments };
 }
@@ -365,4 +401,5 @@ if (invokedDirectly) {
     });
 }
 
-export { protectPlaceholders, restorePlaceholders, placeholderSignature, verifyPlaceholders };
+export { protectPlaceholders, restorePlaceholders, placeholderSignature, verifyPlaceholders,
+         parseProperties, endsWithContinuation };
