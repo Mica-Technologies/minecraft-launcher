@@ -421,6 +421,29 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     MFXToggleButton uriHandlerToggle;
 
     /**
+     * Security tab: the MCP server master switch. Mirrors
+     * {@link ConfigManager#getMcpServerEnabled()}, which defaults to false —
+     * until this is on, nothing binds a port or writes an endpoint file.
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXToggleButton mcpServerToggle;
+
+    /**
+     * Security tab: whether read-only MCP tools skip the consent prompt.
+     * Turning it off is the cautious user's single switch for forcing a
+     * prompt on every tool call.
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXToggleButton mcpAutoApproveToggle;
+
+    /** Security tab: live MCP server status — port and connected client count. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label mcpStatusLabel;
+
+    /**
      * Advanced tab: launcher-wide "Verify all game files" button.
      * Triggers a force-FULL verify across every installed modpack — runs
      * {@code pack.verifyAllFilesNow()} on each via
@@ -1381,6 +1404,24 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             uriHandlerToggle.selectedProperty().addListener(
                     ( obs, oldV, newV ) -> ConfigManager.setUriHandlerEnabled( newV ) );
         }
+
+        // MCP server toggles. Flipping the master switch starts or stops the listener
+        // immediately rather than waiting for a restart -- a user turning it off expects the
+        // port closed and the endpoint file gone now, not at next launch.
+        if ( mcpServerToggle != null ) {
+            mcpServerToggle.setSelected( ConfigManager.getMcpServerEnabled() );
+            mcpServerToggle.selectedProperty().addListener( ( obs, oldV, newV ) -> {
+                ConfigManager.setMcpServerEnabled( newV );
+                com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.refresh();
+                refreshMcpStatusLabel();
+            } );
+        }
+        if ( mcpAutoApproveToggle != null ) {
+            mcpAutoApproveToggle.setSelected( ConfigManager.getMcpAutoApproveReadOnly() );
+            mcpAutoApproveToggle.selectedProperty().addListener(
+                    ( obs, oldV, newV ) -> ConfigManager.setMcpAutoApproveReadOnly( newV ) );
+        }
+        refreshMcpStatusLabel();
 
         // Default scan-frequency combo. Stored as the enum name; combo is keyed by
         // display label so renames of the user-facing copy don't shift the index.
@@ -2558,4 +2599,32 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
 
         return false;
     }
+
+    /**
+     * Repaints the MCP status line from live server state: the loopback port when running,
+     * and how many clients are connected.
+     *
+     * <p>Deliberately shows the port but never the bearer token. The token is a credential
+     * that grants full MCP access, and a Settings page is a screenshot away from a support
+     * thread.</p>
+     *
+     * @since 3.0
+     */
+    private void refreshMcpStatusLabel()
+    {
+        if ( mcpStatusLabel == null ) {
+            return;
+        }
+        boolean running = com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.isRunning();
+        String status = running
+                        ? LocalizationManager.format( "settings.mcp.status.running",
+                                                      com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getPort() )
+                                + "  \u2022  "
+                                + LocalizationManager.format( "settings.mcp.status.sessions",
+                                                              com.micatechnologies.minecraft.launcher.mcp.McpBootstrap
+                                                                      .getSessions().size() )
+                        : LocalizationManager.get( "settings.mcp.status.stopped" );
+        mcpStatusLabel.setText( status );
+    }
+
 }

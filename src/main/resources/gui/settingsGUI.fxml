@@ -529,6 +529,33 @@
                         </Label>
                         <MFXToggleButton fx:id="uriHandlerToggle" text="%settings.fxml.allowMmclDeep" />
                     </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="%settings.mcp.section.title">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="%settings.mcp.enable.description" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="mcpServerToggle" text="%settings.mcp.enable.label" />
+                        <Label text="%settings.mcp.autoApproveReadOnly.description" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="mcpAutoApproveToggle" text="%settings.mcp.autoApproveReadOnly.label" />
+                        <Label fx:id="mcpStatusLabel" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                    </VBox>
                 </VBox>
             </ScrollPane>
 
