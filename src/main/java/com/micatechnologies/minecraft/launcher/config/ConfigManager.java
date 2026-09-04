@@ -670,6 +670,10 @@ public class ConfigManager
     public synchronized static boolean getMcpAutoApproveReadOnly()      { return AppConfig.getMcpAutoApproveReadOnly(); }
     /** Sets whether read-only MCP tools skip the consent prompt. @param v the new flag. @see AppConfig#setMcpAutoApproveReadOnly(boolean) @since 1.0 */
     public synchronized static void    setMcpAutoApproveReadOnly( boolean v ) { AppConfig.setMcpAutoApproveReadOnly( v ); }
+    /** @return the per-tool MCP approval choices as a JSON object string. @see AppConfig#getMcpToolPolicies() @since 1.0 */
+    public synchronized static String  getMcpToolPolicies()             { return AppConfig.getMcpToolPolicies(); }
+    /** Stores the per-tool MCP approval choices. @param v the JSON object string. @see AppConfig#setMcpToolPolicies(String) @since 1.0 */
+    public synchronized static void    setMcpToolPolicies( String v )   { AppConfig.setMcpToolPolicies( v ); }
     /** @return whether the first-launch quick-start wizard has been completed. @see AppConfig#getQuickStartCompleted() @since 1.0 */
     public synchronized static boolean getQuickStartCompleted()         { return AppConfig.getQuickStartCompleted(); }
     /** Sets whether the first-launch quick-start wizard has been completed. @param v the new flag. @see AppConfig#setQuickStartCompleted(boolean) @since 1.0 */

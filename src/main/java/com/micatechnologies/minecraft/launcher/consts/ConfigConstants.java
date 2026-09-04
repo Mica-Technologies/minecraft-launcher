@@ -342,6 +342,28 @@ public class ConfigConstants
     public static final boolean MCP_AUTO_APPROVE_READ_ONLY_DEFAULT = true;
 
     /**
+     * Key holding the user's per-tool MCP approval choices, as a JSON object mapping tool
+     * name to policy name ({@code ALWAYS_ALLOW} / {@code ASK} / {@code DISABLED}). Stored as
+     * a string so the whole map travels through the existing string accessor rather than
+     * needing a raw JSON path through ConfigStore.
+     *
+     * <p>An empty or unreadable value means no tool has an explicit policy, so every tool
+     * falls back to its risk-class default — which is "ask" for anything that can change or
+     * run something. That direction is deliberate: a corrupted config must never grant
+     * standing permission.</p>
+     *
+     * @since 2026.2
+     */
+    public static final String MCP_TOOL_POLICIES_KEY = "mcpToolPolicies";
+
+    /**
+     * Default for {@link #MCP_TOOL_POLICIES_KEY} — empty, meaning no explicit policies.
+     *
+     * @since 2026.2
+     */
+    public static final String MCP_TOOL_POLICIES_DEFAULT = "";
+
+    /**
      * Key for whether the user has completed (or explicitly skipped) the first-
      * launch quick-start wizard. Defaults to false so existing installs see the
      * wizard once on upgrade, then never again. The wizard also flips this true

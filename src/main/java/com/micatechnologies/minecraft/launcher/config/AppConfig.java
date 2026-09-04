@@ -314,6 +314,24 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** The user's per-tool MCP approval choices, as a JSON object string.
+     *  Empty means no tool has an explicit policy. */
+    public static synchronized String getMcpToolPolicies() {
+        return ConfigStore.getOrInitString( ConfigConstants.MCP_TOOL_POLICIES_KEY,
+                                            ConfigConstants.MCP_TOOL_POLICIES_DEFAULT );
+    }
+
+    /**
+     * Stores the user's per-tool MCP approval choices and schedules a debounced disk flush.
+     *
+     * @param policiesJson a JSON object mapping tool name to policy name
+     */
+    public static synchronized void setMcpToolPolicies( String policiesJson ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.MCP_TOOL_POLICIES_KEY,
+                                                policiesJson == null ? "" : policiesJson );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Whether the user has completed or skipped the first-launch
      *  quick-start wizard. Defaults to false so the wizard fires once
      *  for existing installs that upgrade. */

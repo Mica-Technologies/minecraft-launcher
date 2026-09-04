@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.mcp;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -42,9 +43,17 @@ import java.util.concurrent.TimeoutException;
  * The dialog itself stays on screen — the underlying helper offers no way to dismiss it — but
  * the answer has already been decided, which is the fail-closed direction.
  * <p>
- * This is the two-button form: allow once, or deny. The three-button variant with
- * "always allow", and the destructive-action framing that names what would be lost, arrive with
- * the mutating tools in a later phase — nothing registered today can change anything.
+ * Three outcomes, per the plan's section 5.4: <b>Allow once</b>, <b>Allow for this session</b>,
+ * and deny — which is what dismissing, cancelling, or pressing Escape produces, so the safe
+ * answer is the one that requires no decision. The launcher's question helper already appends
+ * its own Cancel button when the second label is not itself a cancel, so no new dialog API was
+ * needed for the third choice.
+ * <p>
+ * "Always allow, permanently" is deliberately <em>not</em> a button here. A standing grant that
+ * survives restarts is a considered decision, not one to make while a model is waiting; it lives
+ * in Settings as a per-tool policy, where it sits next to the tool's risk class and can be
+ * reviewed and revoked. The destructive-action framing that names what would be lost arrives
+ * with the mutating tools — nothing registered today can change anything.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -60,6 +69,12 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
      * and short enough that an unattended launcher recovers on its own.
      */
     public static final long CONSENT_TIMEOUT_SECONDS = 120L;
+
+    /** Most arguments rendered in the consent dialog before the rest are elided. */
+    private static final int MAX_SUMMARIZED_ARGUMENTS = 6;
+
+    /** Longest argument value rendered in the consent dialog before truncation. */
+    private static final int MAX_SUMMARIZED_VALUE_LENGTH = 120;
 
     @Override
     public boolean isAvailable()
@@ -88,9 +103,10 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
                                                     context.clientName(), tool.title() ),
                         LocalizationManager.format( "dialog.mcp.consent.body",
                                                     context.clientName(), tool.name(),
-                                                    tool.description() ),
+                                                    tool.description(),
+                                                    summarizeArguments( arguments ) ),
                         LocalizationManager.get( "dialog.mcp.consent.button.allowOnce" ),
-                        LocalizationManager.get( "dialog.button.cancel" ),
+                        LocalizationManager.get( "dialog.mcp.consent.button.allowSession" ),
                         MCLauncherGuiController.getTopStageOrNull() ), runnable -> {
             Thread thread = new Thread( runnable, "mcp-consent" );
             thread.setDaemon( true );
@@ -98,11 +114,15 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
         } );
 
         try {
-            // showQuestionMessage returns 1 for the first button, 2 for the second, 0 for
-            // cancel or dismiss. Anything but 1 is a refusal.
-            return answer.get( CONSENT_TIMEOUT_SECONDS, TimeUnit.SECONDS ) == 1
-                   ? LauncherMcpAuthorizer.Answer.ALLOW_ONCE
-                   : LauncherMcpAuthorizer.Answer.DENY;
+            // showQuestionMessage returns 1 for the first button, 2 for the second, and 0 for
+            // cancel or dismiss. Dismissing therefore denies, which is the point: the answer
+            // that needs no decision is the safe one.
+            int chosen = answer.get( CONSENT_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+            return switch ( chosen ) {
+                case 1 -> LauncherMcpAuthorizer.Answer.ALLOW_ONCE;
+                case 2 -> LauncherMcpAuthorizer.Answer.ALLOW_FOR_SESSION;
+                default -> LauncherMcpAuthorizer.Answer.DENY;
+            };
         }
         catch ( TimeoutException e ) {
             Logger.logStd( "MCP consent prompt timed out for " + tool.name() + "; denying" );
@@ -118,4 +138,67 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
             return LauncherMcpAuthorizer.Answer.DENY;
         }
     }
+
+    /**
+     * Renders a tool call's arguments for the dialog, so the user is answering a concrete
+     * question — "install a modpack from example.com" — rather than a bare tool name.
+     *
+     * <p>Arguments are model-chosen, so the summary is bounded rather than trusted: only
+     * primitive values are rendered, each is truncated, and the list is capped. Structured
+     * values are shown by type alone. The dialog helper additionally sanitizes the assembled
+     * text before display.</p>
+     *
+     * @param arguments the call arguments, possibly {@code null}
+     *
+     * @return a one-line human-readable summary, or a "no arguments" marker
+     *
+     * @since 3.0
+     */
+    static String summarizeArguments( JsonObject arguments )
+    {
+        if ( arguments == null || arguments.isEmpty() ) {
+            return LocalizationManager.get( "dialog.mcp.consent.noArguments" );
+        }
+
+        StringBuilder summary = new StringBuilder();
+        int shown = 0;
+        for ( String key : arguments.keySet() ) {
+            if ( shown >= MAX_SUMMARIZED_ARGUMENTS ) {
+                summary.append( ", \u2026" );
+                break;
+            }
+            if ( shown > 0 ) {
+                summary.append( ", " );
+            }
+            summary.append( key ).append( "=" ).append( renderValue( arguments.get( key ) ) );
+            shown++;
+        }
+        return summary.toString();
+    }
+
+    /**
+     * Renders one argument value, truncating long strings and reducing structured values to
+     * their type.
+     *
+     * @param value the value to render
+     *
+     * @return the rendered value
+     */
+    private static String renderValue( JsonElement value )
+    {
+        if ( value == null || value.isJsonNull() ) {
+            return "null";
+        }
+        if ( value.isJsonArray() ) {
+            return "[" + value.getAsJsonArray().size() + " items]";
+        }
+        if ( value.isJsonObject() ) {
+            return "{object}";
+        }
+        String text = value.getAsString();
+        return text.length() > MAX_SUMMARIZED_VALUE_LENGTH
+               ? text.substring( 0, MAX_SUMMARIZED_VALUE_LENGTH ) + "\u2026"
+               : text;
+    }
+
 }

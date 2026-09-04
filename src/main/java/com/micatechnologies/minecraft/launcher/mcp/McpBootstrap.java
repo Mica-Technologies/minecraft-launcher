@@ -22,6 +22,7 @@ import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.mcp.approval.LauncherMcpAuthorizer;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpGrantStore;
+import com.micatechnologies.minecraft.launcher.mcp.approval.McpToolPolicyStore;
 import com.micatechnologies.minecraft.launcher.mcp.resources.LauncherResources;
 import com.micatechnologies.minecraft.launcher.mcp.resources.McpResourceRegistry;
 import com.micatechnologies.minecraft.launcher.mcp.session.McpSession;
@@ -54,6 +55,23 @@ public final class McpBootstrap
 
     /** Consent granted this run. Outlives individual server restarts within one launcher run. */
     private static final McpGrantStore GRANTS = new McpGrantStore();
+
+    /** The user's durable per-tool choices, read from and written to launcher config. */
+    private static final McpToolPolicyStore POLICIES = new McpToolPolicyStore(
+            new McpToolPolicyStore.Backing()
+            {
+                @Override
+                public String read()
+                {
+                    return ConfigManager.getMcpToolPolicies();
+                }
+
+                @Override
+                public void write( String json )
+                {
+                    ConfigManager.setMcpToolPolicies( json );
+                }
+            } );
 
     /**
      * Starts the MCP server if the user has enabled it.
@@ -179,6 +197,18 @@ public final class McpBootstrap
     }
 
     /**
+     * Returns the user's durable per-tool policies, for the Settings page.
+     *
+     * @return the policy store
+     *
+     * @since 3.0
+     */
+    public static McpToolPolicyStore getPolicies()
+    {
+        return POLICIES;
+    }
+
+    /**
      * Returns the grants held this run, for the Settings page.
      *
      * @return the grant store
@@ -210,10 +240,7 @@ public final class McpBootstrap
         @Override
         public McpApprovalPolicy policyFor( String toolName )
         {
-            // Per-tool policies are stored and edited in the Settings page, which is phase 2.
-            // Until then every tool falls through to its risk-class default, which for the
-            // read-only set registered above means the auto-approve toggle governs.
-            return null;
+            return POLICIES.policyFor( toolName );
         }
     }
 
