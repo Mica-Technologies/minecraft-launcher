@@ -1020,7 +1020,9 @@ public class RuntimeManager
      *
      * @return the absolute path to the first matching java executable, or {@code null} if none is found
      */
-    private static String findJavaExecutable( File runtimeFolder ) {
+    // Package-private (widened from private) so RuntimeManagerSeamsTest can exercise this
+    // directly with a @TempDir tree without going through the network-bound verify flow.
+    static String findJavaExecutable( File runtimeFolder ) {
         String javaName = org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ? "java.exe" : "java";
         return searchForFile( runtimeFolder, javaName );
     }
@@ -1070,7 +1072,9 @@ public class RuntimeManager
      *
      * @return the absolute path to the first matching file, or {@code null} if none is found
      */
-    private static String searchForFile( File dir, String name ) {
+    // Package-private (widened from private) so RuntimeManagerSeamsTest can exercise this
+    // directly with a @TempDir tree without going through the network-bound verify flow.
+    static String searchForFile( File dir, String name ) {
         File[] children = dir.listFiles();
         if ( children == null ) {
             return null;
@@ -1101,7 +1105,9 @@ public class RuntimeManager
      * @param lowerText      the lower (detail/status) text
      * @param percent        the completion percentage (0–100), or negative for indeterminate
      */
-    private static void reportProgress( MCLauncherProgressGui progressWindow, RuntimeProgressCallback callback,
+    // Package-private (widened from private) so RuntimeManagerSeamsTest can exercise the
+    // callback/log fan-out directly, passing null for the JavaFX progress window.
+    static void reportProgress( MCLauncherProgressGui progressWindow, RuntimeProgressCallback callback,
                                          String upperLabel, String lowerText, double percent )
     {
         if ( progressWindow != null ) {

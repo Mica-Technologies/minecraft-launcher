@@ -1063,7 +1063,9 @@ public final class TuiApp
      *
      * @return the truncated string
      */
-    private static String truncate( String s, int max )
+    // Package-private (widened from private) so TuiAppFormattingTest can exercise this
+    // directly without constructing a Lanterna terminal.
+    static String truncate( String s, int max )
     {
         if ( s == null ) {
             return "";

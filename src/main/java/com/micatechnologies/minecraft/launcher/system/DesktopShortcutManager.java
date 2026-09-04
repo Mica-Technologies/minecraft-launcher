@@ -214,7 +214,9 @@ public class DesktopShortcutManager
      *
      * @return the chosen file, or {@code null} when {@code candidates} is null/empty
      */
-    private static File pickBestExecutable( File[] candidates )
+    // Package-private (widened from private) so DesktopShortcutManagerCommandBuildingTest
+    // can exercise the deterministic-choice logic directly with synthetic File handles.
+    static File pickBestExecutable( File[] candidates )
     {
         if ( candidates == null || candidates.length == 0 ) {
             return null;
@@ -248,7 +250,9 @@ public class DesktopShortcutManager
      *
      * @since 1.0
      */
-    private static boolean isNativeExecutable( String launcherPath )
+    // Package-private (widened from private) so DesktopShortcutManagerCommandBuildingTest
+    // can exercise this directly.
+    static boolean isNativeExecutable( String launcherPath )
     {
         String lower = launcherPath.toLowerCase();
         return !lower.endsWith( ".jar" ) && !lower.endsWith( "java" ) && !lower.endsWith( "java.exe" ) &&
@@ -266,7 +270,9 @@ public class DesktopShortcutManager
      *
      * @since 1.0
      */
-    private static String buildArguments( String launcherPath, String packName )
+    // Package-private (widened from private) so DesktopShortcutManagerCommandBuildingTest
+    // can exercise this directly.
+    static String buildArguments( String launcherPath, String packName )
     {
         String quotedPackName = packName.contains( " " ) ? "\"" + packName + "\"" : packName;
         if ( isNativeExecutable( launcherPath ) ) {
@@ -858,7 +864,9 @@ public class DesktopShortcutManager
      * the safe form for embedding untrusted data — server-supplied modpack names
      * in this codebase — into a generated bash script.
      */
-    private static String shellSingleQuote( String input )
+    // Package-private (widened from private) so DesktopShortcutManagerQuotingTest can
+    // exercise this injection defense directly.
+    static String shellSingleQuote( String input )
     {
         if ( input == null ) {
             return "''";
@@ -874,7 +882,9 @@ public class DesktopShortcutManager
      * containing {@code $(...)} or backticks from getting expanded by the launching
      * shell.
      */
-    private static String desktopExecQuote( String input )
+    // Package-private (widened from private) so DesktopShortcutManagerQuotingTest can
+    // exercise this injection defense directly.
+    static String desktopExecQuote( String input )
     {
         if ( input == null ) {
             return "\"\"";
@@ -900,7 +910,9 @@ public class DesktopShortcutManager
      * expects. Robust to packNames containing spaces, double quotes, or
      * trailing backslashes.
      */
-    private static String windowsCmdQuote( String input )
+    // Package-private (widened from private) so DesktopShortcutManagerQuotingTest can
+    // exercise this injection defense directly.
+    static String windowsCmdQuote( String input )
     {
         if ( input == null ) {
             return "\"\"";
@@ -951,7 +963,9 @@ public class DesktopShortcutManager
      * {@code Name=} field. Applied to every user-supplied value that lands in a
      * .desktop record.
      */
-    private static String stripLineTerminators( String input )
+    // Package-private (widened from private) so DesktopShortcutManagerQuotingTest can
+    // exercise this injection defense directly.
+    static String stripLineTerminators( String input )
     {
         if ( input == null ) {
             return "";
