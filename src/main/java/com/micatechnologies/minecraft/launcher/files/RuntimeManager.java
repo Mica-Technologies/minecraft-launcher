@@ -730,19 +730,8 @@ public class RuntimeManager
 
         try {
             // Build API URL for current OS
-            String os, arch;
-            if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
-                os = "windows"; arch = "x86";
-            }
-            else if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
-                os = "macos";
-                arch = System.getProperty( "os.arch", "" ).contains( "aarch64" ) ? "arm" : "x86";
-            }
-            else {
-                os = "linux";
-                arch = System.getProperty( "os.arch", "" ).contains( "aarch64" ) ? "arm" : "x86";
-            }
-            String apiUrl = LIBERICA_JRE8_API_TEMPLATE.replace( "{OS}", os ).replace( "{ARCH}", arch );
+            String[] osArch = resolveLibericaOsArch();
+            String apiUrl = buildLibericaApiUrl( osArch[ 0 ], osArch[ 1 ] );
 
             // Download API info
             reportProgress( progressWindow, progressCallback, label,
@@ -777,12 +766,11 @@ public class RuntimeManager
             String bundleType = JsonHelper.getRequiredString( info, "bundleType" );
             int featureVersion = JsonHelper.getInt( info, "featureVersion", 8 );
             int updateVersion = JsonHelper.getInt( info, "updateVersion", 0 );
-            String extractedFolderName = bundleType + featureVersion + "u" + updateVersion;
+            String extractedFolderName = buildLibericaExtractedFolderName( bundleType, featureVersion, updateVersion );
             File extractedFolder = new File( runtimeFolderPath, extractedFolderName );
             // On macOS, Liberica JRE bundles extract with a .jre suffix (e.g. jre8u392.jre)
             File altFolder = new File( runtimeFolderPath, extractedFolderName + "." + bundleType );
-            File effectiveFolder = extractedFolder.exists() ? extractedFolder :
-                                   altFolder.exists() ? altFolder : extractedFolder;
+            File effectiveFolder = resolveEffectiveJreFolder( extractedFolder, altFolder );
 
             if ( versionFile.exists() && effectiveFolder.exists() ) {
                 String installed = org.apache.commons.io.FileUtils.readFileToString( versionFile, "UTF-8" ).trim();
@@ -853,8 +841,7 @@ public class RuntimeManager
             }
 
             // Find the extracted folder (may have a different suffix, e.g. .jre on macOS)
-            effectiveFolder = extractedFolder.exists() ? extractedFolder :
-                              altFolder.exists() ? altFolder : extractedFolder;
+            effectiveFolder = resolveEffectiveJreFolder( extractedFolder, altFolder );
 
             // Resolve java executable
             File javaExec = new File( effectiveFolder, RuntimeConstants.getJavaExecPathForOs() );
@@ -941,6 +928,90 @@ public class RuntimeManager
     // test without needing to trigger the network-bound verify flow that calls it internally.
     static String getComponentRuntimeFolderPath( String component ) {
         return SystemUtilities.buildFilePath( LocalPathManager.getLauncherRuntimeFolderPath(), component );
+    }
+
+    /**
+     * Resolves the Bell-SW Liberica API's {@code os}/{@code arch} query parameters for the
+     * current machine: {@code {"windows","x86"}}, {@code {"macos", "arm"|"x86"}}, or
+     * {@code {"linux", "arm"|"x86"}}. Requesting the wrong pair downloads a JRE 8 build that
+     * cannot execute on this machine at all (a different OS binary format, or the wrong CPU
+     * architecture).
+     *
+     * @return a two-element array {@code [os, arch]}
+     *
+     * @since 3.0
+     */
+    // Package-private and static (extracted from verifyLegacyJre) so the OS/arch resolution can
+    // be tested directly, platform-independently, via SystemUtils flags -- same pattern as
+    // ManifestRuleUtilitiesTest's CURRENT/NOT_CURRENT platform detection.
+    static String[] resolveLibericaOsArch() {
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS ) {
+            return new String[]{ "windows", "x86" };
+        }
+        String arch = System.getProperty( "os.arch", "" ).contains( "aarch64" ) ? "arm" : "x86";
+        if ( org.apache.commons.lang3.SystemUtils.IS_OS_MAC ) {
+            return new String[]{ "macos", arch };
+        }
+        return new String[]{ "linux", arch };
+    }
+
+    /**
+     * Substitutes the {@code {OS}}/{@code {ARCH}} placeholders in {@link #LIBERICA_JRE8_API_TEMPLATE}.
+     *
+     * @param os   the Bell-SW API os token (e.g. {@code "windows"}, {@code "macos"}, {@code "linux"})
+     * @param arch the Bell-SW API arch token ({@code "x86"} or {@code "arm"})
+     *
+     * @return the fully substituted Bell-SW Liberica API URL
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as resolveLibericaOsArch above.
+    static String buildLibericaApiUrl( String os, String arch ) {
+        return LIBERICA_JRE8_API_TEMPLATE.replace( "{OS}", os ).replace( "{ARCH}", arch );
+    }
+
+    /**
+     * Builds the expected Liberica JRE archive extraction folder name, e.g. {@code jre8u392} for
+     * {@code (bundleType="jre", featureVersion=8, updateVersion=392)}.
+     *
+     * @param bundleType     the Bell-SW bundle type (e.g. {@code "jre"})
+     * @param featureVersion the Java feature version (e.g. {@code 8})
+     * @param updateVersion  the update version (e.g. {@code 392})
+     *
+     * @return the extracted folder name
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as resolveLibericaOsArch above.
+    static String buildLibericaExtractedFolderName( String bundleType, int featureVersion, int updateVersion ) {
+        return bundleType + featureVersion + "u" + updateVersion;
+    }
+
+    /**
+     * Resolves which of two candidate extraction folders actually holds the extracted JRE: the
+     * primary name, or (macOS) the same name with a {@code .jre} suffix appended by Liberica's
+     * archive layout. Falls back to {@code primary} when neither exists, so a caller creating a
+     * fresh install always has a definite path to extract into.
+     *
+     * @param primary the primary expected extraction folder
+     * @param alt     the alternate (suffixed) extraction folder
+     *
+     * @return whichever of {@code primary}/{@code alt} exists on disk, preferring {@code primary};
+     *         {@code primary} itself if neither exists
+     *
+     * @since 3.0
+     */
+    // Package-private and static (extracted from verifyLegacyJre, where this exact ternary chain
+    // was duplicated twice) so the macOS ".jre"-suffix fallback can be tested against @TempDir
+    // folders instead of a real archive extraction.
+    static File resolveEffectiveJreFolder( File primary, File alt ) {
+        if ( primary.exists() ) {
+            return primary;
+        }
+        if ( alt.exists() ) {
+            return alt;
+        }
+        return primary;
     }
 
     /**
