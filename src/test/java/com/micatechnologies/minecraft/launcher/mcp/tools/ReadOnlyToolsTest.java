@@ -154,8 +154,8 @@ class ReadOnlyToolsTest
     @Test
     void listingReportsEveryPack()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "All the Mods 9", "1.2.3", "forge", true, false ) );
-        view.packs.add( new McpLauncherView.PackSummary( "Vault Hunters", "3.0", "fabric", false, true ) );
+        view.packs.add( new McpLauncherView.PackSummary( "All the Mods 9", "1.2.3", "1.2.3", false, "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Vault Hunters", "3.0", "3.0", false, "fabric", false, true ) );
 
         JsonObject result = jsonOf( call( "list_modpacks", new JsonObject() ) );
         assertEquals( 2, result.get( "count" ).getAsInt() );
@@ -165,6 +165,38 @@ class ReadOnlyToolsTest
         assertEquals( "forge", first.get( "modLoader" ).getAsString() );
         assertTrue( first.get( "installed" ).getAsBoolean() );
         assertFalse( first.get( "unstable" ).getAsBoolean() );
+    }
+
+    /**
+     * A pack's friendly name embeds the version its author publishes, which is not necessarily
+     * what is installed — a real library had "Alto: 26.9.3" sitting at version 26.6.12.
+     * Reporting only the installed version leaves a reader unable to reconcile the two, so both
+     * are reported alongside the launcher's own update verdict.
+     */
+    @Test
+    void anOutdatedPackReportsBothVersionsAndFlagsTheUpdate()
+    {
+        view.packs.add( new McpLauncherView.PackSummary( "Alto: 26.9.3", "26.6.12", "26.9.3",
+                                                         true, "forge", true, false ) );
+        JsonObject entry = jsonOf( call( "list_modpacks", new JsonObject() ) )
+                .getAsJsonArray( "modpacks" ).get( 0 ).getAsJsonObject();
+
+        assertEquals( "26.6.12", entry.get( "version" ).getAsString() );
+        assertEquals( "26.9.3", entry.get( "latestVersion" ).getAsString() );
+        assertTrue( entry.get( "updateAvailable" ).getAsBoolean() );
+
+        JsonObject info = jsonOf( call( "get_modpack_info", packArgs( "Alto: 26.9.3" ) ) );
+        assertEquals( "26.9.3", info.get( "latestVersion" ).getAsString() );
+        assertTrue( info.get( "updateAvailable" ).getAsBoolean() );
+    }
+
+    @Test
+    void anUpToDatePackIsNotFlagged()
+    {
+        view.packs.add( new McpLauncherView.PackSummary( "Current", "1.0", "1.0", false,
+                                                         "forge", true, false ) );
+        assertFalse( jsonOf( call( "get_modpack_info", packArgs( "Current" ) ) )
+                             .get( "updateAvailable" ).getAsBoolean() );
     }
 
     /** An empty library is a normal state, not a failure. */
@@ -183,7 +215,7 @@ class ReadOnlyToolsTest
     @Test
     void packInfoIsReported()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "All the Mods 9", "1.2.3", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "All the Mods 9", "1.2.3", "1.2.3", false, "forge", true, false ) );
         JsonObject result = jsonOf( call( "get_modpack_info", packArgs( "All the Mods 9" ) ) );
         assertEquals( "1.2.3", result.get( "version" ).getAsString() );
     }
@@ -227,7 +259,7 @@ class ReadOnlyToolsTest
     @Test
     void aPackNameIsTrimmedBeforeLookup()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         assertFalse( call( "get_modpack_info", packArgs( "  Pack  " ) ).isError() );
     }
 
@@ -238,7 +270,7 @@ class ReadOnlyToolsTest
     @Test
     void aManifestIsReturnedVerbatim()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.manifest = "{\"packName\":\"Pack\"}";
         McpToolResult result = call( "get_modpack_manifest", packArgs( "Pack" ) );
         assertFalse( result.isError() );
@@ -248,7 +280,7 @@ class ReadOnlyToolsTest
     @Test
     void anUnreachableManifestIsReported()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.manifest = null;
         assertTrue( call( "get_modpack_manifest", packArgs( "Pack" ) ).isError() );
     }
@@ -256,7 +288,7 @@ class ReadOnlyToolsTest
     @Test
     void aCrashReportIsReturned()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.crash = new McpLauncherView.CrashInfo( "java.lang.OutOfMemoryError", "Out of memory",
                                                     "The game ran out of heap", "OUT_OF_MEMORY",
                                                     List.of( "Raise the memory allocation" ) );
@@ -268,7 +300,7 @@ class ReadOnlyToolsTest
     @Test
     void aPackThatHasNotCrashedReportsThatClearly()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.crash = null;
         assertTrue( call( "get_crash_report", packArgs( "Pack" ) ).isError() );
     }
@@ -276,7 +308,7 @@ class ReadOnlyToolsTest
     @Test
     void aBlankCrashReportCountsAsNoReport()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.crash = new McpLauncherView.CrashInfo( "   ", "", "", "", List.of() );
         assertTrue( call( "get_crash_report", packArgs( "Pack" ) ).isError() );
     }
@@ -288,7 +320,7 @@ class ReadOnlyToolsTest
     @Test
     void diagnosisCombinesTheReportWithItsAnalysisAndPackContext()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1.2.3", "forge", true, true ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1.2.3", "1.2.3", false, "forge", true, true ) );
         view.crash = new McpLauncherView.CrashInfo( "java.lang.OutOfMemoryError", "Out of memory",
                                                     "The game ran out of heap", "OUT_OF_MEMORY",
                                                     List.of( "Raise the memory allocation",
@@ -313,7 +345,7 @@ class ReadOnlyToolsTest
     @Test
     void diagnosingAPackThatHasNotCrashedSucceedsWithANote()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.crash = null;
 
         McpToolResult result = call( "diagnose_launch_failure", packArgs( "Pack" ) );
@@ -324,7 +356,7 @@ class ReadOnlyToolsTest
     @Test
     void diagnosisToleratesAnAbsentSuggestionList()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.crash = new McpLauncherView.CrashInfo( "boom", "", "", "", null );
         JsonObject result = jsonOf( call( "diagnose_launch_failure", packArgs( "Pack" ) ) );
         assertEquals( 0, result.getAsJsonArray( "suggestions" ).size() );

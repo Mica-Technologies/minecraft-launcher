@@ -162,8 +162,8 @@ class MutatingToolsTest
         actions = new StubActions();
         registry = new McpToolRegistry();
         MutatingTools.registerAll( registry, view, actions );
-        view.packs.add( new McpLauncherView.PackSummary( "Installed Pack", "1.0", "forge", true, false ) );
-        view.packs.add( new McpLauncherView.PackSummary( "Not Installed", "1.0", "forge", false, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Installed Pack", "1.0", "1.0", false, "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Not Installed", "1.0", "1.0", false, "forge", false, false ) );
     }
 
     // region registration and risk classes

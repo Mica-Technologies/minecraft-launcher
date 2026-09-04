@@ -343,8 +343,21 @@ public final class LiveMcpLauncherView implements McpLauncherView
             }
             String version = installed ? firstNonBlank( pack.getInstalledVersion(), pack.getPackVersion() )
                                        : nullToEmpty( pack.getPackVersion() );
-            return new PackSummary( friendlyName, version, nullToEmpty( pack.getModLoaderType() ),
-                                    installed, pack.getPackUnstable() );
+            // A pack's friendly name embeds the version its author publishes, which is not
+            // necessarily what is installed -- so reporting only the installed version leaves a
+            // reader unable to reconcile "Alto: 26.9.3" with version 26.6.12. Both, plus the
+            // launcher's own update verdict, remove the ambiguity.
+            String latest = nullToEmpty( pack.getPackVersion() );
+            boolean updateAvailable = false;
+            try {
+                updateAvailable = installed && pack.isUpdateAvailable();
+            }
+            catch ( Exception ignored ) {
+                // An unreadable version comparison is not worth failing the listing over.
+            }
+            return new PackSummary( friendlyName, version, latest, updateAvailable,
+                                    nullToEmpty( pack.getModLoaderType() ), installed,
+                                    pack.getPackUnstable() );
         }
         catch ( Exception e ) {
             // One unreadable pack must not take out the whole listing.

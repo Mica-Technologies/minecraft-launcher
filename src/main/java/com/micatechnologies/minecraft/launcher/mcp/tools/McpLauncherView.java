@@ -44,15 +44,19 @@ public interface McpLauncherView
     /**
      * One modpack, as an MCP client sees it.
      *
-     * @param friendlyName the pack's display name, and the key every tool addresses it by
-     * @param version      the pack version, or {@code ""} when unknown
-     * @param modLoader    the mod loader identifier, or {@code ""} when unknown
-     * @param installed    whether the pack is installed locally
-     * @param unstable     whether the pack is flagged unstable by its author
+     * @param friendlyName    the pack's display name, and the key every tool addresses it by
+     * @param version         the version actually installed, or the published version for a
+     *                        pack that is not installed; {@code ""} when unknown
+     * @param latestVersion   the version the pack's author currently publishes, or {@code ""}
+     * @param updateAvailable whether {@code latestVersion} is newer than what is installed
+     * @param modLoader       the mod loader identifier, or {@code ""} when unknown
+     * @param installed       whether the pack is installed locally
+     * @param unstable        whether the pack is flagged unstable by its author
      *
      * @since 3.0
      */
-    record PackSummary( String friendlyName, String version, String modLoader, boolean installed,
+    record PackSummary( String friendlyName, String version, String latestVersion,
+                        boolean updateAvailable, String modLoader, boolean installed,
                         boolean unstable )
     {
     }

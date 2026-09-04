@@ -159,9 +159,10 @@ public final class ReadOnlyTools
         public String description()
         {
             return "Lists every modpack the launcher knows about, both installed and available "
-                    + "to install. Returns each pack's friendly name, version, mod loader, "
-                    + "whether it is installed, and whether its author flagged it unstable. Use "
-                    + "the friendly name to address a pack in other tools.";
+                    + "to install. Returns each pack's friendly name, installed version, latest "
+                    + "published version, whether an update is available, mod loader, install "
+                    + "state, and whether its author flagged it unstable. Use the friendly name "
+                    + "to address a pack in other tools.";
         }
 
         @Override
@@ -175,6 +176,8 @@ public final class ReadOnlyTools
                 JsonObject entry = new JsonObject();
                 entry.addProperty( "friendlyName", pack.friendlyName() );
                 entry.addProperty( "version", pack.version() );
+                entry.addProperty( "latestVersion", pack.latestVersion() );
+                entry.addProperty( "updateAvailable", pack.updateAvailable() );
                 entry.addProperty( "modLoader", pack.modLoader() );
                 entry.addProperty( "installed", pack.installed() );
                 entry.addProperty( "unstable", pack.unstable() );
@@ -201,8 +204,9 @@ public final class ReadOnlyTools
         @Override
         public String description()
         {
-            return "Reports the version, mod loader, install state and stability flag of one "
-                    + "modpack, addressed by its friendly name.";
+            return "Reports the installed version, the latest published version, whether an "
+                    + "update is available, the mod loader, install state and stability flag of "
+                    + "one modpack, addressed by its friendly name.";
         }
 
         @Override
@@ -222,6 +226,8 @@ public final class ReadOnlyTools
             JsonObject result = new JsonObject();
             result.addProperty( "friendlyName", pack.friendlyName() );
             result.addProperty( "version", pack.version() );
+            result.addProperty( "latestVersion", pack.latestVersion() );
+            result.addProperty( "updateAvailable", pack.updateAvailable() );
             result.addProperty( "modLoader", pack.modLoader() );
             result.addProperty( "installed", pack.installed() );
             result.addProperty( "unstable", pack.unstable() );

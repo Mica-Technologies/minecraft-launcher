@@ -132,8 +132,8 @@ class LauncherResourcesTest
     @Test
     void thePackIndexListsEveryPack() throws Exception
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack A", "1", "forge", true, false ) );
-        view.packs.add( new McpLauncherView.PackSummary( "Pack B", "2", "fabric", false, true ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack A", "1", "1", false, "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack B", "2", "2", false, "fabric", false, true ) );
 
         McpResourceRegistry.Match match = registry.resolve( LauncherResources.PACKS_URI );
         JsonObject index = JSONUtilities.getGson()
@@ -147,7 +147,7 @@ class LauncherResourcesTest
     @Test
     void aManifestIsReadThroughItsTemplate() throws Exception
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.manifest = "{\"packName\":\"Pack\"}";
 
         McpResourceRegistry.Match match = registry.resolve( "mica://modpack/Pack/manifest" );
@@ -157,7 +157,7 @@ class LauncherResourcesTest
     @Test
     void aCrashReportIsReadThroughItsTemplate() throws Exception
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Pack", "1", "1", false, "forge", true, false ) );
         view.crash = new McpLauncherView.CrashInfo( "boom", "", "", "", List.of() );
 
         McpResourceRegistry.Match match = registry.resolve( "mica://modpack/Pack/crash-report" );
@@ -184,8 +184,8 @@ class LauncherResourcesTest
     @Test
     void manifestsAreEnumeratedForEveryPack()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Installed", "1", "forge", true, false ) );
-        view.packs.add( new McpLauncherView.PackSummary( "Available", "2", "forge", false, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Installed", "1", "1", false, "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Available", "2", "2", false, "forge", false, false ) );
 
         List< String > uris = uriListing();
         assertTrue( uris.contains( "mica://modpack/Installed/manifest" ), uris.toString() );
@@ -196,8 +196,8 @@ class LauncherResourcesTest
     @Test
     void crashReportsAreEnumeratedOnlyForInstalledPacks()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "Installed", "1", "forge", true, false ) );
-        view.packs.add( new McpLauncherView.PackSummary( "Available", "2", "forge", false, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Installed", "1", "1", false, "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "Available", "2", "2", false, "forge", false, false ) );
 
         List< String > uris = uriListing();
         assertTrue( uris.contains( "mica://modpack/Installed/crash-report" ), uris.toString() );
@@ -207,7 +207,7 @@ class LauncherResourcesTest
     @Test
     void aPackNameWithSpacesIsEnumeratedEncodedAndResolvesBack()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "All the Mods 9", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "All the Mods 9", "1", "1", false, "forge", true, false ) );
 
         String uri = uriListing().stream().filter( u -> u.endsWith( "/manifest" ) ).findFirst()
                 .orElseThrow();
@@ -227,9 +227,9 @@ class LauncherResourcesTest
     @Test
     void aPackWhoseNameCannotBeAUriSegmentIsSkippedRatherThanAdvertised()
     {
-        view.packs.add( new McpLauncherView.PackSummary( "good", "1", "forge", true, false ) );
+        view.packs.add( new McpLauncherView.PackSummary( "good", "1", "1", false, "forge", true, false ) );
         for ( String hostile : new String[]{ "../etc", "a/b", "..", ".", "   ", "with\nnewline" } ) {
-            view.packs.add( new McpLauncherView.PackSummary( hostile, "1", "forge", true, false ) );
+            view.packs.add( new McpLauncherView.PackSummary( hostile, "1", "1", false, "forge", true, false ) );
         }
 
         List< String > uris = uriListing();
@@ -249,7 +249,7 @@ class LauncherResourcesTest
     {
         for ( String name : new String[]{ "simple", "with space", "with-dash", "with_underscore",
                                           "100% Pack", "パック", "dots.in.name" } ) {
-            view.packs.add( new McpLauncherView.PackSummary( name, "1", "forge", true, false ) );
+            view.packs.add( new McpLauncherView.PackSummary( name, "1", "1", false, "forge", true, false ) );
         }
         List< String > uris = uriListing();
         assertEquals( 14, uris.size(), "7 packs x 2 per-pack resources" );

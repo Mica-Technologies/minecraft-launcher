@@ -98,6 +98,8 @@ public final class LauncherResources
                 JsonObject entry = new JsonObject();
                 entry.addProperty( "friendlyName", pack.friendlyName() );
                 entry.addProperty( "version", pack.version() );
+                entry.addProperty( "latestVersion", pack.latestVersion() );
+                entry.addProperty( "updateAvailable", pack.updateAvailable() );
                 entry.addProperty( "modLoader", pack.modLoader() );
                 entry.addProperty( "installed", pack.installed() );
                 entry.addProperty( "unstable", pack.unstable() );
