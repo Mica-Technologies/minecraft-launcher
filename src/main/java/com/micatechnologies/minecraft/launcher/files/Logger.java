@@ -112,7 +112,9 @@ public class Logger
     /**
      * Maximum number of rotated backup log files to retain.
      */
-    private static final int MAX_LOG_BACKUPS = 3;
+    // Package-private (was private) so tests can assert rotation behavior at the boundary
+    // (the oldest backup being deleted) without hard-coding this constant a second time.
+    static final int MAX_LOG_BACKUPS = 3;
 
     /**
      * Initializes (or re-initializes) the logging system for the given log file.
@@ -262,7 +264,9 @@ public class Logger
      *
      * @param logFile the current log file to rotate
      */
-    private static void rotateLogFiles( File logFile )
+    // Package-private (was private) so the rotation sequencing can be tested directly against
+    // @TempDir files without needing the log system's global streams initialized.
+    static void rotateLogFiles( File logFile )
     {
         String basePath = logFile.getAbsolutePath();
 
