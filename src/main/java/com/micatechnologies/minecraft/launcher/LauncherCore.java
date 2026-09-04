@@ -1461,6 +1461,10 @@ public class LauncherCore
             // with backend cleanup and leave the user's keyboard stuck
             // on whatever the last effect was.
             com.micatechnologies.minecraft.launcher.rgb.RgbIntegration.shutdown();
+            // Stop the MCP listener and delete its endpoint file. A file left behind would
+            // point a client at a port this process no longer owns, carrying a bearer token
+            // whatever now listens there never issued. Harmless when the server never started.
+            com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.stop();
             DiscordRpcUtility.exit();
             // Release the shared taskbar wrapper before tearing down the GUI controller —
             // closing it after the stage is gone occasionally leaves the COM thread blocked

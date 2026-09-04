@@ -309,6 +309,14 @@ class LauncherSession
 
         GameModPackManager.startAvailableModPacksFetchAsync();
 
+        // Start the MCP server, but only if the user switched it on -- it is off by default
+        // and startIfEnabled() binds nothing otherwise. Placed here because the read-only
+        // tools serve the installed-pack list populated just above, and because a failure to
+        // bind is logged and swallowed rather than preventing the launcher from coming up.
+        // GUI path only for now: the consent prompt needs a stage, so a TUI or headless run
+        // would fail closed on anything that is not auto-approved.
+        com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.startIfEnabled();
+
         com.micatechnologies.minecraft.launcher.gui.MCLauncherMainGui.prefetchAvailableModpackBackgrounds();
 
         // Show main (mod pack selection) window
