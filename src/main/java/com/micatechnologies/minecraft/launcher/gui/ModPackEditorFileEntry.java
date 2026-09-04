@@ -442,5 +442,19 @@ public class ModPackEditorFileEntry
         return extraHashes.get( algo.toLowerCase( java.util.Locale.ROOT ) );
     }
 
+    /**
+     * Returns an unmodifiable view of every stored non-primary hash, keyed by lower-case
+     * algorithm name. Used when converting to the headless
+     * {@code game.modpack.ModPackFileEntry} so the conversion carries whatever the manifest
+     * had, rather than a hard-coded list of algorithms.
+     *
+     * @return the extra-hash map; empty when the entry carries only a primary hash
+     *
+     * @since 3.0
+     */
+    public java.util.Map< String, String > getExtraHashes() {
+        return java.util.Collections.unmodifiableMap( extraHashes );
+    }
+
     // endregion
 }

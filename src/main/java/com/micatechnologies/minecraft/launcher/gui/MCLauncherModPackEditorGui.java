@@ -24,6 +24,8 @@ import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackDocument;
+import com.micatechnologies.minecraft.launcher.game.modpack.ModPackFileEntry;
 import com.micatechnologies.minecraft.launcher.utilities.CacheManager;
 import com.micatechnologies.minecraft.launcher.utilities.HashUtilities;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
@@ -171,9 +173,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     // endregion
 
     /**
-     * The working JSON document being edited.
+     * The manifest document being edited. All manifest rules -- defaults, field encoding,
+     * the file-list hash model, validation, version bumping -- live in
+     * {@link ModPackDocument}; this screen is a view over it.
      */
-    private JsonObject workingDocument = null;
+    private ModPackDocument workingDocument = null;
 
     /**
      * Maps JSON array key to the ObservableList backing each file list tab's TableView.
@@ -376,22 +380,22 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // Configure image preview refresh on URL field focus loss
         packLogoURLField.focusedProperty().addListener( ( obs, wasFocused, isFocused ) -> {
             if ( !isFocused ) {
-                refreshImagePreview( firstLine( packLogoURLField.getText() ), logoPreview );
+                refreshImagePreview( ModPackDocument.firstLine( packLogoURLField.getText() ), logoPreview );
             }
         } );
         packBgURLField.focusedProperty().addListener( ( obs, wasFocused, isFocused ) -> {
             if ( !isFocused ) {
-                refreshImagePreview( firstLine( packBgURLField.getText() ), bgPreview );
+                refreshImagePreview( ModPackDocument.firstLine( packBgURLField.getText() ), bgPreview );
             }
         } );
 
         // Create file list tabs (all 5 types)
-        Tab modsTab = createFileListTab( "Mods", "packMods", true, true );
+        Tab modsTab = createFileListTab( "Mods", ModPackDocument.FileList.MODS );
         editorTabPane.getTabs().add( modsTab );
-        editorTabPane.getTabs().add( createFileListTab( "Configs", "packConfigs", false, true ) );
-        editorTabPane.getTabs().add( createFileListTab( "Resources", "packResourcePacks", false, false ) );
-        editorTabPane.getTabs().add( createFileListTab( "Shaders", "packShaderPacks", false, false ) );
-        editorTabPane.getTabs().add( createFileListTab( "Initial Files", "packInitialFiles", false, true ) );
+        editorTabPane.getTabs().add( createFileListTab( "Configs", ModPackDocument.FileList.CONFIGS ) );
+        editorTabPane.getTabs().add( createFileListTab( "Resources", ModPackDocument.FileList.RESOURCE_PACKS ) );
+        editorTabPane.getTabs().add( createFileListTab( "Shaders", ModPackDocument.FileList.SHADER_PACKS ) );
+        editorTabPane.getTabs().add( createFileListTab( "Initial Files", ModPackDocument.FileList.INITIAL_FILES ) );
 
         // Add Modrinth search button to the Mods tab toolbar
         BorderPane modsContent = ( BorderPane ) modsTab.getContent();
@@ -436,8 +440,11 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     updateStatus( LocalizationManager.format( "editor.status.manifestLoadFailed", pack.getFriendlyName() ) );
                     return;
                 }
-                JsonObject parsed = JSONUtilities.getGson().fromJson( json, JsonObject.class );
-                if ( parsed == null ) {
+                final ModPackDocument parsed;
+                try {
+                    parsed = ModPackDocument.fromJson( json );
+                }
+                catch ( Exception parseEx ) {
                     updateStatus( LocalizationManager.format( "editor.status.manifestUnreadable", pack.getFriendlyName() ) );
                     return;
                 }
@@ -516,34 +523,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      */
     private void newDocument()
     {
-        workingDocument = new JsonObject();
-        workingDocument.addProperty( "manifestFormat", 2 );
-        workingDocument.addProperty( "packName", "" );
-        workingDocument.addProperty( "packVersion", "1.0.0" );
-        workingDocument.addProperty( "packURL", "" );
-        workingDocument.addProperty( "packUnstable", false );
-        workingDocument.addProperty( "packCustomDiscordRpc", false );
-        workingDocument.addProperty( "packMinRAMGB", "2" );
-        workingDocument.addProperty( "packLogoURL", "" );
-        workingDocument.addProperty( "packLogoSha1", "" );
-        workingDocument.addProperty( "packBackgroundURL", "" );
-        workingDocument.addProperty( "packBackgroundSha1", "" );
-        workingDocument.addProperty( "packForgeURL", "" );
-        workingDocument.addProperty( "packForgeHash", "" );
-        // New-document defaults for the modloader-agnostic fields. Type
-        // defaults to Forge so existing "Pick Forge Version" muscle
-        // memory keeps working out of the box.
-        workingDocument.addProperty( "packModLoader",
-                com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE );
-        workingDocument.addProperty( "packModLoaderURL", "" );
-        workingDocument.addProperty( "packModLoaderHash", "" );
-        workingDocument.addProperty( "packMinecraftVersion", "" );
-        workingDocument.add( "packScanExclusions", new JsonArray() );
-        workingDocument.add( "packMods", new JsonArray() );
-        workingDocument.add( "packConfigs", new JsonArray() );
-        workingDocument.add( "packResourcePacks", new JsonArray() );
-        workingDocument.add( "packShaderPacks", new JsonArray() );
-        workingDocument.add( "packInitialFiles", new JsonArray() );
+        workingDocument = ModPackDocument.blank();
 
         currentFile = null;
         savedSnapshot = serializeDocument();
@@ -573,7 +553,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 SystemUtilities.spawnNewTask( () -> {
                     try {
                         String json = FileUtils.readFileToString( file, StandardCharsets.UTF_8 );
-                        workingDocument = JSONUtilities.getGson().fromJson( json, JsonObject.class );
+                        workingDocument = ModPackDocument.fromJson( json );
                         currentFile = file;
                         GUIUtilities.JFXPlatformRun( () -> {
                             populateFieldsFromDocument();
@@ -616,7 +596,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                     try {
                         updateStatus( LocalizationManager.get( "editor.status.downloading" ) );
                         String json = NetworkUtilities.downloadFileFromURL( url );
-                        workingDocument = JSONUtilities.getGson().fromJson( json, JsonObject.class );
+                        workingDocument = ModPackDocument.fromJson( json );
                         currentFile = null;
                         GUIUtilities.JFXPlatformRun( () -> {
                             populateFieldsFromDocument();
@@ -657,11 +637,9 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
                 fileChooser.setInitialDirectory( currentFile.getParentFile() );
                 fileChooser.setInitialFileName( currentFile.getName() );
             }
-            else if ( workingDocument.has( "packName" ) &&
-                    !workingDocument.get( "packName" ).getAsString().isEmpty() ) {
-                fileChooser.setInitialFileName(
-                        workingDocument.get( "packName" ).getAsString().replaceAll( "[^a-zA-Z0-9]", "" )
-                                + ModPackConstants.MODPACK_FILE_EXTENSION );
+            else if ( !workingDocument.getString( ModPackDocument.KEY_PACK_NAME ).isEmpty() ) {
+                fileChooser.setInitialFileName( workingDocument.sanitizedFileBaseName()
+                                                        + ModPackConstants.MODPACK_FILE_EXTENSION );
             }
             File file = fileChooser.showSaveDialog( stage );
             if ( file != null ) {
@@ -1552,37 +1530,10 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     {
         GUIUtilities.JFXPlatformRun( () -> collectFieldsToDocument() );
         SystemUtilities.spawnNewTask( () -> {
+            List< String > issueList = workingDocument.validate( MCLauncherModPackEditorGui::localize );
             StringBuilder issues = new StringBuilder();
-
-            // Check required fields
-            checkRequired( issues, "packName", LocalizationManager.get( "editor.validate.label.packName" ) );
-            checkRequired( issues, "packVersion", LocalizationManager.get( "editor.validate.label.packVersion" ) );
-
-            // Check RAM is a valid number
-            if ( workingDocument.has( "packMinRAMGB" ) ) {
-                try {
-                    Double.parseDouble( workingDocument.get( "packMinRAMGB" ).getAsString() );
-                }
-                catch ( NumberFormatException e ) {
-                    issues.append( LocalizationManager.get( "editor.validate.invalidMinRam" ) );
-                }
-            }
-
-            // Validate file list entries
-            validateFileEntries( issues, "packMods", LocalizationManager.get( "editor.validate.label.mods" ), true );
-            validateFileEntries( issues, "packConfigs", LocalizationManager.get( "editor.validate.label.configs" ), false );
-            validateFileEntries( issues, "packResourcePacks", LocalizationManager.get( "editor.validate.label.resourcePacks" ), false );
-            validateFileEntries( issues, "packShaderPacks", LocalizationManager.get( "editor.validate.label.shaderPacks" ), false );
-            validateFileEntries( issues, "packInitialFiles", LocalizationManager.get( "editor.validate.label.initialFiles" ), false );
-
-            // Round-trip test
-            try {
-                String json = serializeDocument();
-                JSONUtilities.getGson().fromJson( json,
-                        com.micatechnologies.minecraft.launcher.game.modpack.GameModPack.class );
-            }
-            catch ( Exception e ) {
-                issues.append( LocalizationManager.format( "editor.validate.roundTripFailed", e.getMessage() ) ).append( "\n" );
+            for ( String issue : issueList ) {
+                issues.append( issue ).append( "\n" );
             }
 
             String result = issues.length() == 0
@@ -1617,23 +1568,23 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
             return;
         }
 
-        packNameField.setText( getDocString( "packName" ) );
-        packVersionField.setText( getDocString( "packVersion" ) );
-        packURLField.setText( getDocString( "packURL" ) );
-        packMinRAMField.setText( getDocString( "packMinRAMGB" ) );
-        packUnstableToggle.setSelected( getDocBool( "packUnstable" ) );
-        packCustomDiscordRpcToggle.setSelected( getDocBool( "packCustomDiscordRpc" ) );
+        packNameField.setText( workingDocument.getString( ModPackDocument.KEY_PACK_NAME ) );
+        packVersionField.setText( workingDocument.getString( ModPackDocument.KEY_PACK_VERSION ) );
+        packURLField.setText( workingDocument.getString( "packURL" ) );
+        packMinRAMField.setText( workingDocument.getString( ModPackDocument.KEY_PACK_MIN_RAM_GB ) );
+        packUnstableToggle.setSelected( workingDocument.getBool( "packUnstable" ) );
+        packCustomDiscordRpcToggle.setSelected( workingDocument.getBool( "packCustomDiscordRpc" ) );
         // Modloader fields. Prefer the new packModLoader* keys; fall
         // back to the legacy packForge* fields so manifests authored
         // before the multi-loader work still round-trip cleanly.
-        String storedType = getDocString( "packModLoader" );
-        String storedUrl = getDocString( "packModLoaderURL" );
-        String storedHash = getDocString( "packModLoaderHash" );
+        String storedType = workingDocument.getString( "packModLoader" );
+        String storedUrl = workingDocument.getString( "packModLoaderURL" );
+        String storedHash = workingDocument.getString( "packModLoaderHash" );
         if ( storedUrl == null || storedUrl.isBlank() ) {
-            storedUrl = getDocString( "packForgeURL" );
+            storedUrl = workingDocument.getString( "packForgeURL" );
         }
         if ( storedHash == null || storedHash.isBlank() ) {
-            storedHash = getDocString( "packForgeHash" );
+            storedHash = workingDocument.getString( "packForgeHash" );
         }
         if ( packModLoaderTypeCombo != null ) {
             packModLoaderTypeCombo.selectItem( displayLabelForLoaderType( storedType ) );
@@ -1646,31 +1597,19 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
         // (derives MC version from the loader installer at launch time)
         // but the editor shows + persists it for human inspection.
         if ( packMinecraftVersionField != null ) {
-            packMinecraftVersionField.setText( getDocString( "packMinecraftVersion" ) );
+            packMinecraftVersionField.setText( workingDocument.getString( "packMinecraftVersion" ) );
         }
-        packLogoURLField.setText( getDocStringOrArrayLines( "packLogoURL" ) );
-        packLogoSha1Field.setText( getDocString( "packLogoSha1" ) );
-        packBgURLField.setText( getDocStringOrArrayLines( "packBackgroundURL" ) );
-        packBgSha1Field.setText( getDocString( "packBackgroundSha1" ) );
+        packLogoURLField.setText( workingDocument.getStringOrArrayLines( "packLogoURL" ) );
+        packLogoSha1Field.setText( workingDocument.getString( "packLogoSha1" ) );
+        packBgURLField.setText( workingDocument.getStringOrArrayLines( "packBackgroundURL" ) );
+        packBgSha1Field.setText( workingDocument.getString( "packBackgroundSha1" ) );
 
         // Scan exclusions
-        if ( workingDocument.has( "packScanExclusions" ) && workingDocument.get( "packScanExclusions" ).isJsonArray() ) {
-            StringBuilder sb = new StringBuilder();
-            for ( var el : workingDocument.getAsJsonArray( "packScanExclusions" ) ) {
-                if ( sb.length() > 0 ) {
-                    sb.append( "\n" );
-                }
-                sb.append( el.getAsString() );
-            }
-            scanExclusionsArea.setText( sb.toString() );
-        }
-        else {
-            scanExclusionsArea.setText( "" );
-        }
+        scanExclusionsArea.setText( workingDocument.getArrayLines( ModPackDocument.KEY_SCAN_EXCLUSIONS ) );
 
         // Image previews — use the primary (first) URL of each.
-        refreshImagePreview( firstLine( getDocStringOrArrayLines( "packLogoURL" ) ), logoPreview );
-        refreshImagePreview( firstLine( getDocStringOrArrayLines( "packBackgroundURL" ) ), bgPreview );
+        refreshImagePreview( ModPackDocument.firstLine( workingDocument.getStringOrArrayLines( "packLogoURL" ) ), logoPreview );
+        refreshImagePreview( ModPackDocument.firstLine( workingDocument.getStringOrArrayLines( "packBackgroundURL" ) ), bgPreview );
 
         // File lists
         populateFileListsFromDocument();
@@ -1682,54 +1621,44 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     private void collectFieldsToDocument()
     {
         if ( workingDocument == null ) {
-            workingDocument = new JsonObject();
+            workingDocument = ModPackDocument.wrapping( new JsonObject() );
         }
 
-        workingDocument.addProperty( "packName", packNameField.getText() );
-        workingDocument.addProperty( "packVersion", packVersionField.getText() );
-        workingDocument.addProperty( "packURL", packURLField.getText() );
-        workingDocument.addProperty( "packMinRAMGB", packMinRAMField.getText() );
-        workingDocument.addProperty( "packUnstable", packUnstableToggle.isSelected() );
-        workingDocument.addProperty( "packCustomDiscordRpc", packCustomDiscordRpcToggle.isSelected() );
+        workingDocument.putString( ModPackDocument.KEY_PACK_NAME, packNameField.getText() );
+        workingDocument.putString( ModPackDocument.KEY_PACK_VERSION, packVersionField.getText() );
+        workingDocument.putString( "packURL", packURLField.getText() );
+        workingDocument.putString( ModPackDocument.KEY_PACK_MIN_RAM_GB, packMinRAMField.getText() );
+        workingDocument.putBool( "packUnstable", packUnstableToggle.isSelected() );
+        workingDocument.putBool( "packCustomDiscordRpc", packCustomDiscordRpcToggle.isSelected() );
         // Modloader fields — write into the modloader-agnostic
         // packModLoader* slots. Emit empty legacy packForge* fields
         // too so manifests round-trip on older launcher builds without
         // the back-compat code path nullifying them.
         String loaderType = configTypeForLabel(
                 packModLoaderTypeCombo != null ? packModLoaderTypeCombo.getValue() : null );
-        workingDocument.addProperty( "packModLoader", loaderType );
-        workingDocument.addProperty( "packModLoaderURL", packForgeURLField.getText() );
-        workingDocument.addProperty( "packModLoaderHash", packForgeHashField.getText() );
+        workingDocument.putString( "packModLoader", loaderType );
+        workingDocument.putString( "packModLoaderURL", packForgeURLField.getText() );
+        workingDocument.putString( "packModLoaderHash", packForgeHashField.getText() );
         // Forge-specific fields kept around for back-compat with older
         // launcher builds reading the same manifest. Mirror the URL +
         // hash only when the loader is actually Forge — for Fabric /
         // NeoForge they'd be misleading.
         boolean isForge = com.micatechnologies.minecraft.launcher.consts.ModPackConstants.MOD_LOADER_FORGE
                 .equals( loaderType );
-        workingDocument.addProperty( "packForgeURL", isForge ? packForgeURLField.getText() : "" );
-        workingDocument.addProperty( "packForgeHash", isForge ? packForgeHashField.getText() : "" );
+        workingDocument.putString( "packForgeURL", isForge ? packForgeURLField.getText() : "" );
+        workingDocument.putString( "packForgeHash", isForge ? packForgeHashField.getText() : "" );
         // Informational MC version field — round-trip through the
         // manifest JSON. Runtime ignores it; only the editor surfaces it.
         if ( packMinecraftVersionField != null ) {
-            workingDocument.addProperty( "packMinecraftVersion", packMinecraftVersionField.getText() );
+            workingDocument.putString( "packMinecraftVersion", packMinecraftVersionField.getText() );
         }
-        putStringOrArray( "packLogoURL", packLogoURLField.getText() );
-        workingDocument.addProperty( "packLogoSha1", packLogoSha1Field.getText() );
-        putStringOrArray( "packBackgroundURL", packBgURLField.getText() );
-        workingDocument.addProperty( "packBackgroundSha1", packBgSha1Field.getText() );
+        workingDocument.putStringOrArray( "packLogoURL", packLogoURLField.getText() );
+        workingDocument.putString( "packLogoSha1", packLogoSha1Field.getText() );
+        workingDocument.putStringOrArray( "packBackgroundURL", packBgURLField.getText() );
+        workingDocument.putString( "packBackgroundSha1", packBgSha1Field.getText() );
 
         // Scan exclusions
-        JsonArray exclusions = new JsonArray();
-        String exclusionText = scanExclusionsArea.getText();
-        if ( exclusionText != null && !exclusionText.isBlank() ) {
-            for ( String line : exclusionText.split( "\n" ) ) {
-                String trimmed = line.trim();
-                if ( !trimmed.isEmpty() ) {
-                    exclusions.add( trimmed );
-                }
-            }
-        }
-        workingDocument.add( "packScanExclusions", exclusions );
+        workingDocument.putArrayLines( ModPackDocument.KEY_SCAN_EXCLUSIONS, scanExclusionsArea.getText() );
 
         // File lists
         collectFileListsToDocument();
@@ -1742,16 +1671,20 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     /**
      * Creates a Tab containing a filterable, editable TableView for one file list type.
      *
-     * @param tabName          display name for the tab
-     * @param jsonArrayKey     the key in the working document (e.g., "packMods")
-     * @param hasName          true if entries have a "name" field (mods only)
-     * @param hasClientServerReq true if entries have clientReq/serverReq fields
+     * @param tabName display name for the tab
+     * @param list    the manifest file list this tab edits; its
+     *                {@link ModPackDocument.FileList#hasName()} and
+     *                {@link ModPackDocument.FileList#hasClientServerReq()} flags decide which
+     *                columns the table shows
      *
      * @return the configured Tab
      */
     @SuppressWarnings( "unchecked" )
-    private Tab createFileListTab( String tabName, String jsonArrayKey, boolean hasName, boolean hasClientServerReq )
+    private Tab createFileListTab( String tabName, ModPackDocument.FileList list )
     {
+        final String jsonArrayKey = list.getKey();
+        final boolean hasName = list.hasName();
+        final boolean hasClientServerReq = list.hasClientServerReq();
         ObservableList< ModPackEditorFileEntry > data = FXCollections.observableArrayList();
         fileListData.put( jsonArrayKey, data );
 
@@ -2044,90 +1977,32 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      */
     private void populateFileListsFromDocument()
     {
-        populateFileList( "packMods", true, true );
-        populateFileList( "packConfigs", false, true );
-        populateFileList( "packResourcePacks", false, false );
-        populateFileList( "packShaderPacks", false, false );
-        populateFileList( "packInitialFiles", false, true );
+        for ( ModPackDocument.FileList list : ModPackDocument.FileList.values() ) {
+            populateFileList( list );
+        }
     }
 
     /**
-     * Populates a single file-list tab's backing list from the matching JSON array in the working
-     * document. Each entry's strongest available hash (sha256 → sha1 → md5) becomes the displayed
-     * primary hash; weaker hashes are stashed for round-trip preservation. Missing entries, a
-     * missing/non-array key, or a null document leave the list empty.
+     * Populates a single file-list tab's backing list from the matching manifest array. The
+     * manifest rules -- hash precedence, the {@code "-1"} no-hash sentinel, requirement-flag
+     * defaults -- live in {@link ModPackDocument#readFileList}; this method only adapts the
+     * resulting entries into the JavaFX-property-backed rows the table binds to.
      *
-     * @param jsonArrayKey       the document key for this list (e.g. {@code "packMods"})
-     * @param hasName            whether entries carry a {@code name} field (mods only)
-     * @param hasClientServerReq whether entries carry {@code clientReq}/{@code serverReq} flags
+     * @param list the file list to populate
      */
-    private void populateFileList( String jsonArrayKey, boolean hasName, boolean hasClientServerReq )
+    private void populateFileList( ModPackDocument.FileList list )
     {
-        ObservableList< ModPackEditorFileEntry > data = fileListData.get( jsonArrayKey );
+        ObservableList< ModPackEditorFileEntry > data = fileListData.get( list.getKey() );
         if ( data == null ) {
             return;
         }
         data.clear();
-
-        if ( workingDocument == null || !workingDocument.has( jsonArrayKey ) ||
-                !workingDocument.get( jsonArrayKey ).isJsonArray() ) {
+        if ( workingDocument == null ) {
             return;
         }
-
-        for ( JsonElement el : workingDocument.getAsJsonArray( jsonArrayKey ) ) {
-            if ( !el.isJsonObject() ) {
-                continue;
-            }
-            JsonObject obj = el.getAsJsonObject();
-            String name = hasName && obj.has( "name" ) ? obj.get( "name" ).getAsString() : "";
-            String remote = obj.has( "remote" ) ? obj.get( "remote" ).getAsString() : "";
-            String local = obj.has( "local" ) ? obj.get( "local" ).getAsString() : "";
-
-            // Read every hash field the JSON has populated. The strongest
-            // (sha256 → sha1 → md5) becomes the entry's primary "hash" + "hashType"
-            // displayed in the editor's Hash column; the others are stashed in
-            // the entry's extraHashes map so they round-trip through the save
-            // pass without being silently dropped — so a manifest carrying both
-            // sha1 and sha256 keeps both after an edit cycle.
-            String sha1Val   = readHashValue( obj, "sha1" );
-            String md5Val    = readHashValue( obj, "md5" );
-            String sha256Val = readHashValue( obj, "sha256" );
-
-            String hash = "";
-            String hashType = "sha1";
-            if ( sha256Val != null )      { hash = sha256Val; hashType = "sha256"; }
-            else if ( sha1Val != null )   { hash = sha1Val;   hashType = "sha1"; }
-            else if ( md5Val != null )    { hash = md5Val;    hashType = "md5"; }
-
-            boolean clientReq = !hasClientServerReq || !obj.has( "clientReq" ) || obj.get( "clientReq" ).getAsBoolean();
-            boolean serverReq = !hasClientServerReq || !obj.has( "serverReq" ) || obj.get( "serverReq" ).getAsBoolean();
-
-            ModPackEditorFileEntry entry = new ModPackEditorFileEntry( name, remote, local, hash, hashType,
-                                                                       clientReq, serverReq );
-            // Stash non-primary hashes for round-trip preservation.
-            if ( !hashType.equals( "sha1" )   && sha1Val != null )   entry.putExtraHash( "sha1",   sha1Val );
-            if ( !hashType.equals( "md5" )    && md5Val != null )    entry.putExtraHash( "md5",    md5Val );
-            if ( !hashType.equals( "sha256" ) && sha256Val != null ) entry.putExtraHash( "sha256", sha256Val );
-            // Read optional Modrinth slug (manifestFormat 2+)
-            if ( obj.has( "modrinthSlug" ) ) {
-                entry.setModrinthSlug( obj.get( "modrinthSlug" ).getAsString() );
-            }
-            data.add( entry );
+        for ( ModPackFileEntry entry : workingDocument.readFileList( list ) ) {
+            data.add( toEditorEntry( entry ) );
         }
-    }
-
-    /** Returns the value of {@code obj.get(key)} when it's a non-blank,
-     *  non-{@code "-1"} string; {@code null} otherwise. Mirrors
-     *  {@code ManagedGameFile.hasUsableHash}'s "is this a real hash"
-     *  semantics. */
-    private static String readHashValue( JsonObject obj, String key ) {
-        if ( !obj.has( key ) ) return null;
-        try {
-            String v = obj.get( key ).getAsString();
-            if ( v == null || v.isBlank() || v.equals( "-1" ) ) return null;
-            return v;
-        }
-        catch ( Exception e ) { return null; }
     }
 
     /**
@@ -2135,180 +2010,78 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      */
     private void collectFileListsToDocument()
     {
-        collectFileList( "packMods", true, true );
-        collectFileList( "packConfigs", false, true );
-        collectFileList( "packResourcePacks", false, false );
-        collectFileList( "packShaderPacks", false, false );
-        collectFileList( "packInitialFiles", false, true );
+        for ( ModPackDocument.FileList list : ModPackDocument.FileList.values() ) {
+            collectFileList( list );
+        }
     }
 
     /**
-     * Serializes a single file-list tab's backing list back into the matching JSON array on the
-     * working document. Writes all three hash slots ({@code sha1}/{@code md5}/{@code sha256}) — the
-     * primary one from the entry's displayed hash plus any preserved extra hashes — using the
-     * {@code "-1"} sentinel for empty slots to match the launcher's "no usable hash" convention.
+     * Serializes a single file-list tab's backing list back into the matching manifest array.
+     * The output format -- all three hash slots, the {@code "-1"} sentinel, which fields each
+     * list emits -- is {@link ModPackDocument#writeFileList}'s concern; this method only adapts
+     * the table's rows back into headless entries.
      *
-     * @param jsonArrayKey       the document key to write (e.g. {@code "packMods"})
-     * @param hasName            whether entries should emit a {@code name} field (mods only)
-     * @param hasClientServerReq whether entries should emit {@code clientReq}/{@code serverReq} flags
+     * @param list the file list to write
      */
-    private void collectFileList( String jsonArrayKey, boolean hasName, boolean hasClientServerReq )
+    private void collectFileList( ModPackDocument.FileList list )
     {
-        ObservableList< ModPackEditorFileEntry > data = fileListData.get( jsonArrayKey );
+        ObservableList< ModPackEditorFileEntry > data = fileListData.get( list.getKey() );
         if ( data == null ) {
             return;
         }
-
-        JsonArray array = new JsonArray();
-        for ( ModPackEditorFileEntry entry : data ) {
-            JsonObject obj = new JsonObject();
-            if ( hasName ) {
-                obj.addProperty( "name", entry.getName() );
-            }
-            obj.addProperty( "remote", entry.getRemote() );
-            obj.addProperty( "local", entry.getLocal() );
-
-            // Write all three hash slots — the primary one (matching hashType)
-            // gets the user-visible hash field, and the other two pull from
-            // extraHashes so a manifest with both sha1 and sha256 round-trips
-            // both through an edit cycle. Slots without a value get the "-1"
-            // sentinel that ManagedGameFile.hasUsableHash treats as "no hash"
-            // (consistent with the rest of the editor's output format).
-            String ht = entry.getHashType();
-            String hv = entry.getHash();
-            String sha1Out   = "md5".equalsIgnoreCase( ht ) || "sha256".equalsIgnoreCase( ht )
-                               ? entry.getExtraHash( "sha1" )
-                               : ( hv.isEmpty() ? null : hv );
-            String md5Out    = "md5".equalsIgnoreCase( ht )
-                               ? ( hv.isEmpty() ? null : hv )
-                               : entry.getExtraHash( "md5" );
-            String sha256Out = "sha256".equalsIgnoreCase( ht )
-                               ? ( hv.isEmpty() ? null : hv )
-                               : entry.getExtraHash( "sha256" );
-            obj.addProperty( "sha1",   sha1Out   == null || sha1Out.isBlank()   ? "-1" : sha1Out );
-            obj.addProperty( "md5",    md5Out    == null || md5Out.isBlank()    ? "-1" : md5Out );
-            obj.addProperty( "sha256", sha256Out == null || sha256Out.isBlank() ? "-1" : sha256Out );
-
-            if ( hasClientServerReq ) {
-                obj.addProperty( "clientReq", entry.isClientReq() );
-                obj.addProperty( "serverReq", entry.isServerReq() );
-            }
-
-            // Include Modrinth slug if present (manifestFormat 2+)
-            if ( !entry.getModrinthSlug().isEmpty() ) {
-                obj.addProperty( "modrinthSlug", entry.getModrinthSlug() );
-            }
-
-            array.add( obj );
+        List< ModPackFileEntry > entries = new ArrayList<>( data.size() );
+        for ( ModPackEditorFileEntry row : data ) {
+            entries.add( toDocumentEntry( row ) );
         }
-        workingDocument.add( jsonArrayKey, array );
+        workingDocument.writeFileList( list, entries );
+    }
+
+    /**
+     * Adapts a headless manifest entry into the JavaFX-property-backed row the editor's tables
+     * bind to, carrying over every preserved non-primary hash.
+     *
+     * @param source the manifest entry to adapt
+     *
+     * @return an equivalent editor row
+     */
+    private static ModPackEditorFileEntry toEditorEntry( ModPackFileEntry source )
+    {
+        ModPackEditorFileEntry row = new ModPackEditorFileEntry( source.getName(), source.getRemote(),
+                                                                 source.getLocal(), source.getHash(),
+                                                                 source.getHashType(), source.isClientReq(),
+                                                                 source.isServerReq() );
+        for ( Map.Entry< String, String > extra : source.getExtraHashes().entrySet() ) {
+            row.putExtraHash( extra.getKey(), extra.getValue() );
+        }
+        row.setModrinthSlug( source.getModrinthSlug() );
+        return row;
+    }
+
+    /**
+     * Adapts an editor row back into a headless manifest entry. The inverse of
+     * {@link #toEditorEntry}; the transient URL-check status is a view concern and is not
+     * carried over.
+     *
+     * @param source the editor row to adapt
+     *
+     * @return an equivalent manifest entry
+     */
+    private static ModPackFileEntry toDocumentEntry( ModPackEditorFileEntry source )
+    {
+        ModPackFileEntry entry = new ModPackFileEntry( source.getName(), source.getRemote(),
+                                                       source.getLocal(), source.getHash(),
+                                                       source.getHashType(), source.isClientReq(),
+                                                       source.isServerReq() );
+        for ( Map.Entry< String, String > extra : source.getExtraHashes().entrySet() ) {
+            entry.putExtraHash( extra.getKey(), extra.getValue() );
+        }
+        entry.setModrinthSlug( source.getModrinthSlug() );
+        return entry;
     }
 
     // endregion
 
     // region Helpers
-
-    /**
-     * Reads a string value from the working document.
-     *
-     * @param key the document key to read
-     *
-     * @return the value as a string, or {@code ""} if absent or JSON-null
-     */
-    private String getDocString( String key )
-    {
-        if ( workingDocument.has( key ) && !workingDocument.get( key ).isJsonNull() ) {
-            return workingDocument.get( key ).getAsString();
-        }
-        return "";
-    }
-
-    /**
-     * Reads a {@code string | string[]} manifest value (e.g. {@code packLogoURL}) as newline-joined
-     * lines for a multi-line editor field: a single string → one line; an array → one line per
-     * element; absent / null → empty. The inverse of {@link #putStringOrArray}.
-     */
-    private String getDocStringOrArrayLines( String key )
-    {
-        if ( !workingDocument.has( key ) || workingDocument.get( key ).isJsonNull() ) {
-            return "";
-        }
-        var el = workingDocument.get( key );
-        if ( el.isJsonArray() ) {
-            StringBuilder sb = new StringBuilder();
-            for ( var item : el.getAsJsonArray() ) {
-                if ( item != null && !item.isJsonNull() ) {
-                    if ( sb.length() > 0 ) {
-                        sb.append( "\n" );
-                    }
-                    sb.append( item.getAsString() );
-                }
-            }
-            return sb.toString();
-        }
-        return el.getAsString();
-    }
-
-    /**
-     * Writes a multi-line editor field back as a {@code string | string[]} manifest value: one
-     * non-blank line → a bare string; several → a JSON array (order preserved); none → empty string.
-     * The inverse of {@link #getDocStringOrArrayLines}.
-     */
-    private void putStringOrArray( String key, String multilineText )
-    {
-        java.util.List< String > lines = new java.util.ArrayList<>();
-        if ( multilineText != null ) {
-            for ( String line : multilineText.split( "\n" ) ) {
-                String trimmed = line.trim();
-                if ( !trimmed.isEmpty() ) {
-                    lines.add( trimmed );
-                }
-            }
-        }
-        if ( lines.isEmpty() ) {
-            workingDocument.addProperty( key, "" );
-        }
-        else if ( lines.size() == 1 ) {
-            workingDocument.addProperty( key, lines.get( 0 ) );
-        }
-        else {
-            JsonArray arr = new JsonArray();
-            for ( String line : lines ) {
-                arr.add( line );
-            }
-            workingDocument.add( key, arr );
-        }
-    }
-
-    /** First non-blank line of a multi-line value (the "primary"), or "" if none. */
-    private static String firstLine( String text )
-    {
-        if ( text == null ) {
-            return "";
-        }
-        for ( String line : text.split( "\n" ) ) {
-            String trimmed = line.trim();
-            if ( !trimmed.isEmpty() ) {
-                return trimmed;
-            }
-        }
-        return "";
-    }
-
-    /**
-     * Reads a boolean value from the working document.
-     *
-     * @param key the document key to read
-     *
-     * @return the value as a boolean, or {@code false} if absent or JSON-null
-     */
-    private boolean getDocBool( String key )
-    {
-        if ( workingDocument.has( key ) && !workingDocument.get( key ).isJsonNull() ) {
-            return workingDocument.get( key ).getAsBoolean();
-        }
-        return false;
-    }
 
     /**
      * Serializes the working document to a pretty-printed JSON string. Does not first collect UI
@@ -2318,8 +2091,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
      */
     private String serializeDocument()
     {
-        return com.micatechnologies.minecraft.launcher.utilities.JSONUtilities.getPrettyGson()
-                .toJson( workingDocument );
+        return workingDocument.toPrettyJson();
     }
 
     /**
@@ -2348,84 +2120,34 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     }
 
     /**
-     * Validates every entry in a file list, appending one human-readable line to {@code issues} for
-     * each empty required field. Entries are flagged when their remote URL or local path is blank.
+     * Resolves a localization key and its arguments to display text, for
+     * {@link ModPackDocument#validate}. Keys with no arguments go through
+     * {@link LocalizationManager#get} rather than {@link LocalizationManager#format}, because
+     * MessageFormat treats a single quote as an escape character — routing an
+     * argument-free string through it would mangle apostrophes in the locales that use them.
      *
-     * @param issues       accumulator the validation messages are appended to
-     * @param jsonArrayKey the file-list key to validate (e.g. {@code "packMods"})
-     * @param label        localized display label used to name entries in messages
-     * @param hasName      whether entries carry a name (used to label entries by name when present)
+     * @param key  the localization key
+     * @param args MessageFormat arguments, possibly empty
+     *
+     * @return the resolved display text
      */
-    private void validateFileEntries( StringBuilder issues, String jsonArrayKey, String label, boolean hasName )
+    private static String localize( String key, Object... args )
     {
-        ObservableList< ModPackEditorFileEntry > data = fileListData.get( jsonArrayKey );
-        if ( data == null || data.isEmpty() ) {
-            return;
-        }
-        int idx = 0;
-        for ( ModPackEditorFileEntry entry : data ) {
-            idx++;
-            String entryLabel = label + " #" + idx;
-            if ( hasName && !entry.getName().isBlank() ) {
-                entryLabel = label + " \"" + entry.getName() + "\"";
-            }
-            if ( entry.getRemote().isBlank() ) {
-                issues.append( LocalizationManager.format( "editor.validate.remoteEmpty", entryLabel ) ).append( "\n" );
-            }
-            if ( entry.getLocal().isBlank() ) {
-                issues.append( LocalizationManager.format( "editor.validate.localEmpty", entryLabel ) ).append( "\n" );
-            }
-        }
+        return args == null || args.length == 0 ? LocalizationManager.get( key )
+                                                : LocalizationManager.format( key, args );
     }
 
     /**
-     * Validates that a required scalar field is present and non-blank, appending a message to
-     * {@code issues} when it is missing or empty.
-     *
-     * @param issues accumulator the validation message is appended to
-     * @param key    the document key that must be present and non-blank
-     * @param label  localized display label naming the field in the message
-     */
-    private void checkRequired( StringBuilder issues, String key, String label )
-    {
-        if ( !workingDocument.has( key ) || workingDocument.get( key ).getAsString().isBlank() ) {
-            issues.append( LocalizationManager.format( "editor.validate.required", label ) ).append( "\n" );
-        }
-    }
-
-    /**
-     * Bumps the version number at the specified position (0=major, 1=minor, 2=patch). Parses the current version
-     * string, increments the target segment, and resets all segments to the right to zero.
+     * Bumps the version number in the editor's version field at the specified position
+     * (0=major, 1=minor, 2=patch). The arithmetic lives in
+     * {@link ModPackDocument#bumpVersion}; this method only moves the value in and out of the
+     * text field and updates the status line.
      *
      * @param position 0 for major, 1 for minor, 2 for patch
      */
     private void bumpVersion( int position )
     {
-        String current = packVersionField.getText();
-        if ( current == null || current.isBlank() ) {
-            current = "0.0.0";
-        }
-
-        String[] parts = current.split( "\\." );
-        int[] segments = new int[ Math.max( 3, parts.length ) ];
-        for ( int i = 0; i < parts.length; i++ ) {
-            try {
-                segments[ i ] = Integer.parseInt( parts[ i ] );
-            }
-            catch ( NumberFormatException ignored ) {
-                segments[ i ] = 0;
-            }
-        }
-
-        // Increment target and reset segments to the right
-        if ( position < segments.length ) {
-            segments[ position ]++;
-            for ( int i = position + 1; i < segments.length; i++ ) {
-                segments[ i ] = 0;
-            }
-        }
-
-        String newVersion = segments[ 0 ] + "." + segments[ 1 ] + "." + segments[ 2 ];
+        String newVersion = ModPackDocument.bumpVersion( packVersionField.getText(), position );
         packVersionField.setText( newVersion );
         updateStatus( LocalizationManager.format( "editor.status.versionBumped", newVersion ) );
     }
