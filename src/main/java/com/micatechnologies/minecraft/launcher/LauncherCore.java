@@ -211,6 +211,23 @@ public class LauncherCore
             return;
         }
 
+        // MCP stdio relay (--mcp). An MCP client launches its server as a subprocess speaking
+        // newline-delimited JSON-RPC over stdio, but this launcher cannot BE that subprocess:
+        // it enforces single-instance because concurrent processes mutating the same modpack
+        // folders is unsafe. So this mode runs a thin relay that forwards stdio to the running
+        // launcher's loopback server, which owns the files and applies every approval check.
+        //
+        // Runs before the single-instance lock for the same reason --diag-manifest does: it
+        // must work alongside an already-open launcher rather than being turned away by it.
+        // stdout is reserved for protocol -- a stray log line there would corrupt the stream --
+        // so this path returns before the logger is configured and reports only on stderr.
+        if ( args.length >= 1 && LauncherConstants.PROGRAM_ARG_MCP.equalsIgnoreCase( args[ 0 ] ) ) {
+            System.exit( com.micatechnologies.minecraft.launcher.mcp.transport.StdioProxy.run(
+                    com.micatechnologies.minecraft.launcher.mcp.McpEndpointFile.defaultPath(),
+                    System.in, System.out, System.err ) );
+            return;
+        }
+
         // Enforce single instance. If another instance is already running:
         //   - and we have a mmcl:// URI in argv, forward it to the running instance and exit
         //     silently (the running instance brings itself to focus and dispatches the action).

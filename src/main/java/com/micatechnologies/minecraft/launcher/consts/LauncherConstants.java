@@ -227,6 +227,15 @@ public class LauncherConstants
     public static final String PROGRAM_ARG_DIAG_MANIFEST = "--diag-manifest";
 
     /**
+     * Program argument that runs the launcher as an MCP stdio relay rather than as a
+     * launcher. Handled before the single-instance lock, because its whole job is to talk to
+     * the launcher that already holds that lock.
+     *
+     * @since 2026.2
+     */
+    public static final String PROGRAM_ARG_MCP = "--mcp";
+
+    /**
      * The minimum value allowed for the minimum RAM configuration in settings.
      *
      * @since 1.1
