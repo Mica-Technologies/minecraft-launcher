@@ -1357,58 +1357,29 @@ public class LauncherCore
     }
 
     public static String parseLauncherArgs( String[] args ) {
-        // mmcl:// deep-link from the website / OS scheme handler. The OS hands us the URI as
-        // argv when the launcher cold-starts via the scheme. Stash it for the session to
-        // dispatch once the main GUI is up — we deliberately don't dispatch from here so the
-        // user still flows through auth + mod-pack-info-fetch normally before the URI action
-        // fires (e.g. for mmcl://add, the installed-list needs to be populated first).
-        for ( int i = 0; i < args.length; i++ ) {
-            if ( LauncherUriHandler.isLauncherUri( args[ i ] ) ) {
-                setPendingLauncherUri( args[ i ] );
-                GameModeManager.setCurrentGameMode( GameMode.CLIENT );
-                return "";
-            }
+        // Parsing is a pure function (LauncherArgs.parse); this method only applies the
+        // side effects it decides on. Keeping the grammar out of here is what makes it
+        // testable — see LauncherArgsTest.
+        LauncherArgs parsed = LauncherArgs.parse(
+                args, com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() );
+
+        // Stash any mmcl:// deep-link for the session to dispatch once the main GUI is up.
+        // Deliberately not dispatched here: the user must still flow through auth and the
+        // mod-pack-info fetch first (e.g. mmcl://add needs the installed list populated).
+        if ( parsed.hasPendingUri() ) {
+            setPendingLauncherUri( parsed.pendingUri() );
         }
 
-        // --cli / --tui: full-screen TUI mode (the flag was already captured in main()). It runs as
-        // a normal CLIENT (same config/paths as the GUI); the only other meaningful token is an
-        // optional modpack name to pre-select. Strip the mode flags and take the last bare token.
-        if ( com.micatechnologies.minecraft.launcher.tui.TuiMode.isEnabled() ) {
-            GameModeManager.setCurrentGameMode( GameMode.CLIENT );
-            String tuiSelection = "";
-            for ( String a : args ) {
-                if ( "--cli".equals( a ) || "--tui".equals( a )
-                        || LauncherConstants.PROGRAM_ARG_CLIENT_MODE.equalsIgnoreCase( a )
-                        || LauncherConstants.PROGRAM_ARG_SERVER_MODE.equalsIgnoreCase( a ) ) {
-                    continue;
-                }
-                tuiSelection = a;
-            }
-            return tuiSelection;
+        switch ( parsed.modeAction() ) {
+            case CLIENT -> GameModeManager.setCurrentGameMode( GameMode.CLIENT );
+            case SERVER -> GameModeManager.setCurrentGameMode( GameMode.SERVER );
+            case INFER -> GameModeManager.inferGameMode();
+            // NONE: the bare "launcher.jar <modpack_name>" form has never set a game mode.
+            // Preserved as-is; see LauncherArgs.ModeAction.NONE.
+            case NONE -> { }
         }
 
-        String initialModPackSelection = "";
-        if ( args.length == 0 ) {
-            GameModeManager.inferGameMode();
-        }
-        else if ( args.length == 1 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_CLIENT_MODE ) ) {
-            GameModeManager.setCurrentGameMode( GameMode.CLIENT );
-        }
-        else if ( args.length == 1 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_SERVER_MODE ) ) {
-            GameModeManager.setCurrentGameMode( GameMode.SERVER );
-        }
-        else if ( args.length == 1 ) {
-            initialModPackSelection = args[ 0 ];
-        }
-        else if ( args.length == 2 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_CLIENT_MODE ) ) {
-            GameModeManager.setCurrentGameMode( GameMode.CLIENT );
-            initialModPackSelection = args[ 1 ];
-        }
-        else if ( args.length == 2 && args[ 0 ].equalsIgnoreCase( LauncherConstants.PROGRAM_ARG_SERVER_MODE ) ) {
-            GameModeManager.setCurrentGameMode( GameMode.SERVER );
-            initialModPackSelection = args[ 1 ];
-        }
-        else {
+        if ( parsed.invalid() ) {
             Logger.logError( LocalizationManager.INVALID_ARGS_SPECIFIED_TEXT +
                                      "\n" +
                                      LocalizationManager.USAGE_TEXT +
@@ -1418,7 +1389,8 @@ public class LauncherCore
                                      "modpack_name ]" );
             closeApp();
         }
-        return initialModPackSelection;
+
+        return parsed.modPackSelection();
     }
 
     /**
