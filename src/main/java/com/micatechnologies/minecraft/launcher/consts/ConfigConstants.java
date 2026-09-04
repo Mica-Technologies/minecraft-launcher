@@ -305,6 +305,43 @@ public class ConfigConstants
     public static final boolean URI_HANDLER_ENABLED_DEFAULT = true;
 
     /**
+     * Key for whether the built-in MCP (Model Context Protocol) server is enabled.
+     * Defaults to <b>false</b>: until the user turns this on, no listener binds, no
+     * port opens, and no endpoint file is written. The server hands modpack
+     * management — and eventually game launching — to whatever MCP client connects,
+     * so it is opt-in rather than opt-out.
+     *
+     * @since 2026.2
+     */
+    public static final String MCP_SERVER_ENABLED_KEY = "mcpServerEnabled";
+
+    /**
+     * Default for {@link #MCP_SERVER_ENABLED_KEY} — false. Off unless the user asks
+     * for it.
+     *
+     * @since 2026.2
+     */
+    public static final boolean MCP_SERVER_ENABLED_DEFAULT = false;
+
+    /**
+     * Key for whether read-only MCP tools run without a consent prompt. Defaults to
+     * true, since listing packs and reading a crash report change nothing. Turning it
+     * off forces a prompt on every tool call, which is the cautious user's single
+     * switch — it does not affect tools the user has individually set to always
+     * allow, as that is the more specific instruction.
+     *
+     * @since 2026.2
+     */
+    public static final String MCP_AUTO_APPROVE_READ_ONLY_KEY = "mcpAutoApproveReadOnly";
+
+    /**
+     * Default for {@link #MCP_AUTO_APPROVE_READ_ONLY_KEY} — true.
+     *
+     * @since 2026.2
+     */
+    public static final boolean MCP_AUTO_APPROVE_READ_ONLY_DEFAULT = true;
+
+    /**
      * Key for whether the user has completed (or explicitly skipped) the first-
      * launch quick-start wizard. Defaults to false so existing installs see the
      * wizard once on upgrade, then never again. The wizard also flips this true

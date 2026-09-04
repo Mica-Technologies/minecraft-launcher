@@ -279,6 +279,41 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** Whether the built-in MCP server is enabled. When false, no listener
+     *  binds, no port opens, and no endpoint file is written. */
+    public static synchronized boolean getMcpServerEnabled() {
+        return ConfigStore.getOrInitBoolean( ConfigConstants.MCP_SERVER_ENABLED_KEY,
+                                             ConfigConstants.MCP_SERVER_ENABLED_DEFAULT );
+    }
+
+    /**
+     * Sets whether the built-in MCP server is enabled and schedules a debounced disk flush. Turning it off stops the
+     * listener and removes the endpoint file.
+     *
+     * @param enable {@code true} to enable the MCP server, {@code false} to disable it
+     */
+    public static synchronized void setMcpServerEnabled( boolean enable ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.MCP_SERVER_ENABLED_KEY, enable );
+        ConfigStore.scheduleWrite();
+    }
+
+    /** Whether read-only MCP tools run without a consent prompt. Turning this
+     *  off forces a prompt on every tool call. */
+    public static synchronized boolean getMcpAutoApproveReadOnly() {
+        return ConfigStore.getOrInitBoolean( ConfigConstants.MCP_AUTO_APPROVE_READ_ONLY_KEY,
+                                             ConfigConstants.MCP_AUTO_APPROVE_READ_ONLY_DEFAULT );
+    }
+
+    /**
+     * Sets whether read-only MCP tools run without a consent prompt and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to auto-approve read-only tools, {@code false} to prompt for every tool call
+     */
+    public static synchronized void setMcpAutoApproveReadOnly( boolean enable ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.MCP_AUTO_APPROVE_READ_ONLY_KEY, enable );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Whether the user has completed or skipped the first-launch
      *  quick-start wizard. Defaults to false so the wizard fires once
      *  for existing installs that upgrade. */

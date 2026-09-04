@@ -662,6 +662,14 @@ public class ConfigManager
     public synchronized static boolean getUriHandlerEnabled()           { return AppConfig.getUriHandlerEnabled(); }
     /** Sets whether the {@code mmcl://} URI handler is enabled. @param v the new flag. @see AppConfig#setUriHandlerEnabled(boolean) @since 1.0 */
     public synchronized static void    setUriHandlerEnabled( boolean v ) { AppConfig.setUriHandlerEnabled( v ); }
+    /** @return whether the built-in MCP server is enabled. @see AppConfig#getMcpServerEnabled() @since 1.0 */
+    public synchronized static boolean getMcpServerEnabled()            { return AppConfig.getMcpServerEnabled(); }
+    /** Sets whether the built-in MCP server is enabled. @param v the new flag. @see AppConfig#setMcpServerEnabled(boolean) @since 1.0 */
+    public synchronized static void    setMcpServerEnabled( boolean v ) { AppConfig.setMcpServerEnabled( v ); }
+    /** @return whether read-only MCP tools skip the consent prompt. @see AppConfig#getMcpAutoApproveReadOnly() @since 1.0 */
+    public synchronized static boolean getMcpAutoApproveReadOnly()      { return AppConfig.getMcpAutoApproveReadOnly(); }
+    /** Sets whether read-only MCP tools skip the consent prompt. @param v the new flag. @see AppConfig#setMcpAutoApproveReadOnly(boolean) @since 1.0 */
+    public synchronized static void    setMcpAutoApproveReadOnly( boolean v ) { AppConfig.setMcpAutoApproveReadOnly( v ); }
     /** @return whether the first-launch quick-start wizard has been completed. @see AppConfig#getQuickStartCompleted() @since 1.0 */
     public synchronized static boolean getQuickStartCompleted()         { return AppConfig.getQuickStartCompleted(); }
     /** Sets whether the first-launch quick-start wizard has been completed. @param v the new flag. @see AppConfig#setQuickStartCompleted(boolean) @since 1.0 */
