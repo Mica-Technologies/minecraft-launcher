@@ -482,8 +482,7 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
             // Get Repo Path
             String forgeAssetRepoPath;
             boolean isSpecifiedRepoPath = false;
-            String inferredForgeAssetRepoPath = forgeAssetName.substring( forgeAssetName.indexOf( ":" ) + 1 )
-                                                              .replace( ":", "-" );
+            String inferredForgeAssetRepoPath = ForgeLibraryPlanner.inferredRepoPath( forgeAssetName );
             if ( forgeAssetDownloadsArtifactObj != null &&
                     forgeAssetDownloadsArtifactObj.has( ForgeConstants.FORGE_VERSION_MANIFEST_LIBRARY_PATH_KEY ) ) {
                 forgeAssetRepoPath = forgeAssetDownloadsArtifactObj.get(
@@ -502,43 +501,22 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                                                      .getAsString();
             }
 
-            // Modern Forge installers (1.13+) embed both "forge-<ver>.jar" (containing launch target services like
-            // fmlclient) and "forge-<ver>-universal.jar" (containing main Forge code). Both must be on the classpath.
-            // Legacy Forge (1.7-1.12) only has the universal JAR.
-            boolean addUniversalAsExtra = false;
-            String universalRepoPath = null;
-            if ( isSpecifiedRepoPath && forgeAssetName.startsWith( loaderCoordPrefix() ) &&
-                    !forgeAssetRepoPath.contains( "-universal" ) ) {
-                universalRepoPath = forgeAssetRepoPath.replace( ".jar", "-universal.jar" );
-                if ( hasEmbeddedMavenEntry( universalRepoPath ) && hasEmbeddedMavenEntry( forgeAssetRepoPath ) ) {
-                    // Modern Forge: both JARs exist. Keep the base JAR as-is and add universal separately.
-                    addUniversalAsExtra = true;
-                }
-                else if ( hasEmbeddedMavenEntry( universalRepoPath ) ) {
-                    // Legacy Forge: only universal exists. Replace the base path.
-                    forgeAssetRepoPath = universalRepoPath;
-                    sha1 = null;
-                }
-            }
-
-            // Legacy Forge (1.7-1.12 era) puts the universal jar at the TOP LEVEL of the
-            // installer — e.g. "/forge-1.7.10-10.13.4.1614-1.7.10-universal.jar" — not
-            // under "maven/...". install_profile.json's versionInfo.libraries lists the
-            // Forge artifact as "net.minecraftforge:forge:VERSION" with a maven URL, but
-            // Forge's maven doesn't actually serve that file — trying to download it
-            // 404s. Redirect to the embedded top-level entry via a jar:file:// URL
-            // (the same mechanism the modern path uses for maven/-embedded artifacts).
-            boolean legacyForgeUniversalEmbedded = false;
-            String legacyForgeUniversalEntry = null;
-            if ( !isSpecifiedRepoPath && forgeAssetName.startsWith( loaderCoordPrefix() ) ) {
-                String topLevelUniversalName = inferredForgeAssetRepoPath + "-universal.jar";
-                if ( hasEmbeddedTopLevelEntry( topLevelUniversalName ) ) {
-                    legacyForgeUniversalEmbedded = true;
-                    legacyForgeUniversalEntry = topLevelUniversalName;
-                    // No SHA-1 to verify against — the installer bundles the universal jar
-                    // but Forge's manifest doesn't carry a hash for the bare library entry.
-                    sha1 = null;
-                }
+            // Which physical jars this manifest entry actually maps to -- the modern
+            // base-plus-universal case, the legacy universal-only substitution, and the legacy
+            // top-level embedding -- is decided by ForgeLibraryPlanner. It is pure, taking the
+            // two "is it bundled?" questions as predicates, so the whole decision table is
+            // exercised by ForgeLibraryPlannerTest without a real installer.
+            ForgeLibraryPlanner.Plan plan = ForgeLibraryPlanner.plan(
+                    forgeAssetName, forgeAssetRepoPath, inferredForgeAssetRepoPath,
+                    isSpecifiedRepoPath, loaderCoordPrefix(),
+                    this::hasEmbeddedMavenEntry, this::hasEmbeddedTopLevelEntry );
+            forgeAssetRepoPath = plan.repoPath();
+            boolean addUniversalAsExtra = plan.addUniversalAsExtra();
+            String universalRepoPath = plan.universalRepoPath();
+            boolean legacyForgeUniversalEmbedded = plan.legacyTopLevelUniversal();
+            String legacyForgeUniversalEntry = plan.legacyTopLevelEntry();
+            if ( plan.suppressSha1() ) {
+                sha1 = null;
             }
 
             String forgeAssetURL = resolveForgeAssetUrl( forgeAssetObj, forgeAssetDownloadsArtifactObj,
@@ -662,16 +640,9 @@ class GameModLoaderForge extends ManagedGameFile implements GameModLoader
                                               String forgeAssetRepoPath,
                                               boolean isSpecifiedRepoPath,
                                               String inferredForgeAssetRepoPath ) {
-        if ( isSpecifiedRepoPath ) {
-            return forgeAssetRepoPath.replace( "/", File.separator );
-        }
-        int colon = forgeAssetName.indexOf( ":" );
-        return forgeAssetName.substring( 0, colon ).replace( ".", File.separator )
-                + File.separator
-                + forgeAssetName.substring( colon + 1 ).replace( ":", File.separator )
-                + File.separator
-                + inferredForgeAssetRepoPath
-                + LocalPathConstants.JAR_FILE_EXTENSION;
+        return ForgeLibraryPlanner.localPath( forgeAssetName, forgeAssetRepoPath, isSpecifiedRepoPath,
+                                              inferredForgeAssetRepoPath, File.separator,
+                                              LocalPathConstants.JAR_FILE_EXTENSION );
     }
 
     /** Reads the {@code clientreq} / {@code serverreq} flags off a Forge library
