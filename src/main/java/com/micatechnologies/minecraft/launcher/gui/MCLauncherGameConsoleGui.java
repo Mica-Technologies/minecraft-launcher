@@ -807,10 +807,10 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
                     // Bound the in-memory buffer — drop the oldest content past the
                     // trigger, trimmed to a line boundary. The full log lives in the
                     // session log file.
-                    if ( fullLogContent.length() > FULL_LOG_TRIGGER_CHARS ) {
-                        int dropTo = fullLogContent.length() - FULL_LOG_RETAIN_CHARS;
-                        int nl = fullLogContent.indexOf( "\n", dropTo );
-                        fullLogContent.delete( 0, nl >= 0 ? nl + 1 : dropTo );
+                    int dropTo = LogTrimPolicy.fullLogDropOffset(
+                            fullLogContent, FULL_LOG_TRIGGER_CHARS, FULL_LOG_RETAIN_CHARS );
+                    if ( dropTo > 0 ) {
+                        fullLogContent.delete( 0, dropTo );
                     }
                 }
                 writeToLogFile( safe );
@@ -898,27 +898,17 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
      */
     private void trimDisplayIfNeeded() {
         int maxLines = ConfigManager.getConsoleLogMaxLines();
-        if ( maxLines <= 0 ) {
-            return;
-        }
         // Trim with slack so the O(n) scan amortizes: only fire once we're ~20%
         // over the cap, then drop back to maxLines, rather than trimming a line
-        // at a time on every 150 ms flush once steadily at the limit.
-        int slack = Math.max( 50, maxLines / 5 );
-        if ( displayLineCount <= maxLines + slack ) {
+        // at a time on every 150 ms flush once steadily at the limit. The
+        // arithmetic (including the unlimited case) lives in LogTrimPolicy so it
+        // can be tested without a JavaFX toolkit.
+        if ( !LogTrimPolicy.shouldTrimDisplay( displayLineCount, maxLines ) ) {
             return;
         }
 
         String current = logArea.getText();
-        int linesToDrop = displayLineCount - maxLines;
-        int idx = 0;
-        for ( int i = 0; i < linesToDrop && idx < current.length(); i++ ) {
-            int next = current.indexOf( '\n', idx );
-            if ( next == -1 ) {
-                break;
-            }
-            idx = next + 1;
-        }
+        int idx = LogTrimPolicy.displayDropOffset( current, displayLineCount - maxLines );
 
         if ( idx > 0 && idx <= current.length() ) {
             // deleteText avoids the getText()+substring()+setText() full copy (and
