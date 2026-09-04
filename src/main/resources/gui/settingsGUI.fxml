@@ -583,7 +583,16 @@
                             </font>
                         </Label>
                         <VBox fx:id="mcpSessionList" spacing="4" fillWidth="true" />
-                        <MFXButton fx:id="mcpRefreshBtn" text="%settings.mcp.refresh.label" />
+                        <Label text="%settings.mcp.activity.title">
+                            <font>
+                                <Font name="System Bold" size="12.0" />
+                            </font>
+                        </Label>
+                        <VBox fx:id="mcpActivityList" spacing="4" fillWidth="true" />
+                        <HBox spacing="8">
+                            <MFXButton fx:id="mcpRefreshBtn" text="%settings.mcp.refresh.label" />
+                            <MFXButton fx:id="mcpClearActivityBtn" text="%settings.mcp.activity.clear" />
+                        </HBox>
                         <Label text="%settings.mcp.revokeGrants.description" wrapText="true">
                             <font>
                                 <Font size="11.0" />

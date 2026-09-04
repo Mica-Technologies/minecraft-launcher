@@ -90,7 +90,36 @@ public final class McpServer
      */
     public McpServer( McpToolRegistry tools, McpResourceRegistry resources, McpAuthorizer authorizer )
     {
-        this.handler = new McpRequestHandler( tools, resources, authorizer );
+        this( tools, resources, authorizer, new McpActivityLog() );
+    }
+
+    /**
+     * Constructs a server recording into a caller-supplied activity log, so the log survives
+     * the server being stopped and restarted within one launcher run.
+     *
+     * @param tools       the tools to expose
+     * @param resources   the resources to expose
+     * @param authorizer  the approval gate applied to every tool call
+     * @param activityLog where each call's outcome is recorded
+     *
+     * @since 3.0
+     */
+    public McpServer( McpToolRegistry tools, McpResourceRegistry resources, McpAuthorizer authorizer,
+                      McpActivityLog activityLog )
+    {
+        this.handler = new McpRequestHandler( tools, resources, authorizer, activityLog );
+    }
+
+    /**
+     * Returns the activity log this server records into.
+     *
+     * @return the activity log
+     *
+     * @since 3.0
+     */
+    public McpActivityLog getActivityLog()
+    {
+        return handler.getActivityLog();
     }
 
     /**

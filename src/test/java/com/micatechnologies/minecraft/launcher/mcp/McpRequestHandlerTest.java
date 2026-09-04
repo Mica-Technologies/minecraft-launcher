@@ -471,6 +471,74 @@ class McpRequestHandlerTest
 
     // endregion
 
+    // region activity recording
+
+    /**
+     * Every outcome reaches the activity log, which is what makes an approval reviewable after
+     * the moment it was given. A denial that left no trace would be the least useful kind:
+     * the user would have no way to see that something was attempted.
+     */
+    @Test
+    void everyOutcomeIsRecorded()
+    {
+        initializedAs( "Claude Code" );
+        tools.register( new StubTool( "ok_tool", null, false ) );
+        tools.register( new StubTool( "boom_tool", new IllegalStateException( "boom" ), false ) );
+        tools.register( new StubTool( "gated_tool", null, false ) {
+            @Override
+            public String validateBeforeApproval( JsonObject arguments )
+            {
+                return "refused by a content gate";
+            }
+        } );
+
+        McpActivityLog log = new McpActivityLog();
+        McpRequestHandler allowing = new McpRequestHandler( tools, resources, allow(), log );
+        allowing.handle( request( 1, "tools/call", toolCallParams( "ok_tool" ) ), session, NOW );
+        allowing.handle( request( 2, "tools/call", toolCallParams( "boom_tool" ) ), session, NOW );
+        allowing.handle( request( 3, "tools/call", toolCallParams( "gated_tool" ) ), session, NOW );
+        new McpRequestHandler( tools, resources, ( t, c, a ) -> false, log )
+                .handle( request( 4, "tools/call", toolCallParams( "ok_tool" ) ), session, NOW );
+
+        List< McpActivityLog.Entry > entries = log.recent();
+        assertEquals( 4, entries.size() );
+        assertEquals( McpActivityLog.Decision.DENIED, entries.get( 0 ).decision() );
+        assertEquals( McpActivityLog.Decision.REFUSED, entries.get( 1 ).decision() );
+        assertEquals( McpActivityLog.Decision.FAILED, entries.get( 2 ).decision() );
+        assertEquals( McpActivityLog.Decision.ALLOWED, entries.get( 3 ).decision() );
+        assertEquals( "Claude Code", entries.get( 0 ).clientName() );
+    }
+
+    /**
+     * A throwing tool's exception message is kept out of the log for the same reason it is
+     * kept off the wire: the activity view is rendered in Settings, and exception text carries
+     * absolute paths and can carry command lines.
+     */
+    @Test
+    void aThrowingToolsExceptionMessageIsNotRecorded()
+    {
+        initialized();
+        tools.register( new StubTool( "boom_tool",
+                                      new IllegalStateException( "/Users/someone/secret failed" ),
+                                      false ) );
+
+        McpActivityLog log = new McpActivityLog();
+        new McpRequestHandler( tools, resources, allow(), log )
+                .handle( request( 1, "tools/call", toolCallParams( "boom_tool" ) ), session, NOW );
+
+        assertFalse( log.recent().get( 0 ).detail().contains( "/Users/someone/secret" ),
+                     log.recent().get( 0 ).detail() );
+    }
+
+    @Test
+    void anActivityLogIsRequired()
+    {
+        assertThrows( IllegalArgumentException.class,
+                      () -> new McpRequestHandler( tools, resources, allow(), null ) );
+    }
+
+    // endregion
+
     // region resources
 
     @Test

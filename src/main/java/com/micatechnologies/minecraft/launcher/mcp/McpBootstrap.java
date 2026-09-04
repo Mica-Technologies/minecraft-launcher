@@ -61,6 +61,13 @@ public final class McpBootstrap
     /** Consent granted this run. Outlives individual server restarts within one launcher run. */
     private static final McpGrantStore GRANTS = new McpGrantStore();
 
+    /**
+     * What clients have done this run. Like the grants, it outlives a server restart within one
+     * launcher run — toggling the feature off and on should not erase the record of what
+     * happened before, which is the thing a user goes looking for after something surprising.
+     */
+    private static final McpActivityLog ACTIVITY = new McpActivityLog();
+
     /** The user's durable per-tool choices, read from and written to launcher config. */
     private static final McpToolPolicyStore POLICIES = new McpToolPolicyStore(
             new McpToolPolicyStore.Backing()
@@ -125,7 +132,7 @@ public final class McpBootstrap
             LauncherMcpAuthorizer authorizer = new LauncherMcpAuthorizer(
                     new ConfigSettings(), GRANTS, new FxConsentPrompt(), System::currentTimeMillis );
 
-            McpServer started = new McpServer( tools, resources, authorizer );
+            McpServer started = new McpServer( tools, resources, authorizer, ACTIVITY );
             // Port 0: the OS picks a free loopback port and the endpoint file publishes it, so
             // there is no fixed port to collide with another launcher build or another app.
             started.start( 0, McpEndpointFile.defaultPath() );
@@ -252,6 +259,18 @@ public final class McpBootstrap
             Logger.logWarningSilent( "Could not enumerate MCP tools for the Settings page" );
         }
         return described;
+    }
+
+    /**
+     * Returns what MCP clients have done this run, for the Settings page.
+     *
+     * @return the activity log
+     *
+     * @since 3.0
+     */
+    public static McpActivityLog getActivity()
+    {
+        return ACTIVITY;
     }
 
     /**

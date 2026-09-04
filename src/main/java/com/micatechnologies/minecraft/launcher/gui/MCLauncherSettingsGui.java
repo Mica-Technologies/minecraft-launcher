@@ -466,6 +466,22 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     MFXButton mcpRefreshBtn;
 
+    /**
+     * How many activity rows the Settings pane renders. The log holds more; showing all of
+     * them would turn one settings section into an unbounded wall of text.
+     */
+    private static final int MCP_ACTIVITY_ROWS_SHOWN = 15;
+
+    /** Security tab: container the recent-MCP-activity rows are built into. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.layout.VBox mcpActivityList;
+
+    /** Security tab: discards the in-memory activity record. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton mcpClearActivityBtn;
+
     /** Security tab: how many "allow for this session" approvals are currently held. */
     @SuppressWarnings( "unused" )
     @FXML
@@ -1473,6 +1489,12 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         }
         if ( mcpRefreshBtn != null ) {
             mcpRefreshBtn.setOnAction( e -> refreshMcpStatusLabel() );
+        }
+        if ( mcpClearActivityBtn != null ) {
+            mcpClearActivityBtn.setOnAction( e -> {
+                com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getActivity().clear();
+                refreshMcpStatusLabel();
+            } );
         }
         refreshMcpStatusLabel();
 
@@ -2685,6 +2707,48 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             mcpGrantsLabel.setText( LocalizationManager.format( "settings.mcp.grants.count", grants ) );
         }
         refreshMcpSessionRows();
+        refreshMcpActivityRows();
+    }
+
+    /**
+     * Rebuilds the recent-activity list.
+     *
+     * <p>Consent answers "may this happen?"; this answers "what happened?". A user who
+     * approved something hours ago has no other way to see what they agreed to.</p>
+     *
+     * <p>The entries are already redacted — {@code McpActivityLog} strips credentials on the
+     * way in rather than on the way out, so nothing sensitive is held in memory to begin with.
+     * That matters here specifically: a Settings page is one screenshot away from a support
+     * thread.</p>
+     *
+     * @since 3.0
+     */
+    private void refreshMcpActivityRows()
+    {
+        if ( mcpActivityList == null ) {
+            return;
+        }
+        mcpActivityList.getChildren().clear();
+
+        var entries = com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getActivity().recent();
+        if ( entries.isEmpty() ) {
+            mcpActivityList.getChildren().add(
+                    new Label( LocalizationManager.get( "settings.mcp.activity.none" ) ) );
+            return;
+        }
+        long now = System.currentTimeMillis();
+        int shown = 0;
+        for ( var entry : entries ) {
+            if ( shown++ >= MCP_ACTIVITY_ROWS_SHOWN ) {
+                break;
+            }
+            mcpActivityList.getChildren().add( new Label( LocalizationManager.format(
+                    "settings.mcp.activity.entry",
+                    describeElapsed( now - entry.timestampMs() ),
+                    entry.toolName(),
+                    LocalizationManager.get( "settings.mcp.activity.decision."
+                                                     + entry.decision().name().toLowerCase() ) ) ) );
+        }
     }
 
     /**

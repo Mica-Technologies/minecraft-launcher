@@ -60,6 +60,9 @@ public final class McpRequestHandler
     /** Decides whether a tool call may proceed, prompting the user where required. */
     private final McpAuthorizer authorizer;
 
+    /** Records what each call did, for the Settings activity view. Never {@code null}. */
+    private final McpActivityLog activityLog;
+
     /**
      * Constructs a handler.
      *
@@ -72,12 +75,43 @@ public final class McpRequestHandler
      */
     public McpRequestHandler( McpToolRegistry tools, McpResourceRegistry resources, McpAuthorizer authorizer )
     {
-        if ( tools == null || resources == null || authorizer == null ) {
-            throw new IllegalArgumentException( "A tool registry, resource registry and authorizer are required" );
+        this( tools, resources, authorizer, new McpActivityLog() );
+    }
+
+    /**
+     * Constructs a handler that records into a caller-supplied activity log.
+     *
+     * @param tools       the tool registry
+     * @param resources   the resource registry
+     * @param authorizer  the approval gate applied to every tool call
+     * @param activityLog where each call's outcome is recorded
+     *
+     * @throws IllegalArgumentException if any argument is {@code null}
+     * @since 3.0
+     */
+    public McpRequestHandler( McpToolRegistry tools, McpResourceRegistry resources,
+                              McpAuthorizer authorizer, McpActivityLog activityLog )
+    {
+        if ( tools == null || resources == null || authorizer == null || activityLog == null ) {
+            throw new IllegalArgumentException(
+                    "A tool registry, resource registry, authorizer and activity log are required" );
         }
         this.tools = tools;
         this.resources = resources;
         this.authorizer = authorizer;
+        this.activityLog = activityLog;
+    }
+
+    /**
+     * Returns the activity log this handler records into.
+     *
+     * @return the activity log
+     *
+     * @since 3.0
+     */
+    public McpActivityLog getActivityLog()
+    {
+        return activityLog;
     }
 
     /**
@@ -213,6 +247,8 @@ public final class McpRequestHandler
         }
         if ( rejection != null ) {
             Logger.logStd( "MCP refused " + name + " before approval: " + rejection );
+            activityLog.record( System.currentTimeMillis(), context.clientName(), name,
+                                McpActivityLog.Decision.REFUSED, rejection );
             return JsonRpcCodec.error( message.id(), McpErrors.INVALID_PARAMS, rejection );
         }
 
@@ -227,12 +263,20 @@ public final class McpRequestHandler
             allowed = false;
         }
         if ( !allowed ) {
+            activityLog.record( System.currentTimeMillis(), context.clientName(), name,
+                                McpActivityLog.Decision.DENIED, "not approved" );
             return JsonRpcCodec.error( message.id(), McpErrors.REQUEST_DENIED,
                                        "Tool call was not approved: " + name );
         }
 
         try {
             McpToolResult result = tool.invoke( context, arguments );
+            boolean failed = result == null || result.isError();
+            activityLog.record( System.currentTimeMillis(), context.clientName(), name,
+                                failed ? McpActivityLog.Decision.FAILED
+                                       : McpActivityLog.Decision.ALLOWED,
+                                failed && result != null && !result.rawTextBlocks().isEmpty()
+                                ? result.rawTextBlocks().get( 0 ) : "" );
             return JsonRpcCodec.result( message.id(),
                                         result == null ? McpToolResult.error( "Tool returned no result" ).toJson()
                                                        : result.toJson() );
@@ -243,6 +287,10 @@ public final class McpRequestHandler
             // belongs, not the wire.
             Logger.logError( "MCP tool " + name + " failed" );
             Logger.logThrowable( e );
+            // The exception's message is not recorded either: the activity view is shown in
+            // Settings, and exception text carries paths and can carry command lines.
+            activityLog.record( System.currentTimeMillis(), context.clientName(), name,
+                                McpActivityLog.Decision.FAILED, "the tool threw" );
             return JsonRpcCodec.error( message.id(), McpErrors.INTERNAL_ERROR,
                                        "Tool failed: " + name );
         }
