@@ -178,14 +178,46 @@ public class MCLauncherAuthManager
             }
         }
 
-        long elapsed = System.currentTimeMillis() - lastSuccessfulRenewalMs;
+        long now = System.currentTimeMillis();
+        long elapsed = now - lastSuccessfulRenewalMs;
         long elapsedMinutes = elapsed / 60000;
         long thresholdMinutes = TOKEN_REFRESH_INTERVAL_MS / 60000;
-        boolean shouldRenew = elapsed >= TOKEN_REFRESH_INTERVAL_MS;
+        boolean shouldRenew = isRenewalDue( lastSuccessfulRenewalMs, now, TOKEN_REFRESH_INTERVAL_MS );
         Logger.logStd( LocalizationManager.format( "log.authManager.tokenAgeCheck", elapsedMinutes, thresholdMinutes,
                                ( shouldRenew ? LocalizationManager.get( "log.authManager.renewalNeeded" )
                                              : LocalizationManager.get( "log.authManager.stillValid" ) ) ) );
         return shouldRenew;
+    }
+
+    /**
+     * Decides whether a token renewal is due. Pure: no clock, no disk, no logging.
+     *
+     * <p>Split out of {@link #shouldRenewToken()} so the decision can be tested without a
+     * config folder, a timestamp file, or the mutable static that caches it. The
+     * surrounding method still owns loading {@code lastSuccessfulRenewalMs} and reporting
+     * the outcome.</p>
+     *
+     * <p>A {@code lastRenewalMs} of {@code 0} means "never renewed, or the timestamp could
+     * not be read", and always reports due — failing toward re-authentication rather than
+     * trusting a token of unknown age. A clock that has moved backwards (NTP correction, a
+     * timestamp written on another machine) yields a negative elapsed time and reports not
+     * due; that is deliberate, since the alternative is forcing a re-login on every launch
+     * until the clock catches up.</p>
+     *
+     * @param lastRenewalMs epoch millis of the last successful renewal, or {@code 0} if unknown
+     * @param nowMs         current epoch millis
+     * @param intervalMs    renewal interval
+     *
+     * @return {@code true} when a renewal should be attempted
+     *
+     * @since 2026.9
+     */
+    static boolean isRenewalDue( long lastRenewalMs, long nowMs, long intervalMs )
+    {
+        if ( lastRenewalMs <= 0 ) {
+            return true;
+        }
+        return ( nowMs - lastRenewalMs ) >= intervalMs;
     }
 
     /**
