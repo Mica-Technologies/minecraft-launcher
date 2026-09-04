@@ -332,6 +332,23 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** Whether the MCP server exposes state-changing tools. Defaults to false,
+     *  so enabling the server alone yields a read-only server. */
+    public static synchronized boolean getMcpAllowStateChanges() {
+        return ConfigStore.getOrInitBoolean( ConfigConstants.MCP_ALLOW_STATE_CHANGES_KEY,
+                                             ConfigConstants.MCP_ALLOW_STATE_CHANGES_DEFAULT );
+    }
+
+    /**
+     * Sets whether the MCP server exposes state-changing tools and schedules a debounced disk flush.
+     *
+     * @param enable {@code true} to expose install / create / edit / uninstall / launch tools
+     */
+    public static synchronized void setMcpAllowStateChanges( boolean enable ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.MCP_ALLOW_STATE_CHANGES_KEY, enable );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Whether the user has completed or skipped the first-launch
      *  quick-start wizard. Defaults to false so the wizard fires once
      *  for existing installs that upgrade. */

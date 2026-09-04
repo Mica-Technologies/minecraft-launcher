@@ -443,6 +443,14 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     Label mcpStatusLabel;
 
+    /**
+     * Security tab: whether the MCP server exposes state-changing tools. Off by default —
+     * enabling the server alone yields a read-only one.
+     */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXToggleButton mcpAllowStateChangesToggle;
+
     /** Security tab: container the per-tool MCP permission rows are built into. */
     @SuppressWarnings( "unused" )
     @FXML
@@ -1445,6 +1453,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             mcpAutoApproveToggle.setSelected( ConfigManager.getMcpAutoApproveReadOnly() );
             mcpAutoApproveToggle.selectedProperty().addListener(
                     ( obs, oldV, newV ) -> ConfigManager.setMcpAutoApproveReadOnly( newV ) );
+        }
+        // Changing which tools exist means rebuilding the registry, so this restarts the
+        // server the same way the master switch does.
+        if ( mcpAllowStateChangesToggle != null ) {
+            mcpAllowStateChangesToggle.setSelected( ConfigManager.getMcpAllowStateChanges() );
+            mcpAllowStateChangesToggle.selectedProperty().addListener( ( obs, oldV, newV ) -> {
+                ConfigManager.setMcpAllowStateChanges( newV );
+                com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.refresh();
+                refreshMcpStatusLabel();
+            } );
         }
         buildMcpToolPolicyRows();
         if ( mcpRevokeGrantsBtn != null ) {

@@ -674,6 +674,10 @@ public class ConfigManager
     public synchronized static String  getMcpToolPolicies()             { return AppConfig.getMcpToolPolicies(); }
     /** Stores the per-tool MCP approval choices. @param v the JSON object string. @see AppConfig#setMcpToolPolicies(String) @since 1.0 */
     public synchronized static void    setMcpToolPolicies( String v )   { AppConfig.setMcpToolPolicies( v ); }
+    /** @return whether the MCP server exposes state-changing tools. @see AppConfig#getMcpAllowStateChanges() @since 1.0 */
+    public synchronized static boolean getMcpAllowStateChanges()        { return AppConfig.getMcpAllowStateChanges(); }
+    /** Sets whether the MCP server exposes state-changing tools. @param v the new flag. @see AppConfig#setMcpAllowStateChanges(boolean) @since 1.0 */
+    public synchronized static void    setMcpAllowStateChanges( boolean v ) { AppConfig.setMcpAllowStateChanges( v ); }
     /** @return whether the first-launch quick-start wizard has been completed. @see AppConfig#getQuickStartCompleted() @since 1.0 */
     public synchronized static boolean getQuickStartCompleted()         { return AppConfig.getQuickStartCompleted(); }
     /** Sets whether the first-launch quick-start wizard has been completed. @param v the new flag. @see AppConfig#setQuickStartCompleted(boolean) @since 1.0 */

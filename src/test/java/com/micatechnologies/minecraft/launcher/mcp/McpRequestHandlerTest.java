@@ -70,7 +70,7 @@ class McpRequestHandlerTest
     private boolean toolRan;
 
     /** Hand-rolled tool whose behaviour each test sets up, per the no-mocking convention. */
-    private final class StubTool implements McpTool
+    private class StubTool implements McpTool
     {
         private final String name;
         private final RuntimeException failure;
@@ -354,6 +354,70 @@ class McpRequestHandlerTest
 
         assertEquals( McpErrors.REQUEST_DENIED, errorCodeOf( response ) );
         assertFalse( toolRan );
+    }
+
+    /**
+     * Content gates run ahead of consent, and a refused call must not reach either the
+     * authorizer or the tool.
+     *
+     * <p>The ordering is what matters. Prompting the user to approve something the launcher
+     * already knows it will refuse teaches them that these dialogs are noise to click
+     * through — which is exactly the habit that makes the consent model worthless when a real
+     * request arrives.</p>
+     */
+    @Test
+    void aContentGateRefusalHappensBeforeTheApprovalCheck()
+    {
+        initialized();
+        tools.register( new StubTool( "list_modpacks", null, false ) {
+            @Override
+            public String validateBeforeApproval( JsonObject arguments )
+            {
+                return "That request is not allowed.";
+            }
+        } );
+
+        boolean[] askedForApproval = { false };
+        JsonObject response = handler( ( t, c, a ) -> {
+            askedForApproval[ 0 ] = true;
+            return true;
+        } ).handle( request( 1, "tools/call", toolCallParams( "list_modpacks" ) ), session, NOW );
+
+        assertEquals( McpErrors.INVALID_PARAMS, errorCodeOf( response ) );
+        assertFalse( askedForApproval[ 0 ], "the user must not be asked about a refused call" );
+        assertFalse( toolRan, "a refused call must not run" );
+    }
+
+    /** A content gate that throws refuses, rather than falling through to the tool. */
+    @Test
+    void aContentGateThatThrowsRefusesTheCall()
+    {
+        initialized();
+        tools.register( new StubTool( "list_modpacks", null, false ) {
+            @Override
+            public String validateBeforeApproval( JsonObject arguments )
+            {
+                throw new IllegalStateException( "validation blew up" );
+            }
+        } );
+
+        JsonObject response = handler( allow() ).handle(
+                request( 1, "tools/call", toolCallParams( "list_modpacks" ) ), session, NOW );
+
+        assertEquals( McpErrors.INVALID_PARAMS, errorCodeOf( response ) );
+        assertFalse( toolRan );
+    }
+
+    /** With no gate declared, the default lets the call through to the approval stage. */
+    @Test
+    void aToolWithNoContentGateProceedsNormally()
+    {
+        initialized();
+        tools.register( new StubTool( "list_modpacks", null, false ) );
+        assertFalse( handler( allow() ).handle(
+                request( 1, "tools/call", toolCallParams( "list_modpacks" ) ), session, NOW )
+                             .has( "error" ) );
+        assertTrue( toolRan );
     }
 
     /**

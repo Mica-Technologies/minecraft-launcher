@@ -106,7 +106,7 @@ public final class LauncherUriHandler
      *  Package-private (widened from {@code private}) so {@link LauncherUriHandlerClassifyInstallUrlTest}
      *  can exercise {@link #classifyInstallUrl(String)} directly without dragging in the
      *  JavaFX / GSON config machinery that {@link #confirmInstallUrl} depends on. */
-    enum InstallUrlVerdict
+    public enum InstallUrlVerdict
     {
         /** URL is well-formed https, host is on the trusted allowlist. Install silently. */
         ACCEPT_TRUSTED,
@@ -520,7 +520,9 @@ public final class LauncherUriHandler
      *
      * <p>Package-private (widened from {@code private}) so it can be unit-tested directly.</p>
      */
-    static InstallUrlVerdict classifyInstallUrl( String url )
+    // Public so the MCP install tool can apply the same gate the mmcl:// handler does,
+    // before any consent prompt. Behaviour is unchanged; only the visibility widened.
+    public static InstallUrlVerdict classifyInstallUrl( String url )
     {
         if ( url == null || url.isBlank() ) {
             return InstallUrlVerdict.REJECT;

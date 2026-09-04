@@ -26,7 +26,10 @@ import com.micatechnologies.minecraft.launcher.mcp.approval.McpToolPolicyStore;
 import com.micatechnologies.minecraft.launcher.mcp.resources.LauncherResources;
 import com.micatechnologies.minecraft.launcher.mcp.resources.McpResourceRegistry;
 import com.micatechnologies.minecraft.launcher.mcp.session.McpSession;
+import com.micatechnologies.minecraft.launcher.mcp.tools.LiveMcpLauncherActions;
 import com.micatechnologies.minecraft.launcher.mcp.tools.LiveMcpLauncherView;
+import com.micatechnologies.minecraft.launcher.mcp.tools.McpLauncherActions;
+import com.micatechnologies.minecraft.launcher.mcp.tools.MutatingTools;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpLauncherView;
 import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpTool;
@@ -107,6 +110,14 @@ public final class McpBootstrap
 
             McpToolRegistry tools = new McpToolRegistry();
             ReadOnlyTools.registerAll( tools, view );
+            // State-changing tools are a second, separate opt-in. Enabling the MCP server on
+            // its own gives a strictly read-only server; the step from "a model can read my
+            // launcher" to "a model can install and launch things on my machine" is worth
+            // making deliberately rather than as a side effect.
+            if ( ConfigManager.getMcpAllowStateChanges() ) {
+                MutatingTools.registerAll( tools, view, new LiveMcpLauncherActions() );
+                Logger.logStd( "MCP state-changing tools are enabled" );
+            }
 
             McpResourceRegistry resources = new McpResourceRegistry();
             LauncherResources.registerAll( resources, view );
@@ -228,7 +239,11 @@ public final class McpBootstrap
         List< ToolDescriptor > described = new java.util.ArrayList<>();
         try {
             McpToolRegistry registry = new McpToolRegistry();
-            ReadOnlyTools.registerAll( registry, new LiveMcpLauncherView() );
+            McpLauncherView view = new LiveMcpLauncherView();
+            ReadOnlyTools.registerAll( registry, view );
+            // Every tool this build can expose, whether or not state changes are switched on,
+            // so the Settings page can show and pre-configure their policies either way.
+            MutatingTools.registerAll( registry, view, new LiveMcpLauncherActions() );
             for ( McpTool tool : registry.all() ) {
                 described.add( new ToolDescriptor( tool.name(), tool.title(), tool.riskClass() ) );
             }

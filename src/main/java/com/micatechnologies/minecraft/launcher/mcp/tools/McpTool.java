@@ -105,6 +105,30 @@ public interface McpTool
     McpToolResult invoke( McpCallContext context, JsonObject arguments ) throws Exception;
 
     /**
+     * Rejects a call on its content, before any approval decision is made.
+     *
+     * <p>This runs <b>ahead of the consent prompt</b>, and that ordering is the point. When
+     * the launcher already knows a request is unsafe — an install URL that fails
+     * {@code LauncherUriHandler.classifyInstallUrl}, say — asking the user to approve it
+     * anyway teaches them that prompts are noise to click through. A request the launcher
+     * refuses on its own should never reach them as a question.</p>
+     *
+     * <p>It is also the cheaper order: no dialog is raised for a call that was never going to
+     * run.</p>
+     *
+     * @param arguments the call arguments
+     *
+     * @return a human-readable reason to refuse, or {@code null} to continue to the approval
+     *         gate
+     *
+     * @since 3.0
+     */
+    default String validateBeforeApproval( JsonObject arguments )
+    {
+        return null;
+    }
+
+    /**
      * Builds this tool's entry in a {@code tools/list} response.
      *
      * @return the descriptor object

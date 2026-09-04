@@ -550,6 +550,12 @@
                             </font>
                         </Label>
                         <MFXToggleButton fx:id="mcpAutoApproveToggle" text="%settings.mcp.autoApproveReadOnly.label" />
+                        <Label text="%settings.mcp.allowStateChanges.description" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXToggleButton fx:id="mcpAllowStateChangesToggle" text="%settings.mcp.allowStateChanges.label" />
                         <Label fx:id="mcpStatusLabel" wrapText="true">
                             <font>
                                 <Font size="11.0" />

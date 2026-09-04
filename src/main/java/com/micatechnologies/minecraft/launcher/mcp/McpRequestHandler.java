@@ -199,6 +199,23 @@ public final class McpRequestHandler
                                : new JsonObject();
         McpCallContext context = session.toCallContext();
 
+        // Content gates run before consent. A request the launcher already refuses must not
+        // reach the user as a question -- prompting for something that was never going to run
+        // is how a consent dialog becomes noise to click through.
+        String rejection;
+        try {
+            rejection = tool.validateBeforeApproval( arguments );
+        }
+        catch ( Exception e ) {
+            Logger.logError( "MCP pre-approval validation failed for tool " + name + "; refusing" );
+            Logger.logThrowable( e );
+            rejection = "The request could not be validated.";
+        }
+        if ( rejection != null ) {
+            Logger.logStd( "MCP refused " + name + " before approval: " + rejection );
+            return JsonRpcCodec.error( message.id(), McpErrors.INVALID_PARAMS, rejection );
+        }
+
         boolean allowed;
         try {
             allowed = authorizer.authorize( tool, context, arguments );

@@ -364,6 +364,27 @@ public class ConfigConstants
     public static final String MCP_TOOL_POLICIES_DEFAULT = "";
 
     /**
+     * Key for whether the MCP server exposes tools that change state — install, create, fork,
+     * edit, uninstall, launch, stop.
+     *
+     * <p>Defaults to <b>false</b>, so enabling the MCP server on its own yields a strictly
+     * read-only server. Turning this on is a second, separate decision, because the step from
+     * "a model can read my launcher" to "a model can install and launch things on my machine"
+     * is the one worth making deliberately. Individual tools remain gated by consent and by
+     * their per-tool policy on top of this.</p>
+     *
+     * @since 2026.2
+     */
+    public static final String MCP_ALLOW_STATE_CHANGES_KEY = "mcpAllowStateChanges";
+
+    /**
+     * Default for {@link #MCP_ALLOW_STATE_CHANGES_KEY} — false. Read-only unless asked.
+     *
+     * @since 2026.2
+     */
+    public static final boolean MCP_ALLOW_STATE_CHANGES_DEFAULT = false;
+
+    /**
      * Key for whether the user has completed (or explicitly skipped) the first-
      * launch quick-start wizard. Defaults to false so existing installs see the
      * wizard once on upgrade, then never again. The wizard also flips this true
