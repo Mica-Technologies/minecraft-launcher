@@ -79,8 +79,20 @@ public final class ProfileArchive
     public static final String PROFILES_DIR = "profiles";
 
     /** Filename inside each profile folder that mirrors the in-place
-     *  encrypted credentials. */
-    private static final String ARCHIVED_LOGIN_FILE = LocalPathConstants.AUTH_ACCOUNT_REMEMBERED_FILE_NAME;
+     *  encrypted credentials.
+     *
+     *  <p>The leading separator is stripped because
+     *  {@link LocalPathConstants#AUTH_ACCOUNT_REMEMBERED_FILE_NAME} is built for
+     *  string concatenation onto a folder path ({@code folder + "/player.mica"}),
+     *  not for {@link Path#resolve}. {@code resolve} treats a leading-separator
+     *  argument as an <em>absolute</em> path and discards the parent entirely, so
+     *  using the constant as-is resolved every archived login to the filesystem
+     *  root instead of the profile folder — archiving silently failed and
+     *  {@link #activate} never found a login file. The constant stays the single
+     *  source of truth for the filename; only its concatenation-shaped prefix is
+     *  removed here. */
+    private static final String ARCHIVED_LOGIN_FILE =
+            stripLeadingSeparator( LocalPathConstants.AUTH_ACCOUNT_REMEMBERED_FILE_NAME );
 
     /** Sidecar metadata file storing the display name + UUID so the
      *  switcher UI can render a profile list without decrypting the
@@ -140,8 +152,10 @@ public final class ProfileArchive
             Files.createDirectories( target );
             // Tighten the profile directory itself — on Windows the copied
             // credential files below inherit the directory ACL, so the directory
-            // must be owner-only before they land.
-            FilePermissions.applyOwnerOnly( target );
+            // must be owner-only before they land. Uses the directory variant: a
+            // directory also needs the owner execute bit, without which nothing can
+            // be created inside it, and the copies below fail with AccessDenied.
+            FilePermissions.applyOwnerOnlyDirectory( target );
 
             copyOwnerOnly( activeLogin, target.resolve( ARCHIVED_LOGIN_FILE ) );
             for ( String sibling : SIBLING_FILES ) {
@@ -279,18 +293,67 @@ public final class ProfileArchive
         Path folder = profilesRoot().resolve( uuid );
         if ( !Files.isDirectory( folder ) ) return false;
         try {
-            try ( java.util.stream.Stream< Path > stream = Files.list( folder ) ) {
-                stream.forEach( f -> {
-                    try { Files.deleteIfExists( f ); } catch ( IOException ignored ) {}
-                } );
-            }
-            Files.deleteIfExists( folder );
-            return true;
+            return deleteRecursively( folder );
         }
         catch ( IOException e ) {
             Logger.logError( LocalizationManager.format( "log.profileArchive.forgetFailed", uuid, e.getMessage() ) );
             return false;
         }
+    }
+
+    /**
+     * Deletes a directory tree, children before parents.
+     *
+     * <p>The previous implementation listed the folder once and deleted each entry, which
+     * cannot remove a nested directory — {@code deleteIfExists} throws on a non-empty one, and
+     * the throw was swallowed per entry. A profile folder that ever contained a subdirectory
+     * was therefore left half-deleted, with the folder still present and "forgotten"
+     * credentials still on disk.
+     *
+     * <p>Symbolic links are deleted as links rather than followed, so this cannot escape the
+     * profile folder it was given.
+     *
+     * @param root the directory to remove
+     *
+     * @return {@code true} when the whole tree is gone; {@code false} when anything survived
+     *
+     * @throws IOException if the tree could not be walked
+     * @since 2026.5
+     */
+    private static boolean deleteRecursively( Path root ) throws IOException
+    {
+        boolean allRemoved = true;
+        try ( java.util.stream.Stream< Path > walk = Files.walk( root ) ) {
+            for ( Path path : walk.sorted( java.util.Comparator.reverseOrder() ).toList() ) {
+                try {
+                    Files.deleteIfExists( path );
+                }
+                catch ( IOException e ) {
+                    allRemoved = false;
+                }
+            }
+        }
+        return allRemoved && !Files.exists( root );
+    }
+
+    /**
+     * Strips a leading path separator from a filename constant so it is safe to pass to
+     * {@link Path#resolve}. Both {@code /} and the platform separator are removed, since the
+     * shared constants use {@link java.io.File#separator}.
+     *
+     * @param fileName the filename, possibly carrying a concatenation-shaped leading separator
+     *
+     * @return the bare filename
+     *
+     * @since 2026.5
+     */
+    private static String stripLeadingSeparator( String fileName )
+    {
+        String name = fileName == null ? "" : fileName;
+        while ( !name.isEmpty() && ( name.charAt( 0 ) == '/' || name.charAt( 0 ) == '\\' ) ) {
+            name = name.substring( 1 );
+        }
+        return name;
     }
 
     /**

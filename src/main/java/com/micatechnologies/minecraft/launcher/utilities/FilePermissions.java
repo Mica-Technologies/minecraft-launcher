@@ -63,10 +63,46 @@ public final class FilePermissions
      */
     public static void applyOwnerOnly( Path path )
     {
+        applyOwnerOnly( path, false );
+    }
+
+    /**
+     * Restricts a <b>directory</b>'s permissions to owner-only. POSIX 0700 if supported, else
+     * the same single owner-FULL_CONTROL ACL entry {@link #applyOwnerOnly(Path)} uses.
+     *
+     * <p>A directory needs the owner execute bit as well as read and write: on POSIX, execute
+     * on a directory is what permits traversing into it, so a directory left at 0600 cannot
+     * have files created inside it or read back out of it. Applying the file mask to a
+     * directory therefore locks it against its own owner — which is exactly the bug this
+     * method exists to prevent, and why the two cases are separate methods rather than one
+     * that guesses from the path.</p>
+     *
+     * @param path the path of the directory to restrict permissions for
+     *
+     * @since 2026.5
+     */
+    public static void applyOwnerOnlyDirectory( Path path )
+    {
+        applyOwnerOnly( path, true );
+    }
+
+    /**
+     * Shared implementation of the file and directory variants.
+     *
+     * @param path        the path to restrict
+     * @param isDirectory whether {@code path} is a directory, and so needs the owner execute
+     *                    bit to remain traversable
+     */
+    private static void applyOwnerOnly( Path path, boolean isDirectory )
+    {
         boolean applied = false;
         try {
-            Files.setPosixFilePermissions( path, EnumSet.of(
-                    PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE ) );
+            EnumSet< PosixFilePermission > permissions = EnumSet.of(
+                    PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE );
+            if ( isDirectory ) {
+                permissions.add( PosixFilePermission.OWNER_EXECUTE );
+            }
+            Files.setPosixFilePermissions( path, permissions );
             applied = true;
         }
         catch ( UnsupportedOperationException ignored ) {

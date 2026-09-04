@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -63,23 +64,15 @@ import static org.junit.jupiter.api.Assertions.fail;
  * {@link Path#resolve(String)} treats a leading-separator argument as an
  * <em>absolute</em> path and — per its documented contract — returns that
  * argument verbatim, discarding the directory it was resolved against
- * entirely. See {@link #archivedLoginConstantResolvesAwayFromItsParentDirectory()}
- * for a live demonstration with no filesystem access at all.
+ * entirely.
  *
- * <p>The practical effect: {@code archiveActive}'s copy of the login file
- * targets the real OS filesystem root (or the current drive's root on
- * Windows) instead of {@code <profiles>/<uuid>/player.mica}, and
- * {@code activate}'s existence check reads from that same wrong location —
- * so it always reports "no login file" regardless of whether a profile was
- * ever archived. Per the test-writing brief this is pinned, not fixed. It is
- * NOT exercised end-to-end here: doing so would mean either attempting a
- * real write to the machine's actual filesystem root from a test (unsafe
- * even though it happens to fail closed as a non-root user — see
- * {@link #archiveActiveWithNoActiveLoginReturnsNullAndCreatesNoProfilesDirectory()}'s
- * javadoc) or asserting on the contents of the real machine's root directory
- * (outside any {@code @TempDir} sandbox). {@link #activateNeverFindsAnArchivedLoginRegardlessOfWhetherOneWasArchived()}
- * demonstrates the read-side symptom safely, since a failed existence check
- * is read-only.</p>
+ * <p><b>Fixed 2026-09-04.</b> {@code ProfileArchive} now strips the leading
+ * separator before resolving, so archived logins land in
+ * {@code <profiles>/<uuid>/player.mica} as intended.
+ * {@link #archiveThenActivateRoundTripsTheLoginFile(Path)} covers the round trip
+ * that the bug made impossible, and
+ * {@link #theSharedFilenameConstantIsUnsafeToResolveDirectly()} guards the
+ * property of the shared constant that made the mistake easy to make.</p>
  *
  * <h3>Why the file-shuffle tests run in a child JVM</h3>
  * <p>{@link ProfileArchive} resolves every path through
@@ -148,18 +141,23 @@ class ProfileArchiveTest
     // ===================================================================
 
     /**
-     * Pins the root cause described in this class's javadoc: resolving the
-     * exact constant {@code ProfileArchive} uses for the per-profile login
-     * filename against a parent directory does not join the two paths — it
-     * discards the parent entirely, because the constant carries a leading
-     * separator and {@link Path#resolve(String)} treats that as absolute.
-     * A correctly-relative filename (no leading separator) resolves the
-     * normal way. This is the only place this defect is exercised directly;
-     * see the class javadoc for why the live archive/activate paths are not
-     * driven end-to-end in these tests.
+     * Regression guard for the fixed path bug. The shared constant
+     * {@code AUTH_ACCOUNT_REMEMBERED_FILE_NAME} is built for string concatenation
+     * onto a folder path, so it carries a leading separator — and
+     * {@link Path#resolve(String)} treats a leading-separator argument as
+     * <em>absolute</em>, discarding the parent entirely. Passing the constant
+     * straight to {@code resolve} therefore lands at the filesystem root, which is
+     * exactly what {@code ProfileArchive} used to do.
+     *
+     * <p>This test does not exercise {@code ProfileArchive} — it pins the property
+     * of the constant that makes the mistake easy to repeat. Anyone reaching for
+     * this constant with {@code resolve} in future has a failing-looking assertion
+     * here explaining why they must strip the separator first. The fix itself is
+     * covered end-to-end by
+     * {@link #archiveThenActivateRoundTripsTheLoginFile(Path)}.</p>
      */
     @Test
-    void archivedLoginConstantResolvesAwayFromItsParentDirectory()
+    void theSharedFilenameConstantIsUnsafeToResolveDirectly()
     {
         Path parent = Path.of( "some", "profile", "directory" );
 
@@ -174,7 +172,7 @@ class ProfileArchiveTest
         assertFalse( viaProductionConstant.startsWith( parent ),
                 "the constant's leading separator makes it an absolute path, so resolving it " +
                         "against a parent directory discards that parent instead of joining it — " +
-                        "this is exactly what ProfileArchive.archiveActive/activate do internally" );
+                        "ProfileArchive must strip the separator before using it" );
     }
 
     // ===================================================================
@@ -202,18 +200,15 @@ class ProfileArchiveTest
     // ===================================================================
 
     /**
-     * Demonstrates the practical effect of the bug documented in this
-     * class's javadoc: even when a profile has been placed at exactly the
-     * location {@code activate} is supposed to look for it — set up here by
-     * writing the files directly, not via the broken {@code archiveActive}
-     * — {@code activate} still reports failure, because its existence check
-     * resolves to the wrong path entirely (the real OS/drive root, not
-     * {@code <profiles>/<uuid>/player.mica}). This is safe to run for real:
-     * the check is a read of a fixed real-machine path that essentially
-     * never exists, never a write.
+     * Activating an archived profile copies its login file into the active slot.
+     *
+     * <p>This is the test that used to demonstrate the path bug: before the fix,
+     * {@code activate} resolved its existence check to the filesystem root and so
+     * reported "no login file" even for a correctly-placed profile. It now finds
+     * and restores it.</p>
      */
     @Test
-    void activateNeverFindsAnArchivedLoginRegardlessOfWhetherOneWasArchived( @TempDir Path tempDir ) throws Exception
+    void activateRestoresAnArchivedLoginIntoTheActiveSlot( @TempDir Path tempDir ) throws Exception
     {
         String uuid = "uuid-legit-profile";
         writeFile( profileDir( tempDir, uuid ).resolve( LOGIN_FILE_NAME ), "FAKE-ARCHIVED-LOGIN-CONTENT-NOT-REAL" );
@@ -222,10 +217,45 @@ class ProfileArchiveTest
 
         List< String > lines = runHarness( tempDir, "activate", uuid );
 
-        assertTrue( lines.contains( "ACTIVATE:false" ),
-                "activate() cannot find even a correctly-placed login file — see class javadoc: " + lines );
-        assertFalse( Files.exists( configDir( tempDir ).resolve( LOGIN_FILE_NAME ) ),
-                "since activate() bails out, the active login slot must be untouched" );
+        assertTrue( lines.contains( "ACTIVATE:true" ), "unexpected output: " + lines );
+        assertEquals( "FAKE-ARCHIVED-LOGIN-CONTENT-NOT-REAL",
+                Files.readString( configDir( tempDir ).resolve( LOGIN_FILE_NAME ) ),
+                "the archived login must land in the active slot" );
+    }
+
+    /**
+     * The round trip the path bug made impossible: archive the active login, then
+     * activate it back. Before the fix, {@code archiveActive} copied to the
+     * filesystem root (failing on any normal account) and {@code activate} looked
+     * for it there, so profile switching could never carry a login across.
+     *
+     * <p>Sibling files are included because they travel with the credentials and
+     * would have gone to the right place even while the login file did not —
+     * making the failure look partial rather than total.</p>
+     */
+    @Test
+    void archiveThenActivateRoundTripsTheLoginFile( @TempDir Path tempDir ) throws Exception
+    {
+        String uuid = "uuid-round-trip";
+        writeFile( configDir( tempDir ).resolve( LOGIN_FILE_NAME ), "ACTIVE-LOGIN-CONTENT" );
+        writeFile( configDir( tempDir ).resolve( "cached_user.json" ), "{\"cached\":true}" );
+
+        List< String > archived = runHarness( tempDir, "archive", uuid, "Steve" );
+        assertTrue( archived.stream().anyMatch( line -> line.startsWith( "ARCHIVE:OK:" ) ),
+                "unexpected output: " + archived );
+        assertTrue( Files.isRegularFile( profileDir( tempDir, uuid ).resolve( LOGIN_FILE_NAME ) ),
+                "the login file must be archived inside the profile folder, not at the filesystem root" );
+
+        Files.writeString( configDir( tempDir ).resolve( LOGIN_FILE_NAME ), "SOMEONE-ELSES-LOGIN" );
+
+        List< String > activated = runHarness( tempDir, "activate", uuid );
+        assertTrue( activated.contains( "ACTIVATE:true" ), "unexpected output: " + activated );
+        assertEquals( "ACTIVE-LOGIN-CONTENT",
+                Files.readString( configDir( tempDir ).resolve( LOGIN_FILE_NAME ) ),
+                "activating must restore the archived login over whatever was in the active slot" );
+        assertEquals( "{\"cached\":true}",
+                Files.readString( configDir( tempDir ).resolve( "cached_user.json" ) ),
+                "sibling files travel with the credentials" );
     }
 
     @Test
@@ -338,22 +368,17 @@ class ProfileArchiveTest
     }
 
     /**
-     * {@code forget()} deletes only the direct children of the profile
-     * folder, swallowing each per-file {@link java.io.IOException}
-     * individually, then unconditionally tries to delete the folder itself.
-     * A nested, non-empty subdirectory can't be removed by the single
-     * {@code Files.deleteIfExists} call on it (that throws
-     * {@code DirectoryNotEmptyException}, caught and ignored per-file), so
-     * it survives — and the final {@code Files.deleteIfExists(folder)} then
-     * fails for the same reason, this time propagating to the outer catch.
-     * Net effect, pinned here: the top-level file IS deleted, the nested
-     * subdirectory and the profile folder itself are NOT, and the method
-     * reports failure despite having partially mutated disk state. No
-     * profile is expected to ever contain a nested directory in practice,
-     * but the non-atomicity is real and worth having pinned.
+     * {@code forget()} removes the whole profile tree, nested directories included.
+     *
+     * <p>Before the fix it listed the folder once and called
+     * {@code deleteIfExists} on each entry, swallowing the per-entry exception. A
+     * non-empty subdirectory cannot be removed that way, so the folder — and the
+     * supposedly forgotten credentials inside it — survived while the method
+     * reported failure. "Forget my account" leaving credentials on disk is the
+     * kind of failure a user would never notice.</p>
      */
     @Test
-    void forgetWithNestedDirectoryLeavesPartialStateAndReturnsFalse( @TempDir Path tempDir ) throws Exception
+    void forgetRemovesNestedDirectoriesToo( @TempDir Path tempDir ) throws Exception
     {
         Path dir = profileDir( tempDir, "uuid-nested" );
         writeFile( dir.resolve( "a.txt" ), "top-level file" );
@@ -361,11 +386,8 @@ class ProfileArchiveTest
 
         List< String > lines = runHarness( tempDir, "forget", "uuid-nested" );
 
-        assertTrue( lines.contains( "FORGET:false" ), "unexpected output: " + lines );
-        assertFalse( Files.exists( dir.resolve( "a.txt" ) ), "the top-level file should have been deleted" );
-        assertTrue( Files.exists( dir.resolve( "nested" ).resolve( "b.txt" ) ),
-                "the nested subdirectory could not be deleted by deleteIfExists and must survive" );
-        assertTrue( Files.exists( dir ), "the profile folder itself must survive since it never became empty" );
+        assertTrue( lines.contains( "FORGET:true" ), "unexpected output: " + lines );
+        assertFalse( Files.exists( dir ), "nothing of the profile may survive being forgotten" );
     }
 
     // ===================================================================
