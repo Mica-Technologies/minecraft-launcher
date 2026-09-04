@@ -392,8 +392,11 @@ public class SingleInstanceLock
      * timing side-channel of {@code String.equals} — not really an exploitable attack
      * over a local socket, but trivial enough to be the right default for any secret
      * comparison.
+     *
+     * <p>Package-private (widened from {@code private}) so {@code SingleInstanceLockSlowEqualsTest}
+     * can exercise it directly without dragging in the socket / IPC machinery.</p>
      */
-    private static boolean slowEquals( String a, String b )
+    static boolean slowEquals( String a, String b )
     {
         if ( a == null || b == null ) {
             return false;
