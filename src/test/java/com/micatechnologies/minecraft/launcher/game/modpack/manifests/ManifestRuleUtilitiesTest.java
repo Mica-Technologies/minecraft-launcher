@@ -22,6 +22,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import org.junit.jupiter.api.Test;
 
+import java.util.regex.Pattern;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -51,6 +53,12 @@ class ManifestRuleUtilitiesTest
 
     /** A platform name guaranteed to differ from {@link #CURRENT}. */
     private static final String NOT_CURRENT = "windows".equals( CURRENT ) ? "linux" : "windows";
+
+    /** The host OS version, as the rule engine reads it via {@code os.version}/{@code versionRange}. */
+    private static final String CURRENT_OS_VERSION = System.getProperty( "os.version", "" );
+
+    /** The host arch, as the rule engine reads it via {@code os.arch}. */
+    private static final String CURRENT_OS_ARCH = System.getProperty( "os.arch", "" );
 
     // =========================================================================
     //  Helpers
@@ -199,6 +207,182 @@ class ManifestRuleUtilitiesTest
         rules.add( rule( "allow" ) );
         assertTrue( ManifestRuleUtilities.evaluateRules( rules ),
                     "a stray primitive in the rules array must not derail evaluation" );
+    }
+
+    // =========================================================================
+    //  evaluateRules — os.version / os.arch regex matching (MC pre-26.1 rule format)
+    // =========================================================================
+
+    /** Builds an {@code {"action": <action>, "os": {"version": <regex>}}} rule. */
+    private static JsonObject ruleWithOsVersion( String action, String versionRegex )
+    {
+        JsonObject r = rule( action );
+        JsonObject os = new JsonObject();
+        os.addProperty( "version", versionRegex );
+        r.add( "os", os );
+        return r;
+    }
+
+    /** Builds an {@code {"action": <action>, "os": {"arch": <regex>}}} rule. */
+    private static JsonObject ruleWithOsArch( String action, String archRegex )
+    {
+        JsonObject r = rule( action );
+        JsonObject os = new JsonObject();
+        os.addProperty( "arch", archRegex );
+        r.add( "os", os );
+        return r;
+    }
+
+    @Test
+    void osVersionRegexMatchingTheHostVersionApplies()
+    {
+        // Pattern.matcher(...).find() -- a bare substring of the real os.version always finds.
+        assertTrue( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithOsVersion( "allow", Pattern.quote( CURRENT_OS_VERSION ) ) ) ) );
+    }
+
+    @Test
+    void osVersionRegexNotMatchingTheHostVersionIsSkipped()
+    {
+        assertFalse( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithOsVersion( "allow", "this-will-never-match-a-real-os-version-string" ) ) ) );
+    }
+
+    @Test
+    void osArchRegexMatchingTheHostArchApplies()
+    {
+        assertTrue( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithOsArch( "allow", Pattern.quote( CURRENT_OS_ARCH ) ) ) ) );
+    }
+
+    @Test
+    void osArchRegexNotMatchingTheHostArchIsSkipped()
+    {
+        assertFalse( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithOsArch( "allow", "not-a-real-architecture-token" ) ) ) );
+    }
+
+    /**
+     * A malformed regex must not blow up rule evaluation — {@code PatternSyntaxException} is
+     * caught and treated as a non-match, so one bad manifest entry degrades to "rule skipped"
+     * rather than aborting the whole library/argument resolution pass.
+     */
+    @Test
+    void invalidRegexInOsVersionIsTreatedAsANonMatchRatherThanThrowing()
+    {
+        assertFalse( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithOsVersion( "allow", "[unclosed-character-class" ) ) ) );
+    }
+
+    // =========================================================================
+    //  evaluateRules — os.versionRange (MC 26.1+ rule format)
+    // =========================================================================
+
+    private static JsonObject versionRange( String min, String max )
+    {
+        JsonObject range = new JsonObject();
+        if ( min != null ) range.addProperty( "min", min );
+        if ( max != null ) range.addProperty( "max", max );
+        return range;
+    }
+
+    private static JsonObject ruleWithVersionRange( String action, String min, String max )
+    {
+        JsonObject r = rule( action );
+        JsonObject os = new JsonObject();
+        os.add( "versionRange", versionRange( min, max ) );
+        r.add( "os", os );
+        return r;
+    }
+
+    @Test
+    void versionRangeMatchesWhenHostVersionIsWithinMinAndMax()
+    {
+        // "0" and a very large number bracket every real os.version.
+        assertTrue( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithVersionRange( "allow", "0", "999999" ) ) ) );
+    }
+
+    @Test
+    void versionRangeFailsWhenHostVersionIsBelowMin()
+    {
+        assertFalse( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithVersionRange( "allow", "999999", null ) ) ) );
+    }
+
+    @Test
+    void versionRangeFailsWhenHostVersionIsAboveMax()
+    {
+        assumeVersionIsComparable();
+        assertFalse( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithVersionRange( "allow", null, "0.0" ) ) ) );
+    }
+
+    /** Skips the above-max assertion on the rare host whose os.version parses to all zeros
+     *  (would make "above max 0.0" vacuously false-negative rather than exercising the branch). */
+    private static void assumeVersionIsComparable()
+    {
+        org.junit.jupiter.api.Assumptions.assumeFalse( CURRENT_OS_VERSION.isEmpty() );
+    }
+
+    @Test
+    void versionRangeWithOnlyMinIgnoresMax()
+    {
+        assertTrue( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithVersionRange( "allow", "0", null ) ) ) );
+    }
+
+    @Test
+    void versionRangeIsInclusiveAtTheBoundary()
+    {
+        assertTrue( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithVersionRange( "allow", CURRENT_OS_VERSION, CURRENT_OS_VERSION ) ) ) );
+    }
+
+    // =========================================================================
+    //  evaluateRules — features block
+    // =========================================================================
+
+    private static JsonObject ruleWithFeature( String action, String featureKey, boolean expected )
+    {
+        JsonObject r = rule( action );
+        JsonObject features = new JsonObject();
+        features.addProperty( featureKey, expected );
+        r.add( "features", features );
+        return r;
+    }
+
+    /**
+     * This launcher does not implement Mojang's optional launcher feature toggles (demo user,
+     * custom resolution, quick-play variants, ...), so every feature reads as permanently
+     * disabled. A rule that requires a feature to be {@code true} must therefore never match.
+     */
+    @Test
+    void ruleRequiringAFeatureToBeEnabledNeverMatches()
+    {
+        assertFalse( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithFeature( "allow", "is_demo_user", true ) ) ) );
+    }
+
+    /**
+     * A rule that requires a feature to be {@code false} matches, since every feature is
+     * unconditionally treated as disabled. This is the shape Mojang's manifests use to express
+     * "applies to every launcher that doesn't implement this optional feature."
+     */
+    @Test
+    void ruleRequiringAFeatureToBeDisabledMatches()
+    {
+        assertTrue( ManifestRuleUtilities.evaluateRules(
+                arrayOf( ruleWithFeature( "allow", "is_demo_user", false ) ) ) );
+    }
+
+    @Test
+    void ruleWithNoFeaturesConstraintIsUnaffectedByFeaturesBlock()
+    {
+        JsonObject r = rule( "allow" );
+        r.add( "features", new JsonObject() );
+        assertTrue( ManifestRuleUtilities.evaluateRules( arrayOf( r ) ),
+                    "an empty features object requests nothing, so it must not block the rule" );
     }
 
     // =========================================================================
