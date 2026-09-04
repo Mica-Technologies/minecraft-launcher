@@ -1463,14 +1463,7 @@ class GameModPackLauncher
             placeholders.put( "${auth_session}", authSession );
             placeholders.put( "${game_assets}", gameAssetsPath );
         }
-        for ( int i = 0; i < argv.size(); i++ ) {
-            String arg = argv.get( i );
-            if ( arg.indexOf( '$' ) < 0 ) continue; // micro-opt: skip args with no placeholder
-            for ( java.util.Map.Entry< String, String > entry : placeholders.entrySet() ) {
-                arg = arg.replace( entry.getKey(), entry.getValue() );
-            }
-            argv.set( i, arg );
-        }
+        substitutePlaceholders( argv, placeholders );
 
         // Quick-join server target. If the user clicked Connect on a server
         // favorite, the LauncherCore.play overload set a transient field on
@@ -1683,6 +1676,45 @@ class GameModPackLauncher
         }
         catch ( Exception e ) {
             Logger.logWarningSilent( LocalizationManager.format( "log.gameModPackLauncher.log4jConfigDownloadFailed", fileName ) );
+        }
+    }
+
+    /**
+     * Replaces every {@code ${...}} placeholder in {@code argv} in place.
+     *
+     * <p>Extracted from the launch-command assembly so it can be tested without building a
+     * real pack, an auth session, and a full classpath. Behaviour is unchanged apart from a
+     * defensive null-entry skip.</p>
+     *
+     * <p><b>Substitution is single-pass but order-dependent.</b> Each argument is rewritten
+     * by applying every map entry in turn, so if one placeholder's <em>value</em> happens to
+     * contain another placeholder's <em>key</em>, that second placeholder is expanded too --
+     * and whether it is depends on {@code HashMap} iteration order, which is arbitrary. The
+     * substituted values are not all launcher-controlled: several derive from the pack
+     * manifest, which is server-supplied JSON. See {@code GameModPackLauncherPlaceholderTest}
+     * for the demonstrating case.</p>
+     *
+     * @param argv         the argument vector to rewrite in place
+     * @param placeholders placeholder key to replacement value
+     *
+     * @since 2026.9
+     */
+    static void substitutePlaceholders( java.util.List< String > argv,
+                                        java.util.Map< String, String > placeholders )
+    {
+        if ( argv == null || placeholders == null || placeholders.isEmpty() ) {
+            return;
+        }
+        for ( int i = 0; i < argv.size(); i++ ) {
+            String arg = argv.get( i );
+            // micro-opt: skip args with no placeholder
+            if ( arg == null || arg.indexOf( '$' ) < 0 ) {
+                continue;
+            }
+            for ( java.util.Map.Entry< String, String > entry : placeholders.entrySet() ) {
+                arg = arg.replace( entry.getKey(), entry.getValue() );
+            }
+            argv.set( i, arg );
         }
     }
 }
