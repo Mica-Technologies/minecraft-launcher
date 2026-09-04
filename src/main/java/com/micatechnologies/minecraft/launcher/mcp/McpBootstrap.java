@@ -28,6 +28,8 @@ import com.micatechnologies.minecraft.launcher.mcp.resources.McpResourceRegistry
 import com.micatechnologies.minecraft.launcher.mcp.session.McpSession;
 import com.micatechnologies.minecraft.launcher.mcp.tools.LiveMcpLauncherView;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpLauncherView;
+import com.micatechnologies.minecraft.launcher.mcp.approval.McpRiskClass;
+import com.micatechnologies.minecraft.launcher.mcp.tools.McpTool;
 import com.micatechnologies.minecraft.launcher.mcp.tools.McpToolRegistry;
 import com.micatechnologies.minecraft.launcher.mcp.tools.ReadOnlyTools;
 
@@ -194,6 +196,47 @@ public final class McpBootstrap
     public static synchronized List< McpSession > getSessions()
     {
         return server == null ? List.of() : server.getSessions();
+    }
+
+    /**
+     * One tool as the Settings page needs to describe it.
+     *
+     * @param name      the tool's wire name, and the key its policy is stored under
+     * @param title     the human-readable title
+     * @param riskClass how much damage the tool can do, which sets its default
+     *
+     * @since 3.0
+     */
+    public record ToolDescriptor( String name, String title, McpRiskClass riskClass )
+    {
+    }
+
+    /**
+     * Describes every tool this build can expose, whether or not the server is running.
+     * <p>
+     * Built from a throwaway registry rather than the live server so the Settings page can
+     * show — and let the user pre-configure — per-tool permissions while the feature is
+     * switched off. A permissions screen that is empty until you enable the thing you are
+     * trying to configure would be the wrong way round.
+     *
+     * @return the tools, in registration order
+     *
+     * @since 3.0
+     */
+    public static List< ToolDescriptor > describeTools()
+    {
+        List< ToolDescriptor > described = new java.util.ArrayList<>();
+        try {
+            McpToolRegistry registry = new McpToolRegistry();
+            ReadOnlyTools.registerAll( registry, new LiveMcpLauncherView() );
+            for ( McpTool tool : registry.all() ) {
+                described.add( new ToolDescriptor( tool.name(), tool.title(), tool.riskClass() ) );
+            }
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "Could not enumerate MCP tools for the Settings page" );
+        }
+        return described;
     }
 
     /**

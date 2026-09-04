@@ -443,6 +443,21 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     Label mcpStatusLabel;
 
+    /** Security tab: container the per-tool MCP permission rows are built into. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.layout.VBox mcpToolPolicyList;
+
+    /** Security tab: how many "allow for this session" approvals are currently held. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label mcpGrantsLabel;
+
+    /** Security tab: clears every session approval without touching permanent choices. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton mcpRevokeGrantsBtn;
+
     /**
      * Advanced tab: launcher-wide "Verify all game files" button.
      * Triggers a force-FULL verify across every installed modpack — runs
@@ -1420,6 +1435,13 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
             mcpAutoApproveToggle.setSelected( ConfigManager.getMcpAutoApproveReadOnly() );
             mcpAutoApproveToggle.selectedProperty().addListener(
                     ( obs, oldV, newV ) -> ConfigManager.setMcpAutoApproveReadOnly( newV ) );
+        }
+        buildMcpToolPolicyRows();
+        if ( mcpRevokeGrantsBtn != null ) {
+            mcpRevokeGrantsBtn.setOnAction( e -> {
+                com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getGrants().revokeAll();
+                refreshMcpStatusLabel();
+            } );
         }
         refreshMcpStatusLabel();
 
@@ -2625,6 +2647,101 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                                                                       .getSessions().size() )
                         : LocalizationManager.get( "settings.mcp.status.stopped" );
         mcpStatusLabel.setText( status );
+
+        if ( mcpGrantsLabel != null ) {
+            int grants = com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getGrants()
+                    .liveGrants( System.currentTimeMillis() ).size();
+            mcpGrantsLabel.setText( LocalizationManager.format( "settings.mcp.grants.count", grants ) );
+        }
+    }
+
+
+    /**
+     * Builds one permission row per MCP tool: its title, its risk class, and a policy combo.
+     *
+     * <p>The rows come from {@code McpBootstrap.describeTools()} rather than from the running
+     * server, so permissions can be reviewed and set while the feature is switched off. A
+     * permissions screen that stays empty until you enable the thing you are trying to
+     * configure would be the wrong way round.</p>
+     *
+     * <p>Each row shows the tool's risk class beside its name. That is the context that makes
+     * "always allow" a real decision rather than a shrug — the difference between granting it
+     * to a listing tool and to one that deletes a modpack.</p>
+     *
+     * @since 3.0
+     */
+    private void buildMcpToolPolicyRows()
+    {
+        if ( mcpToolPolicyList == null ) {
+            return;
+        }
+        mcpToolPolicyList.getChildren().clear();
+
+        var policies = com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getPolicies();
+        java.util.List< String > labels = java.util.List.of(
+                LocalizationManager.get( "settings.mcp.policy.default" ),
+                LocalizationManager.get( "settings.mcp.policy.alwaysAllow" ),
+                LocalizationManager.get( "settings.mcp.policy.ask" ),
+                LocalizationManager.get( "settings.mcp.policy.disabled" ) );
+
+        for ( var tool : com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.describeTools() ) {
+            javafx.scene.layout.HBox row = new javafx.scene.layout.HBox( 8 );
+            row.setAlignment( javafx.geometry.Pos.CENTER_LEFT );
+
+            Label name = new Label( tool.title() + "  (" + tool.riskClass().name().toLowerCase()
+                                            .replace( '_', ' ' ) + ")" );
+            name.setMinWidth( 240 );
+
+            MFXComboBox< String > combo = new MFXComboBox<>();
+            combo.setItems( javafx.collections.FXCollections.observableArrayList( labels ) );
+            combo.selectItem( labels.get( indexOfPolicy( policies.policyFor( tool.name() ) ) ) );
+            combo.getSelectionModel().selectedIndexProperty().addListener( ( obs, oldV, newV ) -> {
+                int index = newV == null ? 0 : newV.intValue();
+                policies.setPolicy( tool.name(), policyForIndex( index ) );
+            } );
+
+            row.getChildren().addAll( name, combo );
+            mcpToolPolicyList.getChildren().add( row );
+        }
+    }
+
+    /**
+     * Maps a stored policy to its combo index. An unset policy is index 0, "Default".
+     *
+     * @param policy the stored policy, or {@code null}
+     *
+     * @return the combo index
+     */
+    private static int indexOfPolicy(
+            com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy policy )
+    {
+        if ( policy == null ) {
+            return 0;
+        }
+        return switch ( policy ) {
+            case ALWAYS_ALLOW -> 1;
+            case ASK -> 2;
+            case DISABLED -> 3;
+        };
+    }
+
+    /**
+     * Maps a combo index back to a policy. Index 0 clears the policy back to the risk-class
+     * default rather than storing one.
+     *
+     * @param index the combo index
+     *
+     * @return the policy, or {@code null} to clear
+     */
+    private static com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy
+    policyForIndex( int index )
+    {
+        return switch ( index ) {
+            case 1 -> com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy.ALWAYS_ALLOW;
+            case 2 -> com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy.ASK;
+            case 3 -> com.micatechnologies.minecraft.launcher.mcp.approval.McpApprovalPolicy.DISABLED;
+            default -> null;
+        };
     }
 
 }

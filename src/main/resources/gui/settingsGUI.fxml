@@ -556,6 +556,33 @@
                             </font>
                         </Label>
                     </VBox>
+                    <VBox styleClass="settingsContainer" spacing="8">
+                        <padding>
+                            <Insets bottom="12.0" left="12.0" right="12.0" top="12.0" />
+                        </padding>
+                        <Label text="%settings.mcp.permissions.title">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Label>
+                        <Label text="%settings.mcp.permissions.description" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <VBox fx:id="mcpToolPolicyList" spacing="6" fillWidth="true" />
+                        <Label text="%settings.mcp.revokeGrants.description" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <Label fx:id="mcpGrantsLabel" wrapText="true">
+                            <font>
+                                <Font size="11.0" />
+                            </font>
+                        </Label>
+                        <MFXButton fx:id="mcpRevokeGrantsBtn" text="%settings.mcp.revokeGrants.label" />
+                    </VBox>
                 </VBox>
             </ScrollPane>
 
