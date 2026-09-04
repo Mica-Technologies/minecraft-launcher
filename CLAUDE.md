@@ -55,12 +55,20 @@ mvn test
 mvn clean
 ```
 
-Unit tests live under `src/test/java/` using JUnit Jupiter (6.x). They cover the launcher's pure-logic seams — RGB backend resolver / circuit breaker, the `jar:` URL containment gate, etc. — and intentionally avoid JavaFX runtime, vendor SDKs, and network I/O so they run in well under a second total. CI runs `mvn -B package` on all three platforms (Windows, macOS, Linux) via `.github/workflows/build-packages.yml`, which exercises the test phase as a side effect.
+Unit tests live under `src/test/java/` using JUnit Jupiter (6.1.0) — 32 test classes across 8 packages (12 in `game/modpack`, 8 in `utilities`, 5 in `gui`, 4 across `rgb`, and one each in `security`, `game/crash`, and `files`). They target the launcher's pure-logic seams — RGB backend resolver / circuit breaker, the `jar:` URL containment gate, machine-secret cipher fingerprinting, crash-report analysis, scan-exclusion policy — and avoid vendor SDKs and network I/O so they run in well under a second total.
+
+JavaFX tests DO exist: TestFX (`testfx-core` + `testfx-junit5` 4.0.18) backs `TestFxSmokeTest` and `SettingsLanguageButtonFxTest`. Both are gated behind `@EnabledIfEnvironmentVariable( named = "MMCL_RUN_TESTFX", matches = "true" )`, so they are opt-in and do not run in the default build. Keep new GUI tests behind that same gate.
+
+Coverage is measured by JaCoCo 0.8.15 (`mvn test jacoco:report` → `build/target/site/jacoco/index.html`). Baseline at introduction: 7.03% instruction / 6.22% line coverage. **JaCoCo must stay at 0.8.15 or newer** — earlier releases abort report generation with `Unsupported class file major version 70` on this project's Java 26 bytecode; the agent still attaches and writes `jacoco.exec`, so the failure only appears at the report step. There is deliberately **no** coverage threshold: a gate set before a real baseline exists gets gamed or bypassed. The JaCoCo agent's JVM args land in `${jacocoArgLine}`, not the default `${argLine}`, because Surefire already carries an explicit `argLine` for the FXTaskbarProgressBar module export — using the default would silently overwrite it and report empty coverage. Surefire references that property with **late evaluation** (`@{jacocoArgLine}`, not `${jacocoArgLine}`): a `${}` reference is interpolated from the POM model before `prepare-agent` runs, resolves to the empty default, and leaves the agent silently unattached — tests still pass and no `jacoco.exec` is ever written.
+
+CI runs tests via `.github/workflows/test-build-pr.yml`, which executes a dedicated `mvn -B test` job first and then a three-platform (Windows, macOS, Linux) `mvn -B package` matrix; `.github/workflows/build-release.yml` handles releases. A failing test already blocks a PR.
 
 When adding new tests, prefer extracting a package-private seam in the production class over reflection / Mockito. The current tests use plain JUnit assertions plus small hand-rolled stubs (e.g. `RgbBackendRegistryTest`'s `StubBackend`); we have not added a mocking framework and don't currently need one.
 
-Build outputs:
-- `target/*-jar-with-dependencies.jar` -- runnable fat JAR
+Build outputs (note: the POM sets `<directory>${project.basedir}/build/target</directory>`, so **there is no top-level `target/` directory** — everything lands under `build/target/`):
+- `build/target/*-jar-with-dependencies.jar` -- runnable fat JAR
+- `build/target/surefire-reports/` -- per-test-class results
+- `build/target/site/jacoco/index.html` -- coverage report
 - `packaging/` -- native installers (EXE/MSI, DMG/PKG, DEB/RPM)
 
 ## Architecture

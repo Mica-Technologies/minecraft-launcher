@@ -34,6 +34,15 @@
 
     <!-- PROJECT AND CUSTOM PROPERTIES -->
     <properties>
+        <!-- JaCoCo agent JVM args. Populated by jacoco-maven-plugin's prepare-agent
+             execution (propertyName below); defaults to empty so lifecycles that never
+             run prepare-agent (e.g. `mvn compile`, or `package -DskipTests`) still
+             resolve Surefire's argLine. Surefire already carries an explicit argLine for
+             the FXTaskbarProgressBar module export, so the agent CANNOT use JaCoCo's
+             default `argLine` property — it would be silently overwritten and coverage
+             would come back empty. -->
+        <jacocoArgLine></jacocoArgLine>
+
         <!-- CI-friendly version. Resolution order:
                1. `-Drevision=YYYY.MM.DD[+N]` on the CLI (what the release workflow passes)
                2. The derive-revision-from-git gmavenplus-plugin execution below, which
@@ -376,8 +385,56 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.5</version>
                 <configuration>
-                    <argLine>${jfxtaskbarprogressbar.export}</argLine>
+                    <argLine>${jfxtaskbarprogressbar.export} @{jacocoArgLine}</argLine>
                 </configuration>
+            </plugin>
+
+            <!-- CODE COVERAGE. Attaches the JaCoCo agent for the test phase and writes
+                 target/site/jacoco/index.html at verify. Deliberately reports only — no
+                 coverage gate/threshold is configured, because a threshold picked before
+                 a real baseline exists either gets gamed or gets bypassed. Add a
+                 no-regression ratchet once the baseline is established.
+
+                 The agent's JVM args land in ${jacocoArgLine} rather than the default
+                 ${argLine}; see the property declaration above for why. Surefire
+                 references it with LATE evaluation, @{jacocoArgLine} rather than
+                 ${jacocoArgLine}, because a ${} reference is interpolated from the
+                 POM model before prepare-agent runs, which resolves to the empty
+                 default and silently leaves the agent unattached (tests pass, no
+                 jacoco.exec is ever written). @{} defers resolution to execution
+                 time, after prepare-agent has set the property. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <!-- 0.8.15+ is REQUIRED: earlier releases abort report generation with
+                     "Unsupported class file major version 70" on this project's Java 26
+                     bytecode. The agent attaches and writes jacoco.exec fine on older
+                     versions, so the failure only surfaces at the report step. -->
+                <version>0.8.15</version>
+                <configuration>
+                    <excludes>
+                        <!-- Vendored third-party source; not ours to cover. -->
+                        <exclude>me/cortex/jarscanner/**</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>jacoco-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <propertyName>jacocoArgLine</propertyName>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>jacoco-report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- ASSEMBLE JAR WITH DEPENDENCIES -->
