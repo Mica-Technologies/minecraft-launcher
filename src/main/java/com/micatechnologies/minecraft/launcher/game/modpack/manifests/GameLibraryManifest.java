@@ -88,11 +88,30 @@ public class GameLibraryManifest extends ManagedGameFile
      * @since 1.0
      */
     private ArrayList< GameLibrary > getLibraries() throws ModpackException {
+        return extractLibraries( readToJsonObject() );
+    }
+
+    /**
+     * Scans an already-parsed client.json's {@code libraries} array and returns the list of
+     * {@link GameLibrary} objects applicable to the current system: resolving per-platform native
+     * classifiers, evaluating each library's {@code rules} array, and filtering to libraries whose
+     * applicable-OS list contains the current platform.
+     *
+     * @param libManifest the parsed client.json to scan
+     *
+     * @return list of applicable {@link GameLibrary} objects
+     *
+     * @throws ModpackException if a library entry is missing a required field
+     *
+     * @since 3.0
+     */
+    // Package-private and static (extracted from getLibraries()) so this platform-selection
+    // logic -- which libraries and natives actually end up on the classpath -- can be tested
+    // directly against a hand-built manifest, without a real GameModPack/downloaded file backing
+    // this instance. Reads no instance state (parentModPack is never referenced in the body).
+    static ArrayList< GameLibrary > extractLibraries( JsonObject libManifest ) throws ModpackException {
         // Create list to return
         ArrayList< GameLibrary > libraries = new ArrayList<>();
-
-        // Get JsonObject of manifest
-        JsonObject libManifest = readToJsonObject();
 
         // Loop through each library in manifest
         JsonArray libManifestLibraries = libManifest.getAsJsonArray(
