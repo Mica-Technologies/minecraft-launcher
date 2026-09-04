@@ -607,8 +607,10 @@ public final class SupplementalScanner
     }
 
     /** Hex-encoded SHA-256 of an in-memory byte array. Shared between the
-     *  inner-entry hash path and the class-bytes hash path. */
-    private static String sha256Hex( byte[] bytes )
+     *  inner-entry hash path and the class-bytes hash path.
+     *  Widened from {@code private} to package-private for direct unit
+     *  testing (repo convention: prefer a widened seam over reflection). */
+    static String sha256Hex( byte[] bytes )
     {
         if ( bytes == null ) return null;
         try {
@@ -629,8 +631,10 @@ public final class SupplementalScanner
      *  so a hash change (new mod version, repackaged JAR) invalidates the ack
      *  rather than silently inheriting it. Returns {@code null} on read or
      *  digest failure — callers treat null as "no hash available, no ack
-     *  match possible." */
-    private static String computeJarSha256( Path jarPath )
+     *  match possible."
+     *  Widened from {@code private} to package-private for direct unit
+     *  testing (repo convention: prefer a widened seam over reflection). */
+    static String computeJarSha256( Path jarPath )
     {
         if ( jarPath == null ) return null;
         try {
@@ -773,8 +777,11 @@ public final class SupplementalScanner
      * @param m a {@link Matcher} positioned on a dotted-quad with four numeric groups
      *
      * @return {@code true} if every octet is a valid {@code 0..255} value
+     *
+     * Widened from {@code private} to package-private for direct unit
+     * testing (repo convention: prefer a widened seam over reflection).
      */
-    private static boolean looksLikeRealIp( Matcher m )
+    static boolean looksLikeRealIp( Matcher m )
     {
         try {
             for ( int i = 1; i <= 4; i++ ) {
@@ -797,8 +804,10 @@ public final class SupplementalScanner
      *  <p>{@code fullString} is the entire LDC the match came from;
      *  {@code m} is the matched IPv4 regex group (with its four numeric
      *  capture groups already validated 0..255 by {@link #looksLikeRealIp}).</p>
+     *  Widened from {@code private} to package-private for direct unit
+     *  testing (repo convention: prefer a widened seam over reflection).
      */
-    private static boolean isFalsePositiveIp( String fullString, Matcher m )
+    static boolean isFalsePositiveIp( String fullString, Matcher m )
     {
         try {
             int a = Integer.parseInt( m.group( 1 ) );
@@ -899,8 +908,10 @@ public final class SupplementalScanner
      *  <p>This is deliberately narrow — there's no host-port-validation,
      *  no IDN unwrap, no scheme allowlist. The only question is "did the
      *  string look like the IP was meant to be dialed?" and the {@code ://}
-     *  / {@code @} sentinels are the cleanest signal for that.</p> */
-    private static boolean isIpUrlHost( String fullString, int ipStart )
+     *  / {@code @} sentinels are the cleanest signal for that.</p>
+     *  Widened from {@code private} to package-private for direct unit
+     *  testing (repo convention: prefer a widened seam over reflection). */
+    static boolean isIpUrlHost( String fullString, int ipStart )
     {
         if ( fullString == null || ipStart < 0 ) return false;
         // Preceded by "://" — typical "http://1.2.3.4..." host position.
@@ -925,8 +936,11 @@ public final class SupplementalScanner
      * @param normalizedName the lower-cased, forward-slash-normalized entry name
      *
      * @return {@code true} if the name contains a recognized native-path prefix
+     *
+     * Widened from {@code private} to package-private for direct unit
+     * testing (repo convention: prefer a widened seam over reflection).
      */
-    private static boolean isInLegitNativePath( String normalizedName )
+    static boolean isInLegitNativePath( String normalizedName )
     {
         for ( String prefix : LEGIT_NATIVE_PATH_PREFIXES ) {
             if ( normalizedName.contains( prefix ) ) {
@@ -959,8 +973,10 @@ public final class SupplementalScanner
      *  <p>This widens the legitimate set so far that the path-based check
      *  is effectively informational — it'll still fire on truly weird cases
      *  like a JAR root drop of {@code random.jnilib} without a {@code lib}
-     *  prefix, which is rare enough to be worth a MEDIUM log line.</p> */
-    private static boolean hasLegitNativeFilename( String normalizedName )
+     *  prefix, which is rare enough to be worth a MEDIUM log line.</p>
+     *  Widened from {@code private} to package-private for direct unit
+     *  testing (repo convention: prefer a widened seam over reflection). */
+    static boolean hasLegitNativeFilename( String normalizedName )
     {
         int slashIdx = normalizedName.lastIndexOf( '/' );
         String base = slashIdx < 0 ? normalizedName : normalizedName.substring( slashIdx + 1 );
@@ -1013,8 +1029,11 @@ public final class SupplementalScanner
      * @param raw the raw exclusion strings (may be {@code null})
      *
      * @return a normalized, blank-free exclusion list (never {@code null})
+     *
+     * Widened from {@code private} to package-private for direct unit
+     * testing (repo convention: prefer a widened seam over reflection).
      */
-    private static List< String > normalizeExclusions( List< String > raw )
+    static List< String > normalizeExclusions( List< String > raw )
     {
         if ( raw == null || raw.isEmpty() ) {
             return Collections.emptyList();
@@ -1044,8 +1063,11 @@ public final class SupplementalScanner
      * @param exclusions normalized exclusions from {@link #normalizeExclusions}
      *
      * @return {@code true} if {@code target} is excluded from scanning
+     *
+     * Widened from {@code private} to package-private for direct unit
+     * testing (repo convention: prefer a widened seam over reflection).
      */
-    private static boolean isExcluded( Path root, Path target, List< String > exclusions )
+    static boolean isExcluded( Path root, Path target, List< String > exclusions )
     {
         if ( exclusions.isEmpty() || root.equals( target ) ) {
             return false;

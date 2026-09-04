@@ -172,7 +172,9 @@ public class NetworkUtilities
      * {@code "Faithful-64x.zip — 45% · 12.3 / 27.1 MB · 2.4 MB/s"}. Falls back to a plain
      * byte count when the server didn't send a Content-Length.
      */
-    private static String formatDownloadProgress( File destination, long bytesSoFar, long contentLength,
+    // Widened from private to package-private for direct unit testing
+    // (repo convention: prefer a widened seam over reflection).
+    static String formatDownloadProgress( File destination, long bytesSoFar, long contentLength,
                                                   DownloadTracker tracker )
     {
         String name = ( destination != null ) ? destination.getName() : "";
@@ -197,8 +199,10 @@ public class NetworkUtilities
         return sb.toString();
     }
 
-    /** Human-readable byte size (e.g. {@code "27.1 MB"}, {@code "812 KB"}, {@code "945 B"}). */
-    private static String formatBytes( long bytes )
+    /** Human-readable byte size (e.g. {@code "27.1 MB"}, {@code "812 KB"}, {@code "945 B"}).
+     *  Widened from {@code private} to package-private for direct unit
+     *  testing (repo convention: prefer a widened seam over reflection). */
+    static String formatBytes( long bytes )
     {
         if ( bytes < 1024 ) {
             return bytes + " B";
@@ -214,8 +218,10 @@ public class NetworkUtilities
 
     /** Pulls the short filename out of a URL for a more readable retry message
      *  than the full URL would produce. {@code https://example/foo/bar.jar?x=1}
-     *  becomes {@code bar.jar}. */
-    private static String urlFileName( URL source )
+     *  becomes {@code bar.jar}.
+     *  Widened from {@code private} to package-private for direct unit
+     *  testing (repo convention: prefer a widened seam over reflection). */
+    static String urlFileName( URL source )
     {
         if ( source == null ) return "";
         String path = source.getPath();
@@ -250,7 +256,9 @@ public class NetworkUtilities
      * {@code SynchronizedFileManager}'s keying — without the per-download
      * {@code getCanonicalPath()} filesystem syscall the old version paid.
      */
-    private static Object getPathLock( File file ) {
+    // Widened from private to package-private for direct unit testing
+    // (repo convention: prefer a widened seam over reflection).
+    static Object getPathLock( File file ) {
         java.nio.file.Path normalized = file.toPath().toAbsolutePath().normalize();
         String key = File.separatorChar == '\\'
                      ? normalized.toString().toLowerCase( java.util.Locale.ROOT )
@@ -1019,8 +1027,11 @@ public class NetworkUtilities
      *
      * <p>Missing / blank Content-Type is allowed (some legitimate servers omit
      * it). Everything else throws.
+     *
+     * Widened from {@code private} to package-private for direct unit
+     * testing (repo convention: prefer a widened seam over reflection).
      */
-    private static void assertAcceptableJsonContentType( String contentType, URL from )
+    static void assertAcceptableJsonContentType( String contentType, URL from )
             throws IOException
     {
         if ( contentType == null || contentType.isBlank() ) return;
