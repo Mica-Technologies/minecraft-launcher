@@ -555,8 +555,10 @@ public final class LauncherUriHandler
     }
 
     /** Returns the host of a URL string for display in the confirmation prompt, falling
-     *  back to the raw URL on parse failure. */
-    private static String hostOf( String url )
+     *  back to the raw URL on parse failure.
+     *
+     * <p>Package-private (widened from {@code private}) so it can be unit-tested directly.</p> */
+    static String hostOf( String url )
     {
         try {
             URI parsed = URI.create( url );
@@ -569,8 +571,10 @@ public final class LauncherUriHandler
     }
 
     /** Decodes a {@code key1=value1&key2=value2} query string into a map. Both keys and
-     *  values are URL-decoded. Empty / null query → empty map. */
-    private static Map< String, String > parseQuery( String query )
+     *  values are URL-decoded. Empty / null query → empty map.
+     *
+     * <p>Package-private (widened from {@code private}) so it can be unit-tested directly.</p> */
+    static Map< String, String > parseQuery( String query )
     {
         Map< String, String > out = new HashMap<>();
         if ( query == null || query.isEmpty() ) {
