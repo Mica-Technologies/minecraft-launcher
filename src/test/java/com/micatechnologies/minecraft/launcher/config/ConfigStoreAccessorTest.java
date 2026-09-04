@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.config;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -26,7 +27,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -128,30 +128,81 @@ class ConfigStoreAccessorTest
     // =========================================================================
 
     /**
-     * <b>Pins current behaviour, and documents a real robustness gap.</b>
+     * A config file that has been hand-edited, partially migrated, or written by an older
+     * build can hold a string where an int is expected. These accessors are reached during
+     * startup, so an uncaught throw meant one bad value stopped the launcher from starting
+     * -- with nothing pointing at the config file and no in-app way to recover.
      *
-     * <p>A config file that has been hand-edited, partially migrated, or written by an
-     * older build can hold a string where an int is expected. {@code getInt} guards only
-     * against <i>absent</i> and <i>JSON-null</i> values — it calls {@code getAsInt()}
-     * unconditionally otherwise, so a string value propagates a
-     * {@link NumberFormatException} to the caller. Because these accessors are reached
-     * during startup, one bad value in {@code configuration.json} can stop the launcher
-     * from starting with no message pointing at the config file, and no in-app way to
-     * recover.</p>
-     *
-     * <p>This test asserts what the code does today rather than what it arguably should
-     * do; it is deliberately not a fix. Making the accessors fall back on a type
-     * mismatch is a behaviour change that belongs in its own reviewed commit — at which
-     * point this test flips to asserting the fallback. The same gap applies to
-     * {@code getLong}, {@code getDouble}, and {@code getBoolean}.</p>
+     * <p>The accessors now fall back to the caller's default and log the mismatch, which
+     * degrades a corrupt entry to a working default rather than a dead launcher.</p>
      */
     @Test
-    void wrongTypedValueCurrentlyThrowsRatherThanFallingBack()
+    void wrongTypedValueFallsBackToTheDefault()
     {
-        assertThrows( NumberFormatException.class,
-                      () -> ConfigStore.getInt( "wrongTypeForInt", 99 ),
-                      "if this now returns the default, the robustness gap was fixed — "
-                      + "update this test to assert the fallback" );
+        assertEquals( 99, ConfigStore.getInt( "wrongTypeForInt", 99 ) );
+    }
+
+    @Test
+    void wrongTypedValueFallsBackForEveryNumericAccessor()
+    {
+        assertEquals( 7L, ConfigStore.getLong( "wrongTypeForInt", 7L ) );
+        assertEquals( 7.5, ConfigStore.getDouble( "wrongTypeForInt", 7.5 ) );
+    }
+
+    /**
+     * An object or array where a scalar belongs is the other shape a corrupted or
+     * hand-edited file produces. Gson throws {@code UnsupportedOperationException} for
+     * these rather than {@code NumberFormatException}, so they need covering separately.
+     */
+    @Test
+    void structuredValueWhereAScalarIsExpectedFallsBack()
+    {
+        JsonObject doc = ConfigStore.peek();
+        doc.add( "objectWhereScalarExpected", new JsonObject() );
+        JsonArray multi = new JsonArray();
+        multi.add( 1 );
+        multi.add( 2 );
+        doc.add( "multiElementArray", multi );
+
+        assertEquals( 5, ConfigStore.getInt( "objectWhereScalarExpected", 5 ) );
+        assertEquals( "fallback", ConfigStore.getString( "objectWhereScalarExpected", "fallback" ) );
+        assertTrue( ConfigStore.getBoolean( "objectWhereScalarExpected", true ) );
+        assertEquals( 5, ConfigStore.getInt( "multiElementArray", 5 ) );
+    }
+
+    /**
+     * Documents a Gson behaviour worth knowing about rather than fighting: a
+     * <em>single-element</em> array unwraps to its element, so {@code [42]} read as an int
+     * yields {@code 42}, not the default. Only arrays of other sizes throw and therefore
+     * fall back.
+     *
+     * <p>This is Gson's documented coercion, and it is harmless here -- a config written
+     * as {@code [42]} where {@code 42} was meant still produces the intended value. Pinned
+     * so nobody later "fixes" it as a bug in the coercion helpers, which do not control
+     * it.</p>
+     */
+    @Test
+    void singleElementArrayUnwrapsToItsElementPerGsonSemantics()
+    {
+        JsonArray single = new JsonArray();
+        single.add( 42 );
+        ConfigStore.peek().add( "singleElementArray", single );
+
+        assertEquals( 42, ConfigStore.getInt( "singleElementArray", 5 ) );
+    }
+
+    /**
+     * A wrong-typed value must not be silently rewritten. Falling back is a read-time
+     * repair; overwriting the user's file on a mere read would destroy whatever they were
+     * mid-way through editing.
+     */
+    @Test
+    void fallingBackDoesNotOverwriteTheStoredValue()
+    {
+        ConfigStore.getInt( "wrongTypeForInt", 99 );
+        assertEquals( "not-a-number",
+                      ConfigStore.peek().get( "wrongTypeForInt" ).getAsString(),
+                      "a failed read must leave the stored value untouched" );
     }
 
     // =========================================================================

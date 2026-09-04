@@ -226,9 +226,103 @@ public final class ConfigStore
      *
      * @since 2026.6
      */
+    // ====================================================================
+    // Type-safe coercion
+    //
+    // A config value can be present but hold the wrong JSON type: the file is
+    // user-editable, is migrated across versions, and may have been written by an
+    // older build. Gson's getAsInt()/getAsLong()/getAsDouble() throw
+    // NumberFormatException on a non-numeric string, and every getAs* throws
+    // UnsupportedOperationException on an object or array.
+    //
+    // These accessors are reached during startup, so an uncaught throw meant one bad
+    // value stopped the launcher from starting -- with nothing pointing at the config
+    // file and no in-app way to recover. Falling back to the caller's default degrades a
+    // corrupt entry to a working default instead, and logs it so the cause is still
+    // discoverable. Logging uses logWarningSilent to avoid a user-facing dialog on a
+    // path that runs before the GUI exists.
+    // ====================================================================
+
+    /** Logs a wrong-typed config entry once per read, without surfacing a dialog. */
+    private static void warnTypeMismatch( String key, String expectedType, Object fallback ) {
+        Logger.logWarningSilent( "Config key '" + key + "' does not hold a valid " + expectedType
+                                         + "; using default (" + fallback + "). "
+                                         + "Correct or delete the entry in configuration.json." );
+    }
+
+    /** True when {@code key} is absent or JSON-null, i.e. the default applies with no warning. */
+    private static boolean isAbsent( JsonObject j, String key ) {
+        return !j.has( key ) || j.get( key ).isJsonNull();
+    }
+
+    private static String coerceString( JsonObject j, String key, String def ) {
+        if ( isAbsent( j, key ) ) {
+            return def;
+        }
+        try {
+            return j.get( key ).getAsString();
+        }
+        catch ( RuntimeException e ) {
+            warnTypeMismatch( key, "string", def );
+            return def;
+        }
+    }
+
+    private static boolean coerceBoolean( JsonObject j, String key, boolean def ) {
+        if ( isAbsent( j, key ) ) {
+            return def;
+        }
+        try {
+            return j.get( key ).getAsBoolean();
+        }
+        catch ( RuntimeException e ) {
+            warnTypeMismatch( key, "boolean", def );
+            return def;
+        }
+    }
+
+    private static int coerceInt( JsonObject j, String key, int def ) {
+        if ( isAbsent( j, key ) ) {
+            return def;
+        }
+        try {
+            return j.get( key ).getAsInt();
+        }
+        catch ( RuntimeException e ) {
+            warnTypeMismatch( key, "int", def );
+            return def;
+        }
+    }
+
+    private static long coerceLong( JsonObject j, String key, long def ) {
+        if ( isAbsent( j, key ) ) {
+            return def;
+        }
+        try {
+            return j.get( key ).getAsLong();
+        }
+        catch ( RuntimeException e ) {
+            warnTypeMismatch( key, "long", def );
+            return def;
+        }
+    }
+
+    private static double coerceDouble( JsonObject j, String key, double def ) {
+        if ( isAbsent( j, key ) ) {
+            return def;
+        }
+        try {
+            return j.get( key ).getAsDouble();
+        }
+        catch ( RuntimeException e ) {
+            warnTypeMismatch( key, "double", def );
+            return def;
+        }
+    }
+
     public static synchronized String getString( String key, String def ) {
         JsonObject j = ensureLoaded();
-        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsString() : def;
+        return coerceString( j, key, def );
     }
 
     /**
@@ -244,7 +338,7 @@ public final class ConfigStore
      */
     public static synchronized boolean getBoolean( String key, boolean def ) {
         JsonObject j = ensureLoaded();
-        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsBoolean() : def;
+        return coerceBoolean( j, key, def );
     }
 
     /**
@@ -260,7 +354,7 @@ public final class ConfigStore
      */
     public static synchronized int getInt( String key, int def ) {
         JsonObject j = ensureLoaded();
-        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsInt() : def;
+        return coerceInt( j, key, def );
     }
 
     /**
@@ -276,7 +370,7 @@ public final class ConfigStore
      */
     public static synchronized long getLong( String key, long def ) {
         JsonObject j = ensureLoaded();
-        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsLong() : def;
+        return coerceLong( j, key, def );
     }
 
     /**
@@ -292,7 +386,7 @@ public final class ConfigStore
      */
     public static synchronized double getDouble( String key, double def ) {
         JsonObject j = ensureLoaded();
-        return ( j.has( key ) && !j.get( key ).isJsonNull() ) ? j.get( key ).getAsDouble() : def;
+        return coerceDouble( j, key, def );
     }
 
     /**
@@ -312,7 +406,7 @@ public final class ConfigStore
             j.addProperty( key, def );
             scheduleWrite();
         }
-        return j.get( key ).getAsString();
+        return coerceString( j, key, def );
     }
 
     /**
@@ -332,7 +426,7 @@ public final class ConfigStore
             j.addProperty( key, def );
             scheduleWrite();
         }
-        return j.get( key ).getAsBoolean();
+        return coerceBoolean( j, key, def );
     }
 
     /**
@@ -352,7 +446,7 @@ public final class ConfigStore
             j.addProperty( key, def );
             scheduleWrite();
         }
-        return j.get( key ).getAsInt();
+        return coerceInt( j, key, def );
     }
 
     /**
@@ -372,7 +466,7 @@ public final class ConfigStore
             j.addProperty( key, def );
             scheduleWrite();
         }
-        return j.get( key ).getAsLong();
+        return coerceLong( j, key, def );
     }
 
     // ====================================================================
