@@ -3,7 +3,8 @@
  * Mica Minecraft Launcher — auto-translation tool
  *
  * Reads src/main/resources/lang/DisplayStrings.properties as the English
- * source-of-truth and writes DisplayStrings_<tag>.properties for each
+ * source-of-truth and writes DisplayStrings_<java-locale>.properties for each
+ * (BCP-47 tag with '-' replaced by '_', per ResourceBundle naming)
  * locale in TARGET_LOCALES below.
  *
  * Usage:
@@ -231,7 +232,14 @@ async function main() {
     let totalFailures = 0;
 
     for (const locale of TARGET_LOCALES) {
-        const targetPath = join(LANG_DIR, `DisplayStrings_${locale.tag}.properties`);
+        // Java ResourceBundle looks up bundles by Locale.toString(), which uses an
+        // UNDERSCORE between language and region (pt_BR), not the BCP-47 hyphen (pt-BR).
+        // Emitting the hyphenated name means getBundle never finds the file and silently
+        // falls back to English -- which is exactly what shipped for pt-BR, zh-CN and
+        // zh-TW until this was fixed. Keep tags hyphenated everywhere else; convert only
+        // here, at the filename.
+        const bundleSuffix = locale.tag.replace('-', '_');
+        const targetPath = join(LANG_DIR, `DisplayStrings_${bundleSuffix}.properties`);
         let existing = { keysInOrder: [], values: {}, leadingComments: '' };
         if (await fileExists(targetPath)) {
             existing = parseProperties(await readFile(targetPath, 'utf8'));

@@ -59,7 +59,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li><b>The shipped file</b> — the actual resource on the classpath,
  *       loaded here by its literal on-disk name,
  *       {@code DisplayStrings_<entry.tag()>.properties} (e.g.
- *       {@code DisplayStrings_pt-BR.properties}, hyphen exactly as the
+ *       {@code DisplayStrings_pt_BR.properties}, underscore as
  *       BCP-47 tag is written). The key-parity and placeholder checks below
  *       audit the content of this file, because the content is real and
  *       shipped regardless of whether the runtime can currently reach it.</li>
@@ -116,12 +116,32 @@ class DisplayStringsBundleParityTest
         return props;
     }
 
-    /** Loads the shipped locale file for {@code entry} by its literal
-     *  on-disk name — {@code DisplayStrings_<tag>.properties}. */
+    /**
+     * Loads the shipped locale file for {@code entry} by its on-disk name.
+     *
+     * <p>The filename uses Java's resource-bundle convention, which separates language
+     * from region with an UNDERSCORE ({@code DisplayStrings_pt_BR.properties}) rather than
+     * the BCP-47 hyphen used by the tag itself ({@code pt-BR}). That distinction is the
+     * whole substance of the bug this class guards: naming the file after the tag verbatim
+     * makes {@code ResourceBundle.getBundle} miss it entirely and fall back to English.
+     * {@link #bundleSuffixFor(String)} is the single place that conversion happens.</p>
+     */
     private static Properties loadShippedLocaleFile( SupportedLocales.Entry entry )
             throws IOException
     {
-        return loadProperties( "/lang/DisplayStrings_" + entry.tag() + ".properties" );
+        return loadProperties( "/lang/DisplayStrings_" + bundleSuffixFor( entry.tag() ) + ".properties" );
+    }
+
+    /**
+     * Converts a BCP-47 tag to the resource-bundle filename suffix Java looks for, i.e.
+     * {@code Locale#toString()} form. Mirrors the same conversion in
+     * {@code tools/i18n/translate-locales.js}; if the two ever diverge, the affected
+     * locale silently ships as English and
+     * {@link #everySupportedLocaleResolvesItsOwnBundleAtRuntime()} is what catches it.
+     */
+    private static String bundleSuffixFor( String tag )
+    {
+        return tag.replace( '-', '_' );
     }
 
     /** Extracts the set of MessageFormat slot indices referenced by
@@ -145,37 +165,24 @@ class DisplayStringsBundleParityTest
      * locale with an empty {@link Locale#getLanguage()}; that's the
      * observable signature of "the runtime never found this file."
      *
-     * <p><b>Disabled — real bug found.</b> {@code pt-BR}, {@code zh-CN},
-     * and {@code zh-TW} each ship a fully-translated file named with a
-     * hyphen ({@code DisplayStrings_pt-BR.properties},
-     * {@code DisplayStrings_zh-CN.properties},
-     * {@code DisplayStrings_zh-TW.properties} — matching the BCP-47 tag
-     * verbatim, and matching the convention documented in
-     * {@code DisplayStrings.properties}'s own header comment). But
-     * {@link Locale#forLanguageTag(String)} followed by
-     * {@link Locale#toString()} renders those same locales with an
-     * <em>underscore</em> ({@code pt_BR}, {@code zh_CN}, {@code zh_TW}),
-     * which is the suffix {@link ResourceBundle}'s default {@code Control}
-     * actually looks for on the classpath. Since
-     * {@code DisplayStrings_pt_BR.properties} (underscore) does not exist,
-     * {@code ResourceBundle.getBundle} silently falls all the way back to
-     * plain {@code DisplayStrings.properties} — i.e. a user who selects
-     * "Português (Brasil)", "简体中文", or "繁體中文" in Settings gets the
-     * English UI with no error, warning, or visible sign anything is
-     * wrong. Confirmed with a standalone scratch reproduction
-     * (a two-file classpath with both an underscore- and hyphen-named
-     * bundle for the same locale) before writing this test: the
-     * hyphen-named file is never even consulted. Fixing this is a
-     * production change (either renaming the shipped files or supplying a
-     * custom {@code ResourceBundle.Control} that maps tags with a hyphen),
-     * which is out of scope for a test-only change — filing this as the
-     * headline finding instead of quietly loosening the assertion.</p>
+     * <p><b>Regression guard for a shipped bug, now fixed.</b> {@code pt-BR},
+     * {@code zh-CN} and {@code zh-TW} originally shipped as
+     * {@code DisplayStrings_pt-BR.properties} and friends — the BCP-47 tag verbatim.
+     * But {@link Locale#forLanguageTag(String)} followed by {@link Locale#toString()}
+     * renders those locales with an <em>underscore</em> ({@code pt_BR}, {@code zh_CN},
+     * {@code zh_TW}), and that is the suffix {@link ResourceBundle}'s default
+     * {@code Control} looks for on the classpath. The hyphen-named files were therefore
+     * never consulted: {@code getBundle} fell all the way back to plain
+     * {@code DisplayStrings.properties}, so selecting "Português (Brasil)", "简体中文" or
+     * "繁體中文" in Settings produced an English UI with no error or warning.</p>
+     *
+     * <p>Fixed by renaming the three files to the underscore form Java has always used
+     * for resource bundles, and by teaching {@code tools/i18n/translate-locales.js} to
+     * emit that form. Tags stay hyphenated everywhere else; only the filename converts.
+     * This test is the guard — if a future locale with a region subtag is added and the
+     * generator regresses, it fails here rather than shipping another silently-English
+     * language.</p>
      */
-    @Disabled( "Real bug: pt-BR, zh-CN, zh-TW ship as DisplayStrings_<tag>.properties with a "
-            + "hyphen, but ResourceBundle.getBundle looks for the underscore form Locale#toString() "
-            + "produces (pt_BR, zh_CN, zh_TW) and silently falls back to the English root bundle "
-            + "for all three when it doesn't exist. Selecting those 3 languages in Settings currently "
-            + "has no effect. See the class-level and method-level javadoc for the full repro." )
     @Test
     void everySupportedLocaleResolvesItsOwnBundleAtRuntime()
     {
