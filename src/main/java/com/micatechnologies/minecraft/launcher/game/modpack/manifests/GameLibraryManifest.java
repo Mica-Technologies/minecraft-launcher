@@ -464,7 +464,23 @@ public class GameLibraryManifest extends ManagedGameFile
      * @throws ModpackException if unable to read manifest
      */
     public String getAssetIndexVersion() throws ModpackException {
-        JsonObject manifest = readToJsonObject();
+        return extractAssetIndexVersion( readToJsonObject() );
+    }
+
+    /**
+     * Reads the asset index version (id) from an already-parsed client.json's
+     * {@code assetIndex.id} field.
+     *
+     * @param manifest the parsed client.json to read
+     *
+     * @return the asset index version
+     *
+     * @throws ModpackException if the {@code assetIndex} object or its {@code id} field is missing
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as extractRequiredJavaMajorVersion above.
+    static String extractAssetIndexVersion( JsonObject manifest ) throws ModpackException {
         JsonObject assetIndex = JsonHelper.getRequiredJsonObject( manifest, "assetIndex" );
         return JsonHelper.getRequiredString( assetIndex, "id" );
     }
@@ -608,7 +624,24 @@ public class GameLibraryManifest extends ManagedGameFile
      * @since 2.0
      */
     public int getRequiredJavaMajorVersion() throws ModpackException {
-        JsonObject manifest = readToJsonObject();
+        return extractRequiredJavaMajorVersion( readToJsonObject() );
+    }
+
+    /**
+     * Reads the required Java major version from an already-parsed client.json's
+     * {@code javaVersion.majorVersion} field. Returns
+     * {@link RuntimeConstants#DEFAULT_JAVA_MAJOR_VERSION} if the field is absent.
+     *
+     * @param manifest the parsed client.json to read
+     *
+     * @return the required Java major version
+     *
+     * @since 3.0
+     */
+    // Package-private and static (extracted from getRequiredJavaMajorVersion) so the pure
+    // JSON-field read can be tested directly against a hand-built manifest, without a real
+    // GameModPack / downloaded file backing this instance.
+    static int extractRequiredJavaMajorVersion( JsonObject manifest ) {
         if ( manifest.has( "javaVersion" ) ) {
             JsonObject javaVersion = manifest.getAsJsonObject( "javaVersion" );
             if ( javaVersion.has( "majorVersion" ) ) {
@@ -628,7 +661,22 @@ public class GameLibraryManifest extends ManagedGameFile
      * @since 3.0
      */
     public String getRequiredRuntimeComponent() throws ModpackException {
-        JsonObject manifest = readToJsonObject();
+        return extractRequiredRuntimeComponent( readToJsonObject() );
+    }
+
+    /**
+     * Reads the required Mojang runtime component name from an already-parsed client.json's
+     * {@code javaVersion.component} field. Returns {@link RuntimeConstants#DEFAULT_RUNTIME_COMPONENT}
+     * if the field is absent.
+     *
+     * @param manifest the parsed client.json to read
+     *
+     * @return the runtime component name
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as extractRequiredJavaMajorVersion above.
+    static String extractRequiredRuntimeComponent( JsonObject manifest ) {
         if ( manifest.has( "javaVersion" ) ) {
             JsonObject javaVersion = manifest.getAsJsonObject( "javaVersion" );
             if ( javaVersion.has( "component" ) ) {
@@ -648,7 +696,20 @@ public class GameLibraryManifest extends ManagedGameFile
      * @since 2.0
      */
     public String getVanillaMainClass() throws ModpackException {
-        JsonObject manifest = readToJsonObject();
+        return extractVanillaMainClass( readToJsonObject() );
+    }
+
+    /**
+     * Reads the vanilla main class from an already-parsed client.json's {@code mainClass} field.
+     *
+     * @param manifest the parsed client.json to read
+     *
+     * @return the main class, or null if not present
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as extractRequiredJavaMajorVersion above.
+    static String extractVanillaMainClass( JsonObject manifest ) {
         if ( manifest.has( "mainClass" ) ) {
             return manifest.get( "mainClass" ).getAsString();
         }
@@ -680,7 +741,21 @@ public class GameLibraryManifest extends ManagedGameFile
      * @since 2.0
      */
     public String getJvmArguments() throws ModpackException {
-        JsonObject manifest = readToJsonObject();
+        return extractJvmArguments( readToJsonObject() );
+    }
+
+    /**
+     * Reads and flattens the modern {@code arguments.jvm} array from an already-parsed client.json.
+     * Returns an empty string when the manifest uses the legacy format or has no JVM arguments.
+     *
+     * @param manifest the parsed client.json to read
+     *
+     * @return space-separated JVM arguments string
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as extractRequiredJavaMajorVersion above.
+    static String extractJvmArguments( JsonObject manifest ) {
         if ( manifest.has( "arguments" ) ) {
             JsonObject arguments = manifest.getAsJsonObject( "arguments" );
             if ( arguments.has( "jvm" ) ) {
@@ -701,7 +776,21 @@ public class GameLibraryManifest extends ManagedGameFile
      * @since 2.0
      */
     public String getGameArguments() throws ModpackException {
-        JsonObject manifest = readToJsonObject();
+        return extractGameArguments( readToJsonObject() );
+    }
+
+    /**
+     * Reads and flattens the modern {@code arguments.game} array from an already-parsed client.json,
+     * falling back to the legacy {@code minecraftArguments} string when the modern array is absent.
+     *
+     * @param manifest the parsed client.json to read
+     *
+     * @return space-separated game arguments string, or an empty string if neither form is present
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as extractRequiredJavaMajorVersion above.
+    static String extractGameArguments( JsonObject manifest ) {
         if ( manifest.has( "arguments" ) ) {
             JsonObject arguments = manifest.getAsJsonObject( "arguments" );
             if ( arguments.has( "game" ) ) {
@@ -728,7 +817,23 @@ public class GameLibraryManifest extends ManagedGameFile
      * @since 2.0
      */
     public String[] getLoggingConfig() throws ModpackException {
-        JsonObject manifest = readToJsonObject();
+        return extractLoggingConfig( readToJsonObject() );
+    }
+
+    /**
+     * Reads the logging configuration from an already-parsed client.json, if present. Returns the
+     * log4j argument template (with {@code ${path}} placeholder) and the log config file download
+     * information.
+     *
+     * @param manifest the parsed client.json to read
+     *
+     * @return a four-element array {@code [argumentTemplate, fileUrl, fileSha1, fileId]}, or
+     *         {@code null} if no complete logging config is present
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as extractRequiredJavaMajorVersion above.
+    static String[] extractLoggingConfig( JsonObject manifest ) {
         if ( manifest.has( "logging" ) ) {
             JsonObject logging = manifest.getAsJsonObject( "logging" );
             if ( logging.has( "client" ) ) {

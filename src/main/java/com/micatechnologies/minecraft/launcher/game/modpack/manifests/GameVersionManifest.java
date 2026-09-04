@@ -126,7 +126,28 @@ public class GameVersionManifest
     {
         ensureManifestDownloaded();
 
-        JsonArray minecraftVersions = versionManifest.getAsJsonArray( "versions" );
+        return findLibraryManifestUrl( versionManifest.getAsJsonArray( "versions" ), minecraftVersion );
+    }
+
+    /**
+     * Scans a Mojang version-manifest {@code versions} array for the entry whose {@code id} matches
+     * {@code minecraftVersion} and returns its {@code url}.
+     *
+     * @param minecraftVersions the {@code versions} array from the downloaded Mojang version manifest
+     * @param minecraftVersion  the Minecraft version id to look up
+     *
+     * @return the matching entry's client.json URL
+     *
+     * @throws ModpackException if no entry with the requested id is present
+     *
+     * @since 3.0
+     */
+    // Package-private and static (extracted from getMinecraftLibraryManifestURL) so the pure
+    // id-to-url scan can be tested directly against a hand-built versions array, without the
+    // network download that populates the static versionManifest field.
+    static String findLibraryManifestUrl( JsonArray minecraftVersions, String minecraftVersion )
+    throws ModpackException
+    {
         for ( JsonElement version : minecraftVersions ) {
             if ( version.getAsJsonObject().get( "id" ).getAsString().equals( minecraftVersion ) ) {
                 return version.getAsJsonObject().get( "url" ).getAsString();
@@ -209,7 +230,24 @@ public class GameVersionManifest
      * @since 3.0
      */
     public static int getRequiredJavaMajorVersion( String minecraftVersion ) throws ModpackException {
-        JsonObject clientJson = getClientJson( minecraftVersion );
+        return extractRequiredJavaMajorVersion( getClientJson( minecraftVersion ) );
+    }
+
+    /**
+     * Reads the required Java major version from an already-fetched client.json's
+     * {@code javaVersion.majorVersion} field. Returns
+     * {@link RuntimeConstants#DEFAULT_JAVA_MAJOR_VERSION} if the field is absent.
+     *
+     * @param clientJson the parsed client.json to read
+     *
+     * @return the required Java major version
+     *
+     * @since 3.0
+     */
+    // Package-private and static (extracted from getRequiredJavaMajorVersion(String)) so the pure
+    // JSON-field read can be tested directly against a hand-built client.json, without the
+    // network fetch + cache that getClientJson performs.
+    static int extractRequiredJavaMajorVersion( JsonObject clientJson ) {
         if ( clientJson.has( "javaVersion" ) ) {
             JsonObject javaVersion = clientJson.getAsJsonObject( "javaVersion" );
             if ( javaVersion.has( "majorVersion" ) ) {
@@ -233,7 +271,22 @@ public class GameVersionManifest
      * @since 3.0
      */
     public static String getRequiredRuntimeComponent( String minecraftVersion ) throws ModpackException {
-        JsonObject clientJson = getClientJson( minecraftVersion );
+        return extractRequiredRuntimeComponent( getClientJson( minecraftVersion ) );
+    }
+
+    /**
+     * Reads the required Mojang runtime component name from an already-fetched client.json's
+     * {@code javaVersion.component} field. Returns {@link RuntimeConstants#DEFAULT_RUNTIME_COMPONENT}
+     * if the field is absent.
+     *
+     * @param clientJson the parsed client.json to read
+     *
+     * @return the runtime component name
+     *
+     * @since 3.0
+     */
+    // Package-private and static, same rationale as extractRequiredJavaMajorVersion above.
+    static String extractRequiredRuntimeComponent( JsonObject clientJson ) {
         if ( clientJson.has( "javaVersion" ) ) {
             JsonObject javaVersion = clientJson.getAsJsonObject( "javaVersion" );
             if ( javaVersion.has( "component" ) ) {
