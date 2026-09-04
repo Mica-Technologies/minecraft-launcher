@@ -393,7 +393,14 @@ public class MCLauncherAuthManager
      * upgraded transparently on the next {@link #recordSuccessfulRenewal()} call.
      * Returns {@code 0} on any parse failure.
      */
-    private static long readRenewalTimestamp( String raw ) {
+    // Widened from private to package-private for test reach — see
+    // MCLauncherAuthManagerRenewalTimestampTest. Every value that test passes in
+    // is chosen so MachineSecretCipher.decrypt fails fast at the Base64 layer, or
+    // decodes to fewer than 28 bytes and returns null before deriveMachineKey
+    // ever touches the machine-key file, so the in-process cases never perform
+    // disk I/O outside a real encrypt/decrypt round trip run under the
+    // subprocess harness with cwd pinned to a @TempDir.
+    static long readRenewalTimestamp( String raw ) {
         if ( raw == null || raw.isBlank() ) {
             return 0L;
         }
@@ -1096,7 +1103,10 @@ public class MCLauncherAuthManager
      *         {@link MCLauncherAuthResult#ERROR_NO_VAL}, or
      *         {@link MCLauncherAuthResult#ERROR_OTHER} for unrecognized causes
      */
-    private static MCLauncherAuthResult processAuthException( Exception e ) {
+    // Widened from private to package-private for test reach — see
+    // MCLauncherAuthManagerExceptionClassificationTest. Pure string-message
+    // inspection; no reflection needed.
+    static MCLauncherAuthResult processAuthException( Exception e ) {
         MCLauncherAuthResult result;
         if ( checkIfExceptionIsNotBought( e ) ) {
             result = MCLauncherAuthResult.ERROR_NOT_OWNED;
@@ -1142,7 +1152,9 @@ public class MCLauncherAuthManager
      * @param e the exception to inspect
      * @return {@code true} if the message contains "no value present"
      */
-    private static boolean checkIfExceptionIsNoValuePresent( Exception e ) {
+    // Widened from private to package-private for test reach — see
+    // MCLauncherAuthManagerExceptionClassificationTest.
+    static boolean checkIfExceptionIsNoValuePresent( Exception e ) {
         String msg = e.getMessage();
         return msg != null && msg.toLowerCase().contains( "no value present" );
     }
@@ -1153,7 +1165,9 @@ public class MCLauncherAuthManager
      * @param e the exception to inspect
      * @return {@code true} if the message indicates the game has not been bought
      */
-    private static boolean checkIfExceptionIsNotBought( Exception e ) {
+    // Widened from private to package-private for test reach — see
+    // MCLauncherAuthManagerExceptionClassificationTest.
+    static boolean checkIfExceptionIsNotBought( Exception e ) {
         String msg = e.getMessage();
         return msg != null && msg.toLowerCase().contains( "not have bought" );
     }
@@ -1164,7 +1178,9 @@ public class MCLauncherAuthManager
      * @param e the exception to inspect
      * @return {@code true} if the message contains "invalid credentials"
      */
-    private static boolean checkIfExceptionIsInvalidCredentials( Exception e ) {
+    // Widened from private to package-private for test reach — see
+    // MCLauncherAuthManagerExceptionClassificationTest.
+    static boolean checkIfExceptionIsInvalidCredentials( Exception e ) {
         String msg = e.getMessage();
         return msg != null && msg.toLowerCase().contains( "invalid credentials" );
     }
