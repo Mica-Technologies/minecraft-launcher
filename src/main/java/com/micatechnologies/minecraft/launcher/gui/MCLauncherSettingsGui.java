@@ -448,6 +448,16 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     javafx.scene.layout.VBox mcpToolPolicyList;
 
+    /** Security tab: container the connected-MCP-client rows are built into. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    javafx.scene.layout.VBox mcpSessionList;
+
+    /** Security tab: re-reads live MCP state, which nothing else pushes into this screen. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton mcpRefreshBtn;
+
     /** Security tab: how many "allow for this session" approvals are currently held. */
     @SuppressWarnings( "unused" )
     @FXML
@@ -1442,6 +1452,9 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getGrants().revokeAll();
                 refreshMcpStatusLabel();
             } );
+        }
+        if ( mcpRefreshBtn != null ) {
+            mcpRefreshBtn.setOnAction( e -> refreshMcpStatusLabel() );
         }
         refreshMcpStatusLabel();
 
@@ -2653,6 +2666,66 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     .liveGrants( System.currentTimeMillis() ).size();
             mcpGrantsLabel.setText( LocalizationManager.format( "settings.mcp.grants.count", grants ) );
         }
+        refreshMcpSessionRows();
+    }
+
+    /**
+     * Rebuilds the connected-client list from live server state.
+     *
+     * <p>Shows the client's self-reported name, how long it has been connected, and how many
+     * tool calls it has made. The name is untrusted text supplied by the client — any client
+     * can claim any name — so it is display context only, never an authorization input, and a
+     * blank one renders as a neutral placeholder rather than an empty row.</p>
+     *
+     * <p>Nothing pushes session changes into this screen, so the list is a snapshot taken when
+     * the pane is built or the Refresh button is pressed. A live-updating list would need an
+     * observable registry and a listener to unregister on teardown; a refresh button is the
+     * honest version of that for now.</p>
+     *
+     * @since 3.0
+     */
+    private void refreshMcpSessionRows()
+    {
+        if ( mcpSessionList == null ) {
+            return;
+        }
+        mcpSessionList.getChildren().clear();
+
+        var sessions = com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getSessions();
+        if ( sessions.isEmpty() ) {
+            mcpSessionList.getChildren().add(
+                    new Label( LocalizationManager.get( "settings.mcp.sessions.none" ) ) );
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for ( var session : sessions ) {
+            String name = session.getClientName() == null || session.getClientName().isBlank()
+                          ? LocalizationManager.get( "settings.mcp.sessions.unnamed" )
+                          : session.getClientName();
+            mcpSessionList.getChildren().add( new Label( LocalizationManager.format(
+                    "settings.mcp.sessions.entry", name,
+                    describeElapsed( now - session.getConnectedAtMs() ),
+                    session.getCallCount() ) ) );
+        }
+    }
+
+    /**
+     * Renders an elapsed duration coarsely, in whichever unit reads best.
+     *
+     * @param elapsedMs how long ago, in milliseconds
+     *
+     * @return the localized description
+     */
+    private static String describeElapsed( long elapsedMs )
+    {
+        long minutes = elapsedMs / 60_000L;
+        if ( minutes < 1 ) {
+            return LocalizationManager.get( "settings.mcp.sessions.justNow" );
+        }
+        if ( minutes < 60 ) {
+            return LocalizationManager.format( "settings.mcp.sessions.minutesAgo", minutes );
+        }
+        return LocalizationManager.format( "settings.mcp.sessions.hoursAgo", minutes / 60 );
     }
 
 

@@ -571,6 +571,13 @@
                             </font>
                         </Label>
                         <VBox fx:id="mcpToolPolicyList" spacing="6" fillWidth="true" />
+                        <Label text="%settings.mcp.sessions.title">
+                            <font>
+                                <Font name="System Bold" size="12.0" />
+                            </font>
+                        </Label>
+                        <VBox fx:id="mcpSessionList" spacing="4" fillWidth="true" />
+                        <MFXButton fx:id="mcpRefreshBtn" text="%settings.mcp.refresh.label" />
                         <Label text="%settings.mcp.revokeGrants.description" wrapText="true">
                             <font>
                                 <Font size="11.0" />
