@@ -578,6 +578,17 @@
                             </font>
                         </Label>
                         <HBox spacing="8" alignment="CENTER_LEFT">
+                            <Label text="%settings.mcp.connect.endpoint" minWidth="70.0" />
+                            <Label fx:id="mcpEndpointLabel" wrapText="true" />
+                        </HBox>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <Label text="%settings.mcp.connect.token" minWidth="70.0" />
+                            <Label fx:id="mcpTokenLabel" wrapText="true" />
+                            <MFXButton fx:id="mcpRevealTokenBtn" text="%settings.mcp.connect.token.reveal" />
+                            <MFXButton fx:id="mcpCopyTokenBtn" text="%settings.mcp.connect.token.copy" />
+                            <MFXButton fx:id="mcpRegenTokenBtn" text="%settings.mcp.connect.token.regenerate" />
+                        </HBox>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
                             <MFXComboBox fx:id="mcpClientSelection" />
                             <MFXButton fx:id="mcpCopySetupBtn" text="%settings.mcp.connect.copy" />
                         </HBox>

@@ -678,6 +678,14 @@ public class ConfigManager
     public synchronized static boolean getMcpAllowStateChanges()        { return AppConfig.getMcpAllowStateChanges(); }
     /** Sets whether the MCP server exposes state-changing tools. @param v the new flag. @see AppConfig#setMcpAllowStateChanges(boolean) @since 1.0 */
     public synchronized static void    setMcpAllowStateChanges( boolean v ) { AppConfig.setMcpAllowStateChanges( v ); }
+    /** @return the loopback port the MCP server binds. @see AppConfig#getMcpPort() @since 1.0 */
+    public synchronized static int     getMcpPort()                     { return AppConfig.getMcpPort(); }
+    /** Sets the loopback port the MCP server binds. @param v the port. @see AppConfig#setMcpPort(int) @since 1.0 */
+    public synchronized static void    setMcpPort( int v )              { AppConfig.setMcpPort( v ); }
+    /** @return the persisted MCP bearer token, or "" when none exists. @see AppConfig#getMcpToken() @since 1.0 */
+    public synchronized static String  getMcpToken()                    { return AppConfig.getMcpToken(); }
+    /** Sets the MCP bearer token. @param v the token. @see AppConfig#setMcpToken(String) @since 1.0 */
+    public synchronized static void    setMcpToken( String v )          { AppConfig.setMcpToken( v ); }
     /** @return whether the first-launch quick-start wizard has been completed. @see AppConfig#getQuickStartCompleted() @since 1.0 */
     public synchronized static boolean getQuickStartCompleted()         { return AppConfig.getQuickStartCompleted(); }
     /** Sets whether the first-launch quick-start wizard has been completed. @param v the new flag. @see AppConfig#setQuickStartCompleted(boolean) @since 1.0 */

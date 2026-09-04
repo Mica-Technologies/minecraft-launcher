@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ConfigConstants;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
+import com.micatechnologies.minecraft.launcher.utilities.FilePermissions;
 import com.micatechnologies.minecraft.launcher.files.Logger;
 import com.micatechnologies.minecraft.launcher.files.SynchronizedFileManager;
 import com.micatechnologies.minecraft.launcher.utilities.FileUtilities;
@@ -741,6 +742,13 @@ public final class ConfigStore
             // always are here (both inside the launcher config folder).
             // REPLACE_EXISTING is required because the target almost
             // always exists.
+            // Tighten the temp file BEFORE the rename, not after. The rename carries the
+            // permissions with it, so the config never exists at its real path in a
+            // world-readable state -- doing this afterwards would leave a window, however
+            // short, where another local user could read it. This matters now that the config
+            // holds the MCP bearer token, which grants full access to the launcher's tools;
+            // the proxy settings alongside it were never anyone else's business either.
+            FilePermissions.applyOwnerOnly( tmp );
             try {
                 java.nio.file.Files.move( tmp, target,
                         java.nio.file.StandardCopyOption.ATOMIC_MOVE,

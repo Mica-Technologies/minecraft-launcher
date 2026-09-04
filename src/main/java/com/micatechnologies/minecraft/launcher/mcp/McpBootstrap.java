@@ -133,9 +133,10 @@ public final class McpBootstrap
                     new ConfigSettings(), GRANTS, new FxConsentPrompt(), System::currentTimeMillis );
 
             McpServer started = new McpServer( tools, resources, authorizer, ACTIVITY );
-            // Port 0: the OS picks a free loopback port and the endpoint file publishes it, so
-            // there is no fixed port to collide with another launcher build or another app.
-            started.start( 0, McpEndpointFile.defaultPath() );
+            // A fixed, configured port and a persisted token, so a client's configuration stays
+            // valid across launches. An OS-assigned port and a per-launch token would mean
+            // re-editing every client's config every time the launcher started.
+            started.start( ConfigManager.getMcpPort(), McpEndpointFile.defaultPath(), ensureToken() );
             server = started;
         }
         catch ( Exception e ) {
@@ -259,6 +260,40 @@ public final class McpBootstrap
             Logger.logWarningSilent( "Could not enumerate MCP tools for the Settings page" );
         }
         return described;
+    }
+
+    /**
+     * Returns the persisted bearer token, generating one on first use.
+     * <p>
+     * Exposed so the Settings page can show the user what to paste into a client. That is a
+     * deliberate reversal of the earlier "never show the token" stance: it made sense while the
+     * token rotated per launch and only the stdio relay ever read it, but a user configuring an
+     * HTTP client has to be able to see it. It is masked by default in the UI.
+     *
+     * @return the token
+     *
+     * @since 3.0
+     */
+    public static String ensureToken()
+    {
+        return McpAccessToken.ensure( ConfigManager::getMcpToken, ConfigManager::setMcpToken );
+    }
+
+    /**
+     * Replaces the bearer token, immediately invalidating every client still holding the old
+     * one, and restarts the server so the new token takes effect.
+     *
+     * @return the new token
+     *
+     * @since 3.0
+     */
+    public static synchronized String regenerateToken()
+    {
+        String fresh = McpAccessToken.generate();
+        ConfigManager.setMcpToken( fresh );
+        Logger.logStd( "MCP bearer token regenerated; existing clients must be reconfigured" );
+        refresh();
+        return fresh;
     }
 
     /**

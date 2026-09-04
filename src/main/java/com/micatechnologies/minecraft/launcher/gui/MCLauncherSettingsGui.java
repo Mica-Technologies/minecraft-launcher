@@ -458,6 +458,34 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
     @FXML
     MFXButton mcpCopySetupBtn;
 
+    /** Security tab: the loopback endpoint URL a client connects to. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label mcpEndpointLabel;
+
+    /** Security tab: the bearer token, masked until revealed. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    Label mcpTokenLabel;
+
+    /** Security tab: toggles between the masked and full token. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton mcpRevealTokenBtn;
+
+    /** Security tab: copies the token to the clipboard. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton mcpCopyTokenBtn;
+
+    /** Security tab: replaces the token, invalidating every configured client. */
+    @SuppressWarnings( "unused" )
+    @FXML
+    MFXButton mcpRegenTokenBtn;
+
+    /** Whether the token is currently shown in full rather than masked. */
+    private boolean mcpTokenRevealed = false;
+
     /**
      * Security tab: whether the MCP server exposes state-changing tools. Off by default —
      * enabling the server alone yields a read-only one.
@@ -2939,12 +2967,44 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                 LocalizationManager.get( "settings.mcp.connect.client.claudeCode" ),
                 LocalizationManager.get( "settings.mcp.connect.client.cursor" ),
                 LocalizationManager.get( "settings.mcp.connect.client.codex" ),
-                LocalizationManager.get( "settings.mcp.connect.client.http" ) );
+                LocalizationManager.get( "settings.mcp.connect.client.http" ),
+                LocalizationManager.get( "settings.mcp.connect.client.stdio" ) );
         mcpClientSelection.setItems( javafx.collections.FXCollections.observableArrayList( labels ) );
         mcpClientSelection.getSelectionModel().selectedIndexProperty().addListener(
                 ( obs, oldV, newV ) -> renderMcpSetupSnippet( newV == null ? 0 : newV.intValue() ) );
         mcpClientSelection.selectItem( labels.get( 0 ) );
         renderMcpSetupSnippet( 0 );
+
+        if ( mcpRevealTokenBtn != null ) {
+            mcpRevealTokenBtn.setOnAction( e -> {
+                mcpTokenRevealed = !mcpTokenRevealed;
+                refreshMcpConnectionDetails();
+            } );
+        }
+        if ( mcpCopyTokenBtn != null ) {
+            mcpCopyTokenBtn.setOnAction( e -> copyToClipboard(
+                    com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.ensureToken() ) );
+        }
+        if ( mcpRegenTokenBtn != null ) {
+            // Regenerating invalidates every client already configured, so it asks first.
+            mcpRegenTokenBtn.setOnAction( e -> {
+                int answer = GUIUtilities.showQuestionMessage(
+                        LocalizationManager.get( "dialog.mcp.regenToken.title" ),
+                        LocalizationManager.get( "dialog.mcp.regenToken.header" ),
+                        LocalizationManager.get( "dialog.mcp.regenToken.body" ),
+                        LocalizationManager.get( "dialog.mcp.regenToken.button.regenerate" ),
+                        LocalizationManager.get( "dialog.button.cancel" ),
+                        MCLauncherGuiController.getTopStageOrNull() );
+                if ( answer == 1 ) {
+                    com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.regenerateToken();
+                    refreshMcpConnectionDetails();
+                    renderMcpSetupSnippet( mcpClientSelection == null ? 0
+                                           : mcpClientSelection.getSelectionModel().getSelectedIndex() );
+                    refreshMcpStatusLabel();
+                }
+            } );
+        }
+        refreshMcpConnectionDetails();
 
         if ( mcpCopySetupBtn != null ) {
             mcpCopySetupBtn.setOnAction( e -> {
@@ -2976,10 +3036,10 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                     .isJar( launcherPath );
             mcpSetupSnippet.setText(
                     com.micatechnologies.minecraft.launcher.mcp.McpClientSetup.snippet(
-                            clients[ index ], launcherPath, nativeExe,
-                            com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getPort(),
+                            clients[ index ], launcherPath, nativeExe, effectiveMcpPort(),
                             com.micatechnologies.minecraft.launcher.mcp.McpEndpointFile.defaultPath()
-                                    .toString() ) );
+                                    .toString(),
+                            com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.ensureToken() ) );
         }
         catch ( Exception e ) {
             // A snippet that cannot be built is not worth failing the whole settings pane over.
@@ -2989,6 +3049,65 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         if ( mcpCopySetupBtn != null ) {
             mcpCopySetupBtn.setText( LocalizationManager.get( "settings.mcp.connect.copy" ) );
         }
+    }
+
+
+    /**
+     * Repaints the endpoint URL and the token line.
+     *
+     * <p>The token is shown here at all, masked by default, because a user configuring an HTTP
+     * client has to be able to copy it. That is a deliberate reversal of the earlier position
+     * that a Settings pane must never display it — which was right while the token rotated
+     * every launch and only the stdio relay ever read it.</p>
+     *
+     * @since 3.0
+     */
+    private void refreshMcpConnectionDetails()
+    {
+        if ( mcpEndpointLabel != null ) {
+            mcpEndpointLabel.setText(
+                    com.micatechnologies.minecraft.launcher.mcp.McpClientSetup.endpointUrl(
+                            effectiveMcpPort() ) );
+        }
+        if ( mcpTokenLabel != null ) {
+            String token = com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.ensureToken();
+            mcpTokenLabel.setText( mcpTokenRevealed ? token
+                                   : com.micatechnologies.minecraft.launcher.mcp.McpAccessToken
+                                           .mask( token ) );
+        }
+        if ( mcpRevealTokenBtn != null ) {
+            mcpRevealTokenBtn.setText( LocalizationManager.get(
+                    mcpTokenRevealed ? "settings.mcp.connect.token.hide"
+                                     : "settings.mcp.connect.token.reveal" ) );
+        }
+    }
+
+    /**
+     * The port a client should actually use: the one the server bound if it is running, and
+     * otherwise the configured one.
+     *
+     * <p>They differ when the configured port was busy and the server fell back to an
+     * OS-assigned one. Showing the configured port in that case would hand the user a URL that
+     * does not answer.</p>
+     *
+     * @return the port to display
+     */
+    private static int effectiveMcpPort()
+    {
+        int bound = com.micatechnologies.minecraft.launcher.mcp.McpBootstrap.getPort();
+        return bound > 0 ? bound : ConfigManager.getMcpPort();
+    }
+
+    /**
+     * Puts text on the system clipboard.
+     *
+     * @param text the text to copy
+     */
+    private static void copyToClipboard( String text )
+    {
+        javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+        content.putString( text == null ? "" : text );
+        javafx.scene.input.Clipboard.getSystemClipboard().setContent( content );
     }
 
 }

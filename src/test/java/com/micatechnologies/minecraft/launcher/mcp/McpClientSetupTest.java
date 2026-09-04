@@ -47,6 +47,7 @@ class McpClientSetupTest
     private static final String JAR = "/Users/someone/Apps/Mica Minecraft Launcher.jar";
     private static final String EXE = "/Applications/Mica Minecraft Launcher.app/Contents/MacOS/launcher";
     private static final String ENDPOINT = "/Users/someone/.MicaMinecraftLauncher/config/mcp-endpoint.json";
+    private static final String TOKEN = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
     // region the relay command
 
@@ -83,25 +84,26 @@ class McpClientSetupTest
                      "a native launcher whose name ends in 'java' is not a JAR" );
     }
 
-    // region Claude Code
+    // region Claude Code (HTTP)
 
     @Test
-    void theClaudeCodeSnippetIsAnAddCommand()
+    void theClaudeCodeSnippetAddsAnHttpTransport()
     {
-        String snippet = snippet( McpClientSetup.Client.CLAUDE_CODE, JAR, false );
-        assertTrue( snippet.startsWith( "claude mcp add mica-launcher --" ), snippet );
-        assertTrue( snippet.contains( "--mcp" ), snippet );
+        String snippet = http( McpClientSetup.Client.CLAUDE_CODE );
+        assertTrue( snippet.startsWith( "claude mcp add --transport http mica-launcher " ), snippet );
+        assertTrue( snippet.contains( "http://127.0.0.1:47824/mcp" ), snippet );
+        assertTrue( snippet.contains( "Authorization: Bearer " + TOKEN ), snippet );
     }
 
     /**
-     * The quoting case that matters. Unquoted, the shell splits the macOS path into three
-     * arguments and the user gets a confusing error unrelated to MCP.
+     * The header carries a space, so it must be quoted or the shell splits it and
+     * {@code --header} receives only "Authorization:".
      */
     @Test
-    void aPathWithSpacesIsShellQuoted()
+    void theAuthorizationHeaderIsShellQuoted()
     {
-        String snippet = snippet( McpClientSetup.Client.CLAUDE_CODE, JAR, false );
-        assertTrue( snippet.contains( "'" + JAR + "'" ), snippet );
+        assertTrue( http( McpClientSetup.Client.CLAUDE_CODE )
+                            .contains( "'Authorization: Bearer " + TOKEN + "'" ) );
     }
 
     /** Ordinary arguments are left bare, so the snippet stays readable. */
@@ -119,7 +121,7 @@ class McpClientSetupTest
      * escaped and reopened. A path like {@code /Users/o'brien/...} is not hypothetical.
      */
     @Test
-    void anApostropheInAPathIsEscapedForTheShell()
+    void anApostropheIsEscapedForTheShell()
     {
         assertEquals( "'/Users/o'\\''brien/launcher.jar'",
                       McpClientSetup.shellQuote( "/Users/o'brien/launcher.jar" ) );
@@ -138,55 +140,40 @@ class McpClientSetupTest
 
     // endregion
 
-    // region Cursor
+    // region Cursor (HTTP)
 
     /** The snippet has to be valid JSON, not merely look like it. */
     @Test
     void theCursorSnippetIsValidJsonWithTheRightShape()
     {
-        String snippet = snippet( McpClientSetup.Client.CURSOR, JAR, false );
-        String json = snippet.substring( snippet.indexOf( '{' ) );
-        JsonObject root = JSONUtilities.getGson().fromJson( json, JsonObject.class );
-
+        String snippet = http( McpClientSetup.Client.CURSOR );
+        JsonObject root = JSONUtilities.getGson()
+                .fromJson( snippet.substring( snippet.indexOf( '{' ) ), JsonObject.class );
         JsonObject server = root.getAsJsonObject( "mcpServers" )
                 .getAsJsonObject( McpClientSetup.SERVER_NAME );
-        assertEquals( "java", server.get( "command" ).getAsString() );
-        assertEquals( "-jar", server.getAsJsonArray( "args" ).get( 0 ).getAsString() );
-        assertEquals( JAR, server.getAsJsonArray( "args" ).get( 1 ).getAsString(),
-                      "the path is one array element, so it needs no quoting of its own" );
-        assertEquals( "--mcp", server.getAsJsonArray( "args" ).get( 2 ).getAsString() );
+
+        assertEquals( "http://127.0.0.1:47824/mcp", server.get( "url" ).getAsString() );
+        assertEquals( "Bearer " + TOKEN,
+                      server.getAsJsonObject( "headers" ).get( "Authorization" ).getAsString() );
     }
 
     @Test
     void theCursorSnippetNamesTheFileItGoesIn()
     {
-        assertTrue( snippet( McpClientSetup.Client.CURSOR, JAR, false ).contains( ".cursor/mcp.json" ) );
-    }
-
-    @Test
-    void aNativeExecutableIsTheCursorCommandItself()
-    {
-        String snippet = snippet( McpClientSetup.Client.CURSOR, EXE, true );
-        JsonObject root = JSONUtilities.getGson()
-                .fromJson( snippet.substring( snippet.indexOf( '{' ) ), JsonObject.class );
-        JsonObject server = root.getAsJsonObject( "mcpServers" )
-                .getAsJsonObject( McpClientSetup.SERVER_NAME );
-        assertEquals( EXE, server.get( "command" ).getAsString() );
-        assertEquals( 1, server.getAsJsonArray( "args" ).size() );
+        assertTrue( http( McpClientSetup.Client.CURSOR ).contains( ".cursor/mcp.json" ) );
     }
 
     // endregion
 
-    // region Codex
+    // region Codex (HTTP)
 
     @Test
-    void theCodexSnippetIsATomlTable()
+    void theCodexSnippetIsATomlTableWithHeaders()
     {
-        String snippet = snippet( McpClientSetup.Client.CODEX, JAR, false );
+        String snippet = http( McpClientSetup.Client.CODEX );
         assertTrue( snippet.contains( "[mcp_servers." + McpClientSetup.SERVER_NAME + "]" ), snippet );
-        assertTrue( snippet.contains( "command = \"java\"" ), snippet );
-        assertTrue( snippet.contains( "\"" + JAR + "\"" ), snippet );
-        assertTrue( snippet.contains( "\"--mcp\"" ), snippet );
+        assertTrue( snippet.contains( "url = \"http://127.0.0.1:47824/mcp\"" ), snippet );
+        assertTrue( snippet.contains( "Authorization = \"Bearer " + TOKEN + "\"" ), snippet );
         assertTrue( snippet.contains( ".codex/config.toml" ), snippet );
     }
 
@@ -199,44 +186,50 @@ class McpClientSetupTest
     }
 
     @Test
-    void aQuoteInsideAPathIsEscapedForToml()
+    void aQuoteInsideAValueIsEscapedForToml()
     {
         assertEquals( "\"say \\\"hi\\\"\"", McpClientSetup.tomlString( "say \"hi\"" ) );
     }
 
     // endregion
 
-    // region raw HTTP
+    // region raw HTTP and stdio
+
+    @Test
+    void theRawFormGivesJustTheUrlAndHeader()
+    {
+        String snippet = http( McpClientSetup.Client.HTTP );
+        assertTrue( snippet.contains( "http://127.0.0.1:47824/mcp" ), snippet );
+        assertTrue( snippet.contains( "Authorization: Bearer " + TOKEN ), snippet );
+    }
 
     /**
-     * The property worth keeping: the endpoint file's path is shown, its contents are not. The
-     * token grants full MCP access and rotates every launch.
+     * The stdio relay stays available for clients that cannot speak HTTP, and keeps its one
+     * genuine advantage: it reads the token itself, so none goes into the client's config.
      */
     @Test
-    void theHttpSnippetNamesTheEndpointFileButNotTheToken()
+    void theStdioFormEmbedsNoTokenAtAll()
     {
-        String snippet = McpClientSetup.snippet( McpClientSetup.Client.HTTP, JAR, false, 51234,
-                                                 ENDPOINT );
+        String snippet = McpClientSetup.snippet( McpClientSetup.Client.STDIO, JAR, false, 47824,
+                                                 ENDPOINT, TOKEN );
+        assertTrue( snippet.contains( "--mcp" ), snippet );
+        assertTrue( snippet.contains( "'" + JAR + "'" ), "the path still needs quoting: " + snippet );
+        assertFalse( snippet.contains( TOKEN ), "the relay reads the token itself: " + snippet );
         assertTrue( snippet.contains( ENDPOINT ), snippet );
-        assertTrue( snippet.contains( "<token>" ), "the token must be a placeholder: " + snippet );
-        assertTrue( snippet.contains( "http://127.0.0.1:51234/mcp" ), snippet );
     }
 
-    /** It also says why stdio is preferable, since the port and token both rotate. */
+    /** A missing token renders as a placeholder rather than an empty header. */
     @Test
-    void theHttpSnippetWarnsThatThePortAndTokenRotate()
+    void anUngeneratedTokenRendersAsAPlaceholder()
     {
-        String snippet = McpClientSetup.snippet( McpClientSetup.Client.HTTP, JAR, false, 51234,
-                                                 ENDPOINT );
-        assertTrue( snippet.contains( "change every time" ), snippet );
-    }
-
-    @Test
-    void aStoppedServerSaysSoRatherThanPrintingPortZero()
-    {
-        String snippet = McpClientSetup.snippet( McpClientSetup.Client.HTTP, JAR, false, 0, ENDPOINT );
-        assertFalse( snippet.contains( ":0/mcp" ), snippet );
-        assertTrue( snippet.contains( "not running" ), snippet );
+        for ( McpClientSetup.Client client : new McpClientSetup.Client[]{
+                McpClientSetup.Client.CLAUDE_CODE, McpClientSetup.Client.CURSOR,
+                McpClientSetup.Client.CODEX, McpClientSetup.Client.HTTP } ) {
+            String snippet = McpClientSetup.snippet( client, JAR, false, 47824, ENDPOINT, "" );
+            // Compared after decoding: Gson HTML-escapes '<' to \u003c in the JSON form, so a
+            // raw substring check would fail on Cursor while the value a client reads is right.
+            assertTrue( decodeUnicode( snippet ).contains( "<token>" ), client + ": " + snippet );
+        }
     }
 
     // endregion
@@ -275,57 +268,108 @@ class McpClientSetupTest
     void aDevelopmentRunExplainsItselfInsteadOfEmittingABadCommand()
     {
         String jvm = "/Library/Java/JavaVirtualMachines/azul-26/Contents/Home/bin/java";
+        String snippet = McpClientSetup.snippet( McpClientSetup.Client.STDIO, jvm, true, 47824,
+                                                 ENDPOINT, TOKEN );
+        assertFalse( snippet.contains( "bin/java" ),
+                     "a JVM path must not be emitted as a launcher command: " + snippet );
+        assertTrue( snippet.contains( "running from source" ), snippet );
+    }
+
+    /**
+     * The HTTP forms need no launcher path at all, which is the other reason they are the
+     * primary recommendation: they work identically from a source checkout and an installed
+     * build.
+     */
+    @Test
+    void theHttpFormsDoNotDependOnALauncherPath()
+    {
+        String jvm = "/Library/Java/JavaVirtualMachines/azul-26/Contents/Home/bin/java";
         for ( McpClientSetup.Client client : new McpClientSetup.Client[]{
                 McpClientSetup.Client.CLAUDE_CODE, McpClientSetup.Client.CURSOR,
-                McpClientSetup.Client.CODEX } ) {
-            String snippet = McpClientSetup.snippet( client, jvm, true, 51234, ENDPOINT );
-            assertFalse( snippet.contains( "bin/java" ),
-                         client + " emitted a JVM path as a launcher command: " + snippet );
-            assertTrue( snippet.contains( "running from source" ), client + ": " + snippet );
+                McpClientSetup.Client.CODEX, McpClientSetup.Client.HTTP } ) {
+            String snippet = McpClientSetup.snippet( client, jvm, true, 47824, ENDPOINT, TOKEN );
+            assertFalse( snippet.contains( "running from source" ), client + ": " + snippet );
+            assertTrue( snippet.contains( "47824" ), client + ": " + snippet );
         }
     }
 
-    /** The HTTP details still work in a development run — they do not need a launcher path. */
+    /** Only the stdio form names the endpoint file, because only it reads that file. */
     @Test
-    void theHttpDetailsSurviveADevelopmentRun()
+    void onlyTheStdioFormNamesTheEndpointFile()
     {
-        String snippet = McpClientSetup.snippet( McpClientSetup.Client.HTTP,
-                                                 "/x/bin/java", true, 51234, ENDPOINT );
-        assertTrue( snippet.contains( "http://127.0.0.1:51234/mcp" ), snippet );
-        assertTrue( snippet.contains( ENDPOINT ), snippet );
+        assertTrue( McpClientSetup.snippet( McpClientSetup.Client.STDIO, JAR, false, 47824,
+                                            ENDPOINT, TOKEN ).contains( ENDPOINT ) );
+        assertFalse( http( McpClientSetup.Client.HTTP ).contains( ENDPOINT ) );
     }
 
     // endregion
 
     // region every client
 
-    /** No snippet may be empty, and none may contain an unsubstituted placeholder. */
+    /** No snippet may be empty, and none may leak a null. */
     @Test
     void everyClientProducesAUsableSnippet()
     {
         for ( McpClientSetup.Client client : McpClientSetup.Client.values() ) {
-            String snippet = McpClientSetup.snippet( client, JAR, false, 51234, ENDPOINT );
+            String snippet = McpClientSetup.snippet( client, JAR, false, 47824, ENDPOINT, TOKEN );
             assertFalse( snippet.isBlank(), client + " produced nothing" );
             assertFalse( snippet.contains( "null" ), client + " leaked a null: " + snippet );
         }
     }
 
-    /** Every stdio form must actually reference the launcher and the relay flag. */
+    /**
+     * Every HTTP form must carry both halves of the credential. A snippet with the URL but no
+     * header, or the reverse, fails at connect time with an error the user cannot act on.
+     */
     @Test
-    void everyStdioClientReferencesTheLauncherAndTheRelayFlag()
+    void everyHttpFormCarriesBothTheUrlAndTheToken()
     {
         for ( McpClientSetup.Client client : new McpClientSetup.Client[]{
                 McpClientSetup.Client.CLAUDE_CODE, McpClientSetup.Client.CURSOR,
-                McpClientSetup.Client.CODEX } ) {
-            String snippet = McpClientSetup.snippet( client, JAR, false, 51234, ENDPOINT );
-            assertTrue( snippet.contains( JAR ), client + " omitted the launcher path" );
-            assertTrue( snippet.contains( "--mcp" ), client + " omitted the relay flag" );
-            assertFalse( snippet.contains( "51234" ),
-                         client + " should use stdio, not the HTTP port" );
+                McpClientSetup.Client.CODEX, McpClientSetup.Client.HTTP } ) {
+            String snippet = http( client );
+            assertTrue( snippet.contains( "127.0.0.1:47824" ), client + " omitted the URL" );
+            assertTrue( snippet.contains( TOKEN ), client + " omitted the token" );
+            assertFalse( snippet.contains( "--mcp" ),
+                         client + " should be HTTP, not the stdio relay" );
         }
     }
 
+    /** The URL is built from whatever port the server actually bound. */
+    @Test
+    void theUrlFollowsTheBoundPort()
+    {
+        assertEquals( "http://127.0.0.1:47823/mcp", McpClientSetup.endpointUrl( 47823 ) );
+        assertTrue( McpClientSetup.snippet( McpClientSetup.Client.HTTP, JAR, false, 51234,
+                                            ENDPOINT, TOKEN ).contains( ":51234/mcp" ) );
+    }
+
     // endregion
+
+    /** Decodes \\uXXXX escapes, so assertions compare the value a client reads. */
+    private static String decodeUnicode( String text )
+    {
+        StringBuilder out = new StringBuilder();
+        for ( int i = 0; i < text.length(); i++ ) {
+            if ( text.charAt( i ) == '\\' && i + 5 < text.length() && text.charAt( i + 1 ) == 'u' ) {
+                try {
+                    out.append( (char) Integer.parseInt( text.substring( i + 2, i + 6 ), 16 ) );
+                    i += 5;
+                    continue;
+                }
+                catch ( NumberFormatException ignored ) {
+                    // Not an escape after all; fall through and copy the character.
+                }
+            }
+            out.append( text.charAt( i ) );
+        }
+        return out.toString();
+    }
+
+    private static String http( McpClientSetup.Client client )
+    {
+        return McpClientSetup.snippet( client, JAR, false, 47824, ENDPOINT, TOKEN );
+    }
 
     private static String snippet( McpClientSetup.Client client, String path, boolean nativeExe )
     {

@@ -349,6 +349,46 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** The loopback port the MCP server binds. Defaults to the build's fixed
+     *  port so a client's configuration stays valid across launches. */
+    public static synchronized int getMcpPort() {
+        return ConfigStore.getOrInitInt( ConfigConstants.MCP_PORT_KEY, defaultMcpPort() );
+    }
+
+    /**
+     * Sets the loopback port the MCP server binds and schedules a debounced disk flush.
+     *
+     * @param port the port to bind; out-of-range values fall back to the build's default
+     */
+    public static synchronized void setMcpPort( int port ) {
+        int safe = port > 0 && port <= 65535 ? port : defaultMcpPort();
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.MCP_PORT_KEY, safe );
+        ConfigStore.scheduleWrite();
+    }
+
+    /** The build's default MCP port — dev and release differ so both can run at once. */
+    private static int defaultMcpPort() {
+        return LauncherConstants.LAUNCHER_IS_DEV ? LauncherConstants.MCP_SERVER_PORT_DEV
+                                                 : LauncherConstants.MCP_SERVER_PORT;
+    }
+
+    /** The persisted MCP bearer token, or {@code ""} when one has not been generated. */
+    public static synchronized String getMcpToken() {
+        return ConfigStore.getOrInitString( ConfigConstants.MCP_TOKEN_KEY,
+                                            ConfigConstants.MCP_TOKEN_DEFAULT );
+    }
+
+    /**
+     * Stores the MCP bearer token and schedules a debounced disk flush.
+     *
+     * @param token the token to store
+     */
+    public static synchronized void setMcpToken( String token ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.MCP_TOKEN_KEY,
+                                                token == null ? "" : token );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Whether the user has completed or skipped the first-launch
      *  quick-start wizard. Defaults to false so the wizard fires once
      *  for existing installs that upgrade. */

@@ -385,6 +385,38 @@ public class ConfigConstants
     public static final boolean MCP_ALLOW_STATE_CHANGES_DEFAULT = false;
 
     /**
+     * Key for the loopback port the MCP server binds. Defaults to
+     * {@code LauncherConstants.MCP_SERVER_PORT} (or its dev variant).
+     *
+     * <p>A fixed port is what makes a client's configuration stable: the alternative, letting
+     * the OS assign one, means the URL changes every launch and every client has to be
+     * reconfigured. Exposed as a setting so a user whose machine already uses this port can
+     * move it.</p>
+     *
+     * @since 2026.2
+     */
+    public static final String MCP_PORT_KEY = "mcpPort";
+
+    /**
+     * Key for the MCP bearer token.
+     *
+     * <p>Persisted rather than regenerated per launch, for the same reason the port is fixed:
+     * a client pastes this into its configuration once. It is generated on first use and can
+     * be regenerated from Settings, which immediately invalidates every client holding the old
+     * one.</p>
+     *
+     * @since 2026.2
+     */
+    public static final String MCP_TOKEN_KEY = "mcpToken";
+
+    /**
+     * Default for {@link #MCP_TOKEN_KEY} — empty, meaning "not generated yet".
+     *
+     * @since 2026.2
+     */
+    public static final String MCP_TOKEN_DEFAULT = "";
+
+    /**
      * Key for whether the user has completed (or explicitly skipped) the first-
      * launch quick-start wizard. Defaults to false so existing installs see the
      * wizard once on upgrade, then never again. The wizard also flips this true

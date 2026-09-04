@@ -33,11 +33,14 @@ import java.util.List;
  * to work that out themselves, and would get it wrong on macOS, where the launcher path
  * contains spaces.
  * <p>
- * <b>Every form uses the stdio relay, not the HTTP port.</b> {@code launcher --mcp} reads the
- * endpoint file itself, so the bearer token never has to be pasted into a client's config file
- * — which is both easier and materially safer, since that token would otherwise sit in
- * plaintext somewhere the user has to remember to update every launch. The raw HTTP details are
- * offered only for a client that cannot spawn a subprocess.
+ * <b>HTTP is the primary form.</b> The launcher already hosts a loopback HTTP server while it
+ * is open, on a fixed port with a persisted token, so a client is configured once with a URL
+ * and a bearer header and stays configured. That is the shape every MCP client understands and
+ * the least work for the user.
+ * <p>
+ * The stdio relay ({@code launcher --mcp}) remains available for clients that can only spawn a
+ * subprocess, and for those it has one genuine advantage: it reads the endpoint file itself, so
+ * no token goes into the client's config at all. It is the fallback, not the recommendation.
  *
  * @author Mica Technologies
  * @version 1.0
@@ -55,23 +58,40 @@ public final class McpClientSetup
      */
     static final String UNPACKAGED_NOTICE =
             "This launcher is running from source rather than an installed build, so there is no\n"
-                    + "launcher command to give a client. Install the launcher and reopen this\n"
-                    + "page, or connect over HTTP using the details under \"Raw HTTP\".";
+                    + "launcher command to give a client. Use one of the HTTP options instead --\n"
+                    + "they do not need a launcher path.";
 
     /** Clients this class can produce configuration for. */
     public enum Client
     {
-        /** Claude Code — configured through its {@code claude mcp add} CLI. */
+        /** Claude Code over HTTP, through its {@code claude mcp add --transport http} CLI. */
         CLAUDE_CODE,
 
-        /** Cursor — configured through {@code ~/.cursor/mcp.json}. */
+        /** Cursor over HTTP, through {@code ~/.cursor/mcp.json}. */
         CURSOR,
 
-        /** Codex CLI — configured through {@code ~/.codex/config.toml}. */
+        /** Codex CLI over HTTP, through {@code ~/.codex/config.toml}. */
         CODEX,
 
-        /** Raw connection details, for a client that cannot spawn a subprocess. */
-        HTTP
+        /** The raw URL and header, for adapting to any other client. */
+        HTTP,
+
+        /** The stdio relay, for a client that can only spawn a subprocess. */
+        STDIO
+    }
+
+    /**
+     * Builds the loopback endpoint URL.
+     *
+     * @param port the bound port
+     *
+     * @return the URL
+     *
+     * @since 3.0
+     */
+    public static String endpointUrl( int port )
+    {
+        return "http://127.0.0.1:" + port + "/mcp";
     }
 
     /**
@@ -166,51 +186,66 @@ public final class McpClientSetup
     public static String snippet( Client client, String launcherPath, boolean nativeExecutable,
                                   int port, String endpointFilePath )
     {
-        if ( client != Client.HTTP && !isUsableLauncherPath( launcherPath ) ) {
-            return UNPACKAGED_NOTICE;
-        }
-        List< String > command = relayCommand( launcherPath, nativeExecutable );
+        return snippet( client, launcherPath, nativeExecutable, port, endpointFilePath, "<token>" );
+    }
+
+    /**
+     * Builds a configuration snippet, embedding the real bearer token.
+     *
+     * @param client           the client to configure
+     * @param launcherPath     where the launcher lives; used only by {@link Client#STDIO}
+     * @param nativeExecutable whether that path is a native executable rather than a JAR
+     * @param port             the loopback port the server is listening on
+     * @param endpointFilePath where the endpoint descriptor is written
+     * @param token            the bearer token to embed
+     *
+     * @return the snippet
+     *
+     * @since 3.0
+     */
+    public static String snippet( Client client, String launcherPath, boolean nativeExecutable,
+                                  int port, String endpointFilePath, String token )
+    {
+        String bearer = token == null || token.isBlank() ? "<token>" : token;
+        String url = endpointUrl( port );
         return switch ( client ) {
-            case CLAUDE_CODE -> claudeCode( command );
-            case CURSOR -> cursor( command );
-            case CODEX -> codex( command );
-            case HTTP -> http( port, endpointFilePath );
+            case CLAUDE_CODE -> claudeCodeHttp( url, bearer );
+            case CURSOR -> cursorHttp( url, bearer );
+            case CODEX -> codexHttp( url, bearer );
+            case HTTP -> rawHttp( url, bearer );
+            case STDIO -> stdio( launcherPath, nativeExecutable, endpointFilePath );
         };
     }
 
     /**
-     * Builds the {@code claude mcp add} command line.
+     * Builds the {@code claude mcp add --transport http} command line.
      *
-     * @param command the relay command
+     * @param url    the endpoint URL
+     * @param bearer the bearer token
      *
      * @return the snippet
      */
-    private static String claudeCode( List< String > command )
+    private static String claudeCodeHttp( String url, String bearer )
     {
-        StringBuilder line = new StringBuilder( "claude mcp add " ).append( SERVER_NAME )
-                                                                   .append( " --" );
-        for ( String part : command ) {
-            line.append( ' ' ).append( shellQuote( part ) );
-        }
-        return line.toString();
+        return "claude mcp add --transport http " + SERVER_NAME + " " + url
+                + " --header " + shellQuote( "Authorization: Bearer " + bearer );
     }
 
     /**
-     * Builds the Cursor {@code mcp.json} fragment.
+     * Builds the Cursor {@code mcp.json} fragment for an HTTP server.
      *
-     * @param command the relay command
+     * @param url    the endpoint URL
+     * @param bearer the bearer token
      *
      * @return the snippet
      */
-    private static String cursor( List< String > command )
+    private static String cursorHttp( String url, String bearer )
     {
-        JsonArray args = new JsonArray();
-        for ( int i = 1; i < command.size(); i++ ) {
-            args.add( command.get( i ) );
-        }
+        JsonObject headers = new JsonObject();
+        headers.addProperty( "Authorization", "Bearer " + bearer );
         JsonObject server = new JsonObject();
-        server.addProperty( "command", command.get( 0 ) );
-        server.add( "args", args );
+        server.addProperty( "url", url );
+        server.add( "headers", headers );
 
         JsonObject servers = new JsonObject();
         servers.add( SERVER_NAME, server );
@@ -221,55 +256,67 @@ public final class McpClientSetup
     }
 
     /**
-     * Builds the Codex {@code config.toml} fragment.
+     * Builds the Codex {@code config.toml} fragment for an HTTP server.
      *
-     * @param command the relay command
+     * @param url    the endpoint URL
+     * @param bearer the bearer token
      *
      * @return the snippet
      */
-    private static String codex( List< String > command )
+    private static String codexHttp( String url, String bearer )
     {
-        StringBuilder args = new StringBuilder( "[" );
-        for ( int i = 1; i < command.size(); i++ ) {
-            if ( i > 1 ) {
-                args.append( ", " );
-            }
-            args.append( tomlString( command.get( i ) ) );
-        }
-        args.append( ']' );
-
         return "# ~/.codex/config.toml\n"
                 + "[mcp_servers." + SERVER_NAME + "]\n"
-                + "command = " + tomlString( command.get( 0 ) ) + "\n"
-                + "args = " + args + "\n";
+                + "url = " + tomlString( url ) + "\n"
+                + "\n"
+                + "[mcp_servers." + SERVER_NAME + ".http_headers]\n"
+                + "Authorization = " + tomlString( "Bearer " + bearer ) + "\n";
     }
 
     /**
-     * Builds the raw HTTP details.
-     * <p>
-     * Deliberately prints the endpoint file's <em>path</em> rather than the token it contains.
-     * The token grants full access, it rotates every launch, and a Settings pane is one
-     * screenshot away from a support thread.
+     * Builds the raw URL and header, for adapting to any client not listed.
      *
-     * @param port             the bound port, or {@code 0} when not running
+     * @param url    the endpoint URL
+     * @param bearer the bearer token
+     *
+     * @return the snippet
+     */
+    private static String rawHttp( String url, String bearer )
+    {
+        return "URL     " + url + "\n"
+                + "Header  Authorization: Bearer " + bearer + "\n"
+                + "\n"
+                + "Transport is Streamable HTTP (POST JSON-RPC). The launcher must be open.";
+    }
+
+    /**
+     * Builds the stdio-relay configuration, for a client that cannot speak HTTP.
+     *
+     * @param launcherPath     where the launcher lives
+     * @param nativeExecutable whether that path is a native executable rather than a JAR
      * @param endpointFilePath where the endpoint descriptor is written
      *
      * @return the snippet
      */
-    private static String http( int port, String endpointFilePath )
+    private static String stdio( String launcherPath, boolean nativeExecutable,
+                                 String endpointFilePath )
     {
-        String endpoint = port > 0 ? "http://127.0.0.1:" + port + "/mcp"
-                                   : "http://127.0.0.1:<port>/mcp  (server not running)";
-        return "POST " + endpoint + "\n"
-                + "Authorization: Bearer <token>\n"
-                + "Content-Type: application/json\n"
+        if ( !isUsableLauncherPath( launcherPath ) ) {
+            return UNPACKAGED_NOTICE;
+        }
+        List< String > command = relayCommand( launcherPath, nativeExecutable );
+        StringBuilder line = new StringBuilder();
+        for ( String part : command ) {
+            if ( line.length() > 0 ) {
+                line.append( ' ' );
+            }
+            line.append( shellQuote( part ) );
+        }
+        return "For a client that can only spawn a subprocess, run this as the server command:\n"
+                + line + "\n"
                 + "\n"
-                + "The port and token are in:\n"
-                + endpointFilePath + "\n"
-                + "\n"
-                + "Both change every time the launcher starts, so a client that reads them\n"
-                + "once will stop working. Prefer the stdio command above, which re-reads\n"
-                + "them for you.";
+                + "It relays stdio to the launcher and reads the port and token from\n"
+                + endpointFilePath + " itself, so no token goes in the client's config.";
     }
 
     /**

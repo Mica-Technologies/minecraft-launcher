@@ -286,6 +286,26 @@ public class LauncherConstants
     public static final int SINGLE_INSTANCE_PORT_DEV = 47822;
 
     /**
+     * Default loopback port for the MCP server in release builds. Adjacent to, and distinct
+     * from, the single-instance IPC ports so the two features cannot collide.
+     *
+     * <p>Fixed rather than OS-assigned on purpose: a client's configuration names a URL, and a
+     * port that changed every launch would mean re-editing that configuration every launch.
+     * The user can change it in Settings if something else already holds this one.</p>
+     *
+     * @since 2026.2
+     */
+    public static final int MCP_SERVER_PORT = 47823;
+
+    /**
+     * Default loopback port for the MCP server in dev builds, so a dev launcher and a release
+     * launcher can run side by side.
+     *
+     * @since 2026.2
+     */
+    public static final int MCP_SERVER_PORT_DEV = 47824;
+
+    /**
      * Map containing the JVM properties that must be applied at startup of each instance
      * of the application.
      *

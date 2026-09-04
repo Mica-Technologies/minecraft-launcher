@@ -32,8 +32,6 @@ import com.micatechnologies.minecraft.launcher.mcp.transport.LoopbackHttpTranspo
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.security.SecureRandom;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -137,11 +135,35 @@ public final class McpServer
      */
     public synchronized int start( int requestedPort, Path endpointFile ) throws IOException
     {
+        return start( requestedPort, endpointFile, McpAccessToken.generate() );
+    }
+
+    /**
+     * Binds the listener using a caller-supplied bearer token, and publishes the endpoint file.
+     * <p>
+     * The token is supplied rather than generated so it can be the persisted one a client has
+     * already been configured with. If the requested port is unavailable the OS picks one
+     * instead — a busy port should degrade to "reconfigure your client" rather than to "the
+     * feature silently did not start".
+     *
+     * @param requestedPort the loopback port to bind, or {@code 0} to let the OS choose
+     * @param endpointFile  where to publish the endpoint descriptor, or {@code null} to skip
+     * @param bearerToken   the token callers must present
+     *
+     * @return the port actually bound
+     *
+     * @throws IOException           if no port could be bound or the endpoint file written
+     * @throws IllegalStateException if the server is already running
+     * @since 3.0
+     */
+    public synchronized int start( int requestedPort, Path endpointFile, String bearerToken )
+            throws IOException
+    {
         if ( transport != null ) {
             throw new IllegalStateException( "The MCP server is already running" );
         }
 
-        token = generateToken();
+        token = bearerToken == null || bearerToken.isBlank() ? McpAccessToken.generate() : bearerToken;
         transport = new LoopbackHttpTransport( token, this::dispatch );
         dispatcher = Executors.newSingleThreadExecutor( runnable -> {
             Thread thread = new Thread( runnable, "mcp-dispatch" );
@@ -152,11 +174,22 @@ public final class McpServer
         try {
             port = transport.start( requestedPort );
         }
-        catch ( IOException e ) {
-            // Leave no half-started server behind: a transport that failed to bind must not
-            // leave a token and executor alive suggesting otherwise.
-            shutdownInternals();
-            throw e;
+        catch ( IOException preferredPortBusy ) {
+            // The configured port is taken -- by another launcher build, or by something else
+            // entirely. Falling back to an OS-assigned port keeps the feature working; the
+            // Settings pane and the endpoint file both report the port actually bound, so the
+            // user can see it differs from what they configured.
+            Logger.logWarningSilent( "MCP port " + requestedPort + " is unavailable; using an "
+                                             + "OS-assigned port instead" );
+            try {
+                port = transport.start( 0 );
+            }
+            catch ( IOException e ) {
+                // Leave no half-started server behind: a transport that failed to bind must not
+                // leave a token and executor alive suggesting otherwise.
+                shutdownInternals();
+                throw e;
+            }
         }
 
         endpointPath = endpointFile;
@@ -316,15 +349,4 @@ public final class McpServer
         token = null;
     }
 
-    /**
-     * Generates a fresh 256-bit bearer token, matching the single-instance IPC token's shape.
-     *
-     * @return the hex-encoded token
-     */
-    private static String generateToken()
-    {
-        byte[] bytes = new byte[ 32 ];
-        new SecureRandom().nextBytes( bytes );
-        return HexFormat.of().formatHex( bytes );
-    }
 }
