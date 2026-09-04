@@ -104,7 +104,7 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
                         LocalizationManager.format( "dialog.mcp.consent.body",
                                                     context.clientName(), tool.name(),
                                                     tool.description(),
-                                                    summarizeArguments( arguments ) ),
+                                                    detailedArguments( tool, arguments ) ),
                         LocalizationManager.get( "dialog.mcp.consent.button.allowOnce" ),
                         LocalizationManager.get( "dialog.mcp.consent.button.allowSession" ),
                         MCLauncherGuiController.getTopStageOrNull() ), runnable -> {
@@ -199,6 +199,35 @@ public final class FxConsentPrompt implements LauncherMcpAuthorizer.ConsentPromp
         return text.length() > MAX_SUMMARIZED_VALUE_LENGTH
                ? text.substring( 0, MAX_SUMMARIZED_VALUE_LENGTH ) + "\u2026"
                : text;
+    }
+
+    /**
+     * Builds the argument line for the dialog, appending the tool's own consent detail when it
+     * offers one.
+     *
+     * <p>For a destructive tool that detail is what the user is actually deciding about —
+     * "4.2 GB, 3 worlds" rather than a pack name — so it goes after the arguments where it
+     * reads as the consequence rather than as more parameters.</p>
+     *
+     * @param tool      the tool being called
+     * @param arguments the call arguments
+     *
+     * @return the assembled line
+     */
+    private static String detailedArguments( McpTool tool, JsonObject arguments )
+    {
+        String summary = summarizeArguments( arguments );
+        String detail;
+        try {
+            detail = tool.consentDetail( arguments );
+        }
+        catch ( Exception e ) {
+            // A detail that cannot be computed must not stop the prompt: the user still needs
+            // to be asked, just with less context.
+            Logger.logWarningSilent( "MCP could not build consent detail for " + tool.name() );
+            detail = null;
+        }
+        return detail == null || detail.isBlank() ? summary : summary + "\n\n" + detail;
     }
 
 }

@@ -27,7 +27,11 @@ import com.micatechnologies.minecraft.launcher.game.modpack.GameModPack;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackManager;
 import com.micatechnologies.minecraft.launcher.game.modpack.ModpackExporter;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +65,15 @@ public final class LiveMcpLauncherView implements McpLauncherView
      * code that would read as recorded fact.
      */
     private static final int UNRECORDED_FAILURE_EXIT_CODE = 1;
+
+    /** Folder inside a pack that holds worlds. */
+    private static final String WORLDS_FOLDER = "saves";
+
+    /** Most directory entries visited when measuring a pack, before reporting approximately. */
+    private static final int FOOTPRINT_MAX_ENTRIES = 40_000;
+
+    /** Wall-clock budget for measuring a pack, in milliseconds. */
+    private static final long FOOTPRINT_TIME_BUDGET_MS = 1_500L;
 
     @Override
     public List< PackSummary > packs()
@@ -155,6 +168,83 @@ public final class LiveMcpLauncherView implements McpLauncherView
             Logger.logWarningSilent( "MCP could not diagnose the crash report for " + friendlyName );
             return new CrashInfo( report, "", "", "", List.of() );
         }
+    }
+
+    @Override
+    public PackFootprint footprintOf( String friendlyName )
+    {
+        GameModPack pack = findPack( friendlyName );
+        if ( pack == null ) {
+            return null;
+        }
+        try {
+            Path root = Path.of( pack.getPackRootFolder() );
+            if ( !Files.isDirectory( root ) ) {
+                return new PackFootprint( 0L, 0, false );
+            }
+            return measure( root );
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( "MCP could not measure the footprint of " + friendlyName );
+            return null;
+        }
+    }
+
+    /**
+     * Walks a pack folder, bounded in both entries visited and wall time.
+     * <p>
+     * This runs while a consent dialog is being assembled and the caller is waiting, so it is
+     * capped rather than exhaustive. A pack big enough to hit the cap reports
+     * {@code approximate}, and the prompt says "at least" — which is the honest phrasing, and
+     * still enough for the decision the user is making.
+     * <p>
+     * Symbolic links are not followed, so a link inside a pack cannot send the walk out of it
+     * or into a cycle.
+     *
+     * @param root the pack folder
+     *
+     * @return the footprint
+     */
+    private static PackFootprint measure( Path root )
+    {
+        long deadline = System.currentTimeMillis() + FOOTPRINT_TIME_BUDGET_MS;
+        long bytes = 0L;
+        int visited = 0;
+        int worlds = 0;
+        boolean approximate = false;
+
+        Deque< Path > pending = new ArrayDeque<>();
+        pending.push( root );
+        while ( !pending.isEmpty() ) {
+            if ( visited >= FOOTPRINT_MAX_ENTRIES || System.currentTimeMillis() > deadline ) {
+                approximate = true;
+                break;
+            }
+            Path current = pending.pop();
+            try ( var children = Files.list( current ) ) {
+                for ( Path child : children.toList() ) {
+                    visited++;
+                    if ( Files.isSymbolicLink( child ) ) {
+                        continue;
+                    }
+                    if ( Files.isDirectory( child ) ) {
+                        if ( current.equals( root.resolve( WORLDS_FOLDER ) ) ) {
+                            worlds++;
+                        }
+                        pending.push( child );
+                    }
+                    else {
+                        bytes += Files.size( child );
+                    }
+                }
+            }
+            catch ( Exception ignored ) {
+                // An unreadable subtree makes the total a lower bound, which is what
+                // approximate already communicates.
+                approximate = true;
+            }
+        }
+        return new PackFootprint( bytes, worlds, approximate );
     }
 
     @Override

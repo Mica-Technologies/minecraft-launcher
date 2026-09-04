@@ -90,6 +90,34 @@ public interface McpLauncherView
     }
 
     /**
+     * What a modpack occupies on disk, for a destructive-action prompt.
+     *
+     * @param sizeBytes   total bytes under the pack folder
+     * @param worldCount  how many worlds are saved inside it
+     * @param approximate whether the walk was cut short, making {@code sizeBytes} a lower
+     *                    bound rather than an exact figure
+     *
+     * @since 3.0
+     */
+    record PackFootprint( long sizeBytes, int worldCount, boolean approximate )
+    {
+    }
+
+    /**
+     * Measures what a pack occupies on disk.
+     * <p>
+     * Called when building a destructive consent prompt, so implementations must bound the
+     * work rather than walking an arbitrarily large tree to completion.
+     *
+     * @param friendlyName the pack to measure
+     *
+     * @return the footprint, or {@code null} when it cannot be determined
+     *
+     * @since 3.0
+     */
+    PackFootprint footprintOf( String friendlyName );
+
+    /**
      * Returns every pack the launcher knows about, installed and available.
      *
      * @return the packs; empty when none are known

@@ -129,6 +129,28 @@ public interface McpTool
     }
 
     /**
+     * Extra context for the consent dialog, naming concretely what this call would do.
+     *
+     * <p>The plan's section 5.4 requires a destructive prompt to say what would be
+     * <em>lost</em> — worlds, size on disk — rather than only what would be run. "Delete All
+     * the Mods 9?" and "Delete All the Mods 9: 4.2 GB, 3 worlds?" are different questions, and
+     * only the second one can be answered responsibly.</p>
+     *
+     * <p>Computed at prompt time, so it may be expensive; implementations should bound the
+     * work and return {@code null} rather than block.</p>
+     *
+     * @param arguments the call arguments
+     *
+     * @return a short line to add to the dialog, or {@code null} for none
+     *
+     * @since 3.0
+     */
+    default String consentDetail( JsonObject arguments )
+    {
+        return null;
+    }
+
+    /**
      * Builds this tool's entry in a {@code tools/list} response.
      *
      * @return the descriptor object

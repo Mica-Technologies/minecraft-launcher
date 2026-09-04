@@ -56,6 +56,7 @@ class ReadOnlyToolsTest
     private static final class StubView implements McpLauncherView
     {
         private final List< PackSummary > packs = new ArrayList<>();
+        private PackFootprint footprint;
         private String manifest;
         private CrashInfo crash;
         private LauncherStatus status =
@@ -82,6 +83,9 @@ class ReadOnlyToolsTest
         {
             return pack( friendlyName ) == null ? null : crash;
         }
+
+        @Override
+        public PackFootprint footprintOf( String friendlyName ) { return footprint; }
 
         @Override
         public LauncherStatus status() { return status; }

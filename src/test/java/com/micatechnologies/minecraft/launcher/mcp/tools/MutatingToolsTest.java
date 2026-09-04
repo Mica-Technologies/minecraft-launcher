@@ -62,6 +62,7 @@ class MutatingToolsTest
     private static final class StubView implements McpLauncherView
     {
         private final List< PackSummary > packs = new ArrayList<>();
+        private PackFootprint footprint;
         private LauncherStatus status = new LauncherStatus( "3.0-test", true, "Steve", 0 );
 
         @Override
@@ -79,6 +80,9 @@ class MutatingToolsTest
 
         @Override
         public CrashInfo latestCrashOf( String friendlyName ) { return null; }
+
+        @Override
+        public PackFootprint footprintOf( String friendlyName ) { return footprint; }
 
         @Override
         public LauncherStatus status() { return status; }
@@ -386,6 +390,95 @@ class MutatingToolsTest
     void uninstallingAnUnknownPackIsRefused()
     {
         assertNotNull( validate( "uninstall_modpack", args( "friendlyName", "Ghost" ) ) );
+    }
+
+    // endregion
+
+    // region what the destructive prompt tells the user
+
+    /**
+     * Plan section 5.4: a destructive prompt must say what would be <b>lost</b>, not only what
+     * would be run. "Delete All the Mods 9?" and "Delete All the Mods 9 — 4.2 GB, 3 worlds?"
+     * are different questions, and only the second one can be answered responsibly.
+     */
+    @Test
+    void theUninstallPromptNamesTheSizeAndWorldsAtStake()
+    {
+        view.footprint = new McpLauncherView.PackFootprint( 4_509_715_660L, 3, false );
+        String detail = registry.find( "uninstall_modpack" )
+                .consentDetail( args( "friendlyName", "Installed Pack" ) );
+
+        assertNotNull( detail );
+        assertTrue( detail.contains( "4.2 GB" ), detail );
+        assertTrue( detail.contains( "3 saved worlds" ), detail );
+        assertTrue( detail.contains( "cannot be undone" ), detail );
+    }
+
+    /** Worlds are the unrecoverable part, so a pack with none must not imply otherwise. */
+    @Test
+    void aPackWithNoWorldsDoesNotClaimAny()
+    {
+        view.footprint = new McpLauncherView.PackFootprint( 1_048_576L, 0, false );
+        String detail = registry.find( "uninstall_modpack" )
+                .consentDetail( args( "friendlyName", "Installed Pack" ) );
+        assertFalse( detail.contains( "world" ), detail );
+    }
+
+    @Test
+    void oneWorldIsDescribedInTheSingular()
+    {
+        view.footprint = new McpLauncherView.PackFootprint( 1_048_576L, 1, false );
+        assertTrue( registry.find( "uninstall_modpack" )
+                            .consentDetail( args( "friendlyName", "Installed Pack" ) )
+                            .contains( "1 saved world." ) );
+    }
+
+    /**
+     * A truncated measurement must say "at least" rather than quietly under-reporting. A user
+     * told "1 GB" about a 40 GB pack was misinformed by the prompt meant to inform them.
+     */
+    @Test
+    void aTruncatedMeasurementIsReportedAsALowerBound()
+    {
+        view.footprint = new McpLauncherView.PackFootprint( 1_073_741_824L, 2, true );
+        assertTrue( registry.find( "uninstall_modpack" )
+                            .consentDetail( args( "friendlyName", "Installed Pack" ) )
+                            .contains( "at least" ) );
+    }
+
+    /** A measurement that failed still yields a prompt, just a less specific one. */
+    @Test
+    void anUnmeasurablePackStillGetsAWarning()
+    {
+        view.footprint = null;
+        String detail = registry.find( "uninstall_modpack" )
+                .consentDetail( args( "friendlyName", "Installed Pack" ) );
+        assertNotNull( detail );
+        assertTrue( detail.contains( "permanently deletes" ), detail );
+    }
+
+    /** Only the destructive tool volunteers extra detail; the rest have nothing to add. */
+    @Test
+    void nonDestructiveToolsAddNoConsentDetail()
+    {
+        for ( McpTool tool : registry.all() ) {
+            if ( tool.name().equals( "uninstall_modpack" ) ) {
+                continue;
+            }
+            assertNull( tool.consentDetail( args( "friendlyName", "Installed Pack" ) ),
+                        tool.name() + " should not add consent detail" );
+        }
+    }
+
+    @Test
+    void sizesAreRenderedTheWayAPersonReadsThem()
+    {
+        assertEquals( "512 bytes", MutatingTools.describeSize( 512L ) );
+        assertEquals( "1.0 KB", MutatingTools.describeSize( 1024L ) );
+        assertEquals( "1.0 MB", MutatingTools.describeSize( 1024L * 1024 ) );
+        assertEquals( "4.2 GB", MutatingTools.describeSize( 4_509_715_660L ) );
+        assertEquals( "512 MB", MutatingTools.describeSize( 512L * 1024 * 1024 ) );
+        assertEquals( "0 bytes", MutatingTools.describeSize( 0L ) );
     }
 
     // endregion

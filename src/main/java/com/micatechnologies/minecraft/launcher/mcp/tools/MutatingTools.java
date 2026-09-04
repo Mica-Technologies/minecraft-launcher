@@ -502,6 +502,32 @@ public final class MutatingTools
             return null;
         }
 
+        /**
+         * Names what the deletion would cost, per plan section 5.4.
+         *
+         * <p>"Delete All the Mods 9?" and "Delete All the Mods 9 — 4.2 GB, 3 worlds?" are
+         * different questions, and only the second one can be answered responsibly. Worlds are
+         * called out separately from bytes because they are the part that is genuinely
+         * unrecoverable.</p>
+         */
+        @Override
+        public String consentDetail( JsonObject arguments )
+        {
+            McpLauncherView.PackFootprint footprint =
+                    view.footprintOf( stringArg( arguments, "friendlyName" ) );
+            if ( footprint == null ) {
+                return "This permanently deletes the modpack's files.";
+            }
+            StringBuilder detail = new StringBuilder( "This permanently deletes " );
+            detail.append( footprint.approximate() ? "at least " : "" )
+                  .append( describeSize( footprint.sizeBytes() ) );
+            if ( footprint.worldCount() > 0 ) {
+                detail.append( " including " ).append( footprint.worldCount() )
+                      .append( footprint.worldCount() == 1 ? " saved world" : " saved worlds" );
+            }
+            return detail.append( ". This cannot be undone." ).toString();
+        }
+
         @Override
         public McpToolResult invoke( McpCallContext context, JsonObject arguments )
         {
@@ -608,6 +634,31 @@ public final class MutatingTools
         {
             return resultOf( actions.stopGame() );
         }
+    }
+
+    /**
+     * Renders a byte count the way a person reads one.
+     *
+     * @param bytes the size in bytes
+     *
+     * @return a short human-readable size
+     *
+     * @since 3.0
+     */
+    static String describeSize( long bytes )
+    {
+        if ( bytes < 1024L ) {
+            return bytes + " bytes";
+        }
+        String[] units = { "KB", "MB", "GB", "TB" };
+        double value = bytes / 1024.0;
+        int unit = 0;
+        while ( value >= 1024.0 && unit < units.length - 1 ) {
+            value /= 1024.0;
+            unit++;
+        }
+        return String.format( java.util.Locale.ROOT, value < 10 ? "%.1f %s" : "%.0f %s",
+                              value, units[ unit ] );
     }
 
     /**
