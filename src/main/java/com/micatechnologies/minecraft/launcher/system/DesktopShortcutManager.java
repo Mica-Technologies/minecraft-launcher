@@ -807,7 +807,10 @@ public class DesktopShortcutManager
      *
      * @since 1.0
      */
-    private static String sanitizeFileName( String name )
+    // Package-private (widened from private) so DesktopShortcutManagerSanitizeTest can
+    // exercise this injection defense directly without going through createShortcut's
+    // AWT / native-shortcut-creation dependencies.
+    static String sanitizeFileName( String name )
     {
         return name.replaceAll( "[<>:\"/\\\\|?*]", "_" ).trim();
     }

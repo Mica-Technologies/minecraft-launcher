@@ -102,8 +102,11 @@ public final class LauncherUriHandler
     private static final Set< String > TRUSTED_INSTALL_HOSTS = Set.of(
             "micauseaststorage.blob.core.windows.net" );
 
-    /** Result of validating an install URL coming in over the {@code mmcl://} channel. */
-    private enum InstallUrlVerdict
+    /** Result of validating an install URL coming in over the {@code mmcl://} channel.
+     *  Package-private (widened from {@code private}) so {@link LauncherUriHandlerClassifyInstallUrlTest}
+     *  can exercise {@link #classifyInstallUrl(String)} directly without dragging in the
+     *  JavaFX / GSON config machinery that {@link #confirmInstallUrl} depends on. */
+    enum InstallUrlVerdict
     {
         /** URL is well-formed https, host is on the trusted allowlist. Install silently. */
         ACCEPT_TRUSTED,
@@ -514,8 +517,10 @@ public final class LauncherUriHandler
     /**
      * Pure-function URL classifier used by {@link #confirmInstallUrl(String, String)}.
      * Decoupled so future tests / additional entry points can reuse it.
+     *
+     * <p>Package-private (widened from {@code private}) so it can be unit-tested directly.</p>
      */
-    private static InstallUrlVerdict classifyInstallUrl( String url )
+    static InstallUrlVerdict classifyInstallUrl( String url )
     {
         if ( url == null || url.isBlank() ) {
             return InstallUrlVerdict.REJECT;
