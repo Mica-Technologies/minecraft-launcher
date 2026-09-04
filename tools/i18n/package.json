@@ -7,7 +7,8 @@
   "scripts": {
     "translate": "node translate-locales.js",
     "translate:dry": "node translate-locales.js --dry-run",
-    "translate:force": "node translate-locales.js --force"
+    "translate:force": "node translate-locales.js --force",
+    "test:placeholders": "node placeholder-guard.test.mjs"
   },
   "dependencies": {
     "google-translate-api-x": "^10.7.2"

@@ -202,19 +202,55 @@ function protectPlaceholders(text) {
 function restorePlaceholders(translated, placeholders) {
     let restored = translated;
     for (let i = 0; i < placeholders.length; i++) {
-        // Replace the sentinel (case-insensitive — some target languages
-        // lowercase ALL-CAPS markers, e.g. Turkish).
-        const sentinel = new RegExp(`__MMCL_PH${i}__`, 'gi');
+        // Match the sentinel tolerantly. Translation engines do not treat these
+        // as opaque: they lowercase ALL-CAPS markers (Turkish), insert spaces
+        // around or inside the underscores, and occasionally split the digits
+        // off. Anything stricter than this silently loses the placeholder, which
+        // is exactly how the shipped es / pt-BR / zh-TW slot mismatches happened.
+        // The trailing `_\\s*_` is load-bearing as a boundary: it stops PH1 matching inside
+        // PH10, and it must NOT be followed by `\\s*`, or the match eats the space that
+        // separates the placeholder from the next word.
+        const sentinel = new RegExp(`_\\s*_\\s*MMCL\\s*_?\\s*PH\\s*${i}\\s*_\\s*_`, 'gi');
         restored = restored.replace(sentinel, placeholders[i]);
     }
     return restored;
+}
+
+// The multiset of MessageFormat placeholders in a string, sorted so a
+// translation that legitimately REORDERS them still compares equal — only a
+// lost, duplicated, or invented placeholder should count as a mismatch.
+function placeholderSignature(text) {
+    const found = text.match(/\{(\d+(?:,[^}]+)?)\}/g) || [];
+    return found.slice().sort().join('\u0000');
+}
+
+// A translated value is only usable if it carries exactly the placeholders the
+// English source did. MessageFormat.format throws on an unmatched brace and
+// renders a literal "{0}" for a slot with no argument, so a mangled value is
+// not a cosmetic problem -- it is a broken string in the user's language, and
+// one that no English-locale test run would ever surface.
+//
+// Falling back to English keeps the bundle correct and loadable, and leaves the
+// key visibly untranslated so it gets picked up on a later pass.
+function verifyPlaceholders(englishValue, translatedValue) {
+    return placeholderSignature(englishValue) === placeholderSignature(translatedValue);
 }
 
 async function translateString(text, targetCode) {
     if (text === '' || text.trim() === '') return text;
     const { protectedText, placeholders } = protectPlaceholders(text);
     const result = await translate(protectedText, { from: 'en', to: targetCode });
-    return restorePlaceholders(result.text, placeholders);
+    const restored = restorePlaceholders(result.text, placeholders);
+    if (!verifyPlaceholders(text, restored)) {
+        // Signal rather than return: the caller logs the key and falls back to
+        // English, so a mangled placeholder can never reach a shipped bundle.
+        const err = new Error(
+            `placeholder mismatch (expected ${placeholderSignature(text).split('\u0000').join(' ')}, `
+            + `got ${placeholderSignature(restored).split('\u0000').join(' ')})`);
+        err.placeholderMismatch = true;
+        throw err;
+    }
+    return restored;
 }
 
 async function fileExists(path) {
@@ -230,6 +266,7 @@ async function main() {
     let totalCalls = 0;
     let totalSkipped = 0;
     let totalFailures = 0;
+    let totalMismatched = 0;
 
     for (const locale of TARGET_LOCALES) {
         // Java ResourceBundle looks up bundles by Locale.toString(), which uses an
@@ -267,6 +304,7 @@ async function main() {
         let translated = 0;
         let skipped = 0;
         let failed = 0;
+        let mismatched = 0;
         for (const key of source.keysInOrder) {
             const englishValue = source.values[key];
             const existingValue = existing.values[key];
@@ -292,20 +330,39 @@ async function main() {
                 merged.values[key] = englishValue;   // fall back to English so the bundle is still loadable
                 failed++;
                 totalFailures++;
+                if (err.placeholderMismatch) {
+                    mismatched++;
+                    totalMismatched++;
+                }
             }
             await new Promise((res) => setTimeout(res, DELAY_MS));
         }
         if (!DRY_RUN) {
             await writeProperties(targetPath, merged, locale.tag);
         }
-        console.log(`  done: ${translated} translated, ${skipped} kept, ${failed} failed`);
+        console.log(`  done: ${translated} translated, ${skipped} kept, ${failed} failed`
+                    + (mismatched ? `  (${mismatched} rejected for placeholder mismatch)` : ''));
     }
 
     console.log(`\nTotals: ${totalCalls} API calls, ${totalSkipped} kept, ${totalFailures} failed`);
+    if (totalMismatched) {
+        console.log(`${totalMismatched} value(s) were rejected because the translation lost or `
+                    + `altered a {0}-style placeholder, and were left in English. Re-run to retry `
+                    + `them; a key that keeps failing needs its English source simplified.`);
+    }
     if (DRY_RUN) console.log(`(dry-run — no files written)`);
 }
 
-main().catch((err) => {
-    console.error('FATAL:', err);
-    process.exit(1);
-});
+// Only run when invoked directly. Importing this module must not start a
+// translation run -- placeholder-guard.test.mjs imports it to exercise the
+// placeholder helpers below without touching the network.
+const invokedDirectly = process.argv[1]
+    && import.meta.url === new URL(`file://${process.argv[1]}`).href;
+if (invokedDirectly) {
+    main().catch((err) => {
+        console.error('FATAL:', err);
+        process.exit(1);
+    });
+}
+
+export { protectPlaceholders, restorePlaceholders, placeholderSignature, verifyPlaceholders };
