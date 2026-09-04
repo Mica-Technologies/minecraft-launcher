@@ -261,7 +261,13 @@ public class GameLibraryManifest extends ManagedGameFile
      *
      * @since 1.0
      */
-    private String resolveNativeClassifierKey( JsonObject libraryObject, String osKey ) {
+    // Package-private and static (was private, instance) so the classifier-resolution
+    // rules can be tested directly. The method reads no instance state -- only its
+    // arguments and the os.arch system property -- so making it static is behaviour-
+    // preserving, and it avoids needing a fully-constructed GameLibraryManifest (whose
+    // constructor requires a real GameModPack and resolves launcher paths) just to
+    // exercise a pure string rule.
+    static String resolveNativeClassifierKey( JsonObject libraryObject, String osKey ) {
         if ( libraryObject.has( "natives" ) ) {
             JsonObject nativesObject = libraryObject.getAsJsonObject( "natives" );
             if ( nativesObject.has( osKey ) ) {
