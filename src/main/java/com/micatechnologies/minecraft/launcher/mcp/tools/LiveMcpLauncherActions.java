@@ -333,18 +333,43 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
      */
     private static Path localManifestPathOf( GameModPack pack )
     {
-        String manifestUrl = pack.getManifestUrl();
-        if ( manifestUrl == null || !manifestUrl.startsWith( "file:" ) ) {
+        Path authored = Path.of( LocalPathManager.getLauncherConfigFolderPath(),
+                                 AUTHORED_MANIFESTS_DIR );
+        Path resolved = resolveAuthoredManifest( pack.getManifestUrl(), authored );
+        return resolved != null && Files.isRegularFile( resolved ) ? resolved : null;
+    }
+
+    /**
+     * Resolves a manifest URL to a path inside the authored-manifests directory, or
+     * {@code null} when it does not belong to us.
+     *
+     * <p>Split out from {@link #localManifestPathOf} with no filesystem access of its own, so
+     * the containment rule can be tested directly — it is the check that decides whether an
+     * edit is permitted, and "does this URL point inside our directory?" is exactly the kind of
+     * question that is easy to answer subtly wrongly.</p>
+     *
+     * <p>A {@code file:} scheme alone is not sufficient. An imported {@code .mmcjson} is also a
+     * local file, but it is the user's, not ours. Both paths are normalized before comparison,
+     * so a URL threading {@code ..} back out cannot claim to be inside.</p>
+     *
+     * @param manifestUrl the pack's manifest URL
+     * @param authoredDir the directory holding manifests this launcher wrote
+     *
+     * @return the contained path, or {@code null}
+     *
+     * @since 3.0
+     */
+    static Path resolveAuthoredManifest( String manifestUrl, Path authoredDir )
+    {
+        if ( manifestUrl == null || !manifestUrl.startsWith( "file:" ) || authoredDir == null ) {
             return null;
         }
         try {
             Path path = Path.of( URI.create( manifestUrl ) ).toAbsolutePath().normalize();
-            Path authored = Path.of( LocalPathManager.getLauncherConfigFolderPath(),
-                                     AUTHORED_MANIFESTS_DIR ).toAbsolutePath().normalize();
-            if ( !path.startsWith( authored ) || !Files.isRegularFile( path ) ) {
-                return null;
-            }
-            return path;
+            Path authored = authoredDir.toAbsolutePath().normalize();
+            // startsWith on Path compares whole name elements, so a sibling directory whose
+            // name merely begins with the same characters does not match.
+            return path.startsWith( authored ) && !path.equals( authored ) ? path : null;
         }
         catch ( Exception e ) {
             return null;
