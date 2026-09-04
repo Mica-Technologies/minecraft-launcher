@@ -23,8 +23,13 @@ import com.google.gson.JsonObject;
 import com.micatechnologies.minecraft.launcher.consts.ModPackConstants;
 import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * A headless, editable modpack manifest document.
@@ -62,6 +67,13 @@ public class ModPackDocument
 
     /** Manifest key holding the pack's scan-exclusion path list. */
     public static final String KEY_SCAN_EXCLUSIONS = "packScanExclusions";
+
+    /**
+     * Filename prefix for manifests written by {@link #writeLocalManifest}, matching the
+     * {@code mmcjson-} / {@code mrpack-} convention the importers use so a config directory
+     * stays readable at a glance.
+     */
+    public static final String LOCAL_MANIFEST_PREFIX = "created-";
 
     /**
      * One of the manifest's file lists, together with the shape of its entries.
@@ -580,6 +592,150 @@ public class ModPackDocument
             }
         }
         document.add( list.getKey(), array );
+    }
+
+    /**
+     * Creates an independent copy of this document under a new name, with its minor version
+     * bumped.
+     * <p>
+     * Only the name and version change. Everything else — mods, configs, loader, images —
+     * carries over verbatim, because a fork exists to be edited from a known-good starting
+     * point, and silently dropping fields would make the result harder to reason about than
+     * the original. The copy shares no state with the source: mutating one does not touch the
+     * other.
+     *
+     * @param newName the forked pack's name
+     *
+     * @return the forked document
+     *
+     * @throws IllegalArgumentException if {@code newName} is {@code null} or blank
+     * @since 3.0
+     */
+    public ModPackDocument forkOf( String newName )
+    {
+        if ( newName == null || newName.isBlank() ) {
+            throw new IllegalArgumentException( "A fork needs a non-blank name" );
+        }
+        ModPackDocument fork = fromJson( toPrettyJson() );
+        fork.putString( KEY_PACK_NAME, newName.trim() );
+        fork.putString( KEY_PACK_VERSION, bumpVersion( getString( KEY_PACK_VERSION ), 1 ) );
+        return fork;
+    }
+
+    /**
+     * Returns this pack's mod list.
+     *
+     * @return the mods, in manifest order
+     *
+     * @since 3.0
+     */
+    public List< ModPackFileEntry > mods()
+    {
+        return readFileList( FileList.MODS );
+    }
+
+    /**
+     * Adds a mod, unless one is already installed to the same local path.
+     * <p>
+     * The local path is the identity that matters: two entries writing the same file would
+     * make the installed result depend on sync order. Comparison ignores case, because the
+     * launcher runs on Windows and macOS where the filesystem does too — treating
+     * {@code mods/JEI.jar} and {@code mods/jei.jar} as distinct would produce a manifest that
+     * behaves differently per platform.
+     *
+     * @param entry the mod to add
+     *
+     * @return {@code true} when the mod was added; {@code false} when the entry is
+     *         {@code null}, has no local path, or collides with an existing one
+     *
+     * @since 3.0
+     */
+    public boolean addMod( ModPackFileEntry entry )
+    {
+        if ( entry == null || entry.getLocal().isBlank() ) {
+            return false;
+        }
+        List< ModPackFileEntry > mods = mods();
+        for ( ModPackFileEntry existing : mods ) {
+            if ( existing.getLocal().equalsIgnoreCase( entry.getLocal() ) ) {
+                return false;
+            }
+        }
+        mods.add( entry );
+        writeFileList( FileList.MODS, mods );
+        return true;
+    }
+
+    /**
+     * Removes a mod, identified by its local path, its display name, or its Modrinth slug.
+     * <p>
+     * Three identifiers rather than one because callers have different handles on the same
+     * mod: a model asking to "remove JEI" has a name, an editor row has a local path, and a
+     * Modrinth-sourced tool has a slug. Matching is case-insensitive and removes at most one
+     * entry — the first match — so a request that is ambiguous cannot quietly delete several
+     * mods.
+     *
+     * @param identifier the local path, name, or Modrinth slug of the mod to remove
+     *
+     * @return {@code true} when a mod was removed
+     *
+     * @since 3.0
+     */
+    public boolean removeMod( String identifier )
+    {
+        if ( identifier == null || identifier.isBlank() ) {
+            return false;
+        }
+        String wanted = identifier.trim();
+        List< ModPackFileEntry > mods = mods();
+        for ( int i = 0; i < mods.size(); i++ ) {
+            ModPackFileEntry mod = mods.get( i );
+            if ( wanted.equalsIgnoreCase( mod.getLocal() )
+                    || wanted.equalsIgnoreCase( mod.getName() )
+                    || wanted.equalsIgnoreCase( mod.getModrinthSlug() ) ) {
+                mods.remove( i );
+                writeFileList( FileList.MODS, mods );
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Writes this manifest into a directory and returns a URL that
+     * {@code GameModPackManager.installModPackByURL} accepts.
+     * <p>
+     * Follows the convention the importers already use: a local file under the launcher's
+     * config tree, addressed by {@code file:} URI. The directory is a parameter rather than
+     * resolved internally so this is testable without the launcher's path machinery.
+     * <p>
+     * The filename is derived from {@link #sanitizedFileBaseName()}, so a pack name cannot
+     * steer the write outside the directory it was given.
+     *
+     * @param directory where to write
+     *
+     * @return the manifest's {@code file:} URL
+     *
+     * @throws IOException              if the manifest cannot be written
+     * @throws IllegalArgumentException if {@code directory} is {@code null}, or the pack name
+     *                                  sanitizes to nothing
+     * @since 3.0
+     */
+    public String writeLocalManifest( Path directory ) throws IOException
+    {
+        if ( directory == null ) {
+            throw new IllegalArgumentException( "A target directory is required" );
+        }
+        String baseName = sanitizedFileBaseName();
+        if ( baseName.isEmpty() ) {
+            throw new IllegalArgumentException(
+                    "The pack name has no characters usable in a filename" );
+        }
+        Files.createDirectories( directory );
+        Path manifestPath = directory.resolve( LOCAL_MANIFEST_PREFIX
+                                                       + baseName.toLowerCase( Locale.ROOT ) + ".json" );
+        Files.writeString( manifestPath, toPrettyJson(), StandardCharsets.UTF_8 );
+        return manifestPath.toUri().toString();
     }
 
     /**
