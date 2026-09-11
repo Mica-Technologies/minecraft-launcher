@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 430" width="780" height="430"
+     font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="3.2" orient="auto">
+      <path d="M0,0 L8,3.2 L0,6.4 z" fill="#6b7280"/>
+    </marker>
+    <marker id="arrowAccent" markerWidth="9" markerHeight="9" refX="8" refY="3.2" orient="auto">
+      <path d="M0,0 L8,3.2 L0,6.4 z" fill="#2f5d50"/>
+    </marker>
+  </defs>
+
+  <!-- launcher process envelope -->
+  <rect x="232" y="8" width="540" height="414" rx="8" fill="#f7f8fa" stroke="#d9dce2"/>
+  <text x="248" y="27" font-size="11" font-weight="700" fill="#2f5d50">LAUNCHER PROCESS (the one that owns the modpack folders)</text>
+
+  <!-- clients -->
+  <text x="8" y="27" font-size="11" font-weight="700" fill="#6b7280">MCP CLIENTS</text>
+  <rect x="8" y="38" width="196" height="34" rx="4" fill="#ffffff" stroke="#c3d4e6"/>
+  <text x="20" y="59" font-size="12" fill="#16181d">Claude Code · Cursor · Codex</text>
+
+  <rect x="8" y="86" width="196" height="52" rx="4" fill="#ffffff" stroke="#c3d4e6"/>
+  <text x="20" y="105" font-size="12" fill="#16181d">Any HTTP-capable client</text>
+  <text x="20" y="122" font-size="10" fill="#6b7280">POST http://127.0.0.1:47823/mcp</text>
+
+  <rect x="8" y="164" width="196" height="66" rx="4" fill="#ffffff" stroke="#d9dce2"/>
+  <text x="20" y="183" font-size="12" fill="#16181d">stdio-only client</text>
+  <text x="20" y="200" font-size="10" fill="#6b7280">spawns: launcher --mcp</text>
+  <text x="20" y="216" font-size="10" fill="#6b7280">(StdioProxy relays to HTTP)</text>
+
+  <rect x="8" y="250" width="196" height="52" rx="4" fill="#ffffff" stroke="#d9dce2" stroke-dasharray="3 3"/>
+  <text x="20" y="269" font-size="11" fill="#16181d">mcp-endpoint.json</text>
+  <text x="20" y="286" font-size="9.5" fill="#6b7280">port · token · pid · version (0600)</text>
+
+  <!-- arrows in -->
+  <path d="M204,55 C218,55 218,84 232,84" fill="none" stroke="#2f5d50" stroke-width="1.4" marker-end="url(#arrowAccent)"/>
+  <path d="M204,112 L232,98" fill="none" stroke="#2f5d50" stroke-width="1.4" marker-end="url(#arrowAccent)"/>
+  <path d="M204,197 C220,197 218,110 232,104" fill="none" stroke="#6b7280" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <path d="M106,250 L106,232" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- admission -->
+  <rect x="252" y="52" width="500" height="56" rx="5" fill="#ffffff" stroke="#2f5d50" stroke-width="1.3"/>
+  <text x="266" y="71" font-size="12" font-weight="700" fill="#16181d">LoopbackHttpTransport + McpHttpGuard</text>
+  <text x="266" y="88" font-size="10" fill="#6b7280">loopback bind only · bearer token (constant time) · Origin check · POST only · 1 MB cap · JSON only</text>
+  <text x="266" y="102" font-size="10" fill="#9b2c2c">401 · 403 · 405 · 413 · 415 before a byte of body is parsed</text>
+
+  <path d="M502,108 L502,126" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- dispatcher -->
+  <rect x="252" y="128" width="500" height="46" rx="5" fill="#ffffff" stroke="#d9dce2"/>
+  <text x="266" y="147" font-size="12" font-weight="700" fill="#16181d">McpServer — session registry + single-threaded dispatcher</text>
+  <text x="266" y="164" font-size="10" fill="#6b7280">Mcp-Session-Id issued at handshake · max 8 sessions · every call serialized on mcp-dispatch</text>
+
+  <path d="M502,174 L502,192" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- handler -->
+  <rect x="252" y="194" width="500" height="46" rx="5" fill="#ffffff" stroke="#d9dce2"/>
+  <text x="266" y="213" font-size="12" font-weight="700" fill="#16181d">McpRequestHandler — the whole MCP method surface</text>
+  <text x="266" y="230" font-size="10" fill="#6b7280">initialize · ping · tools/list · tools/call · resources/list · resources/templates/list · resources/read</text>
+
+  <path d="M370,240 L370,262" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M636,240 L636,262" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- authorizer -->
+  <rect x="252" y="264" width="240" height="70" rx="5" fill="#ffffff" stroke="#8a5a00" stroke-width="1.3"/>
+  <text x="266" y="283" font-size="12" font-weight="700" fill="#16181d">LauncherMcpAuthorizer</text>
+  <text x="266" y="300" font-size="10" fill="#6b7280">policy · session grants · risk class</text>
+  <text x="266" y="316" font-size="10" fill="#6b7280">FxConsentPrompt → the user (120 s)</text>
+  <text x="266" y="330" font-size="10" fill="#9b2c2c">fails closed with no GUI</text>
+
+  <!-- registries -->
+  <rect x="512" y="264" width="240" height="70" rx="5" fill="#ffffff" stroke="#d9dce2"/>
+  <text x="526" y="283" font-size="12" font-weight="700" fill="#16181d">Tool + resource registries</text>
+  <text x="526" y="300" font-size="10" fill="#6b7280">6 read-only tools · 8 state-changing</text>
+  <text x="526" y="316" font-size="10" fill="#6b7280">3 mica:// resources</text>
+  <text x="526" y="330" font-size="10" fill="#2f5d50">every text block redacted on exit</text>
+
+  <path d="M372,334 C372,352 500,352 500,362" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <path d="M632,334 C632,352 504,352 504,362" fill="none" stroke="#6b7280" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- domain -->
+  <rect x="252" y="364" width="500" height="46" rx="5" fill="#e8f0ed" stroke="#2f5d50"/>
+  <text x="266" y="383" font-size="12" font-weight="700" fill="#16181d">McpLauncherView / McpLauncherActions → GameModPackManager, ModPackDocument</text>
+  <text x="266" y="400" font-size="10" fill="#3d434e">crash analysis — the same code paths the GUI uses, with no parallel implementation of anything</text>
+</svg>

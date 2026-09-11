@@ -1,0 +1,13 @@
+{
+  "name": "mica-launcher-mcp-server-guide",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Print pipeline for docs/MCP_SERVER_GUIDE.pdf. Renders guide.html through headless Chrome and writes the paginated PDF back into docs/.",
+  "scripts": {
+    "build": "node build-pdf.mjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "^25.10.0"
+  }
+}

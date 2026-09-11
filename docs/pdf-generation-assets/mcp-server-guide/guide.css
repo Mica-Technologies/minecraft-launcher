@@ -1,0 +1,608 @@
+/*
+ * Copyright (c) 2026 Mica Technologies -- GNU GPLv3.
+ *
+ * Print stylesheet for docs/MCP_SERVER_GUIDE.pdf. Authored for paged media: page breaks,
+ * widow/orphan control and table repetition matter more here than anything on screen.
+ */
+
+/* ---------------------------------------------------------------- design tokens */
+
+:root
+{
+    --ink:            #16181d;
+    --ink-soft:       #3d434e;
+    --ink-faint:      #6b7280;
+    --rule:           #d9dce2;
+    --rule-soft:      #eceef2;
+    --paper-tint:     #f7f8fa;
+
+    --accent:         #2f5d50;   /* Forge-green, matched to the launcher's dark accent */
+    --accent-soft:    #e8f0ed;
+    --danger:         #9b2c2c;
+    --danger-soft:    #fbecec;
+    --warn:           #8a5a00;
+    --warn-soft:      #fdf3e2;
+    --info:           #1f4e79;
+    --info-soft:      #e8f0f8;
+
+    --mono: "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+/* ---------------------------------------------------------------- page geometry */
+
+@page
+{
+    size: Letter;
+    margin: 16mm;
+}
+
+html
+{
+    font-size: 10.5pt;
+}
+
+body
+{
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* ---------------------------------------------------------------- cover */
+
+.cover
+{
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 232mm;
+    text-align: left;
+}
+
+.cover img.mark
+{
+    width: 26mm;
+    height: 26mm;
+    margin-bottom: 10mm;
+}
+
+.cover .eyebrow
+{
+    font-size: 9pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 4mm;
+}
+
+.cover h1
+{
+    font-size: 32pt;
+    line-height: 1.1;
+    margin: 0 0 4mm;
+    letter-spacing: -0.02em;
+}
+
+.cover .subtitle
+{
+    font-size: 13pt;
+    color: var(--ink-soft);
+    margin: 0 0 12mm;
+    max-width: 130mm;
+}
+
+.cover dl
+{
+    display: grid;
+    grid-template-columns: 34mm 1fr;
+    gap: 2mm 6mm;
+    margin: 0;
+    font-size: 9.5pt;
+    border-top: 1px solid var(--rule);
+    padding-top: 6mm;
+    max-width: 140mm;
+}
+
+.cover dt
+{
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 8pt;
+    padding-top: 0.6mm;
+}
+
+.cover dd
+{
+    margin: 0;
+    color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- headings */
+
+h1, h2, h3, h4
+{
+    font-weight: 700;
+    color: var(--ink);
+    page-break-after: avoid;
+    break-after: avoid;
+}
+
+h2
+{
+    font-size: 19pt;
+    letter-spacing: -0.01em;
+    margin: 0 0 5mm;
+    padding-bottom: 2.5mm;
+    border-bottom: 2px solid var(--accent);
+}
+
+h2 .num
+{
+    color: var(--accent);
+    margin-right: 3mm;
+}
+
+h3
+{
+    font-size: 13pt;
+    margin: 8mm 0 3mm;
+}
+
+h3 .num
+{
+    color: var(--accent);
+    margin-right: 2.5mm;
+    font-variant-numeric: tabular-nums;
+}
+
+h4
+{
+    font-size: 10.5pt;
+    margin: 5mm 0 2mm;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 8.5pt;
+}
+
+section.chapter
+{
+    page-break-before: always;
+    break-before: page;
+}
+
+p
+{
+    margin: 0 0 3.2mm;
+    orphans: 2;
+    widows: 2;
+}
+
+a
+{
+    color: var(--info);
+    text-decoration: none;
+}
+
+ul, ol
+{
+    margin: 0 0 3.2mm;
+    padding-left: 6mm;
+}
+
+li
+{
+    margin-bottom: 1.2mm;
+}
+
+li > ul, li > ol
+{
+    margin-top: 1.2mm;
+}
+
+strong
+{
+    font-weight: 700;
+}
+
+code
+{
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: var(--rule-soft);
+    padding: 0.3mm 1.1mm;
+    border-radius: 1mm;
+    word-break: break-word;
+}
+
+pre
+{
+    font-family: var(--mono);
+    font-size: 8pt;
+    line-height: 1.45;
+    background: var(--paper-tint);
+    border: 1px solid var(--rule);
+    border-left: 2.5mm solid var(--accent);
+    border-radius: 1.5mm;
+    padding: 3mm 4mm;
+    margin: 0 0 4mm;
+    white-space: pre-wrap;
+    word-break: break-word;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+pre code
+{
+    background: none;
+    padding: 0;
+    font-size: inherit;
+}
+
+pre.long
+{
+    page-break-inside: auto;
+    break-inside: auto;
+}
+
+/* ---------------------------------------------------------------- tables */
+
+table
+{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.6pt;
+    margin: 0 0 4mm;
+    page-break-inside: auto;
+}
+
+thead
+{
+    display: table-header-group;
+}
+
+th
+{
+    text-align: left;
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-weight: 700;
+    padding: 1.8mm 2.4mm;
+    border-bottom: 1px solid var(--rule);
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+td
+{
+    padding: 1.8mm 2.4mm;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+}
+
+tr
+{
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+td code
+{
+    background: none;
+    padding: 0;
+    font-size: 0.95em;
+}
+
+table.compact td, table.compact th
+{
+    padding: 1.3mm 2mm;
+}
+
+/* ---------------------------------------------------------------- callouts */
+
+.note
+{
+    border: 1px solid var(--rule);
+    border-left: 2.5mm solid var(--info);
+    background: var(--info-soft);
+    border-radius: 1.5mm;
+    padding: 3mm 4mm;
+    margin: 0 0 4mm;
+    font-size: 9.2pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.note.warn
+{
+    border-left-color: var(--warn);
+    background: var(--warn-soft);
+}
+
+.note.danger
+{
+    border-left-color: var(--danger);
+    background: var(--danger-soft);
+}
+
+.note.ok
+{
+    border-left-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.note p:last-child
+{
+    margin-bottom: 0;
+}
+
+.note .label
+{
+    display: block;
+    font-size: 7.6pt;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-weight: 700;
+    color: var(--info);
+    margin-bottom: 1.2mm;
+}
+
+.note.warn .label { color: var(--warn); }
+.note.danger .label { color: var(--danger); }
+.note.ok .label { color: var(--accent); }
+
+/* ---------------------------------------------------------------- risk badges */
+
+.badge
+{
+    display: inline-block;
+    font-size: 7.2pt;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 0.5mm 1.8mm;
+    border-radius: 1mm;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.badge.read    { background: var(--accent-soft); color: var(--accent); border-color: #c3d8d1; }
+.badge.mutate  { background: var(--warn-soft);   color: var(--warn);   border-color: #ecd9ae; }
+.badge.destroy { background: var(--danger-soft); color: var(--danger); border-color: #eec5c5; }
+.badge.exec    { background: var(--info-soft);   color: var(--info);   border-color: #c3d4e6; }
+.badge.off     { background: var(--rule-soft);   color: var(--ink-faint); border-color: var(--rule); }
+
+/* ---------------------------------------------------------------- tool cards */
+
+.tool
+{
+    border: 1px solid var(--rule);
+    border-radius: 2mm;
+    padding: 4mm 4.5mm 3mm;
+    margin: 0 0 5mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.tool.tall
+{
+    page-break-inside: auto;
+    break-inside: auto;
+}
+
+.tool > header
+{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4mm;
+    border-bottom: 1px solid var(--rule-soft);
+    padding-bottom: 2mm;
+    margin-bottom: 2.5mm;
+}
+
+.tool > header h3
+{
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 11.5pt;
+    letter-spacing: -0.01em;
+}
+
+.tool .gate
+{
+    font-size: 8pt;
+    color: var(--ink-faint);
+}
+
+.tool dl.meta
+{
+    display: grid;
+    grid-template-columns: 30mm 1fr;
+    gap: 1.4mm 4mm;
+    margin: 0 0 3mm;
+    font-size: 9pt;
+}
+
+.tool dl.meta dt
+{
+    color: var(--ink-faint);
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-top: 0.4mm;
+}
+
+.tool dl.meta dd
+{
+    margin: 0;
+}
+
+/* ---------------------------------------------------------------- table of contents */
+
+.toc
+{
+    page-break-after: always;
+}
+
+.toc h2
+{
+    border-bottom-width: 1px;
+}
+
+.toc ol
+{
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    column-count: 2;
+    column-gap: 10mm;
+    font-size: 9.2pt;
+}
+
+.toc > ol > li
+{
+    break-inside: avoid;
+    margin-bottom: 2.6mm;
+}
+
+.toc .chap
+{
+    font-weight: 700;
+    display: block;
+    border-bottom: 1px solid var(--rule-soft);
+    padding-bottom: 0.8mm;
+    margin-bottom: 1mm;
+}
+
+.toc .chap .num
+{
+    color: var(--accent);
+    display: inline-block;
+    width: 7mm;
+}
+
+.toc ol ol
+{
+    column-count: 1;
+    list-style: none;
+    padding: 0 0 0 7mm;
+    font-size: 8.6pt;
+    color: var(--ink-soft);
+}
+
+.toc ol ol li
+{
+    margin-bottom: 0.4mm;
+}
+
+/* ---------------------------------------------------------------- diagrams */
+
+figure
+{
+    margin: 0 0 5mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    text-align: center;
+}
+
+figure img
+{
+    max-width: 100%;
+}
+
+figcaption
+{
+    font-size: 8.2pt;
+    color: var(--ink-faint);
+    margin-top: 1.5mm;
+    text-align: left;
+}
+
+figcaption .fig
+{
+    font-weight: 700;
+    color: var(--ink-soft);
+}
+
+/* ---------------------------------------------------------------- status grid */
+
+.status-grid
+{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+    margin-bottom: 5mm;
+}
+
+.status-card
+{
+    border: 1px solid var(--rule);
+    border-radius: 2mm;
+    padding: 3.5mm 4mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.status-card h4
+{
+    margin: 0 0 2mm;
+    font-size: 8.4pt;
+}
+
+.status-card ul
+{
+    margin: 0;
+    padding-left: 4.5mm;
+    font-size: 8.8pt;
+}
+
+.status-card.done { border-left: 2.5mm solid var(--accent); }
+.status-card.todo { border-left: 2.5mm solid var(--warn); }
+
+/* ---------------------------------------------------------------- misc */
+
+.lede
+{
+    font-size: 11pt;
+    color: var(--ink-soft);
+    margin-bottom: 5mm;
+}
+
+hr
+{
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 6mm 0;
+}
+
+.kbd-path
+{
+    font-family: var(--mono);
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.no-break
+{
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+/* Diagrams are inlined as vector SVG at print time; both the <img> preview form and the
+   inlined form get the same box so the layout does not shift between browser and PDF. */
+figure img.diagram,
+figure div.diagram svg
+{
+    width: 100%;
+    height: auto;
+    display: block;
+}

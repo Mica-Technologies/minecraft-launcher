@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<!--
+  Copyright (c) 2026 Mica Technologies -- GNU GPLv3.
+
+  Source document for docs/MCP_SERVER_GUIDE.pdf. Edit this file, then run `npm run build`
+  in this directory to regenerate the PDF. Do not edit the PDF directly.
+-->
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>Mica Minecraft Launcher — MCP Server Guide</title>
+    <link rel="stylesheet" href="guide.css"/>
+</head>
+<body>
+
+<!-- ============================================================ COVER -->
+<div class="cover">
+    <img class="mark" src="assets/logo.png" alt=""/>
+    <div class="eyebrow">Mica Minecraft Launcher</div>
+    <h1>MCP Server Guide</h1>
+    <p class="subtitle">Setup, architecture, security model and a complete reference for every
+        tool and resource the launcher exposes over the Model Context Protocol.</p>
+    <dl>
+        <dt>Document</dt>
+        <dd>docs/MCP_SERVER_GUIDE.pdf</dd>
+        <dt>Applies to</dt>
+        <dd>Launcher 3.0 · MCP protocol revision <code>2025-06-18</code></dd>
+        <dt>Feature status</dt>
+        <dd>Shipped and usable; phases 1–4 complete, phase 5 (background/tray presence) not started</dd>
+        <dt>Default state</dt>
+        <dd>Off. Nothing binds, no token is generated, no file is written until you switch it on</dd>
+        <dt>Source</dt>
+        <dd><code>com.micatechnologies.minecraft.launcher.mcp</code> (41 classes, 21 test classes)</dd>
+        <dt>Regenerating</dt>
+        <dd><code>docs/pdf-generation-assets/mcp-server-guide</code> → <code>npm install &amp;&amp; npm run build</code></dd>
+    </dl>
+</div>
+
+<!-- ============================================================ CONTENTS -->
+<div class="toc">
+    <h2>Contents</h2>
+    <ol>
+        <li><span class="chap"><span class="num">1</span>Overview</span>
+            <ol>
+                <li>1.1 What the MCP server does</li>
+                <li>1.2 What it deliberately does not do</li>
+                <li>1.3 Implementation status</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">2</span>Setting it up</span>
+            <ol>
+                <li>2.1 Prerequisites</li>
+                <li>2.2 Turning the server on</li>
+                <li>2.3 The second opt-in</li>
+                <li>2.4 Connecting a client over HTTP</li>
+                <li>2.5 The stdio relay fallback</li>
+                <li>2.6 Ports and the endpoint file</li>
+                <li>2.7 The bearer token</li>
+                <li>2.8 Smoke-testing with curl</li>
+                <li>2.9 Troubleshooting</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">3</span>Architecture</span>
+            <ol>
+                <li>3.1 Why the server lives in the launcher</li>
+                <li>3.2 Package map</li>
+                <li>3.3 The life of a tool call</li>
+                <li>3.4 Protocol surface</li>
+                <li>3.5 Sessions</li>
+                <li>3.6 Threading</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">4</span>Security model</span>
+            <ol>
+                <li>4.1 The layered gates</li>
+                <li>4.2 Transport admission</li>
+                <li>4.3 Approval resolution</li>
+                <li>4.4 The consent dialog</li>
+                <li>4.5 Policies and session grants</li>
+                <li>4.6 The credential invariant</li>
+                <li>4.7 Containment rules</li>
+                <li>4.8 Threat model and residual risk</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">5</span>Tool reference</span>
+            <ol>
+                <li>5.1 Conventions</li>
+                <li>5.2 Read-only tools (6)</li>
+                <li>5.3 State-changing tools (8)</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">6</span>Resource reference</span>
+            <ol>
+                <li>6.1 URI scheme and the segment gate</li>
+                <li>6.2 The three resources</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">7</span>Settings reference</span>
+            <ol>
+                <li>7.1 Server controls</li>
+                <li>7.2 Connecting a client</li>
+                <li>7.3 Tool permissions, clients, activity</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">8</span>Auditing what happened</span>
+            <ol>
+                <li>8.1 The activity log</li>
+                <li>8.2 The launcher log</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">9</span>Configuration and file locations</span>
+            <ol>
+                <li>9.1 Config keys</li>
+                <li>9.2 Files on disk</li>
+                <li>9.3 Constants</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">10</span>Testing and verification</span>
+            <ol>
+                <li>10.1 Unit coverage</li>
+                <li>10.2 What a live run confirmed</li>
+                <li>10.3 Manual checklist</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">11</span>Limitations and future work</span>
+            <ol>
+                <li>11.1 Known limitations</li>
+                <li>11.2 Not yet implemented</li>
+            </ol>
+        </li>
+        <li><span class="chap"><span class="num">A</span>Appendix — a worked session</span></li>
+        <li><span class="chap"><span class="num">B</span>Appendix — curl cookbook</span></li>
+        <li><span class="chap"><span class="num">C</span>Appendix — source map</span></li>
+    </ol>
+</div>
+
+<!-- ============================================================ 1 -->
+<section class="chapter">
+    <h2><span class="num">1</span>Overview</h2>
+
+    <p class="lede">The launcher can host a Model Context Protocol server on loopback, so an MCP
+        client — Claude Code, Cursor, Codex, or anything that speaks the protocol — can read your
+        modpack library, explain why a game crashed, and, if you let it, install, edit, launch and
+        uninstall packs. It is off by default, and everything it can do is gated twice: once by
+        the settings you choose, and once by a prompt at the moment of the call.</p>
+
+    <h3><span class="num">1.1</span>What the MCP server does</h3>
+
+    <p>MCP is a request/response protocol that lets a model call named tools and read named
+        resources on a server. The launcher implements the server half. A connected client can:</p>
+
+    <ul>
+        <li><strong>Read the library.</strong> Every pack the launcher knows about, installed or
+            merely available, with its installed version, latest published version, whether an
+            update is waiting, mod loader and stability flag.</li>
+        <li><strong>Diagnose a crash.</strong> <code>diagnose_launch_failure</code> returns the
+            launcher's own crash analysis — category, summary, suggested fixes — alongside the
+            raw report and the pack's version and loader, so the model answers "why did my game
+            crash" without you pasting logs anywhere.</li>
+        <li><strong>Read a manifest.</strong> The full pack definition as JSON, either as a tool
+            call or as a <code>mica://</code> resource a client can re-read cheaply.</li>
+        <li><strong>Change things — only after a second opt-in.</strong> Install from a URL,
+            create a pack, fork one, add or remove a mod, uninstall, launch, stop the game.</li>
+    </ul>
+
+    <p>Everything runs inside the launcher process that already owns the modpack folders, through
+        the same code paths the GUI uses. There is no second implementation of installing a pack,
+        and no separate process mutating files behind the launcher's back.</p>
+
+    <h3><span class="num">1.2</span>What it deliberately does not do</h3>
+
+    <table>
+        <thead><tr><th style="width:30%">Non-goal</th><th>Why</th></tr></thead>
+        <tbody>
+        <tr><td><strong>It is not an MCP client</strong></td>
+            <td>The launcher never consumes an MCP server and never calls a model. No AI SDK is a
+                dependency, and none is needed: the launcher is the thing being driven.</td></tr>
+        <tr><td><strong>No network exposure</strong></td>
+            <td>The listener binds <code>InetAddress.getLoopbackAddress()</code> and refuses to
+                serve a non-loopback peer. There is no LAN mode and no remote authentication
+                scheme to misconfigure.</td></tr>
+        <tr><td><strong>No standalone server process</strong></td>
+            <td>The launcher enforces single-instance because concurrent processes mutating the
+                same modpack folders is unsafe — <code>SynchronizedFileManager</code> is
+                in-process only. Every deployment shape therefore executes tools inside the one
+                launcher process.</td></tr>
+        <tr><td><strong>No credentials, ever</strong></td>
+            <td>No tool, resource, error or log entry may return an access token, a client token,
+                a refresh token, the account UUID, or the MCP bearer token itself. Section 4.6
+                covers how that is enforced structurally rather than by convention.</td></tr>
+        <tr><td><strong>No MCP SDK</strong></td>
+            <td>The server surface is small and the protocol is JSON-RPC 2.0. It is hand-rolled
+                against the Gson already in the tree rather than pulling Jackson and Reactor into
+                a fat JAR that already carries JavaFX, JNA, Lanterna and three RGB vendor SDKs.</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="num">1.3</span>Implementation status</h3>
+
+    <p>The feature is shipped and usable. What follows is an honest ledger of where it stands, so
+        this document is not read as describing more than exists.</p>
+
+    <div class="status-grid">
+        <div class="status-card done">
+            <h4>Complete</h4>
+            <ul>
+                <li>JSON-RPC codec, method dispatch, error codes</li>
+                <li>Loopback HTTP transport + admission checks</li>
+                <li>Session model, registry and cap</li>
+                <li>Approval engine, per-tool policies, session grants</li>
+                <li>Three-outcome consent dialog with a deadline</li>
+                <li>6 read-only tools, 8 state-changing tools</li>
+                <li>3 <code>mica://</code> resources, with templates</li>
+                <li><code>--mcp</code> stdio relay</li>
+                <li>Settings pane: enable, permissions, clients, activity</li>
+                <li>Generated client-setup snippets, token reveal/copy/regenerate</li>
+                <li>Fixed port + persisted token, so client config survives a restart</li>
+                <li>Activity log, redacted on the way in</li>
+                <li>All 16 locales translated</li>
+            </ul>
+        </div>
+        <div class="status-card todo">
+            <h4>Not built</h4>
+            <ul>
+                <li>Background / tray-resident mode (phase 5a)</li>
+                <li>Run at startup — no <code>AutoStartManager</code> (phase 5b)</li>
+                <li>Cold-starting the launcher from the stdio relay</li>
+                <li>Modrinth search and mod-update tools</li>
+                <li>Backup tools; export, update and per-pack settings tools</li>
+                <li>Game-log tool and log resources</li>
+                <li>MCP prompts (<code>prompts/list</code>, <code>prompts/get</code>)</li>
+                <li>Live session list (it is a snapshot with a Refresh button)</li>
+                <li>"Back up first, then continue" on destructive prompts</li>
+                <li>Server start from TUI or headless server mode</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="note">
+        <span class="label">Read this as</span>
+        <p>Chapters 2–10 describe what is implemented today, verified against the source. Chapter
+            11 lists what is missing in detail, including the parts of the original plan that were
+            deliberately dropped rather than merely deferred.</p>
+    </div>
+</section>
+
+<!-- ============================================================ 2 -->
+<section class="chapter">
+    <h2><span class="num">2</span>Setting it up</h2>
+
+    <p class="lede">Two toggles in Settings and one snippet pasted into your client. The launcher
+        generates the snippet for you, already carrying the right path, port and token, because
+        the interesting part of it is install-specific.</p>
+
+    <h3><span class="num">2.1</span>Prerequisites</h3>
+
+    <ul>
+        <li><strong>The launcher must be open.</strong> The server lives inside the launcher
+            process; there is no background mode yet (see §11.2). Close the launcher and the
+            server stops, the endpoint file is deleted, and the port is released.</li>
+        <li><strong>Client (GUI) mode.</strong> <code>McpBootstrap.startIfEnabled()</code> is
+            called from the GUI branch of <code>LauncherSession.run</code>. A TUI or headless
+            server run does not start it — and would fail closed on any tool needing consent,
+            because there would be no window to ask in.</li>
+        <li><strong>An MCP client that speaks Streamable HTTP</strong>, or one that can spawn a
+            subprocess (then see §2.5).</li>
+    </ul>
+
+    <h3><span class="num">2.2</span>Turning the server on</h3>
+
+    <p>Open <strong>Settings → Security</strong> and scroll to <strong>MCP Server</strong>.</p>
+
+    <table>
+        <thead><tr><th style="width:34%">Control</th><th style="width:13%">Default</th><th>Effect</th></tr></thead>
+        <tbody>
+        <tr><td><strong>Enable MCP server</strong></td><td><span class="badge off">Off</span></td>
+            <td>Binds the loopback listener, generates the bearer token on first use, writes
+                <code>mcp-endpoint.json</code>, and registers the read-only tools and resources.
+                Toggling it restarts the server immediately — no launcher restart needed.</td></tr>
+        <tr><td><strong>Auto-approve read-only tools</strong></td><td><span class="badge read">On</span></td>
+            <td>Lets tools that only read state run without a prompt. Turn it off to be asked for
+                every single call, including <code>list_modpacks</code>.</td></tr>
+        <tr><td><strong>Allow tools that change things</strong></td><td><span class="badge off">Off</span></td>
+            <td>The second opt-in — see §2.3.</td></tr>
+        </tbody>
+    </table>
+
+    <p>The status line under the toggles reads <em>Running on 127.0.0.1:47823</em> with a count of
+        connected clients, or <em>Not running</em>. It never shows the token.</p>
+
+    <h3><span class="num">2.3</span>The second opt-in</h3>
+
+    <p>Enabling the server on its own gives you a <strong>strictly read-only</strong> server. The
+        eight state-changing tools are registered only when <strong>Allow tools that change
+        things</strong> is also on.</p>
+
+    <div class="note ok">
+        <span class="label">Why two switches</span>
+        <p>The step from "a model can read my launcher" to "a model can install and launch things
+            on my machine" is worth making deliberately rather than as a side effect of enabling a
+            feature. With the second switch off, a state-changing tool is not denied — it
+            <em>does not exist</em>. A client asking for <code>uninstall_modpack</code> gets
+            <code>-32602 Unknown tool</code>, and <code>tools/list</code> never advertises it.</p>
+    </div>
+
+    <p>Each of those tools still asks before it runs, every time, unless you give it a standing
+        policy in the tool-permissions list (§7.3) or grant it for the session at the prompt.</p>
+
+    <h3><span class="num">2.4</span>Connecting a client over HTTP</h3>
+
+    <p>HTTP is the primary form. The launcher hosts a loopback server on a fixed port with a
+        persisted token, so a client is configured once and stays configured across launches.
+        In <strong>Settings → Security → Connecting a client</strong>, pick your client from the
+        dropdown and press <strong>Copy</strong>; the snippet already contains the real port and
+        the real token.</p>
+
+    <h4>Claude Code</h4>
+<pre><code>claude mcp add --transport http mica-launcher http://127.0.0.1:47823/mcp \
+  --header 'Authorization: Bearer &lt;token&gt;'</code></pre>
+
+    <h4>Cursor — <code>~/.cursor/mcp.json</code></h4>
+<pre><code>{
+  "mcpServers": {
+    "mica-launcher": {
+      "url": "http://127.0.0.1:47823/mcp",
+      "headers": {
+        "Authorization": "Bearer &lt;token&gt;"
+      }
+    }
+  }
+}</code></pre>
+
+    <h4>Codex — <code>~/.codex/config.toml</code></h4>
+<pre><code>[mcp_servers.mica-launcher]
+url = "http://127.0.0.1:47823/mcp"
+
+[mcp_servers.mica-launcher.http_headers]
+Authorization = "Bearer &lt;token&gt;"</code></pre>
+
+    <h4>Anything else</h4>
+    <p>Transport is Streamable HTTP: POST JSON-RPC to <code>http://127.0.0.1:&lt;port&gt;/mcp</code>
+        with <code>Content-Type: application/json</code> and
+        <code>Authorization: Bearer &lt;token&gt;</code>. Carry the <code>Mcp-Session-Id</code>
+        returned by the handshake on every subsequent request.</p>
+
+    <div class="note warn">
+        <span class="label">Client config formats drift</span>
+        <p>The snippets are generated from what these clients accepted at the time of writing. If a
+            client rejects one, check its own documentation — the URL and the
+            <code>Authorization</code> header are the parts that matter, and every client has some
+            way to express them.</p>
+    </div>
+
+    <h3><span class="num">2.5</span>The stdio relay fallback</h3>
+
+    <p>Some clients can only spawn a subprocess and talk newline-delimited JSON-RPC over its stdin
+        and stdout. For those, register the launcher with <code>--mcp</code>:</p>
+
+<pre><code># native install
+'/Applications/Mica Minecraft Launcher.app/Contents/MacOS/Mica Minecraft Launcher' --mcp
+
+# fat JAR
+java -jar /path/to/MicaMinecraftLauncher-jar-with-dependencies.jar --mcp</code></pre>
+
+    <p>That process is <strong>not</strong> a second launcher. It is a thin relay
+        (<code>StdioProxy</code>) that reads <code>mcp-endpoint.json</code>, forwards each line to
+        the running launcher's HTTP endpoint, and writes the reply back. It has two properties
+        worth knowing:</p>
+
+    <ul>
+        <li><strong>No token in your client's config.</strong> The relay reads port and token from
+            the endpoint file itself.</li>
+        <li><strong>It interprets nothing.</strong> Admission checks and approval decisions happen
+            in the launcher exactly as they would for a direct HTTP client, so a compromised relay
+            gains nothing a local process could not already attempt against the port.</li>
+    </ul>
+
+    <p>The relay is dispatched from <code>LauncherCore.main()</code> <em>before</em> the
+        single-instance lock is taken, so it works alongside an already-open launcher instead of
+        being turned away by it. <code>stdout</code> carries protocol only — every diagnostic goes
+        to <code>stderr</code>, and the relay never touches the launcher's logger.</p>
+
+    <div class="note warn">
+        <span class="label">No cold start</span>
+        <p>If no launcher is running with the server enabled, the relay prints an explanation to
+            stderr and exits with code <strong>2</strong>. Cold-starting the launcher from the
+            relay was planned and is not implemented; open the launcher first.</p>
+    </div>
+
+    <h3><span class="num">2.6</span>Ports and the endpoint file</h3>
+
+    <table class="compact">
+        <thead><tr><th style="width:30%">Thing</th><th>Value</th></tr></thead>
+        <tbody>
+        <tr><td>Release port</td><td><code>47823</code> (<code>LauncherConstants.MCP_SERVER_PORT</code>)</td></tr>
+        <tr><td>Dev-build port</td><td><code>47824</code>, so a dev and a release launcher never collide</td></tr>
+        <tr><td>Override</td><td>config key <code>mcpPort</code>; there is no UI for it</td></tr>
+        <tr><td>Path</td><td><code>/mcp</code> — any other path is not served</td></tr>
+        <tr><td>Endpoint file</td><td><code>&lt;config folder&gt;/mcp-endpoint.json</code>, mode <code>0600</code> (ACL on Windows)</td></tr>
+        <tr><td>Contents</td><td><code>{ "port", "token", "pid", "launcherVersion" }</code></td></tr>
+        <tr><td>Lifecycle</td><td>Written on start, deleted on shutdown. A file whose recorded pid is dead reads as absent</td></tr>
+        </tbody>
+    </table>
+
+    <p>If the configured port is already taken, the server falls back to an OS-assigned port rather
+        than refusing to start. The Settings pane and the endpoint file both report the port
+        actually bound, so an HTTP client configured with the fixed port will need updating in that
+        case — the stdio relay picks it up automatically.</p>
+
+    <h3><span class="num">2.7</span>The bearer token</h3>
+
+    <p>256 bits from <code>SecureRandom</code>, hex-encoded to 64 characters, stored in launcher
+        config and reused across launches.</p>
+
+    <div class="note">
+        <span class="label">Why it persists</span>
+        <p>A client's configuration names a URL and a token and is edited by hand. A token that
+            rotated every launch would mean re-editing every client config on every start — which
+            in practice means the feature goes unused or gets worked around. A stable token is the
+            trade every local HTTP service makes, with the same mitigations: loopback only,
+            owner-only storage, and a <strong>Regenerate</strong> button that invalidates every
+            client still holding the old one and restarts the server on the spot.</p>
+    </div>
+
+    <p>In Settings the token is masked (<code>3f9a21c8… (64 characters)</code>) with
+        <strong>Show</strong>, <strong>Copy token</strong> and <strong>Regenerate</strong> beside
+        it. A stored value that is not a well-formed 64-character hex string — blank, truncated,
+        hand-edited — is replaced rather than used, because serving a malformed token would leave
+        the server running with a credential no client could ever match, which looks like a hang
+        rather than a misconfiguration.</p>
+
+    <h3><span class="num">2.8</span>Smoke-testing with curl</h3>
+
+    <p>Read the port and token out of the endpoint file, then handshake:</p>
+
+<pre class="long"><code>CFG=~/.MicaMinecraftLauncher/config/mcp-endpoint.json
+PORT=$(python3 -c "import json;print(json.load(open('$CFG'))['port'])")
+TOK=$(python3 -c "import json;print(json.load(open('$CFG'))['token'])")
+
+curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
+  -H "Authorization: Bearer $TOK" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
+       "params":{"protocolVersion":"2025-06-18","capabilities":{},
+                 "clientInfo":{"name":"curl","version":"1"}}}'</code></pre>
+
+    <p>The response carries <code>Mcp-Session-Id</code>. Send it back on every following request;
+        without it the launcher opens a new, uninitialized session and refuses everything but
+        <code>ping</code> with <code>-32600 Session is not initialized</code>. Appendix B has the
+        rest of the calls.</p>
+
+    <h3><span class="num">2.9</span>Troubleshooting</h3>
+
+    <table>
+        <thead><tr><th style="width:32%">Symptom</th><th>Cause and fix</th></tr></thead>
+        <tbody>
+        <tr><td><code>401</code> with no body</td>
+            <td>Missing or wrong bearer token. Re-copy it from Settings; if you pressed
+                <strong>Regenerate</strong>, every client config needs updating.</td></tr>
+        <tr><td><code>403</code></td>
+            <td>The peer is not loopback, or the request carried an <code>Origin</code> that is not
+                itself loopback — including <code>Origin: null</code>. Browser pages are refused
+                by design; see §4.2.</td></tr>
+        <tr><td><code>405</code></td>
+            <td>Not a POST. The endpoint answers POST only; there is no GET/SSE stream.</td></tr>
+        <tr><td><code>413</code></td>
+            <td>Body over 1 MB. A JSON-RPC tool call is small; this cap exists so a local process
+                cannot exhaust launcher memory.</td></tr>
+        <tr><td><code>415</code></td>
+            <td><code>Content-Type</code> is not <code>application/json</code>.</td></tr>
+        <tr><td>Connection refused</td>
+            <td>The launcher is closed, the server is off, or it bound a fallback port. Check the
+                Settings status line, then the endpoint file.</td></tr>
+        <tr><td><code>-32600 Session is not initialized</code></td>
+            <td>A call arrived before <code>initialize</code>, or the <code>Mcp-Session-Id</code>
+                header is not being carried.</td></tr>
+        <tr><td><code>-32602 Unknown tool: uninstall_modpack</code></td>
+            <td><strong>Allow tools that change things</strong> is off. That is the second opt-in
+                working as intended.</td></tr>
+        <tr><td><code>-32003 Tool call was not approved</code></td>
+            <td>Policy said <code>DISABLED</code>, you denied the prompt, the prompt timed out
+                after 120 s, or there was no window to show it in.</td></tr>
+        <tr><td>Tool call hangs for two minutes</td>
+            <td>A consent dialog is waiting behind another window. Every call is serialized, so one
+                unanswered prompt stalls the rest until it times out.</td></tr>
+        <tr><td>Relay exits with code 2</td>
+            <td>No running launcher with the server enabled. Start the launcher; there is no cold
+                start.</td></tr>
+        <tr><td>Client says "server has no tools"</td>
+            <td>The handshake succeeded against a server whose master switch was on but which has
+                since stopped, or the client cached an old <code>tools/list</code>. Reconnect.</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================================================ 3 -->
+<section class="chapter">
+    <h2><span class="num">3</span>Architecture</h2>
+
+    <figure>
+        <img class="diagram" src="diagrams/architecture.svg" alt="Architecture of the launcher's MCP server"/>
+        <figcaption><span class="fig">Figure 1.</span> Clients reach the launcher over loopback
+            HTTP, or through the <code>--mcp</code> relay which reads the endpoint file and speaks
+            HTTP on their behalf. Everything below the admission layer runs inside the launcher
+            process that owns the modpack folders.</figcaption>
+    </figure>
+
+    <h3><span class="num">3.1</span>Why the server lives in the launcher</h3>
+
+    <p>The launcher enforces single-instance because concurrent processes mutating the same modpack
+        folders is unsafe: <code>SynchronizedFileManager</code> serializes file access
+        <em>in-process</em> and knows nothing about a second JVM. A standalone MCP server that
+        touched packs directly was therefore never an option. Every deployment shape ends at the
+        same place — tools execute inside the one launcher process — and the stdio relay exists
+        precisely because MCP clients want to spawn a subprocess and the launcher cannot be one.</p>
+
+    <h3><span class="num">3.2</span>Package map</h3>
+
+    <table class="compact">
+        <thead><tr><th style="width:34%">Package / class</th><th>Responsibility</th></tr></thead>
+        <tbody>
+        <tr><td><code>mcp.McpBootstrap</code></td><td>The only lifecycle entry point. Owns the single server instance, the grant store, the activity log and the policy store; decides whether to start at all.</td></tr>
+        <tr><td><code>mcp.McpServer</code></td><td>Binds the transport, publishes the endpoint file, owns the session registry and the single-threaded dispatcher.</td></tr>
+        <tr><td><code>mcp.McpRequestHandler</code></td><td>The whole MCP method surface, with no transport or JavaFX dependency — which is what lets the protocol be tested headlessly.</td></tr>
+        <tr><td><code>mcp.McpAccessToken</code></td><td>Generate, validate, persist and mask the bearer token.</td></tr>
+        <tr><td><code>mcp.McpEndpointFile</code></td><td>Write, read, stale-check and delete <code>mcp-endpoint.json</code>.</td></tr>
+        <tr><td><code>mcp.McpClientSetup</code></td><td>Generates the per-client configuration snippets shown in Settings.</td></tr>
+        <tr><td><code>mcp.McpActivityLog</code></td><td>Bounded, in-memory, redacted-on-write record of what clients did.</td></tr>
+        <tr><td><code>mcp.FxConsentPrompt</code></td><td>The consent dialog bridge; headless-safe and deadline-bounded.</td></tr>
+        <tr><td><code>mcp.protocol.*</code></td><td><code>JsonRpcCodec</code> (parse, frame, build errors), <code>JsonRpcMessage</code>, <code>McpMethods</code>, <code>McpErrors</code>.</td></tr>
+        <tr><td><code>mcp.transport.*</code></td><td><code>LoopbackHttpTransport</code> (the listener), <code>McpHttpGuard</code> (pure admission checks), <code>StdioProxy</code> (the relay).</td></tr>
+        <tr><td><code>mcp.session.*</code></td><td><code>McpSession</code> (identity, counters, init state), <code>McpSessionRegistry</code> (live sessions, cap of 8).</td></tr>
+        <tr><td><code>mcp.tools.*</code></td><td><code>McpTool</code>, <code>McpToolRegistry</code>, <code>McpToolResult</code> (the redaction boundary), <code>ReadOnlyTools</code>, <code>MutatingTools</code>, and the <code>McpLauncherView</code> / <code>McpLauncherActions</code> seams with their live implementations.</td></tr>
+        <tr><td><code>mcp.resources.*</code></td><td><code>McpResource</code>, <code>McpResourceRegistry</code>, <code>McpResourceUri</code> (the <code>mica://</code> segment gate), <code>LauncherResources</code>.</td></tr>
+        <tr><td><code>mcp.approval.*</code></td><td><code>McpRiskClass</code>, <code>McpApprovalPolicy</code>, <code>McpApprovalDecision</code>, <code>McpApprovalEngine</code> (pure), <code>LauncherMcpAuthorizer</code> (production wiring), <code>McpToolPolicyStore</code>, <code>McpGrantStore</code>.</td></tr>
+        </tbody>
+    </table>
+
+    <p>The <code>McpLauncherView</code> / <code>McpLauncherActions</code> split is load-bearing
+        rather than stylistic. Tools never touch launcher internals directly; they read through a
+        view whose records have nowhere to put a token, a UUID or a filesystem path, and they act
+        through an interface with a fixed, reviewed set of operations. That is what makes §4.6 a
+        structural property instead of a rule someone has to remember.</p>
+
+    <h3><span class="num">3.3</span>The life of a tool call</h3>
+
+    <figure>
+        <img class="diagram" src="diagrams/call-lifecycle.svg" alt="The ten steps of a tools/call"/>
+        <figcaption><span class="fig">Figure 2.</span> A <code>tools/call</code> from arrival to
+            reply. Refusals short-circuit: the earlier the stop, the less the caller learns.</figcaption>
+    </figure>
+
+    <ol>
+        <li><strong>Admission.</strong> <code>McpHttpGuard.admit()</code> checks peer, origin,
+            token, method, size and media type, in that order, before a byte of body is parsed.</li>
+        <li><strong>Parse.</strong> <code>JsonRpcCodec.parse()</code> turns the body into a
+            message or an error. A notification produces no reply, ever — including an unknown
+            one, which is explicitly not an error in JSON-RPC.</li>
+        <li><strong>Session.</strong> The <code>Mcp-Session-Id</code> header resolves to a live
+            session, or a new one is created (subject to the cap of 8). Everything but
+            <code>ping</code> and <code>initialize</code> requires an initialized session, because
+            the client's self-reported name is half of every session-grant key.</li>
+        <li><strong>Tool resolution.</strong> An unregistered name is <code>-32602 Unknown
+            tool</code>. With state changes off, the mutating tools are genuinely not registered.</li>
+        <li><strong>Content gate.</strong> <code>tool.validateBeforeApproval()</code> runs
+            <em>before</em> consent: a request the launcher would refuse anyway must never reach
+            the user as a question. Prompting for something that was never going to run is how a
+            consent dialog becomes noise to click through.</li>
+        <li><strong>Approval.</strong> <code>LauncherMcpAuthorizer</code> resolves policy and, when
+            required, asks (chapter 4).</li>
+        <li><strong>Invocation</strong> on the dispatch thread — never the FX thread.</li>
+        <li><strong>Redaction.</strong> <code>McpToolResult.toJson()</code> passes every text block
+            through <code>SensitiveDataRedactor.redactStrict</code>.</li>
+        <li><strong>Record.</strong> The activity log gets the client, the tool, the decision and a
+            short redacted detail.</li>
+        <li><strong>Reply.</strong> A JSON-RPC result or error; the session id is echoed on the
+            handshake only.</li>
+    </ol>
+
+    <h3><span class="num">3.4</span>Protocol surface</h3>
+
+    <p>Protocol revision <code>2025-06-18</code>. The server advertises
+        <code>tools.listChanged = false</code> and <code>resources.subscribe = false</code>,
+        <code>resources.listChanged = false</code> — it does not push change notifications, so a
+        client should re-list rather than wait to be told.</p>
+
+    <table class="compact">
+        <thead><tr><th style="width:34%">Method</th><th>Behaviour</th></tr></thead>
+        <tbody>
+        <tr><td><code>initialize</code></td><td>Records <code>clientInfo.name</code> and
+            <code>.version</code> on the session, returns protocol version, capabilities and
+            <code>serverInfo</code> (<em>Mica Minecraft Launcher</em> + version). The response
+            carries <code>Mcp-Session-Id</code>.</td></tr>
+        <tr><td><code>notifications/initialized</code></td><td>Logged; never answered.</td></tr>
+        <tr><td><code>ping</code></td><td>Empty result. The one method allowed before the
+            handshake.</td></tr>
+        <tr><td><code>tools/list</code></td><td>Name, title, description and JSON input schema for
+            every registered tool.</td></tr>
+        <tr><td><code>tools/call</code></td><td>The full path in §3.3.</td></tr>
+        <tr><td><code>resources/list</code></td><td>Concrete URIs, with per-pack instances
+            enumerated from the live pack list.</td></tr>
+        <tr><td><code>resources/templates/list</code></td><td>The <code>{friendlyName}</code>
+            templates.</td></tr>
+        <tr><td><code>resources/read</code></td><td>Returns one text content block, redacted.</td></tr>
+        <tr><td>anything else</td><td><code>-32601 Unknown method</code>.</td></tr>
+        </tbody>
+    </table>
+
+    <p><code>prompts/list</code> and <code>prompts/get</code> have constants in
+        <code>McpMethods</code> but no implementation; they answer <code>-32601</code>.</p>
+
+    <h4>Error codes</h4>
+
+    <table class="compact">
+        <thead><tr><th style="width:22%">Code</th><th style="width:26%">Name</th><th>When</th></tr></thead>
+        <tbody>
+        <tr><td><code>-32700</code></td><td>Parse error</td><td>Body is not JSON.</td></tr>
+        <tr><td><code>-32600</code></td><td>Invalid request</td><td>Not a valid JSON-RPC message; or a call before the handshake.</td></tr>
+        <tr><td><code>-32601</code></td><td>Method not found</td><td>Unknown method.</td></tr>
+        <tr><td><code>-32602</code></td><td>Invalid params</td><td>Missing/unknown tool name, missing argument, or a content gate refusal.</td></tr>
+        <tr><td><code>-32603</code></td><td>Internal error</td><td>The tool threw, a resource read threw, the session cap was hit, or dispatch failed. Never carries the exception's own message.</td></tr>
+        <tr><td><code>-32002</code></td><td>Resource not found</td><td>No resource matches the URI — including one rejected by the segment gate.</td></tr>
+        <tr><td><code>-32003</code></td><td>Request denied</td><td>The approval gate said no.</td></tr>
+        </tbody>
+    </table>
+
+    <div class="note">
+        <span class="label">Tool failure vs protocol failure</span>
+        <p>"No crash report for this pack" is not a protocol error. Tools that could not do what
+            was asked return a normal result with <code>isError: true</code> and a message the
+            model can act on, so it corrects itself rather than treating the server as broken.
+            JSON-RPC errors are reserved for the protocol going wrong or the request being
+            refused.</p>
+    </div>
+
+    <h3><span class="num">3.5</span>Sessions</h3>
+
+    <ul>
+        <li>Created on first contact; identified by the <code>Mcp-Session-Id</code> header.</li>
+        <li>Hold the client's name and version, connection time, tool-call count and last
+            activity — what the Settings <em>Connected clients</em> list shows.</li>
+        <li>Capped at <strong>8</strong>. At the cap a new session is refused rather than an
+            existing one evicted — evicting would drop someone else's handshake state
+            mid-conversation.</li>
+        <li>Cleared when the server stops. Session grants are cleared with them.</li>
+    </ul>
+
+    <h3><span class="num">3.6</span>Threading</h3>
+
+    <p>The transport's accept loop runs on daemon threads. Every parsed message is dispatched
+        through a <strong>single-threaded executor</strong> named <code>mcp-dispatch</code>,
+        because <code>GameModPackManager</code> is <code>static synchronized</code> and several
+        pack operations are not safe to interleave. Two consequences follow:</p>
+
+    <ul>
+        <li><strong>A consent dialog blocks the queue.</strong> Consent marshals to the FX thread
+            and blocks dispatch until answered, denied or timed out at 120 s.</li>
+        <li><strong><code>launch_modpack</code> hands off.</strong> <code>LauncherCore.play()</code>
+            blocks until the game exits, so it is spawned onto its own task and the tool reports
+            that the launch <em>started</em> rather than holding dispatch for a play session.</li>
+    </ul>
+</section>
+
+<!-- ============================================================ 4 -->
+<section class="chapter">
+    <h2><span class="num">4</span>Security model</h2>
+
+    <p class="lede">The threat to keep in front of you: <code>launch_modpack</code> runs
+        third-party mod code under your live Microsoft session; <code>install_modpack</code> and
+        <code>add_mod_to_modpack</code> download from model-chosen URLs;
+        <code>uninstall_modpack</code> deletes worlds. An MCP server hands those to whatever the
+        model decides to do. Every design choice below follows from that.</p>
+
+    <h3><span class="num">4.1</span>The layered gates</h3>
+
+    <table>
+        <thead><tr><th style="width:8%">#</th><th style="width:32%">Gate</th><th>What it stops</th></tr></thead>
+        <tbody>
+        <tr><td>1</td><td><strong>Master switch</strong> (<code>mcpServerEnabled</code>, off)</td>
+            <td>Everything. No port binds, no token is generated, no file is written.</td></tr>
+        <tr><td>2</td><td><strong>State-change switch</strong> (<code>mcpAllowStateChanges</code>, off)</td>
+            <td>All eight mutating tools — they are not registered, so they do not exist on the wire.</td></tr>
+        <tr><td>3</td><td><strong>Transport admission</strong></td>
+            <td>Non-loopback peers, browser origins, unauthenticated callers, wrong method, oversized or non-JSON bodies (§4.2).</td></tr>
+        <tr><td>4</td><td><strong>Handshake ordering</strong></td>
+            <td>Any call from a client that has not said who it is.</td></tr>
+        <tr><td>5</td><td><strong>Content gates</strong></td>
+            <td>Install URLs the launcher already refuses, path traversal in a mod's install path, editing a manifest the launcher does not own, uninstalling or launching while a game runs (§4.7).</td></tr>
+        <tr><td>6</td><td><strong>Approval engine</strong></td>
+            <td>Anything the user's policy, grants and risk-class defaults do not permit (§4.3).</td></tr>
+        <tr><td>7</td><td><strong>Consent dialog</strong></td>
+            <td>Whatever the user says no to, plus anything nobody answers within 120 s (§4.4).</td></tr>
+        <tr><td>8</td><td><strong>Redaction</strong></td>
+            <td>Credentials in any outbound text, unconditionally (§4.6).</td></tr>
+        <tr><td>9</td><td><strong>Activity log</strong></td>
+            <td>Nothing — but it is how you find out afterwards what was allowed (§8).</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="num">4.2</span>Transport admission</h3>
+
+    <p>The listener binds loopback only and refuses to serve a non-loopback peer. Binding is not
+        the whole defence, though: <strong>the realistic attacker is a web page the user already
+        has open.</strong> A page can issue cross-origin requests to <code>127.0.0.1</code>, and
+        DNS rebinding lets it do so under a hostname it controls. <code>McpHttpGuard</code>
+        therefore applies a fixed, ordered table — every check a pure function of request metadata,
+        which is what allows the whole table to be tested without opening a socket.</p>
+
+    <table class="compact">
+        <thead><tr><th style="width:8%">Order</th><th style="width:34%">Check</th><th style="width:16%">Failure</th><th>Notes</th></tr></thead>
+        <tbody>
+        <tr><td>1</td><td>Peer address is loopback</td><td><code>403</code></td><td>A peer that cannot be resolved is treated as not loopback.</td></tr>
+        <tr><td>2</td><td><code>Origin</code> absent, or loopback</td><td><code>403</code></td><td>Absent is normal for non-browser clients and allowed. <code>null</code> — a sandboxed iframe or <code>file:</code> page — is refused. Bracketed IPv6 (<code>[::1]</code>) is handled correctly.</td></tr>
+        <tr><td>3</td><td>Bearer token matches</td><td><code>401</code></td><td><code>MessageDigest.isEqual</code>, constant-time in the content, so a local attacker cannot recover the token byte by byte from response timing.</td></tr>
+        <tr><td>4</td><td>Method is POST</td><td><code>405</code></td><td></td></tr>
+        <tr><td>5</td><td>Body ≤ 1 MB</td><td><code>413</code></td><td>Enforced on the declared length and again while reading.</td></tr>
+        <tr><td>6</td><td><code>Content-Type: application/json</code></td><td><code>415</code></td><td>Parameters such as <code>; charset=utf-8</code> are ignored.</td></tr>
+        </tbody>
+    </table>
+
+    <p>The ordering is deliberate. Peer and origin come first because they are absolute — a request
+        from off-loopback or from a foreign browser origin is refused regardless of whether it
+        happens to carry a valid token. Authentication comes next, so nothing beyond it can be used
+        to probe the server without a token. Failures return the status and nothing else.</p>
+
+    <h3><span class="num">4.3</span>Approval resolution</h3>
+
+    <figure>
+        <img class="diagram" src="diagrams/approval-flow.svg" alt="The approval decision order"/>
+        <figcaption><span class="fig">Figure 3.</span> <code>McpApprovalEngine.resolve()</code> is
+            a pure function of its inputs — no config reads, no clock, no UI — so the entire
+            decision table is exercised by unit tests.</figcaption>
+    </figure>
+
+    <p>Four rules inside that order are worth stating explicitly, because each was a deliberate
+        choice rather than a consequence:</p>
+
+    <ul>
+        <li><strong>A session grant cannot override <code>DISABLED</code>.</strong> A user who
+            turns a tool off has overruled consent they gave earlier.</li>
+        <li><strong>Auto-approve gates the class default only.</strong> Turning it off does not
+            undo a per-tool <code>ALWAYS_ALLOW</code> the user chose deliberately: the more
+            specific instruction wins.</li>
+        <li><strong>No GUI means deny.</strong> A launcher with no window to ask in never silently
+            self-approves.</li>
+        <li><strong>Every failure denies.</strong> A settings read that throws, an authorizer that
+            throws, a prompt that throws, a prompt that times out — all resolve to no.</li>
+    </ul>
+
+    <h4>Risk classes and their defaults</h4>
+
+    <table class="compact">
+        <thead><tr><th style="width:20%">Class</th><th style="width:16%">Default</th><th>Meaning</th></tr></thead>
+        <tbody>
+        <tr><td><span class="badge read">READ_ONLY</span></td><td><code>ALWAYS_ALLOW</code>*</td>
+            <td>No state change. *Subject to the <em>Auto-approve read-only tools</em> toggle.</td></tr>
+        <tr><td><span class="badge mutate">MUTATING</span></td><td><code>ASK</code></td>
+            <td>Changes launcher or pack state recoverably — install, create, fork, add or remove a mod.</td></tr>
+        <tr><td><span class="badge destroy">DESTRUCTIVE</span></td><td><code>ASK</code></td>
+            <td>Deletes or overwrites user data — today, <code>uninstall_modpack</code>.</td></tr>
+        <tr><td><span class="badge exec">EXECUTE</span></td><td><code>ASK</code></td>
+            <td>Runs third-party code or spawns processes — launch and stop.</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="num">4.4</span>The consent dialog</h3>
+
+    <p>Three outcomes: <strong>Allow once</strong>, <strong>Allow for this session</strong>, and
+        deny — which is what dismissing, cancelling or pressing Escape produces, so the safe answer
+        is the one that requires no decision.</p>
+
+    <p>The dialog names the <strong>client</strong>, the <strong>tool</strong> and the
+        <strong>arguments</strong>, bounded: values truncated at 120 characters, at most 6
+        arguments rendered, structured values shown by type. An unbounded summary would push the
+        meaningful part of the request off the bottom of the dialog.</p>
+
+    <p>Destructive calls add a sentence naming what would be lost.
+        <code>uninstall_modpack</code> computes the pack's footprint first, so the question is
+        <em>"this permanently deletes 4.2 GB including 3 saved worlds"</em> rather than
+        <em>"delete this pack?"</em> — worlds called out separately from bytes because they are the
+        part that is genuinely unrecoverable.</p>
+
+    <div class="note warn">
+        <span class="label">Two deliberate absences</span>
+        <p><strong>"Always allow, permanently" is not a button.</strong> A grant that survives
+            restarts is a considered decision, not one to make while a model waits; it lives in
+            Settings next to the tool's risk class, where it can be reviewed and revoked.</p>
+        <p><strong>"Back up first, then continue" is not implemented.</strong> The destructive
+            prompt names what would be lost but does not yet offer to save it. Take a backup
+            yourself before approving an uninstall you are unsure about.</p>
+    </div>
+
+    <p>The wait is bounded at <strong>120 seconds</strong>; on timeout the call is denied. The
+        dialog itself stays on screen — the underlying helper offers no way to dismiss it — but the
+        answer is already decided, which is the fail-closed direction.</p>
+
+    <h3><span class="num">4.5</span>Policies and session grants</h3>
+
+    <table class="compact">
+        <thead><tr><th style="width:26%"></th><th style="width:37%">Per-tool policy</th><th>Session grant</th></tr></thead>
+        <tbody>
+        <tr><td>Set from</td><td>Settings → tool permissions list</td><td>The consent dialog's <em>Allow for this session</em></td></tr>
+        <tr><td>Values</td><td><code>Default</code> · <code>Always allow</code> · <code>Always ask</code> · <code>Disabled</code></td><td>Allow, implicitly</td></tr>
+        <tr><td>Keyed by</td><td>Tool name</td><td>Client name + tool name</td></tr>
+        <tr><td>Lifetime</td><td>Persisted in launcher config; survives restarts</td><td>8 hours, and cleared whenever the server stops</td></tr>
+        <tr><td>Precedence</td><td>Beats grants in both directions</td><td>Only applies where no explicit policy decides the call</td></tr>
+        </tbody>
+    </table>
+
+    <p>Grants are keyed to the client's <em>name</em> rather than to the transport connection
+        because MCP clients reconnect frequently; a connection-scoped grant would re-prompt
+        constantly and train the user to click through without reading. The 8-hour TTL is what
+        stops "allow for this session" from quietly becoming permanent.</p>
+
+    <p>An unreadable or corrupt stored policy resolves to <em>unset</em>, never to a policy — so a
+        damaged config degrades to "ask", never to standing permission.</p>
+
+    <h3><span class="num">4.6</span>The credential invariant</h3>
+
+    <div class="note danger">
+        <span class="label">Absolute</span>
+        <p>No tool, resource, error message or activity-log entry may ever return a credential.
+            This is not a policy the user can relax and not something an <code>ALWAYS_ALLOW</code>
+            can override — it is enforced in the serialization layer, below the approval engine.</p>
+    </div>
+
+    <p><strong>Never returned:</strong> Minecraft/Microsoft access tokens, client tokens, refresh
+        tokens; the account UUID; anything from the AES-256-GCM token cache or its machine-derived
+        key; the MCP bearer token, the single-instance IPC token, or the endpoint file's contents;
+        raw <code>${auth_access_token}</code> / <code>${auth_session}</code> expansions.
+        <strong>Permitted:</strong> the account <em>username</em>, in
+        <code>get_launcher_status</code> only — useful context, not a credential.</p>
+
+    <p>Three mechanisms enforce it, in order of how much they are relied upon:</p>
+
+    <ol>
+        <li><strong>Nothing dangerous is reachable.</strong> Tools read through
+            <code>McpLauncherView</code>, whose records have no field for a token, a UUID or a
+            path. The primary control is the shape of the seam, not a filter.</li>
+        <li><strong>Every text block is redacted on the way out.</strong>
+            <code>McpToolResult.toJson()</code> runs
+            <code>SensitiveDataRedactor.redactStrict</code> over each block — access-token and
+            client-token flags in both <code>--flag value</code> and <code>--flag=value</code>
+            forms, the legacy <code>token:&lt;token&gt;:&lt;uuid&gt;</code> session string, dashed
+            and undashed UUIDs. Resource text goes through the same path. A tool
+            <em>cannot</em> return unredacted text through this type, including one written later
+            by someone who has not read this document.</li>
+        <li><strong>The activity log redacts on the way in</strong>, so a token that reached an
+            argument summary is never held in memory by it at all — a Settings page is one
+            screenshot away from a support thread.</li>
+    </ol>
+
+    <p>The dangerous surface is logs and crash reports, which are large, attacker-influenced, and
+        historically carried the live access token on the game's command line. SHA-1 hashes survive
+        redaction deliberately; they are how mods are identified.</p>
+
+    <h3><span class="num">4.7</span>Containment rules</h3>
+
+    <table>
+        <thead><tr><th style="width:30%">Rule</th><th>Enforced where</th></tr></thead>
+        <tbody>
+        <tr><td><strong>Resource URI segments</strong></td>
+            <td><code>McpResourceUri.isSafeSegment</code>: no <code>/</code>, no <code>\</code>, no
+                NUL, no control characters, not <code>.</code> or <code>..</code>. Percent-decoding
+                that fails leaves the raw text in place, so a deliberately malformed encoding
+                cannot slip a separator through unchecked. Listings skip packs whose names are not
+                safe segments, so a listing never advertises a URI the reader would refuse.</td></tr>
+        <tr><td><strong>Mod install paths</strong></td>
+            <td><code>MutatingTools.rejectUnsafeLocalPath</code>: no absolute paths, no drive
+                letters, no <code>..</code> segment, no control characters. Checked
+                <em>before</em> consent — a traversal attempt is not something to ask the user to
+                adjudicate.</td></tr>
+        <tr><td><strong>Install and mod URLs</strong></td>
+            <td><code>LauncherUriHandler.classifyInstallUrl()</code>, the launcher's existing
+                install-source gate. A <code>REJECT</code> verdict refuses before any prompt;
+                <code>REQUIRE_CONFIRMATION</code> deliberately does not — an untrusted but
+                well-formed host is exactly what the consent dialog is for.</td></tr>
+        <tr><td><strong>Editable manifests</strong></td>
+            <td>Only manifests this launcher authored — resolved inside
+                <code>&lt;config&gt;/mcp-manifests</code> after normalisation — may be edited in
+                place. A pack installed from a remote manifest, or an imported
+                <code>.mmcjson</code>, is refused with a message pointing at
+                <code>fork_modpack</code>.</td></tr>
+        <tr><td><strong>Live-game guards</strong></td>
+            <td><code>uninstall_modpack</code> refuses while a game runs; <code>launch_modpack</code>
+                refuses a second launch and refuses when signed out.</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="num">4.8</span>Threat model and residual risk</h3>
+
+    <table>
+        <thead><tr><th style="width:34%">Risk</th><th>Position</th></tr></thead>
+        <tbody>
+        <tr><td><strong>Any same-UID process can read the endpoint file</strong></td>
+            <td>Accepted, and identical to the trust boundary the launcher's existing single-instance
+                IPC channel already documents. The file is <code>0600</code>; a process running as
+                you can read it, and a process running as you could also read your session token
+                from the launcher's own config.</td></tr>
+        <tr><td><strong>A malicious or confused model</strong></td>
+            <td>The core case the consent model exists for. Mutating tools are off by default and
+                ask every time; the prompt names the client, the tool and the arguments; the
+                activity log records what happened.</td></tr>
+        <tr><td><strong>Consent fatigue</strong></td>
+            <td>Partially addressed: read-only auto-approval, session grants with a TTL, and
+                batch-shaped tools that return lists rather than one item at a time. Per-client
+                rate limiting and a <em>deny all from this client</em> action are not
+                implemented.</td></tr>
+        <tr><td><strong>A web page in the user's browser</strong></td>
+            <td>Blocked by the origin rule plus a token the page cannot read.</td></tr>
+        <tr><td><strong>Token theft from a client's config file</strong></td>
+            <td>Real, and the reason <strong>Regenerate</strong> exists. The stdio relay avoids it
+                entirely by never putting a token in client config.</td></tr>
+        <tr><td><strong>A model choosing a hostile install URL</strong></td>
+            <td>The launcher's existing install-source classification runs first; anything it does
+                not outright reject is shown to the user in the prompt, naming the host.</td></tr>
+        <tr><td><strong>Two clients issuing conflicting mutations</strong></td>
+            <td>Serialized by the single-threaded dispatcher. Destructive tools re-check state
+                inside their own validation before acting.</td></tr>
+        <tr><td><strong>An unattended launcher</strong></td>
+            <td>Prompts deny after 120 s rather than waiting forever. The stale dialog left on
+                screen is cosmetic, but it is a known rough edge.</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================================================ 5 -->
+<section class="chapter">
+    <h2><span class="num">5</span>Tool reference</h2>
+
+    <p class="lede">Fourteen tools: six that only read, eight that change things. The six are
+        registered whenever the server runs; the eight appear only when <em>Allow tools that change
+        things</em> is on.</p>
+
+    <h3><span class="num">5.1</span>Conventions</h3>
+
+    <ul>
+        <li><strong>Packs are addressed by friendly name</strong> — the display name, exactly as
+            <code>list_modpacks</code> reports it. Names routinely contain spaces, colons and
+            version numbers (<code>Fabric 1.21.5: 0.16.10</code>); pass them verbatim.</li>
+        <li><strong>Arguments are strings</strong> and are trimmed. A missing or non-primitive
+            value reads as empty and produces a clear error naming what was required.</li>
+        <li><strong>"Not found" is a tool error, not a protocol error.</strong> Results carry
+            <code>isError: true</code> and a message naming <code>list_modpacks</code> so the model
+            can recover on its own instead of guessing again.</li>
+        <li><strong>Structured output is a pretty-printed JSON text block</strong>, which is how
+            MCP carries structured tool output.</li>
+        <li><strong>Every text block is redacted</strong> on the way out (§4.6).</li>
+        <li><strong>Content gates run before consent</strong>, so an invalid call never becomes a
+            dialog.</li>
+    </ul>
+
+    <h3><span class="num">5.2</span>Read-only tools</h3>
+
+    <p>All six are <span class="badge read">READ_ONLY</span> and run without a prompt while
+        <em>Auto-approve read-only tools</em> is on, which it is by default.</p>
+
+    <div class="tool">
+        <header>
+            <h3>list_modpacks</h3>
+            <span class="gate"><span class="badge read">READ_ONLY</span> · always registered</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Every pack the launcher knows about, installed and available. The starting point for everything else — it is where friendly names come from.</dd>
+            <dt>Arguments</dt><dd>None.</dd>
+            <dt>Returns</dt><dd><code>modpacks[]</code> and <code>count</code>. Each entry: <code>friendlyName</code>, <code>version</code> (installed), <code>latestVersion</code> (published), <code>updateAvailable</code>, <code>modLoader</code>, <code>installed</code>, <code>unstable</code>.</dd>
+        </dl>
+        <div class="note ok">
+            <span class="label">Two versions, on purpose</span>
+            <p>A pack's friendly name often embeds the version its author publishes, so a pack
+                called <em>Alto: 26.9.3</em> can correctly report <code>version</code> 26.6.12 —
+                the one installed. Both numbers are right and neither can be inferred from the
+                other, which is why both are reported. This was found by running the server
+                against real packs, not by a test.</p>
+        </div>
+    </div>
+
+    <div class="tool">
+        <header>
+            <h3>get_modpack_info</h3>
+            <span class="gate"><span class="badge read">READ_ONLY</span> · always registered</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>The same fields as a <code>list_modpacks</code> entry, for one pack.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em> — the pack's display name.</dd>
+            <dt>Returns</dt><dd><code>friendlyName</code>, <code>version</code>, <code>latestVersion</code>, <code>updateAvailable</code>, <code>modLoader</code>, <code>installed</code>, <code>unstable</code>.</dd>
+            <dt>Errors</dt><dd>Missing argument; no such pack (the message names <code>list_modpacks</code>).</dd>
+        </dl>
+    </div>
+
+    <div class="tool">
+        <header>
+            <h3>get_modpack_manifest</h3>
+            <span class="gate"><span class="badge read">READ_ONLY</span> · always registered</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>The raw manifest JSON: mod, config, resource-pack and shader lists, mod-loader URLs, metadata.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>.</dd>
+            <dt>Returns</dt><dd>The manifest as one text block.</dd>
+            <dt>Errors</dt><dd>No manifest available — the pack may not exist, or its manifest may be unreachable.</dd>
+            <dt>See also</dt><dd>The same content as a re-readable resource: <code>mica://modpack/{friendlyName}/manifest</code>.</dd>
+        </dl>
+    </div>
+
+    <div class="tool">
+        <header>
+            <h3>get_crash_report</h3>
+            <span class="gate"><span class="badge read">READ_ONLY</span> · always registered</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>The most recent crash report for a pack, as raw text.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>.</dd>
+            <dt>Returns</dt><dd>The report text, credentials stripped.</dd>
+            <dt>Errors</dt><dd>No crash report on record.</dd>
+            <dt>Prefer</dt><dd><code>diagnose_launch_failure</code> — same report plus the launcher's own analysis.</dd>
+        </dl>
+    </div>
+
+    <div class="tool tall">
+        <header>
+            <h3>diagnose_launch_failure</h3>
+            <span class="gate"><span class="badge read">READ_ONLY</span> · always registered</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>The highest-value tool here. Turns "why did my game crash" into a question a model can answer, without anyone pasting logs around.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>.</dd>
+            <dt>Returns</dt><dd><code>friendlyName</code>, <code>version</code>, <code>modLoader</code>, <code>unstable</code>, <code>crashReportAvailable</code>, and when a report exists: <code>category</code>, <code>title</code>, <code>summary</code>, <code>suggestions[]</code>, <code>crashReport</code>.</dd>
+            <dt>No crash?</dt><dd>Returns a <strong>success</strong> with <code>crashReportAvailable: false</code> and a note. Reporting "this pack has not crashed" as a failure would push the model to retry pointlessly.</dd>
+        </dl>
+<pre><code>{ "name": "diagnose_launch_failure",
+  "arguments": { "friendlyName": "All the Mods 9" } }
+
+→ { "friendlyName": "All the Mods 9", "version": "0.2.60",
+    "modLoader": "forge", "unstable": false,
+    "crashReportAvailable": true,
+    "category": "MISSING_DEPENDENCY",
+    "title": "A mod is missing a dependency",
+    "summary": "…", "suggestions": [ "…", "…" ],
+    "crashReport": "---- Minecraft Crash Report ----\n…" }</code></pre>
+    </div>
+
+    <div class="tool">
+        <header>
+            <h3>get_launcher_status</h3>
+            <span class="gate"><span class="badge read">READ_ONLY</span> · always registered</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Launcher-level context: is anyone signed in, which build is this, how many packs are installed.</dd>
+            <dt>Arguments</dt><dd>None.</dd>
+            <dt>Returns</dt><dd><code>launcherVersion</code>, <code>signedIn</code>, <code>username</code>, <code>installedModpackCount</code>.</dd>
+        </dl>
+        <div class="note danger">
+            <span class="label">Username only</span>
+            <p>The account UUID and every token are forbidden here by §4.6, and
+                <code>McpLauncherView</code> deliberately offers no way to reach them. Signed out,
+                <code>username</code> is empty.</p>
+        </div>
+    </div>
+
+    <h3><span class="num">5.3</span>State-changing tools</h3>
+
+    <div class="note warn">
+        <span class="label">Second opt-in required</span>
+        <p>These eight are registered only when <strong>Settings → Security → Allow tools that
+            change things</strong> is on. With it off they are not denied — they are absent from
+            <code>tools/list</code> and answer <code>-32602 Unknown tool</code>. Each still asks
+            before every call unless you have given it a standing policy.</p>
+    </div>
+
+    <div class="tool tall">
+        <header>
+            <h3>install_modpack</h3>
+            <span class="gate"><span class="badge mutate">MUTATING</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Installs a modpack from a manifest URL, downloading mods and configuration from third-party hosts.</dd>
+            <dt>Arguments</dt><dd><code>url</code> <em>(required)</em> — the https URL of the manifest.</dd>
+            <dt>Before asking</dt><dd>The URL goes through <code>LauncherUriHandler.classifyInstallUrl()</code>. A <code>REJECT</code> verdict — non-https, malformed, control characters — is refused outright and never becomes a prompt. An untrusted-but-well-formed host is <em>not</em> rejected here: that is exactly what the consent dialog is for, and refusing it would make the tool useless for any pack not on the allowlist.</dd>
+            <dt>Returns</dt><dd>A sentence naming what was installed, or a failure message. The underlying install runs synchronously on the dispatch thread, so the reply means the install finished.</dd>
+        </dl>
+    </div>
+
+    <div class="tool tall">
+        <header>
+            <h3>create_modpack</h3>
+            <span class="gate"><span class="badge mutate">MUTATING</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Creates a new, empty pack and installs it locally, ready to have mods added.</dd>
+            <dt>Arguments</dt><dd><code>name</code> <em>(required)</em>; <code>modLoader</code> (<code>forge</code> · <code>neoforge</code> · <code>fabric</code>, default forge); <code>modLoaderUrl</code>.</dd>
+            <dt>Before asking</dt><dd>Refuses an empty name or a name already in use.</dd>
+            <dt>Writes</dt><dd>A manifest into <code>&lt;config&gt;/mcp-manifests</code>, then installs from that local URL — the same convention the <code>.mmcjson</code> and <code>.mrpack</code> importers already use. Packs created this way are the ones the edit tools may later modify.</dd>
+        </dl>
+    </div>
+
+    <div class="tool tall">
+        <header>
+            <h3>fork_modpack</h3>
+            <span class="gate"><span class="badge mutate">MUTATING</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Copies an installed pack under a new name and installs the copy, so it can be edited without touching the original. Keeps every mod, config and setting, with the minor version bumped.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>, <code>newName</code> <em>(required)</em>.</dd>
+            <dt>Before asking</dt><dd>Both names required; source must exist; target name must be free.</dd>
+            <dt>Why it matters</dt><dd>This is the supported route to editing a pack you installed from someone else's manifest — the launcher will not rewrite a manifest it does not own (§4.7).</dd>
+        </dl>
+    </div>
+
+    <div class="tool tall">
+        <header>
+            <h3>add_mod_to_modpack</h3>
+            <span class="gate"><span class="badge mutate">MUTATING</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Adds a mod to a pack's manifest, to be downloaded on the next sync.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code>, <code>modName</code>, <code>remoteUrl</code>, <code>localPath</code> — all required. <code>localPath</code> is relative to the pack root, e.g. <code>mods/jei.jar</code>.</dd>
+            <dt>Before asking</dt><dd>Pack must exist. <code>remoteUrl</code> faces the same install-source gate as a pack manifest, for the same reason: it is a model-chosen address that will be downloaded and put on the game's classpath. <code>localPath</code> must be relative, contain no <code>..</code> segment and no control characters.</dd>
+            <dt>Editability</dt><dd>Only packs whose manifest this launcher authored. Otherwise the error points at <code>fork_modpack</code>.</dd>
+        </dl>
+    </div>
+
+    <div class="tool">
+        <header>
+            <h3>remove_mod_from_modpack</h3>
+            <span class="gate"><span class="badge mutate">MUTATING</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Removes a mod from a pack's manifest; the file goes on the next sync.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>, <code>mod</code> <em>(required)</em> — its local path, display name, or Modrinth slug.</dd>
+            <dt>Before asking</dt><dd>Both required; pack must exist. The same authored-manifest rule applies.</dd>
+        </dl>
+    </div>
+
+    <div class="tool tall">
+        <header>
+            <h3>uninstall_modpack</h3>
+            <span class="gate"><span class="badge destroy">DESTRUCTIVE</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Permanently removes a pack and deletes its files, including any worlds saved inside it. This cannot be undone.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>.</dd>
+            <dt>Before asking</dt><dd>Pack must exist, and <strong>no game may be running</strong>. Deleting files out from under a live game corrupts whatever it writes next, and the user would blame the game rather than a tool call they approved minutes earlier.</dd>
+            <dt>Prompt</dt><dd>Names the footprint: <em>"This permanently deletes 4.2 GB including 3 saved worlds. This cannot be undone."</em> Sizes may be reported as "at least" when the walk was bounded.</dd>
+        </dl>
+        <div class="note danger">
+            <span class="label">No backup offer yet</span>
+            <p>"Back up first, then continue" is specified but not implemented. The prompt tells you
+                what you are about to lose; saving it first is still manual.</p>
+        </div>
+    </div>
+
+    <div class="tool tall">
+        <header>
+            <h3>launch_modpack</h3>
+            <span class="gate"><span class="badge exec">EXECUTE</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Starts Minecraft for a pack with the signed-in account. This runs third-party mod code.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>.</dd>
+            <dt>Before asking</dt><dd>Pack must exist <em>and be installed</em>; no game may already be running; an account must be signed in.</dd>
+            <dt>Returns</dt><dd>That the launch <strong>started</strong>. The launch is spawned onto its own task — <code>LauncherCore.play()</code> blocks until the game exits, and holding the single dispatch thread for a play session would stall every other call for hours. Progress shows in the launcher window; the game takes a while to appear.</dd>
+        </dl>
+    </div>
+
+    <div class="tool">
+        <header>
+            <h3>stop_game</h3>
+            <span class="gate"><span class="badge exec">EXECUTE</span> · asks by default</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>Terminates the running Minecraft process. Unsaved progress since the last autosave is lost.</dd>
+            <dt>Arguments</dt><dd>None.</dd>
+            <dt>Before asking</dt><dd>Refuses when no game is running.</dd>
+            <dt>Behaviour</dt><dd>Finds the first installed pack with a live process and calls <code>destroy()</code> on it, naming the pack it stopped.</dd>
+        </dl>
+    </div>
+</section>
+
+<!-- ============================================================ 6 -->
+<section class="chapter">
+    <h2><span class="num">6</span>Resource reference</h2>
+
+    <p class="lede">Resources cover what a client wants to <em>read repeatedly</em>, as opposed to
+        act on. They read through the same <code>McpLauncherView</code> as the tools, so they are
+        subject to the same bound on what they can reach, and their text leaves through the same
+        redaction path.</p>
+
+    <h3><span class="num">6.1</span>URI scheme and the segment gate</h3>
+
+    <p>All resources use the <code>mica://</code> scheme. Per-pack resources are templates over
+        <code>{friendlyName}</code>, and they enumerate their instances from the live pack list, so
+        a client can call <code>resources/list</code> and see one entry per pack rather than
+        guessing names. Names are percent-encoded in the emitted URIs —
+        <code>mica://modpack/Fabric%201.21.5%3A%200.16.10/manifest</code> — and decoded on the way
+        back in.</p>
+
+    <div class="note">
+        <span class="label">Decode first, then check</span>
+        <p>The containment checks run on the <em>decoded</em> segment. Validating the encoded form
+            and decoding afterwards is the classic way this kind of gate is bypassed —
+            <code>%2e%2e%2f</code> looks harmless until it doesn't. A segment containing
+            <code>/</code>, <code>\</code>, NUL or any control character, or equal to <code>.</code>
+            or <code>..</code>, is refused, and a percent sequence that fails to decode is checked
+            in its raw form rather than being let through. A listing skips any pack whose name is
+            not a safe segment, so it never advertises a URI that the reader would then refuse.</p>
+    </div>
+
+    <p>A URI that matches nothing — including one rejected by the gate — answers
+        <code>-32002 No such resource</code>.</p>
+
+    <h3><span class="num">6.2</span>The three resources</h3>
+
+    <table>
+        <thead><tr><th style="width:38%">URI</th><th style="width:16%">MIME</th><th>Content</th></tr></thead>
+        <tbody>
+        <tr><td><code>mica://packs</code></td><td><code>application/json</code></td>
+            <td>The pack index: every pack, installed and available, with the same seven fields
+                <code>list_modpacks</code> returns. Pretty-printed.</td></tr>
+        <tr><td><code>mica://modpack/{friendlyName}/manifest</code></td><td><code>application/json</code></td>
+            <td>The raw manifest JSON for one pack. Enumerated for every pack, installed or
+                not.</td></tr>
+        <tr><td><code>mica://modpack/{friendlyName}/crash-report</code></td><td><code>text/plain</code></td>
+            <td>The most recent crash report for one pack, credentials stripped. Enumerated for
+                <em>installed</em> packs only.</td></tr>
+        </tbody>
+    </table>
+
+    <p>The server advertises <code>resources.subscribe = false</code> and
+        <code>listChanged = false</code>: it does not push notifications when packs change, so a
+        long-lived client should re-list rather than wait to be told.</p>
+</section>
+
+<!-- ============================================================ 7 -->
+<section class="chapter">
+    <h2><span class="num">7</span>Settings reference</h2>
+
+    <p class="lede">Everything lives in <strong>Settings → Security</strong>, below the malware
+        scanner and the <code>mmcl://</code> deep-link toggle, in three cards.</p>
+
+    <h3><span class="num">7.1</span>Server controls</h3>
+
+    <table class="compact">
+        <thead><tr><th style="width:34%">Control</th><th>Behaviour</th></tr></thead>
+        <tbody>
+        <tr><td><strong>Enable MCP server</strong></td>
+            <td>Writes <code>mcpServerEnabled</code> and calls <code>McpBootstrap.refresh()</code>,
+                which stops and restarts the server in place.</td></tr>
+        <tr><td><strong>Auto-approve read-only tools</strong></td>
+            <td>Writes <code>mcpAutoApproveReadOnly</code>. Read immediately by the authorizer — no
+                restart needed.</td></tr>
+        <tr><td><strong>Allow tools that change things</strong></td>
+            <td>Writes <code>mcpAllowStateChanges</code> and refreshes, because the tool registry is
+                built at start. Connected clients should re-run <code>tools/list</code>.</td></tr>
+        <tr><td>Status line</td>
+            <td><em>Running on 127.0.0.1:&lt;port&gt;</em> or <em>Not running</em>, plus the
+                connected-client count. Never shows the token.</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="num">7.2</span>Connecting a client</h3>
+
+    <table class="compact">
+        <thead><tr><th style="width:34%">Control</th><th>Behaviour</th></tr></thead>
+        <tbody>
+        <tr><td><strong>Endpoint</strong></td><td><code>http://127.0.0.1:&lt;port&gt;/mcp</code>, showing the port actually bound.</td></tr>
+        <tr><td><strong>Token</strong> + <em>Show</em> / <em>Hide</em></td><td>Masked as <code>3f9a21c8… (64 characters)</code> until revealed.</td></tr>
+        <tr><td><strong>Copy token</strong></td><td>Puts the full token on the clipboard.</td></tr>
+        <tr><td><strong>Regenerate</strong></td><td>Confirms first, then replaces the token and restarts the server. Every client configured with the old token stops working until updated.</td></tr>
+        <tr><td><strong>Client dropdown</strong> + <em>Copy</em></td><td>Claude Code · Cursor · Codex · Other (raw URL) · stdio-only client. The snippet below updates with the selection and already contains the real port and token.</td></tr>
+        </tbody>
+    </table>
+
+    <div class="note">
+        <span class="label">Running from source</span>
+        <p>In a development run the resolved launcher path is the JVM itself, and
+            <code>&lt;jvm&gt;/bin/java --mcp</code> would start a bare JVM that does nothing. The
+            stdio snippet is replaced with a notice saying so and pointing at the HTTP options,
+            rather than emitting a command that is accepted and then silently fails.</p>
+    </div>
+
+    <h3><span class="num">7.3</span>Tool permissions, clients, activity</h3>
+
+    <p>The third card holds three lists and four buttons.</p>
+
+    <ul>
+        <li><strong>Tool permissions.</strong> One row per tool — every tool this build can expose,
+            whether or not the server is running and whether or not state changes are enabled, so
+            you can pre-configure a permission before turning the thing on. Each row offers
+            <em>Default</em>, <em>Always allow</em>, <em>Always ask</em>, <em>Disabled</em>.
+            <em>Default</em> means "follow the risk class": read-only follows the auto-approve
+            toggle; everything else asks.</li>
+        <li><strong>Connected clients.</strong> Name, connection age and tool-call count per
+            session, or <em>No MCP client is connected.</em> This is a <strong>snapshot</strong>,
+            refreshed when the pane is built and when you press <em>Refresh</em> — a live list
+            needs an observable session registry, which does not exist yet.</li>
+        <li><strong>Recent activity.</strong> See chapter 8.</li>
+        <li><strong>Revoke session approvals.</strong> Clears every "allow for this session" grant
+            held right now. Permanent per-tool choices are unaffected. The label above it counts
+            what is currently held.</li>
+    </ul>
+</section>
+
+<!-- ============================================================ 8 -->
+<section class="chapter">
+    <h2><span class="num">8</span>Auditing what happened</h2>
+
+    <p class="lede">Consent answers "may this happen?". The activity log answers "what happened?".
+        Without it, a user who clicked through a prompt three hours ago has no way to find out what
+        they agreed to, which makes every approval decision unreviewable after the moment it is
+        made.</p>
+
+    <h3><span class="num">8.1</span>The activity log</h3>
+
+    <table class="compact">
+        <thead><tr><th style="width:30%">Property</th><th>Value</th></tr></thead>
+        <tbody>
+        <tr><td>Scope</td><td>In memory, bounded to the most recent <strong>200</strong> entries, newest shown first.</td></tr>
+        <tr><td>Lifetime</td><td>Survives the server being stopped and restarted within one launcher run — toggling the feature off and on does not erase the record of what happened before, which is exactly what a user goes looking for after something surprising. It does not survive a launcher restart.</td></tr>
+        <tr><td>Fields</td><td>Timestamp, client name, tool name, decision, short detail.</td></tr>
+        <tr><td>Redaction</td><td>Every field passes <code>redactStrict</code> <em>before</em> storage, so a credential that reached an argument summary is never held in memory here at all.</td></tr>
+        <tr><td>Clearing</td><td><em>Clear activity</em> in Settings.</td></tr>
+        </tbody>
+    </table>
+
+    <table class="compact">
+        <thead><tr><th style="width:22%">Decision</th><th>Meaning</th></tr></thead>
+        <tbody>
+        <tr><td><code>refused</code></td><td>A content gate said no before the user was ever asked — bad URL, unsafe path, game running, unknown pack.</td></tr>
+        <tr><td><code>denied</code></td><td>Policy said no, the user said no, the prompt timed out, or there was no GUI to ask in.</td></tr>
+        <tr><td><code>allowed</code></td><td>Ran and succeeded.</td></tr>
+        <tr><td><code>failed</code></td><td>Ran and failed. Exception text is deliberately not recorded — it carries paths and can carry command lines.</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="num">8.2</span>The launcher log</h3>
+
+    <p>The in-memory log is a review surface for the session, not an audit trail. What persists:</p>
+
+    <ul>
+        <li>The launcher's own log records server start/stop with the bound port, every approval
+            outcome (<code>MCP allowed &lt;client&gt; -&gt; &lt;tool&gt; (ALLOW_ONCE)</code>), every
+            pre-approval refusal with its reason, and every tool failure with its stack trace.</li>
+        <li>Pack-mutating operations additionally reach the launcher's existing
+            <code>ModPackAuditLog</code>, through the same code paths the GUI uses.</li>
+        <li>No exception message and no credential ever reaches the wire; the detail stays in the
+            log where it belongs.</li>
+    </ul>
+</section>
+
+<!-- ============================================================ 9 -->
+<section class="chapter">
+    <h2><span class="num">9</span>Configuration and file locations</h2>
+
+    <h3><span class="num">9.1</span>Config keys</h3>
+
+    <p>All live in the launcher's <code>configuration.json</code>, written through
+        <code>ConfigStore</code> like every other setting.</p>
+
+    <table class="compact">
+        <thead><tr><th style="width:30%">Key</th><th style="width:14%">Type</th><th style="width:16%">Default</th><th>Meaning</th></tr></thead>
+        <tbody>
+        <tr><td><code>mcpServerEnabled</code></td><td>boolean</td><td><code>false</code></td><td>The master switch.</td></tr>
+        <tr><td><code>mcpAllowStateChanges</code></td><td>boolean</td><td><code>false</code></td><td>Registers the eight state-changing tools.</td></tr>
+        <tr><td><code>mcpAutoApproveReadOnly</code></td><td>boolean</td><td><code>true</code></td><td>Read-only tools skip the prompt.</td></tr>
+        <tr><td><code>mcpToolPolicies</code></td><td>JSON object</td><td>empty</td><td>Tool name → <code>ALWAYS_ALLOW</code> / <code>ASK</code> / <code>DISABLED</code>. An unreadable value resolves to "unset", never to a policy.</td></tr>
+        <tr><td><code>mcpPort</code></td><td>int</td><td><code>47823</code> (dev <code>47824</code>)</td><td>The loopback port. No UI; edit the file to change it.</td></tr>
+        <tr><td><code>mcpToken</code></td><td>string</td><td>empty</td><td>The persisted bearer token. Generated on first use; a malformed value is replaced.</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="num">9.2</span>Files on disk</h3>
+
+    <table class="compact">
+        <thead><tr><th style="width:40%">Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+        <tr><td><code>~/.MicaMinecraftLauncher/config/</code></td><td>The client-mode config folder. A dev build uses <code>~/.MicaMinecraftLauncherDEV/</code>.</td></tr>
+        <tr><td><code>…/config/configuration.json</code></td><td>All six keys above.</td></tr>
+        <tr><td><code>…/config/mcp-endpoint.json</code></td><td>Port, token, pid, launcher version. Owner-only; deleted on shutdown; a dead pid makes it read as absent.</td></tr>
+        <tr><td><code>…/config/mcp-manifests/</code></td><td>Manifests this launcher authored through <code>create_modpack</code> / <code>fork_modpack</code>. Only packs whose manifest resolves inside this directory may be edited in place.</td></tr>
+        </tbody>
+    </table>
+
+    <p>The endpoint file deliberately uses the <em>client-mode</em> config path rather than the
+        game-mode-dependent one, for the same reason <code>SingleInstanceLock</code> does: a client
+        discovering the endpoint has a different working directory from the launcher, so a relative
+        path would never agree between them.</p>
+
+    <h3><span class="num">9.3</span>Constants</h3>
+
+    <table class="compact">
+        <thead><tr><th style="width:44%">Constant</th><th>Value</th></tr></thead>
+        <tbody>
+        <tr><td><code>LauncherConstants.PROGRAM_ARG_MCP</code></td><td><code>--mcp</code></td></tr>
+        <tr><td><code>LauncherConstants.MCP_SERVER_PORT</code> / <code>_DEV</code></td><td><code>47823</code> / <code>47824</code></td></tr>
+        <tr><td><code>McpRequestHandler.PROTOCOL_VERSION</code></td><td><code>2025-06-18</code></td></tr>
+        <tr><td><code>LoopbackHttpTransport.PATH</code></td><td><code>/mcp</code></td></tr>
+        <tr><td><code>LoopbackHttpTransport.SESSION_HEADER</code></td><td><code>Mcp-Session-Id</code></td></tr>
+        <tr><td><code>McpHttpGuard.MAX_BODY_BYTES</code></td><td>1 MB</td></tr>
+        <tr><td><code>McpSessionRegistry.MAX_SESSIONS</code></td><td>8</td></tr>
+        <tr><td><code>McpApprovalEngine.DEFAULT_GRANT_TTL_MS</code></td><td>8 hours</td></tr>
+        <tr><td><code>FxConsentPrompt.CONSENT_TIMEOUT_SECONDS</code></td><td>120</td></tr>
+        <tr><td><code>McpActivityLog.MAX_ENTRIES</code></td><td>200</td></tr>
+        <tr><td><code>McpAccessToken.TOKEN_LENGTH</code></td><td>64 hex characters (256 bits)</td></tr>
+        <tr><td><code>StdioProxy.EXIT_NO_LAUNCHER</code></td><td>exit code 2</td></tr>
+        <tr><td><code>McpClientSetup.SERVER_NAME</code></td><td><code>mica-launcher</code></td></tr>
+        </tbody>
+    </table>
+</section>
+
+<!-- ============================================================ 10 -->
+<section class="chapter">
+    <h2><span class="num">10</span>Testing and verification</h2>
+
+    <h3><span class="num">10.1</span>Unit coverage</h3>
+
+    <p>The MCP package carries <strong>407 test methods across 21 test classes</strong>, in the
+        repository's established style: plain JUnit Jupiter, hand-rolled stubs, no mocking
+        framework, no JavaFX, no network, no vendor SDKs.</p>
+
+    <table class="compact">
+        <thead><tr><th style="width:38%">Seam</th><th style="width:12%">Tests</th><th>What is pinned</th></tr></thead>
+        <tbody>
+        <tr><td><code>JsonRpcCodec</code></td><td>34</td><td>Framing round-trip, malformed JSON, notification vs request, error construction.</td></tr>
+        <tr><td><code>MutatingTools</code></td><td>36</td><td>Schemas, pre-approval gates, path-traversal rejection, size formatting, destructive framing.</td></tr>
+        <tr><td><code>McpRequestHandler</code></td><td>33</td><td>Handshake ordering, unknown methods, denied tools, throwing tools, resource reads.</td></tr>
+        <tr><td><code>McpHttpGuard</code></td><td>27</td><td>The full admission table, including bracketed IPv6 origins and <code>Origin: null</code>.</td></tr>
+        <tr><td><code>McpResourceUri</code></td><td>27</td><td>The containment gate, with encoded spellings of every rejected character — not just the literal ones.</td></tr>
+        <tr><td><code>ReadOnlyTools</code></td><td>25</td><td>Every tool's success and failure shapes against a stub view.</td></tr>
+        <tr><td><code>McpClientSetup</code></td><td>24</td><td>Snippet generation, shell quoting of paths with spaces, TOML escaping, the unpackaged-run notice.</td></tr>
+        <tr><td><code>McpApprovalEngine</code></td><td>23</td><td>The decision table across master switch × policy × grant × risk class × GUI availability, asserting fail-closed.</td></tr>
+        <tr><td><code>McpServerLoopbackTest</code></td><td>18</td><td>A real socket: non-loopback refusal, 401 on a bad token, session issuance.</td></tr>
+        <tr><td><code>McpToolPolicyStore</code></td><td>18</td><td>Persistence round-trip; a corrupt value resolving to "unset".</td></tr>
+        <tr><td><code>LauncherMcpAuthorizer</code></td><td>17</td><td>Grant lifecycle, prompt answers, every throw-path denying.</td></tr>
+        <tr><td><code>McpToolResult</code></td><td>17</td><td>That no synthetic token or UUID escapes un-redacted, through results or errors.</td></tr>
+        <tr><td>Others</td><td>108</td><td>Endpoint file staleness, token well-formedness and masking, activity-log bounding and redaction, registries, resources, the stdio relay, the consent prompt's argument summary.</td></tr>
+        </tbody>
+    </table>
+
+    <p>Across the whole project the suite now stands at 115 test classes. CI runs
+        <code>mvn -B test</code> as its own job before the three-platform package matrix, so a
+        failing MCP test blocks a PR like any other.</p>
+
+    <h3><span class="num">10.2</span>What a live run confirmed</h3>
+
+    <p>Unit tests say whether the seams behave, not whether the feature works. The read path was
+        therefore driven for real — a harness calling <code>McpBootstrap.startIfEnabled()</code>
+        against the actual dev config and the installed packs, over HTTP with <code>curl</code>.</p>
+
+    <table class="compact">
+        <thead><tr><th style="width:48%">Exercised</th><th>Result</th></tr></thead>
+        <tbody>
+        <tr><td>Handshake, protocol version, server info</td><td>As specified; <code>Mcp-Session-Id</code> issued and carried</td></tr>
+        <tr><td><code>tools/list</code> with state changes off</td><td>The six read-only tools only</td></tr>
+        <tr><td><code>list_modpacks</code>, <code>get_launcher_status</code></td><td>Real installed packs; signed-out reported with an empty username</td></tr>
+        <tr><td><code>resources/list</code> and <code>read</code></td><td>Correctly percent-encoded per-pack URIs that resolve back; real manifest returned</td></tr>
+        <tr><td><code>diagnose_launch_failure</code> with no crash on record</td><td>Success with a note, not an error</td></tr>
+        <tr><td>No bearer token / wrong token</td><td><code>401</code></td></tr>
+        <tr><td><code>Origin: http://evil.example</code> · <code>Origin: null</code></td><td><code>403</code></td></tr>
+        <tr><td><code>Origin: http://localhost:3000</code></td><td><code>200</code></td></tr>
+        <tr><td><code>Content-Type: text/plain</code> · <code>GET</code></td><td><code>415</code> · <code>405</code></td></tr>
+        <tr><td>Tool call before the handshake</td><td><code>-32600 Session is not initialized</code></td></tr>
+        <tr><td><code>mica://modpack/%2e%2e/manifest</code></td><td><code>-32002 No such resource</code></td></tr>
+        <tr><td><code>uninstall_modpack</code> with state changes off</td><td><code>-32602 Unknown tool</code></td></tr>
+        <tr><td>Endpoint file</td><td>Written <code>-rw-------</code> with port, 64-character token and pid; deleted on shutdown, port released</td></tr>
+        </tbody>
+    </table>
+
+    <div class="note ok">
+        <span class="label">Found only by running it</span>
+        <p>A pack's friendly name embeds the version its author publishes, so <em>"Alto: 26.9.3"</em>
+            reported version 26.6.12 — the installed one. Both are correct and irreconcilable from
+            the output, which is why <code>PackSummary</code> now carries <code>latestVersion</code>
+            and <code>updateAvailable</code> as well. No unit test could have caught it: the stub
+            returned whatever version the test asked for.</p>
+    </div>
+
+    <h3><span class="num">10.3</span>Manual checklist</h3>
+
+    <p>These surfaces have no automated coverage. Walk them after any change:</p>
+
+    <ul>
+        <li>The Settings toggles, including that enabling and disabling restarts the server in
+            place and the status line follows.</li>
+        <li>The consent dialog: all three answers, the timeout, and that a denied call returns
+            <code>-32003</code> rather than hanging.</li>
+        <li>Every state-changing tool end to end — create, add a mod, install, launch, stop,
+            uninstall — since these run real installs and a real game.</li>
+        <li>A real MCP client, not just <code>curl</code>: point one at the HTTP endpoint, then at
+            <code>launcher --mcp</code>, and ask it why a game crashed.</li>
+        <li>Token regeneration invalidating a connected client.</li>
+    </ul>
+</section>
+
+<!-- ============================================================ 11 -->
+<section class="chapter">
+    <h2><span class="num">11</span>Limitations and future work</h2>
+
+    <h3><span class="num">11.1</span>Known limitations</h3>
+
+    <table>
+        <thead><tr><th style="width:34%">Limitation</th><th>Detail</th></tr></thead>
+        <tbody>
+        <tr><td><strong>The launcher must be open</strong></td>
+            <td>There is no background or tray-resident mode. Closing the window stops the server.</td></tr>
+        <tr><td><strong>GUI mode only</strong></td>
+            <td><code>startIfEnabled()</code> is called from the GUI branch of
+                <code>LauncherSession.run</code>. TUI and headless server mode never start it.</td></tr>
+        <tr><td><strong>The client list is a snapshot</strong></td>
+            <td>Refreshed on pane build and on <em>Refresh</em>. A live list needs an observable
+                session registry.</td></tr>
+        <tr><td><strong>A timed-out consent dialog stays on screen</strong></td>
+            <td>The answer is already decided — deny — so this is cosmetic, but the stale dialog
+                has to be dismissed by hand.</td></tr>
+        <tr><td><strong>One consent prompt blocks every call</strong></td>
+            <td>Dispatch is single-threaded by design. An unanswered prompt stalls the queue for up
+                to two minutes.</td></tr>
+        <tr><td><strong>No cold start from the relay</strong></td>
+            <td><code>launcher --mcp</code> exits with code 2 when no launcher is running.</td></tr>
+        <tr><td><strong>Only authored manifests are editable</strong></td>
+            <td><code>add_mod_to_modpack</code> and <code>remove_mod_from_modpack</code> refuse a
+                pack installed from a remote manifest. Fork it first.</td></tr>
+        <tr><td><strong>No per-modpack scoping</strong></td>
+            <td>A client granted a tool holds it for every pack; "this client may only touch pack X"
+                does not exist.</td></tr>
+        <tr><td><strong>No rate limiting</strong></td>
+            <td>There is no per-client prompt throttle and no <em>deny all from this client</em>
+                action.</td></tr>
+        <tr><td><strong>Three English strings use "(s)"</strong></td>
+            <td><code>{0} tool call(s)</code> and friends do not translate cleanly; translators
+                rendered the meaning, but the source would be better as a real plural form.</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="num">11.2</span>Not yet implemented</h3>
+
+    <p>The original plan is broader than what shipped. What remains, roughly in the order it would
+        be worth doing:</p>
+
+    <ol>
+        <li><strong>Remaining read-only tools.</strong> <code>list_modpack_mods</code>,
+            <code>search_modrinth</code>, <code>get_modrinth_project</code>,
+            <code>check_mod_updates</code>, <code>detect_mod_conflicts</code>,
+            <code>get_game_log</code>, <code>list_java_runtimes</code>,
+            <code>list_modpack_backups</code>, <code>list_server_favorites</code>. Each has an
+            existing launcher class behind it; these are adapters, not new capability.</li>
+        <li><strong>Remaining state-changing tools.</strong> <code>set_modpack_settings</code>,
+            <code>update_modpack</code>, <code>export_modpack</code> (needs destination-path
+            validation — it writes outside the launcher directory),
+            <code>create_modpack_backup</code>, <code>restore_modpack_backup</code>,
+            <code>delete_modpack_backup</code>.</li>
+        <li><strong>"Back up first, then continue"</strong> on the destructive prompt. The prompt
+            already names what would be lost; offering to save it is the other half.</li>
+        <li><strong>Remaining resources.</strong> <code>…/mods</code>, <code>…/log</code>, and
+            <code>mica://launcher/log</code>.</li>
+        <li><strong>Background mode (phase 5a).</strong> Extract tray ownership out of
+            <code>NotificationManager</code> into a <code>TrayPresenceManager</code>, close-to-tray
+            with <code>setImplicitExit(false)</code> under a single owner, MCP status and
+            <em>Quit</em> in the shared shell menu, and a first-close toast so a server is never
+            left running unknowingly. Background mode must refuse to enable where
+            <code>SystemTray.isSupported()</code> is false — a background process with no visible
+            way to stop it is not acceptable.</li>
+        <li><strong>Run at startup (phase 5b).</strong> A new <code>AutoStartManager</code> with
+            per-user backends — <code>HKCU\…\Run</code>, a <code>LaunchAgent</code> plist,
+            <code>~/.config/autostart</code> — plus a <code>--background</code> flag distinct from
+            <code>--mcp</code>, and config/OS reconciliation on startup where the OS wins.</li>
+        <li><strong>Cold start from the relay</strong>, which depends on background mode existing.</li>
+        <li><strong>MCP prompts</strong> (<code>diagnose_crash</code>, <code>plan_modpack</code>)
+            and resource change notifications.</li>
+        <li><strong>A live session list</strong> backed by an observable registry.</li>
+    </ol>
+
+    <div class="note">
+        <span class="label">Also outstanding</span>
+        <p>No real MCP client has been driven against the server end to end, and the
+            state-changing tools have not been exercised against a live launcher — the verification
+            run in §10.2 deliberately exercised nothing that could change the machine. Both are
+            worth doing before the feature is described as finished.</p>
+    </div>
+</section>
+
+<!-- ============================================================ A -->
+<section class="chapter">
+    <h2><span class="num">A</span>Appendix — a worked session</h2>
+
+    <p class="lede">One complete exchange, as a client actually performs it. Requests are
+        <code>POST /mcp</code> with <code>Content-Type: application/json</code> and
+        <code>Authorization: Bearer &lt;token&gt;</code>; every request after the first also carries
+        <code>Mcp-Session-Id</code>.</p>
+
+    <h4>1 · Handshake</h4>
+<pre class="long"><code>→ {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+     "protocolVersion":"2025-06-18","capabilities":{},
+     "clientInfo":{"name":"Claude Code","version":"2.0.1"}}}
+
+← HTTP/1.1 200 · Mcp-Session-Id: 6f1c0f0a-…
+  {"jsonrpc":"2.0","id":1,"result":{
+     "protocolVersion":"2025-06-18",
+     "capabilities":{"tools":{"listChanged":false},
+                     "resources":{"subscribe":false,"listChanged":false}},
+     "serverInfo":{"name":"Mica Minecraft Launcher","version":"3.0.0"}}}
+
+→ {"jsonrpc":"2.0","method":"notifications/initialized"}
+← HTTP/1.1 202 · (no body — a notification is never answered)</code></pre>
+
+    <h4>2 · Discovery</h4>
+<pre class="long"><code>→ {"jsonrpc":"2.0","id":2,"method":"tools/list"}
+
+← {"jsonrpc":"2.0","id":2,"result":{"tools":[
+     {"name":"list_modpacks","title":"List modpacks",
+      "description":"Lists every modpack the launcher knows about…",
+      "inputSchema":{"type":"object","properties":{}}},
+     {"name":"get_modpack_info","…":"…"},
+     {"name":"get_modpack_manifest","…":"…"},
+     {"name":"get_crash_report","…":"…"},
+     {"name":"diagnose_launch_failure","…":"…"},
+     {"name":"get_launcher_status","…":"…"}]}}</code></pre>
+
+    <h4>3 · A read-only call — no prompt, because auto-approve is on</h4>
+<pre class="long"><code>→ {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{
+     "name":"list_modpacks","arguments":{}}}
+
+← {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":
+     "{\n  \"modpacks\": [\n    {\n      \"friendlyName\": \"All the Mods 9\",
+      \"version\": \"0.2.60\", \"latestVersion\": \"0.2.62\",
+      \"updateAvailable\": true, \"modLoader\": \"forge\",
+      \"installed\": true, \"unstable\": false\n    }\n  ],\n
+      \"count\": 1\n}"}],"isError":false}}</code></pre>
+
+    <h4>4 · A resource read</h4>
+<pre class="long"><code>→ {"jsonrpc":"2.0","id":4,"method":"resources/read","params":{
+     "uri":"mica://modpack/All%20the%20Mods%209/manifest"}}
+
+← {"jsonrpc":"2.0","id":4,"result":{"contents":[{
+     "uri":"mica://modpack/All%20the%20Mods%209/manifest",
+     "mimeType":"application/json",
+     "text":"{ \"packName\": \"All the Mods 9\", … }"}]}}</code></pre>
+
+    <h4>5 · A state-changing call — the launcher asks the user</h4>
+<pre class="long"><code>→ {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{
+     "name":"launch_modpack","arguments":{"friendlyName":"All the Mods 9"}}}
+
+  … the launcher shows: "Claude Code wants to use \"Launch modpack\"",
+    naming the tool, its description and its arguments. The request is
+    held — for up to 120 seconds — until the user answers.
+
+← (allowed) {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text",
+     "text":"Started launching \"All the Mods 9\". The launcher window shows
+      progress; the game takes a while to appear."}],"isError":false}}
+
+← (denied)  {"jsonrpc":"2.0","id":5,"error":{"code":-32003,
+     "message":"Tool call was not approved: launch_modpack"}}</code></pre>
+
+    <h4>6 · A refusal that never reaches the user</h4>
+<pre class="long"><code>→ {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{
+     "name":"install_modpack","arguments":{"url":"ftp://example.com/pack.json"}}}
+
+← {"jsonrpc":"2.0","id":6,"error":{"code":-32602,
+     "message":"That install URL was refused by the launcher's install-source
+      rules. Modpack URLs must be well-formed https links."}}</code></pre>
+</section>
+
+<!-- ============================================================ B -->
+<section class="chapter">
+    <h2><span class="num">B</span>Appendix — curl cookbook</h2>
+
+    <p class="lede">Everything below assumes <code>$PORT</code>, <code>$TOK</code> and
+        <code>$SID</code> are set as in §2.8. Useful for confirming the server is healthy without
+        involving a client.</p>
+
+    <h4>Helpers</h4>
+<pre class="long"><code>CFG=~/.MicaMinecraftLauncher/config/mcp-endpoint.json
+PORT=$(python3 -c "import json;print(json.load(open('$CFG'))['port'])")
+TOK=$(python3 -c "import json;print(json.load(open('$CFG'))['token'])")
+
+mcp() {  # mcp '&lt;json body&gt;'
+  curl -s -X POST "http://127.0.0.1:$PORT/mcp" \
+    -H "Authorization: Bearer $TOK" \
+    -H 'Content-Type: application/json' \
+    ${SID:+-H "Mcp-Session-Id: $SID"} \
+    -d "$1"
+}</code></pre>
+
+    <h4>Handshake and capture the session id</h4>
+<pre class="long"><code>SID=$(curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
+  -H "Authorization: Bearer $TOK" -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+        "protocolVersion":"2025-06-18","capabilities":{},
+        "clientInfo":{"name":"curl","version":"1"}}}' \
+  | awk -F': ' 'tolower($1)=="mcp-session-id"{print $2}' | tr -d '\r')
+echo "session: $SID"</code></pre>
+
+    <h4>Everyday calls</h4>
+<pre class="long"><code># what tools does this build expose right now?
+mcp '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+
+# the pack library
+mcp '{"jsonrpc":"2.0","id":3,"method":"tools/call",
+      "params":{"name":"list_modpacks","arguments":{}}}'
+
+# why did it crash?
+mcp '{"jsonrpc":"2.0","id":4,"method":"tools/call",
+      "params":{"name":"diagnose_launch_failure",
+                "arguments":{"friendlyName":"All the Mods 9"}}}'
+
+# what can be read repeatedly?
+mcp '{"jsonrpc":"2.0","id":5,"method":"resources/list"}'
+mcp '{"jsonrpc":"2.0","id":6,"method":"resources/templates/list"}'
+
+# liveness, valid even before the handshake
+mcp '{"jsonrpc":"2.0","id":7,"method":"ping"}'</code></pre>
+
+    <h4>Confirming the admission checks still bite</h4>
+<pre class="long"><code>H="Content-Type: application/json"
+B='{"jsonrpc":"2.0","id":9,"method":"ping"}'
+U="http://127.0.0.1:$PORT/mcp"
+
+curl -so /dev/null -w '%{http_code} no token\n'      -X POST "$U" -H "$H" -d "$B"
+curl -so /dev/null -w '%{http_code} bad token\n'     -X POST "$U" -H "$H" -H 'Authorization: Bearer nope' -d "$B"
+curl -so /dev/null -w '%{http_code} evil origin\n'   -X POST "$U" -H "$H" -H "Authorization: Bearer $TOK" -H 'Origin: http://evil.example' -d "$B"
+curl -so /dev/null -w '%{http_code} null origin\n'   -X POST "$U" -H "$H" -H "Authorization: Bearer $TOK" -H 'Origin: null' -d "$B"
+curl -so /dev/null -w '%{http_code} GET\n'           -X GET  "$U" -H "$H" -H "Authorization: Bearer $TOK"
+curl -so /dev/null -w '%{http_code} text/plain\n'    -X POST "$U" -H 'Content-Type: text/plain' -H "Authorization: Bearer $TOK" -d "$B"
+
+# expected: 401 401 403 403 405 415</code></pre>
+
+    <h4>Confirming the resource gate</h4>
+<pre class="long"><code># traversal attempt -- expect -32002 No such resource
+mcp '{"jsonrpc":"2.0","id":10,"method":"resources/read",
+      "params":{"uri":"mica://modpack/%2e%2e/manifest"}}'</code></pre>
+</section>
+
+<!-- ============================================================ C -->
+<section class="chapter">
+    <h2><span class="num">C</span>Appendix — source map</h2>
+
+    <p class="lede">Where to look when something in this document needs checking against the code.
+        Paths are relative to
+        <code>src/main/java/com/micatechnologies/minecraft/launcher/</code>.</p>
+
+    <table class="compact">
+        <thead><tr><th style="width:46%">File</th><th style="width:10%">Lines</th><th>Read it for</th></tr></thead>
+        <tbody>
+        <tr><td><code>mcp/McpBootstrap.java</code></td><td>366</td><td>Whether the server starts, what gets registered, token and policy plumbing.</td></tr>
+        <tr><td><code>mcp/McpServer.java</code></td><td>352</td><td>Bind, endpoint file, session lookup, dispatch serialization.</td></tr>
+        <tr><td><code>mcp/McpRequestHandler.java</code></td><td>374</td><td>Every method, every error code, the order of the gates in a tool call.</td></tr>
+        <tr><td><code>mcp/McpClientSetup.java</code></td><td>369</td><td>The exact snippets Settings generates, and their quoting rules.</td></tr>
+        <tr><td><code>mcp/McpEndpointFile.java</code></td><td>228</td><td>File format, permissions, stale-pid handling.</td></tr>
+        <tr><td><code>mcp/FxConsentPrompt.java</code></td><td>233</td><td>Dialog wording, argument summarisation, the 120 s deadline.</td></tr>
+        <tr><td><code>mcp/McpAccessToken.java</code></td><td>157</td><td>Token generation, validation, masking.</td></tr>
+        <tr><td><code>mcp/McpActivityLog.java</code></td><td>162</td><td>What is recorded and how it is redacted.</td></tr>
+        <tr><td><code>mcp/transport/LoopbackHttpTransport.java</code></td><td>344</td><td>The listener, status codes, body limits.</td></tr>
+        <tr><td><code>mcp/transport/McpHttpGuard.java</code></td><td>306</td><td>The admission table — the clearest single file in the package.</td></tr>
+        <tr><td><code>mcp/transport/StdioProxy.java</code></td><td>218</td><td>The relay, and what it does when the launcher is gone.</td></tr>
+        <tr><td><code>mcp/approval/McpApprovalEngine.java</code></td><td>158</td><td>The decision order, as a pure function.</td></tr>
+        <tr><td><code>mcp/approval/LauncherMcpAuthorizer.java</code></td><td>226</td><td>How that decision is wired to settings, grants and the prompt.</td></tr>
+        <tr><td><code>mcp/approval/McpToolPolicyStore.java</code></td><td>262</td><td>Policy persistence and its fail-safe parsing.</td></tr>
+        <tr><td><code>mcp/approval/McpGrantStore.java</code></td><td>223</td><td>Session grants and their TTL.</td></tr>
+        <tr><td><code>mcp/tools/ReadOnlyTools.java</code></td><td>444</td><td>The six read-only tools, schemas and output shapes.</td></tr>
+        <tr><td><code>mcp/tools/MutatingTools.java</code></td><td>733</td><td>The eight state-changing tools, their pre-approval gates and consent framing.</td></tr>
+        <tr><td><code>mcp/tools/McpToolResult.java</code></td><td>188</td><td>The redaction boundary.</td></tr>
+        <tr><td><code>mcp/tools/LiveMcpLauncherView.java</code></td><td>395</td><td>What the tools can actually see.</td></tr>
+        <tr><td><code>mcp/tools/LiveMcpLauncherActions.java</code></td><td>469</td><td>What they can actually do, and the authored-manifest rule.</td></tr>
+        <tr><td><code>mcp/resources/McpResourceUri.java</code></td><td>203</td><td>The <code>mica://</code> containment gate.</td></tr>
+        <tr><td><code>mcp/resources/LauncherResources.java</code></td><td>219</td><td>The three resources and their enumeration.</td></tr>
+        <tr><td><code>utilities/SensitiveDataRedactor.java</code></td><td>—</td><td><code>redact</code> vs <code>redactStrict</code>, and which patterns each applies.</td></tr>
+        <tr><td><code>LauncherCore.java</code> :224</td><td>—</td><td>The <code>--mcp</code> dispatch, before the single-instance lock.</td></tr>
+        <tr><td><code>LauncherSession.java</code> :318</td><td>—</td><td>Where the server is started, and why only in the GUI path.</td></tr>
+        <tr><td><code>gui/MCLauncherSettingsGui.java</code></td><td>—</td><td>The Settings pane's behaviour; <code>resources/gui/settingsGUI.fxml</code> for its layout.</td></tr>
+        </tbody>
+    </table>
+
+    <p>Tests live under <code>src/test/java/…/mcp/</code>, one class per production class, and are
+        the fastest way to confirm a behaviour described here without starting the launcher.</p>
+
+    <hr/>
+
+    <p style="font-size:9pt;color:#6b7280;">This document is generated from
+        <code>docs/pdf-generation-assets/mcp-server-guide/guide.html</code>. Edit that file and run
+        <code>npm run build</code> in the same directory to regenerate
+        <code>docs/MCP_SERVER_GUIDE.pdf</code>; do not edit the PDF directly. Copyright © 2026 Mica
+        Technologies, GNU GPLv3.</p>
+</section>
+
+</body>
+</html>

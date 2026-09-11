@@ -87,6 +87,7 @@ Build outputs (note: the POM sets `<directory>${project.basedir}/build/target</d
 | `config/` | JSON-based config persistence via GSON (`ConfigManager`) |
 | `consts/` | Constants classes (`RuntimeConstants`, `LauncherConstants`, `ModPackConstants`, `ConfigConstants`) and `localization/LocalizationManager` |
 | `utilities/` | HTTP downloads, hashing (SHA-1 verification), Discord RPC, system theme detection, process execution |
+| `mcp/` | Model Context Protocol server, off by default: `McpBootstrap` (lifecycle), `McpServer` + `transport/` (loopback HTTP, admission checks, `--mcp` stdio relay), `tools/` + `resources/` (what is exposed, and the redaction boundary), `approval/` (risk classes, per-tool policy, consent). See `docs/MCP_SERVER_GUIDE.pdf` |
 
 ### Game Launch Flow
 
@@ -121,6 +122,7 @@ See `docs/` for detailed technical documentation on major subsystems:
 - `docs/AUTHENTICATION_SYSTEM.md` -- Microsoft OAuth, AES-256-GCM token cache, machine key derivation
 - `docs/GUI_SYSTEM.md` -- JavaFX architecture, screen navigation, theming, game console
 - `docs/PLATFORM_INTEGRATION.md` -- Native OS integration (macOS title-bar toolbar / hidden-inset / dock / menu bar / vibrancy, Windows DWM Mica / taskbar / jump list, Linux), shared shell menus + notifications, and the platform-gated fallback pattern
+- `docs/MCP_SERVER_GUIDE.pdf` -- MCP server: setup for each client, architecture, the layered security/consent model, and a reference for every tool and resource. Generated from `docs/pdf-generation-assets/mcp-server-guide/` (`npm install && npm run build`); edit the HTML there, never the PDF
 
 Agent progress/tracking docs are in `docs/agent-progress-plans/`.
 

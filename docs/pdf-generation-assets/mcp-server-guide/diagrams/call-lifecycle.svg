@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 300" width="780" height="300"
+     font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="b" markerWidth="9" markerHeight="9" refX="8" refY="3.2" orient="auto">
+      <path d="M0,0 L8,3.2 L0,6.4 z" fill="#2f5d50"/>
+    </marker>
+  </defs>
+
+  <g font-size="10.5">
+    <!-- row 1 -->
+    <rect x="6" y="24" width="118" height="62" rx="4" fill="#ffffff" stroke="#d9dce2"/>
+    <text x="18" y="42" font-weight="700" fill="#2f5d50">1 admit</text>
+    <text x="18" y="58" fill="#3d434e">McpHttpGuard</text>
+    <text x="18" y="72" fill="#6b7280" font-size="9.5">token, origin,</text>
+    <text x="18" y="83" fill="#6b7280" font-size="9.5">method, size, type</text>
+
+    <rect x="140" y="24" width="118" height="62" rx="4" fill="#ffffff" stroke="#d9dce2"/>
+    <text x="152" y="42" font-weight="700" fill="#2f5d50">2 parse</text>
+    <text x="152" y="58" fill="#3d434e">JsonRpcCodec</text>
+    <text x="152" y="72" fill="#6b7280" font-size="9.5">malformed → −32700</text>
+    <text x="152" y="83" fill="#6b7280" font-size="9.5">notification → no reply</text>
+
+    <rect x="274" y="24" width="118" height="62" rx="4" fill="#ffffff" stroke="#d9dce2"/>
+    <text x="286" y="42" font-weight="700" fill="#2f5d50">3 session</text>
+    <text x="286" y="58" fill="#3d434e">McpSessionRegistry</text>
+    <text x="286" y="72" fill="#6b7280" font-size="9.5">not initialized →</text>
+    <text x="286" y="83" fill="#6b7280" font-size="9.5">−32600 (except ping)</text>
+
+    <rect x="408" y="24" width="118" height="62" rx="4" fill="#ffffff" stroke="#d9dce2"/>
+    <text x="420" y="42" font-weight="700" fill="#2f5d50">4 resolve tool</text>
+    <text x="420" y="58" fill="#3d434e">McpToolRegistry</text>
+    <text x="420" y="72" fill="#6b7280" font-size="9.5">not registered →</text>
+    <text x="420" y="83" fill="#6b7280" font-size="9.5">−32602 Unknown tool</text>
+
+    <rect x="542" y="24" width="118" height="62" rx="4" fill="#ffffff" stroke="#8a5a00"/>
+    <text x="554" y="42" font-weight="700" fill="#8a5a00">5 content gate</text>
+    <text x="554" y="58" fill="#3d434e">validateBefore-</text>
+    <text x="554" y="72" fill="#3d434e">Approval()</text>
+    <text x="554" y="83" fill="#6b7280" font-size="9.5">refused → never asked</text>
+
+    <rect x="676" y="24" width="98" height="62" rx="4" fill="#fdf3e2" stroke="#8a5a00"/>
+    <text x="688" y="42" font-weight="700" fill="#8a5a00">6 approve</text>
+    <text x="688" y="58" fill="#3d434e">authorizer</text>
+    <text x="688" y="72" fill="#6b7280" font-size="9.5">policy, grant,</text>
+    <text x="688" y="83" fill="#6b7280" font-size="9.5">or the user</text>
+
+    <!-- row 2 -->
+    <rect x="6" y="150" width="118" height="62" rx="4" fill="#e8f0ed" stroke="#2f5d50"/>
+    <text x="18" y="168" font-weight="700" fill="#2f5d50">10 respond</text>
+    <text x="18" y="184" fill="#3d434e">JSON-RPC result</text>
+    <text x="18" y="198" fill="#6b7280" font-size="9.5">Mcp-Session-Id</text>
+    <text x="18" y="209" fill="#6b7280" font-size="9.5">echoed on handshake</text>
+
+    <rect x="140" y="150" width="118" height="62" rx="4" fill="#ffffff" stroke="#d9dce2"/>
+    <text x="152" y="168" font-weight="700" fill="#2f5d50">9 record</text>
+    <text x="152" y="184" fill="#3d434e">McpActivityLog</text>
+    <text x="152" y="198" fill="#6b7280" font-size="9.5">allowed / denied /</text>
+    <text x="152" y="209" fill="#6b7280" font-size="9.5">refused / failed</text>
+
+    <rect x="274" y="150" width="118" height="62" rx="4" fill="#e8f0ed" stroke="#2f5d50"/>
+    <text x="286" y="168" font-weight="700" fill="#2f5d50">8 redact</text>
+    <text x="286" y="184" fill="#3d434e">McpToolResult</text>
+    <text x="286" y="198" fill="#6b7280" font-size="9.5">redactStrict on every</text>
+    <text x="286" y="209" fill="#6b7280" font-size="9.5">text block, always</text>
+
+    <rect x="408" y="150" width="118" height="62" rx="4" fill="#ffffff" stroke="#d9dce2"/>
+    <text x="420" y="168" font-weight="700" fill="#2f5d50">7 invoke</text>
+    <text x="420" y="184" fill="#3d434e">tool.invoke(...)</text>
+    <text x="420" y="198" fill="#6b7280" font-size="9.5">on mcp-dispatch,</text>
+    <text x="420" y="209" fill="#6b7280" font-size="9.5">never the FX thread</text>
+  </g>
+
+  <g fill="none" stroke="#2f5d50" stroke-width="1.3" marker-end="url(#b)">
+    <path d="M124,55 L136,55"/>
+    <path d="M258,55 L270,55"/>
+    <path d="M392,55 L404,55"/>
+    <path d="M526,55 L538,55"/>
+    <path d="M660,55 L672,55"/>
+    <path d="M725,86 C725,120 560,110 495,140"/>
+    <path d="M404,181 L396,181"/>
+    <path d="M270,181 L262,181"/>
+    <path d="M136,181 L128,181"/>
+  </g>
+
+  <rect x="542" y="150" width="232" height="62" rx="4" fill="#fbecec" stroke="#9b2c2c"/>
+  <text x="556" y="167" font-size="10.5" font-weight="700" fill="#9b2c2c">Refusals short-circuit</text>
+  <text x="556" y="182" font-size="9" fill="#3d434e">Steps 1–3 answer with an HTTP status</text>
+  <text x="556" y="194" font-size="9" fill="#3d434e">or a codec error; 4–6 with a JSON-RPC</text>
+  <text x="556" y="206" font-size="9" fill="#3d434e">error. No exception text reaches the wire.</text>
+
+  <rect x="6" y="240" width="768" height="50" rx="4" fill="#f7f8fa" stroke="#d9dce2"/>
+  <text x="20" y="258" font-size="10.5" font-weight="700" fill="#3d434e">Serialization</text>
+  <text x="20" y="274" font-size="10" fill="#6b7280">Steps 3–9 run on a single daemon thread (mcp-dispatch), because GameModPackManager is static synchronized and pack</text>
+  <text x="20" y="286" font-size="10" fill="#6b7280">operations are not safe to interleave. Two clients calling at once are serialized, not raced. launch_modpack is the exception: it hands off.</text>
+</svg>
