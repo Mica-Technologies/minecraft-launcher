@@ -67,16 +67,29 @@ handler).
 The Electron-`hiddenInset` look: the native title bar goes transparent and the JavaFX content
 fills the full window height, with the traffic lights floating over the content.
 
-- `applyHiddenInset(stage)` — sets `titlebarAppearsTransparent = YES` and OR's
+- `applyHiddenInset(stage)` — sets `titlebarAppearsTransparent = YES`, OR's
   `NSWindowStyleMaskFullSizeContentView` into the window's style mask (read-modify-write so
-  `StageStyle.UNIFIED`'s bits survive).
-- `hideRedundantBranding(root)` — collapses the in-window `.navBrandLogo` / `.navBrand` nodes; the
-  OS title bar already shows the screen name, and this clears the top-left for the traffic lights.
+  `StageStyle.UNIFIED`'s bits survive), and sets `titleVisibility = Hidden`.
+- `hideRedundantBranding(root)` — collapses the in-window `.navBrandLogo` node and insets the top
+  `.navBar` past the floating traffic lights. The `.navBrand` screen-name label stays visible: with
+  the native title hidden it is the only thing naming the current screen.
 - `installWindowDrag(root, stage)` — because the full-size content view swallows the native
   title-bar drag, the top navbar becomes a drag region: a primary press on empty navbar space
   hands off to AppKit's `[NSWindow performWindowDragWithEvent:]` (native tracking loop — follows
   the cursor 1:1, no lag, with window snapping). Presses on buttons / text fields / clickable
   glyphs are excluded; double-click zooms.
+
+> **Why the window title is hidden.** Drawing a title makes AppKit give the unified toolbar an
+> `NSToolbarPrimaryTitleContainerView` that spans the band from just past the traffic lights to
+> the first toolbar item — measured at x 92‒1169 on a 1409 pt-wide window, ~77% of the width.
+> That native view wins the hit test, so the JavaFX drag region underneath never sees the press,
+> and Glass swallows the event before AppKit's own title-bar drag can start. The result is a
+> window draggable only in the slivers where the hit test falls through to the JavaFX view —
+> around the traffic lights, and the gap between two toolbar items. Hiding the title removes the
+> container outright: the band then hit-tests to `GlassViewMTL` across its full width and
+> `installWindowDrag` handles it. `unifiedCompact` does **not** help — the container is still
+> there (x 80‒1250). The navbar is also pinned to a 52 pt min-height so the drag region covers
+> the whole band rather than stopping short of it.
 ### Native title-bar toolbar — `MacOsToolbarManager`
 
 Centering the traffic lights vertically in the 52pt navbar band requires the native title bar to

@@ -32,6 +32,7 @@ import javafx.scene.control.ButtonBase;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import org.apache.commons.lang3.SystemUtils;
@@ -49,15 +50,17 @@ import java.util.Set;
  * {@link WindowUtils#getNativeHandleOfStageAsNativeLong} reflects out Glass's NSWindow):
  * <ul>
  *   <li>{@code titlebarAppearsTransparent = YES} — the title-bar chrome (its background
- *       fill + separator) goes invisible; the title text and traffic lights remain.</li>
+ *       fill + separator) goes invisible; the traffic lights remain.</li>
  *   <li>{@code styleMask |= NSWindowStyleMaskFullSizeContentView} — the content view is
  *       resized to span the title-bar region, so the JavaFX scene paints under the
  *       (now invisible) title bar instead of starting below it.</li>
+ *   <li>{@code titleVisibility = Hidden} — the window's title text is not drawn. This is
+ *       what keeps the title bar draggable; see {@link #applyHiddenInset} for why a drawn
+ *       title costs the window its drag region.</li>
  * </ul>
- * The window's <em>title text</em> is deliberately left visible — the launcher relies on
- * it (centered, over the navbar's empty middle) instead of the in-window screen-name
- * label, which {@link #hideRedundantBranding} strips on macOS so it doesn't collide with
- * the traffic lights.</p>
+ * The screen name is shown by the in-window {@code .navBrand} label instead, which
+ * {@link #hideRedundantBranding} keeps visible (insetting the navbar clear of the
+ * traffic lights) while dropping the now-redundant brand logo.</p>
  *
  * <p>JFA marshalling: JNA maps a Java {@code Boolean} to the BOOL register value and a
  * Java {@code long} to {@code NSUInteger}, so {@code Foundation.invoke} carries the
@@ -78,6 +81,21 @@ public final class MacOsTitleBarManager
     /** {@code NSWindowStyleMaskFullSizeContentView} — {@code 1 << 15} per AppKit. OR'd
      *  into the window's existing style mask so the content view spans the title bar. */
     private static final long NS_WINDOW_STYLE_MASK_FULL_SIZE_CONTENT_VIEW = 1L << 15;
+
+    /** {@code NSWindowTitleVisibilityHidden} per AppKit. Hides the window's title text —
+     *  and, critically, stops AppKit installing the toolbar's title container across the
+     *  title-bar band (see {@link #applyHiddenInset}). */
+    private static final long NS_WINDOW_TITLE_VISIBILITY_HIDDEN = 1L;
+
+    /** Left inset, in points, that clears the floating traffic lights so the navbar's
+     *  restored brand label doesn't sit underneath them. The lights occupy roughly the
+     *  first 78 pt of the band; this leaves a small gutter past them. */
+    private static final double MAC_TRAFFIC_LIGHT_INSET = 86.0;
+
+    /** Height, in points, of the native title-bar band once {@link MacOsToolbarManager}'s
+     *  unified toolbar grows it. The navbar is pinned to at least this tall so the drag
+     *  region {@link #installWindowDrag} attaches covers the entire band. */
+    private static final double MAC_TITLE_BAR_BAND_HEIGHT = 52.0;
 
     /**
      * Private constructor to prevent instantiation of this utility class.
@@ -124,8 +142,23 @@ public final class MacOsTitleBarManager
             ID nsWindow = new ID( handle.longValue() );
 
             // titlebarAppearsTransparent = YES — chrome fill/separator vanish, traffic
-            // lights + title text stay.
+            // lights stay.
             Foundation.invoke( nsWindow, "setTitlebarAppearsTransparent:", true );
+
+            // titleVisibility = Hidden. This is what makes the title bar draggable again.
+            // With a title to draw, AppKit gives the unified toolbar an
+            // NSToolbarPrimaryTitleContainerView that spans the WHOLE band from just past
+            // the traffic lights to the first toolbar item — measured at 92 pt .. 1169 pt
+            // on a 1409 pt-wide window, i.e. ~77% of the width. That native view wins the
+            // hit test, so the JavaFX drag region below it never sees the press, and Glass
+            // swallows the event before AppKit's own title-bar drag can start — the window
+            // ends up draggable only in the slivers where the hit test falls through to the
+            // JavaFX view (around the traffic lights, and the gap between toolbar items).
+            // Hiding the title removes the container entirely; the band then hit-tests to
+            // the JavaFX view across its full width and installWindowDrag handles it.
+            // The screen name is not lost — hideRedundantBranding leaves the in-window
+            // .navBrand label visible on macOS and insets it clear of the traffic lights.
+            Foundation.invoke( nsWindow, "setTitleVisibility:", NS_WINDOW_TITLE_VISIBILITY_HIDDEN );
 
             // styleMask |= NSWindowStyleMaskFullSizeContentView — content view grows up
             // under the title bar. Read-modify-write so UNIFIED's existing bits survive.
@@ -142,11 +175,13 @@ public final class MacOsTitleBarManager
     }
 
     /**
-     * On macOS, hides the in-window brand lockup (the {@code .navBrandLogo} logo and the
-     * {@code .navBrand} screen-name label) in {@code root}'s navbar so it doesn't sit
-     * under the floating traffic lights. The native title bar already shows the same
-     * screen name, so nothing is lost. No-op on non-macOS or a null root, and harmless to
-     * call repeatedly (it runs per scene as screens swap into the shared stage).
+     * On macOS, drops the in-window brand <em>logo</em> ({@code .navBrandLogo}) from
+     * {@code root}'s navbar and shifts the navbar's content clear of the floating traffic
+     * lights. The {@code .navBrand} screen-name label is kept: since
+     * {@link #applyHiddenInset} hides the native window title (which is what frees the
+     * title-bar band for dragging), this label is now the only thing naming the current
+     * screen. No-op on non-macOS or a null root, and harmless to call repeatedly (it runs
+     * per scene as screens swap into the shared stage).
      *
      * @param root the scene root to scan for brand nodes
      *
@@ -158,7 +193,38 @@ public final class MacOsTitleBarManager
             return;
         }
         hideAll( root.lookupAll( ".navBrandLogo" ) );
-        hideAll( root.lookupAll( ".navBrand" ) );
+        insetNavBarForTrafficLights( root );
+    }
+
+    /** Pads the top navbar's leading edge so its first item starts to the right of the
+     *  traffic lights, which float over the content once the title bar is full-size, and
+     *  gives it a minimum height so it spans the whole native title-bar band (the band is
+     *  the drag region — any sliver of it the navbar doesn't cover belongs to the screen
+     *  content below and would not drag).
+     *
+     *  <p>Applied as an <em>inline</em> style rather than {@code setPadding} /
+     *  {@code setMinHeight}: padding and min-height are CSS-styleable, so a value set
+     *  programmatically is overwritten the next time the theme stylesheet's
+     *  {@code .navBar} rule is applied (which happens on every theme change and on the
+     *  first CSS pass after the scene is shown). An inline style outranks the author
+     *  stylesheet and survives. Only the FIRST {@code .navBar} (the top row) is touched —
+     *  a screen's secondary search/filter bar sits below the band and must stay flush.</p> */
+    private static void insetNavBarForTrafficLights( Parent root )
+    {
+        Node bar = root.lookup( ".navBar" );
+        if ( !( bar instanceof Region region ) ) {
+            return;
+        }
+        // The top/right/bottom values mirror the `.navBar` rule every theme sheet carries
+        // (`-fx-padding: 6 16 6 16`); only the leading edge changes. A theme that changes
+        // its navbar padding needs this literal updated to match.
+        final String insetStyle = "-fx-padding: 6 16 6 " + ( int ) MAC_TRAFFIC_LIGHT_INSET + ";"
+                                  + "-fx-min-height: " + ( int ) MAC_TITLE_BAR_BAND_HEIGHT + ";";
+        String existing = region.getStyle();
+        if ( existing != null && existing.contains( insetStyle ) ) {
+            return;  // already inset on an earlier pass over this scene
+        }
+        region.setStyle( ( existing == null ? "" : existing ) + insetStyle );
     }
 
     /** Collapses each node out of layout (visible + managed false) so the navbar's
