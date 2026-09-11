@@ -75,7 +75,7 @@ class OfficialLauncherExporterTest
     void sanitizeFolderNameDropsControlChars()
     {
         // Control character (0x07 bell) should be removed, not replaced with underscore.
-        String dirty = "BelName";
+        String dirty = "Bel\007Name";
         assertEquals( "BelName", OfficialLauncherExporter.sanitizeFolderName( dirty ) );
     }
 
@@ -87,7 +87,7 @@ class OfficialLauncherExporterTest
         // All-forbidden input collapses to underscores, then we still
         // accept that — but a truly empty result after stripping (e.g.
         // pure control chars) lands on the fallback.
-        assertEquals( "modpack", OfficialLauncherExporter.sanitizeFolderName( "" ) );
+        assertEquals( "modpack", OfficialLauncherExporter.sanitizeFolderName( "\001\002" ) );
     }
 
     @Test
