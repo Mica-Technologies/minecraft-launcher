@@ -209,7 +209,7 @@
                 <li>Session model, registry and cap</li>
                 <li>Approval engine, per-tool policies, session grants</li>
                 <li>Three-outcome consent dialog with a deadline</li>
-                <li>6 read-only tools, 8 state-changing tools</li>
+                <li>7 read-only tools, 8 state-changing tools</li>
                 <li>3 <code>mica://</code> resources, with templates</li>
                 <li><code>--mcp</code> stdio relay</li>
                 <li>Settings pane: enable, permissions, clients, activity</li>
@@ -656,8 +656,8 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         <li><strong>A consent dialog blocks the queue.</strong> Consent marshals to the FX thread
             and blocks dispatch until answered, denied or timed out at 120 s.</li>
         <li><strong><code>launch_modpack</code> hands off.</strong> <code>LauncherCore.play()</code>
-            blocks until the game exits, so it is spawned onto its own task and the tool reports
-            that the launch <em>started</em> rather than holding dispatch for a play session.</li>
+            blocks while the game downloads and prepares, so it is spawned onto its own task and
+            the tool reports that the launch <em>started</em> rather than holding dispatch.</li>
     </ul>
 </section>
 
@@ -882,8 +882,10 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
                 <code>.mmcjson</code>, is refused with a message pointing at
                 <code>fork_modpack</code>.</td></tr>
         <tr><td><strong>Live-game guards</strong></td>
-            <td><code>uninstall_modpack</code> refuses while a game runs; <code>launch_modpack</code>
-                refuses a second launch and refuses when signed out.</td></tr>
+            <td><code>uninstall_modpack</code> refuses while that pack's game runs;
+                <code>launch_modpack</code> refuses a pack that is already running, an account
+                already playing another pack, and a launch with nobody signed in. Several games may
+                run at once otherwise.</td></tr>
         </tbody>
     </table>
 
@@ -928,7 +930,7 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
 <section class="chapter">
     <h2><span class="num">5</span>Tool reference</h2>
 
-    <p class="lede">Fourteen tools: six that only read, eight that change things. The six are
+    <p class="lede">Fifteen tools: seven that only read, eight that change things. The seven are
         registered whenever the server runs; the eight appear only when <em>Allow tools that change
         things</em> is on.</p>
 
@@ -1057,6 +1059,23 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
         </div>
     </div>
 
+    <div class="tool">
+        <header>
+            <h3>list_running_games</h3>
+            <span class="gate"><span class="badge read">READ_ONLY</span> · always registered</span>
+        </header>
+        <dl class="meta">
+            <dt>Purpose</dt><dd>What is launching or running now. Several games can run side by side, one per modpack and one per account.</dd>
+            <dt>Arguments</dt><dd>None.</dd>
+            <dt>Returns</dt><dd><code>games</code>: each with <code>friendlyName</code>, <code>account</code> (username), <code>phase</code> (<code>preparing</code> or <code>running</code>) and <code>uptimeSeconds</code>.</dd>
+        </dl>
+        <div class="note danger">
+            <span class="label">Username only</span>
+            <p>As with <code>get_launcher_status</code>, the playing account appears by username
+                alone; its UUID and tokens are unreachable.</p>
+        </div>
+    </div>
+
     <h3><span class="num">5.3</span>State-changing tools</h3>
 
     <div class="note warn">
@@ -1155,10 +1174,10 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
             <span class="gate"><span class="badge exec">EXECUTE</span> · asks by default</span>
         </header>
         <dl class="meta">
-            <dt>Purpose</dt><dd>Starts Minecraft for a pack with the signed-in account. This runs third-party mod code.</dd>
-            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>.</dd>
-            <dt>Before asking</dt><dd>Pack must exist <em>and be installed</em>; no game may already be running; an account must be signed in.</dd>
-            <dt>Returns</dt><dd>That the launch <strong>started</strong>. The launch is spawned onto its own task — <code>LauncherCore.play()</code> blocks until the game exits, and holding the single dispatch thread for a play session would stall every other call for hours. Progress shows in the launcher window; the game takes a while to appear.</dd>
+            <dt>Purpose</dt><dd>Starts Minecraft for a pack. It plays as the pack's usual account (the pack's own <em>Launch as</em> setting, else the default account) unless <code>account</code> names another. This runs third-party mod code.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(required)</em>; <code>account</code> <em>(optional)</em>, the username of a signed-in account to play as for this launch.</dd>
+            <dt>Before asking</dt><dd>Pack must exist <em>and be installed</em>; an account must be signed in; the pack must not already be running; the account must exist, be usable, and not already be playing another pack.</dd>
+            <dt>Returns</dt><dd>That the launch <strong>started</strong>. The launch is spawned onto its own task so the single dispatch thread is never held while the game prepares. Progress shows in the launcher's Running Games window; <code>list_running_games</code> follows it.</dd>
         </dl>
     </div>
 
@@ -1168,10 +1187,10 @@ curl -si -X POST "http://127.0.0.1:$PORT/mcp" \
             <span class="gate"><span class="badge exec">EXECUTE</span> · asks by default</span>
         </header>
         <dl class="meta">
-            <dt>Purpose</dt><dd>Terminates the running Minecraft process. Unsaved progress since the last autosave is lost.</dd>
-            <dt>Arguments</dt><dd>None.</dd>
-            <dt>Before asking</dt><dd>Refuses when no game is running.</dd>
-            <dt>Behaviour</dt><dd>Finds the first installed pack with a live process and calls <code>destroy()</code> on it, naming the pack it stopped.</dd>
+            <dt>Purpose</dt><dd>Stops a running game, or cancels one still preparing. Unsaved progress since the last autosave is lost.</dd>
+            <dt>Arguments</dt><dd><code>friendlyName</code> <em>(optional when exactly one game is running)</em>.</dd>
+            <dt>Before asking</dt><dd>Refuses when no game is running, when several are running and none is named (it lists them), and when the named pack isn't running. The consent dialog names the game it will stop.</dd>
+            <dt>Behaviour</dt><dd>Asks that game's process to exit (<code>destroy()</code>), naming the pack it stopped.</dd>
         </dl>
     </div>
 </section>

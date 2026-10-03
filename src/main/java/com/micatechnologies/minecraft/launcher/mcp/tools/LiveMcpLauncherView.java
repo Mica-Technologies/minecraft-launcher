@@ -248,6 +248,20 @@ public final class LiveMcpLauncherView implements McpLauncherView
     }
 
     @Override
+    public List< RunningGame > runningGames()
+    {
+        List< RunningGame > out = new java.util.ArrayList<>();
+        long now = System.currentTimeMillis();
+        for ( var session : com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().active() ) {
+            boolean running = session.phase() == com.micatechnologies.minecraft.launcher.game.session.GameSession.Phase.RUNNING;
+            out.add( new RunningGame( nullToEmpty( session.packName() ), nullToEmpty( session.accountName() ),
+                                      running ? "running" : "preparing",
+                                      running && session.startedMs() > 0 ? ( now - session.startedMs() ) / 1000 : 0 ) );
+        }
+        return out;
+    }
+
+    @Override
     public LauncherStatus status()
     {
         boolean signedIn = false;

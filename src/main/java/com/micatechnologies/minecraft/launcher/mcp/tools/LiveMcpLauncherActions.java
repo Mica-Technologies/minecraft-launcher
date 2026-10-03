@@ -92,19 +92,26 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     }
 
     @Override
-    public Outcome launch( String friendlyName )
+    public Outcome launch( String friendlyName, String account )
     {
         GameModPack pack = findPack( friendlyName );
         if ( pack == null ) {
             return Outcome.failed( "No modpack named \"" + friendlyName + "\" is installed." );
         }
+        String accountUuid = null;
+        if ( account != null && !account.isBlank() ) {
+            accountUuid = accountUuidFor( account );
+            if ( accountUuid == null ) {
+                return Outcome.failed( "No signed-in account is named \"" + account + "\"." );
+            }
+        }
+        final String forcedAccount = accountUuid;
         try {
-            // play() drives the whole launch and blocks until the game exits, so it cannot run
-            // on the tool executor -- that thread is single-threaded and shared, and holding it
-            // for a play session would stall every other tool call for hours.
+            // play() prepares and spawns the game before returning; run it off the tool
+            // executor, which is single-threaded and shared by every tool call.
             SystemUtilities.spawnNewTask( () -> {
                 try {
-                    LauncherCore.play( pack );
+                    LauncherCore.playAs( pack, forcedAccount );
                 }
                 catch ( Exception e ) {
                     Logger.logError( "MCP-initiated launch of " + friendlyName + " failed" );
@@ -113,8 +120,8 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
             } );
             // Deliberately reports that the launch *started*. Waiting for the game to finish
             // loading would mean holding the caller for minutes with no way to report progress.
-            return Outcome.ok( "Started launching \"" + friendlyName + "\". The launcher window "
-                                       + "shows progress; the game takes a while to appear." );
+            return Outcome.ok( "Started launching \"" + friendlyName + "\". Its progress shows in the "
+                                       + "launcher's Running Games window; call list_running_games to follow it." );
         }
         catch ( Exception e ) {
             Logger.logError( "MCP could not start a launch of " + friendlyName );
@@ -124,43 +131,79 @@ public final class LiveMcpLauncherActions implements McpLauncherActions
     }
 
     @Override
-    public Outcome stopGame()
+    public String whyLaunchBlocked( String friendlyName, String account )
+    {
+        GameModPack pack = findPack( friendlyName );
+        if ( pack == null ) {
+            return null;  // the tool reports unknown packs itself
+        }
+        var registry = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get();
+        if ( registry.isPackActive( pack ) ) {
+            return "\"" + friendlyName + "\" is already running. Stop it with stop_game first.";
+        }
+        String accountUuid;
+        if ( account != null && !account.isBlank() ) {
+            accountUuid = accountUuidFor( account );
+            if ( accountUuid == null ) {
+                return "No signed-in account is named \"" + account + "\". get_launcher_status names the "
+                        + "default account.";
+            }
+        }
+        else {
+            var resolution = com.micatechnologies.minecraft.launcher.game.auth.LaunchAccountResolver.resolve(
+                    com.micatechnologies.minecraft.launcher.config.ConfigManager.getAccountOverrideForPack( pack.getSettingsKey() ),
+                    com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.accounts().accounts() );
+            if ( !resolution.ok() ) {
+                return switch ( resolution.problem() ) {
+                    case NO_ACCOUNT -> "No account is signed in. Sign in through the launcher first.";
+                    case OVERRIDE_MISSING -> "This modpack is set to launch as an account that is no longer "
+                            + "signed in. Change it in the launcher, or pass an account.";
+                    case NEEDS_SIGN_IN -> "The account this modpack launches as has to sign in again in the launcher.";
+                };
+            }
+            accountUuid = resolution.uuid();
+        }
+        for ( var session : registry.active() ) {
+            if ( accountUuid != null && accountUuid.equals( session.accountUuid() ) ) {
+                return "That account is already playing \"" + session.packName() + "\". An account can "
+                        + "play one game at a time; pass a different account or stop that game.";
+            }
+        }
+        return null;
+    }
+
+    /** The uuid of the signed-in account with this username (case-insensitive), or null. */
+    private static String accountUuidFor( String username )
+    {
+        for ( var info : com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager.accounts().accounts() ) {
+            if ( info.displayName().equalsIgnoreCase( username.trim() ) ) {
+                return info.uuid();
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Outcome stopGame( String friendlyName )
     {
         try {
-            for ( GameModPack pack : installedPacks() ) {
-                Process process = pack.getLastLaunchedProcess();
-                if ( process != null && process.isAlive() ) {
-                    process.destroy();
-                    return Outcome.ok( "Stopped the running game (" + pack.getFriendlyName() + ")." );
+            for ( var session : com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().active() ) {
+                if ( session.packName() != null && session.packName().equalsIgnoreCase( friendlyName ) ) {
+                    if ( session.phase() == com.micatechnologies.minecraft.launcher.game.session.GameSession.Phase.PREPARING ) {
+                        session.cancel();
+                        return Outcome.ok( "Cancelled the launch of \"" + session.packName() + "\"." );
+                    }
+                    session.stop( false );
+                    return Outcome.ok( "Stopped \"" + session.packName() + "\"." );
                 }
             }
-            return Outcome.failed( "No game is currently running." );
+            return Outcome.failed( "\"" + friendlyName + "\" is not running." );
         }
         catch ( Exception e ) {
             Logger.logError( "MCP could not stop the running game" );
             Logger.logThrowable( e );
             return Outcome.failed( "The game could not be stopped." );
         }
-    }
-
-    @Override
-    public boolean isGameRunning()
-    {
-        try {
-            for ( GameModPack pack : installedPacks() ) {
-                Process process = pack.getLastLaunchedProcess();
-                if ( process != null && process.isAlive() ) {
-                    return true;
-                }
-            }
-        }
-        catch ( Exception e ) {
-            // Reporting "running" on an error is the conservative answer: it blocks uninstall
-            // and a second launch, which are the two things this guards.
-            Logger.logWarningSilent( "MCP could not determine whether a game is running" );
-            return true;
-        }
-        return false;
     }
 
     @Override

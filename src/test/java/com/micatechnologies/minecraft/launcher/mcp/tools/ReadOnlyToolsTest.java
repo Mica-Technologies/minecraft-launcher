@@ -89,6 +89,11 @@ class ReadOnlyToolsTest
 
         @Override
         public LauncherStatus status() { return status; }
+
+        private final List< RunningGame > running = new ArrayList<>();
+
+        @Override
+        public List< RunningGame > runningGames() { return running; }
     }
 
     @BeforeEach
@@ -104,10 +109,10 @@ class ReadOnlyToolsTest
     @Test
     void everyReadOnlyToolRegisters()
     {
-        assertEquals( 6, registry.size() );
+        assertEquals( 7, registry.size() );
         for ( String name : new String[]{ "list_modpacks", "get_modpack_info", "get_modpack_manifest",
                                           "get_crash_report", "diagnose_launch_failure",
-                                          "get_launcher_status" } ) {
+                                          "get_launcher_status", "list_running_games" } ) {
             assertNotNull( registry.find( name ), name + " should be registered" );
         }
     }
@@ -441,6 +446,33 @@ class ReadOnlyToolsTest
     {
         assertFalse( result.isError(), "unexpected error: " + result.rawTextBlocks() );
         return JSONUtilities.getGson().fromJson( result.rawTextBlocks().get( 0 ), JsonObject.class );
+    }
+
+    // endregion
+
+    // region list_running_games
+
+    @Test
+    void runningGamesAreListedWithUsernamesOnly()
+    {
+        view.running.add( new McpLauncherView.RunningGame( "Pack A", "Alex", "running", 125 ) );
+        view.running.add( new McpLauncherView.RunningGame( "Pack B", "Blake", "preparing", 0 ) );
+        JsonObject result = jsonOf( call( "list_running_games", new JsonObject() ) );
+        var games = result.getAsJsonArray( "games" );
+        assertEquals( 2, games.size() );
+        JsonObject first = games.get( 0 ).getAsJsonObject();
+        assertEquals( "Pack A", first.get( "friendlyName" ).getAsString() );
+        assertEquals( "Alex", first.get( "account" ).getAsString() );
+        assertEquals( "running", first.get( "phase" ).getAsString() );
+        assertEquals( 125, first.get( "uptimeSeconds" ).getAsLong() );
+        assertEquals( java.util.Set.of( "friendlyName", "account", "phase", "uptimeSeconds" ), first.keySet(),
+                      "no uuid or token can appear" );
+    }
+
+    @Test
+    void noRunningGamesIsAnEmptyList()
+    {
+        assertEquals( 0, jsonOf( call( "list_running_games", new JsonObject() ) ).getAsJsonArray( "games" ).size() );
     }
 
     // endregion

@@ -62,6 +62,7 @@ public final class ReadOnlyTools
         registry.register( new GetCrashReport( view ) );
         registry.register( new DiagnoseLaunchFailure( view ) );
         registry.register( new GetLauncherStatus( view ) );
+        registry.register( new ListRunningGames( view ) );
     }
 
     /**
@@ -416,6 +417,47 @@ public final class ReadOnlyTools
             // 5.6, and McpLauncherView deliberately offers no way to reach them.
             result.addProperty( "username", status.username() );
             result.addProperty( "installedModpackCount", status.installedPackCount() );
+            return McpToolResult.json( result );
+        }
+    }
+
+    /** Lists the games launching or running now. */
+    private static final class ListRunningGames extends ViewTool
+    {
+        ListRunningGames( McpLauncherView view ) { super( view ); }
+
+        @Override
+        public String name() { return "list_running_games"; }
+
+        @Override
+        public String title() { return "List running games"; }
+
+        @Override
+        public String description()
+        {
+            return "Lists the games that are launching or running: the modpack, the account "
+                    + "playing it (username), whether it is still preparing or running, and how "
+                    + "long it has run in seconds.";
+        }
+
+        @Override
+        public JsonObject inputSchema() { return noArgumentsSchema(); }
+
+        @Override
+        public McpToolResult invoke( McpCallContext context, JsonObject arguments )
+        {
+            com.google.gson.JsonArray games = new com.google.gson.JsonArray();
+            for ( McpLauncherView.RunningGame g : view.runningGames() ) {
+                JsonObject game = new JsonObject();
+                game.addProperty( "friendlyName", g.friendlyName() );
+                // Username only, never the account uuid (section 5.6).
+                game.addProperty( "account", g.account() );
+                game.addProperty( "phase", g.phase() );
+                game.addProperty( "uptimeSeconds", g.uptimeSeconds() );
+                games.add( game );
+            }
+            JsonObject result = new JsonObject();
+            result.add( "games", games );
             return McpToolResult.json( result );
         }
     }

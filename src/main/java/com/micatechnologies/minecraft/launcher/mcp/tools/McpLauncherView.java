@@ -173,4 +173,26 @@ public interface McpLauncherView
      * @since 3.0
      */
     LauncherStatus status();
+
+    /**
+     * One game that is launching or running.
+     *
+     * @param friendlyName  the pack's friendly name
+     * @param account       the playing account's username, or {@code ""} for a server launch
+     *                      (usernames only, as in {@link LauncherStatus}; never a uuid or token)
+     * @param phase         {@code preparing} or {@code running}
+     * @param uptimeSeconds how long the game has run, or {@code 0} while preparing
+     *
+     * @since 2026.10
+     */
+    record RunningGame( String friendlyName, String account, String phase, long uptimeSeconds ) { }
+
+    /**
+     * The games launching or running now, oldest first.
+     *
+     * @return the games; never {@code null}
+     *
+     * @since 2026.10
+     */
+    List< RunningGame > runningGames();
 }

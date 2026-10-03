@@ -496,8 +496,8 @@ public final class MutatingTools
             if ( view.pack( pack ) == null ) {
                 return unknownPack( pack );
             }
-            if ( actions.isGameRunning() ) {
-                return "A game is currently running. Stop it before uninstalling a modpack.";
+            if ( isRunning( view, pack ) ) {
+                return "\"" + pack + "\" is running. Stop it with stop_game before uninstalling it.";
             }
             return null;
         }
@@ -549,14 +549,21 @@ public final class MutatingTools
         @Override
         public String description()
         {
-            return "Launches a modpack, starting Minecraft with the signed-in account. This "
-                    + "runs third-party mod code.";
+            return "Launches a modpack, starting Minecraft. It plays as the modpack's usual account "
+                    + "(its own setting, else the default account) unless an account is named. Several "
+                    + "games can run at once, one per modpack and one per account. This runs "
+                    + "third-party mod code.";
         }
 
         @Override
         public JsonObject inputSchema()
         {
-            return schemaOf( "friendlyName", "The modpack to launch." );
+            JsonObject schema = schemaOf( "friendlyName", "The modpack to launch." );
+            JsonObject account = new JsonObject();
+            account.addProperty( "type", "string" );
+            account.addProperty( "description", "Optional username of a signed-in account to play as." );
+            schema.getAsJsonObject( "properties" ).add( "account", account );
+            return schema;
         }
 
         @Override
@@ -576,20 +583,20 @@ public final class MutatingTools
             if ( !summary.installed() ) {
                 return "\"" + pack + "\" is not installed. Install it before launching.";
             }
-            if ( actions.isGameRunning() ) {
-                return "A game is already running. Stop it before launching another.";
-            }
             if ( !view.status().signedIn() ) {
                 return "No account is signed in. Sign in through the launcher before launching a "
                         + "modpack.";
             }
-            return null;
+            String account = stringArg( arguments, "account" );
+            return actions.whyLaunchBlocked( pack, account.isEmpty() ? null : account );
         }
 
         @Override
         public McpToolResult invoke( McpCallContext context, JsonObject arguments )
         {
-            return resultOf( actions.launch( stringArg( arguments, "friendlyName" ) ) );
+            String account = stringArg( arguments, "account" );
+            return resultOf( actions.launch( stringArg( arguments, "friendlyName" ),
+                                             account.isEmpty() ? null : account ) );
         }
     }
 
@@ -607,16 +614,22 @@ public final class MutatingTools
         @Override
         public String description()
         {
-            return "Terminates the running Minecraft process. Unsaved progress since the last "
-                    + "autosave is lost.";
+            return "Stops a running game (or cancels one still preparing). Name the modpack when "
+                    + "several games are running; list_running_games shows them. Unsaved progress "
+                    + "since the last autosave is lost.";
         }
 
         @Override
         public JsonObject inputSchema()
         {
+            JsonObject name = new JsonObject();
+            name.addProperty( "type", "string" );
+            name.addProperty( "description", "The modpack whose game to stop. Optional when only one game is running." );
+            JsonObject properties = new JsonObject();
+            properties.add( "friendlyName", name );
             JsonObject schema = new JsonObject();
             schema.addProperty( "type", "object" );
-            schema.add( "properties", new JsonObject() );
+            schema.add( "properties", properties );
             return schema;
         }
 
@@ -626,14 +639,82 @@ public final class MutatingTools
         @Override
         public String validateBeforeApproval( JsonObject arguments )
         {
-            return actions.isGameRunning() ? null : "No game is currently running.";
+            return stopProblem( view.runningGames(), stringArg( arguments, "friendlyName" ) );
+        }
+
+        @Override
+        public String consentDetail( JsonObject arguments )
+        {
+            String target = targetOf( view.runningGames(), stringArg( arguments, "friendlyName" ) );
+            return target == null ? null : "This stops \"" + target + "\".";
         }
 
         @Override
         public McpToolResult invoke( McpCallContext context, JsonObject arguments )
         {
-            return resultOf( actions.stopGame() );
+            String target = targetOf( view.runningGames(), stringArg( arguments, "friendlyName" ) );
+            if ( target == null ) {
+                return McpToolResult.error( stopProblem( view.runningGames(), stringArg( arguments, "friendlyName" ) ) );
+            }
+            return resultOf( actions.stopGame( target ) );
         }
+
+        /**
+         * Which game a stop applies to: the named one, or the only one running. Pure, for testing.
+         *
+         * @param running the running games
+         * @param named   the requested pack, possibly empty
+         *
+         * @return the pack's friendly name, or {@code null} when it can't be decided
+         */
+        static String targetOf( java.util.List< McpLauncherView.RunningGame > running, String named )
+        {
+            if ( named != null && !named.isEmpty() ) {
+                for ( McpLauncherView.RunningGame g : running ) {
+                    if ( g.friendlyName().equalsIgnoreCase( named ) ) {
+                        return g.friendlyName();
+                    }
+                }
+                return null;
+            }
+            return running.size() == 1 ? running.get( 0 ).friendlyName() : null;
+        }
+
+        /** Why a stop can't proceed, or {@code null}. */
+        static String stopProblem( java.util.List< McpLauncherView.RunningGame > running, String named )
+        {
+            if ( running.isEmpty() ) {
+                return "No game is currently running.";
+            }
+            if ( targetOf( running, named ) != null ) {
+                return null;
+            }
+            StringBuilder names = new StringBuilder();
+            for ( McpLauncherView.RunningGame g : running ) {
+                names.append( names.length() == 0 ? "" : ", " ).append( '"' ).append( g.friendlyName() ).append( '"' );
+            }
+            return named != null && !named.isEmpty()
+                   ? "\"" + named + "\" is not running. Running now: " + names + "."
+                   : "Several games are running (" + names + "). Name the one to stop with friendlyName.";
+        }
+    }
+
+    /**
+     * Whether a pack is launching or running.
+     *
+     * @param view         the launcher view
+     * @param friendlyName the pack
+     *
+     * @return {@code true} when it appears among the running games
+     */
+    private static boolean isRunning( McpLauncherView view, String friendlyName )
+    {
+        for ( McpLauncherView.RunningGame g : view.runningGames() ) {
+            if ( g.friendlyName().equalsIgnoreCase( friendlyName ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

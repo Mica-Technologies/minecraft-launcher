@@ -88,6 +88,9 @@ class LauncherResourcesTest
         {
             return new LauncherStatus( "3.0-test", false, "", packs.size() );
         }
+
+        @Override
+        public java.util.List< RunningGame > runningGames() { return java.util.List.of(); }
     }
 
     @BeforeEach

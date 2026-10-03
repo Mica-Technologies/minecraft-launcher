@@ -564,13 +564,15 @@ public class LauncherCore
      *
      * <p>Blocks; call off the FX thread.</p>
      *
-     * @param pack the pack about to launch
+     * @param pack              the pack about to launch
+     * @param forcedAccountUuid an account named for this launch only (MCP), or {@code null}
      *
      * @return the user to launch as, or {@code null} when the launch shouldn't go ahead
      */
-    private static net.hycrafthd.minecraft_authenticator.login.User resolveLaunchUser( GameModPack pack ) {
+    private static net.hycrafthd.minecraft_authenticator.login.User resolveLaunchUser( GameModPack pack,
+                                                                                      String forcedAccountUuid ) {
         String key = pack.getSettingsKey();
-        String override = ConfigManager.getAccountOverrideForPack( key );
+        String override = forcedAccountUuid != null ? forcedAccountUuid : ConfigManager.getAccountOverrideForPack( key );
         try {
             return MCLauncherAuthManager.userForLaunch( override );
         }
@@ -581,7 +583,9 @@ public class LauncherCore
                 case OVERRIDE_MISSING -> {
                     Logger.logStd( LocalizationManager.get( "log.launcherCore.overrideAccountMissing" ) );
                     var fallback = MCLauncherAuthManager.getLoggedInUser();
-                    if ( !gui || fallback == null ) {
+                    if ( !gui || fallback == null || forcedAccountUuid != null ) {
+                        // An account named for this one launch (MCP) that isn't signed in is
+                        // simply refused; the pack's own setting isn't involved.
                         return null;
                     }
                     int answer = GUIUtilities.showQuestionMessage(
@@ -662,13 +666,30 @@ public class LauncherCore
      * @since 2.0
      */
     public static void play( GameModPack gameModPack, Runnable after ) {
+        play( gameModPack, after, null );
+    }
+
+    /**
+     * Launches a pack as a specific signed-in account for this one launch, ignoring the pack's
+     * own account setting. Used by MCP's {@code launch_modpack} when it names an account.
+     *
+     * @param gameModPack the pack to launch
+     * @param accountUuid the account to play as, or {@code null} for the pack's usual account
+     *
+     * @since 2026.10
+     */
+    public static void playAs( GameModPack gameModPack, String accountUuid ) {
+        play( gameModPack, null, accountUuid );
+    }
+
+    private static void play( GameModPack gameModPack, Runnable after, String forcedAccountUuid ) {
         // Pick the account this pack launches as (its override, else the default) and wait
         // for that account's token refresh if one is due. We're on a background thread
         // (callers spawn play() off the FX thread), so the wait doesn't freeze the UI.
         // Server mode has no accounts.
         final net.hycrafthd.minecraft_authenticator.login.User launchUser;
         if ( GameModeManager.isClient() ) {
-            launchUser = resolveLaunchUser( gameModPack );
+            launchUser = resolveLaunchUser( gameModPack, forcedAccountUuid );
             if ( launchUser == null ) {
                 return;  // blocked; the user has been told why
             }

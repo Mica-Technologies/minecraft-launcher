@@ -86,13 +86,18 @@ class MutatingToolsTest
 
         @Override
         public LauncherStatus status() { return status; }
+
+        private final List< RunningGame > running = new ArrayList<>();
+
+        @Override
+        public List< RunningGame > runningGames() { return running; }
     }
 
     /** Hand-rolled actions that record what they were asked to do rather than doing it. */
     private static final class StubActions implements McpLauncherActions
     {
         private final List< String > performed = new ArrayList<>();
-        private boolean gameRunning;
+        private String blocked;
         private Outcome nextOutcome = Outcome.ok( "done" );
 
         @Override
@@ -110,21 +115,21 @@ class MutatingToolsTest
         }
 
         @Override
-        public Outcome launch( String friendlyName )
+        public Outcome launch( String friendlyName, String account )
         {
-            performed.add( "launch:" + friendlyName );
+            performed.add( "launch:" + friendlyName + ( account == null ? "" : ":" + account ) );
             return nextOutcome;
         }
 
         @Override
-        public Outcome stopGame()
-        {
-            performed.add( "stop" );
-            return nextOutcome;
-        }
+        public String whyLaunchBlocked( String friendlyName, String account ) { return blocked; }
 
         @Override
-        public boolean isGameRunning() { return gameRunning; }
+        public Outcome stopGame( String friendlyName )
+        {
+            performed.add( "stop:" + friendlyName );
+            return nextOutcome;
+        }
 
         @Override
         public Outcome createPack( String name, String modLoader, String modLoaderUrl )
@@ -379,11 +384,19 @@ class MutatingToolsTest
      * would blame the game rather than a tool call they approved minutes earlier.
      */
     @Test
-    void uninstallingWhileAGameIsRunningIsRefused()
+    void uninstallingAPackWhileItsGameIsRunningIsRefused()
     {
-        actions.gameRunning = true;
+        view.running.add( new McpLauncherView.RunningGame( "Installed Pack", "Steve", "running", 60 ) );
         assertNotNull( validate( "uninstall_modpack", args( "friendlyName", "Installed Pack" ) ) );
         assertTrue( actions.performed.isEmpty() );
+    }
+
+    /** Only the running pack is protected; another game running elsewhere doesn't matter. */
+    @Test
+    void uninstallingAPackWhileAnotherGameRunsPasses()
+    {
+        view.running.add( new McpLauncherView.RunningGame( "Other Pack", "Steve", "running", 60 ) );
+        assertNull( validate( "uninstall_modpack", args( "friendlyName", "Installed Pack" ) ) );
     }
 
     @Test
@@ -505,28 +518,61 @@ class MutatingToolsTest
         assertNotNull( validate( "launch_modpack", args( "friendlyName", "Installed Pack" ) ) );
     }
 
+    /** A second game is fine; what the launcher says blocks it (same pack, busy account) is shown. */
     @Test
-    void launchingASecondGameIsRefused()
+    void aBlockedLaunchIsRefusedWithTheLaunchersReason()
     {
-        actions.gameRunning = true;
-        assertNotNull( validate( "launch_modpack", args( "friendlyName", "Installed Pack" ) ) );
+        view.running.add( new McpLauncherView.RunningGame( "Other Pack", "Steve", "running", 60 ) );
+        assertNull( validate( "launch_modpack", args( "friendlyName", "Installed Pack" ) ) );
+
+        actions.blocked = "That account is already playing \"Other Pack\".";
+        assertEquals( actions.blocked, validate( "launch_modpack", args( "friendlyName", "Installed Pack" ) ) );
         assertTrue( actions.performed.isEmpty() );
+    }
+
+    @Test
+    void aNamedAccountIsPassedThrough()
+    {
+        JsonObject arguments = args( "friendlyName", "Installed Pack" );
+        arguments.addProperty( "account", "Alex" );
+        invoke( "launch_modpack", arguments );
+        assertEquals( List.of( "launch:Installed Pack:Alex" ), actions.performed );
     }
 
     @Test
     void stoppingIsRefusedWhenNothingIsRunning()
     {
         assertNotNull( validate( "stop_game", new JsonObject() ) );
-        actions.gameRunning = true;
-        assertNull( validate( "stop_game", new JsonObject() ) );
     }
 
     @Test
-    void stoppingTerminatesTheGame()
+    void theOnlyRunningGameCanBeStoppedWithoutNamingIt()
     {
-        actions.gameRunning = true;
+        view.running.add( new McpLauncherView.RunningGame( "Installed Pack", "Steve", "running", 60 ) );
+        assertNull( validate( "stop_game", new JsonObject() ) );
         invoke( "stop_game", new JsonObject() );
-        assertEquals( List.of( "stop" ), actions.performed );
+        assertEquals( List.of( "stop:Installed Pack" ), actions.performed );
+    }
+
+    @Test
+    void withSeveralGamesRunningTheOneToStopMustBeNamed()
+    {
+        view.running.add( new McpLauncherView.RunningGame( "Pack A", "Alex", "running", 60 ) );
+        view.running.add( new McpLauncherView.RunningGame( "Pack B", "Blake", "preparing", 0 ) );
+        String problem = validate( "stop_game", new JsonObject() );
+        assertNotNull( problem );
+        assertTrue( problem.contains( "Pack A" ) && problem.contains( "Pack B" ), problem );
+
+        assertNull( validate( "stop_game", args( "friendlyName", "pack b" ) ), "names match case-insensitively" );
+        invoke( "stop_game", args( "friendlyName", "Pack B" ) );
+        assertEquals( List.of( "stop:Pack B" ), actions.performed );
+    }
+
+    @Test
+    void stoppingAPackThatIsNotRunningIsRefused()
+    {
+        view.running.add( new McpLauncherView.RunningGame( "Pack A", "Alex", "running", 60 ) );
+        assertNotNull( validate( "stop_game", args( "friendlyName", "Pack Z" ) ) );
     }
 
     // endregion

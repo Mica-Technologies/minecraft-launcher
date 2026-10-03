@@ -106,31 +106,40 @@ public interface McpLauncherActions
      * Launches a modpack.
      *
      * @param friendlyName the pack to launch
+     * @param account      the username of the signed-in account to play as, or {@code null} for
+     *                     the pack's usual account (its override, else the default)
      *
      * @return what happened — success means the launch was <em>started</em>, not that the game
      *         has finished loading
      *
      * @since 3.0
      */
-    Outcome launch( String friendlyName );
+    Outcome launch( String friendlyName, String account );
 
     /**
-     * Terminates the running game process, if there is one.
+     * Why a launch can't start right now, checked before asking the user to approve it: the
+     * pack is already running, the account is already playing another pack, or the account
+     * isn't signed in.
+     *
+     * @param friendlyName the pack to launch
+     * @param account      the requested account's username, or {@code null}
+     *
+     * @return the reason, or {@code null} when nothing blocks it
+     *
+     * @since 2026.10
+     */
+    String whyLaunchBlocked( String friendlyName, String account );
+
+    /**
+     * Terminates a running game.
+     *
+     * @param friendlyName the pack whose game to stop
      *
      * @return what happened
      *
      * @since 3.0
      */
-    Outcome stopGame();
-
-    /**
-     * Reports whether a game is currently running.
-     *
-     * @return {@code true} when a game process is alive
-     *
-     * @since 3.0
-     */
-    boolean isGameRunning();
+    Outcome stopGame( String friendlyName );
 
     /**
      * Creates a new, empty modpack and installs it locally.

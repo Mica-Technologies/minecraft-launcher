@@ -430,6 +430,7 @@ public final class TuiApp
         pack.setProgressProvider( provider );
 
         Thread launcher = new Thread( () -> {
+            com.micatechnologies.minecraft.launcher.game.session.GameSession session = null;
             try {
                 net.hycrafthd.minecraft_authenticator.login.User user;
                 try {
@@ -446,10 +447,31 @@ public final class TuiApp
                         case NO_ACCOUNT -> loc( "tui.auth.noAccount" );
                     } );
                 }
-                Process proc = pack.startGame( user, null );
+                // Same rules as the GUI: one game per pack, one per account.
+                session = new com.micatechnologies.minecraft.launcher.game.session.GameSession(
+                        pack, com.micatechnologies.minecraft.launcher.game.session.GameSession.keyFor( pack ),
+                        pack.getFriendlyName(), user.uuid(), user.name(), System::currentTimeMillis );
+                session.bindWorker( Thread.currentThread() );
+                var admission = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get()
+                                                                                                   .tryRegister( session );
+                if ( !admission.ok() ) {
+                    var other = admission.conflicting();
+                    session = null;
+                    throw new IllegalStateException( switch ( admission.outcome() ) {
+                        case PACK_ALREADY_RUNNING -> locf( "launch.refused.packRunning", pack.getFriendlyName() );
+                        case ACCOUNT_BUSY -> locf( "launch.refused.accountBusy",
+                                                   other == null ? "" : String.valueOf( other.accountName() ),
+                                                   other == null ? "" : String.valueOf( other.packName() ) );
+                        case ANOTHER_GAME_RUNNING -> locf( "launch.refused.anotherGame",
+                                                           other == null ? "" : String.valueOf( other.packName() ) );
+                        case OK -> "";
+                    } );
+                }
+                Process proc = pack.startGame( user, session::isCancelled );
                 if ( proc == null ) {
                     throw new IllegalStateException( loc( "tui.launch.noProcess" ) );
                 }
+                session.attachProcess( proc );
                 RunningGame game = new RunningGame( pack, proc );
                 TuiRuntime.register( game, () -> gui.getGUIThread().invokeLater( this::onGamesChanged ) );
                 gui.getGUIThread().invokeLater( () -> {
@@ -467,6 +489,10 @@ public final class TuiApp
                 } );
             }
             finally {
+                // A launch that never got its game running releases its pack and account.
+                if ( session != null ) {
+                    session.endWithoutGame();
+                }
                 // Release the progress provider (and the TUI progress labels it
                 // captures) now the launch is done. Swap rather than set(null) so the
                 // cached launcher's lastLaunchedProcess stays intact for the running
