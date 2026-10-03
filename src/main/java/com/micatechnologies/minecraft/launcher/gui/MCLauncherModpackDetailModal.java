@@ -82,7 +82,7 @@ import java.util.function.Supplier;
  *   <li>Clicking the backdrop region outside the modal card</li>
  *   <li>Clicking the explicit close button (the ✕ in the modal's top-right corner)</li>
  *   <li>Pressing ESC while the modal has focus</li>
- *   <li>Clicking Play (which transitions to the progress screen anyway)</li>
+ *   <li>Clicking Play (the launch then shows in the Running Games window)</li>
  * </ul>
  *
  * <p>Layout (top to bottom). A persistent header + footer frame a tabbed body so
@@ -100,7 +100,8 @@ import java.util.function.Supplier;
  *       <li><b>Content</b> — Worlds / Servers / Mods / Screenshots / Shader Packs /
  *           Resource Packs file browsers (only when the pack has an install folder).</li>
  *       <li><b>Activity</b> — Update Log and Crash History.</li>
- *       <li><b>Advanced</b> — per-pack verify controls (only when there's a manifest).</li>
+ *       <li><b>Advanced</b> — "Launch as" (the pack's account) for any pack with a settings
+ *           key, plus the verify and scan controls when there's a manifest.</li>
  *     </ul>
  *     Each tab's body is built lazily on first activation and cached. See
  *     {@code packNews}/{@code packLinks} in

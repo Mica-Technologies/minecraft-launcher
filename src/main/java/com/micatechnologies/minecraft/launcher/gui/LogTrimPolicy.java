@@ -24,8 +24,9 @@ package com.micatechnologies.minecraft.launcher.gui;
  * Settings value) and a separate in-memory capture of the full session log (capped in
  * <em>characters</em>). Both caps are bounded-growth policies whose only job is to stop a
  * long session from exhausting heap. That arithmetic used to live inline inside
- * {@code MCLauncherGameConsoleGui}, entangled with JavaFX calls, so it could not be
- * tested and its edge cases were invisible.</p>
+ * the old game console screen, entangled with JavaFX calls, so it could not be tested and
+ * its edge cases were invisible. It now serves {@code GameLog} (the in-memory capture) and
+ * {@code GameSessionPane} (the visible log).</p>
  *
  * <p><b>Why this is worth isolating.</b> There is an open report of the launcher dying or
  * disappearing during long sessions — typically 45+ minutes of gameplay, inconsistently.

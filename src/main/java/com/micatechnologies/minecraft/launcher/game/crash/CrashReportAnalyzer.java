@@ -934,6 +934,11 @@ public final class CrashReportAnalyzer
     private static void openSettings()
     {
         SystemUtilities.spawnNewTask( () -> {
+            // Run from the Running Games window, so whatever the main window shows is
+            // unrelated; let that screen protect unsaved work like any other navigation.
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToSettingsGui();
             }
@@ -949,6 +954,11 @@ public final class CrashReportAnalyzer
     private static void openRuntime()
     {
         SystemUtilities.spawnNewTask( () -> {
+            // Run from the Running Games window, so whatever the main window shows is
+            // unrelated; let that screen protect unsaved work like any other navigation.
+            if ( !MCLauncherGuiController.mayNavigateAway() ) {
+                return;
+            }
             try {
                 MCLauncherGuiController.goToRuntimeGui();
             }

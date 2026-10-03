@@ -86,7 +86,7 @@ public final class LauncherActions
 
         MenuItem quit = new MenuItem( LocalizationManager.format(
                 "menu.dock.quit", LauncherConstants.LAUNCHER_APPLICATION_NAME ) );
-        quit.addActionListener( e -> LauncherCore.closeApp() );
+        quit.addActionListener( e -> MCLauncherGuiController.requestQuit() );
 
         menu.add( show );
         menu.addSeparator();
@@ -140,7 +140,7 @@ public final class LauncherActions
 
         MenuItem quit = new MenuItem( LocalizationManager.format(
                 "menu.dock.quit", LauncherConstants.LAUNCHER_APPLICATION_NAME ) );
-        quit.addActionListener( e -> LauncherCore.closeApp() );
+        quit.addActionListener( e -> MCLauncherGuiController.requestQuit() );
 
         menu.add( show );
         menu.addSeparator();

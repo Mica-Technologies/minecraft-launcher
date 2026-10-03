@@ -207,11 +207,14 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
     /**
      * {@inheritDoc}
      *
-     * <p>The login scene holds no resources requiring teardown, so this implementation is intentionally empty.</p>
+     * <p>Blanks the sign-in WebView so Microsoft's page stops running once the screen is replaced.</p>
      */
     @Override
     void cleanup() {
-
+        // Leave nothing running in the sign-in WebView once the screen is gone.
+        if ( signIn != null ) {
+            signIn.webView().getEngine().load( "about:blank" );
+        }
     }
 
     /**

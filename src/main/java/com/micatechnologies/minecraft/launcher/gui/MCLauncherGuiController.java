@@ -108,6 +108,55 @@ public class MCLauncherGuiController
     }
 
     /**
+     * Asks before quitting while games are launching or running: leave them running (their
+     * logs stop being saved), stop them, or keep playing. Every way of quitting goes through
+     * this: the window's close button, the Exit button, the tray and dock menus, and Cmd+Q.
+     *
+     * <p>Must be called off the FX thread: it shows a blocking dialog.</p>
+     *
+     * @return {@code true} to go ahead and quit (any games the user chose to stop have been
+     *         asked to stop); {@code false} to keep the launcher open
+     *
+     * @since 2026.10
+     */
+    public static boolean confirmQuitWhileGamesRun() {
+        var active = com.micatechnologies.minecraft.launcher.game.session.GameSessionRegistry.get().active();
+        if ( active.isEmpty() ) {
+            return true;
+        }
+        int answer = GUIUtilities.showQuestionMessage(
+                LocalizationManager.get( "session.quit.title" ),
+                LocalizationManager.format( "session.quit.header", active.size() ),
+                LocalizationManager.get( "session.quit.body" ),
+                LocalizationManager.get( "session.quit.leaveRunning" ),
+                LocalizationManager.get( "session.quit.stopGames" ),
+                getTopStageOrNull() );
+        if ( answer == 0 ) {
+            return false;
+        }
+        if ( answer == 2 ) {
+            for ( var session : active ) {
+                session.cancel();
+                session.stop( false );
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Quits the launcher after {@link #confirmQuitWhileGamesRun()}. Safe from any thread.
+     *
+     * @since 2026.10
+     */
+    public static void requestQuit() {
+        com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask( () -> {
+            if ( confirmQuitWhileGamesRun() ) {
+                com.micatechnologies.minecraft.launcher.LauncherCore.closeApp();
+            }
+        } );
+    }
+
+    /**
      * Whether a launch may start from the current screen. A launch no longer replaces the
      * screen (it opens in the Running Games window), so there is no unsaved work to protect;
      * only screens that lock navigation, the login screen above all, refuse.

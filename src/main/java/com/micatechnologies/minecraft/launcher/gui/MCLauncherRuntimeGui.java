@@ -366,8 +366,8 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
     /**
      * {@inheritDoc}
      *
-     * <p>Disables toolbar navigation while a runtime is being installed or
-     * verified.</p>
+     * <p>Disables toolbar navigation on this screen: its runtime install, verify and delete
+     * operations run in the background and must not be abandoned midway.</p>
      *
      * @return {@code false}; toolbar navigation is not permitted from this screen
      *

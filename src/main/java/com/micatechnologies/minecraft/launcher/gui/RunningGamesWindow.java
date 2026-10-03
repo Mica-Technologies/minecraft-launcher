@@ -60,6 +60,7 @@ public final class RunningGamesWindow
     private final Map< Long, Tab >     byId    = new HashMap<>();
     private final Map< Long, GameSessionPane > panes = new HashMap<>();
     private final Runnable             registryListener = () -> Platform.runLater( this::sync );
+    private       String               appliedThemeKey = ConfigManager.getTheme() + ":" + GUIUtilities.isOsDark();
 
     private RunningGamesWindow()
     {
@@ -141,6 +142,32 @@ public final class RunningGamesWindow
                 }
             }
             instance.stage.hide();
+        } );
+    }
+
+    /**
+     * Re-applies the launcher theme after the user changes it. The window is long-lived, so
+     * without this it kept the theme it was opened with.
+     *
+     * @since 2026.10
+     */
+    public static void refreshTheme()
+    {
+        Platform.runLater( () -> {
+            if ( instance == null ) {
+                return;
+            }
+            // Called on every screen switch; only a real theme change is worth a full CSS pass.
+            String key = ConfigManager.getTheme() + ":" + GUIUtilities.isOsDark();
+            if ( key.equals( instance.appliedThemeKey ) ) {
+                return;
+            }
+            instance.appliedThemeKey = key;
+            javafx.scene.Parent root = instance.stage.getScene().getRoot();
+            root.getStylesheets().clear();
+            MCLauncherGuiWindow.installCurrentThemeStylesheets( root );
+            com.micatechnologies.minecraft.launcher.utilities.WindowChromeManager.applyTitleBarDarkMode(
+                    instance.stage, !GUIUtilities.isLightChrome( ConfigManager.getTheme() ) );
         } );
     }
 

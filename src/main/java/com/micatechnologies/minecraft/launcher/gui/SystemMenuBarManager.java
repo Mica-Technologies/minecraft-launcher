@@ -169,9 +169,12 @@ public final class SystemMenuBarManager
                 desktop.setPreferencesHandler( e -> openSettings() );
             }
             if ( desktop.isSupported( Desktop.Action.APP_QUIT_HANDLER ) ) {
-                // closeApp() runs cleanup + System.exit, so we never return from this handler.
-                // The QuitResponse parameter is unused — the system can't outrace System.exit.
-                desktop.setQuitHandler( ( e, response ) -> LauncherCore.closeApp() );
+                // Cancel the system's quit and run our own: it asks first while games run, and
+                // closeApp() then does the cleanup and System.exit itself.
+                desktop.setQuitHandler( ( e, response ) -> {
+                    response.cancelQuit();
+                    MCLauncherGuiController.requestQuit();
+                } );
             }
             if ( desktop.isSupported( Desktop.Action.APP_QUIT_STRATEGY ) ) {
                 // Belt-and-suspenders: if the quit handler ever fails to fire, fall back to

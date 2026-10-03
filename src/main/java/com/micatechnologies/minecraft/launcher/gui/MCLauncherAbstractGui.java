@@ -75,7 +75,7 @@ public abstract class MCLauncherAbstractGui
                 fxmlLoader.setController( this );
                 // Bind FXML to the active translations bundle so attributes
                 // can use the standard %key syntax to resolve localized
-                // strings (e.g. text="%navbar.browse"). The bundle is
+                // strings (e.g. text="%main.navbar.browse"). The bundle is
                 // already wired to LocaleBootstrap's resolved locale by
                 // the time any scene loads.
                 fxmlLoader.setResources(

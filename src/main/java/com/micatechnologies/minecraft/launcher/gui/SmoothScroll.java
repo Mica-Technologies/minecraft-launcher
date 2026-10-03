@@ -180,9 +180,9 @@ public final class SmoothScroll
 
             event.consume();
 
-            // Convert wheel delta into vvalue delta. Wheel-down (deltaY > 0)
-            // means user wants to scroll content DOWN, which in JavaFX means
-            // increasing vvalue. Wheel-up (deltaY < 0) decreases it.
+            // Convert wheel delta into vvalue delta. Wheel-down arrives as deltaY < 0 and
+            // means "scroll content down", which in JavaFX is a larger vvalue; hence the
+            // negation. Wheel-up (deltaY > 0) decreases it.
             double deltaY = -event.getDeltaY() * SCROLL_SPEED;
             target[ 0 ] = clamp( target[ 0 ] + deltaY / scrollable, 0, 1 );
 

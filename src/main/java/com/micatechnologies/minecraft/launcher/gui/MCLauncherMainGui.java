@@ -269,7 +269,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
 
         SystemUtilities.spawnNewTask( () -> DiscordRpcUtility.setMenuPresence( LocalizationManager.get( "discordRpc.screen.selectingPack" ) ) );
 
-        exitBtn.setOnAction( event -> LauncherCore.closeApp() );
+        exitBtn.setOnAction( event -> MCLauncherGuiController.requestQuit() );
 
         // Update-available indicator. The async update check pushes its
         // "update ready" red overlay through TaskbarProgressManager, which owns
@@ -696,7 +696,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         disposed = true;
         // Defensive: if the update-check fired showFullError() to flag an
         // available update, clear it on transition out so the next screen
-        // (e.g. progressGUI for a game launch) isn't competing with a stale
+        // (Settings, Browse, ...) isn't competing with a stale
         // red overlay. Stop only — the wrapper itself is owned by
         // TaskbarProgressManager and lives until app exit.
         GUIUtilities.JFXPlatformRun( () -> {

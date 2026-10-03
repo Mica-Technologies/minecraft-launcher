@@ -856,6 +856,7 @@ public class MCLauncherGuiWindow extends Application
     public void forceThemeChange() {
         // Also refresh the help window theme if it's open
         MCLauncherHelpWindow.refreshTheme();
+        RunningGamesWindow.refreshTheme();
 
         switch ( ConfigManager.getTheme() ) {
             case ConfigConstants.THEME_AUTOMATIC:
@@ -1468,21 +1469,8 @@ public class MCLauncherGuiWindow extends Application
             }
             event.consume();
             com.micatechnologies.minecraft.launcher.utilities.SystemUtilities.spawnNewTask( () -> {
-                int answer = GUIUtilities.showQuestionMessage(
-                        LocalizationManager.get( "session.quit.title" ),
-                        LocalizationManager.format( "session.quit.header", active.size() ),
-                        LocalizationManager.get( "session.quit.body" ),
-                        LocalizationManager.get( "session.quit.leaveRunning" ),
-                        LocalizationManager.get( "session.quit.stopGames" ),
-                        stage );
-                if ( answer == 0 ) {
+                if ( !MCLauncherGuiController.confirmQuitWhileGamesRun() ) {
                     return;  // keep playing
-                }
-                if ( answer == 2 ) {
-                    for ( var session : active ) {
-                        session.cancel();
-                        session.stop( false );
-                    }
                 }
                 GUIUtilities.JFXPlatformRun( () -> {
                     if ( screenHandler != null ) {

@@ -56,9 +56,9 @@ import java.util.EnumMap;
  * the tracker's step list and therefore don't render a row at all — this is
  * how vanilla packs hide the Forge stages cleanly.</p>
  *
- * <p>Step 1 of the 3.2 refactor: this GUI exists and renders correctly when
- * driven, but isn't wired into the launch flow yet. Step 2 swaps it in for
- * the existing {@link MCLauncherProgressGui} on the Play path.</p>
+ * <p>Game launches show their steps in the Running Games window instead
+ * ({@link GameSessionPane}); this screen now serves {@code VerifyAction}'s verify-only
+ * runs.</p>
  */
 public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
 {

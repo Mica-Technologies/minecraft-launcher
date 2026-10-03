@@ -3,8 +3,8 @@
  *
  * Mica Launcher — base component stylesheet (theme-agnostic).
  * All colors come from `-color-*` lookup variables defined in
- * `ui-tokens-{theme}.css`. This file is loaded once on stage init and
- * stays loaded as the theme is swapped.
+ * `ui-tokens-{theme}.css`. MCLauncherGuiWindow.applyTheme installs it on each screen's root
+ * between the legacy sheet and the token sheet, and leaves it alone when nothing changed.
  */
 
 
