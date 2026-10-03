@@ -27,14 +27,14 @@ JAVA_HOME="C:/Users/[username]/.jdks/azul-26.0.1" "C:/Users/[username]/AppData/L
 
 Same idea as Windows -- Maven isn't on PATH and there's no `mvnw` wrapper; use IntelliJ's bundled Maven with the project's configured JDK. macOS equivalents of the Windows paths above:
 
-- **Maven:** `~/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn` (the space in the app path **must** be quoted). IntelliJ may instead live under `/Applications/` or the JetBrains Toolbox (`~/Library/Application Support/JetBrains/Toolbox/apps/`).
+- **Maven:** `~/Applications/IntelliJ IDEA.app/Contents/plugins/maven-plugin/lib/maven3/bin/mvn` (older IntelliJ releases used `plugins/maven/` instead; the space in the app path **must** be quoted). IntelliJ may instead live under `/Applications/` or the JetBrains Toolbox (`~/Library/Application Support/JetBrains/Toolbox/apps/`).
 - **JDKs (IntelliJ-managed):** `~/Library/Java/JavaVirtualMachines/` -- check `.idea/misc.xml` `project-jdk-name` (e.g. `azul-26`) and find the matching folder (e.g. `azul-26.0.1`).
 - **JAVA_HOME** points at the JDK's `Contents/Home` (macOS bundle layout), not the JDK root.
 
 ```bash
 # Set JAVA_HOME and compile
 export JAVA_HOME=~/Library/Java/JavaVirtualMachines/azul-26.0.1/Contents/Home
-"$HOME/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3/bin/mvn" -B compile
+"$HOME/Applications/IntelliJ IDEA.app/Contents/plugins/maven-plugin/lib/maven3/bin/mvn" -B compile
 ```
 
 Note: an IntelliJ-managed `azul-26.0.1` is typically **not** the `jdk+fx` variant (no JavaFX modules in the JDK), but `compile` and the `test` phase still succeed because JavaFX arrives via Maven dependencies. Full native packaging or launching the GUI may need a `jdk+fx` JDK.
