@@ -127,15 +127,16 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
     private MCLauncherModpackDetailModal detailModal;
 
     // ===== Filter / sort / pagination state =====
+    // Option ids, shown through FilterOptionLabels as localized labels.
 
-    private static final String TYPE_ALL      = "All";
-    private static final String TYPE_MODPACKS = "Modpacks";
-    private static final String TYPE_VANILLA  = "Vanilla";
+    private static final String TYPE_ALL      = "all";
+    private static final String TYPE_MODPACKS = "modpacks";
+    private static final String TYPE_VANILLA  = "vanilla";
 
-    private static final String SORT_LAST_PLAYED  = "Last Played";
-    private static final String SORT_NAME_AZ      = "Name (A–Z)";
-    private static final String SORT_NAME_ZA      = "Name (Z–A)";
-    private static final String SORT_RECENT_UPDATE = "Recently Updated";
+    private static final String SORT_LAST_PLAYED  = "lastPlayed";
+    private static final String SORT_NAME_AZ      = "nameAz";
+    private static final String SORT_NAME_ZA      = "nameZa";
+    private static final String SORT_RECENT_UPDATE = "recentUpdate";
     /** Most-played sort — total play time descending, packs that have never
      *  been launched fall to the bottom (getTotalPlayTimeMs returns 0 for them
      *  so they're indistinguishable from each other under this sort and order
@@ -143,7 +144,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      *  spend your time playing" near the top, useful once users accumulate
      *  installs from the future CurseForge / Modrinth import flow but only
      *  actually return to a handful. */
-    private static final String SORT_MOST_PLAYED  = "Most Played";
+    private static final String SORT_MOST_PLAYED  = "mostPlayed";
 
     /** Page-size options exposed in the per-page dropdown. 12 is the default since
      *  the hero cards are 360px wide and wrap to 3-4 per row on typical window
@@ -240,7 +241,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
      */
     @Override
     String getSceneName() {
-        return "Home";
+        return LocalizationManager.get( "menu.modpacks.home" );
     }
 
     /**
@@ -511,6 +512,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Type filter — Modpacks vs Vanilla. The main menu only shows INSTALLED
         // entries, so there's no need for a status filter (that's the Library
         // screen's job). "All" matches both kinds.
+        typeFilter.setConverter( FilterOptionLabels.converter( FilterOptionLabels.TYPE ) );
         typeFilter.setItems( FXCollections.observableArrayList(
                 TYPE_ALL, TYPE_MODPACKS, TYPE_VANILLA ) );
         typeFilter.selectItem( TYPE_ALL );
@@ -520,6 +522,7 @@ public class MCLauncherMainGui extends MCLauncherAbstractGui
         // Sort filter — Last Played mirrors the pre-filter "float last-played to
         // top" behavior. Name A→Z / Z→A and Recently Updated round out the most
         // common needs.
+        sortFilter.setConverter( FilterOptionLabels.converter( FilterOptionLabels.SORT ) );
         sortFilter.setItems( FXCollections.observableArrayList(
                 SORT_LAST_PLAYED, SORT_MOST_PLAYED, SORT_NAME_AZ, SORT_NAME_ZA, SORT_RECENT_UPDATE ) );
         sortFilter.selectItem( SORT_LAST_PLAYED );

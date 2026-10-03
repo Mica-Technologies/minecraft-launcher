@@ -100,7 +100,7 @@
         <padding><Insets left="14.0" right="14.0"/></padding>
 
         <Label text="%main.filter.searchLabel" styleClass="muted"/>
-        <MFXTextField fx:id="searchField" promptText="Name…" minWidth="180.0" prefWidth="200.0"
+        <MFXTextField fx:id="searchField" promptText="%filter.search.prompt" minWidth="180.0" prefWidth="200.0"
                       minHeight="32.0" prefHeight="32.0" maxHeight="32.0"
                       styleClass="no-floating-label"/>
 
@@ -142,7 +142,7 @@
                styleClass="muted" visible="false" managed="false"/>
         <Pane HBox.hgrow="ALWAYS"/>
         <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="60.0" text="%main.pagination.prev"/>
-        <Label fx:id="paginationPageLabel" text="Page 1 of 1" styleClass="muted"/>
+        <Label fx:id="paginationPageLabel" text="" styleClass="muted"/>
         <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.next"/>
         <Pane HBox.hgrow="SOMETIMES" minWidth="20.0"/>
         <Label text="%main.pagination.perPageLabel" styleClass="muted"/>
@@ -166,7 +166,7 @@
         <padding><Insets left="12.0" right="12.0"/></padding>
 
         <Label text="%browse.bottomBar.urlLabel" styleClass="muted"/>
-        <MFXTextField fx:id="urlAddField" promptText="Modpack manifest URL" minHeight="32.0"
+        <MFXTextField fx:id="urlAddField" promptText="%browse.addByUrl.prompt" minHeight="32.0"
                       prefHeight="32.0" prefWidth="320.0" HBox.hgrow="SOMETIMES"
                       styleClass="no-floating-label"/>
         <MFXButton fx:id="urlAddBtn" prefHeight="32.0" prefWidth="120.0" text="%browse.bottomBar.urlAddBtn"/>

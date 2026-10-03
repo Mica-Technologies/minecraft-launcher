@@ -145,7 +145,7 @@
         <padding><Insets left="14.0" right="14.0"/></padding>
 
         <Label text="%main.filter.searchLabel" styleClass="muted"/>
-        <MFXTextField fx:id="searchField" promptText="Name…" minWidth="180.0" prefWidth="220.0"
+        <MFXTextField fx:id="searchField" promptText="%filter.search.prompt" minWidth="180.0" prefWidth="220.0"
                       minHeight="32.0" prefHeight="32.0" maxHeight="32.0"
                       styleClass="no-floating-label"/>
 
@@ -173,7 +173,7 @@
         <Label fx:id="paginationRangeLabel" text="" styleClass="muted"/>
         <Pane HBox.hgrow="ALWAYS"/>
         <MFXButton fx:id="prevPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.prev"/>
-        <Label fx:id="paginationPageLabel" text="Page 1 of 1" styleClass="muted"/>
+        <Label fx:id="paginationPageLabel" text="" styleClass="muted"/>
         <MFXButton fx:id="nextPageBtn" prefHeight="28.0" prefWidth="70.0" text="%main.pagination.next"/>
         <Pane HBox.hgrow="SOMETIMES" minWidth="20.0"/>
         <Label text="%main.pagination.perPageLabel" styleClass="muted"/>

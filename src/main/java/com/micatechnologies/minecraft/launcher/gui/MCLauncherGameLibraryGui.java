@@ -133,25 +133,28 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     @SuppressWarnings( "unused" ) @FXML Label helpBtn;
     @SuppressWarnings( "unused" ) @FXML Label offlineLabel;
 
-    // Filter options exposed in the dropdowns. Strings rather than enum so FXML/MFX can
-    // bind them directly.
-    private static final String TYPE_ALL              = "All";
-    private static final String TYPE_MODPACKS         = "Modpacks";
-    private static final String TYPE_VANILLA_RELEASE  = "Vanilla — Releases";
-    private static final String TYPE_VANILLA_SNAPSHOT = "Vanilla — Snapshots";
-    private static final String TYPE_VANILLA_BETA     = "Vanilla — Old Beta";
-    private static final String TYPE_VANILLA_ALPHA    = "Vanilla — Old Alpha";
+    // Filter options exposed in the dropdowns: stable ids, shown through FilterOptionLabels
+    // as localized labels. Strings rather than enum so FXML/MFX can bind them directly.
+    private static final String TYPE_ALL              = "all";
+    private static final String TYPE_MODPACKS         = "modpacks";
+    private static final String TYPE_VANILLA_RELEASE  = "vanilla.release";
+    private static final String TYPE_VANILLA_SNAPSHOT = "vanilla.snapshot";
+    private static final String TYPE_VANILLA_BETA     = "vanilla.beta";
+    private static final String TYPE_VANILLA_ALPHA    = "vanilla.alpha";
     // Loader-version filters — show all available Forge / NeoForge /
     // Fabric versions as installable "empty modpacks". Picking one
     // and clicking Install writes a real local manifest (under
     // imported-manifests/) so the result is a normal editable modpack.
-    private static final String TYPE_FORGE_VERSIONS    = "Forge — Versions";
-    private static final String TYPE_NEOFORGE_VERSIONS = "NeoForge — Versions";
-    private static final String TYPE_FABRIC_VERSIONS   = "Fabric — Versions";
+    private static final String TYPE_FORGE_VERSIONS    = "forge";
+    private static final String TYPE_NEOFORGE_VERSIONS = "neoforge";
+    private static final String TYPE_FABRIC_VERSIONS   = "fabric";
 
-    private static final String STATUS_ALL         = "All";
-    private static final String STATUS_INSTALLED   = "Installed";
-    private static final String STATUS_AVAILABLE   = "Available";
+    /** Shared prefix of the TYPE_VANILLA_* ids. */
+    private static final String TYPE_VANILLA_PREFIX = "vanilla.";
+
+    private static final String STATUS_ALL         = "all";
+    private static final String STATUS_INSTALLED   = "installed";
+    private static final String STATUS_AVAILABLE   = "available";
 
     // Sort options. "Default" preserves the collectEntries grouping
     // (installed kinds first, then available, with vanilla/loader catalogs
@@ -159,13 +162,13 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
     // are only meaningful for MODPACK_INSTALLED entries; other kinds are
     // treated as "never played" / "no update history" and sort to the
     // bottom while preserving their relative order via stable sort.
-    private static final String SORT_DEFAULT      = "Default";
-    private static final String SORT_NAME_AZ      = "Name (A–Z)";
-    private static final String SORT_NAME_ZA      = "Name (Z–A)";
-    private static final String SORT_RELEASE_DATE = "Release Date";
-    private static final String SORT_LAST_PLAYED  = "Last Played";
-    private static final String SORT_MOST_PLAYED  = "Most Played";
-    private static final String SORT_RECENT_UPDATE = "Recently Updated";
+    private static final String SORT_DEFAULT      = "default";
+    private static final String SORT_NAME_AZ      = "nameAz";
+    private static final String SORT_NAME_ZA      = "nameZa";
+    private static final String SORT_RELEASE_DATE = "releaseDate";
+    private static final String SORT_LAST_PLAYED  = "lastPlayed";
+    private static final String SORT_MOST_PLAYED  = "mostPlayed";
+    private static final String SORT_RECENT_UPDATE = "recentUpdate";
 
     /** Page-size ladder. Bumped past the original 20/40/60 once {@link LibraryCard}
      *  picked up the same pool + bind pattern as the main menu's hero card — the
@@ -238,7 +241,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
      * @return the short, user-facing scene name ("Browse") used for window-title / navigation
      */
     @Override
-    String getSceneName() { return "Browse"; }
+    String getSceneName() { return LocalizationManager.get( "browse.navbar.title" ); }
 
     /**
      * {@inheritDoc}
@@ -290,6 +293,9 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         }
 
         // Filters
+        typeFilter.setConverter( FilterOptionLabels.converter( FilterOptionLabels.TYPE ) );
+        statusFilter.setConverter( FilterOptionLabels.converter( FilterOptionLabels.STATUS ) );
+        sortFilter.setConverter( FilterOptionLabels.converter( FilterOptionLabels.SORT ) );
         typeFilter.setItems( FXCollections.observableArrayList(
                 TYPE_ALL, TYPE_MODPACKS,
                 TYPE_VANILLA_RELEASE, TYPE_VANILLA_SNAPSHOT,
@@ -1446,7 +1452,7 @@ public class MCLauncherGameLibraryGui extends MCLauncherAbstractGui
         // filter — NOT for the loader-version filters, which want a
         // focused list of just that loader's versions.
         boolean wantVanilla   = TYPE_ALL.equals( type )
-                || type != null && type.startsWith( "Vanilla" );
+                || type != null && type.startsWith( TYPE_VANILLA_PREFIX );
         // Loader-version rows fire only when the user explicitly
         // picks that filter. They're not included in TYPE_ALL because
         // the combined list would be enormous (~50 vanilla releases

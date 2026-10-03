@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker;
 import com.micatechnologies.minecraft.launcher.game.modpack.LaunchProgressTracker.Step;
@@ -126,7 +127,7 @@ public class MCLauncherLaunchProgressGui extends MCLauncherAbstractGui
      * @return the human-readable scene name used for window titling / logging
      */
     @Override
-    String getSceneName() { return "Launching"; }
+    String getSceneName() { return LocalizationManager.get( "window.title.launching" ); }
 
     /**
      * {@inheritDoc}

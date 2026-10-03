@@ -250,7 +250,7 @@ public class MCLauncherModPackEditorGui extends MCLauncherAbstractGui
     @Override
     String getSceneName()
     {
-        return "Modpack Editor";
+        return LocalizationManager.get( "editor.navbar.title" );
     }
 
     /**

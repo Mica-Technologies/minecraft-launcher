@@ -223,7 +223,7 @@ public class MCLauncherGameConsoleGui extends MCLauncherAbstractGui
      */
     @Override
     String getSceneName() {
-        return "Game Console";
+        return LocalizationManager.get( "console.navbar.title" );
     }
 
     /**

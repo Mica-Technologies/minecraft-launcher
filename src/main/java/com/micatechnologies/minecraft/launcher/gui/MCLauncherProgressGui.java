@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.gui;
 
+import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.game.modpack.GameModPackProgressProvider;
 import com.micatechnologies.minecraft.launcher.utilities.TaskbarProgressManager;
@@ -134,7 +135,7 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
      */
     @Override
     String getSceneName() {
-        return "Loading";
+        return LocalizationManager.get( "window.title.loading" );
     }
 
     /**
@@ -167,7 +168,7 @@ public class MCLauncherProgressGui extends MCLauncherAbstractGui
     void afterShow() {
         startVoxelBounceAnimation();
 
-        setUpperLabelText( "Just a Moment" );
+        setUpperLabelText( LocalizationManager.get( "progress.justAMoment" ) );
         setSectionText( "" );
         setDetailText( "" );
         setSpeedText( "" );

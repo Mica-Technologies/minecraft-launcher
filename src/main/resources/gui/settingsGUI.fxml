@@ -467,7 +467,7 @@
                         <Label text="%settings.fxml.proxyType" />
                         <MFXComboBox fx:id="proxyTypeSelection" maxHeight="36.0" minHeight="36.0" prefHeight="36.0" prefWidth="120.0" />
                         <Label text="%settings.fxml.proxyHost" />
-                        <TextField fx:id="proxyHostField" promptText="Proxy Host (e.g. 127.0.0.1)" prefWidth="250.0" />
+                        <TextField fx:id="proxyHostField" promptText="%settings.proxyHost.prompt" prefWidth="250.0" />
                         <Label text="%settings.fxml.proxyPort" />
                         <Spinner fx:id="proxyPortSpinner" editable="true" prefWidth="120.0" />
                     </VBox>

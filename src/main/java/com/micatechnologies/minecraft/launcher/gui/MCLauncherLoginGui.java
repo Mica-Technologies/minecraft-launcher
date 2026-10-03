@@ -170,7 +170,7 @@ public class MCLauncherLoginGui extends MCLauncherAbstractGui
      */
     @Override
     String getSceneName() {
-        return "Login";
+        return LocalizationManager.get( "window.title.login" );
     }
 
     /**

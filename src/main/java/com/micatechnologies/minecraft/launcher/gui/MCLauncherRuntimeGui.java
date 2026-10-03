@@ -194,7 +194,7 @@ public class MCLauncherRuntimeGui extends MCLauncherAbstractGui
      */
     @Override
     String getSceneName() {
-        return "Runtime Management";
+        return LocalizationManager.get( "runtime.navbar.title" );
     }
 
     /**

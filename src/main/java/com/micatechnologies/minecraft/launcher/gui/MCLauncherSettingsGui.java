@@ -763,7 +763,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
      */
     @Override
     String getSceneName() {
-        return "Settings";
+        return LocalizationManager.get( "main.navbar.settings" );
     }
 
     /**
