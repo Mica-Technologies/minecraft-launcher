@@ -230,7 +230,7 @@
             <plugin>
                 <groupId>org.codehaus.gmavenplus</groupId>
                 <artifactId>gmavenplus-plugin</artifactId>
-                <version>5.0.0</version>
+                <version>5.1.0</version>
                 <dependencies>
                     <!-- gmavenplus needs an explicit Groovy runtime; the plugin doesn't bundle
                          one. Groovy 4.x can't parse class file major version 70 (JDK 26), so
@@ -362,7 +362,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <source>26</source>
                     <target>26</target>
@@ -383,7 +383,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.5</version>
+                <version>3.6.0</version>
                 <configuration>
                     <argLine>${jfxtaskbarprogressbar.export} @{jacocoArgLine}</argLine>
                 </configuration>
@@ -473,7 +473,7 @@
             <plugin>
                 <groupId>com.igormaznitsa</groupId>
                 <artifactId>mvn-jlink-wrapper</artifactId>
-                <version>1.2.5</version>
+                <version>1.2.6</version>
                 <executions>
                     <!-- CACHE JDK -->
                     <execution>
@@ -573,7 +573,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.7.3</version>
+                <version>1.8.0</version>
                 <configuration>
                     <updatePomFile>true</updatePomFile>
                     <flattenMode>resolveCiFriendliesOnly</flattenMode>
@@ -601,7 +601,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>3.6.3</version>
+                <version>3.6.4</version>
             </plugin>
         </plugins>
     </build>
@@ -618,7 +618,7 @@
                     <plugin>
                         <groupId>org.cyclonedx</groupId>
                         <artifactId>cyclonedx-maven-plugin</artifactId>
-                        <version>2.9.1</version>
+                        <version>2.9.3</version>
                         <executions>
                             <execution>
                                 <id>aggregate</id>
