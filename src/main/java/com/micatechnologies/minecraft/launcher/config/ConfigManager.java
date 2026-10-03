@@ -686,6 +686,10 @@ public class ConfigManager
     public synchronized static String  getMcpToken()                    { return AppConfig.getMcpToken(); }
     /** Sets the MCP bearer token. @param v the token. @see AppConfig#setMcpToken(String) @since 1.0 */
     public synchronized static void    setMcpToken( String v )          { AppConfig.setMcpToken( v ); }
+    /** @return the default account's uuid, or "" when none. @see AppConfig#getDefaultAccountUuid() @since 2026.10 */
+    public synchronized static String  getDefaultAccountUuid()          { return AppConfig.getDefaultAccountUuid(); }
+    /** Sets the default account's uuid. @param v the uuid, or "" for none. @see AppConfig#setDefaultAccountUuid(String) @since 2026.10 */
+    public synchronized static void    setDefaultAccountUuid( String v ) { AppConfig.setDefaultAccountUuid( v ); }
     /** @return whether the first-launch quick-start wizard has been completed. @see AppConfig#getQuickStartCompleted() @since 1.0 */
     public synchronized static boolean getQuickStartCompleted()         { return AppConfig.getQuickStartCompleted(); }
     /** Sets whether the first-launch quick-start wizard has been completed. @param v the new flag. @see AppConfig#setQuickStartCompleted(boolean) @since 1.0 */

@@ -417,6 +417,15 @@ public class ConfigConstants
     public static final String MCP_TOKEN_DEFAULT = "";
 
     /**
+     * Configuration key for the uuid of the default account: the one launches use unless a
+     * pack overrides it, and the one shown in the header. Empty means no default, in which
+     * case the launcher starts on the login screen.
+     *
+     * @since 2026.10
+     */
+    public static final String DEFAULT_ACCOUNT_UUID_KEY = "defaultAccountUuid";
+
+    /**
      * Key for whether the user has completed (or explicitly skipped) the first-
      * launch quick-start wizard. Defaults to false so existing installs see the
      * wizard once on upgrade, then never again. The wizard also flips this true

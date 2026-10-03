@@ -389,6 +389,22 @@ public final class AppConfig
         ConfigStore.scheduleWrite();
     }
 
+    /** The default account's uuid, or {@code ""} when there is none. */
+    public static synchronized String getDefaultAccountUuid() {
+        return ConfigStore.getOrInitString( ConfigConstants.DEFAULT_ACCOUNT_UUID_KEY, "" );
+    }
+
+    /**
+     * Stores the default account's uuid and schedules a debounced disk flush.
+     *
+     * @param uuid the uuid, or {@code ""} / {@code null} for none
+     */
+    public static synchronized void setDefaultAccountUuid( String uuid ) {
+        ConfigStore.ensureLoaded().addProperty( ConfigConstants.DEFAULT_ACCOUNT_UUID_KEY,
+                                                uuid == null ? "" : uuid );
+        ConfigStore.scheduleWrite();
+    }
+
     /** Whether the user has completed or skipped the first-launch
      *  quick-start wizard. Defaults to false so the wizard fires once
      *  for existing installs that upgrade. */

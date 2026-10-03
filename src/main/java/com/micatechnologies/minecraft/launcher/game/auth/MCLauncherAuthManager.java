@@ -17,6 +17,7 @@
 
 package com.micatechnologies.minecraft.launcher.game.auth;
 
+import com.micatechnologies.minecraft.launcher.config.ConfigManager;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.files.LocalPathManager;
 import com.micatechnologies.minecraft.launcher.files.Logger;
@@ -24,65 +25,38 @@ import net.hycrafthd.minecraft_authenticator.login.AuthenticationFile;
 import net.hycrafthd.minecraft_authenticator.login.Authenticator;
 import net.hycrafthd.minecraft_authenticator.login.User;
 
-import com.micatechnologies.minecraft.launcher.utilities.JSONUtilities;
-import com.google.gson.JsonObject;
-
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Static manager for the launcher's Microsoft/Minecraft authentication lifecycle.
+ * Static entry point for the launcher's Microsoft/Minecraft authentication.
  *
- * <p>This class wraps the {@code minecraft_authenticator} library and layers on the
- * launcher-specific concerns around it:</p>
+ * <p>Accounts themselves live in {@link AccountManager}: every remembered account stays
+ * signed in, each with its own session and refresh, and one of them is the default. This
+ * class keeps the launcher-wide concerns around that:</p>
  * <ul>
- *     <li><strong>Encrypted-at-rest session state</strong> — the saved login file
- *         ({@code player.mica}), the cached {@link User} record
- *         ({@code cached_user.json}), and the last-renewal timestamp
- *         ({@code renewal.timestamp}) are all written with the machine-bound
- *         {@link com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher}
- *         and locked to owner-only file permissions. Legacy plaintext layouts are
- *         migrated transparently on first read.</li>
- *     <li><strong>Token-refresh throttling</strong> — a hard refresh interval
+ *     <li><strong>The Microsoft calls</strong>: interactive sign-in
+ *         ({@link #loginWithMicrosoftAccount(String, boolean)}) and token renewal, wrapping
+ *         the {@code minecraft_authenticator} library with a timeout.</li>
+ *     <li><strong>Rate limiting and backoff</strong>: {@link #enforceRateLimit()} spaces out
+ *         API calls for every account together and backs off exponentially after
+ *         consecutive failures, to avoid HTTP 429 responses.</li>
+ *     <li><strong>Token-refresh throttling</strong>: a hard refresh interval
  *         ({@link #TOKEN_REFRESH_INTERVAL_MS}) plus a softer preemptive window
- *         ({@link #TOKEN_SOFT_REFRESH_INTERVAL_MS}) keep cold starts fast and avoid
- *         hammering Microsoft's servers with needless renewals.</li>
- *     <li><strong>Rate limiting / backoff</strong> — {@link #enforceRateLimit()}
- *         spaces out API calls and applies exponential backoff after consecutive
- *         failures to avoid HTTP 429 responses.</li>
- *     <li><strong>Async / cold-start support</strong> — {@link #loadCachedUserNow()}
- *         and {@link #renewExistingLoginAsync()} let the GUI paint immediately with
- *         cached identity while a token refresh settles in the background.</li>
- *     <li><strong>Profile archiving</strong> — {@link #archiveAndLogout()} and
- *         {@link #switchToArchivedProfile(String)} hand off to {@link ProfileArchive}
- *         for multi-account switching.</li>
+ *         ({@link #TOKEN_SOFT_REFRESH_INTERVAL_MS}) keep cold starts fast.</li>
+ *     <li><strong>The default-account facade</strong>: {@link #getLoggedInUser()},
+ *         {@link #renewExistingLogin()} and friends act on the default account, so screens
+ *         that only show "who is signed in" didn't have to change.</li>
  * </ul>
  *
- * <p>All members are static; the class holds the single active session in
- * {@link #loggedIn}. It is not intended to be instantiated.</p>
+ * <p>All members are static. It is not intended to be instantiated.</p>
  *
  * @author Mica Technologies
  */
 public class MCLauncherAuthManager
 {
-    /**
-     * On-disk location of the encrypted saved login file ({@code player.mica}),
-     * resolved from {@link LocalPathManager#getRememberedAccountFilePath()}.
-     */
-    private static final Path SAVED_LOGIN_FILE_PATH = Path.of( LocalPathManager.getRememberedAccountFilePath() );
-
-    /**
-     * The currently signed-in {@link User}, or {@code null} when no session is
-     * active. Populated by the renewal / login / cache-restore paths.
-     */
-    private static       User loggedIn              = null;
-
     /**
      * Maximum time in seconds to wait for an authentication operation to complete before giving up.
      */
@@ -128,74 +102,63 @@ public class MCLauncherAuthManager
      */
     private static final long TOKEN_SOFT_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000L; // 3 hours
 
-    /**
-     * Timestamp of the last successful token renewal. Stored on disk alongside the auth file so it persists
-     * across launcher restarts.
-     */
-    private static long lastSuccessfulRenewalMs = 0;
+    /** Background executor for token refreshes. Single-thread, daemon: refreshes are
+     *  spaced out by the shared rate limit anyway, and we don't want to keep the JVM alive
+     *  if the user quits before one completes. */
+    private static final ExecutorService REFRESH_EXECUTOR = Executors.newSingleThreadExecutor( r -> {
+        Thread t = new Thread( r, "mmcl-auth-refresh" );
+        t.setDaemon( true );
+        return t;
+    } );
 
-    /**
-     * File name for storing the last successful renewal timestamp.
-     */
-    private static final String RENEWAL_TIMESTAMP_FILE = "renewal.timestamp";
+    /** Lazily-built production account manager. */
+    private static final class Holder
+    {
+        static final AccountManager INSTANCE;
 
-    /**
-     * File name for storing the cached user data (so we can restore sessions without server contact).
-     */
-    private static final String CACHED_USER_FILE = "cached_user.json";
+        static
+        {
+            Path configFolder = Path.of( LocalPathManager.getLauncherConfigFolderPath() );
+            AccountCipher cipher = AccountCipher.machineBound();
+            INSTANCE = new AccountManager(
+                    new AccountStore( configFolder.resolve( AccountStore.PROFILES_DIR ), cipher ),
+                    configFolder, cipher,
+                    new AccountManager.DefaultAccountSetting()
+                    {
+                        @Override
+                        public String get()
+                        {
+                            return ConfigManager.getDefaultAccountUuid();
+                        }
 
-    /**
-     * Returns true if the saved token should be renewed (enough time has passed since last renewal).
-     */
-    private static boolean shouldRenewToken() {
-        // Load persisted timestamp if we haven't yet. Encrypted-at-rest like the other
-        // auth files so a stolen disk image doesn't trivially reveal when the user last
-        // signed in. Legacy plaintext files are migrated transparently on first read.
-        if ( lastSuccessfulRenewalMs == 0 ) {
-            try {
-                Path timestampPath = resolveSiblingPath( RENEWAL_TIMESTAMP_FILE );
-                if ( Files.exists( timestampPath ) ) {
-                    String raw = Files.readString( timestampPath ).trim();
-                    long parsed = readRenewalTimestamp( raw );
-                    if ( parsed > 0 ) {
-                        lastSuccessfulRenewalMs = parsed;
-                        Logger.logStd( LocalizationManager.format( "log.authManager.renewalTimestampLoaded",
-                                               new java.text.SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" ).format(
-                                                       new java.util.Date( lastSuccessfulRenewalMs ) ) ) );
-                    }
-                    else {
-                        Logger.logWarningSilent( LocalizationManager.get( "log.authManager.renewalTimestampUnreadable" ) );
-                        lastSuccessfulRenewalMs = 0;
-                    }
-                }
-                else {
-                    Logger.logStd( LocalizationManager.get( "log.authManager.noRenewalTimestamp" ) );
-                }
-            }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( LocalizationManager.format( "log.authManager.renewalTimestampReadFailed", e.getMessage() ) );
-                lastSuccessfulRenewalMs = 0;
-            }
+                        @Override
+                        public void set( String uuid )
+                        {
+                            ConfigManager.setDefaultAccountUuid( uuid );
+                        }
+                    },
+                    MCLauncherAuthManager::renewWithMicrosoft,
+                    System::currentTimeMillis,
+                    REFRESH_EXECUTOR,
+                    TOKEN_REFRESH_INTERVAL_MS );
         }
+    }
 
-        long now = System.currentTimeMillis();
-        long elapsed = now - lastSuccessfulRenewalMs;
-        long elapsedMinutes = elapsed / 60000;
-        long thresholdMinutes = TOKEN_REFRESH_INTERVAL_MS / 60000;
-        boolean shouldRenew = isRenewalDue( lastSuccessfulRenewalMs, now, TOKEN_REFRESH_INTERVAL_MS );
-        Logger.logStd( LocalizationManager.format( "log.authManager.tokenAgeCheck", elapsedMinutes, thresholdMinutes,
-                               ( shouldRenew ? LocalizationManager.get( "log.authManager.renewalNeeded" )
-                                             : LocalizationManager.get( "log.authManager.stillValid" ) ) ) );
-        return shouldRenew;
+    /**
+     * Every signed-in account and the default. Loads (and migrates the old single-account
+     * files) on first use.
+     *
+     * @return the launcher's account manager
+     *
+     * @since 2026.10
+     */
+    public static AccountManager accounts()
+    {
+        return Holder.INSTANCE;
     }
 
     /**
      * Decides whether a token renewal is due. Pure: no clock, no disk, no logging.
-     *
-     * <p>Split out of {@link #shouldRenewToken()} so the decision can be tested without a
-     * config folder, a timestamp file, or the mutable static that caches it. The
-     * surrounding method still owns loading {@code lastSuccessfulRenewalMs} and reporting
-     * the outcome.</p>
      *
      * <p>A {@code lastRenewalMs} of {@code 0} means "never renewed, or the timestamp could
      * not be read", and always reports due — failing toward re-authentication rather than
@@ -221,208 +184,14 @@ public class MCLauncherAuthManager
     }
 
     /**
-     * Resolves the path for a sibling file next to the saved login file.
-     */
-    private static Path resolveSiblingPath( String filename ) {
-        return SAVED_LOGIN_FILE_PATH.getParent() != null ?
-               SAVED_LOGIN_FILE_PATH.getParent().resolve( filename ) :
-               Path.of( LocalPathManager.getLauncherConfigFolderPath(), filename );
-    }
-
-    /** Tightens the given file to owner-only perms via the shared utility. Kept as a
-     *  thin local alias so existing call sites in this file read naturally. */
-    private static void applyOwnerOnlyPermissions( Path path ) {
-        com.micatechnologies.minecraft.launcher.utilities.FilePermissions.applyOwnerOnly( path );
-    }
-
-    // Machine-bound encryption / decryption was extracted into the shared
-    // {@link com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher}
-    // utility so the same primitive can protect the CurseForge API key (and
-    // future user-supplied secrets) without two copies of the cipher drifting
-    // apart. The auth manager now delegates encrypt / decrypt calls into the
-    // utility; the install-secret file (machine-key.bin) location is unchanged,
-    // so existing encrypted-at-rest auth files keep decrypting after the refactor.
-
-    /** GZIP magic bytes — used to detect legacy unencrypted {@code player.mica} files
-     *  from before the at-rest encryption rollout so they can be migrated on next load. */
-    private static final byte GZIP_MAGIC_0 = (byte) 0x1F;
-    private static final byte GZIP_MAGIC_1 = (byte) 0x8B;
-
-    /**
-     * Persists an {@link AuthenticationFile} to {@link #SAVED_LOGIN_FILE_PATH},
-     * encrypted with the machine-bound key. The library-provided
-     * {@link AuthenticationFile#writeCompressed} output is the gzip'd JSON of the
-     * refresh / access / Xbox tokens; left on disk in that form it's just
-     * compression and any process that can read the user's home directory can
-     * impersonate the account indefinitely. Wrapping the gzip bytes in AES-256-GCM
-     * binds the file to this machine (per {@link #deriveMachineKey}).
-     */
-    private static void saveAuthFileEncrypted( AuthenticationFile authFile ) throws Exception {
-        byte[] gzipped = authFile.writeCompressed();
-        byte[] encrypted = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.encryptBytes( gzipped );
-        try ( FileOutputStream out = new FileOutputStream( SAVED_LOGIN_FILE_PATH.toFile() ) ) {
-            out.write( encrypted );
-        }
-        applyOwnerOnlyPermissions( SAVED_LOGIN_FILE_PATH );
-    }
-
-    /**
-     * Reads and decrypts the saved {@link AuthenticationFile}. Falls back to the
-     * legacy plain-gzip layout (gzip magic bytes 1F 8B at the start of file) for
-     * one-shot migration from pre-encryption installs — on a successful legacy
-     * read the file is immediately re-saved in the encrypted form so subsequent
-     * loads take the fast path. Returns {@code null} if the file is missing,
-     * corrupt, or bound to a different machine.
-     */
-    private static AuthenticationFile loadAuthFileDecrypted() {
-        try {
-            byte[] fileBytes = Files.readAllBytes( SAVED_LOGIN_FILE_PATH );
-            if ( fileBytes.length == 0 ) {
-                return null;
-            }
-
-            // Legacy plaintext path: gzip stream starting with 1F 8B. Migrate on read.
-            if ( fileBytes.length >= 2
-                    && fileBytes[0] == GZIP_MAGIC_0
-                    && fileBytes[1] == GZIP_MAGIC_1 ) {
-                AuthenticationFile legacy = AuthenticationFile.readCompressed( fileBytes );
-                Logger.logStd( LocalizationManager.get( "log.authManager.migratingLegacyAuthFile" ) );
-                try {
-                    saveAuthFileEncrypted( legacy );
-                }
-                catch ( Exception migrateFailure ) {
-                    // Migration failure shouldn't block login — leave the legacy file alone
-                    // and try again next time. Log a sanitized warning (no token data).
-                    Logger.logWarningSilent( LocalizationManager.format( "log.authManager.authFileMigrationFailed",
-                                                     migrateFailure.getClass().getSimpleName() ) );
-                }
-                return legacy;
-            }
-
-            // Encrypted path
-            byte[] gzipped = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.decryptBytes( fileBytes );
-            if ( gzipped == null ) {
-                return null;
-            }
-            return AuthenticationFile.readCompressed( gzipped );
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.loadAuthFileFailed",
-                                             e.getClass().getSimpleName() ) );
-            return null;
-        }
-    }
-
-    /**
-     * Saves the User object to disk, encrypted with a machine-specific key.
-     */
-    private static void saveCachedUser( User user ) {
-        try {
-            JsonObject json = new JsonObject();
-            json.addProperty( "uuid", user.uuid() );
-            json.addProperty( "name", user.name() );
-            json.addProperty( "accessToken", user.accessToken() );
-            json.addProperty( "type", user.type() );
-            json.addProperty( "xuid", user.xuid() );
-            json.addProperty( "clientId", user.clientId() );
-            String encrypted = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.encrypt( JSONUtilities.getGson().toJson( json ) );
-            Path cachedPath = resolveSiblingPath( CACHED_USER_FILE );
-            Files.writeString( cachedPath, encrypted );
-            applyOwnerOnlyPermissions( cachedPath );
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.saveCachedUserFailed", e.getMessage() ) );
-        }
-    }
-
-    /**
-     * Loads the cached User object from disk by decrypting with the machine-specific key.
-     * Returns null if the file doesn't exist, can't be decrypted (wrong machine), or is invalid.
-     */
-    private static User loadCachedUser() {
-        try {
-            Path cachedPath = resolveSiblingPath( CACHED_USER_FILE );
-            if ( !Files.exists( cachedPath ) ) {
-                return null;
-            }
-            String encrypted = Files.readString( cachedPath ).trim();
-            String decrypted = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.decrypt( encrypted );
-            if ( decrypted == null ) {
-                return null;
-            }
-            JsonObject json = JSONUtilities.getGson().fromJson( decrypted, JsonObject.class );
-            return new User(
-                    json.has( "uuid" ) ? json.get( "uuid" ).getAsString() : null,
-                    json.has( "name" ) ? json.get( "name" ).getAsString() : null,
-                    json.has( "accessToken" ) ? json.get( "accessToken" ).getAsString() : null,
-                    json.has( "type" ) ? json.get( "type" ).getAsString() : null,
-                    json.has( "xuid" ) ? json.get( "xuid" ).getAsString() : null,
-                    json.has( "clientId" ) ? json.get( "clientId" ).getAsString() : null
-            );
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.loadCachedUserFailed", e.getMessage() ) );
-            return null;
-        }
-    }
-
-    /**
-     * Records the timestamp of a successful token renewal to disk.
-     */
-    private static void recordSuccessfulRenewal() {
-        lastSuccessfulRenewalMs = System.currentTimeMillis();
-        try {
-            Path renewalPath = resolveSiblingPath( RENEWAL_TIMESTAMP_FILE );
-            // Encrypt the timestamp at rest with the same machine key the other auth
-            // files use. The value itself isn't a credential, but disclosing it tells
-            // an attacker who reads the disk when the user last signed in and
-            // contributes to activity-pattern profiling.
-            String encoded = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.encrypt( String.valueOf( lastSuccessfulRenewalMs ) );
-            Files.writeString( renewalPath, encoded );
-            applyOwnerOnlyPermissions( renewalPath );
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( LocalizationManager.format( "log.authManager.saveRenewalTimestampFailed", e.getMessage() ) );
-        }
-    }
-
-    /**
      * Parses the on-disk renewal timestamp string, accepting either the encrypted
-     * Base64 form produced by {@link #recordSuccessfulRenewal()} or the legacy
-     * plain-decimal form left over from pre-encryption installs. Legacy values are
-     * upgraded transparently on the next {@link #recordSuccessfulRenewal()} call.
+     * Base64 form or the legacy plain-decimal form left over from pre-encryption installs.
      * Returns {@code 0} on any parse failure.
      */
-    // Widened from private to package-private for test reach — see
-    // MCLauncherAuthManagerRenewalTimestampTest. Every value that test passes in
-    // is chosen so MachineSecretCipher.decrypt fails fast at the Base64 layer, or
-    // decodes to fewer than 28 bytes and returns null before deriveMachineKey
-    // ever touches the machine-key file, so the in-process cases never perform
-    // disk I/O outside a real encrypt/decrypt round trip run under the
-    // subprocess harness with cwd pinned to a @TempDir.
+    // Package-private for test reach — see MCLauncherAuthManagerRenewalTimestampTest, which
+    // runs the real-cipher cases in a subprocess with cwd pinned to a @TempDir.
     static long readRenewalTimestamp( String raw ) {
-        if ( raw == null || raw.isBlank() ) {
-            return 0L;
-        }
-        // Try decrypt first. If the body is valid Base64 ciphertext bound to this
-        // machine, this succeeds and returns the decrypted decimal string.
-        try {
-            String decrypted = com.micatechnologies.minecraft.launcher.utilities.MachineSecretCipher.decrypt( raw );
-            if ( decrypted != null ) {
-                return Long.parseLong( decrypted.trim() );
-            }
-        }
-        catch ( Exception ignored ) {
-            // Fall through to legacy plaintext parse.
-        }
-        // Legacy plain-decimal path. Migration: the next recordSuccessfulRenewal
-        // call rewrites the file in the encrypted form.
-        try {
-            return Long.parseLong( raw );
-        }
-        catch ( NumberFormatException e ) {
-            return 0L;
-        }
+        return AccountStore.parseRenewalTimestamp( raw, AccountCipher.machineBound() );
     }
 
     /**
@@ -444,7 +213,7 @@ public class MCLauncherAuthManager
     /**
      * Current auth status callback (set before calling auth methods).
      */
-    private static AuthStatusCallback statusCallback = null;
+    private static volatile AuthStatusCallback statusCallback = null;
 
     /**
      * Sets the auth status callback for progress UI updates during auth operations.
@@ -463,16 +232,20 @@ public class MCLauncherAuthManager
      * @param detailText  the finer-grained detail for the current phase
      */
     private static void reportStatus( String sectionText, String detailText ) {
-        if ( statusCallback != null ) {
-            statusCallback.onStatus( sectionText, detailText );
+        AuthStatusCallback callback = statusCallback;
+        if ( callback != null ) {
+            callback.onStatus( sectionText, detailText );
         }
     }
 
     /**
      * Enforces rate limiting by waiting if the last auth attempt was too recent.
      * Applies exponential backoff if there have been consecutive failures.
+     *
+     * <p>Synchronized because every account's refresh and every interactive sign-in share
+     * this one budget: two callers racing it must not both see the slot free.</p>
      */
-    private static void enforceRateLimit() {
+    private static synchronized void enforceRateLimit() {
         // Snapshot the failure count once so the backoff math + status text are
         // computed against a single consistent value even if another auth path
         // mutates it concurrently.
@@ -495,50 +268,10 @@ public class MCLauncherAuthManager
                 Thread.sleep( waitMs );
             }
             catch ( InterruptedException ignored ) {
+                Thread.currentThread().interrupt();
             }
         }
         lastAuthAttemptTimeMs.set( System.currentTimeMillis() );
-    }
-
-    /**
-     * Records a successful auth attempt, resetting the consecutive-failure counter
-     * used for exponential backoff.
-     *
-     * @param save when {@code true}, persists the renewal timestamp and cached user
-     *             to disk ("remember me"); when {@code false}, clears any persisted
-     *             session files so no session state survives at rest
-     */
-    private static void recordAuthSuccess( boolean save ) {
-        consecutiveFailures.set( 0 );
-        if ( save ) {
-            recordSuccessfulRenewal();
-            if ( loggedIn != null ) {
-                saveCachedUser( loggedIn );
-            }
-        }
-        else {
-            // The user opted out of remembering this account. handleAuthFile already
-            // deleted the saved login file; mirror that here by NOT persisting the
-            // cached user (which carries the access token) or the renewal timestamp,
-            // and clearing any stale copies left by a previous "remember me" session
-            // so the account can't be silently resurrected on next launch.
-            clearPersistedSessionFiles();
-        }
-    }
-
-    /**
-     * Deletes the on-disk cached-user and renewal-timestamp files, if present. Used
-     * when the user signs in without "remember me" so no session state survives at rest.
-     */
-    private static void clearPersistedSessionFiles() {
-        try {
-            Files.deleteIfExists( resolveSiblingPath( CACHED_USER_FILE ) );
-            Files.deleteIfExists( resolveSiblingPath( RENEWAL_TIMESTAMP_FILE ) );
-        }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( LocalizationManager.UNABLE_REMOVE_USER_FROM_DISK_TEXT );
-            Logger.logThrowable( e );
-        }
     }
 
     /**
@@ -549,445 +282,303 @@ public class MCLauncherAuthManager
     }
 
     /**
-     * Indicates whether a saved login file exists on disk for this machine.
+     * Runs an authenticator under {@link #AUTH_TIMEOUT_SECONDS}.
      *
-     * @return {@code true} if {@link #SAVED_LOGIN_FILE_PATH} is a regular file
-     *         (a remembered account may be restorable), {@code false} otherwise
+     * @throws TimeoutException   when it doesn't finish in time
+     * @throws ExecutionException when it throws; the cause is the library's exception
+     */
+    private static void runWithTimeout( Authenticator authenticator )
+            throws TimeoutException, ExecutionException, InterruptedException
+    {
+        ExecutorService authExecutor = Executors.newSingleThreadExecutor();
+        Future< Void > authFuture = authExecutor.submit( () -> {
+            authenticator.run();
+            return null;
+        } );
+        try {
+            authFuture.get( AUTH_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+        }
+        catch ( TimeoutException e ) {
+            authFuture.cancel( true );
+            throw e;
+        }
+        finally {
+            authExecutor.shutdownNow();
+        }
+    }
+
+    /**
+     * The production {@link AccountManager.Renewer}: exchanges a saved authentication file
+     * for fresh tokens with Microsoft, under the shared rate limit and the auth timeout.
+     *
+     * @param gzippedAuthFile the gzip'd {@code AuthenticationFile}
+     *
+     * @return the renewed user and updated authentication file
+     *
+     * @throws AccountManager.RenewalFailedException on timeout, a rejected login, or any other failure
+     */
+    private static AccountManager.Renewal renewWithMicrosoft( byte[] gzippedAuthFile )
+            throws AccountManager.RenewalFailedException
+    {
+        reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                      LocalizationManager.get( "authManager.status.preparingContact" ) );
+        enforceRateLimit();
+        try {
+            AuthenticationFile previous = AuthenticationFile.readCompressed( gzippedAuthFile );
+            Logger.logDebug( LocalizationManager.REMEMBERED_USER_LOADED_TEXT );
+            Authenticator authenticator =
+                    Authenticator.of( previous ).serviceConnectTimeout( 5000 ).serviceReadTimeout( 10000 )
+                                 .shouldAuthenticate().shouldRetrieveXBoxProfile().build();
+            reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                          LocalizationManager.get( "authManager.status.contactingServers" ) );
+            Logger.logStd( LocalizationManager.format( "log.authManager.renewingToken", AUTH_TIMEOUT_SECONDS ) );
+            runWithTimeout( authenticator );
+
+            User user = authenticator.getUser().orElse( null );
+            AuthenticationFile result = authenticator.getResultFile();
+            if ( user == null || result == null ) {
+                Logger.logStd( LocalizationManager.get( "log.authManager.renewalNoUser" ) );
+                recordAuthFailure();
+                throw new AccountManager.RenewalFailedException( "renewal returned no user", true );
+            }
+            consecutiveFailures.set( 0 );
+            Logger.logStd( LocalizationManager.get( "log.authManager.tokenRenewedSuccess" ) );
+            reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
+                          LocalizationManager.get( "authManager.status.signedIn" ) );
+            return new AccountManager.Renewal( user, result.writeCompressed() );
+        }
+        catch ( TimeoutException e ) {
+            Logger.logError( LocalizationManager.format( "log.authManager.authTimedOut", AUTH_TIMEOUT_SECONDS ) );
+            recordAuthFailure();
+            throw new AccountManager.RenewalFailedException( "timed out", false );
+        }
+        catch ( ExecutionException e ) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            Logger.logWarningSilent( LocalizationManager.get( "log.authManager.tokenRenewalFailed" ) );
+            // Sanitized: log only the exception class. The library wraps OAuth response
+            // bodies in exception messages, which can contain token fragments.
+            logAuthErrorType( cause );
+            recordAuthFailure();
+            Exception asException = cause instanceof Exception ex ? ex : new Exception( cause );
+            boolean rejected = checkIfExceptionIsInvalidCredentials( asException )
+                               || checkIfExceptionIsNotBought( asException );
+            throw new AccountManager.RenewalFailedException( cause.getClass().getSimpleName(), rejected );
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            throw new AccountManager.RenewalFailedException( "interrupted", false );
+        }
+        catch ( AccountManager.RenewalFailedException e ) {
+            throw e;
+        }
+        catch ( Exception e ) {
+            Logger.logWarningSilent( LocalizationManager.PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT );
+            logAuthErrorType( e );
+            recordAuthFailure();
+            throw new AccountManager.RenewalFailedException( e.getClass().getSimpleName(), false );
+        }
+    }
+
+    // ------------------------------------------------------------ default-account facade
+
+    /**
+     * Indicates whether there is a default account to start the launcher with.
+     *
+     * @return {@code true} if a remembered default account exists (or an old single-account
+     *         login that still has to be identified), {@code false} when the login screen
+     *         should be shown
      */
     public static boolean hasExistingLogin() {
-        return Files.isRegularFile( SAVED_LOGIN_FILE_PATH );
+        return accounts().hasDefault();
     }
 
     /**
-     * Returns the currently signed-in user held in memory.
+     * Returns the default account's user.
      *
-     * @return the active {@link User}, or {@code null} when no session is active
+     * @return the default {@link User}, or {@code null} when there is no default account
      */
     public static User getLoggedInUser() {
-        return loggedIn;
+        return accounts().defaultUser();
     }
 
     /**
-     * Holds the currently in-flight async refresh, if any. Set by
-     * {@link #renewExistingLoginAsync()}, cleared when the future completes.
-     * Read by the main GUI to surface a "Signing in…" status indicator and
-     * by the Play-click handler to await completion before launching.
-     *
-     * <p>Volatile so the FX thread sees the latest value without a
-     * synchronized block on every read.</p>
-     */
-    private static volatile CompletableFuture< MCLauncherAuthResult > pendingRefresh = null;
-
-    /** Background executor for the async refresh. Single-thread, daemon — we
-     *  only ever want one auth refresh in flight at a time, and we don't want
-     *  to keep the JVM alive if the user quits before it completes. */
-    private static final ExecutorService REFRESH_EXECUTOR = Executors.newSingleThreadExecutor( r -> {
-        Thread t = new Thread( r, "mmcl-auth-refresh" );
-        t.setDaemon( true );
-        return t;
-    } );
-
-    /**
-     * Returns the currently in-flight async refresh, or {@code null} when no
-     * refresh is pending. Used by UI surfaces that want to wait for the
-     * refresh to settle (e.g. the Play-click handler) or display its progress
-     * (the main GUI's bottom-bar background-status label).
+     * Returns the default account's in-flight refresh, or {@code null} when none is
+     * pending. Used by UI surfaces that want to wait for the refresh to settle (e.g. the
+     * Play-click handler) or display its progress (the main GUI's bottom-bar
+     * background-status label).
      */
     public static CompletableFuture< MCLauncherAuthResult > getPendingRefreshFuture() {
-        return pendingRefresh;
+        CompletableFuture< User > pending = accounts().pendingRefresh( accounts().defaultUuid() );
+        return pending == null ? null : toAuthResult( pending );
     }
 
     /**
-     * Reads the cached user data off disk synchronously and populates
-     * {@link #loggedIn}, WITHOUT touching the network. Use this on the
-     * cold-start path so the main GUI can paint immediately with whatever
-     * the cache holds; pair with {@link #renewExistingLoginAsync()} to
-     * refresh the token in the background.
+     * Returns the default account's cached user without touching the network, so the main
+     * GUI can paint immediately; pair with {@link #renewExistingLoginAsync()} to refresh
+     * the token in the background.
      *
-     * <p>Returns the cached {@link User} on success, or {@code null} when
-     * the cached file is missing, corrupt, or lacks the minimum fields
-     * (uuid + name) that the main GUI needs to render the player chip.</p>
-     *
-     * <p>If this returns null, callers should fall through to the
-     * synchronous {@link #renewExistingLogin()} path (which will then
-     * either contact the auth servers or show the login screen).</p>
+     * @return the cached {@link User}, or {@code null} when it is missing or lacks the uuid
+     *         and name the main GUI needs, in which case callers should fall through to the
+     *         synchronous {@link #renewExistingLogin()} path
      *
      * @since 3.6
      */
     public static User loadCachedUserNow() {
-        User cached = loadCachedUser();
-        if ( cached == null ) {
-            return null;
-        }
-        if ( cached.name() == null || cached.name().isBlank()
+        User cached = accounts().defaultUser();
+        if ( cached == null || cached.name() == null || cached.name().isBlank()
                 || cached.uuid() == null || cached.uuid().isBlank() ) {
             return null;
-        }
-        loggedIn = cached;
-        // Bump the timestamp read so shouldRenewToken doesn't double-load it on
-        // the next call; it's cheap if already loaded.
-        if ( lastSuccessfulRenewalMs == 0 ) {
-            shouldRenewToken();
         }
         return cached;
     }
 
     /**
-     * Kicks off a background token renewal — same code path as
-     * {@link #renewExistingLogin()} — and returns a future the caller can
-     * await on. If a refresh is already in flight, returns the existing
-     * future instead of starting a second one (the renewal is idempotent
-     * and only one in-flight refresh makes sense at a time).
-     *
-     * <p>The future completes with an {@link MCLauncherAuthResult}. On the
-     * fast-path (token still fresh), it completes almost immediately
-     * because {@link #renewExistingLogin()} short-circuits without
-     * contacting the network.</p>
-     *
-     * <p>Used by the cold-start path so the main GUI paints with the
-     * cached user info (from {@link #loadCachedUserNow()}) while this
-     * future settles in the background.</p>
+     * Refreshes the default account's token in the background when due, returning a future
+     * the caller can await. A refresh already in flight is reused. On the fast path (token
+     * still fresh) the future is already complete and nothing touches the network.
      *
      * @since 3.6
      */
-    public static synchronized CompletableFuture< MCLauncherAuthResult > renewExistingLoginAsync() {
-        // synchronized so the check-and-set of pendingRefresh is atomic: two callers
-        // racing this (e.g. the cold-start GUI path and tryPreemptiveBackgroundRenewal)
-        // must not both pass the in-flight check and submit two concurrent renewals.
-        CompletableFuture< MCLauncherAuthResult > existing = pendingRefresh;
-        if ( existing != null && !existing.isDone() ) {
-            return existing;
-        }
-        CompletableFuture< MCLauncherAuthResult > fresh = new CompletableFuture<>();
-        pendingRefresh = fresh;
-        REFRESH_EXECUTOR.submit( () -> {
-            try {
-                fresh.complete( renewExistingLogin() );
-            }
-            catch ( Throwable t ) {
-                fresh.completeExceptionally( t );
-            }
-            finally {
-                // Clear the slot once we're done so the next session-state
-                // change can fire a fresh refresh. Reference-compare so a
-                // racing second call that already stashed its own future
-                // doesn't get cleared out from under it.
-                if ( pendingRefresh == fresh ) {
-                    pendingRefresh = null;
-                }
-            }
-        } );
-        return fresh;
+    public static CompletableFuture< MCLauncherAuthResult > renewExistingLoginAsync() {
+        return toAuthResult( accounts().refreshDefault() );
     }
 
     /**
-     * Signs the current user out completely. Clears the in-memory session and
-     * deletes all on-disk session state — the saved login file, the cached user,
-     * and the renewal timestamp — so the login GUI lands on the next launch and no
-     * credentials survive at rest. IO failures during deletion are logged but do
-     * not throw.
+     * Signs the default account out and forgets it, deleting its stored credentials. The
+     * most recently used remaining account, if any, becomes the default.
      */
     public static void logout() {
-        // Clear local logged in file copy
-        loggedIn = null;
-        lastSuccessfulRenewalMs = 0;
-
-        // Delete saved user file, cached user, and renewal timestamp
-        try {
-            Files.deleteIfExists( SAVED_LOGIN_FILE_PATH );
-            Files.deleteIfExists( resolveSiblingPath( RENEWAL_TIMESTAMP_FILE ) );
-            Files.deleteIfExists( resolveSiblingPath( CACHED_USER_FILE ) );
-        }
-        catch ( IOException e ) {
-            Logger.logWarningSilent( LocalizationManager.get( "log.authManager.deleteSavedUserFailed" ) );
-            Logger.logThrowable( e );
-        }
+        accounts().remove( accounts().defaultUuid() );
     }
 
     /**
-     * Like {@link #logout()} but copies the active credentials to
-     * {@code <config>/profiles/<uuid>/} first via {@link ProfileArchive}
-     * so the account can be re-activated later from the Settings →
-     * Account "Saved Accounts" list without re-running the Microsoft
-     * OAuth flow.
-     *
-     * <p>The active session files are still deleted after the archive
-     * copy, so the immediate-effect behaviour is identical to a plain
-     * logout — login GUI lands on the next restart. The difference
-     * only matters on the NEXT logged-out state, when the user opens
-     * Settings and sees their previous accounts ready to switch to.</p>
-     *
-     * <p>Called by the Settings → Account "Save & Sign Out" /
-     * "Add Another Account" UI; plain {@link #logout()} is left for
-     * cases where the user explicitly wants to forget the account
-     * (the existing red "Log Out" button is wired to it).</p>
+     * Clears the default account while keeping every account signed in, so the next start
+     * lands on the login screen to add another account. Signing in there adds the new
+     * account and makes it the default.
      *
      * @since 2026.5
      */
     public static void archiveAndLogout() {
-        User user = loggedIn;
-        if ( user != null && user.uuid() != null && !user.uuid().isBlank() ) {
-            ProfileArchive.archiveActive( user.uuid(), user.name() );
-        }
-        logout();
+        accounts().setDefault( null );
     }
 
     /**
-     * Switches to a previously-archived profile. Archives the active
-     * profile first (so we don't lose the current session), then
-     * copies the archived files back into the active slots. The
-     * in-memory {@link #loggedIn} state is cleared so the next caller
-     * picks up the swapped-in token via the existing renewal /
-     * restore path.
+     * Makes another signed-in account the default.
      *
-     * <p>Caller should restart the launcher (or trigger a session
-     * refresh) so the new identity is visible across every screen.
-     * The Settings UI does this via {@code LauncherCore.restartApp()}
-     * after a successful switch.</p>
-     *
-     * @param targetUuid UUID of the archived profile to activate
-     * @return true if the swap succeeded, false otherwise
+     * @param targetUuid uuid of the account to make the default
+     * @return true if the account exists and is now the default
      * @since 2026.5
      */
     public static boolean switchToArchivedProfile( String targetUuid ) {
-        if ( targetUuid == null || targetUuid.isBlank() ) return false;
-        // Archive current — non-destructive so the existing session
-        // stays valid until ProfileArchive.activate overwrites the
-        // active files on the next line.
-        User active = loggedIn;
-        if ( active != null && active.uuid() != null && !active.uuid().isBlank() ) {
-            if ( !active.uuid().equals( targetUuid ) ) {
-                ProfileArchive.archiveActive( active.uuid(), active.name() );
-            }
-            else {
-                // Switching to the already-active profile is a no-op.
-                return true;
-            }
-        }
-        boolean ok = ProfileArchive.activate( targetUuid );
-        if ( ok ) {
-            // Clear in-memory cache so the next renewal / launch
-            // reads the swapped-in token from disk.
-            loggedIn = null;
-            lastSuccessfulRenewalMs = 0;
-        }
-        return ok;
+        return accounts().setDefault( targetUuid );
     }
 
     /**
-     * If the cached token's age is in the {@link #TOKEN_SOFT_REFRESH_INTERVAL_MS}..
-     * {@link #TOKEN_REFRESH_INTERVAL_MS} window — too fresh to require synchronous
-     * renewal, but old enough that the next launch will hit the sync renewal path —
-     * kicks off a fire-and-forget background renewal piggybacked on other cold-start
-     * idle time. Returns immediately. The next cold start (assuming the renewal
-     * succeeds) lands inside the "no renewal needed" window again.
+     * If the default account's token is in the {@link #TOKEN_SOFT_REFRESH_INTERVAL_MS}..
+     * {@link #TOKEN_REFRESH_INTERVAL_MS} window, kicks off a fire-and-forget background
+     * renewal so the next cold start lands inside the "no renewal needed" window again.
+     * Every other account whose token is past the soft window is refreshed the same way, so
+     * a launch on a non-default account rarely has to wait. Returns immediately.
      *
-     * <p>No-op when offline, when no cached login exists, when the token is younger
-     * than the soft threshold, or when the token is already past the hard threshold
-     * (since the caller's regular renewExistingLogin call will handle that case
-     * synchronously).</p>
+     * <p>No-op when offline. Accounts past the hard threshold are left to the synchronous
+     * paths that handle them.</p>
      *
      * @since 3.5
      */
     public static void tryPreemptiveBackgroundRenewal() {
         try {
-            if ( !hasExistingLogin() ) return;
-            // Force the timestamp file load if it hasn't been read yet — same lazy
-            // load shouldRenewToken does. Cheap enough to fold inline.
-            if ( lastSuccessfulRenewalMs == 0 ) {
-                shouldRenewToken();
-            }
-            if ( lastSuccessfulRenewalMs == 0 ) {
-                // No timestamp on disk → renewal is "required," which the synchronous
-                // path will handle. Bail out instead of double-renewing.
-                return;
-            }
-            long elapsed = System.currentTimeMillis() - lastSuccessfulRenewalMs;
-            if ( elapsed < TOKEN_SOFT_REFRESH_INTERVAL_MS ) {
-                return;  // still fresh — nothing to do
-            }
-            if ( elapsed >= TOKEN_REFRESH_INTERVAL_MS ) {
-                return;  // past hard threshold — let the sync caller handle it
-            }
             if ( com.micatechnologies.minecraft.launcher.utilities.NetworkUtilities.isOffline() ) {
                 return;
             }
-            Logger.logStd( LocalizationManager.get( "log.authManager.softRefreshKickoff" ) );
-            // Route through the single-flight async path (dedicated REFRESH_EXECUTOR +
-            // pendingRefresh dedup) rather than the common ForkJoinPool, so this
-            // preemptive renewal can't run concurrently with a GUI/TUI-triggered one —
-            // which would double-fire network calls and race the shared auth state and
-            // token files (player.mica / cached_user.json / renewal.timestamp).
-            renewExistingLoginAsync().exceptionally( t -> {
-                // Best-effort: any failure here is invisible to the user — they'll
-                // hit the sync renewal next launch if this one didn't take.
-                Logger.logWarningSilent( LocalizationManager.format( "log.authManager.preemptiveRenewalFailed",
-                                                 t.getClass().getSimpleName() ) );
-                return null;
-            } );
+            AccountManager manager = accounts();
+            String defaultUuid = manager.defaultUuid();
+            long now = System.currentTimeMillis();
+            for ( AccountManager.AccountInfo account : manager.accounts() ) {
+                if ( account.status() == AccountManager.Status.NEEDS_SIGN_IN ) {
+                    continue;
+                }
+                long renewedAt = manager.renewedAtMs( account.uuid() );
+                if ( renewedAt == 0 ) {
+                    continue;
+                }
+                long elapsed = now - renewedAt;
+                if ( elapsed < TOKEN_SOFT_REFRESH_INTERVAL_MS ) {
+                    continue;
+                }
+                if ( elapsed >= TOKEN_REFRESH_INTERVAL_MS && account.uuid().equals( defaultUuid ) ) {
+                    continue;  // past the hard threshold: the startup path renews it
+                }
+                Logger.logStd( LocalizationManager.get( "log.authManager.softRefreshKickoff" ) );
+                manager.refresh( account.uuid(), true ).exceptionally( t -> {
+                    Logger.logWarningSilent( LocalizationManager.format( "log.authManager.preemptiveRenewalFailed",
+                                                     t.getClass().getSimpleName() ) );
+                    return null;
+                } );
+            }
         }
         catch ( Throwable t ) {
-            // Wrapper guard — nothing in this opportunistic path should throw onto the
-            // launcher's startup critical path.
+            // Nothing in this opportunistic path should throw onto the startup critical path.
             Logger.logWarningSilent( LocalizationManager.format( "log.authManager.preemptiveRenewalAborted",
                                              t.getClass().getSimpleName() ) );
         }
     }
 
     /**
-     * Synchronously refreshes the session for a previously-remembered account.
+     * Synchronously refreshes the default account's session when due.
      *
-     * <p>The method short-circuits when a recent renewal is still valid: if the
-     * token is within the {@link #TOKEN_REFRESH_INTERVAL_MS} window it returns the
-     * in-memory {@link #loggedIn} user (or restores it from
-     * {@link #loadCachedUser() the cached-user file}) without any network contact.
-     * Otherwise it loads and decrypts the saved auth file, runs the
-     * {@code minecraft_authenticator} renewal under an {@link #AUTH_TIMEOUT_SECONDS}
-     * timeout (after {@link #enforceRateLimit() rate limiting}), persists the new
-     * tokens, and records the renewal.</p>
-     *
-     * @return a successful {@link MCLauncherAuthResult} wrapping the renewed
-     *         {@link User}, or one of the {@code ERROR_*} sentinels
-     *         ({@link MCLauncherAuthResult#ERROR_LOGIN_EXPIRED} when no user could
-     *         be resolved, {@link MCLauncherAuthResult#ERROR_OTHER} on timeout or
-     *         renewal failure)
+     * @return a successful {@link MCLauncherAuthResult} wrapping the default {@link User},
+     *         {@link MCLauncherAuthResult#ERROR_LOGIN_EXPIRED} when there is no default
+     *         account or Microsoft rejected its credentials, or
+     *         {@link MCLauncherAuthResult#ERROR_OTHER} on timeout or any other failure
      */
     public static MCLauncherAuthResult renewExistingLogin() {
         reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
                       LocalizationManager.get( "authManager.status.checkingSession" ) );
-
-        // Check if we can skip renewal -- token was refreshed recently and is still valid
-        if ( !shouldRenewToken() && loggedIn != null ) {
-            long hoursAgo = ( System.currentTimeMillis() - lastSuccessfulRenewalMs ) / 3600000;
-            long minutesAgo = ( ( System.currentTimeMillis() - lastSuccessfulRenewalMs ) / 60000 ) % 60;
-            Logger.logStd( LocalizationManager.format( "log.authManager.usingExistingSession", hoursAgo, minutesAgo ) );
-            reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
-                          LocalizationManager.get( "authManager.status.usingExistingSession" ) );
-            return new MCLauncherAuthResult( loggedIn );
-        }
-
-        // If we have a cached user file on disk but no in-memory user, load it directly.
-        // This handles the case where the launcher was restarted but the token is still fresh.
-        if ( !shouldRenewToken() ) {
-            User cachedUser = loadCachedUser();
-            if ( cachedUser != null ) {
-                loggedIn = cachedUser;
-                long hoursAgo = ( System.currentTimeMillis() - lastSuccessfulRenewalMs ) / 3600000;
-                long minutesAgo = ( ( System.currentTimeMillis() - lastSuccessfulRenewalMs ) / 60000 ) % 60;
-                Logger.logStd( LocalizationManager.format( "log.authManager.loadedSessionFromDisk", hoursAgo, minutesAgo ) );
-                reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
-                              LocalizationManager.get( "authManager.status.restoredSession" ) );
-                consecutiveFailures.set( 0 );
-                return new MCLauncherAuthResult( loggedIn );
-            }
-            else {
-                Logger.logStd( LocalizationManager.get( "log.authManager.cachedUserNotFound" ) );
-            }
-        }
-
-        // Token is stale or could not be loaded -- need to contact authentication servers
-        Logger.logStd( LocalizationManager.get( "log.authManager.sessionNeedsRenewal" ) );
-        reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
-                      LocalizationManager.get( "authManager.status.preparingContact" ) );
-
-        // Enforce rate limiting before making API calls
-        enforceRateLimit();
-
-        // Try to read and renew login for saved account
         try {
-            // Get previous authentication file. loadAuthFileDecrypted handles both the
-            // current AES-256-GCM machine-bound layout and one-shot migration from the
-            // legacy plain-gzip layout left over from pre-encryption installs.
-            final AuthenticationFile previousAuthFile = loadAuthFileDecrypted();
-            if ( previousAuthFile == null ) {
-                throw new IOException( "Saved auth file is missing or unreadable on this machine." );
+            MCLauncherAuthResult result = renewExistingLoginAsync().get( AUTH_TIMEOUT_SECONDS * 2L, TimeUnit.SECONDS );
+            if ( result.getMinecraftUser() != null ) {
+                Logger.logStd( LocalizationManager.get( "log.authManager.signInComplete" ) );
             }
-            Logger.logDebug( LocalizationManager.REMEMBERED_USER_LOADED_TEXT );
-
-            // Update authentication with timeout protection
-            final Authenticator authenticator =
-                    Authenticator.of( previousAuthFile ).serviceConnectTimeout( 5000 ).serviceReadTimeout( 10000 ).shouldAuthenticate().shouldRetrieveXBoxProfile().build();
-
-            reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
-                          LocalizationManager.get( "authManager.status.contactingServers" ) );
-            Logger.logStd( LocalizationManager.format( "log.authManager.renewingToken", AUTH_TIMEOUT_SECONDS ) );
-            ExecutorService authExecutor = Executors.newSingleThreadExecutor();
-            Future< Void > authFuture = authExecutor.submit( () -> {
-                authenticator.run();
-                return null;
-            } );
-
-            try {
-                authFuture.get( AUTH_TIMEOUT_SECONDS, TimeUnit.SECONDS );
-            }
-            catch ( TimeoutException e ) {
-                authFuture.cancel( true );
-                Logger.logError( LocalizationManager.format( "log.authManager.authTimedOut", AUTH_TIMEOUT_SECONDS ) );
-                recordAuthFailure();
-                return MCLauncherAuthResult.ERROR_OTHER;
-            }
-            catch ( ExecutionException e ) {
-                Throwable cause = e.getCause() != null ? e.getCause() : e;
-                Logger.logWarningSilent( LocalizationManager.get( "log.authManager.tokenRenewalFailed" ) );
-                // Sanitized: log only the exception class, not the message or stack. The
-                // minecraft_authenticator library wraps OAuth response bodies in exception
-                // messages, which can contain token fragments and detailed account state.
-                // Persistent logs are not the place for that.
-                logAuthErrorType( cause );
-                recordAuthFailure();
-                return MCLauncherAuthResult.ERROR_OTHER;
-            }
-            finally {
-                authExecutor.shutdownNow();
-            }
-
-            Logger.logStd( LocalizationManager.get( "log.authManager.tokenRenewedSuccess" ) );
-
-            if ( authenticator.getResultFile() != null ) {
-                // Get new authentication file and write to disk
-                handleAuthFile( authenticator.getResultFile(), true );
-
-                // Store logged in user (fallback to null if no user)
-                loggedIn = authenticator.getUser().orElse( null );
-            }
+            return result;
         }
-        catch ( Exception e ) {
-            Logger.logWarningSilent( LocalizationManager.PROBLEM_READING_ACCOUNT_FROM_DISK_TEXT );
-            // Sanitized: the catch is broad and frequently catches auth-lib exceptions
-            // (not just I/O), so we log type-only rather than the full stack.
-            logAuthErrorType( e );
-            recordAuthFailure();
+        catch ( TimeoutException e ) {
             return MCLauncherAuthResult.ERROR_OTHER;
         }
-
-        // Ensure loggedIn was populated as expected and return result
-        MCLauncherAuthResult result;
-        if ( loggedIn == null ) {
-            Logger.logStd( LocalizationManager.get( "log.authManager.renewalNoUser" ) );
-            recordAuthFailure();
-            result = MCLauncherAuthResult.ERROR_LOGIN_EXPIRED;
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            return MCLauncherAuthResult.ERROR_OTHER;
         }
-        else {
-            Logger.logStd( LocalizationManager.get( "log.authManager.signInComplete" ) );
-            reportStatus( LocalizationManager.get( "authManager.status.signingIn" ),
-                          LocalizationManager.get( "authManager.status.signedIn" ) );
-            // Token renewal only runs for an already-remembered account, so persist.
-            recordAuthSuccess( true );
-            result = new MCLauncherAuthResult( loggedIn );
+        catch ( ExecutionException e ) {
+            return MCLauncherAuthResult.ERROR_OTHER;
         }
-
-        return result;
     }
 
     /**
-     * Performs a fresh sign-in from a Microsoft OAuth authorization code.
+     * Maps an account-manager refresh to the launcher's result type. A rejected login maps
+     * to {@link MCLauncherAuthResult#ERROR_LOGIN_EXPIRED}, anything else to
+     * {@link MCLauncherAuthResult#ERROR_OTHER}.
+     */
+    private static CompletableFuture< MCLauncherAuthResult > toAuthResult( CompletableFuture< User > refresh ) {
+        return refresh.handle( ( user, failure ) -> {
+            if ( failure == null && user != null ) {
+                return new MCLauncherAuthResult( user );
+            }
+            Throwable cause = failure instanceof CompletionException && failure.getCause() != null
+                              ? failure.getCause() : failure;
+            return cause instanceof AccountManager.RenewalFailedException rf && rf.credentialsRejected()
+                   ? MCLauncherAuthResult.ERROR_LOGIN_EXPIRED
+                   : MCLauncherAuthResult.ERROR_OTHER;
+        } );
+    }
+
+    /**
+     * Performs a fresh sign-in from a Microsoft OAuth authorization code and adds the account
+     * to the signed-in accounts as the new default.
      *
      * <p>Runs the {@code minecraft_authenticator} Microsoft flow under an
      * {@link #AUTH_TIMEOUT_SECONDS} timeout (after {@link #enforceRateLimit() rate
-     * limiting}) to obtain and verify the Xbox/Minecraft session. On success the
-     * resulting {@link User} is stored in {@link #loggedIn}; the auth file is
-     * written to disk only when {@code save} is {@code true}, otherwise the saved
-     * login file is removed so nothing is remembered.</p>
+     * limiting}). When {@code save} is {@code false} the account is kept in memory only and
+     * any previously remembered copy of it is deleted.</p>
      *
      * @param authCode the Microsoft OAuth authorization code obtained from the
      *                 interactive sign-in flow
@@ -1002,26 +593,18 @@ public class MCLauncherAuthManager
      *         {@link MCLauncherAuthResult#ERROR_OTHER})
      */
     public static MCLauncherAuthResult loginWithMicrosoftAccount( String authCode, boolean save ) {
-        // Enforce rate limiting to prevent API spam
         enforceRateLimit();
-        // Try to login with Microsoft
+        User user;
+        byte[] authFile;
         try {
-            // Perform authentication with timeout protection
             final Authenticator authenticator =
                     Authenticator.ofMicrosoft( authCode ).serviceConnectTimeout( 5000 ).serviceReadTimeout( 10000 ).shouldAuthenticate().shouldRetrieveXBoxProfile().build();
 
             Logger.logStd( LocalizationManager.format( "log.authManager.authenticatingMicrosoft", AUTH_TIMEOUT_SECONDS ) );
-            ExecutorService authExecutor = Executors.newSingleThreadExecutor();
-            Future< Void > authFuture = authExecutor.submit( () -> {
-                authenticator.run();
-                return null;
-            } );
-
             try {
-                authFuture.get( AUTH_TIMEOUT_SECONDS, TimeUnit.SECONDS );
+                runWithTimeout( authenticator );
             }
             catch ( TimeoutException e ) {
-                authFuture.cancel( true );
                 Logger.logError( LocalizationManager.format( "log.authManager.microsoftAuthTimedOut", AUTH_TIMEOUT_SECONDS ) );
                 recordAuthFailure();
                 return MCLauncherAuthResult.ERROR_OTHER;
@@ -1031,66 +614,28 @@ public class MCLauncherAuthManager
                 recordAuthFailure();
                 return processAuthException( cause instanceof Exception ? ( Exception ) cause : new Exception( cause ) );
             }
-            finally {
-                authExecutor.shutdownNow();
-            }
 
             Logger.logStd( LocalizationManager.get( "log.authManager.microsoftAuthResponse" ) );
-
-            if ( authenticator.getResultFile() != null ) {
-                handleAuthFile( authenticator.getResultFile(), save );
-                loggedIn = authenticator.getUser().orElse( null );
-            }
+            user = authenticator.getUser().orElse( null );
+            AuthenticationFile result = authenticator.getResultFile();
+            authFile = result == null ? null : result.writeCompressed();
+        }
+        catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            recordAuthFailure();
+            return MCLauncherAuthResult.ERROR_OTHER;
         }
         catch ( Exception e ) {
             recordAuthFailure();
             return processAuthException( e );
         }
 
-        // Ensure loggedIn was populated as expected and return result
-        MCLauncherAuthResult result;
-        if ( loggedIn == null ) {
+        if ( user == null || authFile == null || !accounts().addSignedIn( user, authFile, save ) ) {
             recordAuthFailure();
-            result = MCLauncherAuthResult.ERROR_BAD_USERNAME_PASSWORD;
+            return MCLauncherAuthResult.ERROR_BAD_USERNAME_PASSWORD;
         }
-        else {
-            recordAuthSuccess( save );
-            result = new MCLauncherAuthResult( loggedIn );
-        }
-
-        return result;
-    }
-
-    /**
-     * Persists or discards the freshly-obtained auth file depending on the
-     * "remember me" choice. When {@code save} is {@code true} the file is written
-     * via {@link #saveAuthFileEncrypted(AuthenticationFile)}; when {@code false} the
-     * saved login file is deleted. All failures are logged rather than thrown.
-     *
-     * @param authFile the auth file produced by a successful authentication
-     * @param save     {@code true} to remember the account, {@code false} to forget it
-     */
-    private static void handleAuthFile( AuthenticationFile authFile, boolean save ) {
-        if ( save ) {
-            try {
-                Logger.logDebug( LocalizationManager.REMEMBERED_USER_WRITING_TEXT );
-                saveAuthFileEncrypted( authFile );
-                Logger.logDebug( LocalizationManager.REMEMBERED_USER_WRITE_FINISHED_TEXT );
-            }
-            catch ( Exception e ) {
-                Logger.logError( LocalizationManager.PROBLEM_WRITING_ACCOUNT_TO_DISK_TEXT );
-                Logger.logThrowable( e );
-            }
-        }
-        else {
-            try {
-                Files.deleteIfExists( SAVED_LOGIN_FILE_PATH );
-            }
-            catch ( Exception e ) {
-                Logger.logWarningSilent( LocalizationManager.UNABLE_REMOVE_USER_FROM_DISK_TEXT );
-                Logger.logThrowable( e );
-            }
-        }
+        consecutiveFailures.set( 0 );
+        return new MCLauncherAuthResult( user );
     }
 
     /**

@@ -159,7 +159,7 @@
                         </HBox>
                     </VBox>
                     <!-- Saved Accounts — populated by setupAccountTab() from
-                         the ProfileArchive list. Rows are appended at runtime
+                         the signed-in accounts. Rows are appended at runtime
                          to the savedAccountsList VBox; the FXML just declares
                          the container chrome. -->
                     <VBox styleClass="settingsContainer" spacing="8">

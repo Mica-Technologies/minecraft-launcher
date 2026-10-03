@@ -20,7 +20,7 @@ package com.micatechnologies.minecraft.launcher.gui;
 import com.micatechnologies.minecraft.launcher.LauncherCore;
 import com.micatechnologies.minecraft.launcher.consts.localization.LocalizationManager;
 import com.micatechnologies.minecraft.launcher.game.auth.MCLauncherAuthManager;
-import com.micatechnologies.minecraft.launcher.game.auth.ProfileArchive;
+import com.micatechnologies.minecraft.launcher.game.auth.AccountManager;
 import com.micatechnologies.minecraft.launcher.utilities.SystemUtilities;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -36,10 +36,10 @@ import java.util.List;
  * player name pops this menu so the user can switch between previously-signed-in Microsoft accounts,
  * add another, or jump to the full account-management screen — without digging into Settings first.
  *
- * <p>Reuses the existing {@link ProfileArchive} storage and
+ * <p>Lists the accounts in {@link MCLauncherAuthManager#accounts()} and uses the same
  * {@link MCLauncherAuthManager#switchToArchivedProfile} / {@link MCLauncherAuthManager#archiveAndLogout}
- * flows (the same ones Settings → Account uses), including the launcher restart those require to
- * propagate the new identity across every screen.</p>
+ * flows Settings → Account uses, including the launcher restart they still trigger to propagate
+ * the new identity across every screen.</p>
  *
  * @since 2026.6
  */
@@ -73,16 +73,16 @@ public final class AccountSwitcherMenu
         header.setDisable( true );
         menu.getItems().add( header );
 
-        // One "Switch to X" item per archived profile (excluding the active one).
-        List< ProfileArchive.ProfileEntry > profiles;
+        // One "Switch to X" item per other signed-in account.
+        List< AccountManager.AccountInfo > profiles;
         try {
-            profiles = ProfileArchive.list();
+            profiles = MCLauncherAuthManager.accounts().accounts();
         }
         catch ( Throwable t ) {
             profiles = List.of();
         }
         boolean addedSeparator = false;
-        for ( ProfileArchive.ProfileEntry p : profiles ) {
+        for ( AccountManager.AccountInfo p : profiles ) {
             if ( activeUuid != null && activeUuid.equals( p.uuid() ) ) {
                 continue;
             }

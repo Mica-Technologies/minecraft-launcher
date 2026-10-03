@@ -182,7 +182,7 @@ class MCLauncherAuthManagerRenewalTimestampTest
         // Forward this test JVM's own JaCoCo agent (if present) so the
         // production code the child process actually executes is credited
         // to the coverage report instead of vanishing because it ran
-        // uninstrumented. See ProfileArchiveTest#jacocoAgentArgOrNull.
+        // uninstrumented. See #jacocoAgentArgOrNull.
         String jacocoAgentArg = jacocoAgentArgOrNull();
         if ( jacocoAgentArg != null ) {
             command.add( jacocoAgentArg );

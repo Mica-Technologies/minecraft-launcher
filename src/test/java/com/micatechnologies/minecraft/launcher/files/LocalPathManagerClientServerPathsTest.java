@@ -54,11 +54,11 @@ import static org.junit.jupiter.api.Assertions.fail;
  *
  * <p><b>Why a subprocess.</b> {@code GameModeManager}'s current mode is process-global static
  * state. No test in this suite mutates it in-process — see {@code LocalPathManagerClientConfigTest}
- * and the {@code MachineSecretCipher}/{@code ProfileArchive} subprocess harnesses, all of which
+ * and the {@code MachineSecretCipher} subprocess harness, all of which
  * document relying on the ambient unset/{@code null} default for the lifetime of the shared test
  * JVM. Exercising both branches therefore runs {@link LocalPathManagerSubprocessHarness} in a
  * short-lived child JVM per mode, following the same pattern as
- * {@code ProfileArchiveSubprocessHarness} (including forwarding this JVM's JaCoCo
+ * {@code MCLauncherAuthManagerRenewalTimestampHarness} (including forwarding this JVM's JaCoCo
  * {@code -javaagent} flag, if present, so the child's execution of the real getters is credited to
  * the coverage report instead of vanishing).</p>
  */
@@ -114,7 +114,7 @@ class LocalPathManagerClientServerPathsTest
     }
 
     // ===================================================================
-    //  Subprocess plumbing — mirrors ProfileArchiveSubprocessHarness's runHarness
+    //  Subprocess plumbing — mirrors MCLauncherAuthManagerRenewalTimestampTest's harness runner
     // ===================================================================
 
     /**

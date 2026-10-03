@@ -1771,9 +1771,8 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         rebuildSavedAccountsList();
     }
 
-    /** Renders the Saved Accounts container's rows from the
-     *  {@link com.micatechnologies.minecraft.launcher.game.auth.ProfileArchive}
-     *  list. Skips the currently-active profile so we don't surface
+    /** Renders the Saved Accounts container's rows from the signed-in
+     *  accounts. Skips the currently-active profile so we don't surface
      *  a "Switch" button pointing at the user's own already-active
      *  identity. */
     private void rebuildSavedAccountsList() {
@@ -1782,7 +1781,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
         var active = MCLauncherAuthManager.getLoggedInUser();
         String activeUuid = active == null ? null : active.uuid();
 
-        var profiles = com.micatechnologies.minecraft.launcher.game.auth.ProfileArchive.list();
+        var profiles = MCLauncherAuthManager.accounts().accounts();
         if ( profiles.isEmpty() ) {
             return;  // empty state: nothing to render; hint label is in FXML
         }
@@ -1835,7 +1834,7 @@ public class MCLauncherSettingsGui extends MCLauncherAbstractGui
                         LocalizationManager.get( "settings.savedAccounts.forgetBtn" ),
                         LocalizationManager.get( "dialog.button.cancel" ), stage );
                 if ( resp != 1 ) return;
-                com.micatechnologies.minecraft.launcher.game.auth.ProfileArchive.forget( entry.uuid() );
+                MCLauncherAuthManager.accounts().remove( entry.uuid() );
                 GUIUtilities.JFXPlatformRun( this::rebuildSavedAccountsList );
             } ) );
 
