@@ -234,7 +234,7 @@
                 <dependencies>
                     <!-- gmavenplus needs an explicit Groovy runtime; the plugin doesn't bundle
                          one. Groovy 4.x can't parse class file major version 70 (JDK 26), so
-                         we need Groovy 5.x, which targets JDK 17+ and handles newer class
+                         we need Groovy 5.x or newer, which targets JDK 17+ and handles newer class
                          file versions. -->
                     <dependency>
                         <groupId>org.apache.groovy</groupId>
