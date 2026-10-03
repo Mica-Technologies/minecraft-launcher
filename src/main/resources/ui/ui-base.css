@@ -92,11 +92,6 @@
 .dangerZone.mfx-button:armed,
 .dangerZone.mfx-button:focused { -fx-background-color: -color-danger; }
 
-/* ---- MaterialFX progress bar ---- */
-.mfx-progress-bar .track { -fx-fill: -color-primary-soft; }
-.mfx-progress-bar .bar1,
-.mfx-progress-bar .bar2 { -fx-fill: -color-primary; }
-
 /* ---- List views (plain JavaFX) ---- */
 .list-view .virtual-flow .clipped-container .sheet .list-cell {
     -fx-background-color: -color-surface-hover;
@@ -1904,25 +1899,53 @@
  * 10. Progress bar
  * ===================================================================== */
 
-.mfx-progress-bar,
-.progress-bar {
-    -fx-background-color: -color-surface;
-    -fx-background-radius: 999;
-    -fx-border-color: -color-border;
-    -fx-border-radius: 999;
-}
+/* Both kinds of bar are one shape: a fully rounded track with a fully
+ * rounded fill inside it, and nothing drawn around them. The control itself
+ * stays transparent: an outline on it had a different radius from the track
+ * and fill inside, so their corners didn't line up. */
 
-.mfx-progress-bar .bar,
-.progress-bar .bar {
-    -fx-background-color:
-        linear-gradient(to right, -color-primary, -color-primary-hover);
-    -fx-background-radius: 999;
+/* MaterialFX draws the track and fill as Rectangles sized to the control,
+ * which ignore -fx-background-radius and round only with arcs. A pill needs
+ * arcs equal to the bar's height, and CSS can't refer to the height (each
+ * arc axis is clamped separately, so a large value makes pointed ends). So
+ * the bar gets a fixed thickness, the same 6px as the plain bar, and arcs
+ * to match; the max height also stops a row from stretching it. The skin
+ * clips the bars to the track's arcs, so the indeterminate sweep is rounded
+ * too. */
+.mfx-progress-bar {
+    -fx-background-color: transparent;
+    -fx-min-height: 6;
+    -fx-pref-height: 6;
+    -fx-max-height: 6;
+}
+.mfx-progress-bar .track,
+.mfx-progress-bar .bar1,
+.mfx-progress-bar .bar2 {
+    -fx-arc-width: 6;
+    -fx-arc-height: 6;
+}
+.mfx-progress-bar .track          { -fx-fill: -color-primary-soft; }
+.mfx-progress-bar .bar1,
+.mfx-progress-bar .bar2           { -fx-fill: -color-primary; }
+
+/* Plain JavaFX ProgressBar (Running Games launch steps). The fill's padding
+ * sets the bar's thickness (2 x 3px); the track takes its height from it.
+ * Insets are reset because modena's multi-value insets offset the fill by a
+ * pixel from the track. */
+.progress-bar {
+    -fx-background-color: transparent;
     -fx-padding: 0;
 }
-
-.mfx-progress-bar .track,
-.progress-bar .track {
-    -fx-background-color: transparent;
+.progress-bar > .track {
+    -fx-background-color: -color-primary-soft;
+    -fx-background-insets: 0;
+    -fx-background-radius: 999;
+}
+.progress-bar > .bar {
+    -fx-background-color: -color-primary;
+    -fx-background-insets: 0;
+    -fx-background-radius: 999;
+    -fx-padding: 3;
 }
 
 
@@ -2329,15 +2352,6 @@
     -fx-background-color: -color-bg;
 }
 
-.gameSessionPane .progress-bar > .bar {
-    -fx-background-color: -color-primary;
-    -fx-background-insets: 0;
-    -fx-padding: 3;
-}
-
-.gameSessionPane .progress-bar > .track {
-    -fx-background-color: -color-border;
-}
 
 
 /* =====================================================================
